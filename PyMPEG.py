@@ -12,6 +12,12 @@ import shutil
 import re
 import subprocess
 import time
+from PySide6.QtCore import Qt
+
+# Import custom modules
+from progress_tracker import ProcessProgressTracker
+from file_list_widget import FileListWidget  # Import the enhanced FileListWidget
+from process_manager import ProcessManager
 
 from PySide6.QtCore import (
     Qt,
@@ -60,72 +66,9 @@ from PySide6.QtWidgets import (
 )
 
 
-class FileListWidget(QListWidget):
-    """Drag & drop .ts files, reorder, context menu, and track per-file items."""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setAcceptDrops(True)
-        self.setDragDropMode(QAbstractItemView.InternalMove)
-        self.setAlternatingRowColors(True)
-        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.path_items: dict[str, QListWidgetItem] = {}
-
-    def add_path(self, path: str):
-        if path in self.path_items:
-            return
-        fname = QFileInfo(path).fileName()
-        item = QListWidgetItem(fname)
-        item.setData(Qt.UserRole, path)
-        self.addItem(item)
-        self.path_items[path] = item
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-        else:
-            super().dragEnterEvent(event)
-
-    def dropEvent(self, event):
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                path = url.toLocalFile()
-                if path.lower().endswith('.ts') and os.path.isfile(path):
-                    self.add_path(path)
-            event.acceptProposedAction()
-        else:
-            super().dropEvent(event)
-
-    def contextMenuEvent(self, event):
-        menu = QMenu(self)
-        open_action = menu.addAction("Open Containing Folder")
-        remove_action = menu.addAction("Remove Selected")
-        chosen = menu.exec(QCursor.pos())
-        if chosen == open_action:
-            for item in self.selectedItems():
-                folder = os.path.dirname(item.data(Qt.UserRole))
-                if os.path.isdir(folder):
-                    os.startfile(folder)
-        elif chosen == remove_action:
-            for item in self.selectedItems():
-                path = item.data(Qt.UserRole)
-                row = self.row(item)
-                self.takeItem(row)
-                self.path_items.pop(path, None)
-
-    def mouseDoubleClickEvent(self, event):
-        item = self.itemAt(event.pos())
-        if item:
-            folder = os.path.dirname(item.data(Qt.UserRole))
-            if os.path.isdir(folder):
-                os.startfile(folder)
-        super().mouseDoubleClickEvent(event)
-
-
 class MainWindow(QMainWindow):
     """Main application window with sequential processing, delete toggle, hardware‐decode toggle, and per-file progress."""
-    time_re = re.compile(r'time=(\d{2}):(\d{2}):(\d{2}\.\d{2})')
-    fps_re = re.compile(r'fps=\s*(\d+)')
-    frame_re = re.compile(r'frame=\s*(\d+)')
+    # Regex patterns moved to the progress_tracker module
 
     def __init__(self):
         super().__init__()
@@ -137,12 +80,17 @@ class MainWindow(QMainWindow):
 
         # QoL state
         self.last_dir = self.settings.value("lastDir", os.getcwd())
-        self.process_duration: float | None = None
-        self.start_time: float | None = None
+        
+        # Initialize process manager
+        self.process_manager = ProcessManager(self)
+        
+        # Connect process manager signals
+        self.process_manager.output_ready.connect(self._log_output)
+        self.process_manager.update_progress.connect(self._update_ui)
         self.current_path: str | None = None
-        self.processes = []  # Track running processes
         self.parallel_enabled = False
-        self.process_progress = {}  # Track progress per process
+        
+        # The progress tracker is now fully integrated with the ProcessManager
         
         # Track UI elements for process monitoring
         self.process_widgets = {}
@@ -150,13 +98,12 @@ class MainWindow(QMainWindow):
         
         # Performance optimizations
         self.ui_update_timer = QTimer()
-        self.ui_update_timer.setInterval(500)  # Update UI every 500ms instead of on every ffmpeg output
+        self.ui_update_timer.setInterval(1000)  # Update UI every 1000ms (1 second) instead of on every ffmpeg output
         self.ui_update_timer.timeout.connect(self._update_ui)
         self.pending_process_outputs = {}
         
         # Track file exists errors
         self.overwrite_mode = True  # Default to overwrite files
-        self.queue: list[str] = []
         self.batch_start_time: float | None = None
         self.total = 0
         self.completed = 0
@@ -284,11 +231,12 @@ class MainWindow(QMainWindow):
         )
 
         # Hardware decode toggle
-        self.hwdecode_cb = QCheckBox("Use hardware decoding")
-        hw_def = self.settings.value("hwdecode", True, type=bool)
-        self.hwdecode_cb.setChecked(hw_def)
-        self.hwdecode_cb.stateChanged.connect(
-            lambda s: self.settings.setValue("hwdecode", bool(s))
+        self.hwdecode_cb = QComboBox()
+        self.hwdecode_cb.addItems(["Auto", "NVIDIA", "Intel QSV", "VAAPI"])
+        hwdecode_index = int(self.settings.value("hwdecode", 0))
+        self.hwdecode_cb.setCurrentIndex(hwdecode_index)
+        self.hwdecode_cb.currentIndexChanged.connect(
+            lambda idx: self.settings.setValue("hwdecode", idx)
         )
         
         # Overwrite existing files toggle
@@ -330,21 +278,56 @@ class MainWindow(QMainWindow):
         add_btn = QPushButton("Add Files");      add_btn.clicked.connect(self.add_files)
         remove_btn = QPushButton("Remove Selected"); remove_btn.clicked.connect(self.remove_selected)
         clear_list_btn = QPushButton("Clear List");   clear_list_btn.clicked.connect(self.clear_list)
-        start_btn = QPushButton("Start")
+        # Create a more prominent start button with icon and styling
+        start_btn = QPushButton("  Start")
+        # Use a larger font with bold text
+        start_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50; /* Green */
+                color: white;
+                font-weight: bold;
+                font-size: 14px;
+                padding: 8px 16px;
+                border-radius: 5px;
+                min-width: 120px;
+                min-height: 36px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+                border: 2px solid #357a38;
+            }
+            QPushButton:pressed {
+                background-color: #357a38;
+            }
+        """)
+        # Add a play icon
+        start_icon = QIcon.fromTheme("media-playback-start")
+        # If system theme icon is not available, we'll use a text-based icon
+        if start_icon.isNull():
+            start_btn.setText("▶️  Start")
         stop_btn = QPushButton("Stop");          stop_btn.setEnabled(False)
         start_btn.clicked.connect(lambda: self.start_conversion(start_btn, stop_btn))
         stop_btn.clicked.connect(lambda: self.stop_conversion(start_btn, stop_btn))
         clear_log_btn = QPushButton("Clear Log");     clear_log_btn.clicked.connect(lambda: self.log.clear())
 
+        # Add start button first on the left side
+        controls_layout.addWidget(start_btn)
+        # Add a small spacing between start button and other controls
+        controls_layout.addSpacing(10)
+        
+        # Then add the file management buttons
         for btn in (add_btn, remove_btn, clear_list_btn):
             controls_layout.addWidget(btn)
+        
         controls_layout.addStretch()
-        for btn in (start_btn, stop_btn, clear_log_btn):
+        
+        # Other utility buttons on the right
+        for btn in (stop_btn, clear_log_btn):
             controls_layout.addWidget(btn)
 
         # Splitter for list + progress/log
-        splitter = QSplitter(Qt.Vertical)
-        splitter.addWidget(self.file_list)
+        self.splitter = QSplitter(Qt.Vertical)
+        self.splitter.addWidget(self.file_list)
 
         bottom_widget = QWidget()
         bottom_layout = QVBoxLayout(bottom_widget)
@@ -381,13 +364,13 @@ class MainWindow(QMainWindow):
         bottom_layout.addWidget(self.processes_tab)
         
         # Add to splitter
-        splitter.addWidget(bottom_widget)
-        splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 3)
+        self.splitter.addWidget(bottom_widget)
+        self.splitter.setStretchFactor(0, 2)
+        self.splitter.setStretchFactor(1, 3)
 
         main_layout.addWidget(settings_group)
         main_layout.addLayout(controls_layout)
-        main_layout.addWidget(splitter)
+        main_layout.addWidget(self.splitter)
         self.setCentralWidget(central)
 
         status_bar = QStatusBar()
@@ -416,8 +399,9 @@ class MainWindow(QMainWindow):
             self.file_list.add_path(f)
 
     def remove_selected(self):
+        from PySide6.QtCore import Qt
         for item in list(self.file_list.selectedItems()):
-            path = item.data(Qt.UserRole)
+            path = item.data(int(Qt.UserRole))
             self.file_list.takeItem(self.file_list.row(item))
             self.file_list.path_items.pop(path, None)
 
@@ -430,64 +414,145 @@ class MainWindow(QMainWindow):
         container = QFrame()
         container.setFrameStyle(QFrame.StyledPanel | QFrame.Raised)
         container.setLineWidth(1)
+        container.setStyleSheet(
+            "QFrame { background-color: #f5f5f5; border-radius: 5px; }"
+        )
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(4)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
         
-        # Add file name and progress as a label
+        # Create header layout for file name and status
+        header_layout = QHBoxLayout()
+        
+        # Add file name with icon
         name = QFileInfo(path).fileName()
         label = QLabel(f"<b>{name}</b>")
         label.setTextFormat(Qt.RichText)
+        label.setStyleSheet("font-size: 11pt;")
+        header_layout.addWidget(label, 1)  # Stretch to take available space
         
-        # Add codec type indicator
-        codec_idx = self.format_cb.currentIndex() if path not in self.file_codec_assignments else self.file_codec_assignments[path]
-        codec_name = self.format_cb.itemText(codec_idx)
-        codec_badge = "🎮" if codec_idx in [0, 1, 2] else "🖥️" # GPU/CPU icon
-        codec_label = QLabel(f"{codec_badge} <b>{codec_name}</b>")
-        codec_label.setTextFormat(Qt.RichText)
+        # Add status indicator (will be updated later)
+        status_label = QLabel("<b>⏳ Processing</b>")
+        status_label.setStyleSheet("color: #0066cc; font-size: 10pt;")
+        status_label.setTextFormat(Qt.RichText)
+        header_layout.addWidget(status_label)
         
-        # Add progress bar
+        layout.addLayout(header_layout)
+        
+        # Info layout for codec and settings
+        info_layout = QHBoxLayout()
+        
+        # Add codec type indicator with icon
+        if self.auto_balance_enabled and path in self.file_codec_assignments:
+            codec_idx = self.file_codec_assignments[path]
+        else:
+            codec_idx = self.format_cb.currentIndex()
+        
+        codec_info = {
+            0: {"name": "H.264 (CPU)", "color": "#555555", "icon": "🖥️"},
+            1: {"name": "H.264 (NVENC)", "color": "#00aa00", "icon": "🔥"},
+            2: {"name": "HEVC (NVENC)", "color": "#00aa00", "icon": "🔥"},
+            3: {"name": "AV1 (NVENC)", "color": "#00aa00", "icon": "🔥"},
+            4: {"name": "ProRes 422", "color": "#9900cc", "icon": "🎬"},
+            5: {"name": "ProRes 4444", "color": "#9900cc", "icon": "🎬"}
+        }
+        
+        codec_data = codec_info.get(codec_idx, {"name": "Unknown", "color": "#555555", "icon": "❓"})
+        codec_label = QLabel(f"{codec_data['icon']} {codec_data['name']}")
+        codec_label.setStyleSheet(f"color: {codec_data['color']};")
+        info_layout.addWidget(codec_label)
+        
+        # Add hardware acceleration indicator if used
+        hw_accel = ""
+        if self.hwdecode_cb.currentIndex() > 0:
+            hw_accel_types = {
+                1: "🚀 NVIDIA",
+                2: "💻 Intel QSV",
+                3: "🐧 VAAPI"
+            }
+            hw_accel = hw_accel_types.get(self.hwdecode_cb.currentIndex(), "")
+            
+        if hw_accel:
+            hw_label = QLabel(hw_accel)
+            hw_label.setStyleSheet("color: #0066cc;")
+            info_layout.addWidget(hw_label)
+        
+        # Add spacer to push items to left
+        info_layout.addStretch(1)
+        
+        # If delete after conversion is enabled, show indicator
+        if self.delete_cb.isChecked():
+            delete_label = QLabel("🗑️ Delete original")
+            delete_label.setStyleSheet("color: #cc0000;")
+            info_layout.addWidget(delete_label)
+            
+        layout.addLayout(info_layout)
+        
+        # Add progress bar with custom style
         progress = QProgressBar()
         progress.setRange(0, 100)
         progress.setValue(0)
         progress.setTextVisible(True)
+        progress.setFormat("%p% complete")
+        progress.setStyleSheet(
+            "QProgressBar {border: 1px solid #cccccc; border-radius: 3px; text-align: center;}"
+            "QProgressBar::chunk {background-color: #4CAF50; width: 1px;}"
+        )
+        layout.addWidget(progress)
         
-        # Add ETA/Status display
-        eta_label = QLabel("Starting...")
-        eta_label.setStyleSheet("color: #666; font-size: 9pt;")
+        # Add stats layout for more detailed information
+        stats_layout = QHBoxLayout()
         
-        # Add compact log display
+        # ETA label
+        eta_label = QLabel("⏱️ ETA: Calculating...")
+        stats_layout.addWidget(eta_label)
+        
+        # FPS counter
+        fps_label = QLabel("📊 FPS: -")
+        stats_layout.addWidget(fps_label)
+        
+        # Add spacer to push items to left
+        stats_layout.addStretch(1)
+        
+        # File size estimate (to be updated)
+        size_label = QLabel("💾 Size: Calculating...")
+        stats_layout.addWidget(size_label)
+        
+        layout.addLayout(stats_layout)
+        
+        # Add condensed log output with custom style
         log = QPlainTextEdit()
         log.setReadOnly(True)
-        log.setMaximumBlockCount(500)  # Limit memory usage
-        log.setFixedHeight(120)  # Made slightly smaller to fit eta_label
-        log.setStyleSheet("font-family: 'Consolas', monospace; font-size: 9pt;")
-        
-        # Add everything to layout
-        layout.addWidget(label)
-        layout.addWidget(codec_label)
-        layout.addWidget(progress)
-        layout.addWidget(eta_label)
+        log.setMaximumHeight(100)
+        log.setMaximumBlockCount(5)  # Keep log size reasonable
+        log.setStyleSheet(
+            "QPlainTextEdit {background-color: #f0f0f0; border: 1px solid #dddddd; font-family: monospace; font-size: 9pt;}"
+        )
         layout.addWidget(log)
         
-        # Add to process monitoring tab area
+        # Add to the process area
         self.process_containers.layout().addWidget(container)
         
-        # Store references to created widgets
+        # Store references to widgets with additional elements
         self.process_widgets[process] = {
             "container": container,
             "label": label,
+            "status_label": status_label,
             "codec_label": codec_label,
             "progress": progress,
             "eta_label": eta_label,
+            "fps_label": fps_label,
+            "size_label": size_label,
             "log": log,
-            "path": path
+            "path": path,
+            "start_time": time.time()
         }
         
         # Also create/store a reference to a dedicated log in the tab widget
         process_log = QPlainTextEdit()
         process_log.setReadOnly(True)
         process_log.setMaximumBlockCount(1000)  # Limit memory usage
+        process_log.setStyleSheet("font-family: monospace; font-size: 9pt;")
         name = QFileInfo(path).fileName()
         tab_idx = self.processes_tab.addTab(process_log, name)
         self.process_logs[process] = {
@@ -495,6 +560,19 @@ class MainWindow(QMainWindow):
             "tab_idx": tab_idx
         }
 
+    def _format_time(self, seconds: float) -> str:
+        """Format seconds into a human-readable time string (HH:MM:SS)"""
+        if seconds < 0:
+            return "--:--:--"
+            
+        hours, remainder = divmod(int(seconds), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        if hours > 0:
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        else:
+            return f"{minutes:02d}:{seconds:02d}"
+            
     def _remove_process_widget(self, process):
         """Remove UI elements for a completed process"""
         if process in self.process_widgets:
@@ -515,14 +593,21 @@ class MainWindow(QMainWindow):
             del self.process_logs[process]
     
     def _auto_balance_workload(self):
+        from PySide6.QtCore import Qt
         """Distribute encoding tasks between GPU and CPU for optimal performance"""
         # Reset assignments
         self.file_codec_assignments = {}
         
         # Get available files
-        files = [item.data(Qt.UserRole) for item in self.file_list.findItems("*", Qt.MatchWildcard)]
+        files = [item.data(int(Qt.UserRole)) for item in self.file_list.findItems("*", Qt.MatchWildcard)]
         if not files:
             return
+        
+        # If queue is empty, use all files
+        if not self.process_manager.queue:
+            # Initialize queue with all files in list
+            paths = [item.data(Qt.UserRole) for item in self.file_list.findItems("*", Qt.MatchWildcard)]
+            self.process_manager.queue = paths.copy()
         
         # System info
         cpu_cores = os.cpu_count()
@@ -532,24 +617,38 @@ class MainWindow(QMainWindow):
         gpu_count = min(int(len(files) * 0.7), gpu_slots)
         cpu_count = len(files) - gpu_count
         
-        # Distribution counters
-        h264_nvenc_count = min(4, gpu_count)            # H.264 NVENC (most compatible)
-        hevc_nvenc_count = max(0, min(2, gpu_count - h264_nvenc_count))  # HEVC NVENC (some for higher quality)
-        av1_nvenc_count = 0                             # AV1 NVENC (disabled by default)
-        cpu_x264_count = cpu_count                      # CPU x264
+        # Initialize distribution counters
+        assigns = {0: 0, 1: 0, 2: 0, 3: 0}  # H.264 NVENC, HEVC NVENC, AV1 NVENC, x264 CPU
         
-        # Analyze files to make smart assignments
-        assigns = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
-        for i, file_path in enumerate(files):
+        # Allocate optimal codec based on system analysis
+        has_rtx40 = False
+        
+        try:
+            # Check for RTX 40 series which supports AV1 NVENC
+            gpu_info = subprocess.check_output(["nvidia-smi", "-q"]).decode('utf-8')
+            if any(gpu in gpu_info for gpu in ["RTX 40", "4090", "4080", "4070"]):
+                has_rtx40 = True
+        except Exception:
+            pass
+            
+        # Determine HEVC vs AV1 slots based on GPU capabilities
+        h264_nvenc_count = min(2, gpu_count)          # Start with some H.264 slots
+        hevc_nvenc_count = gpu_count - h264_nvenc_count # Most slots for HEVC
+        av1_nvenc_count = 0
+        
+        # If system has RTX 40-series, allocate some AV1 slots
+        if has_rtx40:
+            av1_nvenc_count = min(1, hevc_nvenc_count)  # Take 1 slot from HEVC for AV1
+            hevc_nvenc_count -= av1_nvenc_count
+            
+        # Assign each file a codec for the upcoming batch
+        for file_path in files:
             try:
-                file_size = os.path.getsize(file_path) / (1024 * 1024)  # Size in MB
-                file_duration = self._probe_duration(file_path) or 0
-                
-                # Smart codec selection - prioritize files based on characteristics
-                if assigns[0] < h264_nvenc_count:  # First fill H.264 NVENC slots
+                # Try to intelligently select codec based on position in the queue
+                if assigns[0] < h264_nvenc_count:      # Fill H.264 slots first (fastest)
                     codec = 0  # H.264 NVENC
                     assigns[0] += 1
-                elif assigns[1] < hevc_nvenc_count:  # Then fill HEVC NVENC slots for longer content
+                elif assigns[1] < hevc_nvenc_count:    # Then HEVC slots
                     codec = 1  # HEVC NVENC
                     assigns[1] += 1
                 elif assigns[2] < av1_nvenc_count:  # Fill AV1 slots if enabled
@@ -563,153 +662,238 @@ class MainWindow(QMainWindow):
             except Exception:
                 # Default to H.264 NVENC if analysis fails
                 self.file_codec_assignments[file_path] = 0
-                assigns[0] += 1
-        
-        # Log the distribution
-        self.log.appendPlainText(f"Auto-balance distribution:")
-        self.log.appendPlainText(f"  - H.264 NVENC: {assigns[0]} files")
-        self.log.appendPlainText(f"  - HEVC NVENC:  {assigns[1]} files")
-        self.log.appendPlainText(f"  - AV1 NVENC:   {assigns[2]} files")
-        self.log.appendPlainText(f"  - x264 CPU:    {assigns[3]} files")
-        self.log.appendPlainText(f"  - Total:       {sum(assigns.values())} files")
-    
+                
     def start_conversion(self, start_btn, stop_btn):
+        from PySide6.QtCore import Qt
+        """Start the conversion process for all files in the list"""
         if not self.file_list.path_items:
-            QMessageBox.warning(self, "No Files", "Add at least one .ts file to convert.")
+            QMessageBox.warning(self, "No Files", "Please add some .ts files first!")
             return
-
-        self.settings.setValue("crf", self.crf_sb.value())
-        self.queue = [item.data(Qt.UserRole) for item in self.file_list.findItems("*", Qt.MatchWildcard)]
-        self.total = len(self.queue)
-        self.completed = 0
-        self.batch_start_time = time.time()
+        
+        # Disable UI controls during conversion
+        start_btn.setEnabled(False)
+        stop_btn.setEnabled(True)
+        self.log.clear()
+        
+        # Get list of ts files to convert
+        file_paths = []
+        for idx in range(self.file_list.count()):
+            item = self.file_list.item(idx)
+            file_paths.append(item.data(int(Qt.UserRole)))
+        
+        # Get settings from UI
+        self.delete_after = self.delete_cb.isChecked()
+        self.hardware_decode = self.hwdecode_cb.currentIndex()
         self.parallel_enabled = self.parallel_cb.isChecked()
+        self.max_parallel = self.parallel_sb.value()
         self.auto_balance_enabled = self.auto_balance_cb.isChecked() and self.parallel_enabled
-        self.process_progress = {}  # Reset process tracking
-        self.pending_process_outputs = {}
         self.overwrite_mode = self.overwrite_cb.isChecked()
         
         # If auto-balance is enabled, distribute work between GPU and CPU
         if self.auto_balance_enabled:
             self._auto_balance_workload()
         
-        # Clear any existing process widgets
-        for process in list(self.process_widgets.keys()):
-            self._remove_process_widget(process)
-            
-        # Clear main log
-        self.log.clear()
+        # Reset UI state
+        self.total_progress.setValue(0)
+        self.current_file_label.clear()
+        self.eta_label.clear()
+        self.batch_start_time = time.time()
         
-        # reset per-file labels
+        # Reset per-file labels
         for path, item in self.file_list.path_items.items():
             fname = QFileInfo(path).fileName()
             item.setText(fname)
-
-        self.total_progress.setValue(0)
-        self.log.clear()
-        self.eta_label.clear()
-
-        start_btn.setEnabled(False)
-        stop_btn.setEnabled(True)
         
-        # Store initial queue length for parallel processing
-        self.initial_queue_length = len(self.queue)
+        # Setup ProcessManager for this batch
+        self.process_manager.parallel_enabled = self.parallel_enabled
+        self.process_manager.max_parallel = self.max_parallel
+        self.process_manager.start_batch(file_paths, self.parallel_enabled, self.max_parallel)
         
-        # Start parallel or sequential processing
+        # Store total for UI updates
+        self.total = len(file_paths)
+        self.completed = 0
+        
+        # Enable process tab if needed
+        if self.processes_tab.count() == 1:  # Only has main log tab
+            self.processes_tab.addTab(self.progress_area, "Processes")
+        
+        # Log batch start
+        self.log.appendPlainText(f"Starting conversion of {self.total} files")
         if self.parallel_enabled:
-            # Use dedicated parallel_sb setting instead of thread count
-            max_parallel = min(self.parallel_sb.value(), len(self.queue))
-            self.log.appendPlainText(f"Starting parallel conversion with {max_parallel} workers")
-            
-            # For GPU encoders, adjust thread count per process to be more conservative
-            codec_idx = self.format_cb.currentIndex()
-            if codec_idx >= 2:  # GPU encoders (NVENC, QSV, VAAPI)
-                self.log.appendPlainText("Using GPU acceleration - optimizing thread allocation")
-            
+            self.log.appendPlainText(f"Parallel mode enabled with {self.max_parallel} workers")
+        
+        # Start processing
+        if self.parallel_enabled:
+            # Start multiple processes up to max_parallel
+            max_parallel = min(self.max_parallel, len(file_paths))
+            self.log.appendPlainText(f"Starting {max_parallel} parallel processes")
             for _ in range(max_parallel):
                 self._process_next(start_btn, stop_btn)
         else:
+            # Start first file only
             self._process_next(start_btn, stop_btn)
-
-    def _optimize_threads_for_codec(self, codec_idx=None):
-        """Optimize thread count based on selected codec and parallel processing mode"""
-        codec_idx = self.format_cb.currentIndex() if codec_idx is None else codec_idx
-        
-        # NVENC encoders - minimal CPU usage
-        if codec_idx in (0, 1, 2):  # Any NVENC encoder
-            return 2
             
-        # Single x264 job - let x264 auto-detect (uses all threads)
-        if not self.parallel_enabled:
-            return 0  # 0 = "let x264 auto-detect" (uses all 32 HT threads)
-            
-        # Parallel CPU jobs - divide cleanly
-        cpu_jobs = max(1, sum(1 for c in self.file_codec_assignments.values() if c == 3))
-        return max(2, os.cpu_count() // cpu_jobs)
-
     def _process_next(self, start_btn, stop_btn):
-        if not self.queue:
+        """Process the next file in the queue"""
+        # Check if queue is empty
+        if not self.process_manager.queue:
             # Only finish if all processes are done in parallel mode
-            if not self.parallel_enabled or not self.processes:
+            if not self.parallel_enabled or not self.process_manager.processes:
                 self._finish(start_btn, stop_btn)
             return
 
-        path = self.queue.pop(0)
+        # Get next file from queue
+        path = self.process_manager.queue.pop(0)
         self.current_path = path
         filename = QFileInfo(path).fileName()
         
+        # Update file list item to show 'processing' status
+        if hasattr(self.file_list, 'set_status'):
+            self.file_list.set_status(path, "processing")
+        
         # Only update the label for the first file in sequential mode
-        if not self.parallel_enabled or not self.processes:
+        if not self.parallel_enabled or not self.process_manager.processes:
             self.current_file_label.setText(f"Processing: {filename}")
 
-        base = QFileInfo(path).completeBaseName()
-        folder = os.path.dirname(path)
-        
-        # Check if this file has a specific codec assignment from auto-balance
+        # Determine output file with proper extension based on codec
         if self.auto_balance_enabled and path in self.file_codec_assignments:
             codec_idx = self.file_codec_assignments[path]
         else:
             codec_idx = self.format_cb.currentIndex()
             
-        threads = self.threads_sb.value()
-        crf = self.crf_sb.value()
+        # Determine output file extension
+        if codec_idx in [0, 1, 2, 3, 5, 6]:  # H.264, HEVC, AV1, QSV, VAAPI
+            ext = ".mp4"
+        elif codec_idx == 4:  # ProRes
+            ext = ".mov"
+        else:
+            ext = ".mp4"  # Default
+            
+        # Add _RC suffix to output filename
+        out_path = os.path.splitext(path)[0] + "_RC" + ext
 
-        # Map codec index to encoder args and extension
-        enc_args = {
-            0: (['-c:v', 'h264_nvenc'],  '.mp4'),  # H.264 NVENC
-            1: (['-c:v', 'hevc_nvenc'],  '.mp4'),  # HEVC NVENC
-            2: (['-c:v', 'av1_nvenc'],   '.mkv'),  # AV1 NVENC (MKV for better compatibility)
-            3: (['-c:v', 'libx264'],     '.mp4'),  # x264 CPU
-            4: (['-c:v', 'prores_ks', '-profile:v', '3'], '.mov'),  # ProRes CPU
-            5: (['-c:v', 'h264_qsv'],    '.mp4'),  # QSV
-            6: (['-c:v', 'h264_vaapi'],  '.mp4'),  # VAAPI
-        }[codec_idx]
-        video_args, ext = enc_args
+        # Create ffmpeg command
+        args = []
 
-        output = os.path.join(folder, f"{base}_RC{ext}")
+        # Input options
+        # Hardware decode selection - use safer approach with just hwaccel without specifying output format
+        hwdecode_idx = self.hwdecode_cb.currentIndex()
+        try:
+            if hwdecode_idx == 0:  # Auto
+                try:
+                    # Try NVIDIA first
+                    gpus = subprocess.check_output(["nvidia-smi", "-L"]).decode('utf-8')
+                    if 'GPU' in gpus:
+                        args.extend(["-hwaccel", "cuda"])
+                        self.log.appendPlainText("Using CUDA hardware acceleration")
+                    else:
+                        # Try Intel QSV if NVIDIA not found
+                        args.extend(["-hwaccel", "auto"])
+                        self.log.appendPlainText("Using auto hardware acceleration")
+                except Exception:
+                    # If both fail, use auto which will safely pick the best option
+                    args.extend(["-hwaccel", "auto"])
+                    self.log.appendPlainText("Using auto hardware acceleration")
+            elif hwdecode_idx == 1:  # NVIDIA
+                args.extend(["-hwaccel", "cuda"])
+                self.log.appendPlainText("Using CUDA hardware acceleration")
+            elif hwdecode_idx == 2:  # Intel QSV
+                args.extend(["-hwaccel", "qsv"])
+                self.log.appendPlainText("Using QSV hardware acceleration")
+            elif hwdecode_idx == 3:  # VAAPI
+                # Only on Linux systems
+                if os.name == 'posix':
+                    args.extend(["-hwaccel", "vaapi", "-hwaccel_device", "/dev/dri/renderD128"])
+                    self.log.appendPlainText("Using VAAPI hardware acceleration")
+                else:
+                    args.extend(["-hwaccel", "auto"])
+                    self.log.appendPlainText("VAAPI not available, falling back to auto")
+        except Exception as e:
+            # If any error occurs, fall back to software decoding
+            self.log.appendPlainText(f"Hardware acceleration error: {e}, falling back to software decoding")
+            # No hwaccel arguments
 
-        # build ffmpeg command
-        cmd = ["ffmpeg", "-y"]  # Add -y flag to force overwrite without prompting
-        # Optimize thread count based on encoding type and parallel mode
-        optimal_threads = self._optimize_threads_for_codec(codec_idx)
+        # Input file
+        args.extend(["-i", path])
         
-        # threads only for CPU x264 (now index 1)
-        if codec_idx == 1:
-            cmd += ["-threads", str(optimal_threads)]
-        # optional hardware decode
-        if self.hwdecode_cb.isChecked():
-            if codec_idx == 0:       # NVENC
-                cmd += ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"]
-            elif codec_idx == 3:     # QSV
-                cmd += ["-init_hw_device", "qsv=hw",
-                        "-filter_hw_device", "hw",
-                        "-hwaccel", "qsv"]
-            elif codec_idx == 4:     # VAAPI
-                cmd += ["-hwaccel", "vaapi",
-                        "-vaapi_device", "/dev/dri/renderD128"]
-        # input + encoder + output
-        cmd += ["-i", path] + video_args
+        # Determine thread count based on process type and parallel mode
+        thread_count = self._optimize_threads_for_codec(codec_idx)
         
+        # Check what encoders are available on this system (safer approach)
+        try:
+            # Get list of available encoders
+            encoders_output = subprocess.check_output(["ffmpeg", "-encoders"], text=True, stderr=subprocess.STDOUT)
+            available_encoders = encoders_output.lower()
+            self.log.appendPlainText(f"Available encoders detected")
+            
+            # Set default basic encoder options with fallbacks
+            if codec_idx == 0:  # H.264 (software)
+                # Basic h264 encoding settings with safer parameters
+                args.extend([
+                    "-c:v", "libx264", "-crf", str(self.crf_sb.value()),
+                    "-preset", "medium",  # Use medium preset for better compatibility
+                    "-pix_fmt", "yuv420p"  # Force yuv420p for compatibility
+                ])
+                
+                # Only add threading if parallel mode not enabled
+                if not self.parallel_enabled:
+                    args.extend(["-threads", str(thread_count)])
+                    
+                self.log.appendPlainText("Using libx264 software encoding")
+                
+            elif codec_idx == 1 and "h264_nvenc" in available_encoders:  # H.264 (NVENC) if available
+                args.extend([
+                    "-c:v", "h264_nvenc", "-preset", "medium", 
+                    "-profile:v", "high",
+                    "-rc:v", "vbr", "-cq", str(min(self.crf_sb.value() * 2, 51))  # Cap at 51 for safety
+                ])
+                self.log.appendPlainText("Using H.264 NVENC hardware encoding")
+                
+            elif codec_idx == 2 and "hevc_nvenc" in available_encoders:  # HEVC (NVENC) if available
+                args.extend([
+                    "-c:v", "hevc_nvenc", "-preset", "medium", 
+                    "-profile:v", "main",
+                    "-rc:v", "vbr", "-cq", str(min(self.crf_sb.value() * 2, 51))
+                ])
+                self.log.appendPlainText("Using HEVC NVENC hardware encoding")
+                
+            elif codec_idx == 3 and "av1_nvenc" in available_encoders:  # AV1 (NVENC) if available
+                args.extend([
+                    "-c:v", "av1_nvenc", "-preset", "medium",
+                    "-rc:v", "vbr", "-cq", str(min(self.crf_sb.value() * 2, 51))
+                ])
+                self.log.appendPlainText("Using AV1 NVENC hardware encoding")
+                
+            elif codec_idx == 4 and "prores_ks" in available_encoders:  # ProRes 422 if available
+                args.extend([
+                    "-c:v", "prores_ks", "-profile:v", "3", "-vendor", "ap10",
+                    "-pix_fmt", "yuv422p10le"  # Proper pixel format for ProRes
+                ])
+                self.log.appendPlainText("Using ProRes 422 encoding")
+                
+            elif codec_idx == 5 and "prores_ks" in available_encoders:  # ProRes 4444 if available
+                args.extend([
+                    "-c:v", "prores_ks", "-profile:v", "4", "-vendor", "ap10",
+                    "-pix_fmt", "yuva444p10le"  # Proper pixel format for ProRes 4444
+                ])
+                self.log.appendPlainText("Using ProRes 4444 encoding")
+                
+            else:
+                # Fallback to basic h264 if selected codec not available
+                args.extend([
+                    "-c:v", "libx264", "-crf", "23", "-preset", "medium", 
+                    "-pix_fmt", "yuv420p"  # Force yuv420p for compatibility
+                ])
+                self.log.appendPlainText(f"Selected codec not available, falling back to libx264")
+                
+        except Exception as e:
+            # Ultimate fallback if something goes wrong with codec detection
+            self.log.appendPlainText(f"Error selecting codec: {e}, using safe defaults")
+            args.extend([
+                "-c:v", "libx264", "-crf", "23", "-preset", "medium",
+                "-pix_fmt", "yuv420p"  # Force yuv420p for compatibility
+            ])
+            
         # Check for existing audio - try to pass through when possible
         try:
             probe = subprocess.run(
@@ -720,118 +904,78 @@ class MainWindow(QMainWindow):
             
             # Copy AC-3/AAC audio to skip needless re-encode
             if audio_codec in ("aac", "ac3", "eac3"):
-                cmd += ["-c:a", "copy"]
+                args.extend(["-c:a", "copy"])
                 self.log.appendPlainText(f"Detected {audio_codec} audio - using passthrough")
             else:
                 # Handle ProRes special case, otherwise AAC
                 if codec_idx == 4:  # ProRes
-                    cmd += ["-c:a", "pcm_s16le"]
+                    args.extend(["-c:a", "pcm_s16le"])
                 else:
-                    cmd += ["-c:a", "aac", "-b:a", "192k"]
-        except Exception as e:
+                    args.extend(["-c:a", "aac", "-b:a", "192k"])
+        except Exception:
             # Fallback to default encoding on error
             if codec_idx == 4:  # ProRes
-                cmd += ["-c:a", "pcm_s16le"]
+                args.extend(["-c:a", "pcm_s16le"])
             else:
-                cmd += ["-c:a", "aac", "-b:a", "192k"]
-        # Add advanced NVENC optimization flags for RTX 4090
-        if codec_idx in (0, 1, 2):  # Any NVENC encoder (H.264, HEVC, AV1)
-            # Quality/speed optimization for Ada/RTX 4090
-            nvenc_common = [
-                "-rc",           "vbr",        # constant quality with safety cap
-                "-cq",           str(crf),     # CRF-like target
-                "-b:v",          "0",          # trust rate control
-                "-spatial_aq",   "1",          # spatial adaptive quantization
-                "-temporal_aq",  "1",          # temporal adaptive quantization
-                "-aq-strength",  "10",         # stronger AQ for better quality
-                "-look_ahead",   "32",         # more frames to analyze
-                "-surfaces",     "32",         # max surfaces to maximize throughput
-                "-gpu",          "0",          # keep both NVENCs on the same dGPU
-            ]
-            video_args += nvenc_common
-            cmd += ["-qmin", "0", "-qmax", "50", "-b:v", "0"]
+                args.extend(["-c:a", "aac", "-b:a", "192k"])
         
-        # Add preset-based parameters
-        preset_idx = self.preset_cb.currentIndex()
+        # Common options
+        args.extend([
+            "-y",  # Overwrite output files
+            out_path
+        ])
         
-        # threads only for CPU x264 (now index 1)
-        if codec_idx == 1:
-            # Add CPU preset based on selection
-            if preset_idx == 0:  # Standard
-                cmd += ["-preset", "medium"]
-            elif preset_idx == 1:  # High Quality
-                cmd += ["-preset", "slow"]
-            elif preset_idx == 2:  # Fast
-                cmd += ["-preset", "faster"]
-            elif preset_idx == 3:  # Ultra Fast
-                cmd += ["-preset", "ultrafast"]
+        # Start the process using process manager
+        process = self.process_manager.start_process(path, args)
         
-        # Apply NVENC preset based on user selection
-        if codec_idx in (0, 1, 2):  # Any NVENC encoder
-            if preset_idx == 0:  # Standard
-                cmd += ["-preset", "p4"]
-            elif preset_idx == 1:  # High Quality
-                cmd += ["-preset", "p7"]
-            elif preset_idx == 2:  # Fast
-                cmd += ["-preset", "p2"]
-            elif preset_idx == 3:  # Ultra Fast
-                cmd += ["-preset", "p1", "-zerolatency", "1"]
+        # Connect process finished signal
+        process.finished.connect(
+            lambda exitCode, exitStatus, p=process, s=start_btn, st=stop_btn, path=path:
+            self._on_process_finished(p, s, st, path)
+        )
         
-        cmd += [output]
-
-        # Set process priority - lower for parallel processing to avoid system overload
-        process = QProcess(self)
-        process.setProgram(cmd[0])
-        process.setArguments(cmd[1:])
-        process.readyReadStandardError.connect(lambda p=process: self._log_output(p))
-        process.finished.connect(lambda *args, p=process, sb=start_btn, tb=stop_btn: 
-                                self._on_process_finished(p, sb, tb, path))
-        
-        # Create UI elements for this process
+        # Create widget to display progress
         self._create_process_widget(process, path)
         
-        # Pre-allocate buffer for this process
-        self.pending_process_outputs[process] = []
+    def _optimize_threads_for_codec(self, codec_idx=None):
+        """Optimize thread count based on selected codec and parallel processing mode"""
+        codec_idx = self.format_cb.currentIndex() if codec_idx is None else codec_idx
         
-        # Add to active processes list
-        self.processes.append((process, path))
-        process.start()
-
-    @staticmethod
-    def _probe_duration(path: str) -> float | None:
-        try:
-            out = subprocess.check_output(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                 "-of", "default=noprint_wrappers=1:nokey=1", path],
-                stderr=subprocess.STDOUT,
-                text=True
-            )
-            return float(out.strip())
-        except Exception:
-            return None
-
-    def _log_output(self, process: QProcess):
-        chunk = process.readAllStandardError().data().decode(errors="ignore")
+        # NVENC encoders - minimal CPU usage
+        if codec_idx in (0, 1, 2):  # Any NVENC encoder
+            return 2
+            
+        # Single x264 job - let x264 auto-detect (uses all threads)
+        if not self.parallel_enabled:
+            return 0  # 0 = "let x264 auto-detect" (uses all threads)
+            
+        # Parallel CPU jobs - divide cleanly
+        cpu_jobs = max(1, sum(1 for c in self.file_codec_assignments.values() if c == 3))
+        return max(2, os.cpu_count() // cpu_jobs)
+        
+    def _log_output(self, process: QProcess, chunk: str):
+        """Process output from ffmpeg and update UI"""
+        # Skip empty data
         if not chunk:
             return
             
         # With smart buffer enabled, don't update UI immediately for every output
-        if self.smart_buffer_cb.isChecked():
+        if hasattr(self, 'smart_buffer_cb') and self.smart_buffer_cb.isChecked():
             # Store the output for batch processing
             if process not in self.pending_process_outputs:
                 self.pending_process_outputs[process] = []
                 
-            # Add to pending updates
+            # Add to buffer
             self.pending_process_outputs[process].append(chunk)
             
-            # Start update timer if not running
+            # Start UI update timer if not already running
             if not self.ui_update_timer.isActive():
                 self.ui_update_timer.start()
         else:
-            # Immediate update mode
+            # Immediate update mode - just add to logs
+            # Progress tracking is now handled by the process manager
             self._add_to_logs(process, chunk)
-            self._process_output(process, chunk)
-    
+            
     def _add_to_logs(self, process, chunk):
         """Add chunk to main log and process-specific log"""
         # Log to the main log - limit to last 10000 chars to avoid memory issues
@@ -854,107 +998,15 @@ class MainWindow(QMainWindow):
             vsb = process_log.verticalScrollBar()
             vsb.setValue(vsb.maximum())
             
-    def _process_output(self, process, chunk):
-        """Process ffmpeg output to update progress indicators"""
-        # Find the path associated with this process
-        process_path = None
-        for p, path in self.processes:
-            if p == process:
-                process_path = path
-                break
-        
-        if not process_path:
-            return
+    # The _process_output method has been removed as its functionality
+    # is now handled by the ProcessManager and ProcessProgressTracker classes
             
-        # Get duration for this file if not already available
-        if process_path not in self.process_progress:
-            duration = self._probe_duration(process_path)
-            self.process_progress[process_path] = {
-                "duration": duration,
-                "start_time": time.time(),
-                "current_pct": 0,
-                "fps": 0,  # Track encoding speed
-                "last_frame": 0,  # For FPS calculation
-                "last_fps_time": time.time()  # For FPS calculation
-            }
-        
-        # Extract FPS information if present
-        fps_match = re.search(r'fps=\s*(\d+)', chunk)
-        if fps_match:
-            current_fps = int(fps_match.group(1))
-            self.process_progress[process_path]["fps"] = current_fps
-        
-        # Look for time progress in ffmpeg output
-        time_match = self.time_re.search(chunk)
-        if not time_match:
-            return
-
-        h, m_, s = time_match.groups()
-        elapsed_sec = int(h)*3600 + int(m_)*60 + float(s)
-        
-        # Calculate percentage based on this file's duration
-        duration = self.process_progress[process_path]["duration"]
-        if not duration:
-            return
-            
-        pct = min(100, int(elapsed_sec / duration * 100))
-        self.process_progress[process_path]["current_pct"] = pct
-        
-        # Update file item in list with colored progress
-        if process_path in self.file_list.path_items:
-            item = self.file_list.path_items[process_path]
-            name = QFileInfo(process_path).fileName()
-            
-            # Get codec name for item display
-            codec_idx = self.file_codec_assignments.get(process_path, self.format_cb.currentIndex())
-            codec_name = self.format_cb.itemText(codec_idx).split()[0]  # Get just the format part
-            
-            item.setText(f"{name} [{codec_name}] — {pct}%")
-            
-        # Calculate remaining time with more precision
-        elapsed = time.time() - self.process_progress[process_path]["start_time"]
-        if pct > 0:
-            remain = (elapsed / pct) * (100 - pct)  # More precise calculation
-        else:
-            remain = 0
-            
-        # Format times for display
-        elapsed_str = time.strftime('%H:%M:%S', time.gmtime(elapsed))
-        remain_str = time.strftime('%H:%M:%S', time.gmtime(remain))
-        
-        # Get current FPS
-        fps = self.process_progress[process_path]["fps"]
-        
-        # Update process-specific progress bar if it exists
-        if process in self.process_widgets:
-            # Update progress bar with percentage
-            progress_bar = self.process_widgets[process]["progress"]
-            progress_bar.setValue(pct)
-            progress_bar.setFormat(f"{pct}% ({elapsed_sec:.1f}s / {duration:.1f}s)")
-            
-            # Update file name label - keep it simple
-            self.process_widgets[process]["label"].setText(f"<b>{name}</b>")
-            
-            # Update detailed ETA in separate label with encoding speed
-            codec_idx = self.file_codec_assignments.get(process_path, self.format_cb.currentIndex())
-            codec_name = self.format_cb.itemText(codec_idx)
-            
-            # Create a more informative ETA display
-            eta_text = (
-                f"<table width='100%' cellspacing='0' cellpadding='0'>" 
-                f"<tr><td>Speed:</td><td align='right'><b>{fps} fps</b></td></tr>" 
-                f"<tr><td>Elapsed:</td><td align='right'>{elapsed_str}</td></tr>" 
-                f"<tr><td>Remaining:</td><td align='right'><b>{remain_str}</b></td></tr>" 
-                f"</table>"
-            )
-            self.process_widgets[process]["eta_label"].setText(eta_text)
-    
     def _update_ui(self):
         """Batch update the UI with all pending process outputs"""
         # Process all pending outputs
         for process, chunks in list(self.pending_process_outputs.items()):
             # Skip if process is no longer valid
-            if process not in [p for p, _ in self.processes]:
+            if process not in [p for p, _ in self.process_manager.processes]:
                 self.pending_process_outputs.pop(process, None)
                 continue
                 
@@ -964,131 +1016,293 @@ class MainWindow(QMainWindow):
             # Add to logs
             self._add_to_logs(process, combined_chunk)
             
-            # Process output for progress updates
-            self._process_output(process, combined_chunk)
+            # Process manager handles progress updates through signals
+            # so we don't need to manually process output here
             
             # Clear pending chunks for this process
             self.pending_process_outputs[process] = []
         
         # Update overall progress
         self._update_overall_progress()
+
+    def _update_process_progress(self):
+        """Update individual process progress widgets with detailed information"""
+        for process, widgets in list(self.process_widgets.items()):
+            # Skip if process is no longer valid
+            if process not in [p for p, _ in self.process_manager.processes]:
+                continue
+                
+            # Get progress data for this process
+            progress_data = self.process_manager.get_process_progress(process)
+            if not progress_data:
+                continue
+                
+            # Update progress bar
+            percent = int(progress_data.get("current_pct", 0))
+            widgets["progress"].setValue(percent)
+            
+            # Update file list item with progress percentage
+            if "path" in widgets and hasattr(self, 'file_list') and isinstance(self.file_list, FileListWidget):
+                self.file_list.update_progress(widgets["path"], percent)
+            
+            # Update status label based on progress
+            if percent < 5:
+                widgets["status_label"].setText("<b>⏳ Starting...</b>")
+                widgets["status_label"].setStyleSheet("color: #0066cc; font-size: 10pt;")
+            elif percent < 100:
+                widgets["status_label"].setText(f"<b>⚙️ {percent}%</b>")
+                widgets["status_label"].setStyleSheet("color: #0066cc; font-size: 10pt;")
+            else:
+                widgets["status_label"].setText("<b>✅ Complete</b>")
+                widgets["status_label"].setStyleSheet("color: #00aa00; font-size: 10pt;")
+            
+            # Update FPS display
+            fps = progress_data.get("fps", 0)
+            widgets["fps_label"].setText(f"📊 FPS: {fps}")
+            
+            # Calculate and show estimated file size
+            if "file_size" not in widgets:
+                # Estimate based on format and duration
+                duration = progress_data.get("duration", 0)
+                codec_idx = self.format_cb.currentIndex()
+                # Rough size estimates in MB per minute based on codec
+                size_factors = {0: 8, 1: 8, 2: 6, 3: 5, 4: 50, 5: 80}
+                size_factor = size_factors.get(codec_idx, 10)
+                est_size_mb = (duration / 60) * size_factor
+                widgets["file_size"] = est_size_mb
+                widgets["size_label"].setText(f"💾 ~{est_size_mb:.1f} MB")
+            
+            # Update ETA display
+            remain = progress_data.get("remain", 0)
+            elapsed = progress_data.get("elapsed", 0)
+            if remain > 0:
+                eta_text = progress_data.get("remain_str", "")
+                widgets["eta_label"].setText(f"⏱️ ETA: {eta_text}")
+                
+                # Calculate and show processing speed (MB/s)
+                if elapsed > 0 and "file_size" in widgets:
+                    processed_mb = (widgets["file_size"] * percent) / 100
+                    speed = processed_mb / elapsed
+                    if speed > 0:
+                        widgets["size_label"].setText(f"💾 ~{widgets['file_size']:.1f} MB ({speed:.1f} MB/s)")
+            else:
+                widgets["eta_label"].setText("⏱️ Finishing...")
+    
+    def _update_overall_progress(self):
+        """Update overall progress based on tracker data"""
+        # First update individual process progress
+        self._update_process_progress()
+        
+        # Then update overall progress
+        overall = self.process_manager.get_overall_progress()
+        if not overall:
+            # If no progress data available, use a simplified approach
+            if self.total > 0 and self.batch_start_time:
+                weighted_pct = (self.completed * 100) / self.total
+                elapsed = time.time() - self.batch_start_time
+                self.total_progress.setValue(int(weighted_pct))
+                
+                # Update window title with percentage
+                self.setWindowTitle(f"TS Converter GUI - {weighted_pct:.1f}%")
+                
+                # Update current file label with percentage in bold if not in parallel mode
+                if not self.parallel_enabled and self.current_path:
+                    filename = QFileInfo(self.current_path).fileName()
+                    self.current_file_label.setText(
+                        f"Processing: {filename} - <b style='font-size: 13pt; color: #0066cc;'>{weighted_pct:.1f}%</b>"
+                    )
+            return
+        # Update total progress bar with weighted percentage
+        weighted_pct = overall["weighted_pct"]
+        self.total_progress.setValue(int(weighted_pct))
+        
+        # Get codec distribution info for status display
+        codec_dist = self.process_manager.get_codec_distribution()
+        codec_info = ""
+        if codec_dist.get("GPU", 0) > 0:
+            codec_info += f"{codec_dist['GPU']} GPU"
+        if codec_dist.get("CPU", 0) > 0:
+            if codec_info:
+                codec_info += " + "
+            codec_info += f"{codec_dist['CPU']} CPU"
+            
+        # Update status bar with ETA information and percentage
+        self.eta_label.setText(
+            f"Overall ETA: <b>{overall['eta_str']}</b> | "
+            f"Elapsed: {overall['elapsed_str']} | "
+            f"<span style='font-size: 12pt; font-weight: bold; color: #0066cc;'>{weighted_pct:.1f}%</span>"
+        )
+        
+        # Update current file label with active files info and percentage
+        if self.parallel_enabled:
+            self.current_file_label.setText(
+                f"Processing {overall['active_count']} file(s) ({codec_info}) - "
+                f"<b style='color: #0066cc;'>{weighted_pct:.1f}%</b> - "
+                f"Completed: {overall['completed_count']}/{overall['total_count']}"
+            )
+        elif self.current_path:  # Single file mode
+            filename = QFileInfo(self.current_path).fileName()
+            self.current_file_label.setText(
+                f"Processing: {filename} - <b style='font-size: 13pt; color: #0066cc;'>{weighted_pct:.1f}%</b>"
+            )
+        # Make sure timer keeps running while processes are active
+        if self.process_manager.processes and not self.ui_update_timer.isActive():
+            self.ui_update_timer.start()
+
         
         # Stop timer if no more pending outputs
         if all(not chunks for chunks in self.pending_process_outputs.values()):
             self.ui_update_timer.stop()
             
-    def _update_overall_progress(self):
-        """Update overall progress indicators based on all active processes"""
-        if not self.processes:
+    # def _update_overall_progress(self):
+# (Removed duplicate definition as per mypy error)
+
+        """Update overall progress based on tracker data"""
+        if not self.process_manager.processes and not self.batch_start_time:
             return
             
-        # Calculate overall progress percentage
-        overall_pct = 0
-        active_files = []
-        for process, path in self.processes:
-            if path in self.process_progress:
-                overall_pct += self.process_progress[path]["current_pct"]
-                active_files.append(path)
+        # Get overall progress from the process manager
+        overall = self.process_manager.get_overall_progress()
+        
+        if not overall:
+            # If no progress data available, use a simplified approach
+            if self.total > 0 and self.batch_start_time:
+                # Calculate basic progress without detailed data
+                weighted_pct = (self.completed * 100) / self.total
+                elapsed = time.time() - self.batch_start_time
+                self.total_progress.setValue(int(weighted_pct))
+            return
             
-        if self.total > 0:  # Avoid division by zero
-            # Calculate weighted progress (completed files count as 100%)
-            weighted_pct = (overall_pct + (self.completed * 100)) / self.total
-            self.total_progress.setValue(int(weighted_pct))
-            
-            # Update status bar with progress
-            if self.batch_start_time:  # Only if batch conversion is running
-                # Calculate overall ETA
-                elapsed_total = time.time() - self.batch_start_time
-                if weighted_pct > 0:  # Avoid division by zero
-                    total_eta = (elapsed_total / weighted_pct) * (100 - weighted_pct)
-                    eta_str = time.strftime('%H:%M:%S', time.gmtime(total_eta))
-                    
-                    # Format elapsed time
-                    elapsed_str = time.strftime('%H:%M:%S', time.gmtime(elapsed_total))
-                    
-                    # Total file counts
-                    total_files = len(active_files) + len(self.queue) + self.completed
-                    
-                    # Get active codecs information
-                    active_codecs = {}
-                    for path in active_files:
-                        codec_idx = self.file_codec_assignments.get(path, 0)
-                        codec_type = "GPU" if codec_idx in [0, 1, 2] else "CPU"
-                        active_codecs[codec_type] = active_codecs.get(codec_type, 0) + 1
-                    
-                    # Create codec distribution string
-                    codec_info = ""
-                    if active_codecs.get("GPU", 0) > 0:
-                        codec_info += f"{active_codecs['GPU']} GPU"
-                    if active_codecs.get("CPU", 0) > 0:
-                        if codec_info:
-                            codec_info += " + "
-                        codec_info += f"{active_codecs['CPU']} CPU"
-                    
-                    # Update ETA label with detailed timing
-                    self.eta_label.setText(
-                        f"Overall ETA: <b>{eta_str}</b> | Elapsed: {elapsed_str} | Progress: {weighted_pct:.1f}%"
-                    )
-                    
-                    # Update current file label with active process details
-                    if self.parallel_enabled:
-                        active_count = len(self.processes)
-                        self.current_file_label.setText(
-                            f"Processing {active_count} file(s) ({codec_info}) - "
-                            f"Completed: {self.completed}/{total_files}"
-                        )
-    
-    def _on_process_finished(self, process: QProcess, start_btn: QPushButton, stop_btn: QPushButton, path=None):
-        exit_code = process.exitCode()
+        # Update total progress bar with weighted percentage
+        weighted_pct = overall["weighted_pct"]
+        self.total_progress.setValue(int(weighted_pct))
+        
+        # Get codec distribution info for status display
+        codec_dist = self.process_manager.get_codec_distribution()
+        
+        # Build codec distribution string
+        codec_info = ""
+        if codec_dist.get("GPU", 0) > 0:
+            codec_info += f"{codec_dist['GPU']} GPU"
+        if codec_dist.get("CPU", 0) > 0:
+            if codec_info:
+                codec_info += " + "
+            codec_info += f"{codec_dist['CPU']} CPU"
+        
+        # Update status bar with ETA information
+        self.eta_label.setText(
+            f"Overall ETA: <b>{overall['eta_str']}</b> | "
+            f"Elapsed: {overall['elapsed_str']} | "
+            f"Progress: {weighted_pct:.1f}%"
+        )
+        
+        # Update current file label with active files info
+        if self.parallel_enabled:
+            self.current_file_label.setText(
+                f"Processing {overall['active_count']} file(s) ({codec_info}) - "
+                f"Completed: {overall['completed_count']}/{overall['total_count']}"
+            )
+        
+        # Make sure timer keeps running while processes are active
+        if self.process_manager.processes and not self.ui_update_timer.isActive():
+            self.ui_update_timer.start()
+    def _on_process_finished(self, process: QProcess, start_btn: QPushButton, stop_btn: QPushButton, path: str | None = None) -> None:
         process_path = path or self.current_path
+        # Ensure process_path is a string before use
+        if process_path is None:
+            self.log.appendPlainText("Error: process_path is None")
+            return
         
-        # Remove from active processes list
-        self.processes = [(p, pth) for p, pth in self.processes if p != process]
+        exit_code = process.exitCode()
+        error_string = process.errorString() if hasattr(process, 'errorString') else "Unknown error"
         
-        # Update process widget one last time to show 100% if successful
-        if process in self.process_widgets and exit_code == 0:
-            self.process_widgets[process]["progress"].setValue(100)
-            self.process_widgets[process]["label"].setText(
-                f"<b>{QFileInfo(process_path).fileName()}</b> - Complete"
-            )
-        elif process in self.process_widgets:
-            self.process_widgets[process]["label"].setText(
-                f"<b>{QFileInfo(process_path).fileName()}</b> - Failed"
-            )
+        # Print debug information
+        self.log.appendPlainText(f"Process finished for: {process_path}")
+        self.log.appendPlainText(f"Exit code: {exit_code}, Error: {error_string}")
+        
+        # Get the last few lines of process output for debugging
+        if process in self.process_manager.process_logs and self.process_manager.process_logs[process]:
+            last_logs = "\n".join(self.process_manager.process_logs[process][-5:]) 
+            self.log.appendPlainText(f"Last output: {last_logs}")
+        
+        # Mark process as completed in the process manager
+        self.process_manager.mark_process_finished(process, process_path)  # Mark as finished and update progress
+        
+        # Update process widget with final status
+        if process in self.process_widgets:
+            widgets = self.process_widgets[process]
             
+            # Set progress to 100% or 0% based on success/failure
+            if exit_code == 0:
+                widgets["progress"].setValue(100)
+                widgets["status_label"].setText("<b>✅ Complete</b>")
+                widgets["status_label"].setStyleSheet("color: #00aa00; font-size: 10pt;")
+                
+                # Calculate elapsed time and final stats
+                elapsed = time.time() - widgets.get("start_time", time.time())
+                elapsed_str = self._format_time(elapsed)
+                widgets["eta_label"].setText(f"⏱️ Time: {elapsed_str}")
+                
+                # Add completion message to log
+                widgets["log"].appendPlainText(f"Conversion complete in {elapsed_str}")
+                
+                # If we have size info, update with final size
+                try:
+                    output_file = os.path.splitext(process_path)[0] + "_RC"
+                    if codec_idx in [0, 1, 2, 3, 5, 6]:
+                        output_file += ".mp4"
+                    elif codec_idx == 4:
+                        output_file += ".mov"
+                    
+                    if os.path.exists(output_file):
+                        size_mb = os.path.getsize(output_file) / (1024 * 1024)
+                        widgets["size_label"].setText(f"💾 {size_mb:.1f} MB")
+                except Exception:
+                    pass
+            else:
+                # Failed conversion
+                widgets["progress"].setValue(0)
+                widgets["status_label"].setText(f"<b>❌ Failed (code {exit_code})</b>")
+                widgets["status_label"].setStyleSheet("color: #cc0000; font-size: 10pt;")
+                widgets["eta_label"].setText("⏱️ Process failed")
+                widgets["log"].appendPlainText(f"Conversion failed with error {error_string}")
+                
+            # Update codec indicator with completion status
+            name = QFileInfo(process_path).fileName()
+            widgets["label"].setText(f"<b>{name}</b>")
+            
+            # Make a subtle background change for completed items
+            bgcolor = "#efffef" if exit_code == 0 else "#fff0f0"
+            widgets["container"].setStyleSheet(f"QFrame {{ background-color: {bgcolor}; border-radius: 5px; }}")
+            
+        
         # Schedule the process widget for removal after a short delay
-        # This allows the user to see the final status
         QTimer.singleShot(5000, lambda: self._remove_process_widget(process))
         
-        # Clear progress tracking for this process
-        if process_path in self.process_progress:
-            del self.process_progress[process_path]
-        
-        # finalize per-file display
+        # Update file list item
         if process_path in self.file_list.path_items:
             item = self.file_list.path_items[process_path]
-            name = QFileInfo(process_path).fileName()
+            name = QFileInfo(process_path if process_path is not None else "").fileName()
             status = "Done" if exit_code == 0 else "Failed"
             item.setText(f"{name} — {status}")
-            
             # Mark completed conversions in green
             if exit_code == 0:
                 item.setForeground(QColor(0, 170, 0))  # Green color for completed items
-
-        # delete source if requested and successful
-        if exit_code == 0 and self.delete_cb.isChecked():
+        
+        # Delete source if requested and successful
+        if exit_code == 0 and hasattr(self, 'delete_cb') and self.delete_cb is not None and self.delete_cb.isChecked():
             try:
                 os.remove(process_path)
                 self.log.appendPlainText(f"Deleted source: {process_path}")
             except Exception as e:
                 self.log.appendPlainText(f"Failed to delete {process_path}: {e}")
-
-        # update totals
+        
+        # Update totals - only increment counter
+        # Progress bar update is now handled by _update_overall_progress
         self.completed += 1
-        self.total_progress.setValue(int(self.completed / self.total * 100))
-
+        
         # In parallel mode, start a new process for each completed one
-        if self.parallel_enabled and self.queue:
+        if self.parallel_enabled and self.process_manager.queue:
             self._process_next(start_btn, stop_btn)
         # If not parallel, or no more files in the queue
         elif not self.parallel_enabled:
@@ -1097,27 +1311,69 @@ class MainWindow(QMainWindow):
             else:
                 self._process_next(start_btn, stop_btn)
         # Check if all processes are done in parallel mode
-        elif not self.processes and self.completed >= self.total:
+        elif not self.process_manager.processes and self.completed >= self.total:
+            self._finish(start_btn, stop_btn)
+
+            
+        # Schedule the process widget for removal after a short delay
+        # This allows the user to see the final status
+        QTimer.singleShot(5000, lambda: self._remove_process_widget(process))
+        
+        # finalize per-file display using enhanced FileListWidget methods
+        if hasattr(self.file_list, 'set_status'):
+            status = "completed" if exit_code == 0 else "failed"
+            self.file_list.set_status(process_path, status)
+        else:
+            # Fallback for compatibility if using old file list implementation
+            if process_path in self.file_list.path_items:
+                item = self.file_list.path_items[process_path]
+                name = QFileInfo(process_path).fileName()
+                status = "Done" if exit_code == 0 else "Failed"
+                item.setText(f"{name} — {status}")
+                
+                # Mark completed conversions in green
+                if exit_code == 0:
+                    item.setForeground(QColor(0, 170, 0))  # Green color for completed items
+
+        # Delete source if requested and successful
+        if exit_code == 0 and hasattr(self, 'delete_cb') and self.delete_cb is not None and self.delete_cb.isChecked():
+            try:
+                os.remove(process_path)
+                self.log.appendPlainText(f"Deleted source: {process_path}")
+            except Exception as e:
+                self.log.appendPlainText(f"Failed to delete {process_path}: {e}")
+
+        # Update totals - only increment counter
+        # Progress bar update is now handled by _update_overall_progress
+        self.completed += 1
+
+        # In parallel mode, start a new process for each completed one
+        if self.parallel_enabled and self.process_manager.queue:
+            self._process_next(start_btn, stop_btn)
+        # If not parallel, or no more files in the queue
+        elif not self.parallel_enabled:
+            if self.completed >= self.total:
+                self._finish(start_btn, stop_btn)
+            else:
+                self._process_next(start_btn, stop_btn)
+        # Check if all processes are done in parallel mode
+        elif not self.process_manager.processes and self.completed >= self.total:
             self._finish(start_btn, stop_btn)
 
     def stop_conversion(self, start_btn: QPushButton, stop_btn: QPushButton):
-        # kill any running QProcess
-        for process, _ in self.processes:
-            if process.state() != QProcess.NotRunning:
-                process.kill()
-                
-                # Update status of process widget
-                if process in self.process_widgets:
-                    self.process_widgets[process]["label"].setText(
-                        f"<b>{QFileInfo(self.process_widgets[process]['path']).fileName()}</b> - Stopped"
-                    )
+        # Stop all processes using the ProcessManager
+        stopped_processes = self.process_manager.stop_all_processes()
+        
+        # Update status of all process widgets
+        for process, _ in stopped_processes:
+            if process in self.process_widgets:
+                self.process_widgets[process]["label"].setText(
+                    f"<b>{QFileInfo(self.process_widgets[process]['path']).fileName()}</b> - Stopped"
+                )
         
         # Schedule removal of all process widgets after a delay
         for process in list(self.process_widgets.keys()):
             QTimer.singleShot(3000, lambda p=process: self._remove_process_widget(p))
-            
-        # Clear processes list
-        self.processes = []
         
         self.log.appendPlainText("Conversion stopped by user.")
         start_btn.setEnabled(True)
@@ -1131,7 +1387,6 @@ class MainWindow(QMainWindow):
         stop_btn.setEnabled(False)
         self.current_file_label.clear()
         self.eta_label.clear()
-        self.process_progress = {}  # Clear all process progress
         
         # Return to main log tab when finished
         self.processes_tab.setCurrentIndex(0)
@@ -1146,22 +1401,23 @@ class MainWindow(QMainWindow):
         )
 
     def closeEvent(self, event):
-        running = bool(self.processes)
+        running = bool(self.process_manager.processes)
         if running:
             if QMessageBox.question(
                 self,
                 "Conversions running",
                 "Jobs are still in progress. Quit anyway?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
-            ) == QMessageBox.No:
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            ) == QMessageBox.StandardButton.No:
                 event.ignore()
                 return
-            for process, _ in self.processes:
-                if process.state() != QProcess.NotRunning:
-                    process.kill()
+            # Stop all processes
+            self.process_manager.stop_all_processes()
 
+        # Save application settings
         self.settings.setValue("geometry", self.saveGeometry())
+        # Ensure splitter is initialized in __init__
         self.settings.setValue("splitterState", self.splitter.saveState())
         self.settings.setValue("lastDir", self.last_dir)
         super().closeEvent(event)
