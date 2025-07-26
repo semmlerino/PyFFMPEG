@@ -367,6 +367,7 @@ class SettingsPanel(QObject):
         assert self.smart_buffer_checkbox is not None
         assert self.auto_balance_checkbox is not None
         assert self.priority_combo is not None
+        assert self.hevc_10bit_checkbox is not None
         
         return {
             "codec_idx": self.codec_combo.currentIndex(),
@@ -413,6 +414,7 @@ class SettingsPanel(QObject):
         assert self.smart_buffer_checkbox is not None
         assert self.auto_balance_checkbox is not None
         assert self.priority_combo is not None
+        assert self.hevc_10bit_checkbox is not None
         
         # Temporarily disconnect signals to avoid loops
         self._disconnect_signals()
@@ -473,6 +475,7 @@ class SettingsPanel(QObject):
         assert self.smart_buffer_checkbox is not None
         assert self.auto_balance_checkbox is not None
         assert self.priority_combo is not None
+        assert self.hevc_10bit_checkbox is not None
         
         try:
             self.codec_combo.currentIndexChanged.disconnect()
@@ -487,6 +490,7 @@ class SettingsPanel(QObject):
             self.smart_buffer_checkbox.toggled.disconnect()
             self.auto_balance_checkbox.toggled.disconnect()
             self.priority_combo.currentIndexChanged.disconnect()
+            self.hevc_10bit_checkbox.toggled.disconnect()
         except TypeError:
             pass  # Already disconnected
     
