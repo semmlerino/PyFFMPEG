@@ -13,7 +13,7 @@ from config import ProcessConfig, HardwareConfig, EncodingConfig
 
 class CodecHelpers:
     """Helper class for codec selection, hardware acceleration, and encoder configuration"""
-    
+
     # Cache for expensive detection operations
     _encoder_cache = None
     _gpu_info_cache = None
@@ -111,7 +111,14 @@ class CodecHelpers:
                     args.extend(["-c:a", "pcm_s16le"])
                     message = "Using PCM audio for ProRes"
                 else:
-                    args.extend(["-c:a", "aac", "-b:a", f"{EncodingConfig.AUDIO_BITRATE_DEFAULT}k"])
+                    args.extend(
+                        [
+                            "-c:a",
+                            "aac",
+                            "-b:a",
+                            f"{EncodingConfig.AUDIO_BITRATE_DEFAULT}k",
+                        ]
+                    )
                     message = f"Converting audio to AAC {EncodingConfig.AUDIO_BITRATE_DEFAULT}k"
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
             # Fallback to default encoding on error
@@ -119,18 +126,35 @@ class CodecHelpers:
                 args.extend(["-c:a", "pcm_s16le"])
                 message = "Fallback to PCM audio for ProRes"
             else:
-                args.extend(["-c:a", "aac", "-b:a", f"{EncodingConfig.AUDIO_BITRATE_DEFAULT}k"])
-                message = f"Fallback to AAC {EncodingConfig.AUDIO_BITRATE_DEFAULT}k audio"
+                args.extend(
+                    ["-c:a", "aac", "-b:a", f"{EncodingConfig.AUDIO_BITRATE_DEFAULT}k"]
+                )
+                message = (
+                    f"Fallback to AAC {EncodingConfig.AUDIO_BITRATE_DEFAULT}k audio"
+                )
 
         return args, message
 
     @staticmethod
     def get_encoder_configuration(
-        codec_idx, thread_count, is_parallel_enabled, crf_value, 
-        hevc_10bit=False, nvenc_settings=None
+        codec_idx,
+        thread_count,
+        is_parallel_enabled,
+        crf_value,
+        hevc_10bit=False,
+        nvenc_settings=None,
     ):
         """Get encoder configuration arguments based on codec index
         Returns a tuple of (args_list, message_for_log)
+
+        Codec mapping:
+        0 = H.264 NVENC
+        1 = HEVC NVENC
+        2 = AV1 NVENC
+        3 = x264 CPU
+        4 = ProRes CPU
+        5 = H.264 QSV
+        6 = H.264 VAAPI
         """
         args = []
         message = ""
@@ -138,14 +162,97 @@ class CodecHelpers:
         try:
             # Get cached or detect available encoders
             available_encoders = CodecHelpers._get_available_encoders()
-            if available_encoders:
-                message = "Available encoders detected (cached)" if CodecHelpers._encoder_cache else "Available encoders detected"
-            else:
-                message = "Failed to detect encoders, using fallbacks"
 
-            # Set default basic encoder options with fallbacks
-            if codec_idx == 0:  # H.264 (software)
-                # Basic h264 encoding settings with safer parameters
+            # H.264 NVENC
+            if codec_idx == 0 and "h264_nvenc" in available_encoders:
+                args.extend(
+                    [
+                        "-c:v",
+                        "h264_nvenc",
+                        "-preset",
+                        "p7",  # High quality preset
+                        "-profile:v",
+                        "high",
+                        "-rc",
+                        "vbr",  # Use standard vbr mode
+                        "-cq",
+                        str(crf_value),
+                        "-b:v",
+                        "0",  # Required for VBR mode
+                        "-bf",
+                        "4",
+                        "-b_ref_mode",
+                        "middle",
+                        "-temporal-aq",
+                        "1",
+                        "-spatial-aq",
+                        "1",
+                        "-rc-lookahead",
+                        "32",
+                    ]
+                )
+                message = "Using H.264 NVENC hardware encoding"
+
+            # HEVC NVENC
+            elif codec_idx == 1 and "hevc_nvenc" in available_encoders:
+                args.extend(
+                    [
+                        "-c:v",
+                        "hevc_nvenc",
+                        "-preset",
+                        "p7",
+                        "-profile:v",
+                        "main10" if hevc_10bit else "main",
+                        "-rc",
+                        "vbr",  # Use standard vbr mode
+                        "-cq",
+                        str(crf_value),
+                        "-b:v",
+                        "0",  # Required for VBR mode
+                        "-bf",
+                        "4",
+                        "-b_ref_mode",
+                        "middle",
+                        "-temporal-aq",
+                        "1",
+                        "-spatial-aq",
+                        "1",
+                        "-rc-lookahead",
+                        "32",
+                    ]
+                )
+                if hevc_10bit:
+                    args.extend(["-pix_fmt", "p010le"])
+                message = "Using HEVC NVENC hardware encoding"
+
+            # AV1 NVENC
+            elif codec_idx == 2 and "av1_nvenc" in available_encoders:
+                args.extend(
+                    [
+                        "-c:v",
+                        "av1_nvenc",
+                        "-preset",
+                        "p7",
+                        "-rc",
+                        "vbr",  # AV1 NVENC uses 'vbr' not 'vbr_hq'
+                        "-cq",
+                        str(crf_value),
+                        "-b:v",
+                        "0",  # Required for VBR mode
+                        "-temporal-aq",
+                        "1",
+                        "-spatial-aq",
+                        "1",
+                        "-rc-lookahead",
+                        "32",
+                        "-highbitdepth",
+                        "1",
+                    ]
+                )
+                message = "Using AV1 NVENC hardware encoding"
+
+            # x264 CPU
+            elif codec_idx == 3:
                 args.extend(
                     [
                         "-c:v",
@@ -153,106 +260,17 @@ class CodecHelpers:
                         "-crf",
                         str(crf_value),
                         "-preset",
-                        EncodingConfig.PRESET_MEDIUM,  # Use medium preset for better compatibility
+                        "medium",
                         "-pix_fmt",
-                        "yuv420p",  # Force yuv420p for compatibility
+                        "yuv420p",
                     ]
                 )
-
-                # Only add threading if parallel mode not enabled
-                if not is_parallel_enabled:
+                if thread_count > 0:
                     args.extend(["-threads", str(thread_count)])
+                message = "Using x264 CPU encoding"
 
-                message = "Using libx264 software encoding"
-
-            elif (
-                codec_idx == 1 and "h264_nvenc" in available_encoders
-            ):  # H.264 (NVENC) if available
-                nvenc_opts = nvenc_settings or {}
-                args.extend(
-                    [
-                        "-c:v",
-                        "h264_nvenc",
-                        "-preset",
-                        "p5",  # RTX 40-series performance preset
-                        "-profile:v",
-                        "high",
-                        "-rc:v",
-                        nvenc_opts.get("rc_mode", "vbr"),
-                        "-cq",
-                        str(min(crf_value * 2, 51)),  # Cap at 51 for safety
-                        "-b_adapt", str(nvenc_opts.get("b_adapt", 2)),  # B-frame adaptation
-                        "-temporal-aq", "1",  # Temporal adaptive quantization
-                        "-spatial-aq", "1",  # Spatial adaptive quantization
-                        "-lookahead", "32",  # RTX 4090 supports 32 frames lookahead
-                        "-multipass", "fullres",  # Multi-pass encoding
-                        "-weighted_pred", "1",  # Weighted prediction
-                        "-refs", str(nvenc_opts.get("ref_frames", 4)),  # Reference frames
-                    ]
-                )
-                if nvenc_opts.get("aq_strength", 1) > 0:
-                    args.extend(["-aq-strength", str(nvenc_opts.get("aq_strength", 1))])
-                message = "Using H.264 NVENC hardware encoding"
-
-            elif (
-                codec_idx == 2 and "hevc_nvenc" in available_encoders
-            ):  # HEVC (NVENC) if available
-                nvenc_opts = nvenc_settings or {}
-                args.extend(
-                    [
-                        "-c:v",
-                        "hevc_nvenc",
-                        "-preset",
-                        "p5",  # RTX 40-series performance preset
-                        "-profile:v",
-                        "main10" if hevc_10bit else "main",
-                        "-rc:v",
-                        nvenc_opts.get("rc_mode", "vbr"),
-                        "-cq",
-                        str(min(crf_value * 2, 51)),
-                        "-b_adapt", str(nvenc_opts.get("b_adapt", 2)),  # B-frame adaptation
-                        "-temporal-aq", "1",  # Temporal adaptive quantization
-                        "-spatial-aq", "1",  # Spatial adaptive quantization
-                        "-lookahead", "32",  # RTX 4090 supports 32 frames lookahead
-                        "-multipass", "fullres",  # Multi-pass encoding
-                        "-weighted_pred", "1",  # Weighted prediction
-                        "-refs", str(nvenc_opts.get("ref_frames", 4)),  # Reference frames
-                    ]
-                )
-                if hevc_10bit:
-                    args.extend(["-pix_fmt", "p010le"])  # 10-bit pixel format
-                if nvenc_opts.get("aq_strength", 1) > 0:
-                    args.extend(["-aq-strength", str(nvenc_opts.get("aq_strength", 1))])
-                message = "Using HEVC NVENC hardware encoding"
-
-            elif (
-                codec_idx == 3 and "av1_nvenc" in available_encoders
-            ):  # AV1 (NVENC) if available
-                nvenc_opts = nvenc_settings or {}
-                args.extend(
-                    [
-                        "-c:v",
-                        "av1_nvenc",
-                        "-preset",
-                        "p5",  # RTX 40-series performance preset
-                        "-rc:v",
-                        nvenc_opts.get("rc_mode", "vbr"),
-                        "-cq",
-                        str(min(crf_value * 2, 51)),
-                        "-temporal-aq", "1",  # Temporal adaptive quantization
-                        "-spatial-aq", "1",  # Spatial adaptive quantization
-                        "-lookahead", "32",  # RTX 4090 supports 32 frames lookahead
-                        "-multipass", "fullres",  # Multi-pass encoding
-                        "-highbitdepth", "1",  # Enable 10-bit encoding support
-                    ]
-                )
-                if nvenc_opts.get("aq_strength", 1) > 0:
-                    args.extend(["-aq-strength", str(nvenc_opts.get("aq_strength", 1))])
-                message = "Using AV1 NVENC hardware encoding"
-
-            elif (
-                codec_idx == 4 and "prores_ks" in available_encoders
-            ):  # ProRes 422 if available
+            # ProRes
+            elif codec_idx == 4:
                 args.extend(
                     [
                         "-c:v",
@@ -262,30 +280,45 @@ class CodecHelpers:
                         "-vendor",
                         "ap10",
                         "-pix_fmt",
-                        "yuv422p10le",  # Proper pixel format for ProRes
+                        "yuv422p10le",
                     ]
                 )
+                if thread_count > 0:
+                    args.extend(["-threads", str(thread_count)])
                 message = "Using ProRes 422 encoding"
 
-            elif (
-                codec_idx == 5 and "prores_ks" in available_encoders
-            ):  # ProRes 4444 if available
+            # H.264 QSV
+            elif codec_idx == 5 and "h264_qsv" in available_encoders:
                 args.extend(
                     [
                         "-c:v",
-                        "prores_ks",
-                        "-profile:v",
-                        "4",
-                        "-vendor",
-                        "ap10",
-                        "-pix_fmt",
-                        "yuva444p10le",  # Proper pixel format for ProRes 4444
+                        "h264_qsv",
+                        "-preset",
+                        "medium",
+                        "-global_quality",
+                        str(crf_value),
                     ]
                 )
-                message = "Using ProRes 4444 encoding"
+                message = "Using H.264 QSV hardware encoding"
+
+            # H.264 VAAPI
+            elif codec_idx == 6 and "h264_vaapi" in available_encoders:
+                args.extend(
+                    [
+                        "-c:v",
+                        "h264_vaapi",
+                        "-profile:v",
+                        "high",
+                        "-rc_mode",
+                        "CQP",
+                        "-qp",
+                        str(crf_value),
+                    ]
+                )
+                message = "Using H.264 VAAPI hardware encoding"
 
             else:
-                # Fallback to basic h264 if selected codec not available
+                # Fallback to basic h264
                 args.extend(
                     [
                         "-c:v",
@@ -293,15 +326,17 @@ class CodecHelpers:
                         "-crf",
                         str(EncodingConfig.DEFAULT_CRF_FALLBACK),
                         "-preset",
-                        EncodingConfig.PRESET_MEDIUM,
+                        "medium",
                         "-pix_fmt",
-                        "yuv420p",  # Force yuv420p for compatibility
+                        "yuv420p",
                     ]
                 )
-                message = "Selected codec not available, falling back to libx264"
+                if thread_count > 0:
+                    args.extend(["-threads", str(thread_count)])
+                message = f"Selected codec not available (codec_idx={codec_idx}), falling back to libx264"
 
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
-            # Ultimate fallback if something goes wrong with codec detection
+        except Exception as e:
+            # Ultimate fallback
             message = f"Error selecting codec: {e}, using safe defaults"
             args.extend(
                 [
@@ -312,9 +347,11 @@ class CodecHelpers:
                     "-preset",
                     "medium",
                     "-pix_fmt",
-                    "yuv420p",  # Force yuv420p for compatibility
+                    "yuv420p",
                 ]
             )
+            if thread_count > 0:
+                args.extend(["-threads", str(thread_count)])
 
         return args, message
 
@@ -327,27 +364,38 @@ class CodecHelpers:
         if codec_idx in (0, 1, 2):  # Any NVENC encoder
             return 2
 
-        # Single x264 job - let x264 auto-detect (uses all threads)
-        if not is_parallel_enabled:
-            return 0  # 0 = "let x264 auto-detect" (uses all threads)
+        # Hardware encoders (QSV, VAAPI) - moderate CPU usage  
+        if codec_idx in (5, 6):  # QSV, VAAPI
+            return 4
 
-        # Parallel CPU jobs - divide cleanly
+        # Single CPU job - let encoder use most threads but leave some for system
+        if not is_parallel_enabled:
+            cpu_count = os.cpu_count() or ProcessConfig.OPTIMAL_CPU_THREADS
+            return max(2, cpu_count - 4)  # Leave 4 threads for system
+
+        # Parallel CPU jobs - divide threads efficiently
+        # For auto-balance: assume worst case of all CPU jobs running simultaneously
         if file_codec_assignments:
-            cpu_jobs = max(1, sum(1 for c in file_codec_assignments.values() if c == 3))
+            cpu_jobs = max(1, sum(1 for c in file_codec_assignments.values() if c in (3, 4)))  # x264, ProRes
         else:
-            cpu_jobs = 1
+            cpu_jobs = 2  # Conservative estimate for parallel processing
+            
         cpu_count = os.cpu_count() or ProcessConfig.OPTIMAL_CPU_THREADS
-        return max(2, cpu_count // cpu_jobs)
-    
+        threads_per_job = max(2, (cpu_count - 2) // cpu_jobs)  # Leave 2 threads for system
+        return threads_per_job
+
     @staticmethod
     def _get_available_encoders():
         """Get available encoders with caching for performance"""
         if CodecHelpers._encoder_cache is not None:
             return CodecHelpers._encoder_cache
-            
+
         try:
             encoders_output = subprocess.check_output(
-                ["ffmpeg", "-encoders"], text=True, stderr=subprocess.STDOUT, timeout=ProcessConfig.SUBPROCESS_TIMEOUT
+                ["ffmpeg", "-encoders"],
+                text=True,
+                stderr=subprocess.STDOUT,
+                timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
             )
             CodecHelpers._encoder_cache = encoders_output.lower()
             return CodecHelpers._encoder_cache
@@ -355,15 +403,17 @@ class CodecHelpers:
             # Cache the failure to avoid repeated attempts
             CodecHelpers._encoder_cache = ""
             return ""
-    
+
     @staticmethod
     def _get_gpu_info():
         """Get GPU information with caching"""
         if CodecHelpers._gpu_info_cache is not None:
             return CodecHelpers._gpu_info_cache
-            
+
         try:
-            gpu_info = subprocess.check_output(["nvidia-smi", "-q"], timeout=HardwareConfig.GPU_DETECTION_TIMEOUT).decode("utf-8")
+            gpu_info = subprocess.check_output(
+                ["nvidia-smi", "-q"], timeout=HardwareConfig.GPU_DETECTION_TIMEOUT
+            ).decode("utf-8")
             CodecHelpers._gpu_info_cache = gpu_info
             return gpu_info
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
@@ -375,7 +425,7 @@ class CodecHelpers:
         """Detect if system has RTX 40 series GPU for AV1 encoding support with caching"""
         if CodecHelpers._rtx40_detection_cache is not None:
             return CodecHelpers._rtx40_detection_cache
-            
+
         try:
             gpu_info = CodecHelpers._get_gpu_info()
             has_rtx40 = any(gpu in gpu_info for gpu in HardwareConfig.RTX40_MODELS)
@@ -384,7 +434,7 @@ class CodecHelpers:
         except Exception:
             CodecHelpers._rtx40_detection_cache = False
             return False
-    
+
     @staticmethod
     def clear_cache():
         """Clear all cached detection results - useful for testing or system changes"""
