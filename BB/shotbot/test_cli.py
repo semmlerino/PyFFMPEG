@@ -26,8 +26,8 @@ def test_shot_model():
     assert shot is not None
     print(f"\n✓ Found shot by name: {shot.full_name}")
 
-    # Test to_dict
-    shot_dicts = mock_model.to_dict()
+    # Test to_dict conversion for shots
+    shot_dicts = [shot.to_dict() for shot in mock_model.shots]
     assert len(shot_dicts) == 6
     print(f"✓ Converted {len(shot_dicts)} shots to dict format")
 

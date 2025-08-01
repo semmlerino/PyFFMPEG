@@ -225,14 +225,15 @@ workspace /shows/show1/shots/seq1/seq1_0020"""
             assert has_changes is False
 
     def test_to_dict_format(self, shot_model_with_mock_cache):
-        """Test to_dict returns proper format for caching."""
+        """Test Shot.to_dict returns proper format for caching."""
         # Add some shots
         shot_model_with_mock_cache.shots = [
             Shot("show1", "seq1", "0010", "/path1"),
             Shot("show2", "seq2", "0020", "/path2"),
         ]
 
-        result = shot_model_with_mock_cache.to_dict()
+        # Convert shots to dict format
+        result = [shot.to_dict() for shot in shot_model_with_mock_cache.shots]
 
         assert len(result) == 2
         assert all(isinstance(shot_dict, dict) for shot_dict in result)
@@ -243,4 +244,7 @@ workspace /shows/show1/shots/seq1/seq1_0020"""
         assert first["sequence"] == "seq1"
         assert first["shot"] == "0010"
         assert first["workspace_path"] == "/path1"
-        assert first["full_name"] == "seq1_0010"
+
+        # Verify all expected keys are present
+        expected_keys = {"show", "sequence", "shot", "workspace_path"}
+        assert set(first.keys()) == expected_keys

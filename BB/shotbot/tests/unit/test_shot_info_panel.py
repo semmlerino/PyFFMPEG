@@ -41,7 +41,7 @@ class TestShotInfoPanel:
     def test_init(self, shot_info_panel):
         """Test ShotInfoPanel initialization."""
         assert shot_info_panel._current_shot is None
-        assert hasattr(shot_info_panel, "_cache_manager")
+        assert hasattr(shot_info_panel, "cache_manager")
         assert hasattr(shot_info_panel, "thumbnail_label")
         assert hasattr(shot_info_panel, "shot_name_label")
         assert hasattr(shot_info_panel, "show_sequence_label")
@@ -93,7 +93,7 @@ class TestShotInfoPanel:
         # Replace cache manager method with mock
         mock_get_cached = Mock(return_value=cache_path)
         monkeypatch.setattr(
-            shot_info_panel._cache_manager, "get_cached_thumbnail", mock_get_cached
+            shot_info_panel.cache_manager, "get_cached_thumbnail", mock_get_cached
         )
 
         # Load thumbnail
@@ -123,7 +123,7 @@ class TestShotInfoPanel:
         # Replace cache manager method with mock
         mock_get_cached = Mock(return_value=None)
         monkeypatch.setattr(
-            shot_info_panel._cache_manager, "get_cached_thumbnail", mock_get_cached
+            shot_info_panel.cache_manager, "get_cached_thumbnail", mock_get_cached
         )
 
         # Create a source thumbnail file
@@ -154,7 +154,7 @@ class TestShotInfoPanel:
 
         # Verify cache loader was created
         mock_loader_class.assert_called_once_with(
-            shot_info_panel._cache_manager, thumb_path, "testshow", "101_ABC", "0010"
+            shot_info_panel.cache_manager, thumb_path, "testshow", "101_ABC", "0010"
         )
 
         # Verify loader was started
@@ -165,7 +165,7 @@ class TestShotInfoPanel:
         # Replace cache manager method with mock
         mock_get_cached = Mock(return_value=None)
         monkeypatch.setattr(
-            shot_info_panel._cache_manager, "get_cached_thumbnail", mock_get_cached
+            shot_info_panel.cache_manager, "get_cached_thumbnail", mock_get_cached
         )
         sample_shot.get_thumbnail_path = Mock(return_value=None)
 

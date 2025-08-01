@@ -1,6 +1,6 @@
-"""Shot grid widget for displaying thumbnails in a grid layout."""
+"""Memory-optimized shot grid widget with viewport-based loading."""
 
-from typing import Dict, Optional
+from typing import Optional, Set
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeyEvent, QResizeEvent, QWheelEvent
@@ -15,21 +15,23 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
+from memory_optimized_grid import MemoryOptimizedGrid, ThumbnailPlaceholder
 from shot_model import Shot, ShotModel
 from thumbnail_widget import ThumbnailWidget
 
 
-class ShotGrid(QWidget):
-    """Grid display of shot thumbnails."""
+class ShotGridOptimized(QWidget, MemoryOptimizedGrid):
+    """Memory-optimized grid display of shot thumbnails."""
 
     # Signals
     shot_selected = Signal(object)  # Shot
     shot_double_clicked = Signal(object)  # Shot
 
     def __init__(self, shot_model: ShotModel):
-        super().__init__()
+        QWidget.__init__(self)
+        MemoryOptimizedGrid.__init__(self)
+
         self.shot_model = shot_model
-        self.thumbnails: Dict[str, ThumbnailWidget] = {}
         self.selected_shot: Optional[Shot] = None
         self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
         self._setup_ui()
@@ -76,30 +78,38 @@ class ShotGrid(QWidget):
         # Enable keyboard focus
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+        # Set up viewport tracking
+        self._setup_viewport_tracking(self.scroll_area)
+
     def refresh_shots(self):
-        """Refresh the shot display."""
-        # Clear existing thumbnails
-        self._clear_grid()
+        """Refresh the shot display with memory optimization."""
+        # Clear existing - delete all widgets
+        self._clear_grid(delete_widgets=True)
+        self._loaded_thumbnails.clear()
+        self._placeholders.clear()
+        self._visible_indices.clear()
 
-        # Create thumbnails for all shots
+        # Create placeholders for all shots
         for i, shot in enumerate(self.shot_model.shots):
-            thumbnail = ThumbnailWidget(shot, self._thumbnail_size)
-            thumbnail.clicked.connect(self._on_thumbnail_clicked)
-            thumbnail.double_clicked.connect(self._on_thumbnail_double_clicked)
-
-            self.thumbnails[shot.full_name] = thumbnail
-
-            # Add to grid
             row = i // self._get_column_count()
             col = i % self._get_column_count()
-            self.grid_layout.addWidget(thumbnail, row, col)
 
-    def _clear_grid(self):
-        """Clear all thumbnails from grid."""
-        for thumbnail in self.thumbnails.values():
-            self.grid_layout.removeWidget(thumbnail)
-            thumbnail.deleteLater()
-        self.thumbnails.clear()
+            placeholder = ThumbnailPlaceholder(index=i, row=row, col=col, data=shot)
+            self._placeholders[shot.full_name] = placeholder
+
+            # Add placeholder widget to grid
+            placeholder_widget = self._create_placeholder_widget(row, col)
+            self.grid_layout.addWidget(placeholder_widget, row, col)
+
+        # Load initial visible thumbnails
+        self._update_visible_thumbnails()
+
+    def _clear_grid(self, delete_widgets: bool = False):
+        """Clear all widgets from grid."""
+        while self.grid_layout.count():
+            item = self.grid_layout.takeAt(0)
+            if delete_widgets and item.widget():
+                item.widget().deleteLater()
 
     def _get_column_count(self) -> int:
         """Calculate number of columns based on width."""
@@ -112,30 +122,118 @@ class ShotGrid(QWidget):
         columns = max(1, available_width // item_width)
         return columns
 
-    def _reflow_grid(self):
-        """Reflow grid layout based on new size."""
-        if not self.thumbnails:
+    def _update_visible_thumbnails(self):
+        """Update which thumbnails are loaded based on viewport."""
+        if not self.shot_model.shots:
             return
 
-        # Remove all widgets
-        for widget in self.thumbnails.values():
-            self.grid_layout.removeWidget(widget)
+        # Get visible range
+        start_idx, end_idx = self._get_visible_range(
+            self.scroll_area, self._get_column_count(), len(self.shot_model.shots)
+        )
 
-        # Re-add in new positions
+        # Update visible indices
+        self._visible_indices = set(range(start_idx, end_idx))
+
+        # Load visible thumbnails that aren't already loaded
+        for idx in self._visible_indices:
+            if 0 <= idx < len(self.shot_model.shots):
+                shot = self.shot_model.shots[idx]
+                key = shot.full_name
+
+                if key not in self._loaded_thumbnails:
+                    self._load_thumbnail_at_index(idx)
+
+    def _load_thumbnail_at_index(self, index: int):
+        """Load thumbnail at specific index."""
+        if 0 <= index < len(self.shot_model.shots):
+            shot = self.shot_model.shots[index]
+            key = shot.full_name
+
+            # Skip if already loaded
+            if key in self._loaded_thumbnails:
+                return
+
+            # Get placeholder info
+            placeholder = self._placeholders.get(key)
+            if not placeholder:
+                return
+
+            # Create thumbnail widget
+            thumbnail = ThumbnailWidget(shot, self._thumbnail_size)
+            thumbnail.clicked.connect(self._on_thumbnail_clicked)
+            thumbnail.double_clicked.connect(self._on_thumbnail_double_clicked)
+
+            # Store in loaded dict
+            self._loaded_thumbnails[key] = thumbnail
+
+            # Replace placeholder in grid
+            # First remove the placeholder widget
+            item = self.grid_layout.itemAtPosition(placeholder.row, placeholder.col)
+            if item and item.widget():
+                item.widget().deleteLater()
+
+            # Add thumbnail widget
+            self.grid_layout.addWidget(thumbnail, placeholder.row, placeholder.col)
+
+            # Restore selection if needed
+            if self.selected_shot and self.selected_shot.full_name == key:
+                thumbnail.set_selected(True)
+
+    def _remove_from_grid(self, widget: QWidget):
+        """Remove widget from grid layout."""
+        self.grid_layout.removeWidget(widget)
+
+    def _get_current_visible_indices(self) -> Set[int]:
+        """Get currently visible indices."""
+        return self._visible_indices.copy()
+
+    def _reflow_grid(self):
+        """Reflow grid layout based on new size."""
+        if not self._placeholders:
+            return
+
+        # Clear grid without deleting widgets
+        self._clear_grid(delete_widgets=False)
+
+        # Recalculate positions
+        columns = self._get_column_count()
         for i, shot in enumerate(self.shot_model.shots):
-            if shot.full_name in self.thumbnails:
-                thumbnail = self.thumbnails[shot.full_name]
-                row = i // self._get_column_count()
-                col = i % self._get_column_count()
-                self.grid_layout.addWidget(thumbnail, row, col)
+            key = shot.full_name
+            if key in self._placeholders:
+                # Update placeholder position
+                self._placeholders[key].row = i // columns
+                self._placeholders[key].col = i % columns
+                self._placeholders[key].index = i
+
+                # Add widget (either loaded thumbnail or placeholder)
+                if key in self._loaded_thumbnails:
+                    thumbnail = self._loaded_thumbnails[key]
+                    self.grid_layout.addWidget(
+                        thumbnail,
+                        self._placeholders[key].row,
+                        self._placeholders[key].col,
+                    )
+                else:
+                    placeholder_widget = self._create_placeholder_widget(
+                        self._placeholders[key].row, self._placeholders[key].col
+                    )
+                    self.grid_layout.addWidget(
+                        placeholder_widget,
+                        self._placeholders[key].row,
+                        self._placeholders[key].col,
+                    )
+
+        # Update visible thumbnails
+        self._update_visible_thumbnails()
 
     def _on_size_changed(self, value: int):
         """Handle thumbnail size change."""
         self._thumbnail_size = value
         self.size_label.setText(f"{value}px")
 
-        # Update all thumbnails
-        for thumbnail in self.thumbnails.values():
+        # Update all loaded thumbnails
+        for thumbnail in self._loaded_thumbnails.values():
             thumbnail.set_size(value)
 
         # Reflow grid
@@ -145,14 +243,14 @@ class ShotGrid(QWidget):
         """Handle thumbnail click."""
         # Update selection
         if self.selected_shot:
-            old_thumb = self.thumbnails.get(self.selected_shot.full_name)
-            if old_thumb:
-                old_thumb.set_selected(False)
+            old_key = self.selected_shot.full_name
+            if old_key in self._loaded_thumbnails:
+                self._loaded_thumbnails[old_key].set_selected(False)
 
         self.selected_shot = shot
-        thumbnail = self.thumbnails.get(shot.full_name)
-        if thumbnail:
-            thumbnail.set_selected(True)
+        key = shot.full_name
+        if key in self._loaded_thumbnails:
+            self._loaded_thumbnails[key].set_selected(True)
 
         self.shot_selected.emit(shot)
 
@@ -163,6 +261,23 @@ class ShotGrid(QWidget):
     def select_shot(self, shot: Shot):
         """Select a shot programmatically."""
         self._on_thumbnail_clicked(shot)
+
+        # Ensure shot is visible and loaded
+        key = shot.full_name
+        if key in self._placeholders:
+            placeholder = self._placeholders[key]
+
+            # Scroll to make it visible
+            if key in self._loaded_thumbnails:
+                thumbnail = self._loaded_thumbnails[key]
+                self.scroll_area.ensureWidgetVisible(thumbnail)
+            else:
+                # Load it if not already loaded
+                self._load_thumbnail_at_index(placeholder.index)
+
+                # Then ensure visible
+                if key in self._loaded_thumbnails:
+                    self.scroll_area.ensureWidgetVisible(self._loaded_thumbnails[key])
 
     def resizeEvent(self, event: QResizeEvent):
         """Handle resize to reflow grid."""
@@ -238,10 +353,5 @@ class ShotGrid(QWidget):
         if new_index != current_index and 0 <= new_index < total_shots:
             new_shot = self.shot_model.shots[new_index]
             self.select_shot(new_shot)
-
-            # Ensure the selected thumbnail is visible
-            if new_shot.full_name in self.thumbnails:
-                thumbnail = self.thumbnails[new_shot.full_name]
-                self.scroll_area.ensureWidgetVisible(thumbnail)
 
         event.accept()

@@ -21,16 +21,9 @@ class TestCacheManager:
             yield Path(tmpdir)
 
     @pytest.fixture
-    def cache_manager(self, temp_cache_dir, monkeypatch):
+    def cache_manager(self, temp_cache_dir):
         """Create CacheManager with temporary directory."""
-        monkeypatch.setattr(CacheManager, "CACHE_DIR", temp_cache_dir)
-        monkeypatch.setattr(
-            CacheManager, "THUMBNAILS_DIR", temp_cache_dir / "thumbnails"
-        )
-        monkeypatch.setattr(
-            CacheManager, "SHOTS_CACHE_FILE", temp_cache_dir / "shots.json"
-        )
-        return CacheManager()
+        return CacheManager(cache_dir=temp_cache_dir)
 
     def test_ensure_cache_dirs(self, cache_manager, temp_cache_dir):
         """Test cache directory creation."""

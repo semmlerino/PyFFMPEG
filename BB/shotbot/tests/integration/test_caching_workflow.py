@@ -32,13 +32,11 @@ workspace /shows/testshow/shots/101_ABC/101_ABC_0020
 workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
 
     @pytest.fixture
-    def shot_model_with_cache(self, temp_dirs, monkeypatch):
+    def shot_model_with_cache(self, temp_dirs):
         """Create ShotModel with custom cache directory."""
         cache_dir, _ = temp_dirs
-        monkeypatch.setattr(CacheManager, "CACHE_DIR", cache_dir)
-        monkeypatch.setattr(CacheManager, "THUMBNAILS_DIR", cache_dir / "thumbnails")
-        monkeypatch.setattr(CacheManager, "SHOTS_CACHE_FILE", cache_dir / "shots.json")
-        return ShotModel()
+        cache_manager = CacheManager(cache_dir=cache_dir)
+        return ShotModel(cache_manager)
 
     def test_shot_model_cache_on_refresh(
         self, shot_model_with_cache, mock_ws_output, temp_dirs
@@ -94,11 +92,8 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
             json.dump(cache_data, f)
 
         # Create shot model with cache
-        monkeypatch.setattr(CacheManager, "CACHE_DIR", cache_dir)
-        monkeypatch.setattr(CacheManager, "THUMBNAILS_DIR", cache_dir / "thumbnails")
-        monkeypatch.setattr(CacheManager, "SHOTS_CACHE_FILE", cache_file)
-
-        model = ShotModel()
+        cache_manager = CacheManager(cache_dir=cache_dir)
+        model = ShotModel(cache_manager)
 
         # Should have loaded from cache
         assert len(model.shots) == 1
@@ -146,9 +141,6 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
         cache_dir, shots_dir = temp_dirs
 
         # Setup cache manager with temp directory
-        monkeypatch.setattr(CacheManager, "CACHE_DIR", cache_dir)
-        monkeypatch.setattr(CacheManager, "THUMBNAILS_DIR", cache_dir / "thumbnails")
-        monkeypatch.setattr(CacheManager, "SHOTS_CACHE_FILE", cache_dir / "shots.json")
 
         # Create source thumbnail with real image
         source_thumb = shots_dir / "thumb.jpg"
@@ -175,7 +167,7 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
 
         # The cache creation happens in background, so we need to wait a bit
         # or manually trigger the cache loader
-        cache_manager = CacheManager()
+        cache_manager = CacheManager(cache_dir=cache_dir)
         cache_path = cache_manager.cache_thumbnail(
             source_thumb, "show1", "seq1", "shot1"
         )
@@ -188,11 +180,8 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
         cache_dir, _ = temp_dirs
 
         # Setup cache manager
-        monkeypatch.setattr(CacheManager, "CACHE_DIR", cache_dir)
-        monkeypatch.setattr(CacheManager, "THUMBNAILS_DIR", cache_dir / "thumbnails")
-        monkeypatch.setattr(CacheManager, "SHOTS_CACHE_FILE", cache_dir / "shots.json")
 
-        cache_manager = CacheManager()
+        cache_manager = CacheManager(cache_dir=cache_dir)
 
         # Create expired cache
         old_time = datetime.now() - timedelta(hours=2)
@@ -242,11 +231,8 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
         cache_dir, _ = temp_dirs
 
         # Setup cache manager
-        monkeypatch.setattr(CacheManager, "CACHE_DIR", cache_dir)
-        monkeypatch.setattr(CacheManager, "THUMBNAILS_DIR", cache_dir / "thumbnails")
-        monkeypatch.setattr(CacheManager, "SHOTS_CACHE_FILE", cache_dir / "shots.json")
 
-        cache_manager = CacheManager()
+        cache_manager = CacheManager(cache_dir=cache_dir)
 
         # Create some cache data
         (cache_dir / "thumbnails" / "test").mkdir(parents=True)

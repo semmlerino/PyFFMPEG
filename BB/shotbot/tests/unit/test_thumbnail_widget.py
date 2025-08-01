@@ -4,11 +4,12 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QPoint, Qt, QUrl
 from PySide6.QtGui import QMouseEvent, QPixmap
 
 from shot_model import Shot
-from thumbnail_widget import ThumbnailLoader, ThumbnailWidget
+from thumbnail_loading_indicator import ThumbnailLoadingIndicator
+from thumbnail_widget import LoadingState, ThumbnailLoader, ThumbnailWidget
 
 
 class TestThumbnailWidget:
@@ -221,6 +222,105 @@ class TestThumbnailWidget:
         deselected_style = thumbnail_widget.styleSheet()
         assert "#2b2b2b" in deselected_style  # Deselected background
         assert "#14ffec" not in deselected_style  # No selected border
+
+    def test_loading_indicator_initialization(self, thumbnail_widget):
+        """Test loading indicator is created."""
+        assert hasattr(thumbnail_widget, "loading_indicator")
+        assert isinstance(thumbnail_widget.loading_indicator, ThumbnailLoadingIndicator)
+        assert thumbnail_widget.loading_indicator.isHidden()
+
+    def test_loading_state_initialization(self, thumbnail_widget):
+        """Test loading state initialization."""
+        # Widget starts loading immediately during initialization
+        # State should be LOADING or FAILED depending on if thumbnail load succeeded
+        assert thumbnail_widget._loading_state in [
+            LoadingState.LOADING,
+            LoadingState.FAILED,
+            LoadingState.LOADED,
+        ]
+
+    @patch("thumbnail_widget.ThumbnailLoader")
+    def test_loading_state_transitions(self, mock_loader_class, thumbnail_widget):
+        """Test loading state transitions during load."""
+        # Mock the loader
+        mock_loader = Mock()
+        mock_loader_class.return_value = mock_loader
+
+        # Mock the loading indicator's start method
+        thumbnail_widget.loading_indicator.start = Mock()
+
+        # Mock cache manager to return no cache
+        thumbnail_widget._cache_manager.get_cached_thumbnail = Mock(return_value=None)
+
+        # Mock shot to return a valid path
+        mock_path = Mock()
+        mock_path.exists.return_value = True
+        thumbnail_widget.shot.get_thumbnail_path = Mock(return_value=mock_path)
+
+        # Start loading
+        thumbnail_widget._load_thumbnail()
+
+        # Should be in loading state
+        assert thumbnail_widget._loading_state == LoadingState.LOADING
+
+        # Verify loading indicator was started
+        assert thumbnail_widget.loading_indicator.start.called
+
+    def test_loading_indicator_on_success(self, thumbnail_widget):
+        """Test loading indicator stops on success."""
+        # Mock loading indicator
+        thumbnail_widget.loading_indicator.stop = Mock()
+
+        # Create a test pixmap
+        pixmap = QPixmap(100, 100)
+
+        # Simulate successful load
+        thumbnail_widget._on_thumbnail_loaded(thumbnail_widget, pixmap)
+
+        # Check state and indicator
+        assert thumbnail_widget._loading_state == LoadingState.LOADED
+        thumbnail_widget.loading_indicator.stop.assert_called_once()
+
+    def test_loading_indicator_on_failure(self, thumbnail_widget):
+        """Test loading indicator stops on failure."""
+        # Mock loading indicator
+        thumbnail_widget.loading_indicator.stop = Mock()
+
+        # Simulate failed load
+        thumbnail_widget._on_thumbnail_failed(thumbnail_widget)
+
+        # Check state and indicator
+        assert thumbnail_widget._loading_state == LoadingState.FAILED
+        thumbnail_widget.loading_indicator.stop.assert_called_once()
+
+    def test_set_size_updates_container(self, thumbnail_widget):
+        """Test set_size updates container and loading indicator position."""
+        new_size = 300
+
+        thumbnail_widget.set_size(new_size)
+
+        # Check container size
+        assert thumbnail_widget.thumbnail_container.width() == new_size
+        assert thumbnail_widget.thumbnail_container.height() == new_size
+
+        # Check loading indicator position (centered)
+        expected_pos = (new_size - 40) // 2
+        assert thumbnail_widget.loading_indicator.x() == expected_pos
+        assert thumbnail_widget.loading_indicator.y() == expected_pos
+
+    def test_open_shot_folder_direct(self, thumbnail_widget):
+        """Test _open_shot_folder method directly."""
+        with patch("thumbnail_widget.QDesktopServices.openUrl") as mock_open_url:
+            # Call the method directly
+            thumbnail_widget._open_shot_folder()
+
+            # Verify it was called with the correct URL
+            expected_url = QUrl.fromLocalFile(thumbnail_widget.shot.workspace_path)
+            mock_open_url.assert_called_once()
+
+            # Compare URLs as strings
+            called_url = mock_open_url.call_args[0][0]
+            assert called_url.toString() == expected_url.toString()
 
 
 class TestThumbnailLoader:

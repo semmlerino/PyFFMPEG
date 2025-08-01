@@ -5,7 +5,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Dict, Optional
 
 from cache_manager import CacheManager
 from config import Config
@@ -54,33 +54,46 @@ class Shot:
 
         return None
 
+    def to_dict(self) -> Dict[str, str]:
+        """Convert shot to dictionary for serialization."""
+        return {
+            "show": self.show,
+            "sequence": self.sequence,
+            "shot": self.shot,
+            "workspace_path": self.workspace_path,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, str]) -> "Shot":
+        """Create shot from dictionary data."""
+        return cls(
+            show=data["show"],
+            sequence=data["sequence"],
+            shot=data["shot"],
+            workspace_path=data["workspace_path"],
+        )
+
 
 class ShotModel:
     """Manages shot data and parsing."""
 
-    def __init__(self):
+    def __init__(
+        self, cache_manager: Optional[CacheManager] = None, load_cache: bool = True
+    ):
         self.shots: list[Shot] = []
-        self.cache_manager = CacheManager()
+        self.cache_manager = cache_manager or CacheManager()
         self._parse_pattern = re.compile(
             r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))"
         )
-        # Try to load from cache immediately
-        self._load_from_cache()
+        # Only load cache if requested (allows tests to start clean)
+        if load_cache:
+            self._load_from_cache()
 
     def _load_from_cache(self) -> bool:
         """Load shots from cache if available."""
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
-            self.shots = []
-            for shot_data in cached_data:
-                self.shots.append(
-                    Shot(
-                        show=shot_data["show"],
-                        sequence=shot_data["sequence"],
-                        shot=shot_data["shot"],
-                        workspace_path=shot_data["workspace_path"],
-                    )
-                )
+            self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
             return True
         return False
 
@@ -120,9 +133,9 @@ class ShotModel:
 
             if has_changes:
                 self.shots = new_shots
-                # Cache the results
+                # Cache the results - pass Shot objects directly
                 if self.shots:
-                    self.cache_manager.cache_shots(self.to_dict())
+                    self.cache_manager.cache_shots(self.shots)
 
             return True, has_changes
 
@@ -178,16 +191,3 @@ class ShotModel:
             if shot.full_name == full_name:
                 return shot
         return None
-
-    def to_dict(self) -> list[dict[str, Any]]:
-        """Convert shots to dictionary format."""
-        return [
-            {
-                "show": shot.show,
-                "sequence": shot.sequence,
-                "shot": shot.shot,
-                "workspace_path": shot.workspace_path,
-                "full_name": shot.full_name,
-            }
-            for shot in self.shots
-        ]

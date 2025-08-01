@@ -1,4 +1,4 @@
-"""Shot grid widget for displaying thumbnails in a grid layout."""
+"""3DE scene grid widget for displaying scene thumbnails in a grid layout."""
 
 from typing import Dict, Optional
 
@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QProgressBar,
     QScrollArea,
     QSlider,
     QVBoxLayout,
@@ -15,23 +16,24 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
-from shot_model import Shot, ShotModel
-from thumbnail_widget import ThumbnailWidget
+from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+from threede_thumbnail_widget import ThreeDEThumbnailWidget
 
 
-class ShotGrid(QWidget):
-    """Grid display of shot thumbnails."""
+class ThreeDEShotGrid(QWidget):
+    """Grid display of 3DE scene thumbnails."""
 
     # Signals
-    shot_selected = Signal(object)  # Shot
-    shot_double_clicked = Signal(object)  # Shot
+    scene_selected = Signal(object)  # ThreeDEScene
+    scene_double_clicked = Signal(object)  # ThreeDEScene
 
-    def __init__(self, shot_model: ShotModel):
+    def __init__(self, scene_model: ThreeDESceneModel):
         super().__init__()
-        self.shot_model = shot_model
-        self.thumbnails: Dict[str, ThumbnailWidget] = {}
-        self.selected_shot: Optional[Shot] = None
+        self.scene_model = scene_model
+        self.thumbnails: Dict[str, ThreeDEThumbnailWidget] = {}
+        self.selected_scene: Optional[ThreeDEScene] = None
         self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        self._is_loading = False
         self._setup_ui()
 
     def _setup_ui(self):
@@ -58,6 +60,20 @@ class ShotGrid(QWidget):
 
         layout.addLayout(size_layout)
 
+        # Loading indicator
+        self.loading_bar = QProgressBar()
+        self.loading_bar.setRange(0, 0)  # Indeterminate
+        self.loading_bar.setVisible(False)
+        self.loading_bar.setMaximumHeight(3)
+        layout.addWidget(self.loading_bar)
+
+        # Loading label
+        self.loading_label = QLabel("Scanning for 3DE scenes...")
+        self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.loading_label.setVisible(False)
+        self.loading_label.setStyleSheet("color: #888; padding: 5px;")
+        layout.addWidget(self.loading_label)
+
         # Scroll area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -76,29 +92,60 @@ class ShotGrid(QWidget):
         # Enable keyboard focus
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-    def refresh_shots(self):
-        """Refresh the shot display."""
+    def set_loading(self, loading: bool, message: str = "Scanning for 3DE scenes..."):
+        """Set loading state."""
+        self._is_loading = loading
+        self.loading_bar.setVisible(loading)
+        self.loading_label.setVisible(loading)
+        self.loading_label.setText(message)
+
+    def set_loading_progress(self, current: int, total: int):
+        """Set loading progress."""
+        if total > 0:
+            self.loading_bar.setRange(0, total)
+            self.loading_bar.setValue(current)
+            self.loading_label.setText(f"Scanning shots ({current}/{total})...")
+
+    def refresh_scenes(self):
+        """Refresh the scene display."""
         # Clear existing thumbnails
         self._clear_grid()
 
-        # Create thumbnails for all shots
-        for i, shot in enumerate(self.shot_model.shots):
-            thumbnail = ThumbnailWidget(shot, self._thumbnail_size)
+        # Show empty state if no scenes
+        if not self.scene_model.scenes:
+            self._show_empty_state()
+            return
+
+        # Create thumbnails for all scenes
+        for i, scene in enumerate(self.scene_model.scenes):
+            thumbnail = ThreeDEThumbnailWidget(scene, self._thumbnail_size)
             thumbnail.clicked.connect(self._on_thumbnail_clicked)
             thumbnail.double_clicked.connect(self._on_thumbnail_double_clicked)
 
-            self.thumbnails[shot.full_name] = thumbnail
+            # Use display name as key for uniqueness
+            self.thumbnails[scene.display_name] = thumbnail
 
             # Add to grid
             row = i // self._get_column_count()
             col = i % self._get_column_count()
             self.grid_layout.addWidget(thumbnail, row, col)
 
+    def _show_empty_state(self):
+        """Show empty state message."""
+        empty_label = QLabel("No 3DE scenes found from other users")
+        empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_label.setStyleSheet("color: #888; font-size: 14px; padding: 40px;")
+        self.grid_layout.addWidget(empty_label, 0, 0)
+
     def _clear_grid(self):
         """Clear all thumbnails from grid."""
-        for thumbnail in self.thumbnails.values():
-            self.grid_layout.removeWidget(thumbnail)
-            thumbnail.deleteLater()
+        # Remove all widgets from grid
+        while self.grid_layout.count():
+            item = self.grid_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Clear thumbnail references
         self.thumbnails.clear()
 
     def _get_column_count(self) -> int:
@@ -122,9 +169,9 @@ class ShotGrid(QWidget):
             self.grid_layout.removeWidget(widget)
 
         # Re-add in new positions
-        for i, shot in enumerate(self.shot_model.shots):
-            if shot.full_name in self.thumbnails:
-                thumbnail = self.thumbnails[shot.full_name]
+        for i, scene in enumerate(self.scene_model.scenes):
+            if scene.display_name in self.thumbnails:
+                thumbnail = self.thumbnails[scene.display_name]
                 row = i // self._get_column_count()
                 col = i % self._get_column_count()
                 self.grid_layout.addWidget(thumbnail, row, col)
@@ -141,28 +188,28 @@ class ShotGrid(QWidget):
         # Reflow grid
         self._reflow_grid()
 
-    def _on_thumbnail_clicked(self, shot: Shot):
+    def _on_thumbnail_clicked(self, scene: ThreeDEScene):
         """Handle thumbnail click."""
         # Update selection
-        if self.selected_shot:
-            old_thumb = self.thumbnails.get(self.selected_shot.full_name)
+        if self.selected_scene:
+            old_thumb = self.thumbnails.get(self.selected_scene.display_name)
             if old_thumb:
                 old_thumb.set_selected(False)
 
-        self.selected_shot = shot
-        thumbnail = self.thumbnails.get(shot.full_name)
+        self.selected_scene = scene
+        thumbnail = self.thumbnails.get(scene.display_name)
         if thumbnail:
             thumbnail.set_selected(True)
 
-        self.shot_selected.emit(shot)
+        self.scene_selected.emit(scene)
 
-    def _on_thumbnail_double_clicked(self, shot: Shot):
+    def _on_thumbnail_double_clicked(self, scene: ThreeDEScene):
         """Handle thumbnail double click."""
-        self.shot_double_clicked.emit(shot)
+        self.scene_double_clicked.emit(scene)
 
-    def select_shot(self, shot: Shot):
-        """Select a shot programmatically."""
-        self._on_thumbnail_clicked(shot)
+    def select_scene(self, scene: ThreeDEScene):
+        """Select a scene programmatically."""
+        self._on_thumbnail_clicked(scene)
 
     def resizeEvent(self, event: QResizeEvent):
         """Handle resize to reflow grid."""
@@ -185,34 +232,34 @@ class ShotGrid(QWidget):
 
     def keyPressEvent(self, event: QKeyEvent):
         """Handle keyboard navigation."""
-        if not self.shot_model.shots:
+        if not self.scene_model.scenes:
             super().keyPressEvent(event)
             return
 
         # Get current selection index
         current_index = -1
-        if self.selected_shot:
-            for i, shot in enumerate(self.shot_model.shots):
-                if shot.full_name == self.selected_shot.full_name:
+        if self.selected_scene:
+            for i, scene in enumerate(self.scene_model.scenes):
+                if scene.display_name == self.selected_scene.display_name:
                     current_index = i
                     break
 
         # Calculate grid dimensions
         columns = self._get_column_count()
-        total_shots = len(self.shot_model.shots)
+        total_scenes = len(self.scene_model.scenes)
 
         new_index = current_index
 
         # Handle arrow keys
         if event.key() == Qt.Key.Key_Right:
             new_index = (
-                min(current_index + 1, total_shots - 1) if current_index >= 0 else 0
+                min(current_index + 1, total_scenes - 1) if current_index >= 0 else 0
             )
         elif event.key() == Qt.Key.Key_Left:
             new_index = max(current_index - 1, 0) if current_index >= 0 else 0
         elif event.key() == Qt.Key.Key_Down:
             if current_index >= 0:
-                new_index = min(current_index + columns, total_shots - 1)
+                new_index = min(current_index + columns, total_scenes - 1)
             else:
                 new_index = 0
         elif event.key() == Qt.Key.Key_Up:
@@ -223,25 +270,25 @@ class ShotGrid(QWidget):
         elif event.key() == Qt.Key.Key_Home:
             new_index = 0
         elif event.key() == Qt.Key.Key_End:
-            new_index = total_shots - 1
+            new_index = total_scenes - 1
         elif event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
             # Double-click on current selection
-            if self.selected_shot:
-                self.shot_double_clicked.emit(self.selected_shot)
+            if self.selected_scene:
+                self.scene_double_clicked.emit(self.selected_scene)
             event.accept()
             return
         else:
             super().keyPressEvent(event)
             return
 
-        # Select new shot if index changed
-        if new_index != current_index and 0 <= new_index < total_shots:
-            new_shot = self.shot_model.shots[new_index]
-            self.select_shot(new_shot)
+        # Select new scene if index changed
+        if new_index != current_index and 0 <= new_index < total_scenes:
+            new_scene = self.scene_model.scenes[new_index]
+            self.select_scene(new_scene)
 
             # Ensure the selected thumbnail is visible
-            if new_shot.full_name in self.thumbnails:
-                thumbnail = self.thumbnails[new_shot.full_name]
+            if new_scene.display_name in self.thumbnails:
+                thumbnail = self.thumbnails[new_scene.display_name]
                 self.scroll_area.ensureWidgetVisible(thumbnail)
 
         event.accept()

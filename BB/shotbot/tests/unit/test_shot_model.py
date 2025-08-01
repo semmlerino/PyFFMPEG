@@ -400,38 +400,56 @@ class TestShotModel:
         shot = model.find_shot_by_name("ANY_NAME")
         assert shot is None
 
-    def test_to_dict(self, shot_model_with_shots):
-        """Test converting shots to dictionary format."""
-        result = shot_model_with_shots.to_dict()
+    def test_shot_to_dict(self, shot_model_with_shots):
+        """Test converting individual shots to dictionary format."""
+        shot = shot_model_with_shots.shots[0]
+        result = shot.to_dict()
 
-        assert isinstance(result, list)
-        assert len(result) == 3
+        assert isinstance(result, dict)
 
-        # Check first shot dict
-        first = result[0]
-        assert first["show"] == "ygsk"
-        assert first["sequence"] == "108_BQS"
-        assert first["shot"] == "0005"
-        assert first["workspace_path"] == "/shows/ygsk/shots/108_BQS/108_BQS_0005"
-        assert first["full_name"] == "108_BQS_0005"
+        # Check shot dict content
+        assert result["show"] == "ygsk"
+        assert result["sequence"] == "108_BQS"
+        assert result["shot"] == "0005"
+        assert result["workspace_path"] == "/shows/ygsk/shots/108_BQS/108_BQS_0005"
 
-        # Verify all required keys
-        required_keys = {"show", "sequence", "shot", "workspace_path", "full_name"}
-        for shot_dict in result:
-            assert set(shot_dict.keys()) == required_keys
+        # Verify all required keys (note: full_name is not stored, it's a property)
+        required_keys = {"show", "sequence", "shot", "workspace_path"}
+        assert set(result.keys()) == required_keys
 
-    def test_to_dict_empty(self, monkeypatch):
-        """Test converting empty shot list to dict."""
-        # Mock cache manager to return no cached shots
-        from unittest.mock import Mock
+    def test_shot_from_dict(self):
+        """Test creating shot from dictionary (deserialization)."""
+        shot_data = {
+            "show": "testshow",
+            "sequence": "seq001",
+            "shot": "shot001",
+            "workspace_path": "/path/to/workspace",
+        }
 
-        mock_cache_manager = Mock()
-        mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        shot = Shot.from_dict(shot_data)
 
-        model = ShotModel()
-        result = model.to_dict()
-        assert result == []
+        assert shot.show == "testshow"
+        assert shot.sequence == "seq001"
+        assert shot.shot == "shot001"
+        assert shot.workspace_path == "/path/to/workspace"
+        assert shot.full_name == "seq001_shot001"
+
+    def test_shot_serialization_roundtrip(self, shot_model_with_shots):
+        """Test that Shot serialization/deserialization is bidirectional."""
+        original_shot = shot_model_with_shots.shots[0]
+
+        # Serialize to dict
+        shot_dict = original_shot.to_dict()
+
+        # Deserialize back to Shot
+        recreated_shot = Shot.from_dict(shot_dict)
+
+        # Verify roundtrip preserves all data
+        assert recreated_shot.show == original_shot.show
+        assert recreated_shot.sequence == original_shot.sequence
+        assert recreated_shot.shot == original_shot.shot
+        assert recreated_shot.workspace_path == original_shot.workspace_path
+        assert recreated_shot.full_name == original_shot.full_name
 
     def test_shot_parsing_edge_cases(self, qapp, monkeypatch):
         """Test edge cases in shot name parsing."""

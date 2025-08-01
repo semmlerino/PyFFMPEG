@@ -19,10 +19,10 @@ from shot_model import Shot
 class ShotInfoPanel(QWidget):
     """Panel displaying current shot information."""
 
-    def __init__(self):
+    def __init__(self, cache_manager: Optional[CacheManager] = None):
         super().__init__()
         self._current_shot: Optional[Shot] = None
-        self._cache_manager = CacheManager()
+        self.cache_manager = cache_manager or CacheManager()  # Make public
         self._setup_ui()
 
     def _setup_ui(self):
@@ -121,7 +121,7 @@ class ShotInfoPanel(QWidget):
             return
 
         # First check cache
-        cache_path = self._cache_manager.get_cached_thumbnail(
+        cache_path = self.cache_manager.get_cached_thumbnail(
             self._current_shot.show,
             self._current_shot.sequence,
             self._current_shot.shot,
@@ -138,7 +138,7 @@ class ShotInfoPanel(QWidget):
 
                 # Also cache it for next time
                 cache_loader = ThumbnailCacheLoader(
-                    self._cache_manager,
+                    self.cache_manager,
                     thumb_path,
                     self._current_shot.show,
                     self._current_shot.sequence,

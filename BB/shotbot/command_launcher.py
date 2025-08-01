@@ -9,6 +9,7 @@ from PySide6.QtCore import QObject, Signal
 from config import Config
 from raw_plate_finder import RawPlateFinder
 from shot_model import Shot
+from threede_scene_model import ThreeDEScene
 from undistortion_finder import UndistortionFinder
 
 
@@ -142,6 +143,65 @@ class CommandLauncher(QObject):
 
         except Exception as e:
             self._emit_error(f"Failed to launch {app_name}: {str(e)}")
+            return False
+
+    def launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:
+        """Launch an application with a specific 3DE scene file.
+
+        Args:
+            app_name: Name of the application to launch
+            scene: The 3DE scene to open
+
+        Returns:
+            True if launch was successful, False otherwise
+        """
+        if app_name not in Config.APPS:
+            self._emit_error(f"Unknown application: {app_name}")
+            return False
+
+        # Get the command
+        command = Config.APPS[app_name]
+
+        # Include the scene file in the command
+        command = f"{command} {scene.scene_path}"
+
+        # Build full command with ws (workspace setup)
+        full_command = f"ws {scene.workspace_path} && {command}"
+
+        # Log the command
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.command_executed.emit(
+            timestamp, f"{full_command} (Scene by: {scene.user}, Plate: {scene.plate})"
+        )
+
+        try:
+            # Execute in a new terminal
+            terminal_commands = [
+                # Try gnome-terminal first with interactive bash
+                ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
+                # Try xterm as fallback with interactive bash
+                [
+                    "xterm",
+                    "-e",
+                    f"bash -i -c '{full_command}; read -p \"Press Enter to close...\"'",
+                ],
+                # Try konsole with interactive bash
+                ["konsole", "-e", "bash", "-i", "-c", full_command],
+            ]
+
+            for term_cmd in terminal_commands:
+                try:
+                    subprocess.Popen(term_cmd)
+                    return True
+                except FileNotFoundError:
+                    continue
+
+            # If no terminal worked, try direct execution with interactive bash
+            subprocess.Popen(["/bin/bash", "-i", "-c", full_command])
+            return True
+
+        except Exception as e:
+            self._emit_error(f"Failed to launch {app_name} with scene: {str(e)}")
             return False
 
     def _emit_error(self, error: str):

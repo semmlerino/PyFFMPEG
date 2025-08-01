@@ -46,3 +46,9 @@ class Config:
 
     # Threading
     MAX_THUMBNAIL_THREADS = 4
+
+    # Memory optimization
+    USE_MEMORY_OPTIMIZED_GRID = True  # Enable viewport-based loading
+    MAX_LOADED_THUMBNAILS = 50  # Maximum thumbnails to keep in memory
+    VIEWPORT_BUFFER_ROWS = 2  # Extra rows to load beyond viewport
+    THUMBNAIL_UNLOAD_DELAY_MS = 5000  # Delay before unloading invisible thumbnails

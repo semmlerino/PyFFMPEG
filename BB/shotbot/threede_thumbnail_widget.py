@@ -1,24 +1,16 @@
-"""Thumbnail widget for displaying shot thumbnails."""
+"""Enhanced thumbnail widget for displaying 3DE scene thumbnails with additional info."""
 
 from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThreadPool, QUrl, Signal
-from PySide6.QtGui import (
-    QColor,
-    QContextMenuEvent,
-    QDesktopServices,
-    QFont,
-    QMouseEvent,
-    QPainter,
-    QPixmap,
-)
-from PySide6.QtWidgets import QFrame, QLabel, QMenu, QVBoxLayout, QWidget
+from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThreadPool, Signal
+from PySide6.QtGui import QColor, QFont, QMouseEvent, QPainter, QPixmap
+from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
 from cache_manager import CacheManager, ThumbnailCacheLoader
 from config import Config
-from shot_model import Shot
+from threede_scene_model import ThreeDEScene
 from thumbnail_loading_indicator import ThumbnailLoadingIndicator
 
 
@@ -31,14 +23,14 @@ class LoadingState(Enum):
     FAILED = "failed"
 
 
-class ThumbnailLoader(QRunnable):
+class ThreeDEThumbnailLoader(QRunnable):
     """Runnable for loading thumbnails in background."""
 
     class Signals(QObject):
         loaded = Signal(object, QPixmap)  # widget, pixmap
         failed = Signal(object)  # widget
 
-    def __init__(self, widget: "ThumbnailWidget", path: Path):
+    def __init__(self, widget: "ThreeDEThumbnailWidget", path: Path):
         super().__init__()
         self.widget = widget
         self.path = path
@@ -56,12 +48,12 @@ class ThumbnailLoader(QRunnable):
             self.signals.failed.emit(self.widget)
 
 
-class ThumbnailWidget(QFrame):
-    """Widget displaying a shot thumbnail and name."""
+class ThreeDEThumbnailWidget(QFrame):
+    """Widget displaying a 3DE scene thumbnail with shot, user, and plate info."""
 
     # Signals
-    clicked = Signal(object)  # Shot
-    double_clicked = Signal(object)  # Shot
+    clicked = Signal(object)  # ThreeDEScene
+    double_clicked = Signal(object)  # ThreeDEScene
 
     # Shared cache manager
     _cache_manager = CacheManager()
@@ -71,9 +63,9 @@ class ThumbnailWidget(QFrame):
         """Set the shared cache manager for all thumbnail widgets."""
         cls._cache_manager = cache_manager
 
-    def __init__(self, shot: Shot, size: int = Config.DEFAULT_THUMBNAIL_SIZE):
+    def __init__(self, scene: ThreeDEScene, size: int = Config.DEFAULT_THUMBNAIL_SIZE):
         super().__init__()
-        self.shot = shot
+        self.scene = scene
         self._thumbnail_size = size
         self._selected = False
         self._pixmap: Optional[QPixmap] = None
@@ -83,15 +75,13 @@ class ThumbnailWidget(QFrame):
 
     def _setup_ui(self):
         """Set up the UI."""
-        # Configure frame - removed since we're using CSS styling
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(5)
+        layout.setSpacing(3)
 
         # Thumbnail label
         self.thumbnail_label = QLabel()
-        self.thumbnail_label.setObjectName("thumbnail")  # For CSS targeting
+        self.thumbnail_label.setObjectName("thumbnail")
         self.thumbnail_label.setFixedSize(self._thumbnail_size, self._thumbnail_size)
         self.thumbnail_label.setScaledContents(True)
         self.thumbnail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -118,16 +108,38 @@ class ThumbnailWidget(QFrame):
 
         layout.addWidget(self.thumbnail_container)
 
-        # Shot name label
-        self.name_label = QLabel(self.shot.full_name)
-        self.name_label.setObjectName("name")  # For CSS targeting
-        self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.name_label.setWordWrap(True)
-        font = self.name_label.font()
-        font.setPointSize(9)
-        self.name_label.setFont(font)
+        # Shot name label (larger, bold)
+        self.shot_label = QLabel(self.scene.full_name)
+        self.shot_label.setObjectName("shot")
+        self.shot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.shot_label.setWordWrap(True)
+        shot_font = self.shot_label.font()
+        shot_font.setPointSize(10)
+        shot_font.setBold(True)
+        self.shot_label.setFont(shot_font)
 
-        layout.addWidget(self.name_label)
+        layout.addWidget(self.shot_label)
+
+        # User label (smaller)
+        self.user_label = QLabel(self.scene.user)
+        self.user_label.setObjectName("user")
+        self.user_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        user_font = self.user_label.font()
+        user_font.setPointSize(8)
+        self.user_label.setFont(user_font)
+
+        layout.addWidget(self.user_label)
+
+        # Plate label (highlighted)
+        self.plate_label = QLabel(self.scene.plate)
+        self.plate_label.setObjectName("plate")
+        self.plate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        plate_font = self.plate_label.font()
+        plate_font.setPointSize(9)
+        plate_font.setBold(True)
+        self.plate_label.setFont(plate_font)
+
+        layout.addWidget(self.plate_label)
 
         # Set cursor
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -157,21 +169,21 @@ class ThumbnailWidget(QFrame):
 
         # First check cache
         cache_path = self._cache_manager.get_cached_thumbnail(
-            self.shot.show, self.shot.sequence, self.shot.shot
+            self.scene.show, self.scene.sequence, self.scene.shot
         )
 
         if cache_path and cache_path.exists():
             # Load from cache
-            loader = ThumbnailLoader(self, cache_path)
+            loader = ThreeDEThumbnailLoader(self, cache_path)
             loader.signals.loaded.connect(self._on_thumbnail_loaded)
             loader.signals.failed.connect(self._on_thumbnail_failed)
             QThreadPool.globalInstance().start(loader)
         else:
             # Try to load from source
-            thumb_path = self.shot.get_thumbnail_path()
+            thumb_path = self.scene.get_thumbnail_path()
             if thumb_path and thumb_path.exists():
                 # Load in background thread
-                loader = ThumbnailLoader(self, thumb_path)
+                loader = ThreeDEThumbnailLoader(self, thumb_path)
                 loader.signals.loaded.connect(self._on_thumbnail_loaded)
                 loader.signals.failed.connect(self._on_thumbnail_failed)
                 QThreadPool.globalInstance().start(loader)
@@ -180,16 +192,16 @@ class ThumbnailWidget(QFrame):
                 cache_loader = ThumbnailCacheLoader(
                     self._cache_manager,
                     thumb_path,
-                    self.shot.show,
-                    self.shot.sequence,
-                    self.shot.shot,
+                    self.scene.show,
+                    self.scene.sequence,
+                    self.scene.shot,
                 )
                 QThreadPool.globalInstance().start(cache_loader)
             else:
                 # No thumbnail available
                 self._on_thumbnail_failed(self)
 
-    def _on_thumbnail_loaded(self, widget: "ThumbnailWidget", pixmap: QPixmap):
+    def _on_thumbnail_loaded(self, widget: "ThreeDEThumbnailWidget", pixmap: QPixmap):
         """Handle loaded thumbnail."""
         if widget == self:
             self._loading_state = LoadingState.LOADED
@@ -197,7 +209,7 @@ class ThumbnailWidget(QFrame):
             self._pixmap = pixmap
             self._update_thumbnail()
 
-    def _on_thumbnail_failed(self, widget: "ThumbnailWidget"):
+    def _on_thumbnail_failed(self, widget: "ThreeDEThumbnailWidget"):
         """Handle failed thumbnail loading."""
         if widget == self:
             self._loading_state = LoadingState.FAILED
@@ -239,36 +251,62 @@ class ThumbnailWidget(QFrame):
     def _update_style(self):
         """Update widget style based on state."""
         if self._selected:
-            # Use QFrame styling with bright cyan border
+            # Use bright cyan for selection with distinct plate color
             self.setStyleSheet("""
-                ThumbnailWidget {
+                ThreeDEThumbnailWidget {
                     background-color: #0d7377;
                     border: 3px solid #14ffec;
                     border-radius: 8px;
                 }
-                QLabel#name {
+                QLabel#shot {
                     color: #14ffec;
                     font-weight: bold;
+                    background-color: transparent;
+                }
+                QLabel#user {
+                    color: #aaffff;
+                    background-color: transparent;
+                }
+                QLabel#plate {
+                    color: #ffff14;
+                    font-weight: bold;
+                    background-color: #0d7377;
+                    padding: 2px 6px;
+                    border-radius: 3px;
                 }
                 QLabel#thumbnail {
                     border: 1px solid #14ffec;
                     border-radius: 4px;
                     padding: 2px;
-                }
-                QLabel {
                     background-color: transparent;
                 }
             """)
         else:
             self.setStyleSheet("""
-                ThumbnailWidget {
+                ThreeDEThumbnailWidget {
                     background-color: #2b2b2b;
                     border: 2px solid #444;
                     border-radius: 6px;
                 }
-                ThumbnailWidget:hover {
+                ThreeDEThumbnailWidget:hover {
                     background-color: #3a3a3a;
                     border: 2px solid #888;
+                }
+                QLabel#shot {
+                    color: white;
+                    font-weight: bold;
+                    background-color: transparent;
+                }
+                QLabel#user {
+                    color: #ccc;
+                    background-color: transparent;
+                }
+                QLabel#plate {
+                    color: #ffd700;
+                    font-weight: bold;
+                    background-color: #444;
+                    padding: 2px 6px;
+                    border-radius: 3px;
                 }
                 QLabel {
                     border: none;
@@ -282,26 +320,9 @@ class ThumbnailWidget(QFrame):
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse press."""
         if event.button() == Qt.MouseButton.LeftButton:
-            self.clicked.emit(self.shot)
+            self.clicked.emit(self.scene)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
         """Handle double click."""
         if event.button() == Qt.MouseButton.LeftButton:
-            self.double_clicked.emit(self.shot)
-
-    def contextMenuEvent(self, event: QContextMenuEvent):
-        """Handle right-click context menu."""
-        menu = QMenu(self)
-
-        # Add "Open Shot Folder" action
-        open_folder_action = menu.addAction("Open Shot Folder")
-        open_folder_action.triggered.connect(self._open_shot_folder)
-
-        # Show the menu at cursor position
-        menu.exec(event.globalPos())
-
-    def _open_shot_folder(self):
-        """Open the shot's workspace folder in system file manager."""
-        folder_path = self.shot.workspace_path
-        url = QUrl.fromLocalFile(folder_path)
-        QDesktopServices.openUrl(url)
+            self.double_clicked.emit(self.scene)

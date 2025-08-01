@@ -1,7 +1,7 @@
 """Main window for ShotBot application."""
 
 import json
-from typing import Any
+from typing import Any, Optional
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
@@ -14,25 +14,43 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSplitter,
     QStatusBar,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from cache_manager import CacheManager
 from command_launcher import CommandLauncher
 from config import Config
 from log_viewer import LogViewer
 from shot_grid import ShotGrid
+from shot_grid_optimized import ShotGridOptimized
 from shot_info_panel import ShotInfoPanel
 from shot_model import Shot, ShotModel
+from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+from threede_shot_grid import ThreeDEShotGrid
 
 
 class MainWindow(QMainWindow):
     """Main application window."""
 
-    def __init__(self):
+    def __init__(self, cache_manager: Optional[CacheManager] = None):
         super().__init__()
-        self.shot_model = ShotModel()
+        # Create single cache manager for the application
+        self.cache_manager = cache_manager or CacheManager()
+
+        # Configure thumbnail widgets to use our cache manager
+        from threede_thumbnail_widget import ThreeDEThumbnailWidget
+        from thumbnail_widget import ThumbnailWidget
+
+        ThumbnailWidget.set_cache_manager(self.cache_manager)
+        ThreeDEThumbnailWidget.set_cache_manager(self.cache_manager)
+
+        # Pass to models
+        self.shot_model = ShotModel(self.cache_manager)
+        self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
         self.command_launcher = CommandLauncher()
+        self._current_scene: Optional[ThreeDEScene] = None
         self._setup_ui()
         self._setup_menu()
         self._connect_signals()
@@ -63,9 +81,21 @@ class MainWindow(QMainWindow):
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         main_layout.addWidget(self.splitter)
 
-        # Left side - Shot grid
-        self.shot_grid = ShotGrid(self.shot_model)
-        self.splitter.addWidget(self.shot_grid)
+        # Left side - Tab widget for different views
+        self.tab_widget = QTabWidget()
+        self.splitter.addWidget(self.tab_widget)
+
+        # Tab 1: My Shots
+        # Use optimized grid if enabled in config
+        if Config.USE_MEMORY_OPTIMIZED_GRID:
+            self.shot_grid = ShotGridOptimized(self.shot_model)
+        else:
+            self.shot_grid = ShotGrid(self.shot_model)
+        self.tab_widget.addTab(self.shot_grid, "My Shots")
+
+        # Tab 2: Other 3DE scenes
+        self.threede_shot_grid = ThreeDEShotGrid(self.threede_scene_model)
+        self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
 
         # Right side - Controls and log
         right_widget = QWidget()
@@ -73,7 +103,7 @@ class MainWindow(QMainWindow):
         right_layout.setContentsMargins(0, 0, 0, 0)
 
         # Shot info panel
-        self.shot_info_panel = ShotInfoPanel()
+        self.shot_info_panel = ShotInfoPanel(self.cache_manager)
         right_layout.addWidget(self.shot_info_panel)
 
         # App launcher buttons
@@ -167,6 +197,12 @@ class MainWindow(QMainWindow):
         self.shot_grid.shot_selected.connect(self._on_shot_selected)
         self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
 
+        # 3DE scene selection
+        self.threede_shot_grid.scene_selected.connect(self._on_scene_selected)
+        self.threede_shot_grid.scene_double_clicked.connect(
+            self._on_scene_double_clicked
+        )
+
         # Command launcher
         self.command_launcher.command_executed.connect(self.log_viewer.add_command)
         self.command_launcher.command_error.connect(self.log_viewer.add_error)
@@ -207,6 +243,9 @@ class MainWindow(QMainWindow):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
                     self.shot_grid.select_shot(shot)
+
+            # Also refresh 3DE scenes
+            self._refresh_threede_scenes()
         else:
             self._update_status("Failed to load shots")
             QMessageBox.warning(
@@ -214,6 +253,31 @@ class MainWindow(QMainWindow):
                 "Error",
                 "Failed to load shots. Make sure 'ws -sg' command is available.",
             )
+
+    def _refresh_threede_scenes(self):
+        """Refresh 3DE scene list."""
+        # Show loading state
+        self.threede_shot_grid.set_loading(True)
+
+        # Perform refresh in background
+        QTimer.singleShot(10, self._do_threede_refresh)
+
+    def _do_threede_refresh(self):
+        """Actually perform the 3DE scene refresh."""
+        success, has_changes = self.threede_scene_model.refresh_scenes(
+            self.shot_model.shots
+        )
+
+        # Hide loading state
+        self.threede_shot_grid.set_loading(False)
+
+        if success and has_changes:
+            self.threede_shot_grid.refresh_scenes()
+            scene_count = len(self.threede_scene_model.scenes)
+            if scene_count > 0:
+                self._update_status(f"Found {scene_count} 3DE scenes from other users")
+            else:
+                self._update_status("No 3DE scenes found from other users")
 
     def _background_refresh(self):
         """Refresh shots in background without interrupting user."""
@@ -237,6 +301,14 @@ class MainWindow(QMainWindow):
                 shot = self.shot_model.find_shot_by_name(current_shot_name)
                 if shot:
                     self.shot_grid.select_shot(shot)
+
+        # Also refresh 3DE scenes if shots were successful
+        if success:
+            scene_success, scene_changes = self.threede_scene_model.refresh_scenes(
+                self.shot_model.shots
+            )
+            if scene_success and scene_changes:
+                self.threede_shot_grid.refresh_scenes()
 
     def _on_shot_selected(self, shot: Shot):
         """Handle shot selection."""
@@ -263,6 +335,40 @@ class MainWindow(QMainWindow):
         """Handle shot double click - launch default app."""
         self._launch_app(Config.DEFAULT_APP)
 
+    def _on_scene_selected(self, scene: ThreeDEScene):
+        """Handle 3DE scene selection."""
+        self._current_scene = scene
+        self.command_launcher.set_current_shot(None)  # Clear regular shot
+
+        # Create a Shot object from the scene for compatibility
+        shot = Shot(
+            show=scene.show,
+            sequence=scene.sequence,
+            shot=scene.shot,
+            workspace_path=scene.workspace_path,
+        )
+
+        # Update shot info panel
+        self.shot_info_panel.set_shot(shot)
+
+        # Enable only 3de button
+        for app_name, button in self.app_buttons.items():
+            button.setEnabled(app_name == "3de")
+
+        # Update window title with scene info
+        self.setWindowTitle(
+            f"{Config.APP_NAME} - {scene.full_name} ({scene.user} - {scene.plate})"
+        )
+
+        # Update status
+        self._update_status(
+            f"Selected: {scene.full_name} - {scene.user} ({scene.plate})"
+        )
+
+    def _on_scene_double_clicked(self, scene: ThreeDEScene):
+        """Handle 3DE scene double click - launch 3de with the scene."""
+        self._launch_app_with_scene("3de", scene)
+
     def _launch_app(self, app_name: str):
         """Launch an application."""
         # Check if we should include undistortion and/or raw plate for Nuke
@@ -277,6 +383,13 @@ class MainWindow(QMainWindow):
             self._update_status(f"Launched {app_name}")
         else:
             self._update_status(f"Failed to launch {app_name}")
+
+    def _launch_app_with_scene(self, app_name: str, scene: ThreeDEScene):
+        """Launch an application with a specific 3DE scene."""
+        if self.command_launcher.launch_app_with_scene(app_name, scene):
+            self._update_status(f"Launched {app_name} with {scene.user}'s scene")
+        else:
+            self._update_status(f"Failed to launch {app_name} with scene")
 
     def _increase_thumbnail_size(self):
         """Increase thumbnail size."""
@@ -337,6 +450,10 @@ class MainWindow(QMainWindow):
                 if "include_raw_plate" in settings:
                     self.raw_plate_checkbox.setChecked(settings["include_raw_plate"])
 
+                # Restore active tab
+                if "active_tab" in settings:
+                    self.tab_widget.setCurrentIndex(settings["active_tab"])
+
             except Exception as e:
                 print(f"Error loading settings: {e}")
 
@@ -353,6 +470,7 @@ class MainWindow(QMainWindow):
             "thumbnail_size": self.shot_grid.size_slider.value(),
             "include_undistortion": self.undistortion_checkbox.isChecked(),
             "include_raw_plate": self.raw_plate_checkbox.isChecked(),
+            "active_tab": self.tab_widget.currentIndex(),
         }
 
         # Save last selected shot
