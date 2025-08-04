@@ -1,19 +1,22 @@
 """Utility for finding undistortion node files for shots."""
 
-import re
+import logging
 from pathlib import Path
 from typing import Optional
+
+from config import Config
+from utils import PathUtils, VersionUtils
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 
 class UndistortionFinder:
     """Finds the latest undistortion .nk file for a shot."""
 
-    # Pattern for version directories (v001, v002, etc.)
-    VERSION_PATTERN = re.compile(r"^v(\d{3})$")
-
     @staticmethod
     def find_latest_undistortion(
-        shot_workspace_path: str, shot_name: str
+        shot_workspace_path: str, shot_name: str, username: Optional[str] = None
     ) -> Optional[Path]:
         """
         Find the latest undistortion .nk file for a shot.
@@ -21,42 +24,25 @@ class UndistortionFinder:
         Args:
             shot_workspace_path: The shot's workspace path (e.g., /shows/ygsk/shots/108_CHV/108_CHV_0015)
             shot_name: The shot name (e.g., 108_CHV_0015)
+            username: Username for the undistortion path (uses Config.DEFAULT_USERNAME if None)
 
         Returns:
             Path to the latest undistortion .nk file, or None if not found
         """
-        # Base path for undistortion files
-        base_path = (
-            Path(shot_workspace_path)
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
+        if username is None:
+            username = Config.DEFAULT_USERNAME
 
-        if not base_path.exists():
+        # Build base path for undistortion files using utilities
+        base_path = PathUtils.build_undistortion_path(shot_workspace_path, username)
+
+        if not PathUtils.validate_path_exists(base_path, "Undistortion base path"):
             return None
 
-        # Find all version directories
-        version_dirs: list[tuple[int, str]] = []
-        for item in base_path.iterdir():
-            if item.is_dir():
-                match = UndistortionFinder.VERSION_PATTERN.match(item.name)
-                if match:
-                    version_num = int(match.group(1))
-                    version_dirs.append((version_num, item.name))
-
-        if not version_dirs:
+        # Find the latest version directory
+        latest_version = VersionUtils.get_latest_version(base_path)
+        if not latest_version:
+            logger.debug(f"No version directories found in {base_path}")
             return None
-
-        # Sort by version number and get the latest
-        version_dirs.sort(key=lambda x: x[0], reverse=True)
-        latest_version: str = version_dirs[0][1]  # e.g., "v006"
 
         # Construct the full path to the .nk file
         nk_file_path: Path = (
@@ -83,10 +69,5 @@ class UndistortionFinder:
         Returns:
             Version string (e.g., "v006") or None
         """
-        # The version appears in two places in the path, extract from parent directory
-        parent_dir = undistortion_path.parent.parent
-        if parent_dir.exists():
-            match = UndistortionFinder.VERSION_PATTERN.match(parent_dir.name)
-            if match:
-                return parent_dir.name
-        return None
+        # Use utility function for version extraction
+        return VersionUtils.extract_version_from_path(undistortion_path)

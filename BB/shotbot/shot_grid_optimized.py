@@ -26,6 +26,7 @@ class ShotGridOptimized(QWidget, MemoryOptimizedGrid):
     # Signals
     shot_selected = Signal(object)  # Shot
     shot_double_clicked = Signal(object)  # Shot
+    app_launch_requested = Signal(str)  # app_name
 
     def __init__(self, shot_model: ShotModel):
         QWidget.__init__(self)
@@ -343,6 +344,32 @@ class ShotGridOptimized(QWidget, MemoryOptimizedGrid):
             # Double-click on current selection
             if self.selected_shot:
                 self.shot_double_clicked.emit(self.selected_shot)
+            event.accept()
+            return
+        # Application launch shortcuts
+        elif event.key() == Qt.Key.Key_3:
+            if self.selected_shot:
+                self.app_launch_requested.emit("3de")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_N:
+            if self.selected_shot:
+                self.app_launch_requested.emit("nuke")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_M:
+            if self.selected_shot:
+                self.app_launch_requested.emit("maya")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_R:
+            if self.selected_shot:
+                self.app_launch_requested.emit("rv")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_P:
+            if self.selected_shot:
+                self.app_launch_requested.emit("publish")
             event.accept()
             return
         else:

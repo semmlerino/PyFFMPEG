@@ -25,6 +25,7 @@ class ShotGrid(QWidget):
     # Signals
     shot_selected = Signal(object)  # Shot
     shot_double_clicked = Signal(object)  # Shot
+    app_launch_requested = Signal(str)  # app_name
 
     def __init__(self, shot_model: ShotModel):
         super().__init__()
@@ -228,6 +229,37 @@ class ShotGrid(QWidget):
             # Double-click on current selection
             if self.selected_shot:
                 self.shot_double_clicked.emit(self.selected_shot)
+            event.accept()
+            return
+        # Application launch shortcuts
+        elif event.key() == Qt.Key.Key_3:
+            # Launch 3de
+            if self.selected_shot:
+                self.app_launch_requested.emit("3de")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_N:
+            # Launch Nuke
+            if self.selected_shot:
+                self.app_launch_requested.emit("nuke")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_M:
+            # Launch Maya
+            if self.selected_shot:
+                self.app_launch_requested.emit("maya")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_R:
+            # Launch RV
+            if self.selected_shot:
+                self.app_launch_requested.emit("rv")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_P:
+            # Launch Publish
+            if self.selected_shot:
+                self.app_launch_requested.emit("publish")
             event.accept()
             return
         else:

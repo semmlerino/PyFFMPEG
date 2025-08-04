@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -28,6 +29,7 @@ from shot_grid_optimized import ShotGridOptimized
 from shot_info_panel import ShotInfoPanel
 from shot_model import Shot, ShotModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+from threede_scene_worker import ThreeDESceneWorker
 from threede_shot_grid import ThreeDEShotGrid
 
 
@@ -51,6 +53,7 @@ class MainWindow(QMainWindow):
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
         self.command_launcher = CommandLauncher()
         self._current_scene: Optional[ThreeDEScene] = None
+        self._threede_worker: Optional[ThreeDESceneWorker] = None
         self._setup_ui()
         self._setup_menu()
         self._connect_signals()
@@ -107,14 +110,52 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.shot_info_panel)
 
         # App launcher buttons
-        launcher_group = QGroupBox("Launch Applications")
-        launcher_layout = QVBoxLayout(launcher_group)
+        self.launcher_group = QGroupBox("Launch Applications")
+        launcher_layout = QVBoxLayout(self.launcher_group)
+        
+        # Style the launcher group to make it more visible
+        self.launcher_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #444;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
 
         self.app_buttons: dict[str, QPushButton] = {}
+        # Keyboard shortcuts for each app
+        app_shortcuts = {
+            "3de": "3",
+            "nuke": "N",
+            "maya": "M",
+            "rv": "R",
+            "publish": "P",
+        }
+
+        # Add informational label at the top
+        info_label = QLabel("Select a shot to enable app launching")
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("QLabel { color: #888; font-style: italic; padding: 5px; }")
+        launcher_layout.addWidget(info_label)
+        self.launcher_info_label = info_label
+        
         for app_name, command in Config.APPS.items():
             button = QPushButton(app_name.upper())
             button.clicked.connect(lambda checked, app=app_name: self._launch_app(app))
             button.setEnabled(False)  # Disabled until shot selected
+
+            # Add tooltip with keyboard shortcut
+            shortcut = app_shortcuts.get(app_name, "")
+            if shortcut:
+                button.setToolTip(f"Launch {app_name.upper()} (Shortcut: {shortcut})")
+
             launcher_layout.addWidget(button)
             self.app_buttons[app_name] = button
 
@@ -132,7 +173,9 @@ class MainWindow(QMainWindow):
         )
         launcher_layout.addWidget(self.raw_plate_checkbox)
 
-        right_layout.addWidget(launcher_group)
+        # Ensure launcher group has minimum height and doesn't get hidden
+        self.launcher_group.setMinimumHeight(250)
+        right_layout.addWidget(self.launcher_group)
 
         # Log viewer
         log_group = QGroupBox("Command Log")
@@ -187,6 +230,13 @@ class MainWindow(QMainWindow):
         # Help menu
         help_menu = menubar.addMenu("&Help")
 
+        shortcuts_action = QAction("&Keyboard Shortcuts", self)
+        shortcuts_action.setShortcut(QKeySequence.StandardKey.HelpContents)
+        shortcuts_action.triggered.connect(self._show_shortcuts)
+        help_menu.addAction(shortcuts_action)
+
+        help_menu.addSeparator()
+
         about_action = QAction("&About", self)
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
@@ -196,16 +246,24 @@ class MainWindow(QMainWindow):
         # Shot selection
         self.shot_grid.shot_selected.connect(self._on_shot_selected)
         self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
+        self.shot_grid.app_launch_requested.connect(self._launch_app)
 
         # 3DE scene selection
         self.threede_shot_grid.scene_selected.connect(self._on_scene_selected)
         self.threede_shot_grid.scene_double_clicked.connect(
             self._on_scene_double_clicked
         )
+        self.threede_shot_grid.app_launch_requested.connect(self._launch_app)
 
         # Command launcher
         self.command_launcher.command_executed.connect(self.log_viewer.add_command)
         self.command_launcher.command_error.connect(self.log_viewer.add_error)
+
+        # Synchronize thumbnail sizes between tabs
+        self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
+        self.threede_shot_grid.size_slider.valueChanged.connect(
+            self._sync_thumbnail_sizes
+        )
 
     def _initial_load(self):
         """Initial shot loading."""
@@ -221,6 +279,13 @@ class MainWindow(QMainWindow):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
                     self.shot_grid.select_shot(shot)
+
+        # Also show cached 3DE scenes immediately if available
+        if self.threede_scene_model.scenes:
+            self.threede_shot_grid.refresh_scenes()
+            self._update_status(
+                f"Loaded {len(self.shot_model.shots)} shots and {len(self.threede_scene_model.scenes)} 3DE scenes (from cache)"
+            )
 
         # Then refresh in background
         QTimer.singleShot(500, self._refresh_shots)
@@ -255,29 +320,117 @@ class MainWindow(QMainWindow):
             )
 
     def _refresh_threede_scenes(self):
-        """Refresh 3DE scene list."""
+        """Refresh 3DE scene list using background worker."""
+        # Check if worker is already running
+        if self._threede_worker and not self._threede_worker.isFinished():
+            self._update_status("3DE scene discovery already in progress...")
+            return
+
         # Show loading state
         self.threede_shot_grid.set_loading(True)
+        self._update_status("Starting 3DE scene discovery...")
 
-        # Perform refresh in background
-        QTimer.singleShot(10, self._do_threede_refresh)
+        # Create and start worker
+        self._threede_worker = ThreeDESceneWorker(self.shot_model.shots)
 
-    def _do_threede_refresh(self):
-        """Actually perform the 3DE scene refresh."""
-        success, has_changes = self.threede_scene_model.refresh_scenes(
-            self.shot_model.shots
-        )
+        # Connect worker signals
+        self._threede_worker.started.connect(self._on_threede_discovery_started)
+        self._threede_worker.progress.connect(self._on_threede_discovery_progress)
+        self._threede_worker.finished.connect(self._on_threede_discovery_finished)
+        self._threede_worker.error.connect(self._on_threede_discovery_error)
 
+        # Start the worker
+        self._threede_worker.start()
+
+    def _on_threede_discovery_started(self):
+        """Handle 3DE discovery worker started signal."""
+        self._update_status("3DE scene discovery started...")
+
+    def _on_threede_discovery_progress(
+        self, current: int, total: int, description: str
+    ):
+        """Handle 3DE discovery progress updates.
+
+        Args:
+            current: Current progress value
+            total: Total progress value
+            description: Progress description
+        """
+        self._update_status(f"3DE discovery: {description} ({current}/{total})")
+
+    def _on_threede_discovery_finished(self, scenes: list):
+        """Handle 3DE discovery worker completion.
+
+        Args:
+            scenes: List of discovered ThreeDEScene objects
+        """
         # Hide loading state
         self.threede_shot_grid.set_loading(False)
 
-        if success and has_changes:
+        # Update model with discovered scenes (compare with existing)
+        old_scene_data = {
+            (scene.full_name, scene.user, scene.plate, str(scene.scene_path))
+            for scene in self.threede_scene_model.scenes
+        }
+
+        new_scene_data = {
+            (scene.full_name, scene.user, scene.plate, str(scene.scene_path))
+            for scene in scenes
+        }
+
+        has_changes = old_scene_data != new_scene_data
+
+        if has_changes:
+            # Update the model with new scenes
+            self.threede_scene_model.scenes = scenes
+            # Sort by shot name, then user, then plate
+            self.threede_scene_model.scenes.sort(
+                key=lambda s: (s.full_name, s.user, s.plate)
+            )
+
+            # Cache the results
+            if self.threede_scene_model.scenes:
+                self.threede_scene_model.cache_manager.cache_threede_scenes(
+                    self.threede_scene_model.to_dict()
+                )
+
+            # Update UI
             self.threede_shot_grid.refresh_scenes()
-            scene_count = len(self.threede_scene_model.scenes)
+
+            # Update status
+            scene_count = len(scenes)
             if scene_count > 0:
                 self._update_status(f"Found {scene_count} 3DE scenes from other users")
             else:
                 self._update_status("No 3DE scenes found from other users")
+        else:
+            # No changes, but ensure UI is populated if this is the first load
+            # (scenes might have been loaded from cache but UI not yet updated)
+            if (
+                not self.threede_shot_grid.thumbnails
+                and self.threede_scene_model.scenes
+            ):
+                self.threede_shot_grid.refresh_scenes()
+            self._update_status("3DE scene discovery complete (no changes)")
+
+    def _on_threede_discovery_error(self, error_message: str):
+        """Handle 3DE discovery worker error.
+
+        Args:
+            error_message: Error message from worker
+        """
+        # Hide loading state
+        self.threede_shot_grid.set_loading(False)
+
+        # Update status with error
+        self._update_status(f"3DE discovery error: {error_message}")
+
+        # Show error dialog for serious issues
+        QMessageBox.warning(
+            self,
+            "3DE Discovery Error",
+            f"Failed to discover 3DE scenes:\n{error_message}",
+        )
 
     def _background_refresh(self):
         """Refresh shots in background without interrupting user."""
@@ -317,9 +470,10 @@ class MainWindow(QMainWindow):
         # Update shot info panel
         self.shot_info_panel.set_shot(shot)
 
-        # Enable app buttons
+        # Enable app buttons and hide info label
         for button in self.app_buttons.values():
             button.setEnabled(True)
+        self.launcher_info_label.hide()
 
         # Update window title
         self.setWindowTitle(f"{Config.APP_NAME} - {shot.full_name} ({shot.show})")
@@ -351,9 +505,10 @@ class MainWindow(QMainWindow):
         # Update shot info panel
         self.shot_info_panel.set_shot(shot)
 
-        # Enable only 3de button
-        for app_name, button in self.app_buttons.items():
-            button.setEnabled(app_name == "3de")
+        # Enable all app buttons (not just 3de) and hide info label
+        for button in self.app_buttons.values():
+            button.setEnabled(True)
+        self.launcher_info_label.hide()
 
         # Update window title with scene info
         self.setWindowTitle(
@@ -367,19 +522,38 @@ class MainWindow(QMainWindow):
 
     def _on_scene_double_clicked(self, scene: ThreeDEScene):
         """Handle 3DE scene double click - launch 3de with the scene."""
-        self._launch_app_with_scene("3de", scene)
+        # Set the current scene first, then launch
+        self._current_scene = scene
+        self._launch_app("3de")
 
     def _launch_app(self, app_name: str):
         """Launch an application."""
-        # Check if we should include undistortion and/or raw plate for Nuke
-        include_undistortion = (
-            app_name == "nuke" and self.undistortion_checkbox.isChecked()
-        )
-        include_raw_plate = app_name == "nuke" and self.raw_plate_checkbox.isChecked()
+        # Check if we have a current 3DE scene selected
+        if self._current_scene:
+            # Launch with scene context
+            if app_name == "3de":
+                # For 3DE, use the scene file directly
+                success = self._launch_app_with_scene(app_name, self._current_scene)
+            else:
+                # For other apps, launch in shot context with undistortion/raw plate support
+                success = self._launch_app_with_scene_context(
+                    app_name, self._current_scene
+                )
+        else:
+            # Regular shot launch
+            # Check if we should include undistortion and/or raw plate for Nuke
+            include_undistortion = (
+                app_name == "nuke" and self.undistortion_checkbox.isChecked()
+            )
+            include_raw_plate = (
+                app_name == "nuke" and self.raw_plate_checkbox.isChecked()
+            )
 
-        if self.command_launcher.launch_app(
-            app_name, include_undistortion, include_raw_plate
-        ):
+            success = self.command_launcher.launch_app(
+                app_name, include_undistortion, include_raw_plate
+            )
+
+        if success:
             self._update_status(f"Launched {app_name}")
         else:
             self._update_status(f"Failed to launch {app_name}")
@@ -388,24 +562,106 @@ class MainWindow(QMainWindow):
         """Launch an application with a specific 3DE scene."""
         if self.command_launcher.launch_app_with_scene(app_name, scene):
             self._update_status(f"Launched {app_name} with {scene.user}'s scene")
+            return True
         else:
             self._update_status(f"Failed to launch {app_name} with scene")
+            return False
+
+    def _launch_app_with_scene_context(self, app_name: str, scene: ThreeDEScene):
+        """Launch an application in the context of a 3DE scene (without the scene file itself)."""
+        # Check if we should include undistortion and/or raw plate for Nuke
+        include_undistortion = (
+            app_name == "nuke" and self.undistortion_checkbox.isChecked()
+        )
+        include_raw_plate = app_name == "nuke" and self.raw_plate_checkbox.isChecked()
+
+        if self.command_launcher.launch_app_with_scene_context(
+            app_name, scene, include_undistortion, include_raw_plate
+        ):
+            return True
+        else:
+            return False
 
     def _increase_thumbnail_size(self):
         """Increase thumbnail size."""
-        current = self.shot_grid.size_slider.value()
+        # Get current size from active tab
+        if self.tab_widget.currentIndex() == 0:
+            current = self.shot_grid.size_slider.value()
+        else:
+            current = self.threede_shot_grid.size_slider.value()
+
         new_size = min(current + 20, Config.MAX_THUMBNAIL_SIZE)
-        self.shot_grid.size_slider.setValue(new_size)
+        # This will trigger _sync_thumbnail_sizes to update both
+        if self.tab_widget.currentIndex() == 0:
+            self.shot_grid.size_slider.setValue(new_size)
+        else:
+            self.threede_shot_grid.size_slider.setValue(new_size)
 
     def _decrease_thumbnail_size(self):
         """Decrease thumbnail size."""
-        current = self.shot_grid.size_slider.value()
+        # Get current size from active tab
+        if self.tab_widget.currentIndex() == 0:
+            current = self.shot_grid.size_slider.value()
+        else:
+            current = self.threede_shot_grid.size_slider.value()
+
         new_size = max(current - 20, Config.MIN_THUMBNAIL_SIZE)
-        self.shot_grid.size_slider.setValue(new_size)
+        # This will trigger _sync_thumbnail_sizes to update both
+        if self.tab_widget.currentIndex() == 0:
+            self.shot_grid.size_slider.setValue(new_size)
+        else:
+            self.threede_shot_grid.size_slider.setValue(new_size)
+
+    def _sync_thumbnail_sizes(self, value: int):
+        """Synchronize thumbnail sizes between both tabs."""
+        # Prevent recursive calls by temporarily disconnecting signals
+        self.shot_grid.size_slider.valueChanged.disconnect(self._sync_thumbnail_sizes)
+        self.threede_shot_grid.size_slider.valueChanged.disconnect(
+            self._sync_thumbnail_sizes
+        )
+
+        # Update both sliders
+        self.shot_grid.size_slider.setValue(value)
+        self.threede_shot_grid.size_slider.setValue(value)
+
+        # Reconnect signals
+        self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
+        self.threede_shot_grid.size_slider.valueChanged.connect(
+            self._sync_thumbnail_sizes
+        )
 
     def _update_status(self, message: str):
         """Update status bar."""
         self.status_bar.showMessage(message)
+
+    def _show_shortcuts(self):
+        """Show keyboard shortcuts dialog."""
+        shortcuts_text = """<h3>Keyboard Shortcuts</h3>
+        <table cellpadding="5">
+        <tr><td><b>Navigation:</b></td><td></td></tr>
+        <tr><td>Arrow Keys</td><td>Navigate through shots/scenes</td></tr>
+        <tr><td>Home/End</td><td>Jump to first/last shot</td></tr>
+        <tr><td>Enter</td><td>Launch default app (3de)</td></tr>
+        <tr><td>Ctrl+Wheel</td><td>Adjust thumbnail size</td></tr>
+        <tr><td>&nbsp;</td><td></td></tr>
+        <tr><td><b>Applications:</b></td><td></td></tr>
+        <tr><td>3</td><td>Launch 3de</td></tr>
+        <tr><td>N</td><td>Launch Nuke</td></tr>
+        <tr><td>M</td><td>Launch Maya</td></tr>
+        <tr><td>R</td><td>Launch RV</td></tr>
+        <tr><td>P</td><td>Launch Publish</td></tr>
+        <tr><td>&nbsp;</td><td></td></tr>
+        <tr><td><b>View:</b></td><td></td></tr>
+        <tr><td>Ctrl++</td><td>Increase thumbnail size</td></tr>
+        <tr><td>Ctrl+-</td><td>Decrease thumbnail size</td></tr>
+        <tr><td>&nbsp;</td><td></td></tr>
+        <tr><td><b>General:</b></td><td></td></tr>
+        <tr><td>F5</td><td>Refresh shots</td></tr>
+        <tr><td>F1</td><td>Show this help</td></tr>
+        </table>
+        """
+
+        QMessageBox.information(self, "Keyboard Shortcuts", shortcuts_text)
 
     def _show_about(self):
         """Show about dialog."""
@@ -439,6 +695,9 @@ class MainWindow(QMainWindow):
                 # Restore thumbnail size
                 if "thumbnail_size" in settings:
                     self.shot_grid.size_slider.setValue(settings["thumbnail_size"])
+                    self.threede_shot_grid.size_slider.setValue(
+                        settings["thumbnail_size"]
+                    )
 
                 # Restore undistortion checkbox state
                 if "include_undistortion" in settings:
@@ -489,5 +748,12 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle close event."""
+        # Stop and cleanup worker if running
+        if self._threede_worker and not self._threede_worker.isFinished():
+            self._threede_worker.stop()
+            if not self._threede_worker.wait(3000):  # Wait up to 3 seconds
+                self._threede_worker.terminate()
+                self._threede_worker.wait()
+
         self._save_settings()
         event.accept()

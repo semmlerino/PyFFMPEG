@@ -9,7 +9,8 @@ from PySide6.QtGui import QMouseEvent, QPixmap
 
 from shot_model import Shot
 from thumbnail_loading_indicator import ThumbnailLoadingIndicator
-from thumbnail_widget import LoadingState, ThumbnailLoader, ThumbnailWidget
+from thumbnail_widget import ThumbnailWidget
+from thumbnail_widget_base import BaseThumbnailLoader, LoadingState
 
 
 class TestThumbnailWidget:
@@ -127,7 +128,7 @@ class TestThumbnailWidget:
         # The actual loading happens asynchronously in thread pool
         # So we can't check _pixmap directly here
 
-    @patch("thumbnail_widget.QThreadPool")
+    @patch("thumbnail_widget_base.QThreadPool")
     def test_load_thumbnail_from_source(
         self, mock_threadpool_class, thumbnail_widget, tmp_path, monkeypatch
     ):
@@ -155,9 +156,9 @@ class TestThumbnailWidget:
 
         # Check thread pool was used
         assert mock_threadpool.start.called
-        # First call should be ThumbnailLoader
+        # First call should be BaseThumbnailLoader
         loader = mock_threadpool.start.call_args_list[0][0][0]
-        assert isinstance(loader, ThumbnailLoader)
+        assert isinstance(loader, BaseThumbnailLoader)
         assert loader.path == source_path
 
     def test_load_thumbnail_no_source(self, thumbnail_widget, monkeypatch):
@@ -239,7 +240,7 @@ class TestThumbnailWidget:
             LoadingState.LOADED,
         ]
 
-    @patch("thumbnail_widget.ThumbnailLoader")
+    @patch("thumbnail_widget_base.BaseThumbnailLoader")
     def test_loading_state_transitions(self, mock_loader_class, thumbnail_widget):
         """Test loading state transitions during load."""
         # Mock the loader
@@ -310,7 +311,7 @@ class TestThumbnailWidget:
 
     def test_open_shot_folder_direct(self, thumbnail_widget):
         """Test _open_shot_folder method directly."""
-        with patch("thumbnail_widget.QDesktopServices.openUrl") as mock_open_url:
+        with patch("thumbnail_widget_base.QDesktopServices.openUrl") as mock_open_url:
             # Call the method directly
             thumbnail_widget._open_shot_folder()
 
@@ -323,8 +324,8 @@ class TestThumbnailWidget:
             assert called_url.toString() == expected_url.toString()
 
 
-class TestThumbnailLoader:
-    """Test ThumbnailLoader functionality."""
+class TestBaseThumbnailLoader:
+    """Test BaseThumbnailLoader functionality."""
 
     @pytest.fixture
     def mock_widget(self):
@@ -334,10 +335,10 @@ class TestThumbnailLoader:
         return widget
 
     def test_loader_initialization(self, mock_widget):
-        """Test ThumbnailLoader initialization."""
+        """Test BaseThumbnailLoader initialization."""
         path = Path("/test/image.jpg")
 
-        loader = ThumbnailLoader(mock_widget, path)
+        loader = BaseThumbnailLoader(mock_widget, path)
 
         assert loader.widget == mock_widget
         assert loader.path == path
@@ -352,7 +353,7 @@ class TestThumbnailLoader:
         pixmap.save(str(image_path))
 
         # Create loader
-        loader = ThumbnailLoader(mock_widget, image_path)
+        loader = BaseThumbnailLoader(mock_widget, image_path)
 
         # Track signal
         emitted = []
@@ -375,7 +376,7 @@ class TestThumbnailLoader:
         invalid_path.write_text("not an image")
 
         # Create loader
-        loader = ThumbnailLoader(mock_widget, invalid_path)
+        loader = BaseThumbnailLoader(mock_widget, invalid_path)
 
         # Track signal
         emitted = []

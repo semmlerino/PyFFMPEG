@@ -26,6 +26,7 @@ class ThreeDEShotGrid(QWidget):
     # Signals
     scene_selected = Signal(object)  # ThreeDEScene
     scene_double_clicked = Signal(object)  # ThreeDEScene
+    app_launch_requested = Signal(str)  # app_name
 
     def __init__(self, scene_model: ThreeDESceneModel):
         super().__init__()
@@ -275,6 +276,37 @@ class ThreeDEShotGrid(QWidget):
             # Double-click on current selection
             if self.selected_scene:
                 self.scene_double_clicked.emit(self.selected_scene)
+            event.accept()
+            return
+        # Application launch shortcuts
+        elif event.key() == Qt.Key.Key_3:
+            # Launch 3de
+            if self.selected_scene:
+                self.app_launch_requested.emit("3de")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_N:
+            # Launch Nuke
+            if self.selected_scene:
+                self.app_launch_requested.emit("nuke")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_M:
+            # Launch Maya
+            if self.selected_scene:
+                self.app_launch_requested.emit("maya")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_R:
+            # Launch RV
+            if self.selected_scene:
+                self.app_launch_requested.emit("rv")
+            event.accept()
+            return
+        elif event.key() == Qt.Key.Key_P:
+            # Launch Publish
+            if self.selected_scene:
+                self.app_launch_requested.emit("publish")
             event.accept()
             return
         else:
