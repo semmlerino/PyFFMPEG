@@ -82,3 +82,40 @@ class Config:
     RAW_PLATE_SEGMENTS = ["publish", "turnover", "plate", "input_plate", "bg01"]
     UNDISTORTION_BASE_SEGMENTS = ["user", "mm", "3de", "mm-default", "exports", "scene", "bg01", "nuke_lens_distortion"]
     THREEDE_SCENE_SEGMENTS = ["mm", "3de", "mm-default", "scenes", "scene"]
+    
+    # Alternative 3DE scene path patterns to try if main pattern fails
+    THREEDE_ALTERNATIVE_PATTERNS = [
+        ["mm", "3de", "scenes"],
+        ["mm", "3de", "scene"],
+        ["3de", "scenes"],
+        ["3de", "scene"],
+        ["matchmove", "3de", "scenes"],
+        ["matchmove", "3de", "scene"],
+        ["mm", "scenes"],
+        ["mm", "scene"],
+        ["scenes"],
+        ["scene"],
+    ]
+    
+    # Environment variables that may contain 3DE path information
+    THREEDE_ENV_VARS = [
+        'THREEDE_SCENE_PATH',
+        '3DE_SCENE_PATH', 
+        'TDE_SCENE_PATH',
+        'MM_SCENE_PATH',
+        'MATCHMOVE_SCENE_PATH'
+    ]
+    
+    # Common VFX plate name patterns for intelligent grouping
+    PLATE_NAME_PATTERNS = [
+        r'^[bf]g\d{2}$',      # bg01, fg01, bg02, fg02, etc.
+        r'^plate_?\d+$',      # plate01, plate_01, plate02
+        r'^comp_?\d+$',       # comp01, comp_01, comp02
+        r'^shot_?\d+$',       # shot01, shot_01, shot010
+        r'^sc\d+$',           # sc01, sc02, sc10
+        r'^[\w]+_v\d{3}$',    # anything_v001, test_v002
+        r'^elem_?\d+$',       # elem01, elem_01
+        r'^cam_?\d+$',        # cam01, cam_01, cam1
+        r'^tk\d+$',           # tk01, tk02 (take numbers)
+        r'^roto_?\d+$',       # roto01, roto_01
+    ]

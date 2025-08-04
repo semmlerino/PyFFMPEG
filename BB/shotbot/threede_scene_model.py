@@ -7,6 +7,7 @@ from typing import Any, Optional
 from cache_manager import CacheManager
 from config import Config
 from shot_model import Shot
+from utils import PathUtils, FileUtils, ValidationUtils
 
 
 @dataclass
@@ -34,31 +35,17 @@ class ThreeDEScene:
     @property
     def thumbnail_dir(self) -> Path:
         """Get thumbnail directory path (same as regular shots)."""
-        return Path(
-            Config.THUMBNAIL_PATH_PATTERN.format(
-                shows_root=Config.SHOWS_ROOT,
-                show=self.show,
-                sequence=self.sequence,
-                shot=self.full_name,
-            )
+        return PathUtils.build_thumbnail_path(
+            Config.SHOWS_ROOT, self.show, self.sequence, self.full_name
         )
 
     def get_thumbnail_path(self) -> Optional[Path]:
         """Get first available thumbnail or None."""
-        if not self.thumbnail_dir.exists():
+        if not PathUtils.validate_path_exists(self.thumbnail_dir, "Thumbnail directory"):
             return None
 
-        # Look for jpg files
-        jpg_files = list(self.thumbnail_dir.glob("*.jpg"))
-        if jpg_files:
-            return jpg_files[0]
-
-        # Also check for jpeg extension
-        jpeg_files = list(self.thumbnail_dir.glob("*.jpeg"))
-        if jpeg_files:
-            return jpeg_files[0]
-
-        return None
+        # Use utility to find first image file
+        return FileUtils.get_first_image_file(self.thumbnail_dir)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for caching."""
@@ -94,7 +81,8 @@ class ThreeDESceneModel:
     ):
         self.scenes: list[ThreeDEScene] = []
         self.cache_manager = cache_manager or CacheManager()
-        self._excluded_users = {"gabriel-h"}
+        # Get excluded users dynamically (current user + any additional)
+        self._excluded_users = ValidationUtils.get_excluded_users()
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
             self._load_from_cache()
