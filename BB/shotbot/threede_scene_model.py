@@ -115,17 +115,12 @@ class ThreeDESceneModel:
                 for scene in self.scenes
             }
 
-            # Discover scenes for all shots
-            new_scenes: list[ThreeDEScene] = []
-            for shot in shots:
-                scenes = ThreeDESceneFinder.find_scenes_for_shot(
-                    shot.workspace_path,
-                    shot.show,
-                    shot.sequence,
-                    shot.shot,
-                    self._excluded_users,
-                )
-                new_scenes.extend(scenes)
+            # Perform show-wide discovery - search ALL shots in the shows the user is working on
+            # This is different from "My Shots" which only shows the user's assigned shots
+            new_scenes = ThreeDESceneFinder.find_all_scenes_in_shows(
+                shots,  # User's shots are used to determine which shows to search
+                self._excluded_users
+            )
 
             # Create comparison set
             new_scene_data = {

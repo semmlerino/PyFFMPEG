@@ -4,7 +4,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import Any, List, Optional, Set
 
 from config import Config
 from threede_scene_model import ThreeDEScene
@@ -297,6 +297,160 @@ class ThreeDESceneFinder:
             logger.error(f"Error scanning for 3DE scenes: {e}")
 
         return scenes
+
+    @staticmethod
+    def discover_all_shots_in_show(show_root: str, show: str) -> List[tuple[str, str, str, str]]:
+        """Discover all shots in a show by scanning the filesystem.
+        
+        Args:
+            show_root: Root directory for shows (e.g., /shows)
+            show: Show name
+            
+        Returns:
+            List of (workspace_path, show, sequence, shot) tuples
+        """
+        shots = []
+        show_path = Path(show_root) / show / "shots"
+        
+        if not show_path.exists():
+            logger.warning(f"Show shots directory does not exist: {show_path}")
+            return shots
+            
+        logger.info(f"Discovering all shots in show: {show}")
+        
+        try:
+            # Pattern: /shows/{show}/shots/{sequence}/{shot}/
+            sequence_count = 0
+            shot_count = 0
+            
+            # Iterate through sequence directories
+            for sequence_dir in show_path.iterdir():
+                if not sequence_dir.is_dir():
+                    continue
+                    
+                sequence = sequence_dir.name
+                # Skip common non-sequence directories
+                skip_patterns = Config.SKIP_SEQUENCE_PATTERNS if hasattr(Config, 'SKIP_SEQUENCE_PATTERNS') else ['tmp', 'temp', 'test']
+                if sequence in skip_patterns or sequence.startswith('.'):
+                    logger.debug(f"Skipping sequence directory: {sequence}")
+                    continue
+                    
+                sequence_count += 1
+                
+                # Iterate through shot directories
+                for shot_dir in sequence_dir.iterdir():
+                    if not shot_dir.is_dir():
+                        continue
+                        
+                    shot = shot_dir.name
+                    # Skip common non-shot directories
+                    skip_patterns = Config.SKIP_SHOT_PATTERNS if hasattr(Config, 'SKIP_SHOT_PATTERNS') else ['tmp', 'temp', 'test']
+                    if shot in skip_patterns or shot.startswith('.'):
+                        logger.debug(f"Skipping shot directory: {shot}")
+                        continue
+                    
+                    # Verify this looks like a valid shot workspace
+                    # Should have at least a user directory
+                    user_dir = shot_dir / "user"
+                    if user_dir.exists():
+                        workspace_path = str(shot_dir)
+                        shots.append((workspace_path, show, sequence, shot))
+                        shot_count += 1
+                        logger.debug(f"Found shot: {show}/{sequence}/{shot}")
+                        
+                        # Safety limit to prevent excessive searching
+                        max_shots = Config.MAX_SHOTS_PER_SHOW if hasattr(Config, 'MAX_SHOTS_PER_SHOW') else 1000
+                        if shot_count >= max_shots:
+                            logger.warning(f"Reached maximum shot limit ({max_shots}) for {show}. Stopping discovery.")
+                            return shots
+                    else:
+                        logger.debug(f"Skipping {shot_dir} - no user directory")
+                        
+            logger.info(f"Discovered {shot_count} shots across {sequence_count} sequences in {show}")
+            
+        except PermissionError as e:
+            logger.error(f"Permission denied accessing show directory: {e}")
+        except Exception as e:
+            logger.error(f"Error discovering shots in show: {e}")
+            
+        return shots
+
+    @staticmethod
+    def find_all_scenes_in_shows(
+        user_shots: List[Any],  # List of Shot objects
+        excluded_users: Optional[Set[str]] = None
+    ) -> List[ThreeDEScene]:
+        """Find 3DE scenes across ALL shots in shows the user is working on.
+        
+        This performs a show-wide search, not limited to the user's assigned shots.
+        
+        Args:
+            user_shots: User's assigned shots (used to determine which shows to search)
+            excluded_users: Set of usernames to exclude
+            
+        Returns:
+            List of all ThreeDEScene objects found across all shots in relevant shows
+        """
+        if not user_shots:
+            logger.info("No user shots provided for show-wide search")
+            return []
+            
+        # Check if show-wide search is enabled
+        if hasattr(Config, 'SHOW_SEARCH_ENABLED') and not Config.SHOW_SEARCH_ENABLED:
+            logger.info("Show-wide search is disabled. Falling back to user's shots only.")
+            # Fall back to searching only user's assigned shots
+            all_scenes = []
+            for shot in user_shots:
+                scenes = ThreeDESceneFinder.find_scenes_for_shot(
+                    shot.workspace_path, shot.show, shot.sequence, shot.shot, excluded_users
+                )
+                all_scenes.extend(scenes)
+            return all_scenes
+            
+        # Extract unique shows from user's shots
+        shows_to_search = set()
+        show_roots = set()
+        
+        for shot in user_shots:
+            shows_to_search.add(shot.show)
+            # Extract show root from workspace path
+            # e.g., /shows/jack_ryan/shots/GF_256/GF_256_0620 -> /shows
+            workspace_parts = Path(shot.workspace_path).parts
+            if 'shows' in workspace_parts:
+                shows_idx = workspace_parts.index('shows')
+                show_root = '/'.join(workspace_parts[:shows_idx + 1])
+                show_roots.add(show_root)
+        
+        if not show_roots:
+            # Use configured show roots or fallback
+            configured_roots = Config.SHOW_ROOT_PATHS if hasattr(Config, 'SHOW_ROOT_PATHS') else ['/shows']
+            show_roots = set(configured_roots)
+            
+        logger.info(f"Performing show-wide 3DE search across shows: {shows_to_search}")
+        
+        all_scenes = []
+        
+        # Discover and search all shots in each show
+        for show_root in show_roots:
+            for show in shows_to_search:
+                # Discover all shots in this show
+                all_shots = ThreeDESceneFinder.discover_all_shots_in_show(show_root, show)
+                
+                if not all_shots:
+                    logger.warning(f"No shots discovered in {show}")
+                    continue
+                    
+                logger.info(f"Searching {len(all_shots)} shots in {show} for 3DE scenes")
+                
+                # Search each discovered shot
+                for workspace_path, show_name, sequence, shot in all_shots:
+                    scenes = ThreeDESceneFinder.find_scenes_for_shot(
+                        workspace_path, show_name, sequence, shot, excluded_users
+                    )
+                    all_scenes.extend(scenes)
+                    
+        logger.info(f"Show-wide search complete: Found {len(all_scenes)} total 3DE scenes")
+        return all_scenes
 
     @staticmethod
     def find_all_scenes(
