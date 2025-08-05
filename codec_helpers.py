@@ -7,8 +7,10 @@ and encoder configuration to reduce duplication in the main application.
 
 import os
 import subprocess
+import json
+from typing import Dict, Optional
 
-from config import ProcessConfig, HardwareConfig, EncodingConfig
+from config import ProcessConfig, HardwareConfig, EncodingConfig, FileConfig
 
 
 class CodecHelpers:
@@ -364,7 +366,7 @@ class CodecHelpers:
         if codec_idx in (0, 1, 2):  # Any NVENC encoder
             return 2
 
-        # Hardware encoders (QSV, VAAPI) - moderate CPU usage  
+        # Hardware encoders (QSV, VAAPI) - moderate CPU usage
         if codec_idx in (5, 6):  # QSV, VAAPI
             return 4
 
@@ -376,12 +378,16 @@ class CodecHelpers:
         # Parallel CPU jobs - divide threads efficiently
         # For auto-balance: assume worst case of all CPU jobs running simultaneously
         if file_codec_assignments:
-            cpu_jobs = max(1, sum(1 for c in file_codec_assignments.values() if c in (3, 4)))  # x264, ProRes
+            cpu_jobs = max(
+                1, sum(1 for c in file_codec_assignments.values() if c in (3, 4))
+            )  # x264, ProRes
         else:
             cpu_jobs = 2  # Conservative estimate for parallel processing
-            
+
         cpu_count = os.cpu_count() or ProcessConfig.OPTIMAL_CPU_THREADS
-        threads_per_job = max(2, (cpu_count - 2) // cpu_jobs)  # Leave 2 threads for system
+        threads_per_job = max(
+            2, (cpu_count - 2) // cpu_jobs
+        )  # Leave 2 threads for system
         return threads_per_job
 
     @staticmethod
@@ -441,3 +447,196 @@ class CodecHelpers:
         CodecHelpers._encoder_cache = None
         CodecHelpers._gpu_info_cache = None
         CodecHelpers._rtx40_detection_cache = None
+
+    @staticmethod
+    def extract_video_metadata(file_path: str) -> Optional[Dict]:
+        """Extract video metadata using ffprobe
+
+        Returns:
+            Dict with keys: duration, width, height, codec, bitrate, format_name
+            None if extraction fails
+        """
+        try:
+            cmd = [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
+                "-show_format",
+                "-show_streams",
+                file_path,
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
+            )
+
+            if result.returncode != 0:
+                return None
+
+            data = json.loads(result.stdout)
+
+            # Find video stream
+            video_stream = None
+            for stream in data.get("streams", []):
+                if stream.get("codec_type") == "video":
+                    video_stream = stream
+                    break
+
+            if not video_stream:
+                return None
+
+            # Extract format info
+            format_info = data.get("format", {})
+
+            # Parse duration
+            duration_str = format_info.get("duration", "0")
+            try:
+                duration_seconds = float(duration_str)
+                duration_formatted = CodecHelpers._format_duration(duration_seconds)
+            except (ValueError, TypeError):
+                duration_formatted = "Unknown"
+                duration_seconds = 0
+
+            # Extract video properties
+            width = video_stream.get("width", 0)
+            height = video_stream.get("height", 0)
+            codec_name = video_stream.get("codec_name", "Unknown")
+
+            # Calculate bitrate
+            bitrate_bps = None
+            if "bit_rate" in video_stream:
+                try:
+                    bitrate_bps = int(video_stream["bit_rate"])
+                except (ValueError, TypeError):
+                    pass
+
+            if not bitrate_bps and "bit_rate" in format_info:
+                try:
+                    bitrate_bps = int(format_info["bit_rate"])
+                except (ValueError, TypeError):
+                    pass
+
+            bitrate_formatted = (
+                CodecHelpers._format_bitrate(bitrate_bps) if bitrate_bps else "Unknown"
+            )
+
+            return {
+                "duration": duration_formatted,
+                "duration_seconds": duration_seconds,
+                "width": width,
+                "height": height,
+                "codec": codec_name.upper(),
+                "bitrate": bitrate_formatted,
+                "bitrate_bps": bitrate_bps,
+                "format_name": format_info.get("format_name", "Unknown"),
+            }
+
+        except (
+            subprocess.TimeoutExpired,
+            subprocess.CalledProcessError,
+            json.JSONDecodeError,
+            OSError,
+            Exception,
+        ):
+            return None
+
+    @staticmethod
+    def _format_duration(seconds: float) -> str:
+        """Format duration from seconds to HH:MM:SS"""
+        if seconds <= 0:
+            return "00:00:00"
+
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+    @staticmethod
+    def _format_bitrate(bitrate_bps: Optional[int]) -> str:
+        """Format bitrate from bits per second to human readable"""
+        if not bitrate_bps or bitrate_bps <= 0:
+            return "Unknown"
+
+        # Convert to Mbps
+        mbps = bitrate_bps / 1_000_000
+
+        if mbps >= 1000:
+            return f"{mbps / 1000:.1f} Gbps"
+        elif mbps >= 1:
+            return f"{mbps:.1f} Mbps"
+        else:
+            # Convert to Kbps
+            kbps = bitrate_bps / 1000
+            return f"{kbps:.0f} Kbps"
+
+    @staticmethod
+    def estimate_output_size(
+        input_metadata: Dict, codec_idx: int, crf_value: int
+    ) -> Optional[str]:
+        """Estimate output file size based on input metadata and encoding settings
+
+        Args:
+            input_metadata: Metadata dict from extract_video_metadata
+            codec_idx: Codec index (0=H.264 NVENC, 1=HEVC NVENC, etc.)
+            crf_value: Quality setting
+
+        Returns:
+            Formatted size string like "850 MB" or None if calculation fails
+        """
+        duration_seconds = input_metadata.get("duration_seconds", 0)
+        if duration_seconds <= 0:
+            return None
+
+        # Get base size factor from config
+        size_factors = {
+            0: FileConfig.SIZE_FACTOR_H264,  # H.264 NVENC
+            1: FileConfig.SIZE_FACTOR_HEVC,  # HEVC NVENC
+            2: FileConfig.SIZE_FACTOR_AV1,  # AV1 NVENC
+            3: FileConfig.SIZE_FACTOR_X264,  # x264
+            4: FileConfig.SIZE_FACTOR_PRORES_422
+            if crf_value <= 20
+            else FileConfig.SIZE_FACTOR_PRORES_4444,  # ProRes
+            5: FileConfig.SIZE_FACTOR_H264,  # H.264 QSV
+            6: FileConfig.SIZE_FACTOR_H264,  # H.264 VAAPI
+        }
+
+        base_factor = size_factors.get(codec_idx, FileConfig.SIZE_FACTOR_DEFAULT)
+
+        # Apply quality multiplier based on CRF
+        # Lower CRF = higher quality = larger file
+        if crf_value <= 15:
+            quality_multiplier = 1.5
+        elif crf_value <= 18:
+            quality_multiplier = 1.2
+        elif crf_value <= 23:
+            quality_multiplier = 1.0
+        elif crf_value <= 28:
+            quality_multiplier = 0.8
+        else:
+            quality_multiplier = 0.6
+
+        # Calculate size in MB
+        duration_minutes = duration_seconds / 60
+        estimated_mb = duration_minutes * base_factor * quality_multiplier
+
+        return CodecHelpers._format_file_size(
+            estimated_mb * 1_000_000
+        )  # Convert to bytes
+
+    @staticmethod
+    def _format_file_size(size_bytes: float) -> str:
+        """Format file size in bytes to human readable"""
+        if size_bytes < 1024:
+            return f"{size_bytes:.0f} B"
+        elif size_bytes < 1024 * 1024:
+            return f"{size_bytes / 1024:.1f} KB"
+        elif size_bytes < 1024 * 1024 * 1024:
+            return f"{size_bytes / (1024 * 1024):.0f} MB"
+        else:
+            return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"

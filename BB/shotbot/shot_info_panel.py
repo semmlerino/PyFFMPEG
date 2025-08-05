@@ -1,5 +1,6 @@
 """Shot info panel widget for displaying current shot details."""
 
+import logging
 from pathlib import Path
 from typing import Optional, Union
 
@@ -14,6 +15,9 @@ from PySide6.QtWidgets import (
 
 from cache_manager import CacheManager, ThumbnailCacheLoader
 from shot_model import Shot
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 
 class ShotInfoPanel(QWidget):
@@ -151,18 +155,74 @@ class ShotInfoPanel(QWidget):
                 self._set_placeholder_thumbnail()
 
     def _load_pixmap_from_path(self, path: Union[str, Path]):
-        """Load and display pixmap from path."""
-        pixmap = QPixmap(str(path))
-        if not pixmap.isNull():
+        """Load and display pixmap from path with bounds checking and error handling."""
+        if not path:
+            logger.debug("No path provided for thumbnail loading")
+            self._set_placeholder_thumbnail()
+            return
+
+        path_obj = Path(path) if isinstance(path, str) else path
+        if not path_obj.exists():
+            logger.debug(f"Thumbnail path does not exist: {path}")
+            self._set_placeholder_thumbnail()
+            return
+
+        pixmap = None
+        scaled = None
+        try:
+            # Load the image
+            pixmap = QPixmap(str(path))
+            if pixmap.isNull():
+                logger.debug(f"Failed to load thumbnail: {path}")
+                self._set_placeholder_thumbnail()
+                return
+
+            # Use utility for memory bounds checking (with smaller limits for info panel)
+            from config import Config
+            from utils import ImageUtils
+
+            if not ImageUtils.validate_image_dimensions(
+                pixmap.width(),
+                pixmap.height(),
+                max_dimension=Config.MAX_INFO_PANEL_DIMENSION_PX,
+            ):
+                self._set_placeholder_thumbnail()
+                return
+
+            # Scale to display size
             scaled = pixmap.scaled(
                 128,
                 128,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
+
+            if scaled.isNull():
+                logger.warning(f"Failed to scale thumbnail: {path}")
+                self._set_placeholder_thumbnail()
+                return
+
             self.thumbnail_label.setPixmap(scaled)
-        else:
+            logger.debug(f"Successfully loaded info panel thumbnail: {path}")
+
+        except FileNotFoundError:
+            logger.debug(f"Thumbnail file not found: {path}")
             self._set_placeholder_thumbnail()
+        except PermissionError:
+            logger.warning(f"Permission denied loading thumbnail: {path}")
+            self._set_placeholder_thumbnail()
+        except MemoryError:
+            logger.error(f"Out of memory loading thumbnail: {path}")
+            self._set_placeholder_thumbnail()
+        except (OSError, IOError) as e:
+            logger.warning(f"I/O error loading thumbnail {path}: {e}")
+            self._set_placeholder_thumbnail()
+        except Exception as e:
+            logger.exception(f"Unexpected error loading thumbnail {path}: {e}")
+            self._set_placeholder_thumbnail()
+        finally:
+            # Clean up Qt objects
+            del pixmap, scaled
 
     def _on_thumbnail_cached(
         self, show: str, sequence: str, shot: str, cache_path: str

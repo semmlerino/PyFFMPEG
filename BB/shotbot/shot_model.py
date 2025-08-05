@@ -1,5 +1,6 @@
 """Shot data model and parser for ws -sg output."""
 
+import logging
 import os
 import re
 import subprocess
@@ -9,6 +10,10 @@ from typing import Dict, Optional
 
 from cache_manager import CacheManager
 from config import Config
+from utils import FileUtils, PathUtils, ValidationUtils
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -28,31 +33,19 @@ class Shot:
     @property
     def thumbnail_dir(self) -> Path:
         """Get thumbnail directory path."""
-        return Path(
-            Config.THUMBNAIL_PATH_PATTERN.format(
-                shows_root=Config.SHOWS_ROOT,
-                show=self.show,
-                sequence=self.sequence,
-                shot=self.full_name,
-            )
+        return PathUtils.build_thumbnail_path(
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
         )
 
     def get_thumbnail_path(self) -> Optional[Path]:
         """Get first available thumbnail or None."""
-        if not self.thumbnail_dir.exists():
+        if not PathUtils.validate_path_exists(
+            self.thumbnail_dir, "Thumbnail directory"
+        ):
             return None
 
-        # Look for jpg files
-        jpg_files = list(self.thumbnail_dir.glob("*.jpg"))
-        if jpg_files:
-            return jpg_files[0]
-
-        # Also check for jpeg extension
-        jpeg_files = list(self.thumbnail_dir.glob("*.jpeg"))
-        if jpeg_files:
-            return jpeg_files[0]
-
-        return None
+        # Use utility to find first image file
+        return FileUtils.get_first_image_file(self.thumbnail_dir)
 
     def to_dict(self) -> Dict[str, str]:
         """Convert shot to dictionary for serialization."""
@@ -114,16 +107,26 @@ class ShotModel:
                 ["/bin/bash", "-i", "-c", "ws -sg"],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=Config.WS_COMMAND_TIMEOUT_SECONDS,
                 env=os.environ.copy(),
             )
 
             if result.returncode != 0:
-                print(f"Error running ws -sg: {result.stderr}")
+                error_msg = (
+                    f"ws -sg command failed with return code {result.returncode}"
+                )
+                if result.stderr:
+                    error_msg += f": {result.stderr.strip()}"
+                logger.error(error_msg)
                 return False, False
 
             # Parse output
-            new_shots = self._parse_ws_output(result.stdout)
+            try:
+                new_shots = self._parse_ws_output(result.stdout)
+            except ValueError as e:
+                logger.error(f"Failed to parse ws -sg output: {e}")
+                return False, False
+
             new_shot_data = {
                 (shot.full_name, shot.workspace_path) for shot in new_shots
             }
@@ -133,50 +136,114 @@ class ShotModel:
 
             if has_changes:
                 self.shots = new_shots
+                logger.info(f"Shot list updated: {len(new_shots)} shots found")
+
                 # Cache the results - pass Shot objects directly
                 if self.shots:
-                    self.cache_manager.cache_shots(self.shots)
+                    try:
+                        self.cache_manager.cache_shots(self.shots)
+                    except (OSError, IOError) as e:
+                        logger.warning(f"Failed to cache shots: {e}")
+                        # Continue without caching - not critical for operation
 
             return True, has_changes
 
         except subprocess.TimeoutExpired:
-            print("Timeout running ws -sg command")
+            logger.error("Timeout while running ws -sg command (>10 seconds)")
             return False, False
-        except FileNotFoundError:
-            print("ws command not found")
+        except FileNotFoundError as e:
+            if "bash" in str(e):
+                logger.error("bash shell not found - cannot execute ws command")
+            else:
+                logger.error("ws command not found in PATH")
+            return False, False
+        except PermissionError as e:
+            logger.error(f"Permission denied while executing ws command: {e}")
+            return False, False
+        except subprocess.SubprocessError as e:
+            logger.error(f"Subprocess error while running ws -sg: {e}")
+            return False, False
+        except MemoryError:
+            logger.error("Out of memory while processing shot list")
             return False, False
         except Exception as e:
-            print(f"Error fetching shots: {e}")
+            logger.exception(f"Unexpected error while fetching shots: {e}")
             return False, False
 
     def _parse_ws_output(self, output: str) -> list[Shot]:
-        """Parse ws -sg output to extract shots."""
-        shots: list[Shot] = []
+        """Parse ws -sg output to extract shots.
 
-        for line in output.strip().split("\n"):
+        Args:
+            output: Raw output from ws -sg command
+
+        Returns:
+            List of Shot objects parsed from the output
+
+        Raises:
+            ValueError: If output is invalid or cannot be parsed
+        """
+        if not isinstance(output, str):
+            raise ValueError(f"Expected string output, got {type(output)}")
+
+        shots: list[Shot] = []
+        lines = output.strip().split("\n")
+
+        # If output is completely empty, that might indicate an issue
+        if not output.strip():
+            logger.warning("ws -sg returned empty output")
+            return shots
+
+        for line_num, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line:
+                continue
+
             match = self._parse_pattern.search(line)
             if match:
-                workspace_path = match.group(1)
-                show = match.group(2)
-                sequence = match.group(3)
-                shot_name = match.group(4)
+                try:
+                    workspace_path = match.group(1)
+                    show = match.group(2)
+                    sequence = match.group(3)
+                    shot_name = match.group(4)
 
-                # Extract shot number from full name (e.g., "108_BQS_0005" -> "0005")
-                shot_parts = shot_name.split("_")
-                if len(shot_parts) >= 3:
-                    shot = shot_parts[-1]
-                else:
-                    shot = shot_name
+                    # Validate extracted components using utility
+                    if not ValidationUtils.validate_not_empty(
+                        workspace_path,
+                        show,
+                        sequence,
+                        shot_name,
+                        names=["workspace_path", "show", "sequence", "shot_name"],
+                    ):
+                        logger.warning(
+                            f"Line {line_num}: Missing required components in: {line}"
+                        )
+                        continue
 
-                shots.append(
-                    Shot(
-                        show=show,
-                        sequence=sequence,
-                        shot=shot,
-                        workspace_path=workspace_path,
+                    # Extract shot number from full name (e.g., "108_BQS_0005" -> "0005")
+                    shot_parts = shot_name.split("_")
+                    if len(shot_parts) >= 3:
+                        shot = shot_parts[-1]
+                    else:
+                        shot = shot_name
+
+                    shots.append(
+                        Shot(
+                            show=show,
+                            sequence=sequence,
+                            shot=shot,
+                            workspace_path=workspace_path,
+                        )
                     )
-                )
+                except (IndexError, AttributeError) as e:
+                    logger.warning(
+                        f"Line {line_num}: Failed to parse shot data from: {line} ({e})"
+                    )
+                    continue
+            else:
+                # Log unmatched lines for debugging, but don't fail
+                logger.debug(f"Line {line_num}: No match for workspace pattern: {line}")
 
+        logger.info(f"Parsed {len(shots)} shots from ws -sg output")
         return shots
 
     def get_shot_by_index(self, index: int) -> Optional[Shot]:

@@ -7,7 +7,7 @@ from typing import Any, Optional
 from cache_manager import CacheManager
 from config import Config
 from shot_model import Shot
-from utils import PathUtils, FileUtils, ValidationUtils
+from utils import FileUtils, PathUtils, ValidationUtils
 
 
 @dataclass
@@ -36,12 +36,14 @@ class ThreeDEScene:
     def thumbnail_dir(self) -> Path:
         """Get thumbnail directory path (same as regular shots)."""
         return PathUtils.build_thumbnail_path(
-            Config.SHOWS_ROOT, self.show, self.sequence, self.full_name
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
         )
 
     def get_thumbnail_path(self) -> Optional[Path]:
         """Get first available thumbnail or None."""
-        if not PathUtils.validate_path_exists(self.thumbnail_dir, "Thumbnail directory"):
+        if not PathUtils.validate_path_exists(
+            self.thumbnail_dir, "Thumbnail directory"
+        ):
             return None
 
         # Use utility to find first image file
@@ -119,7 +121,7 @@ class ThreeDESceneModel:
             # This is different from "My Shots" which only shows the user's assigned shots
             new_scenes = ThreeDESceneFinder.find_all_scenes_in_shows(
                 shots,  # User's shots are used to determine which shows to search
-                self._excluded_users
+                self._excluded_users,
             )
 
             # Create comparison set

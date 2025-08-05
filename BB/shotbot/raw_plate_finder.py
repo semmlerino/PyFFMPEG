@@ -1,15 +1,18 @@
 """Utility for finding raw plate files for shots."""
 
+import logging
 import re
 from pathlib import Path
 from typing import Optional
 
+from utils import PathUtils, VersionUtils
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
+
 
 class RawPlateFinder:
     """Finds the latest raw plate file for a shot."""
-
-    # Pattern for version directories (v001, v002, etc.)
-    VERSION_PATTERN = re.compile(r"^v(\d{3})$")
 
     @staticmethod
     def find_latest_raw_plate(
@@ -25,34 +28,17 @@ class RawPlateFinder:
         Returns:
             Path to the latest raw plate with #### for frame numbers, or None if not found
         """
-        # Base path for raw plate files
-        base_path = (
-            Path(shot_workspace_path)
-            / "publish"
-            / "turnover"
-            / "plate"
-            / "input_plate"
-            / "bg01"
-        )
+        # Build base path for raw plate files using utilities
+        base_path = PathUtils.build_raw_plate_path(shot_workspace_path)
 
-        if not base_path.exists():
+        if not PathUtils.validate_path_exists(base_path, "Raw plate base path"):
             return None
 
-        # Find all version directories
-        version_dirs: list[tuple[int, str]] = []
-        for item in base_path.iterdir():
-            if item.is_dir():
-                match = RawPlateFinder.VERSION_PATTERN.match(item.name)
-                if match:
-                    version_num = int(match.group(1))
-                    version_dirs.append((version_num, item.name))
-
-        if not version_dirs:
+        # Find the latest version directory
+        latest_version = VersionUtils.get_latest_version(base_path)
+        if not latest_version:
+            logger.debug(f"No version directories found in {base_path}")
             return None
-
-        # Sort by version number and get the latest
-        version_dirs.sort(key=lambda x: x[0], reverse=True)
-        latest_version: str = version_dirs[0][1]  # e.g., "v002"
 
         # Check for EXR directory
         exr_base = base_path / latest_version / "exr"
@@ -88,16 +74,15 @@ class RawPlateFinder:
         Returns:
             Version string (e.g., "v002") or None
         """
-        # Extract version from the filename pattern
-        match = re.search(r"_aces_(v\d{3})\.", plate_path)
-        if match:
-            return match.group(1)
-        return None
+        # Use utility function for version extraction
+        return VersionUtils.extract_version_from_path(plate_path)
 
     @staticmethod
     def verify_plate_exists(plate_path: str) -> bool:
         """
         Verify that at least one frame of the plate sequence exists.
+
+        Optimized to scan directory once instead of multiple file existence checks.
 
         Args:
             plate_path: Path with #### pattern
@@ -106,23 +91,32 @@ class RawPlateFinder:
             True if at least one frame exists
         """
         if not plate_path or "####" not in plate_path:
+            logger.debug("Invalid plate path - missing or no frame pattern")
             return False
 
-        # Check for common frame numbers
-        common_frames = ["1001", "0001", "1000", "0000"]
-        for frame in common_frames:
-            test_path = plate_path.replace("####", frame)
-            if Path(test_path).exists():
-                return True
-
-        # Try to find any frame by listing directory
         dir_path = Path(plate_path).parent
-        if dir_path.exists():
-            # Look for any .exr file matching the pattern
-            base_pattern = Path(plate_path).stem.replace("####", r"\d{4}")
-            pattern = re.compile(f"{base_pattern}\\.exr$")
-            for file in dir_path.iterdir():
-                if pattern.match(file.name):
+        if not PathUtils.validate_path_exists(dir_path, "Plate directory"):
+            return False
+
+        # Extract the base filename pattern for matching
+        plate_filename = Path(plate_path).name
+        base_pattern = plate_filename.replace("####", r"\d{4}")
+
+        try:
+            pattern = re.compile(f"^{base_pattern}$")
+
+            # Single directory scan - more efficient than multiple exists() calls
+            for file_path in dir_path.iterdir():
+                if file_path.is_file() and pattern.match(file_path.name):
+                    logger.debug(f"Found matching plate frame: {file_path.name}")
                     return True
 
+        except (OSError, PermissionError) as e:
+            logger.warning(f"Error scanning plate directory {dir_path}: {e}")
+            return False
+        except re.error as e:
+            logger.error(f"Invalid regex pattern '{base_pattern}': {e}")
+            return False
+
+        logger.debug(f"No matching frames found for pattern: {base_pattern}")
         return False

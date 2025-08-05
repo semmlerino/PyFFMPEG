@@ -4,21 +4,17 @@ Progress Tracker Module for PyMPEG
 Handles parsing ffmpeg output and calculating progress metrics and ETAs
 """
 
-import re
 import time
+import threading
 from typing import Dict, Any, Optional, List
 
 from config import UIConfig, ProcessConfig
 from logging_config import get_logger
+from output_buffer import ProcessOutputManager
 
 
 class ProcessProgressTracker:
     """Tracks progress for ffmpeg encoding processes"""
-
-    # Regex patterns for parsing ffmpeg output
-    TIME_RE = re.compile(r"time=(\d{2}):(\d{2}):(\d{2}\.\d{2})")
-    FPS_RE = re.compile(r"fps=\s*(\d+)")
-    FRAME_RE = re.compile(r"frame=\s*(\d+)")
 
     def __init__(self):
         """Initialize the progress tracker"""
@@ -27,16 +23,24 @@ class ProcessProgressTracker:
         self.batch_start_time: Optional[float] = None
         self.completed_count = 0
         self.total_count = 0
+        self._lock = threading.RLock()  # Reentrant lock for thread safety
 
         # For ETA smoothing
         self.prev_eta_values: List[float] = []
-        self.eta_window_size = 3  # Use last 3 ETAs for smoothing (reduced for more responsiveness)
+        self.eta_window_size = (
+            3  # Use last 3 ETAs for smoothing (reduced for more responsiveness)
+        )
         self.last_progress_time = 0
         self.last_progress_value = 0
-        self.force_eta_update_interval = UIConfig.FORCE_UPDATE_INTERVAL  # Force ETA update every N seconds even with small progress
+        self.force_eta_update_interval = (
+            UIConfig.FORCE_UPDATE_INTERVAL
+        )  # Force ETA update every N seconds even with small progress
 
         # Track processes that need special ffmpeg flags
         self.needs_genpts: Dict[str, bool] = {}  # Process IDs that need -fflags +genpts
+
+        # Initialize output buffer manager for optimized processing
+        self.output_manager = ProcessOutputManager(batch_interval=0.1)
 
     def start_batch(self, total_files: int):
         """Start tracking a batch of processes"""
@@ -46,20 +50,21 @@ class ProcessProgressTracker:
 
     def register_process(self, process_id: str, path: str, duration: float):
         """Register a new process to track"""
-        self.processes[process_id] = {
-            "path": path,
-            "duration": duration,
-            "start_time": time.time(),
-            "current_pct": 0,
-            "fps": 0,
-            "last_frame": 0,
-            "last_fps_time": time.time(),
-            "elapsed_sec": 0,
-            "prev_eta_values": [],  # For ETA smoothing per process
-            "last_progress_time": 0,
-            "last_progress_value": 0,
-        }
-        return self.processes[process_id]
+        with self._lock:
+            self.processes[process_id] = {
+                "path": path,
+                "duration": duration,
+                "start_time": time.time(),
+                "current_pct": 0,
+                "fps": 0,
+                "last_frame": 0,
+                "last_fps_time": time.time(),
+                "elapsed_sec": 0,
+                "prev_eta_values": [],  # For ETA smoothing per process
+                "last_progress_time": 0,
+                "last_progress_value": 0,
+            }
+            return self.processes[process_id]
 
     def mark_needs_genpts(self, process_id: str) -> None:
         """Mark a process as needing the genpts ffmpeg flag"""
@@ -69,15 +74,27 @@ class ProcessProgressTracker:
         """Check if a process needs the genpts ffmpeg flag"""
         return self.needs_genpts.get(process_id, False)
 
+    def force_progress_to_100(self, process_id: str):
+        """Force a process progress to 100% for final display"""
+        with self._lock:
+            if process_id in self.processes:
+                self.processes[process_id]["current_pct"] = 100
+
     def complete_process(self, process_id: str, success: bool = True):
         """Mark a process as completed"""
-        if process_id in self.processes:
-            if success:
-                self.completed_count += 1
-            del self.processes[process_id]
+        with self._lock:
+            if process_id in self.processes:
+                if success:
+                    # Force progress to 100% for successful completion
+                    self.processes[process_id]["current_pct"] = 100
+                    self.completed_count += 1
+                del self.processes[process_id]
 
-            # Clean up genpts tracking
-            self.needs_genpts.pop(process_id, None)
+                # Clean up genpts tracking
+                self.needs_genpts.pop(process_id, None)
+
+                # Clean up output buffer
+                self.output_manager.remove_buffer(process_id)
 
     def process_output(self, process_id: str, chunk: str) -> Dict[str, Any]:
         """
@@ -87,23 +104,22 @@ class ProcessProgressTracker:
         if process_id not in self.processes:
             return {}
 
-        process = self.processes[process_id]
+        # Add chunk to buffer for batch processing
+        buffer = self.output_manager.get_buffer(process_id)
+        buffer.add_output(chunk)
 
-        # Extract FPS information if present
-        fps_match = self.FPS_RE.search(chunk)
-        if fps_match:
-            current_fps = int(fps_match.group(1))
-            process["fps"] = current_fps
+        # Get batch-processed results
+        results = buffer.process_batch()
 
-        # Look for time progress in ffmpeg output
-        time_match = self.TIME_RE.search(chunk)
-        if not time_match:
+        if not results["has_data"]:
             return {}
 
-        # Parse time and calculate progress
-        h, m, s = time_match.groups()
-        elapsed_sec = int(h) * 3600 + int(m) * 60 + float(s)
+        process = self.processes[process_id]
+
+        # Update process data from batch results
+        elapsed_sec = results["elapsed_sec"]
         process["elapsed_sec"] = elapsed_sec
+        process["fps"] = results["fps"]
 
         # Calculate percentage based on duration
         duration = process["duration"]
@@ -111,7 +127,7 @@ class ProcessProgressTracker:
             return {}
 
         # Update progress percentage
-        pct = min(100, int(elapsed_sec / duration * 100))
+        pct = min(100, round(elapsed_sec / duration * 100))
         process["current_pct"] = pct
 
         # Calculate remaining time with more precision
@@ -135,6 +151,16 @@ class ProcessProgressTracker:
             "path": process["path"],
         }
 
+    def force_batch_process_all(self) -> None:
+        """Force immediate batch processing for all active processes"""
+        with self._lock:
+            # Create a list copy to avoid modification during iteration
+            process_ids = list(self.processes.keys())
+            for process_id in process_ids:
+                if process_id in self.processes:  # Check if still exists
+                    buffer = self.output_manager.get_buffer(process_id)
+                    buffer.force_process()
+
     def get_overall_progress(self) -> Dict[str, Any]:
         """
         Calculate overall progress metrics for all active processes
@@ -142,6 +168,19 @@ class ProcessProgressTracker:
         """
         if not self.batch_start_time:
             return {}
+
+        # Use lock to ensure thread safety for cache operations
+        with self._lock:
+            # Check if we need to recalculate (cache for performance)
+            current_time = time.time()
+            if hasattr(self, "_last_overall_calc_time") and hasattr(
+                self, "_last_overall_result"
+            ):
+                if current_time - self._last_overall_calc_time < 0.1:  # 100ms cache
+                    return self._last_overall_result
+
+        # Batch process all outputs for accurate data
+        self.output_manager.process_all_batches()
 
         # Calculate overall progress percentage
         process_progress_sum = sum(p["current_pct"] for p in self.processes.values())
@@ -156,7 +195,6 @@ class ProcessProgressTracker:
             weighted_pct = 0
 
         # Get current time for calculations
-        current_time = time.time()
         elapsed_total = current_time - self.batch_start_time
 
         # Calculate time-based progress rate rather than percentage-based
@@ -221,7 +259,7 @@ class ProcessProgressTracker:
         else:
             smoothed_eta = 0
 
-        return {
+        result = {
             "weighted_pct": weighted_pct,
             "elapsed_total": elapsed_total,
             "elapsed_str": self._format_time(elapsed_total),
@@ -231,6 +269,13 @@ class ProcessProgressTracker:
             "completed_count": self.completed_count,
             "total_count": self.total_count,
         }
+
+        # Cache the result with thread safety
+        with self._lock:
+            self._last_overall_calc_time = current_time
+            self._last_overall_result = result
+
+        return result
 
     def get_codec_distribution(self, codec_map: Dict[str, int]) -> Dict[str, int]:
         """Calculate distribution of active encoders by type (GPU/CPU)"""
@@ -248,92 +293,107 @@ class ProcessProgressTracker:
 
     def get_process_progress(self, process_id: str) -> Optional[Dict[str, Any]]:
         """Get progress information for a specific process"""
-        if process_id in self.processes:
+        with self._lock:
+            if process_id not in self.processes:
+                return None
+
             process = self.processes[process_id]
 
-            # Get current time and progress data
-            current_time = time.time()
-            elapsed = current_time - process["start_time"]
-            pct = process["current_pct"]
+            # Check cache first
+            if "last_result" in process and "last_result_time" in process:
+                if time.time() - process["last_result_time"] < 0.05:  # 50ms cache
+                    return process["last_result"]
 
-            # Apply the same smoothing algorithm used in overall progress
-            if pct > 0:
-                # Calculate instantaneous rate if we have previous data
-                if (
-                    process["last_progress_value"] > 0
-                    and current_time > process["last_progress_time"]
-                ):
-                    time_diff = current_time - process["last_progress_time"]
-                    progress_diff = pct - process["last_progress_value"]
+        # Get current time and progress data
+        current_time = time.time()
+        elapsed = current_time - process["start_time"]
+        pct = process["current_pct"]
 
-                    # Update more aggressively for individual files
-                    should_update = (progress_diff > 0.01) or (time_diff > 2.0)
+        # Apply the same smoothing algorithm used in overall progress
+        if pct > 0:
+            # Calculate instantaneous rate if we have previous data
+            if (
+                process["last_progress_value"] > 0
+                and current_time > process["last_progress_time"]
+            ):
+                time_diff = current_time - process["last_progress_time"]
+                progress_diff = pct - process["last_progress_value"]
 
-                    if should_update:
-                        # Calculate progress rate (%/second) with minimum threshold
-                        current_rate = max(
-                            progress_diff / time_diff, 0.0005
-                        )  # Ensure some movement
+                # Update more aggressively for individual files
+                should_update = (progress_diff > 0.01) or (time_diff > 2.0)
 
-                        # Calculate raw ETA based on current rate
-                        raw_eta = (100 - pct) / current_rate
+                if should_update:
+                    # Calculate progress rate (%/second) with minimum threshold
+                    current_rate = max(
+                        progress_diff / time_diff, 0.0005
+                    )  # Ensure some movement
 
-                        # Cap at reasonable maximum
-                        raw_eta = min(
-                            raw_eta, 3600 * 12
-                        )  # Max 12 hours for individual file
+                    # Calculate raw ETA based on current rate
+                    raw_eta = (100 - pct) / current_rate
 
-                        # Add to the list of recent ETAs for this process
-                        process["prev_eta_values"].append(raw_eta)
-                        # Keep very small window for individual processes to be more responsive
-                        if len(process["prev_eta_values"]) > 2:
-                            process["prev_eta_values"].pop(0)
+                    # Cap at reasonable maximum
+                    raw_eta = min(
+                        raw_eta, 3600 * 12
+                    )  # Max 12 hours for individual file
 
-                # Use fallback calculation if we don't have enough data yet
-                if not process["prev_eta_values"]:
-                    basic_eta = (elapsed / pct) * (100 - pct)
-                    process["prev_eta_values"].append(basic_eta)
+                    # Add to the list of recent ETAs for this process
+                    process["prev_eta_values"].append(raw_eta)
+                    # Keep very small window for individual processes to be more responsive
+                    if len(process["prev_eta_values"]) > 2:
+                        process["prev_eta_values"].pop(0)
 
-                # Calculate smoothed ETA using weighted moving average
-                weights = [
-                    i + 1 for i in range(len(process["prev_eta_values"]))
-                ]  # More weight to recent values
-                total_weight = sum(weights)
-                smoothed_eta = sum(
-                    eta * (w / total_weight)
-                    for eta, w in zip(process["prev_eta_values"], weights)
-                )
+            # Use fallback calculation if we don't have enough data yet
+            if not process["prev_eta_values"]:
+                basic_eta = (elapsed / pct) * (100 - pct)
+                process["prev_eta_values"].append(basic_eta)
 
-                # Apply sanity check - ETA shouldn't increase significantly when progress is high
-                if pct > 80 and len(process["prev_eta_values"]) > 1:
-                    # Don't let ETA increase by more than 20% when we're near the end
-                    previous_eta = process["prev_eta_values"][-2]
-                    if smoothed_eta > previous_eta * 1.2:
-                        smoothed_eta = previous_eta * 1.2
+            # Calculate smoothed ETA using weighted moving average
+            weights = [
+                i + 1 for i in range(len(process["prev_eta_values"]))
+            ]  # More weight to recent values
+            total_weight = sum(weights)
+            smoothed_eta = sum(
+                eta * (w / total_weight)
+                for eta, w in zip(process["prev_eta_values"], weights)
+            )
 
-                # Store current values for next calculation
-                process["last_progress_time"] = current_time
-                process["last_progress_value"] = pct
+            # Apply sanity check - ETA shouldn't increase significantly when progress is high
+            if pct > 80 and len(process["prev_eta_values"]) > 1:
+                # Don't let ETA increase by more than 20% when we're near the end
+                previous_eta = process["prev_eta_values"][-2]
+                if smoothed_eta > previous_eta * 1.2:
+                    smoothed_eta = previous_eta * 1.2
 
-                remain = smoothed_eta
-            else:
-                remain = 0
+            # Store current values for next calculation
+            process["last_progress_time"] = current_time
+            process["last_progress_value"] = pct
 
-            # Return a copy of the process data with additional calculated fields
-            return {
-                "process_id": process_id,
-                "current_pct": pct,
-                "elapsed_sec": process.get("elapsed_sec", 0),
-                "duration": process["duration"],
-                "fps": process["fps"],
-                "elapsed": elapsed,
-                "elapsed_str": self._format_time(elapsed),
-                "remain": remain,
-                "remain_str": self._format_time(remain),
-                "path": process["path"],
-            }
+            remain = smoothed_eta
+        else:
+            remain = 0
 
-        return None
+        # Return a copy of the process data with additional calculated fields
+        result = {
+            "process_id": process_id,
+            "current_pct": pct,
+            "elapsed_sec": process.get("elapsed_sec", 0),
+            "duration": process["duration"],
+            "fps": process["fps"],
+            "elapsed": elapsed,
+            "elapsed_str": self._format_time(elapsed),
+            "remain": remain,
+            "remain_str": self._format_time(remain),
+            "path": process["path"],
+        }
+
+        # Cache the result with thread safety
+        with self._lock:
+            # Recheck if process still exists before caching
+            if process_id in self.processes:
+                self.processes[process_id]["last_result"] = result
+                self.processes[process_id]["last_result_time"] = current_time
+
+        return result
 
     @staticmethod
     def _format_time(seconds: float) -> str:
@@ -360,13 +420,23 @@ class ProcessProgressTracker:
                 "default=noprint_wrappers=1:nokey=1",
                 path,
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=ProcessConfig.SUBPROCESS_TIMEOUT)
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
+            )
 
             if result.stdout.strip():
                 return float(result.stdout.strip())
         except subprocess.TimeoutExpired:
-            logger.log_process_timeout(f"ffprobe for {path}", ProcessConfig.SUBPROCESS_TIMEOUT)
+            logger.log_process_timeout(
+                f"ffprobe for {path}", ProcessConfig.SUBPROCESS_TIMEOUT
+            )
         except (subprocess.CalledProcessError, ValueError, OSError):
-            logger.warning(f"Failed to probe duration for {path}", suggestion="Check if the file is a valid video file")
+            logger.warning(
+                f"Failed to probe duration for {path}",
+                suggestion="Check if the file is a valid video file",
+            )
 
         return None

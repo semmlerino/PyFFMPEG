@@ -6,7 +6,6 @@ Handles the creation, management, and monitoring of FFmpeg processes
 
 import os
 import subprocess
-import time
 from collections import deque
 from typing import Dict, List, Tuple, Any, Optional
 
@@ -167,6 +166,13 @@ class ProcessManager(QObject):
 
         process.errorOccurred.connect(error_handler)
         connections.append(("errorOccurred", error_handler))
+
+        # Finished handling connection - this is critical for marking completion
+        def finished_handler(exit_code, exit_status, p=process, process_path=path):
+            return self.mark_process_finished(p, process_path)
+
+        process.finished.connect(finished_handler)
+        connections.append(("finished", finished_handler))
 
         # Store connections for cleanup
         self.process_connections[process] = connections
@@ -411,12 +417,18 @@ class ProcessManager(QObject):
     def mark_process_finished(self, process: QProcess, process_path: str) -> None:
         """Mark process as finished, update tracker, and emit finished signal."""
         exit_code = process.exitCode() if hasattr(process, "exitCode") else -1
+        process_id = self._get_process_id(process)
+
+        # For successful completion, force progress to 100% and emit update before cleanup
+        if exit_code == 0:
+            self.progress_tracker.force_progress_to_100(process_id)
+            # Emit progress update to show 100% completion in UI
+            self.update_progress.emit()
 
         # Guaranteed cleanup for this process
         self._cleanup_process_resources(process)
 
         # Mark as completed in progress tracker
-        process_id = self._get_process_id(process)
         self.progress_tracker.complete_process(process_id, success=(exit_code == 0))
         # Emit process finished signal
         self.process_finished.emit(process, exit_code, process_path)
@@ -438,6 +450,8 @@ class ProcessManager(QObject):
                         process.readyReadStandardOutput.disconnect(handler)
                     elif signal_name == "errorOccurred":
                         process.errorOccurred.disconnect(handler)
+                    elif signal_name == "finished":
+                        process.finished.disconnect(handler)
             except Exception as e:
                 self.logger.warning(f"Error disconnecting signals: {e}")
             finally:
@@ -482,54 +496,11 @@ class ProcessManager(QObject):
 
     def get_available_vram(self) -> int:
         """Get available GPU VRAM in MB. Returns 0 if unable to detect."""
-        current_time = time.time()
-
-        # Check if we need to update VRAM info
-        if current_time - self._last_vram_check < self._vram_check_interval:
-            return getattr(self, "_cached_vram", 0)
-
-        try:
-            import subprocess
-
-            # Query GPU memory info
-            result = subprocess.run(
-                [
-                    "nvidia-smi",
-                    "--query-gpu=memory.free",
-                    "--format=csv,noheader,nounits",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=2,
-            )
-
-            if result.returncode == 0:
-                # Parse available memory (first GPU)
-                vram_mb = int(result.stdout.strip().split("\n")[0])
-                self._cached_vram = vram_mb
-                self._last_vram_check = current_time
-                return vram_mb
-
-        except (
-            subprocess.TimeoutExpired,
-            subprocess.CalledProcessError,
-            ValueError,
-            OSError,
-        ):
-            pass
-
-        self._cached_vram = 0
-        return 0
+        return 0  # Simplified - VRAM monitoring disabled
 
     def can_start_gpu_encode(self) -> bool:
         """Check if there's enough VRAM to start a new GPU encode."""
-        available_vram = self.get_available_vram()
-
-        # Estimate VRAM needed for new encode
-        estimated_vram_per_encode = self._min_vram_mb
-
-        # Check if we have enough VRAM
-        return available_vram >= estimated_vram_per_encode
+        return True  # Always allow GPU encode - no VRAM monitoring
 
     def set_process_priority(self, process: QProcess, priority: str) -> None:
         """Set process priority. Priority can be 'high', 'normal', or 'low'."""

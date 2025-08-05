@@ -59,7 +59,7 @@ class Config:
 
     # Image and memory limits
     MAX_THUMBNAIL_DIMENSION_PX = 4096  # Maximum dimension for thumbnail images
-    MAX_INFO_PANEL_DIMENSION_PX = 2048  # Maximum dimension for info panel thumbnails  
+    MAX_INFO_PANEL_DIMENSION_PX = 2048  # Maximum dimension for info panel thumbnails
     MAX_CACHE_DIMENSION_PX = 10000  # Maximum dimension for cached images
     MAX_THUMBNAIL_MEMORY_MB = 50  # Maximum memory usage for thumbnail images
     MAX_FILE_SIZE_MB = 100  # Maximum file size for image loading
@@ -80,9 +80,18 @@ class Config:
     # Path construction segments
     THUMBNAIL_SEGMENTS = ["publish", "editorial", "cutref", "v001", "jpg", "1920x1080"]
     RAW_PLATE_SEGMENTS = ["publish", "turnover", "plate", "input_plate", "bg01"]
-    UNDISTORTION_BASE_SEGMENTS = ["user", "mm", "3de", "mm-default", "exports", "scene", "bg01", "nuke_lens_distortion"]
+    UNDISTORTION_BASE_SEGMENTS = [
+        "user",
+        "mm",
+        "3de",
+        "mm-default",
+        "exports",
+        "scene",
+        "bg01",
+        "nuke_lens_distortion",
+    ]
     THREEDE_SCENE_SEGMENTS = ["mm", "3de", "mm-default", "scenes", "scene"]
-    
+
     # Alternative 3DE scene path patterns to try if main pattern fails
     THREEDE_ALTERNATIVE_PATTERNS = [
         ["mm", "3de", "scenes"],
@@ -96,33 +105,35 @@ class Config:
         ["scenes"],
         ["scene"],
     ]
-    
+
     # Environment variables that may contain 3DE path information
     THREEDE_ENV_VARS = [
-        'THREEDE_SCENE_PATH',
-        '3DE_SCENE_PATH', 
-        'TDE_SCENE_PATH',
-        'MM_SCENE_PATH',
-        'MATCHMOVE_SCENE_PATH'
+        "THREEDE_SCENE_PATH",
+        "3DE_SCENE_PATH",
+        "TDE_SCENE_PATH",
+        "MM_SCENE_PATH",
+        "MATCHMOVE_SCENE_PATH",
     ]
-    
+
     # Common VFX plate name patterns for intelligent grouping
     PLATE_NAME_PATTERNS = [
-        r'^[bf]g\d{2}$',      # bg01, fg01, bg02, fg02, etc.
-        r'^plate_?\d+$',      # plate01, plate_01, plate02
-        r'^comp_?\d+$',       # comp01, comp_01, comp02
-        r'^shot_?\d+$',       # shot01, shot_01, shot010
-        r'^sc\d+$',           # sc01, sc02, sc10
-        r'^[\w]+_v\d{3}$',    # anything_v001, test_v002
-        r'^elem_?\d+$',       # elem01, elem_01
-        r'^cam_?\d+$',        # cam01, cam_01, cam1
-        r'^tk\d+$',           # tk01, tk02 (take numbers)
-        r'^roto_?\d+$',       # roto01, roto_01
+        r"^[bf]g\d{2}$",  # bg01, fg01, bg02, fg02, etc.
+        r"^plate_?\d+$",  # plate01, plate_01, plate02
+        r"^comp_?\d+$",  # comp01, comp_01, comp02
+        r"^shot_?\d+$",  # shot01, shot_01, shot010
+        r"^sc\d+$",  # sc01, sc02, sc10
+        r"^[\w]+_v\d{3}$",  # anything_v001, test_v002
+        r"^elem_?\d+$",  # elem01, elem_01
+        r"^cam_?\d+$",  # cam01, cam_01, cam1
+        r"^tk\d+$",  # tk01, tk02 (take numbers)
+        r"^roto_?\d+$",  # roto01, roto_01
     ]
-    
+
     # Show-wide search configuration
-    SHOW_SEARCH_ENABLED = True  # Enable searching all shots in shows (not just user's shots)
-    SHOW_ROOT_PATHS = ['/shows']  # Root directories where shows are stored
+    SHOW_SEARCH_ENABLED = (
+        True  # Enable searching all shots in shows (not just user's shots)
+    )
+    SHOW_ROOT_PATHS = ["/shows"]  # Root directories where shows are stored
     MAX_SHOTS_PER_SHOW = 1000  # Limit to prevent excessive searching in huge shows
-    SKIP_SEQUENCE_PATTERNS = ['tmp', 'temp', 'test', 'old', 'archive', '_dev']
-    SKIP_SHOT_PATTERNS = ['tmp', 'temp', 'test', 'old', 'archive', '_dev']
+    SKIP_SEQUENCE_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]
+    SKIP_SHOT_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]

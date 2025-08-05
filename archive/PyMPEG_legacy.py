@@ -16,7 +16,14 @@ from PySide6.QtCore import Qt
 from file_list_widget import FileListWidget  # Import the enhanced FileListWidget
 from process_manager import ProcessManager
 from codec_helpers import CodecHelpers  # Import the codec helpers
-from config import ProcessConfig, UIConfig, LogConfig, EncodingConfig, HardwareConfig, AppConfig
+from config import (
+    ProcessConfig,
+    UIConfig,
+    LogConfig,
+    EncodingConfig,
+    HardwareConfig,
+    AppConfig,
+)
 
 from PySide6.QtCore import QProcess, QFileInfo, QSettings, QByteArray, QTimer
 from PySide6.QtGui import QAction, QIcon, QColor
@@ -78,7 +85,9 @@ class MainWindow(QMainWindow):
 
         # Performance optimizations
         self.ui_update_timer = QTimer()
-        self.ui_update_timer.setInterval(UIConfig.UI_UPDATE_FALLBACK)  # Fallback timer for UI updates
+        self.ui_update_timer.setInterval(
+            UIConfig.UI_UPDATE_FALLBACK
+        )  # Fallback timer for UI updates
         self.ui_update_timer.timeout.connect(self._update_ui)
         self.ui_update_timer.setSingleShot(False)
         self.pending_process_outputs = {}
@@ -178,7 +187,9 @@ class MainWindow(QMainWindow):
         crf_label = QLabel("CRF:")
         self.crf_sb = QSpinBox()
         self.crf_sb.setRange(0, 51)
-        self.crf_sb.setValue(int(self.settings.value("crf", EncodingConfig.DEFAULT_CRF_H264)))
+        self.crf_sb.setValue(
+            int(self.settings.value("crf", EncodingConfig.DEFAULT_CRF_H264))
+        )
         self.crf_sb.setAccelerated(True)
 
         # Threads selector
@@ -586,21 +597,21 @@ class MainWindow(QMainWindow):
         if process in self.process_widgets:
             try:
                 widgets = self.process_widgets[process]
-                
+
                 # Safely remove from layout
                 container = widgets.get("container")
                 if container and self.process_containers.layout():
                     self.process_containers.layout().removeWidget(container)
                     container.deleteLater()
-                
+
                 # Clear all widget references to prevent memory leaks
                 for key, widget in widgets.items():
-                    if hasattr(widget, 'deleteLater') and key != "container":
+                    if hasattr(widget, "deleteLater") and key != "container":
                         widget.deleteLater()
-                
+
                 # Remove from tracking
                 del self.process_widgets[process]
-                
+
             except (KeyError, RuntimeError) as e:
                 print(f"Warning: Error during widget cleanup: {e}")
 
@@ -609,33 +620,33 @@ class MainWindow(QMainWindow):
             try:
                 log_info = self.process_logs[process]
                 tab_idx = log_info.get("tab_idx", -1)
-                
+
                 # Safely remove tab if it exists
                 if 0 <= tab_idx < self.processes_tab.count():
                     self.processes_tab.removeTab(tab_idx)
-                
+
                 # Clean up log widget
                 log_widget = log_info.get("log")
                 if log_widget:
                     log_widget.deleteLater()
-                
+
                 del self.process_logs[process]
-                
+
             except (KeyError, RuntimeError) as e:
                 print(f"Warning: Error during log cleanup: {e}")
-                
+
     def _cleanup_all_widgets(self):
         """Emergency cleanup of all process widgets and logs"""
         # Clean up all process widgets
         for process in list(self.process_widgets.keys()):
             self._remove_process_widget(process)
-        
+
         # Clear any remaining references
         self.process_widgets.clear()
         self.process_logs.clear()
-        
+
         # Stop UI update timer
-        if hasattr(self, 'ui_update_timer') and self.ui_update_timer.isActive():
+        if hasattr(self, "ui_update_timer") and self.ui_update_timer.isActive():
             self.ui_update_timer.stop()
 
     def _auto_balance_workload(self):
@@ -932,50 +943,50 @@ class MainWindow(QMainWindow):
         """Add chunk to main log and process-specific log with guaranteed size limits"""
         # Main log with enforced size limits
         self._add_to_main_log(chunk)
-        
+
         # Process-specific log with enforced size limits
         self._add_to_process_log(process, chunk)
-    
+
     def _add_to_main_log(self, chunk):
         """Add to main log with guaranteed size management"""
         MAX_LOG_SIZE = LogConfig.MAIN_LOG_MAX_SIZE
         TRUNCATE_LINES = LogConfig.MAIN_LOG_TRUNCATE_LINES
-        
+
         current_text = self.log.toPlainText()
         if len(current_text) > MAX_LOG_SIZE:
             # Truncate to keep only recent entries
-            lines = current_text.split('\n')
+            lines = current_text.split("\n")
             lines_to_keep = lines[-TRUNCATE_LINES:]
             self.log.clear()
             self.log.appendPlainText("[Log truncated to save memory]\n")
-            self.log.appendPlainText('\n'.join(lines_to_keep))
-        
+            self.log.appendPlainText("\n".join(lines_to_keep))
+
         self.log.appendPlainText(chunk)
-        
+
         # Auto-scroll to bottom
         vsb = self.log.verticalScrollBar()
         vsb.setValue(vsb.maximum())
-    
+
     def _add_to_process_log(self, process, chunk):
         """Add to process-specific log with guaranteed size management"""
         if process not in self.process_logs:
             return
-            
+
         MAX_PROCESS_LOG_SIZE = LogConfig.PROCESS_LOG_MAX_SIZE
-        
+
         process_log = self.process_logs[process]["log"]
         current_text = process_log.toPlainText()
-        
+
         if len(current_text) > MAX_PROCESS_LOG_SIZE:
             # Truncate to keep only recent entries
-            lines = current_text.split('\n')
-            lines_to_keep = lines[-LogConfig.PROCESS_LOG_TRUNCATE_LINES:]
+            lines = current_text.split("\n")
+            lines_to_keep = lines[-LogConfig.PROCESS_LOG_TRUNCATE_LINES :]
             process_log.clear()
             process_log.appendPlainText("[Log truncated to save memory]\n")
-            process_log.appendPlainText('\n'.join(lines_to_keep))
-        
+            process_log.appendPlainText("\n".join(lines_to_keep))
+
         process_log.appendPlainText(chunk)
-        
+
         # Auto-scroll to bottom
         vsb = process_log.verticalScrollBar()
         vsb.setValue(vsb.maximum())
@@ -1140,8 +1151,10 @@ class MainWindow(QMainWindow):
             )
 
         # Simplified timer management - ProcessManager handles the main timing
-        has_pending_outputs = any(chunks for chunks in self.pending_process_outputs.values())
-        
+        has_pending_outputs = any(
+            chunks for chunks in self.pending_process_outputs.values()
+        )
+
         if has_pending_outputs and not self.ui_update_timer.isActive():
             # Start fallback timer only for pending output processing
             self.ui_update_timer.start()
@@ -1189,7 +1202,9 @@ class MainWindow(QMainWindow):
             process in self.process_manager.process_logs
             and self.process_manager.process_logs[process]
         ):
-            last_logs = "\n".join(self.process_manager.process_logs[process][-5:])
+            # Convert deque to list for slicing
+            logs_deque = self.process_manager.process_logs[process]
+            last_logs = "\n".join(list(logs_deque)[-5:])
             self.log.appendPlainText(f"Last output: {last_logs}")
 
         # Mark process as completed in the process manager
@@ -1255,7 +1270,9 @@ class MainWindow(QMainWindow):
 
         # Schedule the process widget for removal after a short delay
         # This allows the user to see the final status
-        QTimer.singleShot(UIConfig.WIDGET_REMOVAL_DELAY, lambda: self._remove_process_widget(process))
+        QTimer.singleShot(
+            UIConfig.WIDGET_REMOVAL_DELAY, lambda: self._remove_process_widget(process)
+        )
 
         # finalize per-file display using enhanced FileListWidget methods
         if hasattr(self.file_list, "set_status"):
@@ -1318,7 +1335,10 @@ class MainWindow(QMainWindow):
 
         # Schedule removal of all process widgets after a delay
         for process in list(self.process_widgets.keys()):
-            QTimer.singleShot(UIConfig.STOPPED_WIDGET_DELAY, lambda p=process: self._remove_process_widget(p))
+            QTimer.singleShot(
+                UIConfig.STOPPED_WIDGET_DELAY,
+                lambda p=process: self._remove_process_widget(p),
+            )
 
         self.log.appendPlainText("Conversion stopped by user.")
         start_btn.setEnabled(True)
@@ -1367,10 +1387,10 @@ class MainWindow(QMainWindow):
         try:
             # Clean up UI elements
             self._cleanup_all_widgets()
-            
+
             # Clean up process manager resources
             self.process_manager.cleanup_all_resources()
-            
+
         except Exception as e:
             print(f"Warning: Error during shutdown cleanup: {e}")
 
@@ -1381,7 +1401,7 @@ class MainWindow(QMainWindow):
             self.settings.setValue("lastDir", self.last_dir)
         except Exception as e:
             print(f"Warning: Error saving settings: {e}")
-            
+
         super().closeEvent(event)
 
 

@@ -30,6 +30,7 @@ class ConversionController(QObject):
         self.logger = get_logger()
         self.process_manager = process_manager
         self.process_monitor = None  # Will be set later
+        self.file_list_widget = None  # Will be set later
 
         # Conversion state
         self.is_converting = False
@@ -46,6 +47,10 @@ class ConversionController(QObject):
     def set_process_monitor(self, process_monitor):
         """Set the process monitor after it's created"""
         self.process_monitor = process_monitor
+
+    def set_file_list_widget(self, file_list_widget):
+        """Set the file list widget for status updates"""
+        self.file_list_widget = file_list_widget
 
     def start_conversion(
         self,
@@ -115,10 +120,26 @@ class ConversionController(QObject):
                 self._finish_conversion()
             return
 
-        # Check if we can start more processes (parallel processing)
-        active_count = len(self.process_manager.processes)
-        if active_count >= self.max_parallel:
-            return  # Wait for a process to finish
+        # For parallel processing, process multiple files up to the limit
+        while self.queue and getattr(self, 'parallel_enabled', False):
+            # Check if we can start more processes
+            active_count = len(self.process_manager.processes)
+            if active_count >= getattr(self, 'max_parallel', 1):
+                break  # Wait for a process to finish
+
+            # Process one file
+            self._process_single_file()
+
+        # For non-parallel processing, process just one file
+        if not getattr(self, 'parallel_enabled', False) and self.queue:
+            active_count = len(self.process_manager.processes)
+            if active_count < getattr(self, 'max_parallel', 1):
+                self._process_single_file()
+
+    def _process_single_file(self) -> None:
+        """Process a single file from the queue"""
+        if not self.queue:
+            return
 
         # Get next file
         file_path = self.queue.pop(0)
@@ -132,16 +153,16 @@ class ConversionController(QObject):
 
         self.log_message.emit(f"📂 Processing: {os.path.basename(file_path)}")
 
+        # Update file list status to processing
+        if self.file_list_widget:
+            self.file_list_widget.set_status(file_path, "processing")
+
         # Start the process
         process = self.process_manager.start_process(file_path, ffmpeg_args)
 
         # Create process widget if monitor is available
         if self.process_monitor and process.state() != QProcess.ProcessState.NotRunning:
             self.process_monitor.create_process_widget(process, file_path)
-
-        # If parallel processing, continue with next file
-        if self.parallel_enabled and len(self.queue) > 0:
-            self._process_next()
 
     def _build_ffmpeg_args(self, input_path: str, codec_idx: int) -> List[str]:
         """Build FFmpeg command arguments for the given file and codec"""
@@ -226,6 +247,12 @@ class ConversionController(QObject):
         if exit_code == 0:
             self.log_message.emit(f"✅ Completed: {os.path.basename(process_path)}")
 
+            # Update file list status to completed
+            if self.file_list_widget:
+                # Ensure progress shows 100% before marking as completed
+                self.file_list_widget.update_progress(process_path, 100)
+                self.file_list_widget.set_status(process_path, "completed")
+
             # Handle source file deletion if enabled
             if self.delete_source:
                 try:
@@ -239,6 +266,10 @@ class ConversionController(QObject):
             self.log_message.emit(
                 f"❌ Failed: {os.path.basename(process_path)} (exit code: {exit_code})"
             )
+
+            # Update file list status to failed
+            if self.file_list_widget:
+                self.file_list_widget.set_status(process_path, "failed")
 
         # Continue with next file if parallel processing
         if self.parallel_enabled and self.queue:

@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+# ShotBot Launcher Script
+# A VFX shot browser and application launcher
+#
+
+# Script directory detection
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SHOTBOT_SCRIPT="${SCRIPT_DIR}/shotbot.py"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Error handling
+set -e
+trap 'echo -e "${RED}Error: Command failed at line $LINENO${NC}"' ERR
+
+# Function to print colored messages
+print_message() {
+    local color=$1
+    local message=$2
+    echo -e "${color}${message}${NC}"
+}
+
+# Check if shotbot.py exists
+if [ ! -f "$SHOTBOT_SCRIPT" ]; then
+    print_message "$RED" "Error: shotbot.py not found at $SHOTBOT_SCRIPT"
+    exit 1
+fi
+
+# Check if rez is available
+if ! command -v rez &> /dev/null; then
+    print_message "$RED" "Error: 'rez' command not found. Please ensure Rez is installed and in your PATH."
+    exit 1
+fi
+
+# Required packages for ShotBot
+REZ_PACKAGES="PySide6_Essentials pillow Jinja2"
+
+# Launch ShotBot with rez environment
+print_message "$GREEN" "Starting ShotBot..."
+print_message "$YELLOW" "Loading Rez packages: $REZ_PACKAGES"
+
+# Execute with rez environment
+rez env $REZ_PACKAGES -- python3 "$SHOTBOT_SCRIPT" "$@"
+
+# Exit with the same code as the python script
+exit $?

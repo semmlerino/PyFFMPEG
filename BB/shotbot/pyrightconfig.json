@@ -7,5 +7,5 @@
   "reportMissingImports": "warning",
   "venvPath": "../..",
   "venv": "venv",
-  "exclude": ["**/build", "**/venv", "**/.mypy_cache", "**/node_modules", "**/__pycache__", "**/.*", "tests/**"]
+  "exclude": ["**/build", "**/venv", "**/.mypy_cache", "**/node_modules", "**/__pycache__", "**/.*", "tests/**", "copy/**"]
 }
