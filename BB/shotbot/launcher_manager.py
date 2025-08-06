@@ -6,13 +6,15 @@ import os
 import shlex
 import string
 import subprocess
+import threading
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
 from config import Config
 from shot_model import Shot
@@ -20,6 +22,82 @@ from utils import PathUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
+
+
+class LauncherWorker(QThread):
+    """Worker thread for executing launcher commands."""
+
+    # Signals
+    command_started = Signal(str, str)  # launcher_id, command
+    # command_output removed - all apps use DEVNULL, no output captured
+    command_finished = Signal(str, bool, int)  # launcher_id, success, return_code
+    command_error = Signal(str, str)  # launcher_id, error_message
+
+    def __init__(
+        self, launcher_id: str, command: str, working_dir: Optional[str] = None
+    ):
+        super().__init__()
+        self.launcher_id = launcher_id
+        self.command = command
+        self.working_dir = working_dir
+        self._process: Optional[subprocess.Popen] = None
+        self._should_stop = False
+
+    def run(self):
+        """Execute the command in this thread."""
+        try:
+            # Emit start signal
+            self.command_started.emit(self.launcher_id, self.command)
+            logger.info(
+                f"Worker starting launcher '{self.launcher_id}': {self.command}"
+            )
+
+            # Treat all apps as GUI apps - don't capture output to prevent deadlocks
+            self._process = subprocess.Popen(
+                self.command,
+                shell=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                cwd=self.working_dir,
+                start_new_session=True,  # Isolate process group
+            )
+
+            # Just wait for process to finish
+            while not self._should_stop:
+                if self._process.poll() is not None:
+                    # Process finished
+                    break
+                # Check periodically without reading output
+                time.sleep(0.5)
+
+            # Get final return code
+            return_code = self._process.returncode if self._process else -1
+            success = return_code == 0
+
+            logger.info(
+                f"Worker finished launcher '{self.launcher_id}' with code {return_code}"
+            )
+            self.command_finished.emit(self.launcher_id, success, return_code)
+
+        except Exception as e:
+            error_msg = f"Worker exception for launcher '{self.launcher_id}': {str(e)}"
+            logger.error(error_msg)
+            self.command_error.emit(self.launcher_id, error_msg)
+            self.command_finished.emit(self.launcher_id, False, -1)
+
+    def stop(self):
+        """Request the worker to stop."""
+        self._should_stop = True
+        if self._process and self._process.poll() is None:
+            try:
+                self._process.terminate()
+                # Give it a moment to terminate gracefully
+                self._process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                # Force kill if necessary
+                self._process.kill()
+            except Exception as e:
+                logger.error(f"Error stopping process: {e}")
 
 
 @dataclass
@@ -158,6 +236,25 @@ class LauncherConfig:
             return False
 
 
+class ProcessInfo:
+    """Information about an active process."""
+
+    def __init__(
+        self,
+        process: subprocess.Popen,
+        launcher_id: str,
+        launcher_name: str,
+        command: str,
+        timestamp: float,
+    ):
+        self.process = process
+        self.launcher_id = launcher_id
+        self.launcher_name = launcher_name
+        self.command = command
+        self.timestamp = timestamp
+        self.validated = False  # Whether process startup was validated
+
+
 class LauncherManager(QObject):
     """Manages CRUD operations and execution for custom launchers."""
 
@@ -170,14 +267,34 @@ class LauncherManager(QObject):
     execution_started = Signal(str)  # launcher_id
     execution_finished = Signal(str, bool)  # launcher_id, success
 
+    # Process management constants
+    MAX_CONCURRENT_PROCESSES = 100
+    CLEANUP_INTERVAL_MS = 30000  # 30 seconds
+    PROCESS_STARTUP_TIMEOUT_MS = 5000  # 5 seconds for process validation
+
     def __init__(self):
         super().__init__()
         self.config = LauncherConfig()
         self._launchers: Dict[str, CustomLauncher] = {}
-        self._active_processes: Dict[
-            str, subprocess.Popen
-        ] = {}  # Track active processes
+
+        # Thread-safe process tracking with detailed information
+        self._active_processes: Dict[str, ProcessInfo] = {}
+        self._active_workers: Dict[str, LauncherWorker] = {}  # Track worker threads
+        self._process_lock = threading.RLock()
+
+        # Periodic cleanup timer
+        self._cleanup_timer = QTimer()
+        self._cleanup_timer.timeout.connect(self._periodic_cleanup)
+        self._cleanup_timer.start(self.CLEANUP_INTERVAL_MS)
+
+        # Shutdown flag for graceful cleanup
+        self._shutting_down = False
+
         self._load_launchers()
+
+        logger.info(
+            f"LauncherManager initialized with cleanup interval {self.CLEANUP_INTERVAL_MS}ms"
+        )
 
     def _load_launchers(self) -> None:
         """Load launchers from configuration."""
@@ -190,6 +307,20 @@ class LauncherManager(QObject):
     def _generate_id(self) -> str:
         """Generate unique ID for new launcher."""
         return str(uuid.uuid4())
+
+    def _generate_process_key(self, launcher_id: str, process_pid: int) -> str:
+        """Generate unique process key with timestamp and UUID components.
+
+        Args:
+            launcher_id: ID of the launcher
+            process_pid: Process ID
+
+        Returns:
+            Unique process key string
+        """
+        timestamp = int(time.time() * 1000)  # Millisecond precision
+        unique_suffix = str(uuid.uuid4())[:8]  # Short UUID suffix
+        return f"{launcher_id}_{process_pid}_{timestamp}_{unique_suffix}"
 
     def _validate_launcher_data(
         self, name: str, command: str, exclude_id: Optional[str] = None
@@ -625,6 +756,7 @@ class LauncherManager(QObject):
         launcher_id: str,
         custom_vars: Optional[Dict[str, str]] = None,
         dry_run: bool = False,
+        use_worker: bool = True,
     ) -> bool:
         """Execute a launcher with optional custom variables.
 
@@ -643,6 +775,14 @@ class LauncherManager(QObject):
         launcher = self._launchers[launcher_id]
 
         try:
+            # Check process limits before execution
+            with self._process_lock:
+                if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
+                    error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
+                    logger.warning(error_msg)
+                    self.validation_error.emit("general", error_msg)
+                    return False
+
             # Substitute variables in command
             merged_vars = {**launcher.variables, **(custom_vars or {})}
             command = self._substitute_variables(launcher.command, None, merged_vars)
@@ -655,29 +795,83 @@ class LauncherManager(QObject):
             self.execution_started.emit(launcher_id)
             logger.info(f"Executing launcher '{launcher.name}': {command}")
 
-            # Use shell execution for complex commands
-            # Use DEVNULL to prevent pipe buffer deadlocks when apps close
-            process = subprocess.Popen(
-                command,
-                shell=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
+            # Treat all apps as GUI apps - always launch in terminal window
+            if launcher.terminal.required:
+                # Try to launch in a terminal (like command_launcher.py does)
+                terminal_commands = [
+                    # Try gnome-terminal first
+                    ["gnome-terminal", "--", "bash", "-i", "-c", command],
+                    # Try xterm as fallback
+                    ["xterm", "-e", f"bash -i -c '{command}'"],
+                    # Try konsole
+                    ["konsole", "-e", "bash", "-i", "-c", command],
+                ]
 
-            # Don't wait for completion to avoid blocking UI
-            # Store process reference for tracking
-            process_key = f"{launcher_id}_{process.pid}"
-            self._active_processes[process_key] = process
+                launched = False
+                process = None
+                for term_cmd in terminal_commands:
+                    try:
+                        process = subprocess.Popen(
+                            term_cmd,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            start_new_session=True,
+                        )
+                        launched = True
+                        logger.info(f"Launched in terminal: {term_cmd[0]}")
+                        break
+                    except (FileNotFoundError, OSError):
+                        continue
 
-            logger.info(
-                f"Started process for launcher '{launcher.name}' (PID: {process.pid})"
-            )
-            self.execution_finished.emit(launcher_id, True)
+                if not launched:
+                    # If no terminal worked, use worker thread as fallback
+                    logger.warning(
+                        "No terminal emulator found, falling back to worker thread"
+                    )
+                    return self._execute_with_worker(
+                        launcher_id, launcher.name, command
+                    )
 
-            # Clean up any finished processes
-            self._cleanup_finished_processes()
-            return True
+                # Validate process started successfully
+                success = self._validate_process_startup(process)
+                if not success:
+                    try:
+                        process.terminate()
+                        process.wait(timeout=3)
+                    except (subprocess.TimeoutExpired, OSError):
+                        pass
+                    error_msg = "Process failed to start properly"
+                    logger.error(
+                        f"Failed to start launcher '{launcher.name}': {error_msg}"
+                    )
+                    self.execution_finished.emit(launcher_id, False)
+                    return False
+
+                # Generate unique process key and store process info
+                process_key = self._generate_process_key(launcher_id, process.pid)
+                process_info = ProcessInfo(
+                    process=process,
+                    launcher_id=launcher_id,
+                    launcher_name=launcher.name,
+                    command=command,
+                    timestamp=time.time(),
+                )
+                process_info.validated = True
+
+                with self._process_lock:
+                    self._active_processes[process_key] = process_info
+
+                logger.info(
+                    f"Started process for launcher '{launcher.name}' (PID: {process.pid}, Key: {process_key})"
+                )
+                self.execution_finished.emit(launcher_id, True)
+
+                # Clean up any finished processes
+                self._cleanup_finished_processes()
+                return True
+            else:
+                # Use worker thread for non-terminal apps (still with full isolation)
+                return self._execute_with_worker(launcher_id, launcher.name, command)
 
         except Exception as e:
             logger.error(f"Failed to execute launcher '{launcher.name}': {e}")
@@ -690,6 +884,7 @@ class LauncherManager(QObject):
         shot: Shot,
         custom_vars: Optional[Dict[str, str]] = None,
         dry_run: bool = False,
+        use_worker: bool = True,
     ) -> bool:
         """Execute a launcher with shot context variables.
 
@@ -709,6 +904,14 @@ class LauncherManager(QObject):
         launcher = self._launchers[launcher_id]
 
         try:
+            # Check process limits before execution
+            with self._process_lock:
+                if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
+                    error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
+                    logger.warning(error_msg)
+                    self.validation_error.emit("general", error_msg)
+                    return False
+
             # Substitute variables in command with shot context
             merged_vars = {**launcher.variables, **(custom_vars or {})}
             command = self._substitute_variables(launcher.command, shot, merged_vars)
@@ -739,27 +942,87 @@ class LauncherManager(QObject):
                 # For shot context, use ws command if available
                 full_command = f"bash -i -c 'ws {shot.workspace_path} && {command}'"
 
-                # Use DEVNULL to prevent pipe buffer deadlocks when apps close
-                process = subprocess.Popen(
-                    full_command,
-                    shell=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    text=True,
-                )
+                # Treat all apps as GUI apps - always launch in terminal window
+                if launcher.terminal.required:
+                    # Try to launch in a terminal (like command_launcher.py does)
+                    terminal_commands = [
+                        # Try gnome-terminal first
+                        ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
+                        # Try xterm as fallback
+                        ["xterm", "-e", f"bash -i -c '{full_command}'"],
+                        # Try konsole
+                        ["konsole", "-e", "bash", "-i", "-c", full_command],
+                    ]
 
-                # Store process reference for tracking
-                process_key = f"{launcher_id}_{process.pid}"
-                self._active_processes[process_key] = process
+                    launched = False
+                    process = None
+                    for term_cmd in terminal_commands:
+                        try:
+                            process = subprocess.Popen(
+                                term_cmd,
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                                start_new_session=True,
+                            )
+                            launched = True
+                            logger.info(f"Launched in terminal: {term_cmd[0]}")
+                            break
+                        except (FileNotFoundError, OSError):
+                            continue
 
-                logger.info(
-                    f"Started process for launcher '{launcher.name}' in shot context (PID: {process.pid})"
-                )
-                self.execution_finished.emit(launcher_id, True)
+                    if not launched:
+                        # If no terminal worked, use worker thread as fallback
+                        logger.warning(
+                            "No terminal emulator found, falling back to worker thread"
+                        )
+                        return self._execute_with_worker(
+                            launcher_id,
+                            launcher.name,
+                            full_command,
+                            shot.workspace_path,
+                        )
+                    # Validate process started successfully
+                    success = self._validate_process_startup(process)
+                    if not success:
+                        try:
+                            process.terminate()
+                            process.wait(timeout=3)
+                        except (subprocess.TimeoutExpired, OSError):
+                            pass
+                        error_msg = "Process failed to start properly in shot context"
+                        logger.error(
+                            f"Failed to start launcher '{launcher.name}': {error_msg}"
+                        )
+                        self.execution_finished.emit(launcher_id, False)
+                        return False
 
-                # Clean up any finished processes
-                self._cleanup_finished_processes()
-                return True
+                    # Generate unique process key and store process info
+                    process_key = self._generate_process_key(launcher_id, process.pid)
+                    process_info = ProcessInfo(
+                        process=process,
+                        launcher_id=launcher_id,
+                        launcher_name=launcher.name,
+                        command=full_command,
+                        timestamp=time.time(),
+                    )
+                    process_info.validated = True
+
+                    with self._process_lock:
+                        self._active_processes[process_key] = process_info
+
+                    logger.info(
+                        f"Started process for launcher '{launcher.name}' in shot context (PID: {process.pid}, Key: {process_key})"
+                    )
+                    self.execution_finished.emit(launcher_id, True)
+
+                    # Clean up any finished processes
+                    self._cleanup_finished_processes()
+                    return True
+                else:
+                    # Use worker thread for non-terminal apps (still with full isolation)
+                    return self._execute_with_worker(
+                        launcher_id, launcher.name, full_command, shot.workspace_path
+                    )
 
             finally:
                 # Restore original working directory
@@ -834,20 +1097,112 @@ class LauncherManager(QObject):
 
         return errors
 
-    def _cleanup_finished_processes(self) -> None:
-        """Clean up finished processes from tracking."""
-        finished_keys = []
-        for process_key, process in self._active_processes.items():
-            # Check if process has finished
-            if process.poll() is not None:
-                finished_keys.append(process_key)
+    def _validate_process_startup(self, process: subprocess.Popen) -> bool:
+        """Validate that a process started successfully.
 
-        # Remove finished processes
-        for key in finished_keys:
-            del self._active_processes[key]
+        Args:
+            process: The subprocess.Popen object to validate
+
+        Returns:
+            True if process started successfully, False otherwise
+        """
+        if self._shutting_down:
+            return False
+
+        try:
+            # Wait a short time to see if process fails immediately
+            time.sleep(0.1)
+
+            # Check if process is still running
+            return_code = process.poll()
+            if return_code is not None:
+                logger.warning(f"Process exited immediately with code {return_code}")
+                return False
+
+            # Process appears to be running successfully
+            return True
+
+        except Exception as e:
+            logger.error(f"Error validating process startup: {e}")
+            return False
+
+    def _cleanup_finished_processes(self) -> None:
+        """Clean up finished processes from tracking (thread-safe)."""
+        if self._shutting_down:
+            return
+
+        finished_keys = []
+
+        with self._process_lock:
+            for process_key, process_info in self._active_processes.items():
+                try:
+                    # Check if process has finished
+                    if process_info.process.poll() is not None:
+                        finished_keys.append(process_key)
+                except (OSError, AttributeError) as e:
+                    # Process may have been cleaned up already
+                    logger.debug(f"Error checking process {process_key}: {e}")
+                    finished_keys.append(process_key)
+
+            # Remove finished processes
+            for key in finished_keys:
+                if key in self._active_processes:
+                    process_info = self._active_processes[key]
+                    logger.debug(
+                        f"Cleaning up finished process: {process_info.launcher_name} "
+                        f"(PID: {process_info.process.pid}, Key: {key})"
+                    )
+                    del self._active_processes[key]
 
         if finished_keys:
             logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
+
+    def _periodic_cleanup(self) -> None:
+        """Periodic cleanup of finished processes and old entries."""
+        if self._shutting_down:
+            return
+
+        try:
+            current_time = time.time()
+            old_threshold = current_time - 3600  # 1 hour ago
+
+            with self._process_lock:
+                # First, clean up finished processes
+                self._cleanup_finished_processes()
+                # Also clean up finished workers
+                self._cleanup_finished_workers()
+
+                # Then remove very old entries (safety cleanup)
+                old_keys = []
+                for process_key, process_info in self._active_processes.items():
+                    if process_info.timestamp < old_threshold:
+                        try:
+                            # Check if process is still running
+                            if process_info.process.poll() is not None:
+                                old_keys.append(process_key)
+                            else:
+                                # Process is old but still running, log it
+                                logger.info(
+                                    f"Long-running process: {process_info.launcher_name} "
+                                    f"(PID: {process_info.process.pid}, Age: {current_time - process_info.timestamp:.0f}s)"
+                                )
+                        except (OSError, AttributeError):
+                            old_keys.append(process_key)
+
+                for key in old_keys:
+                    if key in self._active_processes:
+                        logger.debug(f"Removing old process entry: {key}")
+                        del self._active_processes[key]
+
+                # Log current process count
+                active_count = len(self._active_processes)
+                if active_count > 0:
+                    logger.debug(
+                        f"Active processes: {active_count}/{self.MAX_CONCURRENT_PROCESSES}"
+                    )
+
+        except Exception as e:
+            logger.error(f"Error during periodic cleanup: {e}")
 
     def get_active_process_count(self) -> int:
         """Get the number of currently active launcher processes.
@@ -855,8 +1210,128 @@ class LauncherManager(QObject):
         Returns:
             Number of active processes
         """
-        self._cleanup_finished_processes()
-        return len(self._active_processes)
+        with self._process_lock:
+            self._cleanup_finished_processes()
+            self._cleanup_finished_workers()
+            return len(self._active_processes) + len(self._active_workers)
+
+    def get_active_process_info(self) -> List[Dict[str, Any]]:
+        """Get information about all active processes.
+
+        Returns:
+            List of dictionaries containing process information
+        """
+        process_info = []
+
+        with self._process_lock:
+            self._cleanup_finished_processes()
+
+            for process_key, info in self._active_processes.items():
+                try:
+                    process_info.append(
+                        {
+                            "key": process_key,
+                            "launcher_id": info.launcher_id,
+                            "launcher_name": info.launcher_name,
+                            "pid": info.process.pid,
+                            "command": info.command,
+                            "timestamp": info.timestamp,
+                            "age_seconds": time.time() - info.timestamp,
+                            "validated": info.validated,
+                            "running": info.process.poll() is None,
+                        }
+                    )
+                except (OSError, AttributeError) as e:
+                    logger.debug(f"Error getting info for process {process_key}: {e}")
+
+        return process_info
+
+    def terminate_process(self, process_key: str, force: bool = False) -> bool:
+        """Terminate a specific process.
+
+        Args:
+            process_key: Unique key identifying the process
+            force: If True, use SIGKILL instead of SIGTERM
+
+        Returns:
+            True if process was terminated, False otherwise
+        """
+        with self._process_lock:
+            if process_key not in self._active_processes:
+                logger.warning(f"Process key {process_key} not found")
+                return False
+
+            process_info = self._active_processes[process_key]
+            process = process_info.process
+
+            try:
+                if process.poll() is not None:
+                    logger.debug(f"Process {process_key} already terminated")
+                    del self._active_processes[process_key]
+                    return True
+
+                if force:
+                    process.kill()
+                    logger.info(
+                        f"Forcefully killed process {process_info.launcher_name} (PID: {process.pid})"
+                    )
+                else:
+                    process.terminate()
+                    logger.info(
+                        f"Terminated process {process_info.launcher_name} (PID: {process.pid})"
+                    )
+
+                # Wait a short time for process to exit
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    if not force:
+                        # Try force kill if terminate didn't work
+                        process.kill()
+                        process.wait(timeout=3)
+
+                del self._active_processes[process_key]
+                return True
+
+            except (OSError, subprocess.TimeoutExpired) as e:
+                logger.error(f"Error terminating process {process_key}: {e}")
+                return False
+
+    def shutdown(self) -> None:
+        """Gracefully shutdown the launcher manager and clean up resources."""
+        logger.info("LauncherManager shutting down...")
+        self._shutting_down = True
+
+        # Stop the cleanup timer
+        if self._cleanup_timer:
+            self._cleanup_timer.stop()
+
+        # Stop all worker threads first
+        self.stop_all_workers()
+
+        # Terminate all active processes
+        with self._process_lock:
+            active_processes = list(self._active_processes.keys())
+
+        for process_key in active_processes:
+            try:
+                self.terminate_process(process_key, force=False)
+            except Exception as e:
+                logger.error(
+                    f"Error terminating process {process_key} during shutdown: {e}"
+                )
+
+        # Final cleanup
+        with self._process_lock:
+            remaining_count = len(self._active_processes)
+            if remaining_count > 0:
+                logger.warning(
+                    f"Shutdown completed with {remaining_count} processes still tracked"
+                )
+            else:
+                logger.info("All processes cleaned up successfully")
+
+        logger.info("LauncherManager shutdown complete")
 
     def reload_config(self) -> bool:
         """Reload launcher configuration from file.
@@ -872,3 +1347,138 @@ class LauncherManager(QObject):
         except Exception as e:
             logger.error(f"Failed to reload launcher configuration: {e}")
             return False
+
+    def _execute_with_worker(
+        self,
+        launcher_id: str,
+        launcher_name: str,
+        command: str,
+        working_dir: Optional[str] = None,
+    ) -> bool:
+        """Execute command using a worker thread.
+
+        Args:
+            launcher_id: ID of the launcher
+            launcher_name: Name of the launcher
+            command: Command to execute
+            working_dir: Optional working directory
+
+        Returns:
+            True if worker started successfully, False otherwise
+        """
+        try:
+            # Create worker
+            worker = LauncherWorker(launcher_id, command, working_dir)
+
+            # Connect worker signals
+            worker.command_started.connect(
+                lambda lid, cmd: logger.debug(f"Worker started: {lid} - {cmd}")
+            )
+            # command_output removed - all apps use DEVNULL, no output captured
+            worker.command_finished.connect(self._on_worker_finished)
+            worker.command_error.connect(
+                lambda lid, error: logger.error(f"Worker error [{lid}]: {error}")
+            )
+
+            # Store worker reference
+            worker_key = f"{launcher_id}_{int(time.time() * 1000)}"
+            with self._process_lock:
+                self._active_workers[worker_key] = worker
+
+            # Start worker
+            worker.start()
+
+            logger.info(f"Started worker thread for launcher '{launcher_name}'")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to start worker thread: {e}")
+            self.execution_finished.emit(launcher_id, False)
+            return False
+
+    def _on_worker_finished(self, launcher_id: str, success: bool, return_code: int):
+        """Handle worker thread completion.
+
+        Args:
+            launcher_id: ID of the launcher that finished
+            success: Whether execution was successful
+            return_code: Process return code
+        """
+        launcher = self._launchers.get(launcher_id)
+        launcher_name = launcher.name if launcher else launcher_id
+
+        if success:
+            logger.info(f"Launcher '{launcher_name}' completed successfully")
+        else:
+            logger.warning(f"Launcher '{launcher_name}' failed with code {return_code}")
+
+        # Emit the finished signal
+        self.execution_finished.emit(launcher_id, success)
+
+        # Schedule cleanup of finished workers
+        QTimer.singleShot(1000, self._cleanup_finished_workers)
+
+    def _cleanup_finished_workers(self):
+        """Clean up finished worker threads."""
+        with self._process_lock:
+            finished_workers = []
+            for worker_key, worker in self._active_workers.items():
+                try:
+                    # Check if worker is finished
+                    if worker.isFinished():
+                        finished_workers.append(worker_key)
+                        # Ensure worker is properly cleaned up
+                        if not worker.wait(100):  # Wait up to 100ms
+                            logger.warning(
+                                f"Worker {worker_key} didn't finish cleanly, terminating"
+                            )
+                            worker.terminate()
+                            worker.wait(500)  # Give it more time after termination
+
+                        # Disconnect signals to prevent memory leaks
+                        try:
+                            worker.command_started.disconnect()
+                            # command_output removed - all apps use DEVNULL
+                            worker.command_finished.disconnect()
+                            worker.command_error.disconnect()
+                        except (RuntimeError, TypeError):
+                            # Signals might already be disconnected
+                            pass
+
+                        # Schedule worker for deletion
+                        worker.deleteLater()
+                    elif not worker.isRunning():
+                        # Worker is not running but not finished - might be stuck
+                        logger.warning(
+                            f"Worker {worker_key} is not running but not finished, cleaning up"
+                        )
+                        finished_workers.append(worker_key)
+                        worker.stop()
+                        if not worker.wait(500):
+                            worker.terminate()
+                            worker.wait()
+                        worker.deleteLater()
+                except Exception as e:
+                    logger.error(f"Error checking worker {worker_key}: {e}")
+                    # Mark for cleanup anyway to prevent accumulation
+                    finished_workers.append(worker_key)
+
+            # Remove finished workers from tracking
+            for key in finished_workers:
+                if key in self._active_workers:
+                    del self._active_workers[key]
+
+            if finished_workers:
+                logger.debug(f"Cleaned up {len(finished_workers)} finished workers")
+
+    def stop_all_workers(self) -> None:
+        """Stop all active worker threads."""
+        with self._process_lock:
+            for worker in self._active_workers.values():
+                if not worker.isFinished():
+                    worker.stop()
+                    if not worker.wait(1000):  # Wait up to 1 second
+                        worker.terminate()
+                        worker.wait()
+            self._active_workers.clear()
+            logger.info("Stopped all worker threads")

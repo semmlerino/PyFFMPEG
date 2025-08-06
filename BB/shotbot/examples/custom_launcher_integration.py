@@ -17,7 +17,7 @@ sys.modules["PySide6.QtCore"].Signal = Mock()
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import the terminal launcher
-from terminal_launcher import Launcher, TerminalLauncher
+from terminal_launcher import Launcher, TerminalLauncher  # noqa: E402
 
 
 class CustomLauncherManager:

@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from threede_scene_worker import ThreeDESceneWorker
 
 from cache_manager import CacheManager
 from command_launcher import CommandLauncher
@@ -33,6 +32,7 @@ from shot_grid_optimized import ShotGridOptimized
 from shot_info_panel import ShotInfoPanel
 from shot_model import Shot, ShotModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+from threede_scene_worker import ThreeDESceneWorker
 from threede_shot_grid import ThreeDEShotGrid
 
 
@@ -1093,6 +1093,10 @@ class MainWindow(QMainWindow):
             if not self._threede_worker.wait(3000):  # Wait up to 3 seconds
                 self._threede_worker.terminate()
                 self._threede_worker.wait()
+
+        # Shutdown launcher manager to stop all worker threads
+        if hasattr(self.launcher_manager, "shutdown"):
+            self.launcher_manager.shutdown()
 
         self._save_settings()
         event.accept()

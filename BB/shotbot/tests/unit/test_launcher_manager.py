@@ -1,4 +1,10 @@
-"""Tests for LauncherManager business logic layer."""
+"""Tests for LauncherManager business logic layer.
+
+Note: These unit tests mock the subprocess layer and test the launcher manager's
+high-level logic. The actual process execution (using LauncherWorker with DEVNULL
+for all apps) is not tested here. All applications are now treated uniformly as
+GUI apps with proper process isolation.
+"""
 
 import tempfile
 import unittest
@@ -387,7 +393,7 @@ class TestLauncherManager(unittest.TestCase):
         """Test variable substitution functionality."""
         # Test basic substitution
         result = self.manager._substitute_variables(
-            "Hello {name}!", custom_vars={"name": "World"}
+            "Hello $name!", custom_vars={"name": "World"}
         )
         self.assertEqual(result, "Hello World!")
 
@@ -400,29 +406,23 @@ class TestLauncherManager(unittest.TestCase):
         )
 
         result = self.manager._substitute_variables(
-            "Shot: {show}_{sequence}_{shot} at {workspace_path}", shot=shot
+            "Shot: ${show}_${sequence}_$shot at $workspace_path", shot=shot
         )
         expected = "Shot: testshow_testseq_001 at /shows/testshow/shots/testseq/001"
         self.assertEqual(result, expected)
 
         # Test safe substitution with missing variables
         result = self.manager._substitute_variables(
-            "Missing: {missing_var}", custom_vars={"other": "value"}
+            "Missing: $missing_var", custom_vars={"other": "value"}
         )
-        self.assertEqual(result, "Missing: {missing_var}")
+        self.assertEqual(result, "Missing: $missing_var")
 
-    @patch("subprocess.Popen")
-    def test_execute_launcher(self, mock_popen):
-        """Test launcher execution."""
-        # Setup mock process
-        mock_process = Mock()
-        mock_process.pid = 12345
-        mock_popen.return_value = mock_process
-
+    def test_execute_launcher(self):
+        """Test launcher execution using worker thread."""
         # Create launcher
         launcher_id = self.manager.create_launcher(
             name="Test Execute",
-            command="echo {message}",
+            command="echo $message",
             variables={"message": "hello world"},
         )
 
@@ -435,34 +435,31 @@ class TestLauncherManager(unittest.TestCase):
             lambda x, success: signals_received.append(("finished", x, success))
         )
 
-        # Execute launcher
-        success = self.manager.execute_launcher(launcher_id)
-        self.assertTrue(success)
+        # Execute launcher (will use worker thread)
+        with patch.object(self.manager, "_execute_with_worker", return_value=True) as mock_worker:
+            success = self.manager.execute_launcher(launcher_id)
+            self.assertTrue(success)
+            
+            # Verify worker was called with correct arguments
+            mock_worker.assert_called_once()
+            args = mock_worker.call_args[0]
+            self.assertEqual(args[0], launcher_id)
+            self.assertEqual(args[1], "Test Execute")
+            self.assertIn("echo hello world", args[2])
 
-        # Verify subprocess was called
-        mock_popen.assert_called_once()
-        args, kwargs = mock_popen.call_args
-        self.assertIn("echo hello world", args[0])
-
-        # Check signals
-        self.assertEqual(len(signals_received), 2)
+        # Check signal was emitted
         self.assertIn(("started", launcher_id), signals_received)
-        self.assertIn(("finished", launcher_id, True), signals_received)
 
-    @patch("subprocess.Popen")
     @patch("os.chdir")
     @patch("os.getcwd")
-    def test_execute_in_shot_context(self, mock_getcwd, mock_chdir, mock_popen):
-        """Test launcher execution in shot context."""
+    def test_execute_in_shot_context(self, mock_getcwd, mock_chdir):
+        """Test launcher execution in shot context using worker thread."""
         # Setup mocks
         mock_getcwd.return_value = "/original/dir"
-        mock_process = Mock()
-        mock_process.pid = 12345
-        mock_popen.return_value = mock_process
 
         # Create launcher
         launcher_id = self.manager.create_launcher(
-            name="Shot Context Test", command="echo {full_name}"
+            name="Shot Context Test", command="echo $full_name"
         )
 
         # Create shot
@@ -473,23 +470,27 @@ class TestLauncherManager(unittest.TestCase):
             workspace_path="/shows/testshow/shots/testseq/001",
         )
 
-        # Mock workspace path validation
+        # Mock workspace path validation and worker execution
         with patch(
             "launcher_manager.PathUtils.validate_path_exists", return_value=True
         ):
-            success = self.manager.execute_in_shot_context(launcher_id, shot)
-            self.assertTrue(success)
+            with patch.object(self.manager, "_execute_with_worker", return_value=True) as mock_worker:
+                success = self.manager.execute_in_shot_context(launcher_id, shot)
+                self.assertTrue(success)
+                
+                # Verify worker was called with correct arguments
+                mock_worker.assert_called_once()
+                args = mock_worker.call_args[0]
+                self.assertEqual(args[0], launcher_id)
+                self.assertEqual(args[1], "Shot Context Test")
+                # Check that variable substitution happened
+                self.assertIn("testseq_001", args[2])  # Variable substituted
+                self.assertIn("ws /shows/testshow/shots/testseq/001", args[2])  # ws command
+                self.assertEqual(args[3], shot.workspace_path)  # Working directory
 
         # Verify directory change
         mock_chdir.assert_any_call(shot.workspace_path)
         mock_chdir.assert_any_call("/original/dir")  # Restored
-
-        # Verify subprocess execution
-        mock_popen.assert_called_once()
-        args, kwargs = mock_popen.call_args
-        command = args[0]
-        self.assertIn("testseq_001", command)  # Variable substituted
-        self.assertIn("ws /shows/testshow/shots/testseq/001", command)  # ws command
 
     def test_dry_run_execution(self):
         """Test dry run execution."""

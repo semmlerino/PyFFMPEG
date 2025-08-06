@@ -1,6 +1,7 @@
 """Unit tests for raw plate finder."""
 
 from raw_plate_finder import RawPlateFinder
+from utils import VersionUtils
 
 
 class TestRawPlateFinder:
@@ -166,7 +167,7 @@ class TestRawPlateFinder:
 
     def test_version_pattern_matching(self):
         """Test the version pattern regex."""
-        pattern = RawPlateFinder.VERSION_PATTERN
+        pattern = VersionUtils.VERSION_PATTERN
 
         # Valid versions
         assert pattern.match("v001") is not None

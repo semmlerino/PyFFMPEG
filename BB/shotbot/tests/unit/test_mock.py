@@ -13,7 +13,7 @@ from shot_model import Shot, ShotModel
 class MockShotModel(ShotModel):
     """Mock shot model for testing."""
 
-    def refresh_shots(self) -> bool:
+    def refresh_shots(self) -> tuple[bool, bool]:
         """Create mock shots instead of running ws -sg."""
         # Create some mock shots
         self.shots = [
@@ -54,7 +54,7 @@ class MockShotModel(ShotModel):
                 workspace_path="/shows/proj2/shots/201_XYZ/201_XYZ_0100",
             ),
         ]
-        return True
+        return True, True  # success=True, has_changes=True
 
 
 def test_mock_shots():

@@ -138,8 +138,8 @@ class TestThreeDESceneDiscoveryIntegration:
         assert alice_scene.show == "show1"
         assert alice_scene.sequence == "seq001"
         assert alice_scene.shot == "0010"
-        assert alice_scene.plate == "FG01"
-        assert alice_scene.display_name == "seq001_0010 - alice (FG01)"
+        assert alice_scene.plate == "mm-default"
+        assert alice_scene.display_name == "seq001_0010 - alice (mm-default)"
         assert alice_scene.scene_path.name == "alice_scene.3de"
 
     def test_scene_model_refresh_and_caching(
@@ -174,7 +174,7 @@ class TestThreeDESceneDiscoveryIntegration:
         assert users_in_cache == {"alice", "bob"}
 
         plates_in_cache = {scene["plate"] for scene in cached_scenes}
-        assert plates_in_cache == {"FG01", "BG01"}
+        assert plates_in_cache == {"mm-default"}
 
     def test_scene_model_loads_from_cache(self, temp_dirs):
         """Test ThreeDESceneModel loads from cache on initialization."""

@@ -88,7 +88,11 @@ sys.modules["config"].Config = Config
 sys.modules["shot_model"] = type(sys)("shot_model")
 sys.modules["shot_model"].Shot = Shot
 
-from launcher_manager import LauncherEnvironment, LauncherManager, LauncherTerminal
+from launcher_manager import (  # noqa: E402
+    LauncherEnvironment,
+    LauncherManager,
+    LauncherTerminal,
+)
 
 
 def main():

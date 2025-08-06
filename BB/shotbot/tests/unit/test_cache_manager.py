@@ -54,9 +54,12 @@ class TestCacheManager:
         # Setup mock
         mock_pixmap = Mock()
         mock_pixmap.isNull.return_value = False
+        mock_pixmap.width.return_value = 800  # Valid size
+        mock_pixmap.height.return_value = 600  # Valid size
         mock_scaled = Mock()
-        mock_pixmap.scaled.return_value = mock_scaled
+        mock_scaled.isNull.return_value = False  # Scaling succeeded
         mock_scaled.save.return_value = True
+        mock_pixmap.scaled.return_value = mock_scaled
         mock_pixmap_class.return_value = mock_pixmap
 
         # Create source file

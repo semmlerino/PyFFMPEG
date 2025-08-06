@@ -59,7 +59,7 @@ sys.modules["utils"].PathUtils = MockPathUtils
 sys.modules["utils"].ValidationUtils = MockValidationUtils
 
 # Now import the actual module
-from launcher_manager import LauncherManager
+from launcher_manager import LauncherManager  # noqa: E402
 
 
 def test_get_launcher_by_name():

@@ -304,6 +304,7 @@ class TerminalLauncher(QObject):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 cwd=working_directory,
+                start_new_session=True,  # Prevent signal propagation
             )
 
             return LaunchResult(

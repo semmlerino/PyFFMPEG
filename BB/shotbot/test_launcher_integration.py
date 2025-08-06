@@ -6,7 +6,7 @@ from pathlib import Path
 
 # Mock PySide6 if not available
 try:
-    from PySide6.QtCore import QObject, Signal
+    from PySide6.QtCore import QObject
     from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout
 except ImportError:
     print("PySide6 not available, using mock objects for testing")
@@ -19,7 +19,9 @@ except ImportError:
             pass
 
     class QObject:
-        Signal = lambda: MockSignal()
+        @staticmethod
+        def Signal():
+            return MockSignal()
 
     class QVBoxLayout:
         def addWidget(self, widget):
