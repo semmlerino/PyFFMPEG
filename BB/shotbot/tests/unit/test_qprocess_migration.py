@@ -356,7 +356,7 @@ class TestQProcessManager:
     def test_shutdown(self, manager):
         """Test manager shutdown."""
         # Start a process
-        process_id = manager.execute("sleep", ["1"])
+        manager.execute("sleep", ["1"])
 
         # Shutdown
         manager.shutdown()
@@ -696,7 +696,7 @@ class TestBackwardCompatibility:
         from command_launcher import CommandLauncher
         from command_launcher_qprocess import CommandLauncherQProcess
 
-        original = CommandLauncher()
+        CommandLauncher()  # Create to test it works
         qprocess = CommandLauncherQProcess()
 
         # Check signals exist

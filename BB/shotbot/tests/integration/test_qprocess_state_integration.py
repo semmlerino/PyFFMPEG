@@ -8,20 +8,15 @@ These tests use real process execution without mocking to verify actual
 system behavior.
 """
 
-import sys
-import time
-from pathlib import Path
-import tempfile
 import os
+import sys
+import tempfile
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QTimer, QProcess
+from PySide6.QtCore import QCoreApplication
 
 from qprocess_manager import (
-    ProcessConfig,
-    ProcessInfo,
     ProcessState,
-    ProcessWorker,
     QProcessManager,
 )
 
@@ -341,7 +336,7 @@ class TestStateTransitionEdgeCases:
             assert not info.is_active
         
         # Start new process
-        new_pid = manager.execute(
+        manager.execute(
             command="echo",
             arguments=["new"],
             capture_output=True

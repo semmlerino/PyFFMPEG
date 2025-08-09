@@ -5,20 +5,15 @@ and recovers from various error conditions including invalid commands,
 missing executables, permission errors, and resource exhaustion.
 """
 
-import sys
-import time
-import tempfile
 import os
-from pathlib import Path
+import sys
+import tempfile
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QTimer
+from PySide6.QtCore import QCoreApplication
 
 from qprocess_manager import (
-    ProcessConfig,
-    ProcessInfo,
     ProcessState,
-    ProcessWorker,
     QProcessManager,
 )
 
@@ -296,7 +291,7 @@ class TestConcurrentErrorHandling:
     @pytest.fixture
     def manager(self):
         """Create QProcessManager instance."""
-        app = QCoreApplication.instance() or QCoreApplication(sys.argv)
+        QCoreApplication.instance() or QCoreApplication(sys.argv)
         manager = QProcessManager()
         yield manager
         manager.shutdown()

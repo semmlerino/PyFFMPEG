@@ -6,15 +6,12 @@ The ws command requires interactive bash and special handling.
 """
 
 import sys
-import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PySide6.QtCore import QCoreApplication
 
 from qprocess_manager import (
-    ProcessConfig,
     ProcessInfo,
     ProcessState,
     QProcessManager,
@@ -44,7 +41,7 @@ class TestWorkspaceCommandIntegration:
             mock_execute.return_value = "ws_test_process"
             
             # Execute ws command
-            process_id = manager.execute_ws_command(
+            manager.execute_ws_command(
                 workspace_path="/shows/test_show/shots/seq01/shot01",
                 command="echo 'In workspace'",
                 capture_output=True,
@@ -70,7 +67,7 @@ class TestWorkspaceCommandIntegration:
             mock_execute.return_value = "ws_terminal_process"
             
             # Execute ws command in terminal
-            process_id = manager.execute_ws_command(
+            manager.execute_ws_command(
                 workspace_path="/shows/test_show",
                 command="nuke",
                 terminal=True,
@@ -107,7 +104,7 @@ class TestWorkspaceCommandIntegration:
             mock_worker.return_value = mock_instance
             
             # Execute using the execute method directly with interactive bash
-            process_id = manager.execute(
+            manager.execute(
                 command="ws /test/path && echo test",
                 interactive_bash=True,
                 capture_output=True
@@ -295,7 +292,7 @@ class TestWorkspaceCommandEdgeCases:
     @pytest.fixture
     def manager(self):
         """Create QProcessManager instance."""
-        app = QCoreApplication.instance() or QCoreApplication(sys.argv)
+        QCoreApplication.instance() or QCoreApplication(sys.argv)
         manager = QProcessManager()
         yield manager
         manager.shutdown()

@@ -7,20 +7,18 @@ under load conditions.
 All tests use real process execution without mocking.
 """
 
-import sys
-import time
-import threading
-import tempfile
 import os
-from pathlib import Path
+import sys
+import tempfile
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import QCoreApplication
 
-from qprocess_manager import QProcessManager, ProcessState
 from command_launcher_qprocess import CommandLauncherQProcess
+from qprocess_manager import ProcessState, QProcessManager
 from shot_model import Shot
 
 
@@ -264,7 +262,6 @@ class TestConcurrentApplicationLaunching:
     def test_concurrent_app_launches(self, launcher, mock_shot, qtbot):
         """Test launching multiple applications concurrently."""
         # Mock Config.APPS to include echo for testing
-        from unittest.mock import patch
         from config import Config
         
         with patch.dict(Config.APPS, {'echo': 'echo', 'test1': 'echo', 'test2': 'echo'}):
@@ -303,7 +300,6 @@ class TestConcurrentApplicationLaunching:
     def test_rapid_sequential_launches(self, launcher, mock_shot, qtbot):
         """Test rapid sequential application launches."""
         # Mock Config.APPS to include echo for testing
-        from unittest.mock import patch
         from config import Config
         
         with patch.dict(Config.APPS, {'echo': 'echo'}):
@@ -349,14 +345,13 @@ class TestResourceManagementUnderLoad:
     def test_memory_cleanup_after_bulk_operations(self, manager, qtbot):
         """Test memory is properly cleaned up after bulk operations."""
         import gc
+
         import psutil
         
         process = psutil.Process()
         initial_memory = process.memory_info().rss / 1024 / 1024  # MB
         
         # Launch and complete many processes
-        num_operations = 50
-        
         for batch in range(5):  # 5 batches of 10
             batch_pids = []
             
