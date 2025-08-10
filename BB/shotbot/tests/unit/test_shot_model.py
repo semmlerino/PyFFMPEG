@@ -157,16 +157,13 @@ class TestShot:
 class TestShotModel:
     """Test ShotModel class."""
 
-    def test_initialization(self, qapp, monkeypatch):
+    def test_initialization(self, qapp, tmp_path):
         """Test ShotModel initialization."""
-        # Mock cache manager to return no cached shots
-        from unittest.mock import Mock
-
-        mock_cache_manager = Mock()
-        mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
-
-        model = ShotModel()
+        # Use real CacheManager with temp directory
+        import os
+        os.environ["HOME"] = str(tmp_path)
+        
+        model = ShotModel(load_cache=False)  # Don't load cache for this test
         assert model.shots == []
         assert model._parse_pattern is not None
         # Test regex pattern
@@ -175,16 +172,13 @@ class TestShotModel:
             == r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))"
         )
 
-    def test_parse_ws_output_valid_lines(self, qapp, mock_ws_output, monkeypatch):
+    def test_parse_ws_output_valid_lines(self, qapp, mock_ws_output, tmp_path):
         """Test parsing valid ws -sg output."""
-        # Mock cache manager
-        from unittest.mock import Mock
-
-        mock_cache_manager = Mock()
-        mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
-
-        model = ShotModel()
+        # Use real CacheManager with temp directory
+        import os
+        os.environ["HOME"] = str(tmp_path)
+        
+        model = ShotModel(load_cache=False)
         shots = model._parse_ws_output(mock_ws_output)
 
         assert len(shots) == 5  # Should parse 5 valid lines
@@ -202,16 +196,13 @@ class TestShotModel:
         assert shots[4].shot == "SIMPLE"  # Falls back to full name
         assert shots[4].full_name == "300_TEST_SIMPLE"
 
-    def test_parse_ws_output_empty(self, qapp, monkeypatch):
+    def test_parse_ws_output_empty(self, qapp, tmp_path):
         """Test parsing empty output."""
-        # Mock cache manager
-        from unittest.mock import Mock
-
-        mock_cache_manager = Mock()
-        mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
-
-        model = ShotModel()
+        # Use real CacheManager with temp directory
+        import os
+        os.environ["HOME"] = str(tmp_path)
+        
+        model = ShotModel(load_cache=False)
         shots = model._parse_ws_output("")
         assert shots == []
 

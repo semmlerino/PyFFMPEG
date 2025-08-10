@@ -43,73 +43,103 @@ class TestCacheTTL:
         if hasattr(Config, "PATH_CACHE_TTL_SECONDS"):
             assert _PATH_CACHE_TTL == Config.PATH_CACHE_TTL_SECONDS
 
-    def test_path_cache_basic_functionality(self):
+    def test_path_cache_basic_functionality(self, tmp_path):
         """Test basic path cache functionality."""
-        test_path = "/tmp/test_path"
+        # Create a real temp file instead of mocking
+        test_file = tmp_path / "test_path"
+        test_file.touch()
+        test_path = str(test_file)
 
-        # Mock path existence
-        with patch.object(Path, "exists", return_value=True):
-            # First call should cache the result
-            result1 = PathUtils.validate_path_exists(test_path, "Test path")
-            assert result1 is True
+        # First call should cache the result
+        result1 = PathUtils.validate_path_exists(test_path, "Test path")
+        assert result1 is True
 
-            # Second call should use cache
-            result2 = PathUtils.validate_path_exists(test_path, "Test path")
-            assert result2 is True
+        # Second call should use cache
+        result2 = PathUtils.validate_path_exists(test_path, "Test path")
+        assert result2 is True
 
         # Cache should contain the entry
         stats = get_cache_stats()
         assert stats["path_cache_size"] > 0
 
-    def test_cache_expiration_behavior(self):
+    def test_cache_expiration_behavior(self, tmp_path):
         """Test that cache entries expire after TTL."""
-        test_path = "/tmp/expiring_path"
+        # Create a real temp file
+        test_file = tmp_path / "expiring_path"
+        test_file.touch()
+        test_path = str(test_file)
 
         # Mock time to control expiration
-        original_time = time.time
         mock_time = Mock(return_value=1000.0)
+        
+        # Track filesystem access by wrapping the real path check
+        access_count = 0
+        original_exists = Path.exists
+        
+        def tracked_exists(self):
+            nonlocal access_count
+            if str(self) == test_path:
+                access_count += 1
+            return original_exists(self)
 
         with patch("time.time", mock_time):
-            with patch.object(Path, "exists", return_value=True) as mock_exists:
+            with patch.object(Path, "exists", tracked_exists):
                 # First call at time 1000
                 result1 = PathUtils.validate_path_exists(test_path, "Test path")
                 assert result1 is True
-                assert mock_exists.call_count == 1
+                assert access_count == 1
 
                 # Second call at time 1000 + 100 (within TTL)
                 mock_time.return_value = 1100.0
                 result2 = PathUtils.validate_path_exists(test_path, "Test path")
                 assert result2 is True
                 # Should not call exists() again (cache hit)
-                assert mock_exists.call_count == 1
+                assert access_count == 1
 
                 # Third call at time 1000 + 400 (beyond TTL of 300)
                 mock_time.return_value = 1400.0
                 result3 = PathUtils.validate_path_exists(test_path, "Test path")
                 assert result3 is True
                 # Should call exists() again (cache miss due to expiration)
-                assert mock_exists.call_count == 2
+                assert access_count == 2
 
-    def test_cache_hit_miss_scenarios(self):
+    def test_cache_hit_miss_scenarios(self, tmp_path):
         """Test various cache hit and miss scenarios."""
-        paths = ["/tmp/path1", "/tmp/path2", "/tmp/path3"]
+        # Create real temp files
+        test_files = []
+        paths = []
+        for i in range(3):
+            test_file = tmp_path / f"path{i+1}"
+            test_file.touch()
+            test_files.append(test_file)
+            paths.append(str(test_file))
 
-        with patch.object(Path, "exists", return_value=True) as mock_exists:
+        # Track filesystem access
+        access_count = 0
+        original_exists = Path.exists
+        
+        def tracked_exists(self):
+            nonlocal access_count
+            if str(self) in paths:
+                access_count += 1
+            return original_exists(self)
+
+        with patch.object(Path, "exists", tracked_exists):
             # First round - all misses, should populate cache
             for path in paths:
                 result = PathUtils.validate_path_exists(path, "Test path")
                 assert result is True
 
-            assert mock_exists.call_count == len(paths)
+            assert access_count == len(paths)
 
             # Second round - all hits, should use cache
-            mock_exists.reset_mock()
+            initial_count = access_count
             for path in paths:
                 result = PathUtils.validate_path_exists(path, "Test path")
                 assert result is True
 
             # Should not have called exists() again
-            assert mock_exists.call_count == 0
+            assert access_count == initial_count
 
     def test_cache_eviction_strategy(self):
         """Test cache eviction when size limits are exceeded."""
