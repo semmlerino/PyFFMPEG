@@ -8,6 +8,7 @@ import contextlib
 import functools
 import logging
 import queue
+import subprocess
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -104,8 +105,18 @@ class DeadlockPreventingLockManager:
 
             # Try to acquire the lock
             acquired = False
-            if isinstance(context.lock, threading.RLock):
-                acquired = context.lock.acquire(timeout=timeout)
+            # Check for RLock by checking its type name since RLock is a factory function
+            if hasattr(context.lock, 'acquire') and hasattr(context.lock, 'release'):
+                # This is likely a threading.RLock instance or compatible lock
+                if hasattr(context.lock, '_is_owned'):  # RLock-specific method
+                    acquired = context.lock.acquire(timeout=timeout)
+                else:
+                    # Fallback for other lock types with acquire/release
+                    try:
+                        acquired = context.lock.acquire(timeout=timeout)
+                    except TypeError:
+                        # Some locks don't support timeout parameter
+                        acquired = context.lock.acquire()
             elif isinstance(context.lock, QMutex):
                 acquired = context.lock.tryLock(int(timeout * 1000))
 
@@ -141,7 +152,8 @@ class DeadlockPreventingLockManager:
                     )
 
             # Release the actual lock
-            if isinstance(context.lock, threading.RLock):
+            if hasattr(context.lock, 'acquire') and hasattr(context.lock, 'release'):
+                # This is likely a threading.RLock or similar lock
                 context.lock.release()
             elif isinstance(context.lock, QMutex):
                 context.lock.unlock()
@@ -358,7 +370,7 @@ class ThreadSafeProcessManager:
         # Validate state transition
         valid_transitions = {
             ProcessState.PENDING: [ProcessState.STARTING, ProcessState.FAILED],
-            ProcessState.STARTING: [ProcessState.RUNNING, ProcessState.FAILED],
+            ProcessState.STARTING: [ProcessState.RUNNING, ProcessState.COMPLETED, ProcessState.FAILED],
             ProcessState.RUNNING: [
                 ProcessState.STOPPING,
                 ProcessState.COMPLETED,
@@ -458,17 +470,26 @@ class ThreadSafeProcessManager:
 
         self._last_cleanup = now
         cleaned_count = 0
+        processes_to_remove = []
 
-        # Use safe iteration
+        # First pass: identify processes to remove without modifying collection
         with self._processes.safe_iteration() as snapshot:
             for process_id, process_info in snapshot.items():
-                if process_info.is_finished():
-                    # Check if process has been finished for a while
-                    if process_info.stopped_at:
-                        age = (now - process_info.stopped_at).seconds
-                        if age > 60:  # Keep finished processes for 1 minute
-                            self._processes.remove(process_id)
-                            cleaned_count += 1
+                if process_info.is_finished() and process_info.stopped_at:
+                    age = (now - process_info.stopped_at).seconds
+                    if age > 60:  # Keep finished processes for 1 minute
+                        processes_to_remove.append(process_id)
+
+        # Second pass: atomically remove processes
+        for process_id in processes_to_remove:
+            # Double-check process still exists and is eligible for removal
+            process_info = self._processes.get(process_id)
+            if process_info and process_info.is_finished() and process_info.stopped_at:
+                age = (now - process_info.stopped_at).seconds
+                if age > 60:  # Recheck age to avoid race conditions
+                    removed = self._processes.remove(process_id)
+                    if removed:
+                        cleaned_count += 1
 
         if cleaned_count > 0:
             logger.info(f"Cleaned up {cleaned_count} finished processes")
@@ -537,7 +558,7 @@ class ResourcePool(Generic[T]):
         self.cleanup_func = cleanup_func
 
         self._pool: queue.Queue[Tuple[T, datetime]] = queue.Queue(maxsize=max_size)
-        self._in_use: Set[int] = set()  # Track resources by id
+        self._in_use: Dict[int, T] = {}  # Track resources by id -> resource mapping
         self._lock = threading.RLock()
         self._shutdown = False
 
@@ -561,7 +582,7 @@ class ResourcePool(Generic[T]):
                         continue
 
                     # Mark as in use
-                    self._in_use.add(id(resource))
+                    self._in_use[id(resource)] = resource
                     return resource
 
                 except queue.Empty:
@@ -571,7 +592,7 @@ class ResourcePool(Generic[T]):
             if len(self._in_use) < self.max_size:
                 try:
                     resource = self.factory()
-                    self._in_use.add(id(resource))
+                    self._in_use[id(resource)] = resource
                     return resource
                 except Exception as e:
                     logger.error(f"Failed to create resource in {self.name}: {e}")
@@ -581,7 +602,7 @@ class ResourcePool(Generic[T]):
         try:
             resource, _ = self._pool.get(timeout=timeout)
             with self._lock:
-                self._in_use.add(id(resource))
+                self._in_use[id(resource)] = resource
             return resource
         except queue.Empty:
             logger.warning(f"Timeout acquiring resource from {self.name}")
@@ -600,7 +621,8 @@ class ResourcePool(Generic[T]):
                 logger.warning(f"Releasing resource not from pool: {self.name}")
                 return
 
-            self._in_use.discard(resource_id)
+            # Remove from in_use dictionary
+            del self._in_use[resource_id]
 
             try:
                 self._pool.put_nowait((resource, datetime.now()))
@@ -656,16 +678,32 @@ class ResourcePool(Generic[T]):
         self._shutdown = True
 
         with self._lock:
-            # Clean up pooled resources
+            cleaned_count = 0
+            
+            # Clean up pooled resources (idle resources)
             while not self._pool.empty():
                 try:
                     resource, _ = self._pool.get_nowait()
                     if self.cleanup_func:
                         self.cleanup_func(resource)
+                    cleaned_count += 1
                 except queue.Empty:
                     break
 
-            logger.info(f"Resource pool {self.name} shutdown complete")
+            # Clean up resources that are still in use
+            for resource_id, resource in self._in_use.items():
+                if self.cleanup_func:
+                    self.cleanup_func(resource)
+                cleaned_count += 1
+            
+            # Clear the in_use dictionary since we're shutting down
+            self._in_use.clear()
+            
+            logger.info(f"Resource pool {self.name} shutdown complete. "
+                       f"Total cleaned: {cleaned_count} resources")
+            
+            # Return the total cleaned count for testing purposes
+            return cleaned_count
 
 
 def with_timeout(timeout: float):

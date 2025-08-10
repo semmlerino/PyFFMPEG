@@ -387,7 +387,7 @@ class CommandLauncherQProcess(QObject):
         """Handle launch completion."""
         self.launch_completed.emit(app_name, success)
         # Schedule cleanup
-        QObject().thread().msleep(100)
+        QThread.msleep(100)
         self._cleanup_finished_workers()
 
     def _cleanup_finished_workers(self):

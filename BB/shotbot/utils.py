@@ -179,8 +179,6 @@ class PathUtils:
         Optimized to only clean when cache is getting large,
         and to keep frequently accessed paths.
         """
-        current_time = time.time()
-
         # Only clean if cache is significantly over limit
         if len(_path_cache) <= 2500:  # Keep some headroom
             return
@@ -361,8 +359,6 @@ class VersionUtils:
 
         Optimized to keep frequently accessed version directories.
         """
-        current_time = time.time()
-
         # Only clean if cache is significantly over limit
         if len(VersionUtils._version_cache) <= 250:
             return

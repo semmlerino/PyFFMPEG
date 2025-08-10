@@ -85,7 +85,7 @@ def shot_model_with_shots(qapp, monkeypatch):
 
     mock_cache_manager = Mock()
     mock_cache_manager.get_cached_shots.return_value = None
-    monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+    monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
     model = ShotModel()
     model.shots = [

@@ -160,9 +160,13 @@ class FileScanner:
                 if self._should_exclude(entry):
                     continue
 
-                if entry.is_file(follow_symlinks=self.follow_symlinks):
+                # Handle symlinks based on follow_symlinks setting
+                if entry.is_symlink() and not self.follow_symlinks:
+                    continue
+
+                if entry.is_file():
                     files.append(entry)
-                elif entry.is_dir(follow_symlinks=self.follow_symlinks):
+                elif entry.is_dir():
                     dirs.append(entry)
             except OSError as e:
                 logger.debug(f"Error accessing {entry}: {e}")

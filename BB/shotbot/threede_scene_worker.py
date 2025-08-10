@@ -169,8 +169,14 @@ class ThreeDESceneWorker(QThread):
         self._all_scenes: List[ThreeDEScene] = []
         self._files_processed = 0
 
-        # Set thread priority
-        self.setPriority(Config.WORKER_THREAD_PRIORITY)
+        # Set thread priority - convert int to QThread.Priority enum
+        priority_map = {
+            -1: QThread.Priority.LowPriority,
+            0: QThread.Priority.NormalPriority,  
+            1: QThread.Priority.HighPriority
+        }
+        priority = priority_map.get(Config.WORKER_THREAD_PRIORITY, QThread.Priority.NormalPriority)
+        self.setPriority(priority)
 
     def stop(self):
         """Request the worker to stop processing."""

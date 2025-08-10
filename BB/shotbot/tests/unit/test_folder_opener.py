@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QThreadPool, QUrl
+from PySide6.QtCore import QCoreApplication, QThread, QThreadPool, QUrl
 from PySide6.QtWidgets import QApplication
 
 
@@ -245,7 +245,7 @@ class TestFolderOpenerIntegration(unittest.TestCase):
         # Process events to ensure signals are delivered
         for _ in range(10):
             QCoreApplication.processEvents()
-            QCoreApplication.instance().thread().msleep(10)
+            QThread.msleep(10)
 
         # Verify either success or error was emitted
         assert signals_received["success"] or signals_received["error"] is not None
@@ -282,7 +282,7 @@ class TestFolderOpenerIntegration(unittest.TestCase):
             # Process events
             for _ in range(20):
                 QCoreApplication.processEvents()
-                QCoreApplication.instance().thread().msleep(10)
+                QThread.msleep(10)
 
             # Verify all workers completed
             for result in results:

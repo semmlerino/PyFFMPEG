@@ -637,7 +637,7 @@ class Result(Generic[T]):
     """
 
     value: Optional[T] = None
-    error: Optional[str] = None
+    error_message: Optional[str] = None
     metadata: Dict[str, Any] = None
 
     @classmethod
@@ -654,17 +654,17 @@ class Result(Generic[T]):
         return cls(value=value, metadata=metadata)
 
     @classmethod
-    def error(cls, error: str, **metadata) -> "Result[T]":
+    def error(cls, error_msg: str, **metadata) -> "Result[T]":
         """Create error result.
 
         Args:
-            error: Error message
+            error_msg: Error message
             **metadata: Additional metadata
 
         Returns:
             Error Result
         """
-        return cls(error=error, metadata=metadata)
+        return cls(error_message=error_msg, metadata=metadata)
 
     @property
     def is_success(self) -> bool:

@@ -164,7 +164,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         assert model.shots == []
@@ -182,7 +182,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         shots = model._parse_ws_output(mock_ws_output)
@@ -209,7 +209,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         shots = model._parse_ws_output("")
@@ -232,7 +232,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         shots = model._parse_ws_output(output)
@@ -249,7 +249,7 @@ class TestShotModel:
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
         mock_cache_manager.cache_shots = Mock()
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         success, has_changes = model.refresh_shots()
@@ -272,7 +272,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         success, has_changes = model.refresh_shots()
@@ -294,7 +294,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         success, has_changes = model.refresh_shots()
@@ -312,7 +312,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         success, has_changes = model.refresh_shots()
@@ -334,7 +334,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         success, has_changes = model.refresh_shots()
@@ -366,7 +366,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         assert model.get_shot_by_index(0) is None
@@ -394,7 +394,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
         shot = model.find_shot_by_name("ANY_NAME")
@@ -458,7 +458,7 @@ class TestShotModel:
 
         mock_cache_manager = Mock()
         mock_cache_manager.get_cached_shots.return_value = None
-        monkeypatch.setattr("shot_model.CacheManager", lambda: mock_cache_manager)
+        monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
 
         model = ShotModel()
 

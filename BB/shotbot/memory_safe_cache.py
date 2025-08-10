@@ -73,7 +73,10 @@ class MemoryMonitor:
         # Use cached info if recent
         if not force_refresh and self._cached_info:
             if now - self._last_check < self._check_interval:
-                return self._cached_info
+                # Return cached info but recalculate under_pressure with current threshold
+                cached = self._cached_info.copy()
+                cached["under_pressure"] = cached["system_percent"] > self._memory_threshold_percent
+                return cached
 
         try:
             import psutil

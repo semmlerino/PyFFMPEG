@@ -179,7 +179,8 @@ def test_enhanced_cache_performance() -> Dict[str, Any]:
                 cached_dir_time = time.perf_counter() - start_time
 
                 dir_cache_speedup = first_dir_time / max(cached_dir_time, 0.001)
-        except:
+        except Exception:
+            # Ignore errors in performance testing - continue with default speedup
             pass
 
         # Get cache statistics
@@ -511,7 +512,7 @@ def measure_memory_usage() -> Dict[str, Any]:
 
         # Initialize systems
         cache_manager = enhanced_cache.get_cache_manager()
-        memory_monitor = memory_aware_cache.get_memory_monitor()
+        memory_aware_cache.get_memory_monitor()  # Initialize monitoring
 
         # Use the systems to allocate some memory
         for i in range(100):

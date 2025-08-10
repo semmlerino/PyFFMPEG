@@ -440,8 +440,15 @@ class MainWindow(QMainWindow):
         """Refresh 3DE scene list using enhanced background worker."""
         # Check if worker is already running
         if self._threede_worker and not self._threede_worker.isFinished():
-            self._update_status("3DE scene discovery already in progress...")
-            return
+            # Stop the existing worker properly before returning
+            logger.debug("Stopping existing 3DE worker before starting new one")
+            self._threede_worker.stop()
+            if not self._threede_worker.wait(1000):  # Wait up to 1 second
+                logger.warning("Failed to stop 3DE worker gracefully, terminating")
+                self._threede_worker.terminate()
+                self._threede_worker.wait()
+            self._update_status("Restarting 3DE scene discovery...")
+            # Continue to create new worker below
 
         # Show loading state
         self.threede_shot_grid.set_loading(True)
@@ -642,6 +649,8 @@ class MainWindow(QMainWindow):
 
     def _on_shot_selected(self, shot: Shot):
         """Handle shot selection."""
+        # Clear any 3DE scene context when selecting a regular shot
+        self._current_scene = None
         self.command_launcher.set_current_shot(shot)
 
         # Update shot info panel
@@ -804,20 +813,35 @@ class MainWindow(QMainWindow):
     def _sync_thumbnail_sizes(self, value: int):
         """Synchronize thumbnail sizes between both tabs."""
         # Prevent recursive calls by temporarily disconnecting signals
-        self.shot_grid.size_slider.valueChanged.disconnect(self._sync_thumbnail_sizes)
-        self.threede_shot_grid.size_slider.valueChanged.disconnect(
-            self._sync_thumbnail_sizes
-        )
+        # Use try/except to handle case where signals might not be connected
+        try:
+            self.shot_grid.size_slider.valueChanged.disconnect(self._sync_thumbnail_sizes)
+        except (RuntimeError, TypeError):
+            pass  # Signal was not connected
+        
+        try:
+            self.threede_shot_grid.size_slider.valueChanged.disconnect(
+                self._sync_thumbnail_sizes
+            )
+        except (RuntimeError, TypeError):
+            pass  # Signal was not connected
 
         # Update both sliders
         self.shot_grid.size_slider.setValue(value)
         self.threede_shot_grid.size_slider.setValue(value)
 
         # Reconnect signals
-        self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
-        self.threede_shot_grid.size_slider.valueChanged.connect(
-            self._sync_thumbnail_sizes
-        )
+        try:
+            self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
+        except (RuntimeError, TypeError):
+            logger.warning("Failed to reconnect shot_grid size slider signal")
+        
+        try:
+            self.threede_shot_grid.size_slider.valueChanged.connect(
+                self._sync_thumbnail_sizes
+            )
+        except (RuntimeError, TypeError):
+            logger.warning("Failed to reconnect threede_shot_grid size slider signal")
 
     def _update_status(self, message: str):
         """Update status bar."""
@@ -1098,11 +1122,13 @@ class MainWindow(QMainWindow):
 
     def _update_custom_launcher_buttons(self) -> None:
         """Update the custom launcher buttons based on available launchers."""
-        # Clear existing buttons
+        # Clear existing buttons with immediate deletion to prevent memory leaks
         while self.custom_launcher_container.count():
             item = self.custom_launcher_container.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)  # Remove from parent immediately
+                widget.deleteLater()  # Schedule for deletion
         self.custom_launcher_buttons.clear()
 
         # Get all launchers
@@ -1198,20 +1224,21 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle close event."""
+        # Stop the background refresh timer first to prevent it firing on closed window
+        if hasattr(self, "refresh_timer") and self.refresh_timer:
+            self.refresh_timer.stop()
+        
         # Stop and cleanup worker if running
         if self._threede_worker:
             # Check if it's a real worker (not a Mock in tests)
-            if (
-                hasattr(self._threede_worker, "isFinished")
-                and not self._threede_worker.isFinished()
-            ):
-                if hasattr(self._threede_worker, "stop"):
+            # Use isinstance check for better type safety
+            from threede_scene_worker import ThreeDESceneWorker
+            if isinstance(self._threede_worker, ThreeDESceneWorker):
+                if not self._threede_worker.isFinished():
                     self._threede_worker.stop()
-                if hasattr(self._threede_worker, "wait"):
                     if not self._threede_worker.wait(3000):  # Wait up to 3 seconds
-                        if hasattr(self._threede_worker, "terminate"):
-                            self._threede_worker.terminate()
-                            self._threede_worker.wait()
+                        self._threede_worker.terminate()
+                        self._threede_worker.wait()
 
         # Shutdown launcher manager to stop all worker threads
         if hasattr(self.launcher_manager, "shutdown"):

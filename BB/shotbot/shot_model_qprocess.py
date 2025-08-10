@@ -8,6 +8,7 @@ providing improved performance and responsiveness.
 
 import logging
 import re
+import time
 from typing import TYPE_CHECKING, List, Optional
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
@@ -63,7 +64,7 @@ class ShotRefreshWorker(QThread):
                 interactive_bash=True,  # Required for ws function
                 capture_output=True,
                 timeout_ms=Config.WS_COMMAND_TIMEOUT_SECONDS * 1000,
-                process_id=f"ws_sg_{int(self.msleep(0))}",  # Unique ID
+                process_id=f"ws_sg_{int(time.time() * 1000)}",  # Unique ID
             )
 
             if not self._process_id:
