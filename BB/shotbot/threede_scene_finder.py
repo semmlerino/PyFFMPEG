@@ -620,8 +620,7 @@ class ThreeDESceneFinder:
             # Use rglob for recursive search - handle both cases
             # Combine both lowercase and uppercase extensions
             threede_files = itertools.chain(
-                user_path.rglob("*.3de"),
-                user_path.rglob("*.3DE")
+                user_path.rglob("*.3de"), user_path.rglob("*.3DE")
             )
 
             for threede_file in threede_files:
@@ -855,7 +854,9 @@ class ThreeDESceneFinder:
                     try:
                         # Use a simple count - don't verify files yet
                         # Count both lowercase and uppercase extensions
-                        file_count = len(list(user_path.rglob("*.3de"))) + len(list(user_path.rglob("*.3DE")))
+                        file_count = len(list(user_path.rglob("*.3de"))) + len(
+                            list(user_path.rglob("*.3DE"))
+                        )
                         total_files_estimate += file_count
                     except (PermissionError, OSError):
                         # Estimate based on average if we can't access

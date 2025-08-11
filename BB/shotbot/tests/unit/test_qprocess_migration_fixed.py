@@ -17,8 +17,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import QProcess, QThread
-
-from command_launcher_qprocess import CommandLauncherQProcess, CommandLauncherWorker
 from qprocess_manager import (
     ProcessConfig,
     ProcessInfo,
@@ -28,6 +26,8 @@ from qprocess_manager import (
     TerminalLauncher,
 )
 from shot_model_qprocess import ShotModelQProcess, ShotRefreshWorker
+
+from command_launcher_qprocess import CommandLauncherQProcess, CommandLauncherWorker
 
 
 class TestProcessConfig:
@@ -183,7 +183,7 @@ class TestTerminalLauncher:
         # WSL environments may not have X11 terminals available
         # So we just check that the detection runs without error
         assert isinstance(launcher._available_terminals, list)
-        
+
         # On real Linux with X11, should detect at least one terminal
         # On WSL without X11, may have 0 terminals (which is OK)
         if sys.platform.startswith("linux") and not self._is_wsl():
@@ -194,7 +194,7 @@ class TestTerminalLauncher:
         try:
             with open("/proc/version", "r") as f:
                 return "microsoft" in f.read().lower()
-        except:
+        except (FileNotFoundError, PermissionError, OSError):
             return False
 
     @patch("qprocess_manager.QProcess")
@@ -370,7 +370,7 @@ class TestQProcessManager:
     def test_shutdown(self, manager):
         """Test manager shutdown."""
         # Start a process
-        process_id = manager.execute("sleep", ["1"])
+        manager.execute("sleep", ["1"])
 
         # Shutdown
         manager.shutdown()
@@ -663,7 +663,7 @@ class TestThreadSafety:
 
         # Wait a bit for termination to complete
         QThread.msleep(1000)
-        
+
         # All should be terminated
         active = manager.get_active_processes()
         assert len(active) == 0
@@ -676,8 +676,9 @@ class TestBackwardCompatibility:
 
     def test_shot_model_api_compatibility(self):
         """Test ShotModel maintains API compatibility."""
-        from shot_model import ShotModel
         from shot_model_qprocess import ShotModelQProcess
+
+        from shot_model import ShotModel
 
         # Check that QProcess version has all required methods
         original_methods = [m for m in dir(ShotModel) if not m.startswith("_")]

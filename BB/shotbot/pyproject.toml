@@ -13,6 +13,8 @@ exclude = [
     "__pycache__",
     "venv",
     ".venv",
+    "archived",
+    "copy",
 ]
 
 [tool.ruff.lint]

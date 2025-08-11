@@ -7,12 +7,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
+from threede_scene_scanner import ThreeDEScannerManager, ThreeDESceneScanner
 
 from cache_manager import CacheManager
 from shot_model import Shot, ShotModel
 from threede_scene_finder import ThreeDESceneFinder
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
-from threede_scene_scanner import ThreeDEScannerManager, ThreeDESceneScanner
 
 
 class TestThreeDESceneDiscoveryIntegration:

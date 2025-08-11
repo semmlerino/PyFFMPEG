@@ -212,8 +212,8 @@ workspace /shows/test/shots/SEQ_001/SEQ_001_0020"""
         main_window_real.raw_plate_checkbox.setChecked(False)
 
         # Save the current geometry (real QByteArray)
-        original_geometry = main_window_real.saveGeometry()
-        original_splitter = main_window_real.splitter.saveState()
+        main_window_real.saveGeometry()
+        main_window_real.splitter.saveState()
 
         # Save settings with real method
         main_window_real._save_settings()

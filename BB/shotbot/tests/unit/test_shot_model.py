@@ -161,8 +161,9 @@ class TestShotModel:
         """Test ShotModel initialization."""
         # Use real CacheManager with temp directory
         import os
+
         os.environ["HOME"] = str(tmp_path)
-        
+
         model = ShotModel(load_cache=False)  # Don't load cache for this test
         assert model.shots == []
         assert model._parse_pattern is not None
@@ -176,8 +177,9 @@ class TestShotModel:
         """Test parsing valid ws -sg output."""
         # Use real CacheManager with temp directory
         import os
+
         os.environ["HOME"] = str(tmp_path)
-        
+
         model = ShotModel(load_cache=False)
         shots = model._parse_ws_output(mock_ws_output)
 
@@ -200,8 +202,9 @@ class TestShotModel:
         """Test parsing empty output."""
         # Use real CacheManager with temp directory
         import os
+
         os.environ["HOME"] = str(tmp_path)
-        
+
         model = ShotModel(load_cache=False)
         shots = model._parse_ws_output("")
         assert shots == []

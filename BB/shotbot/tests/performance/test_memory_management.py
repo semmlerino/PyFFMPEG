@@ -313,7 +313,7 @@ class TestMemoryManagement:
         assert total_puts == num_workers * iterations_per_worker
 
         # Check memory usage
-        final_memory = memory_tracker.measure()
+        memory_tracker.measure()
         memory_increase = memory_tracker.get_memory_increase()
 
         # Memory increase should be reasonable
@@ -464,7 +464,7 @@ class TestMemoryManagement:
             from memory_aware_cache import get_memory_monitor
 
             monitor = get_memory_monitor()
-            initial_metrics = monitor.get_metrics()
+            monitor.get_metrics()
 
             # Simulate memory pressure by allocating large objects
             pressure_objects = []

@@ -49,7 +49,7 @@ class TestShotBotApplication(unittest.TestCase):
         # Import and run main
         from shotbot import main
 
-        with patch("sys.exit") as mock_exit:
+        with patch("sys.exit"):
             main()
 
             # Verify QApplication was created
@@ -147,7 +147,7 @@ class TestShotBotIntegration(unittest.TestCase):
         from main_window import MainWindow
 
         # Create application
-        app = QApplication.instance() or QApplication(sys.argv)
+        QApplication.instance() or QApplication(sys.argv)
 
         # Create main window
         window = MainWindow()

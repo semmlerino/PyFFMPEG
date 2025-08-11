@@ -55,15 +55,9 @@ class TestThreeDESceneFinderRefactored:
     def test_find_scenes_with_real_filesystem(self, shot_workspace, user_base_dir):
         """Test finding scenes using real temp directory structure."""
         # Create actual scene files for different users
-        john_scene = self.create_scene_file(
-            user_base_dir, "john-d", "BG01", "scene_v001.3de"
-        )
-        jane_scene = self.create_scene_file(
-            user_base_dir, "jane-s", "FG01", "scene_v002.3de"
-        )
-        gabriel_scene = self.create_scene_file(
-            user_base_dir, "gabriel-h", "BG02", "excluded.3de"
-        )
+        self.create_scene_file(user_base_dir, "john-d", "BG01", "scene_v001.3de")
+        self.create_scene_file(user_base_dir, "jane-s", "FG01", "scene_v002.3de")
+        self.create_scene_file(user_base_dir, "gabriel-h", "BG02", "excluded.3de")
 
         # No mocking needed - just call the real function
         scenes = ThreeDESceneFinder.find_scenes_for_shot(
@@ -146,7 +140,7 @@ class TestThreeDESceneFinderRefactored:
 
         # Create a scene file
         restricted_user_dir = user_base_dir / "restricted"
-        scene_file = self.create_scene_file(user_base_dir, "restricted", "BG01")
+        self.create_scene_file(user_base_dir, "restricted", "BG01")
 
         # Remove read permissions from the user directory
         os.chmod(restricted_user_dir, 0o000)

@@ -293,7 +293,6 @@ class TestCompleteVFXWorkflows:
         assert selected_shot.full_name in window.windowTitle()
 
         # Step 4: Test keyboard navigation through shots
-        initial_selection = window.shot_grid.selected_shot
         qtbot.keyPress(window.shot_grid, Qt.Key.Key_Right)
         qtbot.wait(100)
 
@@ -369,7 +368,7 @@ class TestCompleteVFXWorkflows:
 
         # Step 4: Verify deduplication picked newest scenes
         if len(threede_model.scenes) > 0:
-            dedupe_scene = threede_model.scenes[0]
+            threede_model.scenes[0]
             # In our structure, users have increasing mtimes
             # So should pick scenes from later users (higher user index)
 
@@ -586,7 +585,7 @@ class TestCompleteVFXWorkflows:
             # Should have attempted launch with raw plate
             mock_launch.assert_called_once()
             args, kwargs = mock_launch.call_args
-            assert kwargs.get("include_raw_plate") == True
+            assert kwargs.get("include_raw_plate")
 
     def test_undistortion_file_discovery_workflow(
         self, main_window_with_real_data, qtbot
@@ -638,7 +637,7 @@ class TestCompleteVFXWorkflows:
 
             mock_launch.assert_called_once()
             args, kwargs = mock_launch.call_args
-            assert kwargs.get("include_undistortion") == True
+            assert kwargs.get("include_undistortion")
 
         # Step 4: Test version preference
         # In our structure, v002 should be newer than v001
@@ -809,7 +808,7 @@ class TestCompleteVFXWorkflows:
         ):
             # Should handle launch failure gracefully
             success = window.command_launcher.launch_app("nuke")
-            assert success == False, "Should return False for failed launch"
+            assert not success, "Should return False for failed launch"
 
         # Step 3: Test workspace command failure
         with patch("subprocess.run", side_effect=Exception("Workspace command failed")):
@@ -992,7 +991,7 @@ class TestScalabilityAndPerformance:
             window.shot_grid.refresh_shots()
 
             # Measure memory after loading
-            loaded_memory = process.memory_info().rss / 1024 / 1024
+            process.memory_info().rss / 1024 / 1024
 
             # Exercise the system
             for shot in data["shots"][:100]:
@@ -1121,9 +1120,7 @@ class TestRealWorldScenarios:
 
                         # Every 3rd shot, launch RV for playblast review
                         if len(reviewed_shots) % 3 == 0:
-                            with patch.object(
-                                window.command_launcher, "launch_app"
-                            ) as mock_launch:
+                            with patch.object(window.command_launcher, "launch_app"):
                                 window.command_launcher.launch_app("rv")
 
                     # Should have reviewed multiple shots successfully

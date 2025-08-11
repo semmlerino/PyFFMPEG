@@ -93,7 +93,7 @@ workspace /shows/prodshow/shots/PROD_002/PROD_002_0001"""
             success, has_changes = model.refresh_shots()
 
             # Should handle timeout gracefully
-            assert success == False, "Should return False on timeout"
+            assert not success, "Should return False on timeout"
             mock_process.kill.assert_called_once(), "Should kill process on timeout"
 
     def test_qprocess_error_handling(self, qtbot):
@@ -117,7 +117,7 @@ workspace /shows/prodshow/shots/PROD_002/PROD_002_0001"""
             success, has_changes = model.refresh_shots()
 
             # Should handle error gracefully
-            assert success == False, "Should return False on process error"
+            assert not success, "Should return False on process error"
             assert len(model.shots) == 0, "Should not add shots on error"
 
     def test_qprocess_incremental_output_processing(self, qtbot):
@@ -345,7 +345,7 @@ class TestTerminalLauncherQProcessIntegration:
             success = launcher.launch_in_terminal("failing command")
 
             # Should handle failure gracefully
-            assert success == False, "Should return False on start failure"
+            assert not success, "Should return False on start failure"
 
     def test_terminal_launcher_multiple_simultaneous(self, qtbot):
         """Test multiple simultaneous terminal launches."""
@@ -422,7 +422,7 @@ class TestLauncherManagerQProcessIntegration:
         exec_thread.join(timeout=2.0)
 
         assert len(execution_results) == 1, "Execution should complete"
-        assert execution_results[0] == True, "Custom launcher execution should succeed"
+        assert execution_results[0], "Custom launcher execution should succeed"
 
         # Cleanup
         manager.delete_launcher(launcher_id)
@@ -641,7 +641,7 @@ class TestCommandLauncherQProcessIntegration:
         ):
             success = launcher.launch_app("nonexistent_app")
 
-            assert success == False, "Should return False for failed process start"
+            assert not success, "Should return False for failed process start"
 
         # Test with permission error
         with patch(
@@ -649,7 +649,7 @@ class TestCommandLauncherQProcessIntegration:
         ):
             success = launcher.launch_app("nuke")
 
-            assert success == False, "Should return False for permission error"
+            assert not success, "Should return False for permission error"
 
     def test_command_launcher_signal_emission(self, test_shot, qtbot):
         """Test command launcher signal emission with QProcess."""
@@ -687,7 +687,7 @@ class TestCommandLauncherQProcessIntegration:
         with patch("subprocess.Popen", side_effect=Exception("Test error")):
             success = launcher.launch_app("failing_app")
 
-            assert success == False, "Error execution should fail"
+            assert not success, "Error execution should fail"
 
             # Should emit error signal
             assert len(error_signals) == 1, "Should emit error signal"
@@ -872,7 +872,7 @@ class TestQProcessResourceManagement:
         for i, error in enumerate(failure_modes):
             with patch("subprocess.Popen", side_effect=error):
                 success = launcher.launch_app("error_app")
-                assert success == False, f"Should handle error {i}: {error}"
+                assert not success, f"Should handle error {i}: {error}"
 
         # After failures, should still work with valid command
         with patch("subprocess.Popen") as mock_popen:
@@ -881,7 +881,7 @@ class TestQProcessResourceManagement:
             mock_popen.return_value = mock_process
 
             success = launcher.launch_app("recovery_app")
-            assert success == True, "Should recover and work after previous errors"
+            assert success, "Should recover and work after previous errors"
 
 
 @pytest.mark.integration

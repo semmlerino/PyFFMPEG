@@ -8,7 +8,6 @@ These tests verify that:
 5. Performance improvements are maintained
 """
 
-import time
 from pathlib import Path
 from typing import List
 from unittest.mock import Mock, patch
@@ -71,11 +70,11 @@ class TestCacheTTL:
 
         # Mock time to control expiration
         mock_time = Mock(return_value=1000.0)
-        
+
         # Track filesystem access by wrapping the real path check
         access_count = 0
         original_exists = Path.exists
-        
+
         def tracked_exists(self):
             nonlocal access_count
             if str(self) == test_path:
@@ -109,7 +108,7 @@ class TestCacheTTL:
         test_files = []
         paths = []
         for i in range(3):
-            test_file = tmp_path / f"path{i+1}"
+            test_file = tmp_path / f"path{i + 1}"
             test_file.touch()
             test_files.append(test_file)
             paths.append(str(test_file))
@@ -117,7 +116,7 @@ class TestCacheTTL:
         # Track filesystem access
         access_count = 0
         original_exists = Path.exists
-        
+
         def tracked_exists(self):
             nonlocal access_count
             if str(self) in paths:
@@ -379,7 +378,7 @@ class TestCacheTTL:
             ]
 
             for i, op in enumerate(operations):
-                result = op()
+                op()
                 if i == 0:
                     # First operation should call exists()
                     assert mock_exists.call_count == 1

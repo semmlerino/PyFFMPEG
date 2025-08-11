@@ -799,7 +799,7 @@ class TestErrorRecoveryIntegration:
         qtbot.qapp.processEvents()
 
         # Test app launching with errors
-        shot = Shot("error_test", "ERR", "0001", "/test/error")
+        Shot("error_test", "ERR", "0001", "/test/error")
 
         with patch.object(window.command_launcher, "launch_app") as mock_launch:
             mock_launch.side_effect = [

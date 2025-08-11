@@ -213,7 +213,7 @@ class ThreeDESceneModel:
 
         return deduplicated
 
-    def _select_best_scene(self, scenes: list[ThreeDEScene]) -> ThreeDEScene:
+    def _select_best_scene(self, scenes: "list[ThreeDEScene]") -> ThreeDEScene:
         """Select the best scene from multiple options.
 
         Args:

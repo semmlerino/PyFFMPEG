@@ -85,7 +85,7 @@ class CacheContract(Protocol):
 
         Args:
             shot: Shot object
-            
+
         Returns:
             Cached QPixmap or None if not found
         """
@@ -136,7 +136,7 @@ class LauncherManagerContract(Protocol):
 
         Args:
             process_key: Process key to check
-            
+
         Returns:
             True if process is running
         """
@@ -144,7 +144,7 @@ class LauncherManagerContract(Protocol):
 
     def terminate_process(self, process_key: str) -> None:
         """Terminate specific process.
-        
+
         Args:
             process_key: Process key to terminate
         """
@@ -364,7 +364,7 @@ class TestModelContracts(ContractTestBase):
 
         # Check interface contract
         assert hasattr(model, "refresh_shots")
-        assert hasattr(model, "get_shot_by_index") 
+        assert hasattr(model, "get_shot_by_index")
         assert hasattr(model, "find_shot_by_name")
         # Note: Current ShotModel doesn't inherit from QObject, so no signals
 
@@ -448,7 +448,6 @@ class TestCacheContracts(ContractTestBase):
 
     def test_cache_ttl_contract(self):
         """Test cache TTL behavior contract."""
-        import time
 
         from cache_manager import CacheManager
 
@@ -459,7 +458,7 @@ class TestCacheContracts(ContractTestBase):
         # Just test that it has the required methods and they work
         assert hasattr(cache, "get_cached_shots")
         assert hasattr(cache, "cache_shots")
-        
+
         # Test basic functionality
         assert cache.get_cached_shots() is None  # No shots cached initially
 
@@ -501,9 +500,10 @@ class TestLauncherContracts(ContractTestBase):
         assert hasattr(worker, "command_started")
         assert hasattr(worker, "command_finished")
         assert hasattr(worker, "command_error")
-        
+
         # Verify it's a QThread
         from PySide6.QtCore import QThread
+
         assert isinstance(worker, QThread)
 
 
@@ -577,11 +577,11 @@ class TestContractIntegration:
         qtbot.addWidget(grid)
 
         # Contract: Grid should have model reference
-        assert hasattr(grid, 'shot_model')
+        assert hasattr(grid, "shot_model")
         assert grid.shot_model is model
 
         # Contract: Grid should have refresh method
-        assert hasattr(grid, 'refresh_shots')
+        assert hasattr(grid, "refresh_shots")
         assert callable(grid.refresh_shots)
 
         # Verify grid is properly initialized

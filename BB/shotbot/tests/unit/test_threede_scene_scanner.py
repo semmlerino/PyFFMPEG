@@ -4,10 +4,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from threede_scene_scanner import ThreeDEScannerManager, ThreeDESceneScanner
 
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
-from threede_scene_scanner import ThreeDEScannerManager, ThreeDESceneScanner
 
 
 class TestThreeDESceneScanner:

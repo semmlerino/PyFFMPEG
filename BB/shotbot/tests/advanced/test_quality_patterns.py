@@ -142,12 +142,13 @@ class ThreeDESceneFactory(Factory):
             file_size = random.randint(1000, 1000000)
 
         import time
+
         if modified_time is None:
             modified_time = time.time() - random.randint(0, 86400 * 30)
 
         return ThreeDEScene(
             show="ygsk",
-            sequence="108", 
+            sequence="108",
             shot=shot_name.split("_")[-1] if "_" in shot_name else shot_name,
             workspace_path=f"/shows/ygsk/shots/{shot_name}",
             user=user,
@@ -296,12 +297,20 @@ class ShotModelBuilder(Builder):
         # Add shots
         for shot in self._shots:
             from shot_model import Shot
+
             # Convert shot dict to Shot object and add to shots list
             shot_obj = Shot(
                 show=shot.get("show", "ygsk"),
                 sequence=shot.get("sequence", "108"),
-                shot=shot.get("shot", shot["name"].split("_")[-1] if "_" in shot["name"] else shot["name"]),
-                workspace_path=shot.get("workspace_path", f"/shows/ygsk/shots/{shot['name']}")
+                shot=shot.get(
+                    "shot",
+                    shot["name"].split("_")[-1]
+                    if "_" in shot["name"]
+                    else shot["name"],
+                ),
+                workspace_path=shot.get(
+                    "workspace_path", f"/shows/ygsk/shots/{shot['name']}"
+                ),
             )
             model.shots.append(shot_obj)
 
@@ -661,7 +670,7 @@ class TestWithMocks:
 
         # Use in test
         assert mock_button.text == "Test Button"
-        assert mock_button.enabled == True
+        assert mock_button.enabled
 
         # Verify interactions
         mock_button.click()
@@ -693,7 +702,7 @@ class TestShotWorkflow(TestSuite):
 
     def test_complete_shot_workflow(self, shot_factory, scene_factory, isolated_test):
         """Test complete shot workflow from discovery to launch."""
-        with isolated_test.isolated_filesystem() as tmpdir:
+        with isolated_test.isolated_filesystem():
             # Create test data
             shot = shot_factory.create()
             scenes = [scene_factory.create() for _ in range(5)]

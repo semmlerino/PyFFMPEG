@@ -313,12 +313,12 @@ class TestIntegrationWorkflows:
                                     workspace = f"/shows/{show_name}/shots/{sequence}/{shot_dir}"
 
                                     # Find 3DE scenes
-                                    scenes = ThreeDESceneFinder.find_threede_scenes(
+                                    ThreeDESceneFinder.find_threede_scenes(
                                         workspace, set()
                                     )
 
                                     # Find raw plates
-                                    plate = RawPlateFinder.find_latest_raw_plate(
+                                    RawPlateFinder.find_latest_raw_plate(
                                         workspace, shot_name
                                     )
 
@@ -653,7 +653,7 @@ class TestIntegrationWorkflows:
                                     f"/shows/show_00/shots/{sequence}/{shot_dir}"
                                 )
 
-                                scenes = ThreeDESceneFinder.find_threede_scenes(
+                                ThreeDESceneFinder.find_threede_scenes(
                                     workspace, {"gabriel-h"}
                                 )
 

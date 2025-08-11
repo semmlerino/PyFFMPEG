@@ -30,6 +30,7 @@ copy/
 
 # Obsolete archived files
 archive/
+archived/
 launcher_config.py
 launcher_model.py
 

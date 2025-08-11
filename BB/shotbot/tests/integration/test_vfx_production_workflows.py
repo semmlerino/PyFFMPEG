@@ -322,11 +322,7 @@ class TestCompleteArtistWorkflow:
                     args = mock_launch.call_args[0]
                     assert args[0] == "3de"
                     # Scene path should be included in launch
-                    kwargs = (
-                        mock_launch.call_args[1]
-                        if len(mock_launch.call_args) > 1
-                        else {}
-                    )
+                    (mock_launch.call_args[1] if len(mock_launch.call_args) > 1 else {})
 
             # Verify UI state
             assert window.tab_widget.currentIndex() == 1  # Still on 3DE tab
@@ -392,7 +388,7 @@ class TestCompleteArtistWorkflow:
         self, production_environment, main_window_fixture, qtbot
     ):
         """Test multi-user workflow with current user exclusion."""
-        shots_data = production_environment["shots"]
+        production_environment["shots"]
         window = main_window_fixture
 
         # Mock multiple users' 3DE scenes
@@ -456,7 +452,7 @@ class TestCompleteArtistWorkflow:
         self, production_environment, qtbot, tmp_path, monkeypatch
     ):
         """Test that artist preferences persist across sessions."""
-        shots_data = production_environment["shots"]
+        production_environment["shots"]
         ws_output = production_environment["ws_output"]
         settings_file = tmp_path / "test_settings.json"
 
@@ -582,7 +578,7 @@ class TestMissingPlateHandling:
                 (thumb_dir / f"{shot_name}_thumb.jpg").write_bytes(b"JPEG")
 
             # Create plates based on scenario
-            if config["has_plates"] == True:
+            if config["has_plates"]:
                 self._create_complete_plates(shot_path, shot_name)
             elif config["has_plates"] == "partial":
                 self._create_partial_plates(shot_path, shot_name)
@@ -869,7 +865,7 @@ class TestShotSwitchSafety:
 
         # Worker should still be "running" (not stopped)
         if hasattr(window, "_threede_worker") and window._threede_worker:
-            assert window._threede_worker.isRunning.return_value == True
+            assert window._threede_worker.isRunning.return_value
 
         # No need to close - fixture handles cleanup
 
@@ -912,7 +908,6 @@ class TestShotSwitchSafety:
         window.shot_model.shots = shots
 
         # Simulate multiple concurrent operations
-        operations = []
 
         # Mock launcher with active process
         with patch.object(
@@ -972,7 +967,7 @@ class TestContextVerification:
 
     def test_environment_variables_preserved(self):
         """Test that environment variables are properly set for launched apps."""
-        shot = Shot(
+        Shot(
             show="env_test",
             sequence="ENV_001",
             shot="0010",
@@ -995,7 +990,7 @@ class TestContextVerification:
         # Test variable substitution would happen at launch time
         # LauncherManager doesn't expose _expand_variables directly
         # but we can verify the variables are set correctly
-        launcher_manager = LauncherManager()
+        LauncherManager()
 
         # Variables would be expanded when launching
         # Just verify the custom launcher has the right template variables
@@ -1183,7 +1178,7 @@ class TestSceneVersionConflicts:
         """Test that UI clearly shows which version is selected."""
         shot_path = versioned_scenes_environment["shot_path"]
 
-        shot = Shot("version_test", "VER", "0010", str(shot_path))
+        Shot("version_test", "VER", "0010", str(shot_path))
 
         # Create a simple scene
         scene = ThreeDEScene(
@@ -1251,7 +1246,7 @@ class TestMultiAppCoordination:
         mock_process = Mock()
         mock_process.poll.side_effect = [None, None, 0]  # Running, running, finished
 
-        with patch("subprocess.Popen", return_value=mock_process) as mock_popen:
+        with patch("subprocess.Popen", return_value=mock_process):
             # Create a custom launcher and execute it
             launcher_id = launcher_manager.create_launcher(
                 name="Test Nuke", command="nuke", description="Test launcher"
@@ -1338,7 +1333,7 @@ class TestMultiAppCoordination:
         """Test handling of resource contention with multiple apps."""
         shot = Shot("contention", "CONT", "0010", "/test/contention")
 
-        launcher_manager = LauncherManager()
+        LauncherManager()
         # LauncherManager doesn't have set_current_shot - use CommandLauncher instead
         command_launcher = CommandLauncher()
         command_launcher.set_current_shot(shot)
@@ -1383,7 +1378,7 @@ class TestDiagnosticInformation:
         launcher.command_executed.connect(track_command)
 
         # Execute several commands
-        with patch("subprocess.Popen") as mock_popen:
+        with patch("subprocess.Popen"):
             launcher.launch_app("nuke")
             launcher.launch_app("maya", include_undistortion=True)
             launcher.launch_app("3de", include_raw_plate=True)

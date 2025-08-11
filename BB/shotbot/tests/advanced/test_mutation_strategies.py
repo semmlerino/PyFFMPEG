@@ -425,12 +425,12 @@ class TestMutationAnalysis:
         from tests.unit.test_raw_plate_finder import TestRawPlateFinder
 
         # Simplified test: just verify the function and tests exist
-        assert hasattr(RawPlateFinder, 'find_latest_raw_plate')
+        assert hasattr(RawPlateFinder, "find_latest_raw_plate")
         assert callable(RawPlateFinder.find_latest_raw_plate)
-        
+
         # Verify test class has the method we reference
-        assert hasattr(TestRawPlateFinder, 'test_find_latest_raw_plate_fg01')
-        
+        assert hasattr(TestRawPlateFinder, "test_find_latest_raw_plate_fg01")
+
         # Basic mutation resistance check: function should handle edge cases
         # Test with None values - should raise ValueError for invalid input
         try:
@@ -448,10 +448,10 @@ class TestMutationAnalysis:
         # Simplified test: verify test class exists and has test methods
         test_class = test_raw_plate_finder.TestRawPlateFinder
         test_methods = [name for name in dir(test_class) if name.startswith("test_")]
-        
+
         # Assert we have test methods
         assert len(test_methods) > 0, "TestRawPlateFinder should have test methods"
-        
+
         # Check that test methods are callable
         for method_name in test_methods[:5]:  # Check first 5 methods
             method = getattr(test_class, method_name)

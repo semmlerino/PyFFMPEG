@@ -161,8 +161,8 @@ class TestConcurrentStressIntegration:
                                     scene_model.refresh_scenes(batch)
                             else:
                                 # Cache loading
-                                shots = cache_manager.get_cached_shots()
-                                scenes = cache_manager.get_cached_threede_scenes()
+                                cache_manager.get_cached_shots()
+                                cache_manager.get_cached_threede_scenes()
 
                         operation_time = time.time() - operation_start
 
@@ -453,7 +453,7 @@ class TestConcurrentStressIntegration:
                     for widget in worker_widgets:
                         try:
                             widget.deleteLater()
-                        except:
+                        except (RuntimeError, AttributeError):
                             pass
 
             # Run concurrent widget operations
@@ -486,7 +486,7 @@ class TestConcurrentStressIntegration:
             for widget in created_widgets:
                 try:
                     widget.deleteLater()
-                except:
+                except (RuntimeError, AttributeError):
                     pass
 
             # Process cleanup events
@@ -774,8 +774,8 @@ class TestConcurrentStressIntegration:
 
                     else:
                         # Cache loading operations
-                        shots = cache_manager.get_cached_shots()
-                        scenes = cache_manager.get_cached_threede_scenes()
+                        cache_manager.get_cached_shots()
+                        cache_manager.get_cached_threede_scenes()
 
                     stability_results.append(
                         {"iteration": iteration, "operation": op_type, "success": True}

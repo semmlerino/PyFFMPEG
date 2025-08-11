@@ -1,5 +1,6 @@
 """Configuration and fixtures for integration tests."""
 
+import os
 import tempfile
 from pathlib import Path
 

@@ -275,7 +275,7 @@ class TestPerformanceBenchmarks:
             test_shot = shots_data[0]
 
             start_time = time.time()
-            thumbnail_widget = ThumbnailWidget(test_shot)
+            ThumbnailWidget(test_shot)
             qapp.processEvents()  # Process initial events
             single_load_time = time.time() - start_time
 
@@ -781,7 +781,7 @@ class TestStressTestsIntegration:
                     temp_cache.cache_shots(shots)
 
                     # Simulate 3DE scene processing
-                    scene_model = ThreeDESceneModel(temp_cache, load_cache=False)
+                    ThreeDESceneModel(temp_cache, load_cache=False)
 
                     # Brief pause to allow UI events
                     time.sleep(0.01)

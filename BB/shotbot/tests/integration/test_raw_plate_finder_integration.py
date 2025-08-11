@@ -395,7 +395,7 @@ class TestRawPlateFinderIntegration:
     def test_integration_with_shot_model(self, mock_plate_structure_simple):
         """Test integration between RawPlateFinder and Shot model."""
         shot_workspace_path = mock_plate_structure_simple["shot_workspace_path"]
-        shot_name = mock_plate_structure_simple["shot_name"]
+        mock_plate_structure_simple["shot_name"]
 
         # Create shot object
         shot = Shot("simpleshow", "001_TST", "0001", shot_workspace_path)

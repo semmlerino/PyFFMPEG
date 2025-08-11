@@ -223,13 +223,13 @@ class TestProgressiveScanningCore:
         data = progressive_dataset
         cache_dir = data["dataset_root"] / "cache_cancel"
         cache_manager = CacheManager(cache_dir=cache_dir)
-        model = ThreeDESceneModel(cache_manager, load_cache=False)
+        ThreeDESceneModel(cache_manager, load_cache=False)
 
         # Create shots from dataset
         test_shots = []
         for show_name, scenes in data["scene_distribution"].items():
             for scene_data in scenes[:10]:  # Use subset
-                shot_key = (
+                (
                     scene_data["show"],
                     scene_data["sequence"],
                     scene_data["shot"],
@@ -300,7 +300,6 @@ class TestProgressiveScanningCore:
 
     def test_pause_resume_functionality(self, progressive_dataset, qtbot):
         """Test pause and resume during progressive scanning."""
-        data = progressive_dataset
 
         class MockProgressiveScannerWithPause:
             def __init__(self):
@@ -414,7 +413,6 @@ class TestProgressiveScanningCore:
             )
 
         # Mock the internal progress reporting of finder
-        original_find_method = finder.find_all_scenes_in_shows
 
         def mock_find_with_progress(shows_dirs):
             # Simulate finding with progress reporting
@@ -799,7 +797,7 @@ class TestProgressiveScanningIntegration:
         test_shots = []
         for show_name, scenes in data["scene_distribution"].items():
             for scene_data in scenes[:10]:
-                shot_key = (
+                (
                     scene_data["show"],
                     scene_data["sequence"],
                     scene_data["shot"],
@@ -839,7 +837,7 @@ class TestProgressiveScanningIntegration:
         test_shots = []
         show_a_scenes = data["scene_distribution"]["show_A"]
         for scene_data in show_a_scenes[:20]:
-            shot_key = (scene_data["show"], scene_data["sequence"], scene_data["shot"])
+            (scene_data["show"], scene_data["sequence"], scene_data["shot"])
             workspace_path = f"/shows/{scene_data['show']}/shots/{scene_data['sequence']}/{scene_data['sequence']}_{scene_data['shot']}"
             shot = Shot(
                 scene_data["show"],

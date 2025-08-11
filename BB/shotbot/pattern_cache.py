@@ -329,7 +329,7 @@ class PlatePatternMatcher:
 
         try:
             # Single directory scan with pre-compiled patterns
-            exr_pattern = PatternCache.get_static("exr_extension")
+            PatternCache.get_static("exr_extension")  # Ensure pattern is cached
 
             for file_path in res_path.iterdir():
                 if file_path.suffix == ".exr":

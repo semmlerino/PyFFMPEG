@@ -506,7 +506,7 @@ class TestUIPerformance:
         from thumbnail_widget import ThumbnailWidget
 
         # Mock image loading
-        mock_pixmap = MagicMock()
+        MagicMock()
         with patch("PySide6.QtGui.QPixmap.load", return_value=True):
 
             def create_thumbnails():

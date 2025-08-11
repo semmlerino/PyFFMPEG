@@ -103,7 +103,7 @@ class TestThreeDECachePersistenceIntegration:
         assert len(cache_data["scenes"]) == initial_scene_count
 
         # Store timestamp for later comparison
-        initial_timestamp = cache_data["timestamp"]
+        cache_data["timestamp"]
 
         # Phase 2: Create new model instance - should load from cache
         new_cache_manager = CacheManager(cache_dir=cache_dir)
@@ -472,7 +472,7 @@ class TestThreeDECachePersistenceIntegration:
         cache_manager = CacheManager(cache_dir=cache_dir)
 
         # Loading old format should fail gracefully
-        cached_scenes = cache_manager.get_cached_threede_scenes()
+        cache_manager.get_cached_threede_scenes()
         # Might be None if validation fails, or empty list
 
         # Model creation should work regardless

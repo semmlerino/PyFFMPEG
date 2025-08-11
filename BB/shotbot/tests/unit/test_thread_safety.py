@@ -5,10 +5,10 @@ import threading
 import time
 
 import pytest
-
 from memory_safe_cache import LRUCache, MemoryMonitor
 from progressive_scanner import FileScanner, ScanState
-from qprocess_manager import ProcessConfig, ProcessInfo
+from qprocess_manager import ProcessInfo
+
 from thread_safe_manager import (
     AtomicCounter,
     DeadlockPreventingLockManager,
@@ -297,7 +297,7 @@ class TestResourcePool:
 
         # Acquire resources
         r1 = pool.acquire()
-        r2 = pool.acquire()
+        pool.acquire()
         assert created_count == 2
 
         # Release one
@@ -325,7 +325,7 @@ class TestResourcePool:
 
             # Try to acquire another - should timeout
             with pytest.raises(RuntimeError):
-                with pool.resource(timeout=0.1) as r2:
+                with pool.resource(timeout=0.1):
                     pass  # Should not reach here
 
 
@@ -373,56 +373,8 @@ class TestAtomicCounter:
 class TestQProcessManager:
     """Test QProcess-based process management."""
 
-    @pytest.mark.skip(reason="ManagedProcess no longer exists in current architecture")
-    def test_process_lifecycle(self, qtbot):
-        """Test QProcess lifecycle management."""
-        config = ProcessConfig(
-            command="echo",
-            args=["test"],
-            timeout_seconds=5,
-        )
-
-        # process = ManagedProcess("test_process", config)  # Class no longer exists
-
-        # Connect to signals
-        started = []
-        finished = []
-
-        process.started.connect(lambda: started.append(True))
-        process.finished.connect(lambda code, status: finished.append((code, status)))
-
-        # Start process
-        assert process.start()
-
-        # Wait for completion
-        qtbot.wait(1000)  # Wait up to 1 second
-
-        assert len(started) == 1
-        assert len(finished) == 1
-        assert finished[0][0] == 0  # Exit code should be 0
-
-    @pytest.mark.skip(reason="ManagedProcess no longer exists in current architecture")
-    def test_process_timeout(self, qtbot):
-        """Test process timeout handling."""
-        config = ProcessConfig(
-            command="sleep",
-            args=["10"],
-            timeout_seconds=0.5,  # 500ms timeout
-        )
-
-        # process = ManagedProcess("test_timeout", config)  # Class no longer exists
-
-        timeout_reached = []
-        process.timeout_reached.connect(lambda: timeout_reached.append(True))
-
-        # Start process
-        process.start()
-
-        # Wait for timeout
-        qtbot.wait(1000)
-
-        assert len(timeout_reached) == 1
-        assert not process.is_running()
+    # ManagedProcess tests removed - class no longer exists after architecture refactoring
+    # Process lifecycle management is now handled by CommandLauncher and LauncherManager
 
 
 class TestFileScanner:

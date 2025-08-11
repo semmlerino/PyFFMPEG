@@ -815,10 +815,12 @@ class MainWindow(QMainWindow):
         # Prevent recursive calls by temporarily disconnecting signals
         # Use try/except to handle case where signals might not be connected
         try:
-            self.shot_grid.size_slider.valueChanged.disconnect(self._sync_thumbnail_sizes)
+            self.shot_grid.size_slider.valueChanged.disconnect(
+                self._sync_thumbnail_sizes
+            )
         except (RuntimeError, TypeError):
             pass  # Signal was not connected
-        
+
         try:
             self.threede_shot_grid.size_slider.valueChanged.disconnect(
                 self._sync_thumbnail_sizes
@@ -835,7 +837,7 @@ class MainWindow(QMainWindow):
             self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
         except (RuntimeError, TypeError):
             logger.warning("Failed to reconnect shot_grid size slider signal")
-        
+
         try:
             self.threede_shot_grid.size_slider.valueChanged.connect(
                 self._sync_thumbnail_sizes
@@ -1227,12 +1229,13 @@ class MainWindow(QMainWindow):
         # Stop the background refresh timer first to prevent it firing on closed window
         if hasattr(self, "refresh_timer") and self.refresh_timer:
             self.refresh_timer.stop()
-        
+
         # Stop and cleanup worker if running
         if self._threede_worker:
             # Check if it's a real worker (not a Mock in tests)
             # Use isinstance check for better type safety
             from threede_scene_worker import ThreeDESceneWorker
+
             if isinstance(self._threede_worker, ThreeDESceneWorker):
                 if not self._threede_worker.isFinished():
                     self._threede_worker.stop()

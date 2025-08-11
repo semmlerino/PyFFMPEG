@@ -495,9 +495,10 @@ class TestCacheSnapshots:
         # Populate cache
         # CacheManager doesn't have generic set method - use specific methods
         from shot_model import Shot
+
         test_shots = [
             Shot("TEST", "seq01", "shot01", "/test/path"),
-            Shot("TEST", "seq01", "shot02", "/test/path")
+            Shot("TEST", "seq01", "shot02", "/test/path"),
         ]
         cache.cache_shots(test_shots)
 
@@ -523,6 +524,7 @@ class TestCacheSnapshots:
         # Add entries with very short TTL
         # Test with actual cache methods
         from shot_model import Shot
+
         test_shots = [Shot("EXP", "seq01", "shot01", "/test/path")]
         cache.cache_shots(test_shots)  # This will persist normally
 

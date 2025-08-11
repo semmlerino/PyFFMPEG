@@ -142,36 +142,38 @@ class TestEndToEndTypeSafety:
                 assert isinstance(value, float)
 
     def test_raw_plate_finder_integration_types(self, tmp_path, monkeypatch):
-        """Test RawPlateFinder integration maintains type safety."""
-        # Setup mock directory structure
-        workspace_path = "/shows/test/shots/seq/shot"
+        """Test RawPlateFinder integration maintains type safety using real workspace structure."""
+        # Create realistic workspace directory structure
+        workspace_path = tmp_path / "shows" / "test_show" / "shots" / "seq" / "shot"
+        workspace_path.mkdir(parents=True)
+
         shot_name = "seq_shot"
 
-        # Mock PathUtils methods
-        raw_plate_base = tmp_path / "rawplates"
-        raw_plate_base.mkdir()
-
-        monkeypatch.setattr(PathUtils, "build_raw_plate_path", lambda x: raw_plate_base)
-        monkeypatch.setattr(PathUtils, "validate_path_exists", lambda *args: True)
-
-        # Create plate directory structure
+        # Create real plate directory structure matching what RawPlateFinder expects
+        # workspace_path / "publish" / "turnover" / "plate" / "input_plate" / "BG01" / "v001" / "exr" / "4096x2304"
+        raw_plate_base = (
+            workspace_path / "publish" / "turnover" / "plate" / "input_plate"
+        )
         bg_plate_dir = raw_plate_base / "BG01" / "v001" / "exr" / "4096x2304"
         bg_plate_dir.mkdir(parents=True)
 
-        # Create test plate file
+        # Create test plate file with proper naming
         test_plate = (
             bg_plate_dir / f"{shot_name}_turnover-plate_BG01_aces_v001.1001.exr"
         )
         test_plate.touch()
 
-        # Mock utility functions
-        monkeypatch.setattr(
-            PathUtils, "discover_plate_directories", lambda x: [("BG01", 1)]
-        )
-        monkeypatch.setattr(VersionUtils, "get_latest_version", lambda x: "v001")
+        # Also create a few more frames to make it realistic
+        for frame in range(1002, 1005):
+            frame_file = (
+                bg_plate_dir
+                / f"{shot_name}_turnover-plate_BG01_aces_v001.{frame:04d}.exr"
+            )
+            frame_file.touch()
 
-        # Find plate
-        result = RawPlateFinder.find_latest_raw_plate(workspace_path, shot_name)
+        # Use REAL PathUtils methods - no mocking needed since we have real structure
+        # Find plate using real workspace path
+        result = RawPlateFinder.find_latest_raw_plate(str(workspace_path), shot_name)
 
         # Verify return type
         assert isinstance(result, (str, type(None)))
@@ -250,7 +252,7 @@ class TestEndToEndTypeSafety:
     def test_error_propagation_types(self, qtbot, tmp_path, monkeypatch):
         """Test that errors maintain type safety throughout propagation."""
         cache = CacheManager(cache_dir=tmp_path)
-        qtbot.addWidget(cache)
+        # CacheManager is a QObject, not QWidget - don't need to add to qtbot for error propagation testing
         model = ShotModel(cache_manager=cache, load_cache=False)
 
         # Test various error scenarios

@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import QObject, QThread, Signal
+from qprocess_manager import ProcessState, QProcessManager
 
 from config import Config
-from qprocess_manager import ProcessState, QProcessManager
 from raw_plate_finder import RawPlateFinder
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
@@ -170,21 +170,59 @@ class CommandLauncherQProcess(QObject):
         command = Config.APPS[app_name]
         command_parts = [command]
 
-        # Handle raw plate for Nuke
-        if app_name == "nuke" and include_raw_plate:
-            raw_plate_path = self._find_raw_plate(
-                self.current_shot.workspace_path, self.current_shot.full_name
-            )
-            if raw_plate_path:
-                command_parts.append(raw_plate_path)
+        # Handle raw plate and undistortion for Nuke (integrated approach)
+        if app_name == "nuke" and (include_raw_plate or include_undistortion):
+            raw_plate_path = None
+            undistortion_path = None
 
-        # Handle undistortion for Nuke
-        if app_name == "nuke" and include_undistortion:
-            undistortion_path = self._find_undistortion(
-                self.current_shot.workspace_path, self.current_shot.full_name
-            )
-            if undistortion_path:
-                command_parts.append(str(undistortion_path))
+            # Get raw plate if requested
+            if include_raw_plate:
+                raw_plate_path = self._find_raw_plate(
+                    self.current_shot.workspace_path, self.current_shot.full_name
+                )
+
+            # Get undistortion if requested
+            if include_undistortion:
+                undistortion_path = self._find_undistortion(
+                    self.current_shot.workspace_path, self.current_shot.full_name
+                )
+
+            # Generate integrated Nuke script if we have plate or undistortion
+            if raw_plate_path or undistortion_path:
+                from nuke_script_generator import NukeScriptGenerator
+
+                if raw_plate_path and undistortion_path:
+                    # Both plate and undistortion
+                    script_path = (
+                        NukeScriptGenerator.create_plate_script_with_undistortion(
+                            raw_plate_path,
+                            str(undistortion_path),
+                            self.current_shot.full_name,
+                        )
+                    )
+                    if script_path:
+                        command_parts.append(script_path)
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        self.command_executed.emit(
+                            timestamp,
+                            "Generated integrated Nuke script with plate and undistortion",
+                        )
+                elif raw_plate_path:
+                    # Plate only
+                    script_path = NukeScriptGenerator.create_plate_script(
+                        raw_plate_path, self.current_shot.full_name
+                    )
+                    if script_path:
+                        command_parts.append(script_path)
+                elif undistortion_path:
+                    # Undistortion only
+                    script_path = (
+                        NukeScriptGenerator.create_plate_script_with_undistortion(
+                            "", str(undistortion_path), self.current_shot.full_name
+                        )
+                    )
+                    if script_path:
+                        command_parts.append(script_path)
 
         # Build full command
         full_command = " ".join(command_parts)
@@ -278,19 +316,52 @@ class CommandLauncherQProcess(QObject):
         command = Config.APPS[app_name]
         command_parts = [command]
 
-        # Handle raw plate for Nuke
-        if app_name == "nuke" and include_raw_plate:
-            raw_plate_path = self._find_raw_plate(scene.workspace_path, scene.full_name)
-            if raw_plate_path:
-                command_parts.append(raw_plate_path)
+        # Handle raw plate and undistortion for Nuke (integrated approach)
+        if app_name == "nuke" and (include_raw_plate or include_undistortion):
+            raw_plate_path = None
+            undistortion_path = None
 
-        # Handle undistortion for Nuke
-        if app_name == "nuke" and include_undistortion:
-            undistortion_path = self._find_undistortion(
-                scene.workspace_path, scene.full_name
-            )
-            if undistortion_path:
-                command_parts.append(str(undistortion_path))
+            # Get raw plate if requested
+            if include_raw_plate:
+                raw_plate_path = self._find_raw_plate(
+                    scene.workspace_path, scene.full_name
+                )
+
+            # Get undistortion if requested
+            if include_undistortion:
+                undistortion_path = self._find_undistortion(
+                    scene.workspace_path, scene.full_name
+                )
+
+            # Generate integrated Nuke script if we have plate or undistortion
+            if raw_plate_path or undistortion_path:
+                from nuke_script_generator import NukeScriptGenerator
+
+                if raw_plate_path and undistortion_path:
+                    # Both plate and undistortion
+                    script_path = (
+                        NukeScriptGenerator.create_plate_script_with_undistortion(
+                            raw_plate_path, str(undistortion_path), scene.full_name
+                        )
+                    )
+                    if script_path:
+                        command_parts.append(script_path)
+                elif raw_plate_path:
+                    # Plate only
+                    script_path = NukeScriptGenerator.create_plate_script(
+                        raw_plate_path, scene.full_name
+                    )
+                    if script_path:
+                        command_parts.append(script_path)
+                elif undistortion_path:
+                    # Undistortion only
+                    script_path = (
+                        NukeScriptGenerator.create_plate_script_with_undistortion(
+                            "", str(undistortion_path), scene.full_name
+                        )
+                    )
+                    if script_path:
+                        command_parts.append(script_path)
 
         # Build full command
         full_command = " ".join(command_parts)

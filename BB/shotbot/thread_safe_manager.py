@@ -106,9 +106,9 @@ class DeadlockPreventingLockManager:
             # Try to acquire the lock
             acquired = False
             # Check for RLock by checking its type name since RLock is a factory function
-            if hasattr(context.lock, 'acquire') and hasattr(context.lock, 'release'):
+            if hasattr(context.lock, "acquire") and hasattr(context.lock, "release"):
                 # This is likely a threading.RLock instance or compatible lock
-                if hasattr(context.lock, '_is_owned'):  # RLock-specific method
+                if hasattr(context.lock, "_is_owned"):  # RLock-specific method
                     acquired = context.lock.acquire(timeout=timeout)
                 else:
                     # Fallback for other lock types with acquire/release
@@ -152,7 +152,7 @@ class DeadlockPreventingLockManager:
                     )
 
             # Release the actual lock
-            if hasattr(context.lock, 'acquire') and hasattr(context.lock, 'release'):
+            if hasattr(context.lock, "acquire") and hasattr(context.lock, "release"):
                 # This is likely a threading.RLock or similar lock
                 context.lock.release()
             elif isinstance(context.lock, QMutex):
@@ -370,7 +370,11 @@ class ThreadSafeProcessManager:
         # Validate state transition
         valid_transitions = {
             ProcessState.PENDING: [ProcessState.STARTING, ProcessState.FAILED],
-            ProcessState.STARTING: [ProcessState.RUNNING, ProcessState.COMPLETED, ProcessState.FAILED],
+            ProcessState.STARTING: [
+                ProcessState.RUNNING,
+                ProcessState.COMPLETED,
+                ProcessState.FAILED,
+            ],
             ProcessState.RUNNING: [
                 ProcessState.STOPPING,
                 ProcessState.COMPLETED,
@@ -679,7 +683,7 @@ class ResourcePool(Generic[T]):
 
         with self._lock:
             cleaned_count = 0
-            
+
             # Clean up pooled resources (idle resources)
             while not self._pool.empty():
                 try:
@@ -695,13 +699,15 @@ class ResourcePool(Generic[T]):
                 if self.cleanup_func:
                     self.cleanup_func(resource)
                 cleaned_count += 1
-            
+
             # Clear the in_use dictionary since we're shutting down
             self._in_use.clear()
-            
-            logger.info(f"Resource pool {self.name} shutdown complete. "
-                       f"Total cleaned: {cleaned_count} resources")
-            
+
+            logger.info(
+                f"Resource pool {self.name} shutdown complete. "
+                f"Total cleaned: {cleaned_count} resources"
+            )
+
             # Return the total cleaned count for testing purposes
             return cleaned_count
 

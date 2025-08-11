@@ -55,74 +55,113 @@ class CommandLauncher(QObject):
         # Get the command
         command = Config.APPS[app_name]
 
-        # Handle raw plate for Nuke
-        if app_name == "nuke" and include_raw_plate:
-            raw_plate_path = RawPlateFinder.find_latest_raw_plate(
-                self.current_shot.workspace_path, self.current_shot.full_name
-            )
+        # Handle raw plate and undistortion for Nuke (integrated approach)
+        if app_name == "nuke" and (include_raw_plate or include_undistortion):
+            raw_plate_path = None
+            undistortion_path = None
 
-            if raw_plate_path:
-                # Verify at least one frame exists
-                if RawPlateFinder.verify_plate_exists(raw_plate_path):
-                    # Create a Nuke script with the plate loaded
-                    from nuke_script_generator import NukeScriptGenerator
-                    
+            # Get raw plate if requested
+            if include_raw_plate:
+                raw_plate_path = RawPlateFinder.find_latest_raw_plate(
+                    self.current_shot.workspace_path, self.current_shot.full_name
+                )
+                # Verify plate exists
+                if raw_plate_path and not RawPlateFinder.verify_plate_exists(
+                    raw_plate_path
+                ):
+                    raw_plate_path = None
+
+            # Get undistortion if requested
+            if include_undistortion:
+                undistortion_path = UndistortionFinder.find_latest_undistortion(
+                    self.current_shot.workspace_path, self.current_shot.full_name
+                )
+
+            # Generate integrated Nuke script if we have plate or undistortion
+            if raw_plate_path or undistortion_path:
+                from nuke_script_generator import NukeScriptGenerator
+
+                if raw_plate_path and undistortion_path:
+                    # Both plate and undistortion
+                    script_path = (
+                        NukeScriptGenerator.create_plate_script_with_undistortion(
+                            raw_plate_path,
+                            str(undistortion_path),
+                            self.current_shot.full_name,
+                        )
+                    )
+                    if script_path:
+                        command = f"{command} {script_path}"
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        plate_version = RawPlateFinder.get_version_from_path(
+                            raw_plate_path
+                        )
+                        undist_version = UndistortionFinder.get_version_from_path(
+                            undistortion_path
+                        )
+                        self.command_executed.emit(
+                            timestamp,
+                            f"Generated Nuke script with plate ({plate_version}) and undistortion ({undist_version})",
+                        )
+                    else:
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        self.command_executed.emit(
+                            timestamp,
+                            "Error: Failed to generate integrated Nuke script",
+                        )
+                elif raw_plate_path:
+                    # Plate only
                     script_path = NukeScriptGenerator.create_plate_script(
                         raw_plate_path, self.current_shot.full_name
                     )
-                    
                     if script_path:
-                        # Launch Nuke with the generated script
                         command = f"{command} {script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
                         version = RawPlateFinder.get_version_from_path(raw_plate_path)
                         self.command_executed.emit(
-                            timestamp,
-                            f"Created Nuke script with plate: {version}/{raw_plate_path.split('/')[-1]}",
+                            timestamp, f"Generated Nuke script with plate: {version}"
                         )
                     else:
-                        # Fallback to just passing the path
-                        command = f"{command} {raw_plate_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
-                        version = RawPlateFinder.get_version_from_path(raw_plate_path)
+                        self.command_executed.emit(
+                            timestamp, "Error: Failed to generate plate script"
+                        )
+                elif undistortion_path:
+                    # Undistortion only (no plate available)
+                    script_path = (
+                        NukeScriptGenerator.create_plate_script_with_undistortion(
+                            "",
+                            str(undistortion_path),
+                            self.current_shot.full_name,  # Empty plate path
+                        )
+                    )
+                    if script_path:
+                        command = f"{command} {script_path}"
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        version = UndistortionFinder.get_version_from_path(
+                            undistortion_path
+                        )
                         self.command_executed.emit(
                             timestamp,
-                            f"Found raw plate: {version}/{raw_plate_path.split('/')[-1]}",
+                            f"Generated Nuke script with undistortion: {version}",
                         )
-                else:
-                    # Log warning if plate path found but no frames exist
-                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    else:
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        self.command_executed.emit(
+                            timestamp, "Error: Failed to generate undistortion script"
+                        )
+            else:
+                # Log warnings for missing files
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                if include_raw_plate:
                     self.command_executed.emit(
-                        timestamp, "Warning: Raw plate path found but no frames exist"
+                        timestamp,
+                        "Warning: Raw plate not found or no frames exist for this shot",
                     )
-            else:
-                # Log warning if raw plate requested but not found
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                self.command_executed.emit(
-                    timestamp, "Warning: Raw plate not found for this shot"
-                )
-
-        # Handle undistortion for Nuke
-        if app_name == "nuke" and include_undistortion:
-            undistortion_path = UndistortionFinder.find_latest_undistortion(
-                self.current_shot.workspace_path, self.current_shot.full_name
-            )
-
-            if undistortion_path:
-                # Include the undistortion file in the Nuke command
-                command = f"{command} {undistortion_path}"
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                version = UndistortionFinder.get_version_from_path(undistortion_path)
-                self.command_executed.emit(
-                    timestamp,
-                    f"Found undistortion file: {version}/{undistortion_path.name}",
-                )
-            else:
-                # Log warning if undistortion requested but not found
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                self.command_executed.emit(
-                    timestamp, "Warning: Undistortion file not found for this shot"
-                )
+                if include_undistortion:
+                    self.command_executed.emit(
+                        timestamp, "Warning: Undistortion file not found for this shot"
+                    )
 
         # Build full command with ws (workspace setup)
         full_command = f"ws {self.current_shot.workspace_path} && {command}"
@@ -257,11 +296,11 @@ class CommandLauncher(QObject):
                 if RawPlateFinder.verify_plate_exists(raw_plate_path):
                     # Create a Nuke script with the plate loaded
                     from nuke_script_generator import NukeScriptGenerator
-                    
+
                     script_path = NukeScriptGenerator.create_plate_script(
                         raw_plate_path, scene.full_name
                     )
-                    
+
                     if script_path:
                         # Launch Nuke with the generated script
                         command = f"{command} {script_path}"
