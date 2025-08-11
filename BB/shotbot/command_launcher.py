@@ -64,14 +64,31 @@ class CommandLauncher(QObject):
             if raw_plate_path:
                 # Verify at least one frame exists
                 if RawPlateFinder.verify_plate_exists(raw_plate_path):
-                    # Include the raw plate in the Nuke command
-                    command = f"{command} {raw_plate_path}"
-                    timestamp = datetime.now().strftime("%H:%M:%S")
-                    version = RawPlateFinder.get_version_from_path(raw_plate_path)
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Found raw plate: {version}/{raw_plate_path.split('/')[-1]}",
+                    # Create a Nuke script with the plate loaded
+                    from nuke_script_generator import NukeScriptGenerator
+                    
+                    script_path = NukeScriptGenerator.create_plate_script(
+                        raw_plate_path, self.current_shot.full_name
                     )
+                    
+                    if script_path:
+                        # Launch Nuke with the generated script
+                        command = f"{command} {script_path}"
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        version = RawPlateFinder.get_version_from_path(raw_plate_path)
+                        self.command_executed.emit(
+                            timestamp,
+                            f"Created Nuke script with plate: {version}/{raw_plate_path.split('/')[-1]}",
+                        )
+                    else:
+                        # Fallback to just passing the path
+                        command = f"{command} {raw_plate_path}"
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        version = RawPlateFinder.get_version_from_path(raw_plate_path)
+                        self.command_executed.emit(
+                            timestamp,
+                            f"Found raw plate: {version}/{raw_plate_path.split('/')[-1]}",
+                        )
                 else:
                     # Log warning if plate path found but no frames exist
                     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -238,14 +255,31 @@ class CommandLauncher(QObject):
             if raw_plate_path:
                 # Verify at least one frame exists
                 if RawPlateFinder.verify_plate_exists(raw_plate_path):
-                    # Include the raw plate in the Nuke command
-                    command = f"{command} {raw_plate_path}"
-                    timestamp = datetime.now().strftime("%H:%M:%S")
-                    version = RawPlateFinder.get_version_from_path(raw_plate_path)
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Found raw plate: {version}/{raw_plate_path.split('/')[-1]}",
+                    # Create a Nuke script with the plate loaded
+                    from nuke_script_generator import NukeScriptGenerator
+                    
+                    script_path = NukeScriptGenerator.create_plate_script(
+                        raw_plate_path, scene.full_name
                     )
+                    
+                    if script_path:
+                        # Launch Nuke with the generated script
+                        command = f"{command} {script_path}"
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        version = RawPlateFinder.get_version_from_path(raw_plate_path)
+                        self.command_executed.emit(
+                            timestamp,
+                            f"Created Nuke script with plate: {version}/{raw_plate_path.split('/')[-1]}",
+                        )
+                    else:
+                        # Fallback to just passing the path
+                        command = f"{command} {raw_plate_path}"
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        version = RawPlateFinder.get_version_from_path(raw_plate_path)
+                        self.command_executed.emit(
+                            timestamp,
+                            f"Found raw plate: {version}/{raw_plate_path.split('/')[-1]}",
+                        )
                 else:
                     # Log warning if plate path found but no frames exist
                     timestamp = datetime.now().strftime("%H:%M:%S")
