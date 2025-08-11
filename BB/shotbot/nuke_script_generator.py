@@ -52,7 +52,29 @@ class NukeScriptGenerator:
                         first_frame = min(frame_numbers)
                         last_frame = max(frame_numbers)
             
-            # Create the Nuke script content
+            # Extract colorspace from filename if present
+            colorspace = "default"
+            if "lin_sgamut3cine" in plate_path.lower():
+                colorspace = "Input - Sony - S-Gamut3.Cine - Linear"
+            elif "acescg" in plate_path.lower():
+                colorspace = "ACES - ACEScg"
+            elif "rec709" in plate_path.lower():
+                colorspace = "Output - Rec.709"
+            
+            # Detect resolution from path (common patterns)
+            width, height = 4312, 2304  # Default
+            path_parts = plate_path.split("/")
+            for part in path_parts:
+                if "x" in part and part.replace("x", "").replace("_", "").isdigit():
+                    try:
+                        w, h = part.split("x")
+                        width = int(w.replace("_", ""))
+                        height = int(h.replace("_", ""))
+                        break
+                    except:
+                        pass
+            
+            # Create the Nuke script content with improvements
             script_content = f"""#! /usr/local/Nuke15.1v2/nuke-15.1.2 -nx
 version 15.1 v2
 define_window_layout_xml {{<?xml version="1.0" encoding="UTF-8"?>
@@ -72,27 +94,47 @@ Root {{
  name {shot_name}_plate
  first_frame {first_frame}
  last_frame {last_frame}
- format "4312 2304 0 0 4312 2304 1 "
+ format "{width} {height} 0 0 {width} {height} 1 {shot_name}_plate"
+ proxy_type scale
+ proxy_scale 0.5
+ colorManagement OCIO
+ OCIO_config custom
+ customOCIOConfigPath "{{[getenv OCIO]}}"
 }}
 Read {{
  inputs 0
  file_type exr
  file "{nuke_path}"
+ format "{width} {height} 0 0 {width} {height} 1 "
  first {first_frame}
  last {last_frame}
  origfirst {first_frame}
  origlast {last_frame}
  origset true
+ colorspace {colorspace}
+ raw true
  name Read_Plate
+ label "\\n{colorspace}\\nframes: {first_frame}-{last_frame}"
+ note_font_size 14
  selected true
  xpos 0
- ypos 0
+ ypos -150
+}}
+Grade {{
+ inputs 1
+ name Grade_CC
+ label "Color Correction"
+ xpos 0
+ ypos -50
 }}
 Viewer {{
  frame_range {first_frame}-{last_frame}
+ frame {first_frame}
+ colour_sample_bbox {{0.4 0.4 0.6 0.6}}
+ samplepoints {{{{0.5 0.5}}}}
  name Viewer1
  xpos 0
- ypos 100
+ ypos 50
 }}
 """
             
