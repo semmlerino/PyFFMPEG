@@ -1,13 +1,49 @@
 """Generate Nuke scripts with proper Read nodes for plates and undistortion."""
 
+import atexit
+import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Set, Tuple
 
 
 class NukeScriptGenerator:
-    """Generate temporary Nuke scripts with proper Read nodes."""
+    """Generate temporary Nuke scripts with proper Read nodes.
+
+    This class tracks temporary files and ensures they are cleaned up
+    on program exit to prevent disk space leaks.
+    """
+
+    # Track all temporary files created for cleanup
+    _temp_files: Set[str] = set()
+    _cleanup_registered = False
+
+    @classmethod
+    def _register_cleanup(cls):
+        """Register cleanup function to run at program exit."""
+        if not cls._cleanup_registered:
+            atexit.register(cls._cleanup_temp_files)
+            cls._cleanup_registered = True
+
+    @classmethod
+    def _cleanup_temp_files(cls):
+        """Clean up all temporary files created during session."""
+        for temp_file in cls._temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.unlink(temp_file)
+                    print(f"Cleaned up temporary file: {temp_file}")
+            except Exception as e:
+                print(f"Warning: Could not delete temp file {temp_file}: {e}")
+        cls._temp_files.clear()
+
+    @classmethod
+    def _track_temp_file(cls, filepath: str) -> str:
+        """Track a temporary file for cleanup and return its path."""
+        cls._register_cleanup()  # Ensure cleanup is registered
+        cls._temp_files.add(filepath)
+        return filepath
 
     @staticmethod
     def _escape_path(path: str) -> str:
@@ -56,29 +92,38 @@ class NukeScriptGenerator:
         return 1001, 1100
 
     @staticmethod
-    def _detect_colorspace(plate_path: str) -> str:
-        """Detect colorspace from filename or path.
+    def _detect_colorspace(plate_path: str) -> Tuple[str, bool]:
+        """Detect colorspace and raw flag from filename or path.
 
-        Returns appropriate OCIO colorspace name for Nuke.
+        Returns:
+            Tuple of (colorspace, raw_flag)
+            For linear plates: ("linear", True)
+            For other plates: (colorspace_name, False)
         """
         if not plate_path:
-            return "scene_linear"
+            return "linear", True  # Default to linear raw
 
         path_lower = plate_path.lower()
 
-        # ACES colorspaces
-        if "aces" in path_lower or "acescg" in path_lower:
-            return "ACES - ACEScg"
-        elif "lin_sgamut3cine" in path_lower or "sgamut" in path_lower:
-            return "Input - Sony - S-Gamut3.Cine - Linear"
+        # Linear plates (use raw=true with colorspace="linear")
+        if "lin_" in path_lower or "linear" in path_lower:
+            return "linear", True
+
+        # Log plates (use raw=false with appropriate colorspace)
+        elif "logc" in path_lower or "alexa" in path_lower:
+            return "logc3ei800", False
+        elif "log" in path_lower:
+            return "log", False
+
+        # Display-referred colorspaces
         elif "rec709" in path_lower:
-            return "Output - Rec.709"
+            return "rec709", False
         elif "srgb" in path_lower:
-            return "Output - sRGB"
-        elif "lin_" in path_lower or "linear" in path_lower:
-            return "scene_linear"
+            return "sRGB", False
+
+        # Default to linear raw (safest for VFX plates)
         else:
-            return "scene_linear"  # Safe default
+            return "linear", True
 
     @staticmethod
     def _detect_resolution(plate_path: str) -> Tuple[int, int]:
@@ -118,6 +163,11 @@ class NukeScriptGenerator:
             Path to the temporary .nk script, or None if creation failed
         """
         try:
+            # Sanitize shot_name to prevent path traversal
+            import re
+
+            safe_shot_name = re.sub(r"[^\w\-_.]", "_", shot_name)
+
             # Convert path for Nuke
             nuke_path = NukeScriptGenerator._escape_path(plate_path)
             # Ensure we use %04d format for Nuke
@@ -128,15 +178,16 @@ class NukeScriptGenerator:
                 plate_path
             )
 
-            # Detect colorspace
-            colorspace = NukeScriptGenerator._detect_colorspace(plate_path)
+            # Detect colorspace and raw flag
+            colorspace, use_raw = NukeScriptGenerator._detect_colorspace(plate_path)
+            raw_str = "true" if use_raw else "false"
 
             # Detect resolution
             width, height = NukeScriptGenerator._detect_resolution(plate_path)
 
             # Create proper Nuke script content
-            script_content = f"""#! /usr/local/Nuke15.1v2/nuke-15.1.2 -nx
-version 15.1 v2
+            script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
+version 16.0 v4
 define_window_layout_xml {{<?xml version="1.0" encoding="UTF-8"?>
 <layout version="1.0">
     <window x="0" y="0" w="1920" h="1080" fullscreen="0" screen="0">
@@ -162,11 +213,11 @@ define_window_layout_xml {{<?xml version="1.0" encoding="UTF-8"?>
 }}
 Root {{
  inputs 0
- name {shot_name}_plate_comp
+ name {safe_shot_name}_plate_comp
  first_frame {first_frame}
  last_frame {last_frame}
  fps 24
- format "{width} {height} 0 0 {width} {height} 1 {shot_name}_format"
+ format "{width} {height} 0 0 {width} {height} 1 {safe_shot_name}_format"
  proxy_type scale
  proxy_format "1920 1080 0 0 1920 1080 1 HD_1080"
  proxySetting "if \\[value root.proxy] {{ 960 540 }} else {{ {width} {height} }}"
@@ -184,7 +235,7 @@ Read {{
  inputs 0
  file_type exr
  file "{nuke_path}"
- format "{width} {height} 0 0 {width} {height} 1 square_pixels"
+ format "{width} {height} 0 0 {width} {height} 1 {safe_shot_name}_format"
  proxy "{nuke_path}"
  first {first_frame}
  last {last_frame}
@@ -195,10 +246,11 @@ Read {{
  reload 0
  auto_alpha true
  premultiplied true
- raw false
- colorspace {colorspace}
+ raw {raw_str}
+ colorspace "{colorspace}"
  name Read_Plate
- label "\\\\[value colorspace]\\\\nframes: {first_frame}-{last_frame}"
+ tile_color 0xcccccc01
+ label "\\[value colorspace]\\nframes: {first_frame}-{last_frame}"
  selected true
  xpos 0
  ypos -150
@@ -222,20 +274,136 @@ Viewer {{
  ypos 50
 }}
 """
-            # Create temporary file
+            # Create temporary file (will be deleted when Nuke closes it)
+            # Note: We need delete=False because Nuke needs to read the file
+            # But we should track these files for cleanup elsewhere
             with tempfile.NamedTemporaryFile(
                 mode="w",
                 suffix=".nk",
-                prefix=f"{shot_name}_plate_",
-                delete=False,
+                prefix=f"{safe_shot_name}_plate_",
+                delete=False,  # Required for Nuke to read, but needs cleanup tracking
                 encoding="utf-8",
             ) as tmp_file:
                 tmp_file.write(script_content)
-                return tmp_file.name
+                temp_path = tmp_file.name
+
+            # Track the file for cleanup at program exit
+            return NukeScriptGenerator._track_temp_file(temp_path)
 
         except Exception as e:
             print(f"Error creating Nuke script: {e}")
             return None
+
+    @staticmethod
+    def _import_undistortion_nodes(
+        undistortion_path: str, ypos_offset: int = -200
+    ) -> str:
+        """Import nodes from an undistortion .nk file.
+
+        Args:
+            undistortion_path: Path to the undistortion .nk file
+            ypos_offset: Y position offset for imported nodes
+
+        Returns:
+            String containing the processed nodes to insert
+        """
+        try:
+            with open(undistortion_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Parse nodes from the file
+            imported_nodes = []
+            lines = content.split("\n")
+            i = 0
+
+            while i < len(lines):
+                line = lines[i]
+
+                # Skip comment lines, version, and window layout
+                if (
+                    line.startswith("#")
+                    or line.startswith("version")
+                    or line.startswith("define_window_layout")
+                ):
+                    i += 1
+                    continue
+
+                # Skip Root node and its contents
+                if line.startswith("Root {") or line.strip() == "Root {":
+                    # Skip until we find the closing brace
+                    brace_count = 1
+                    i += 1
+                    while i < len(lines) and brace_count > 0:
+                        if "{" in lines[i]:
+                            brace_count += lines[i].count("{")
+                        if "}" in lines[i]:
+                            brace_count -= lines[i].count("}")
+                        i += 1
+                    continue
+
+                # Check if this line starts a node we want to import
+                node_types = [
+                    "LensDistortion",
+                    "UVTile2",
+                    "Crop",
+                    "Switch",
+                    "Expression",
+                    "NoOp",
+                    "Dot",
+                    "Reformat",
+                ]
+                is_node_start = False
+                for node_type in node_types:
+                    if line.startswith(node_type + " {"):
+                        is_node_start = True
+                        break
+
+                if is_node_start:
+                    # Collect the entire node
+                    node_lines = [line]
+                    brace_count = line.count("{") - line.count("}")
+                    i += 1
+
+                    while i < len(lines) and brace_count > 0:
+                        node_lines.append(lines[i])
+                        brace_count += lines[i].count("{") - lines[i].count("}")
+                        i += 1
+
+                    # Process the node
+                    node_text = "\n".join(node_lines)
+
+                    # Adjust ypos values if present
+                    if "ypos" in node_text:
+                        ypos_match = re.search(r"ypos\s+(-?\d+)", node_text)
+                        if ypos_match:
+                            old_ypos = int(ypos_match.group(1))
+                            new_ypos = old_ypos + ypos_offset
+                            node_text = re.sub(
+                                r"ypos\s+" + str(old_ypos),
+                                f"ypos {new_ypos}",
+                                node_text,
+                            )
+
+                    imported_nodes.append(node_text)
+                else:
+                    i += 1
+
+            if imported_nodes:
+                return (
+                    "\n# Imported undistortion nodes from "
+                    + undistortion_path
+                    + "\n"
+                    + "\n".join(imported_nodes)
+                    + "\n"
+                )
+            else:
+                return ""
+
+        except Exception as e:
+            print(
+                f"Warning: Could not import undistortion nodes from {undistortion_path}: {e}"
+            )
+            return ""
 
     @staticmethod
     def create_plate_script_with_undistortion(
@@ -243,8 +411,8 @@ Viewer {{
     ) -> Optional[str]:
         """Create a Nuke script with plate and optional undistortion.
 
-        This version properly handles undistortion by embedding instructions
-        rather than trying to use incorrect Read node syntax.
+        This version properly imports the undistortion nodes from the .nk file
+        and integrates them into the compositing graph.
 
         Args:
             plate_path: Path to the plate sequence (can be empty)
@@ -255,6 +423,11 @@ Viewer {{
             Path to the temporary .nk script
         """
         try:
+            # Sanitize shot_name to prevent path traversal
+            import re
+
+            safe_shot_name = re.sub(r"[^\w\-_.]", "_", shot_name)
+
             # Handle empty or None paths
             plate_path = plate_path or ""
             undistortion_path = undistortion_path or ""
@@ -262,18 +435,18 @@ Viewer {{
             # Convert paths for Nuke
             nuke_plate_path = NukeScriptGenerator._escape_path(plate_path)
             nuke_plate_path = nuke_plate_path.replace("####", "%04d")
-            nuke_undist_path = NukeScriptGenerator._escape_path(undistortion_path)
 
             # Detect properties
             first_frame, last_frame = NukeScriptGenerator._detect_frame_range(
                 plate_path
             )
             width, height = NukeScriptGenerator._detect_resolution(plate_path)
-            colorspace = NukeScriptGenerator._detect_colorspace(plate_path)
+            colorspace, use_raw = NukeScriptGenerator._detect_colorspace(plate_path)
+            raw_str = "true" if use_raw else "false"
 
             # Create enhanced Nuke script content
-            script_content = f"""#! /usr/local/Nuke15.1v2/nuke-15.1.2 -nx
-version 15.1 v2
+            script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
+version 16.0 v4
 define_window_layout_xml {{<?xml version="1.0" encoding="UTF-8"?>
 <layout version="1.0">
     <window x="0" y="0" w="1920" h="1080" fullscreen="0" screen="0">
@@ -299,12 +472,12 @@ define_window_layout_xml {{<?xml version="1.0" encoding="UTF-8"?>
 }}
 Root {{
  inputs 0
- name {shot_name}_comp
+ name {safe_shot_name}_comp
  frame {first_frame}
  first_frame {first_frame}
  last_frame {last_frame}
  fps 24
- format "{width} {height} 0 0 {width} {height} 1 {shot_name}_format"
+ format "{width} {height} 0 0 {width} {height} 1 {safe_shot_name}_format"
  proxy_type scale
  proxy_format "1920 1080 0 0 1920 1080 1 HD_1080"
  colorManagement OCIO
@@ -326,7 +499,7 @@ Read {{
  inputs 0
  file_type exr
  file "{nuke_plate_path}"
- format "{width} {height} 0 0 {width} {height} 1 square_pixels"
+ format "{width} {height} 0 0 {width} {height} 1 {safe_shot_name}_format"
  proxy "{nuke_plate_path}"
  first {first_frame}
  last {last_frame}
@@ -337,104 +510,54 @@ Read {{
  reload 0
  auto_alpha true
  premultiplied true
- raw false
- colorspace {colorspace}
+ raw {raw_str}
+ colorspace "{colorspace}"
  name Read_Plate
- label "Raw Plate\\\\n\\\\[value colorspace]\\\\nframes: {first_frame}-{last_frame}"
+ tile_color 0xcccccc01
+ label "Raw Plate\\n\\[value colorspace]\\nframes: {first_frame}-{last_frame}"
  selected true
  xpos 0
  ypos -300
 }}
 """
 
-            # Add undistortion handling if provided
+            # Import undistortion nodes if provided
             if undistortion_path and Path(undistortion_path).exists():
-                # Instead of trying to import with Read node, we'll add a StickyNote
-                # with instructions and potentially embed the undistortion nodes
-                script_content += f"""
+                # Import the actual undistortion nodes from the .nk file
+                imported_nodes = NukeScriptGenerator._import_undistortion_nodes(
+                    undistortion_path, ypos_offset=-200
+                )
+                if imported_nodes:
+                    script_content += imported_nodes
+                    script_content += f"""
+# Reference to original undistortion file
 StickyNote {{
  inputs 0
- name StickyNote_Undistortion
- label "UNDISTORTION AVAILABLE"
- note_font "Helvetica Bold"
- note_font_size 24
- note_font_color 0xff0000ff
+ name Note_Undistortion_Source
+ label "Undistortion imported from:\\n{NukeScriptGenerator._escape_path(undistortion_path)}"
+ note_font_size 14
+ note_font_color 0x00aa00ff
  xpos 200
  ypos -300
 }}
-BackdropNode {{
+"""
+                else:
+                    # Fallback to reference if import failed
+                    escaped_undist_path = NukeScriptGenerator._escape_path(
+                        undistortion_path
+                    )
+                    script_content += f"""
+# Undistortion available: {escaped_undist_path}
+StickyNote {{
  inputs 0
- name Backdrop_Undistortion
- tile_color 0x71c67100
- label "<center><b>UNDISTORTION</b></center>\\\\nTo apply undistortion:\\\\n1. File > Import Script\\\\n2. Navigate to:\\\\n{nuke_undist_path}\\\\n3. Connect to plate"
- note_font_size 14
- xpos -70
- ypos -200
- bdwidth 340
- bdheight 250
+ name Note_Undistortion
+ label "UNDISTORTION AVAILABLE\\nFile > Import Script:\\n{escaped_undist_path}"
+ note_font_size 16
+ note_font_color 0xff8800ff
+ xpos 200
+ ypos -300
 }}
 """
-
-                # Try to read and embed undistortion content if it's a simple script
-                try:
-                    with open(undistortion_path, "r", encoding="utf-8") as f:
-                        undist_content = f.read()
-
-                    # Extract just the LensDistortion nodes if present
-                    if "LensDistortion" in undist_content:
-                        # Add a comment about the undistortion
-                        script_content += f"""
-# Undistortion nodes from: {nuke_undist_path}
-Group {{
- inputs 1
- name Undistortion_Group
- label "3DE Undistortion"
- xpos 0
- ypos -200
-}}
- Input {{
-  inputs 0
-  name Input1
-  xpos 0
-  ypos -50
- }}
-"""
-                        # Extract LensDistortion node (simplified - you'd need proper parsing)
-                        if "LensDistortion {" in undist_content:
-                            # Find the LensDistortion node content
-                            ld_start = undist_content.find("LensDistortion {")
-                            if ld_start != -1:
-                                # Find the matching closing brace
-                                brace_count = 0
-                                i = ld_start + len("LensDistortion {")
-                                while i < len(undist_content):
-                                    if undist_content[i] == "{":
-                                        brace_count += 1
-                                    elif undist_content[i] == "}":
-                                        if brace_count == 0:
-                                            # Found the closing brace
-                                            ld_node = undist_content[ld_start : i + 1]
-                                            # Indent for group
-                                            ld_node = "\n".join(
-                                                " " + line
-                                                for line in ld_node.split("\n")
-                                            )
-                                            script_content += f"\n{ld_node}\n"
-                                            break
-                                        brace_count -= 1
-                                    i += 1
-
-                        script_content += """
- Output {
-  inputs 1
-  name Output1
-  xpos 0
-  ypos 100
- }
-end_group
-"""
-                except Exception as e:
-                    print(f"Warning: Could not embed undistortion content: {e}")
 
             # Add viewer and other nodes
             script_content += f"""
@@ -450,16 +573,21 @@ Viewer {{
 }}
 """
 
-            # Create temporary file
+            # Create temporary file (will be deleted when Nuke closes it)
+            # Note: We need delete=False because Nuke needs to read the file
+            # But we should track these files for cleanup elsewhere
             with tempfile.NamedTemporaryFile(
                 mode="w",
                 suffix=".nk",
-                prefix=f"{shot_name}_comp_",
-                delete=False,
+                prefix=f"{safe_shot_name}_comp_",
+                delete=False,  # Required for Nuke to read, but needs cleanup tracking
                 encoding="utf-8",
             ) as tmp_file:
                 tmp_file.write(script_content)
-                return tmp_file.name
+                temp_path = tmp_file.name
+
+            # Track the file for cleanup at program exit
+            return NukeScriptGenerator._track_temp_file(temp_path)
 
         except Exception as e:
             print(f"Error creating Nuke script with undistortion: {e}")

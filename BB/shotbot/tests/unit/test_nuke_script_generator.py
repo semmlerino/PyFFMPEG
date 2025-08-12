@@ -54,9 +54,23 @@ class TestNukeScriptGenerator:
 
         plate_path = str(plate_dir / "test_plate.%04d.exr")
 
-        # Create test undistortion file
+        # Create test undistortion file with proper LensDistortion node
         undist_file = tmp_path / "undistortion_v001.nk"
-        undist_file.write_text("# Nuke undistortion script\nRead { file test.exr }")
+        undist_content = """#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
+version 16.0 v4
+Root {
+ inputs 0
+ name test_undist
+}
+LensDistortion {
+ inputs 1
+ distortion 0.1
+ name LensDistortion1
+ xpos 0
+ ypos 100
+}
+"""
+        undist_file.write_text(undist_content)
 
         shot_name = "test_shot"
 
@@ -75,12 +89,15 @@ class TestNukeScriptGenerator:
         # Check for plate content
         assert "test_shot_comp" in content
         assert plate_path in content
-        assert "name plate_read" in content
+        assert "name Read_Plate" in content
 
-        # Check for undistortion content
-        assert str(undist_file) in content
-        assert "name undistortion_import" in content
-        assert "plate_to_undistortion" in content
+        # Check for imported undistortion nodes
+        assert "LensDistortion {" in content or "LensDistortion1" in content
+        # Should have note about import source
+        assert (
+            "Undistortion imported from:" in content
+            or "Note_Undistortion_Source" in content
+        )
 
         # Cleanup
         Path(script_path).unlink()
@@ -112,22 +129,40 @@ class TestNukeScriptGenerator:
 
         # Should have plate content
         assert plate_path in content
-        assert "name plate_read" in content
+        assert "name Read_Plate" in content
 
         # Should NOT have undistortion content
-        assert "undistortion_import" not in content
-        assert "plate_to_undistortion" not in content
+        assert "UNDISTORTION AVAILABLE" not in content
+        assert "Note_Undistortion" not in content
 
         # Cleanup
         Path(script_path).unlink()
 
     def test_create_plate_script_with_undistortion_undistortion_only(self, tmp_path):
         """Test script generation with undistortion only (no plate)."""
-        # Create test undistortion file
+        # Create test undistortion file with proper nodes
         undist_file = tmp_path / "undistortion_v002.nk"
-        undist_file.write_text(
-            "# Nuke undistortion script\nLensDistortion { file test.nk }"
-        )
+        undist_content = """#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
+version 16.0 v4
+Root {
+ inputs 0
+ name test_undist
+}
+LensDistortion {
+ inputs 1
+ distortion 0.2
+ name LensDistortion2
+ xpos 0
+ ypos 200
+}
+UVTile2 {
+ inputs 1
+ name UVTile2_1
+ xpos 0
+ ypos 250
+}
+"""
+        undist_file.write_text(undist_content)
 
         shot_name = "test_shot"
 
@@ -147,12 +182,13 @@ class TestNukeScriptGenerator:
         assert "test_shot_comp" in content
         assert "Root {" in content
 
-        # Should have undistortion content
-        assert str(undist_file) in content
-        assert "name undistortion_import" in content
+        # Should have imported undistortion nodes
+        assert "LensDistortion {" in content or "LensDistortion2" in content
+        assert "UVTile2 {" in content or "UVTile2_1" in content
+        assert "Undistortion imported from:" in content
 
-        # Should NOT have plate Read node
-        assert "name plate_read" not in content
+        # Should NOT have plate Read node (only undist, no plate)
+        assert "name Read_Plate" not in content
 
         # Cleanup
         Path(script_path).unlink()
@@ -185,7 +221,7 @@ class TestNukeScriptGenerator:
 
         # Should have plate content
         assert plate_path in content
-        assert "name plate_read" in content
+        assert "name Read_Plate" in content
 
         # Should NOT have undistortion content (file doesn't exist)
         assert "undistortion_import" not in content
@@ -265,6 +301,113 @@ class TestNukeScriptGenerator:
         # Should not crash, but may return None or handle gracefully
         # This depends on implementation - the main requirement is no crashes
 
+    def test_import_realistic_3de_undistortion(self, tmp_path):
+        """Test importing a realistic 3DE lens distortion file."""
+        # Create test plate files
+        plate_dir = tmp_path / "plates"
+        plate_dir.mkdir()
+
+        plate_file = plate_dir / "GF_256_0760.1001.exr"
+        plate_file.write_text("dummy")
+
+        # Create realistic 3DE lens distortion file
+        undist_file = tmp_path / "GF_256_0760_mm_default_LD_v028.nk"
+        undist_content = """#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
+version 16.0 v4
+define_window_layout_xml {<?xml version="1.0" encoding="UTF-8"?>
+<layout version="1.0">
+</layout>
+}
+Root {
+ inputs 0
+ name /shows/jack_ryan/shots/GF_256/GF_256_0760/user/gabriel-h/mm/3de/mm-default/exports/scene/FG01/nuke_lens_distortion/v028/GF_256_0760_mm_default_LD_v028.nk
+ frame 1001
+ first_frame 1001
+ last_frame 1100
+ fps 24
+ format "4312 2304 0 0 4312 2304 1 4312x2304"
+ proxy_type scale
+ proxy_format "1024 778 0 0 1024 778 1 1K_Super_35(full-ap)"
+ proxySetting "if {[value root.proxy]} { 960 540 } else { 4312 2304 }"
+ colorManagement OCIO
+ OCIO_config aces_1.2
+ defaultViewerLUT "OCIO LUTs"
+ workingSpaceLUT "ACES - ACEScg"
+ monitorLut "Rec.709 (ACES)"
+}
+LensDistortion {
+ inputs 1
+ serializeKnob ""
+ serialiseKnob "22 serialization::archive 19 0 0 0 0 0 0 0 0 0 0 0 0"
+ distortion {{curve i x1001 0.02345}}
+ anamorphic_squeeze 1
+ asymmetric_distortion {0.00123 -0.00045}
+ name LensDistortion_3DE
+ label "3DE4 Lens Distortion v028"
+ xpos 0
+ ypos 50
+}
+UVTile2 {
+ inputs 1
+ filter_type Simon
+ wrap_mode repeat
+ uv_scale {1.024 1.024}
+ name UVTile2_3DE
+ label "Undistort Scale"
+ xpos 0
+ ypos 100
+}
+Crop {
+ box {0 0 4312 2304}
+ reformat true
+ crop false
+ name Crop_3DE
+ xpos 0
+ ypos 150
+}
+"""
+        undist_file.write_text(undist_content)
+
+        plate_path = str(plate_dir / "GF_256_0760.%04d.exr")
+        shot_name = "GF_256_0760"
+
+        # Generate script
+        script_path = NukeScriptGenerator.create_plate_script_with_undistortion(
+            plate_path, str(undist_file), shot_name
+        )
+
+        assert script_path is not None
+        assert Path(script_path).exists()
+
+        with open(script_path, "r") as f:
+            content = f.read()
+
+        # Check that all 3DE nodes were imported
+        assert "LensDistortion {" in content
+        assert "LensDistortion_3DE" in content
+        assert "3DE4 Lens Distortion v028" in content
+
+        assert "UVTile2 {" in content
+        assert "UVTile2_3DE" in content
+        assert "Undistort Scale" in content
+
+        assert "Crop {" in content
+        assert "Crop_3DE" in content
+
+        # Check that distortion values were preserved
+        assert "distortion {{curve i x1001 0.02345}}" in content
+        assert "asymmetric_distortion {0.00123 -0.00045}" in content
+        assert "uv_scale {1.024 1.024}" in content
+
+        # Check that positions were adjusted
+        assert "ypos -150" in content or "ypos -100" in content  # Adjusted positions
+
+        # Check for import source note
+        assert "Undistortion imported from:" in content
+
+        # Cleanup
+        Path(script_path).unlink()
+
     def test_script_content_structure(self, tmp_path):
         """Test that generated script has proper Nuke structure."""
         # Create minimal test setup
@@ -292,7 +435,7 @@ class TestNukeScriptGenerator:
 
         # Check essential Nuke script structure
         assert content.startswith("#!")  # Shebang
-        assert "version 15.1 v2" in content
+        assert "version 16.0 v4" in content  # Updated to Nuke 16
         assert "Root {" in content
         assert "name test_shot_123_comp" in content
         assert "OCIO_config aces_1.2" in content
