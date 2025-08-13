@@ -619,7 +619,7 @@ if __name__ == "__main__":
     model = ShotModel()
     cache = CacheManager()
 
-    monitor.check_contract(model, ModelContract, "ShotModel initialization")
+    monitor.check_contract(model, ShotModelContract, "ShotModel initialization")
     monitor.check_contract(cache, CacheContract, "CacheManager initialization")
 
     print(monitor.report_violations())

@@ -8,7 +8,7 @@ from nuke_script_generator import NukeScriptGenerator
 class TestNukeScriptGenerator:
     """Test NukeScriptGenerator functionality."""
 
-    def test_create_plate_script_basic(self, tmp_path):
+    def test_create_plate_script_basic(self, tmp_path: Path) -> None:
         """Test basic plate script generation."""
         # Create test plate files
         plate_dir = tmp_path / "plates"
@@ -42,7 +42,9 @@ class TestNukeScriptGenerator:
         # Cleanup
         Path(script_path).unlink()
 
-    def test_create_plate_script_with_undistortion_both_files(self, tmp_path):
+    def test_create_plate_script_with_undistortion_both_files(
+        self, tmp_path: Path
+    ) -> None:
         """Test script generation with both plate and undistortion."""
         # Create test plate files
         plate_dir = tmp_path / "plates"

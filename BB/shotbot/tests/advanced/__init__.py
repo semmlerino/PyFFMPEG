@@ -10,16 +10,11 @@ This package contains advanced testing approaches including:
 """
 
 # Only import modules that have their dependencies installed
-try:
-    from .test_property_based import (
-        CacheStateMachine,
-        TestRawPlateFinderProperties,
-        TestThreeDESceneProperties,
-    )
+import importlib.util
 
-    PROPERTY_BASED_AVAILABLE = True
-except ImportError:
-    PROPERTY_BASED_AVAILABLE = False
+# Check if property-based testing module is available
+spec = importlib.util.find_spec("tests.advanced.test_property_based")
+PROPERTY_BASED_AVAILABLE = spec is not None
 
 # The following modules require additional dependencies (psutil, etc.)
 # and are not imported by default to avoid import errors.
@@ -72,14 +67,4 @@ except ImportError:
 # )
 
 # Only export what's available
-__all__ = []
-
-if PROPERTY_BASED_AVAILABLE:
-    __all__.extend(
-        [
-            "TestRawPlateFinderProperties",
-            "TestThreeDESceneProperties",
-            "CacheStateMachine",
-            "PROPERTY_BASED_AVAILABLE",
-        ]
-    )
+__all__ = ["PROPERTY_BASED_AVAILABLE"]

@@ -1,8 +1,9 @@
+from tests.helpers.synchronization import process_qt_events
+
 """Integration tests for caching workflow."""
 
 import json
 import tempfile
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -160,7 +161,7 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
 
         # Process events to allow background loading
         qapp.processEvents()
-        time.sleep(0.1)  # Give thread pool time to process
+        process_qt_events(qapp, 100)  # Give thread pool time to process
 
         # Check cache was created
         expected_cache = cache_dir / "thumbnails" / "show1" / "seq1" / "shot1_thumb.jpg"

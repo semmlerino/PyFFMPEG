@@ -1,4 +1,4 @@
-"""QThread-based worker for background 3DE scene discovery."""
+"""Thread-safe worker for background 3DE scene discovery."""
 
 import logging
 import time
@@ -10,6 +10,7 @@ from PySide6.QtCore import QMutex, QThread, QWaitCondition, Signal
 
 from config import Config
 from shot_model import Shot
+from thread_safe_worker import ThreadSafeWorker
 from threede_scene_finder import ThreeDESceneFinder
 from threede_scene_model import ThreeDEScene
 from utils import ValidationUtils
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 class ProgressCalculator:
     """Helper class for calculating progress and ETA during file scanning."""
 
-    def __init__(self, smoothing_window: Optional[int] = None):
+    def __init__(self, smoothing_window: Optional[int] = None):  # pyright: ignore[reportMissingSuperCall]
         """Initialize progress calculator.
 
         Args:
@@ -112,17 +113,23 @@ class ProgressCalculator:
             return f"~{hours}h {minutes}m remaining"
 
 
-class ThreeDESceneWorker(QThread):
-    """Enhanced QThread worker for progressive 3DE scene discovery.
+class ThreeDESceneWorker(ThreadSafeWorker):
+    """Thread-safe worker for progressive 3DE scene discovery.
 
-    This worker supports:
+    This worker inherits from ThreadSafeWorker to provide:
+    - Thread-safe state management
+    - Safe signal connection tracking
+    - Proper lifecycle management
+    - Race condition prevention
+
+    Additional features:
     - Progressive/batched file scanning for responsive UI
     - Cancellation and pause/resume functionality
     - Detailed progress reporting with ETA calculation
     - Memory-aware processing with configurable limits
     """
 
-    # Enhanced signals
+    # Enhanced signals specific to 3DE discovery
     started = Signal()  # Emitted when discovery starts
     batch_ready = Signal(list)  # Emitted with each batch of scenes
     progress = Signal(
@@ -156,8 +163,7 @@ class ThreeDESceneWorker(QThread):
         self.enable_progressive = enable_progressive and Config.PROGRESSIVE_SCAN_ENABLED
 
         # Control flags
-        self._should_stop = False
-        self._is_paused = False
+        self._is_paused = False  # Only pause flag needed, stop is managed by base class
 
         # Thread synchronization
         self._pause_mutex = QMutex()
@@ -181,33 +187,48 @@ class ThreeDESceneWorker(QThread):
         self.setPriority(priority)
 
     def stop(self):
-        """Request the worker to stop processing."""
+        """Request the worker to stop processing.
+
+        Uses the thread-safe base class stop mechanism.
+        """
         logger.debug("Stop requested for 3DE scene worker")
-        self._should_stop = True
         # Wake up paused thread so it can exit
         self.resume()
+        # Use base class thread-safe stop
+        self.request_stop()
 
     def pause(self):
         """Request the worker to pause processing."""
         logger.debug("Pause requested for 3DE scene worker")
+        should_emit = False
         self._pause_mutex.lock()
         try:
-            self._is_paused = True
-            self.paused.emit()
+            if not self._is_paused:  # Only emit if state actually changes
+                self._is_paused = True
+                should_emit = True
         finally:
             self._pause_mutex.unlock()
+
+        # Emit signal outside the lock to prevent deadlocks
+        if should_emit:
+            self.paused.emit()
 
     def resume(self):
         """Resume processing if paused."""
         logger.debug("Resume requested for 3DE scene worker")
+        should_emit = False
         self._pause_mutex.lock()
         try:
             if self._is_paused:
                 self._is_paused = False
                 self._pause_condition.wakeAll()
-                self.resumed.emit()
+                should_emit = True
         finally:
             self._pause_mutex.unlock()
+
+        # Emit signal outside the lock to prevent deadlocks
+        if should_emit:
+            self.resumed.emit()
 
     def is_paused(self) -> bool:
         """Check if worker is currently paused."""
@@ -223,15 +244,15 @@ class ThreeDESceneWorker(QThread):
         Returns:
             True if should continue, False if should exit
         """
-        # Check for cancellation
-        if self._should_stop:
+        # Check for cancellation using base class method
+        if self.is_stop_requested():
             logger.debug("Worker received stop signal")
             return False
 
         # Check for pause
         self._pause_mutex.lock()
         try:
-            while self._is_paused and not self._should_stop:
+            while self._is_paused and not self.is_stop_requested():
                 logger.debug("Worker paused, waiting for resume...")
                 self._pause_condition.wait(
                     self._pause_mutex, Config.WORKER_PAUSE_CHECK_INTERVAL_MS
@@ -240,10 +261,14 @@ class ThreeDESceneWorker(QThread):
             self._pause_mutex.unlock()
 
         # Check cancellation again after pause
-        return not self._should_stop
+        return not self.is_stop_requested()
 
-    def run(self):
-        """Enhanced main worker thread execution with progressive scanning."""
+    def do_work(self):
+        """Enhanced main worker thread execution with progressive scanning.
+
+        This replaces the run() method to follow ThreadSafeWorker pattern.
+        The base class run() method handles state management and calls this.
+        """
         try:
             logger.info("Starting enhanced 3DE scene discovery")
             self.started.emit()
@@ -253,8 +278,8 @@ class ThreeDESceneWorker(QThread):
                 self.finished.emit([])
                 return
 
-            # Check for initial cancellation
-            if not self._check_pause_and_cancel():
+            # Check for initial cancellation using base class method
+            if self.is_stop_requested():
                 logger.info("3DE scene discovery cancelled before starting")
                 self.finished.emit([])
                 return
@@ -266,7 +291,7 @@ class ThreeDESceneWorker(QThread):
                 scenes = self._discover_scenes_traditional()
 
             # Final cancellation check
-            if not self._check_pause_and_cancel():
+            if self.is_stop_requested():
                 logger.info("3DE scene discovery cancelled during processing")
                 self.finished.emit(self._all_scenes)  # Return partial results
                 return
@@ -279,6 +304,8 @@ class ThreeDESceneWorker(QThread):
         except Exception as e:
             logger.error(f"Error in enhanced 3DE scene discovery worker: {e}")
             self.error.emit(str(e))
+            # Re-raise to trigger worker_error signal from base class
+            raise
 
     def _discover_scenes_progressive(self) -> List[ThreeDEScene]:
         """Progressive scene discovery with batch processing and detailed progress.

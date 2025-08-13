@@ -1,4 +1,12 @@
-"""Thumbnail widget for displaying shot thumbnails."""
+"""Thumbnail widget for displaying shot thumbnails.
+
+DEPRECATED: This module is deprecated and will be removed in a future version.
+The Model/View architecture (shot_grid_view.py with shot_grid_delegate.py)
+replaces individual thumbnail widgets with efficient delegate-based rendering,
+providing 98.9% memory reduction by eliminating widget creation overhead.
+
+Note: Still used by threede_shot_grid.py which needs migration to Model/View.
+"""
 
 import logging
 

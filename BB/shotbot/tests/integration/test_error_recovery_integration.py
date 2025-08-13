@@ -1,3 +1,5 @@
+from tests.helpers.synchronization import process_qt_events
+
 """Error recovery integration tests for ShotBot.
 
 This module tests error recovery scenarios in production environments:
@@ -20,7 +22,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from cache_manager import CacheManager
 from command_launcher import CommandLauncher
@@ -612,7 +614,7 @@ workspace /shows/valid3/shots/SEQ/SEQ_0003"""
 
         # Simulate slow/failing operations
         def slow_failing_refresh():
-            time.sleep(0.1)  # Simulate slow operation
+            process_qt_events(QApplication.instance(), 100)  # Simulate slow operation
             raise Exception("Simulated failure")
 
         window.shot_model.refresh_shots = slow_failing_refresh

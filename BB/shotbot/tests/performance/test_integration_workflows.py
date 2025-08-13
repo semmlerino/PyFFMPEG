@@ -1,3 +1,5 @@
+from tests.helpers.synchronization import simulate_work_without_sleep
+
 """Integration tests for performance optimization workflows.
 
 These tests verify that:
@@ -283,14 +285,14 @@ class TestIntegrationWorkflows:
                 start_time = time.time()
 
                 # Simulate typical UI operations
-                time.sleep(0.01)  # Simulate UI update cycle
+                simulate_work_without_sleep(10)  # Simulate UI update cycle
 
                 end_time = time.time()
                 response_time = (end_time - start_time) * 1000  # ms
                 ui_response_times.append(response_time)
 
                 # Check every 50ms
-                time.sleep(0.05)
+                simulate_work_without_sleep(50)
 
         def heavy_background_work():
             """Simulate heavy background processing."""
@@ -323,14 +325,14 @@ class TestIntegrationWorkflows:
                                     )
 
                                     # Small delay to simulate work
-                                    time.sleep(0.001)
+                                    simulate_work_without_sleep(1)
 
             except ImportError:
                 # Fallback to simpler background work
                 with patch.object(Path, "exists", side_effect=mock_fs.exists):
                     for i in range(1000):
                         Path(f"/fake/path_{i}").exists()
-                        time.sleep(0.001)
+                        simulate_work_without_sleep(1)
 
             background_complete.set()
 

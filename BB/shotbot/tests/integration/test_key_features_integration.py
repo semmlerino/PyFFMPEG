@@ -1,3 +1,5 @@
+from tests.helpers.synchronization import process_qt_events
+
 """Comprehensive integration tests for key ShotBot features.
 
 This module tests the end-to-end functionality of recently fixed features:
@@ -15,6 +17,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import QThreadPool, QUrl
+from PySide6.QtWidgets import QApplication
 
 from cache_manager import CacheManager
 from raw_plate_finder import RawPlateFinder
@@ -901,7 +904,7 @@ class TestThreeDESceneCachePersistenceIntegration:
                 assert model.scenes[0].user == "initial_artist"
 
             # Wait for cache to expire
-            time.sleep(0.2)
+            process_qt_events(QApplication.instance(), 200)
 
             # Second refresh - should detect cache expiry and fetch updated data
             with patch("threede_scene_finder.ThreeDESceneFinder") as mock_finder:

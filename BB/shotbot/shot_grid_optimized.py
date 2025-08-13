@@ -1,4 +1,11 @@
-"""Memory-optimized shot grid widget with viewport-based loading."""
+"""Memory-optimized shot grid widget with viewport-based loading.
+
+DEPRECATED: This module is deprecated and will be removed in a future version.
+Please use shot_grid_view.py and shot_item_model.py (Model/View architecture) instead.
+The new implementation provides better memory optimization through virtualization.
+
+Migration: See shot_grid.py for migration guide.
+"""
 
 from typing import Optional, Set
 

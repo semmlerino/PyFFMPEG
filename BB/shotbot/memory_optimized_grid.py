@@ -1,4 +1,12 @@
-"""Memory-optimized grid base class with viewport-based thumbnail loading."""
+"""Memory-optimized grid base class with viewport-based thumbnail loading.
+
+DEPRECATED: This module is deprecated and will be removed in a future version.
+The Model/View architecture provides superior memory optimization through
+virtualization and delegate-based rendering, eliminating the need for
+manual viewport management and widget lifecycle tracking.
+
+Use shot_grid_view.py and shot_item_model.py instead.
+"""
 
 from dataclasses import dataclass
 from typing import Dict, Set, Tuple, Union

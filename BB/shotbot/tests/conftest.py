@@ -151,3 +151,119 @@ def mock_shot_model_empty():
     model.get_shot_by_index = lambda idx: None
     model.find_shot_by_name = lambda name: None
     return model
+
+
+# Common fixtures for refactored tests with reduced mocking
+
+
+@pytest.fixture
+def sample_image(tmp_path):
+    """Create a simple test image file for testing image operations.
+
+    Creates a minimal valid JPEG file with proper headers that can be
+    used for testing without requiring Qt to actually load the image.
+    """
+    # Create a minimal valid JPEG header (SOI and EOI markers)
+    jpeg_data = bytes(
+        [
+            0xFF,
+            0xD8,  # SOI (Start of Image)
+            0xFF,
+            0xE0,  # APP0 marker
+            0x00,
+            0x10,  # Length
+            0x4A,
+            0x46,
+            0x49,
+            0x46,
+            0x00,  # "JFIF\0"
+            0x01,
+            0x01,  # Version
+            0x00,  # Units
+            0x00,
+            0x01,
+            0x00,
+            0x01,  # X/Y density
+            0x00,
+            0x00,  # Thumbnails
+            0xFF,
+            0xD9,  # EOI (End of Image)
+        ]
+    )
+
+    image_path = tmp_path / "test_image.jpg"
+    image_path.write_bytes(jpeg_data)
+    return image_path
+
+
+@pytest.fixture
+def real_cache_manager(tmp_path):
+    """Create a real CacheManager with temporary directory.
+
+    This fixture provides a real CacheManager instance that uses
+    actual filesystem operations instead of mocks, enabling more
+    realistic testing of cache behavior.
+    """
+    from cache_manager import CacheManager
+
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    return CacheManager(cache_dir=cache_dir)
+
+
+@pytest.fixture
+def sample_shots():
+    """Create a list of sample Shot objects for testing.
+
+    Returns a list of diverse Shot objects covering different
+    shows, sequences, and shot numbers for comprehensive testing.
+    """
+    return [
+        Shot("show1", "seq1", "0010", "/shows/show1/shots/seq1/seq1_0010"),
+        Shot("show1", "seq1", "0020", "/shows/show1/shots/seq1/seq1_0020"),
+        Shot("show2", "seq2", "0030", "/shows/show2/shots/seq2/seq2_0030"),
+        Shot(
+            "testshow", "101_ABC", "0010", "/shows/testshow/shots/101_ABC/101_ABC_0010"
+        ),
+        Shot(
+            "testshow", "101_ABC", "0020", "/shows/testshow/shots/101_ABC/101_ABC_0020"
+        ),
+        Shot(
+            "testshow", "102_XYZ", "0030", "/shows/testshow/shots/102_XYZ/102_XYZ_0030"
+        ),
+        Shot(
+            "othershow",
+            "201_FOO",
+            "0040",
+            "/shows/othershow/shots/201_FOO/201_FOO_0040",
+        ),
+    ]
+
+
+@pytest.fixture
+def real_shot_model(qtbot, real_cache_manager, sample_shots):
+    """Create a real ShotModel with test data and real cache manager.
+
+    This fixture provides a real ShotModel instance populated with
+    sample shots, using a real cache manager for realistic testing
+    of model behavior.
+    """
+    from shot_model import ShotModel
+
+    model = ShotModel(cache_manager=real_cache_manager)
+    # ShotModel is a QObject, not a widget - don't use qtbot.addWidget
+    model.shots = sample_shots[:3]  # Use first 3 shots by default
+    return model
+
+
+@pytest.fixture
+def empty_shot_model(qtbot, real_cache_manager):
+    """Create an empty real ShotModel with no shots.
+
+    Useful for testing edge cases and empty state behavior.
+    """
+    from shot_model import ShotModel
+
+    model = ShotModel(cache_manager=real_cache_manager)
+    model.shots = []  # Empty shot list
+    return model

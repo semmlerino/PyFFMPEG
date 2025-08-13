@@ -3,13 +3,15 @@
 import json
 import logging
 import shutil
+import tempfile
 import threading
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
 from PySide6.QtCore import QObject, QRunnable, Qt, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QImage
 
 from config import Config
 
@@ -27,11 +29,11 @@ class CacheManager(QObject):
     cache_updated = Signal()
 
     # Thread safety for cache operations
-    _lock = threading.RLock()
+    _lock: threading.RLock = threading.RLock()
 
-    # Memory tracking
-    _memory_usage_bytes = 0
-    _max_memory_bytes = 100 * 1024 * 1024  # 100MB limit for cache
+    # Memory tracking with proper type annotations
+    _memory_usage_bytes: int = 0
+    _max_memory_bytes: int = 100 * 1024 * 1024  # 100MB limit for cache
 
     # Cache settings - use Config values
     @property
@@ -78,15 +80,76 @@ class CacheManager(QObject):
         # Track cached thumbnails for memory management
         self._cached_thumbnails: Dict[str, int] = {}  # path -> size in bytes
 
+        # Track last validation time
+        self._last_validation_time = datetime.now()
+        self._validation_interval_minutes = 30  # Validate every 30 minutes
+
     def _ensure_cache_dirs(self):
-        """Ensure cache directories exist."""
-        self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
+        """Ensure cache directories exist with robust error handling."""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
+                logger.debug(f"Ensured cache directory exists: {self.thumbnails_dir}")
+                return
+            except (OSError, PermissionError) as e:
+                logger.error(f"Failed to create cache dir (attempt {attempt + 1}): {e}")
+                if attempt == max_retries - 1:
+                    # Use fallback temp directory as last resort
+                    try:
+                        self.thumbnails_dir = Path(
+                            tempfile.mkdtemp(prefix="shotbot_cache_")
+                        )
+                        logger.warning(
+                            f"Using fallback cache dir: {self.thumbnails_dir}"
+                        )
+                        return
+                    except Exception as fallback_error:
+                        logger.critical(
+                            f"Failed to create fallback cache dir: {fallback_error}"
+                        )
+                        raise
+            except Exception as e:
+                logger.exception(f"Unexpected error creating cache directory: {e}")
+                if attempt == max_retries - 1:
+                    raise
+
+    def ensure_cache_directory(self) -> bool:
+        """Ensure cache directory exists, creating if necessary.
+
+        Returns:
+            True if directory exists or was created, False on failure
+        """
+        try:
+            if not self.thumbnails_dir.exists():
+                self._ensure_cache_dirs()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to ensure cache directory: {e}")
+            return False
 
     def get_cached_thumbnail(
         self, show: str, sequence: str, shot: str
     ) -> Optional[Path]:
-        """Get path to cached thumbnail if it exists (thread-safe)."""
+        """Get path to cached thumbnail if it exists (thread-safe).
+
+        Also performs periodic validation to maintain cache consistency.
+        """
         with self._lock:
+            # Ensure cache directory exists (in case it was deleted)
+            if not self.thumbnails_dir.exists():
+                logger.debug("Cache directory missing, recreating...")
+                self._ensure_cache_dirs()
+
+            # Check if we should run validation
+            time_since_validation = datetime.now() - self._last_validation_time
+            if time_since_validation > timedelta(
+                minutes=self._validation_interval_minutes
+            ):
+                logger.debug("Running periodic cache validation")
+                self.validate_cache()
+                self._last_validation_time = datetime.now()
+
             cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
             if cache_path.exists():
                 return cache_path
@@ -95,7 +158,7 @@ class CacheManager(QObject):
     def cache_thumbnail(
         self, source_path: Path, show: str, sequence: str, shot: str
     ) -> Optional[Path]:
-        """Cache a thumbnail from source path.
+        """Cache a thumbnail from source path (thread-safe).
 
         Args:
             source_path: Path to the source image file
@@ -115,6 +178,13 @@ class CacheManager(QObject):
             logger.error("Missing required parameters for thumbnail caching")
             return None
 
+        # Use lock for thread-safe check if already cached
+        with self._lock:
+            cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
+            if cache_path.exists():
+                logger.debug(f"Thumbnail already cached: {cache_path}")
+                return cache_path
+
         # Create cache directory
         cache_dir = self.thumbnails_dir / show / sequence
         try:
@@ -127,25 +197,26 @@ class CacheManager(QObject):
         cache_path = cache_dir / f"{shot}_thumb.jpg"
 
         # Load and process image with proper resource management
-        pixmap = None
+        # Use QImage instead of QPixmap for thread safety
+        image = None
         scaled = None
 
         try:
-            # Load image
-            pixmap = QPixmap(str(source_path))
-            if pixmap.isNull():
+            # Load image using QImage (thread-safe)
+            image = QImage(str(source_path))
+            if image.isNull():
                 logger.warning(f"Failed to load image: {source_path}")
                 return None
 
             # Validate image dimensions to prevent memory issues
-            if pixmap.width() > 10000 or pixmap.height() > 10000:
+            if image.width() > 10000 or image.height() > 10000:
                 logger.warning(
-                    f"Image too large ({pixmap.width()}x{pixmap.height()}): {source_path}"
+                    f"Image too large ({image.width()}x{image.height()}): {source_path}"
                 )
                 return None
 
-            # Scale to cache size
-            scaled = pixmap.scaled(
+            # Scale to cache size using QImage
+            scaled = image.scaled(
                 self.CACHE_THUMBNAIL_SIZE,
                 self.CACHE_THUMBNAIL_SIZE,
                 Qt.AspectRatioMode.KeepAspectRatio,
@@ -156,29 +227,48 @@ class CacheManager(QObject):
                 logger.warning(f"Failed to scale thumbnail: {source_path}")
                 return None
 
-            # Save to cache with memory tracking
-            if scaled.save(str(cache_path), "JPEG", 85):
-                # Track memory usage
-                with self._lock:
+            # Save to cache using atomic write (temp file + rename)
+            # Ensure directory exists (might have been deleted concurrently)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+
+            # Generate unique temp file to avoid collisions
+            temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
+
+            try:
+                if scaled.save(str(temp_path), "JPEG", 85):  # type: ignore[call-overload]
+                    # Atomic move - replace if exists
+                    temp_path.replace(cache_path)
+
+                    # Track memory usage
+                    with self._lock:
+                        try:
+                            file_size = cache_path.stat().st_size
+                            self._cached_thumbnails[str(cache_path)] = file_size
+                            self._memory_usage_bytes += file_size
+
+                            # Check if we need to evict old thumbnails
+                            if self._memory_usage_bytes > self._max_memory_bytes:
+                                self._evict_old_thumbnails()
+
+                        except (OSError, IOError):
+                            pass  # Ignore errors in memory tracking
+
+                    logger.debug(
+                        f"Cached thumbnail: {cache_path} (total cache: {self._memory_usage_bytes / 1024 / 1024:.1f}MB)"
+                    )
+                    return cache_path
+                else:
+                    logger.warning(
+                        f"Failed to save thumbnail to temp file: {temp_path}"
+                    )
+                    return None
+            finally:
+                # Clean up temp file if it still exists
+                if temp_path.exists():
                     try:
-                        file_size = cache_path.stat().st_size
-                        self._cached_thumbnails[str(cache_path)] = file_size
-                        self._memory_usage_bytes += file_size
-
-                        # Check if we need to evict old thumbnails
-                        if self._memory_usage_bytes > self._max_memory_bytes:
-                            self._evict_old_thumbnails()
-
+                        temp_path.unlink()
                     except (OSError, IOError):
-                        pass  # Ignore errors in memory tracking
-
-                logger.debug(
-                    f"Cached thumbnail: {cache_path} (total cache: {self._memory_usage_bytes / 1024 / 1024:.1f}MB)"
-                )
-                return cache_path
-            else:
-                logger.warning(f"Failed to save thumbnail to: {cache_path}")
-                return None
+                        pass
 
         except MemoryError:
             logger.error(f"Out of memory while processing thumbnail: {source_path}")
@@ -191,8 +281,8 @@ class CacheManager(QObject):
             return None
         finally:
             # Safe cleanup with existence checks to prevent memory leaks
-            if "pixmap" in locals() and pixmap is not None:
-                pixmap = None
+            if "image" in locals() and image is not None:
+                image = None
             if "scaled" in locals() and scaled is not None:
                 scaled = None
 
@@ -384,16 +474,29 @@ class CacheManager(QObject):
         """Evict oldest thumbnails when memory limit is exceeded."""
         # Sort thumbnails by modification time
         thumbnail_stats: List[Tuple[str, int, float]] = []
-        for path_str, size in self._cached_thumbnails.items():
+        paths_to_remove: List[str] = []
+
+        for path_str, size in list(
+            self._cached_thumbnails.items()
+        ):  # Create a copy to iterate
             try:
                 path = Path(path_str)
                 if path.exists():
                     mtime = path.stat().st_mtime
                     thumbnail_stats.append((path_str, size, mtime))
+                else:
+                    # Mark for removal if file doesn't exist
+                    paths_to_remove.append(path_str)
             except (OSError, IOError):
-                # Remove from tracking if file doesn't exist
+                # Mark for removal on error
+                paths_to_remove.append(path_str)
+
+        # Remove non-existent paths from tracking
+        for path_str in paths_to_remove:
+            if path_str in self._cached_thumbnails:
+                size = self._cached_thumbnails[path_str]
                 del self._cached_thumbnails[path_str]
-                self._memory_usage_bytes -= size
+                self._memory_usage_bytes = max(0, self._memory_usage_bytes - size)
 
         # Sort by modification time (oldest first)
         thumbnail_stats.sort(key=lambda x: x[2])
@@ -406,11 +509,12 @@ class CacheManager(QObject):
 
             try:
                 Path(path_str).unlink()
-                del self._cached_thumbnails[path_str]
-                self._memory_usage_bytes -= size
+                if path_str in self._cached_thumbnails:
+                    del self._cached_thumbnails[path_str]
+                    self._memory_usage_bytes = max(0, self._memory_usage_bytes - size)
                 logger.debug(f"Evicted old thumbnail: {path_str}")
-            except (OSError, IOError):
-                pass
+            except (OSError, IOError) as e:
+                logger.debug(f"Failed to evict thumbnail {path_str}: {e}")
 
     def get_memory_usage(self) -> Dict[str, Any]:
         """Get current cache memory usage statistics."""
@@ -425,34 +529,184 @@ class CacheManager(QObject):
             }
 
     def clear_cache(self):
-        """Clear all cached data."""
+        """Clear all cached data using atomic operations to prevent race conditions."""
         with self._lock:
             try:
-                if self.thumbnails_dir.exists():
-                    shutil.rmtree(self.thumbnails_dir)
+                # Create new temp directory first (atomic swap pattern)
+                temp_dir = self.cache_dir / f"thumbnails_{uuid.uuid4().hex[:8]}"
+                temp_dir.mkdir(parents=True, exist_ok=True)
+
+                # Store old directory reference
+                old_thumbnails_dir = self.thumbnails_dir
+
+                # Atomically swap to new directory
+                self.thumbnails_dir = temp_dir
+
+                # Now safely clean up old directory and cache files
+                if old_thumbnails_dir.exists():
+                    try:
+                        shutil.rmtree(old_thumbnails_dir, ignore_errors=True)
+                    except Exception as e:
+                        logger.debug(f"Error removing old thumbnails dir: {e}")
+
                 if self.shots_cache_file.exists():
-                    self.shots_cache_file.unlink()
+                    try:
+                        self.shots_cache_file.unlink()
+                    except (OSError, IOError) as e:
+                        logger.debug(f"Error removing shots cache: {e}")
+
                 if self.threede_scenes_cache_file.exists():
-                    self.threede_scenes_cache_file.unlink()
-                self._ensure_cache_dirs()
+                    try:
+                        self.threede_scenes_cache_file.unlink()
+                    except (OSError, IOError) as e:
+                        logger.debug(f"Error removing 3DE scenes cache: {e}")
 
                 # Reset memory tracking
                 self._cached_thumbnails.clear()
                 self._memory_usage_bytes = 0
 
+                logger.info("Cache cleared successfully")
+
             except PermissionError as e:
                 logger.error(f"Permission denied while clearing cache: {e}")
+                # Ensure we still have a working directory
+                self._ensure_cache_dirs()
             except (OSError, IOError) as e:
                 logger.error(f"I/O error while clearing cache: {e}")
+                self._ensure_cache_dirs()
             except Exception as e:
                 logger.exception(f"Unexpected error clearing cache: {e}")
+                self._ensure_cache_dirs()
+
+    def validate_cache(self) -> Dict[str, Any]:
+        """Validate cache consistency and fix issues.
+
+        Returns:
+            Dictionary with validation results and statistics.
+        """
+        with self._lock:
+            issues_fixed = 0
+            orphaned_files = 0
+            invalid_entries = 0
+
+            try:
+                # Check tracked thumbnails exist and have correct size
+                invalid_paths = []
+                size_mismatches = []
+
+                for path_str in list(self._cached_thumbnails.keys()):
+                    path = Path(path_str)
+                    if not path.exists():
+                        invalid_paths.append(path_str)
+                        invalid_entries += 1
+                    else:
+                        # Check if tracked size matches actual size
+                        try:
+                            actual_size = path.stat().st_size
+                            tracked_size = self._cached_thumbnails[path_str]
+                            if actual_size != tracked_size:
+                                size_mismatches.append(
+                                    (path_str, actual_size, tracked_size)
+                                )
+                        except (OSError, IOError):
+                            invalid_paths.append(path_str)
+                            invalid_entries += 1
+
+                # Remove invalid entries
+                for path_str in invalid_paths:
+                    if path_str in self._cached_thumbnails:
+                        size = self._cached_thumbnails[path_str]
+                        del self._cached_thumbnails[path_str]
+                        self._memory_usage_bytes = max(
+                            0, self._memory_usage_bytes - size
+                        )
+                        issues_fixed += 1
+
+                # Fix size mismatches
+                for path_str, actual_size, tracked_size in size_mismatches:
+                    self._cached_thumbnails[path_str] = actual_size
+                    self._memory_usage_bytes += actual_size - tracked_size
+                    issues_fixed += 1
+                    logger.debug(
+                        f"Fixed size mismatch for {path_str}: tracked={tracked_size}, actual={actual_size}"
+                    )
+
+                # Check for orphaned thumbnail files not being tracked
+                if self.thumbnails_dir.exists():
+                    for thumb_file in self.thumbnails_dir.rglob("*.jpg"):
+                        if str(thumb_file) not in self._cached_thumbnails:
+                            orphaned_files += 1
+                            # Add to tracking
+                            try:
+                                size = thumb_file.stat().st_size
+                                self._cached_thumbnails[str(thumb_file)] = size
+                                self._memory_usage_bytes += size
+                                issues_fixed += 1
+                            except (OSError, IOError):
+                                pass
+
+                # Recalculate memory usage
+                actual_usage = sum(self._cached_thumbnails.values())
+                if actual_usage != self._memory_usage_bytes:
+                    logger.info(
+                        f"Memory usage mismatch: tracked={self._memory_usage_bytes}, actual={actual_usage}. Correcting..."
+                    )
+                    self._memory_usage_bytes = actual_usage
+                    issues_fixed += 1
+
+                return {
+                    "valid": issues_fixed == 0,
+                    "issues_fixed": issues_fixed,
+                    "invalid_entries": invalid_entries,
+                    "orphaned_files": orphaned_files,
+                    "memory_usage_bytes": self._memory_usage_bytes,
+                    "tracked_files": len(self._cached_thumbnails),
+                }
+
+            except Exception as e:
+                logger.error(f"Error during cache validation: {e}")
+                return {
+                    "valid": False,
+                    "error": str(e),
+                }
+
+    def shutdown(self):
+        """Gracefully shutdown the cache manager.
+
+        This method is called during application shutdown to ensure
+        proper cleanup of resources and pending operations.
+        """
+        logger.info("CacheManager shutting down...")
+
+        with self._lock:
+            try:
+                # Validate and fix any cache inconsistencies before shutdown
+                validation_result = self.validate_cache()
+                if not validation_result.get("valid", False):
+                    logger.info(
+                        f"Fixed {validation_result.get('issues_fixed', 0)} cache issues during shutdown"
+                    )
+
+                # Flush any pending cache operations
+                # Note: Current implementation doesn't have pending operations
+                # but this is where we'd handle them if we add async caching
+
+                # Clear memory tracking to prevent leaks
+                self._cached_thumbnails.clear()
+                self._memory_usage_bytes = 0
+
+                logger.info("CacheManager shutdown complete")
+
+            except Exception as e:
+                logger.error(f"Error during cache manager shutdown: {e}")
 
 
 class ThumbnailCacheLoader(QRunnable):
-    """Background thumbnail cache loader."""
+    """Background thumbnail cache loader with error handling."""
 
     class Signals(QObject):
         loaded = Signal(str, str, str, Path)  # show, sequence, shot, cache_path
+        failed = Signal(str, str, str, str)  # show, sequence, shot, error_msg
 
     def __init__(
         self,
@@ -471,9 +725,21 @@ class ThumbnailCacheLoader(QRunnable):
         self.signals = self.Signals()
 
     def run(self):
-        """Cache the thumbnail in background."""
-        cache_path = self.cache_manager.cache_thumbnail(
-            self.source_path, self.show, self.sequence, self.shot
-        )
-        if cache_path:
-            self.signals.loaded.emit(self.show, self.sequence, self.shot, cache_path)
+        """Cache the thumbnail in background with error handling."""
+        try:
+            cache_path = self.cache_manager.cache_thumbnail(
+                self.source_path, self.show, self.sequence, self.shot
+            )
+            if cache_path:
+                self.signals.loaded.emit(
+                    self.show, self.sequence, self.shot, cache_path
+                )
+                logger.debug(f"Successfully cached thumbnail for {self.shot}")
+            else:
+                error_msg = f"Cache operation returned None for {self.shot}"
+                self.signals.failed.emit(self.show, self.sequence, self.shot, error_msg)
+                logger.warning(error_msg)
+        except Exception as e:
+            error_msg = f"Exception while caching thumbnail for {self.shot}: {e}"
+            self.signals.failed.emit(self.show, self.sequence, self.shot, str(e))
+            logger.error(error_msg)

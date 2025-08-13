@@ -363,7 +363,8 @@ class TestCompleteArtistWorkflow:
         # Step 3: Verify launcher was created
         launchers = launcher_manager.get_all_launchers()
         created_launcher = next(
-            (l for l in launchers if l.id == custom_launcher_id), None
+            (launcher for launcher in launchers if launcher.id == custom_launcher_id),
+            None,
         )
         assert created_launcher is not None, "Created launcher not found"
         assert created_launcher.name == "Custom Nuke Setup"

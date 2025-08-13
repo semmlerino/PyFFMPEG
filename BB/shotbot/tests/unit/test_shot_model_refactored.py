@@ -6,7 +6,6 @@ common patterns into reusable fixtures.
 """
 
 import subprocess
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest

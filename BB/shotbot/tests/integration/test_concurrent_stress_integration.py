@@ -14,12 +14,6 @@ from pathlib import Path
 
 import pytest
 
-# Skip all stress tests by default unless explicitly requested
-pytestmark = pytest.mark.skipif(
-    os.environ.get("RUN_STRESS_TESTS", "0") != "1",
-    reason="Stress tests skipped by default. Set RUN_STRESS_TESTS=1 to run.",
-)
-
 from cache_manager import CacheManager
 from launcher_manager import LauncherManager
 from raw_plate_finder import RawPlateFinder
@@ -27,6 +21,12 @@ from shot_model import Shot, ShotModel
 from threede_scene_model import ThreeDESceneModel
 from threede_thumbnail_widget import ThreeDEThumbnailWidget
 from thumbnail_widget import ThumbnailWidget
+
+# Skip all stress tests by default unless explicitly requested
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RUN_STRESS_TESTS", "0") != "1",
+    reason="Stress tests skipped by default. Set RUN_STRESS_TESTS=1 to run.",
+)
 
 
 class TestConcurrentStressIntegration:
@@ -178,7 +178,11 @@ class TestConcurrentStressIntegration:
                             )
 
                         # Small random delay to increase race condition chances
-                        time.sleep(0.01 * (worker_id % 3))
+                        from tests.helpers.synchronization import (
+                            simulate_work_without_sleep,
+                        )
+
+                        simulate_work_without_sleep(10 * (worker_id % 3))
 
                 except Exception as e:
                     with operation_lock:
@@ -280,7 +284,11 @@ class TestConcurrentStressIntegration:
                             pass  # Directory might not be empty due to other workers
 
                     # Small delay to let other workers interleave
-                    time.sleep(0.005)
+                    from tests.helpers.synchronization import (
+                        simulate_work_without_sleep,
+                    )
+
+                    simulate_work_without_sleep(5)
 
             except Exception as e:
                 with filesystem_lock:
@@ -359,7 +367,11 @@ class TestConcurrentStressIntegration:
                             )
 
                     # Brief pause between launches
-                    time.sleep(0.01)
+                    from tests.helpers.synchronization import (
+                        simulate_work_without_sleep,
+                    )
+
+                    simulate_work_without_sleep(10)
 
             except Exception as e:
                 with launcher_lock:
@@ -431,7 +443,11 @@ class TestConcurrentStressIntegration:
                         qapp.processEvents()
 
                         # Brief pause
-                        time.sleep(0.02)
+                        from tests.helpers.synchronization import (
+                            simulate_work_without_sleep,
+                        )
+
+                        simulate_work_without_sleep(20)
 
                     with widget_lock:
                         created_widgets.extend(worker_widgets)
@@ -467,9 +483,13 @@ class TestConcurrentStressIntegration:
             widget_stress_time = time.time() - start_time
 
             # Process remaining events
-            for _ in range(100):
-                qapp.processEvents()
-                time.sleep(0.01)
+            # Process events for 1 second to let UI stabilize
+            from tests.helpers.synchronization import process_qt_events
+
+            for _ in range(20):
+                process_qt_events(
+                    qapp, 50
+                )  # Process for 50ms, 20 times = 1 second total
 
             # Analyze results
             successful_ops = [
@@ -569,8 +589,14 @@ class TestConcurrentStressIntegration:
 
             gc.collect()
 
-            # Allow system to recover
-            time.sleep(1.0)
+            # Allow system to recover using proper memory cleanup wait
+            from tests.helpers.synchronization import wait_for_memory_cleanup
+
+            # Wait for memory to drop back down, indicating cleanup
+            target_memory_mb = (
+                initial_memory / (1024 * 1024) * 1.5
+            )  # Allow 50% increase
+            wait_for_memory_cleanup(threshold_mb=target_memory_mb, timeout_ms=2000)
 
             final_memory = process.memory_info().rss
 
@@ -782,7 +808,11 @@ class TestConcurrentStressIntegration:
                     )
 
                     # Brief pause
-                    time.sleep(0.01)
+                    from tests.helpers.synchronization import (
+                        simulate_work_without_sleep,
+                    )
+
+                    simulate_work_without_sleep(10)
 
                 except Exception as e:
                     stability_results.append(

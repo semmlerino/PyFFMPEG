@@ -1,3 +1,5 @@
+from tests.helpers.synchronization import simulate_work_without_sleep
+
 """Performance regression testing for ShotBot.
 
 This module provides automated performance baselines, benchmarking,
@@ -760,7 +762,7 @@ if __name__ == "__main__":
 
     # Example function to benchmark
     def example_operation():
-        time.sleep(0.001)  # Simulate work
+        simulate_work_without_sleep(1)
         data = list(range(1000))
         return sum(data)
 

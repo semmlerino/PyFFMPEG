@@ -14,90 +14,160 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PySide6.QtCore import QObject, QThread, QTimer, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
 from config import Config
 from shot_model import Shot
+from thread_safe_worker import ThreadSafeWorker
 from utils import PathUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 
 
-class LauncherWorker(QThread):
-    """Worker thread for executing launcher commands."""
+class LauncherWorker(ThreadSafeWorker):
+    """Thread-safe worker for executing launcher commands.
 
-    # Signals
+    This worker inherits thread-safe lifecycle management from ThreadSafeWorker
+    and adds launcher-specific functionality.
+    """
+
+    # Launcher-specific signals
     command_started = Signal(str, str)  # launcher_id, command
-    # command_output removed - all apps use DEVNULL, no output captured
     command_finished = Signal(str, bool, int)  # launcher_id, success, return_code
     command_error = Signal(str, str)  # launcher_id, error_message
 
     def __init__(
         self, launcher_id: str, command: str, working_dir: Optional[str] = None
     ):
+        """Initialize launcher worker.
+
+        Args:
+            launcher_id: Unique identifier for this launcher
+            command: Command to execute
+            working_dir: Optional working directory for the command
+        """
         super().__init__()
         self.launcher_id = launcher_id
         self.command = command
         self.working_dir = working_dir
         self._process: Optional[subprocess.Popen[Any]] = None
-        self._should_stop = False
 
-    def run(self):
-        """Execute the command in this thread."""
+    def do_work(self):
+        """Execute the launcher command with proper lifecycle management.
+
+        This method is called by the base class run() method and includes
+        proper state management and error handling.
+        """
         try:
             # Emit start signal
             self.command_started.emit(self.launcher_id, self.command)
             logger.info(
-                f"Worker starting launcher '{self.launcher_id}': {self.command}"
+                f"Worker {id(self)} starting launcher '{self.launcher_id}': {self.command}"
             )
 
-            # Treat all apps as GUI apps - don't capture output to prevent deadlocks
+            # Parse command properly to avoid shell injection
+            # Use shlex to split if it's a string command
+            if isinstance(self.command, str):
+                # For safety, we should avoid shell=True
+                # But some commands may require it, so we'll sanitize first
+                import shlex
+
+                try:
+                    # Try to parse as shell command
+                    cmd_list = shlex.split(self.command)
+                    use_shell = False
+                except ValueError:
+                    # Complex shell command, use shell=True but log warning
+                    logger.warning(
+                        f"Using shell=True for complex command: {self.command[:100]}"
+                    )
+                    cmd_list = self.command
+                    use_shell = True
+            else:
+                cmd_list = self.command
+                use_shell = False
+
+            # Start the process
             self._process = subprocess.Popen(
-                self.command,
-                shell=True,
+                cmd_list,
+                shell=use_shell,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 cwd=self.working_dir,
                 start_new_session=True,  # Isolate process group
             )
 
-            # Just wait for process to finish
-            while not self._should_stop:
-                if self._process.poll() is not None:
-                    # Process finished
-                    break
-                # Check periodically without reading output
-                time.sleep(0.5)
+            # Monitor process with periodic checks for stop requests
+            while not self.is_stop_requested():
+                try:
+                    # Check if process finished with timeout
+                    return_code = self._process.wait(timeout=0.5)
+                    # Process finished normally
+                    success = return_code == 0
+                    logger.info(
+                        f"Worker {id(self)} finished launcher '{self.launcher_id}' with code {return_code}"
+                    )
+                    self.command_finished.emit(self.launcher_id, success, return_code)
+                    return
+                except subprocess.TimeoutExpired:
+                    # Process still running, check for stop request
+                    continue
 
-            # Get final return code
-            return_code = self._process.returncode if self._process else -1
-            success = return_code == 0
-
-            logger.info(
-                f"Worker finished launcher '{self.launcher_id}' with code {return_code}"
-            )
-            self.command_finished.emit(self.launcher_id, success, return_code)
+            # Stop was requested - terminate the process
+            if self._process and self._process.poll() is None:
+                logger.info(
+                    f"Worker {id(self)} stopping launcher '{self.launcher_id}' due to stop request"
+                )
+                self._terminate_process()
+                self.command_finished.emit(self.launcher_id, False, -2)
 
         except Exception as e:
             error_msg = f"Worker exception for launcher '{self.launcher_id}': {str(e)}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             self.command_error.emit(self.launcher_id, error_msg)
             self.command_finished.emit(self.launcher_id, False, -1)
+        finally:
+            # Ensure process is cleaned up
+            self._cleanup_process()
 
-    def stop(self):
-        """Request the worker to stop."""
-        self._should_stop = True
-        if self._process and self._process.poll() is None:
+    def _terminate_process(self):
+        """Safely terminate the subprocess."""
+        if not self._process:
+            return
+
+        try:
+            # Try graceful termination first
+            self._process.terminate()
             try:
-                self._process.terminate()
-                # Give it a moment to terminate gracefully
                 self._process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 # Force kill if necessary
+                logger.warning(
+                    f"Force killing launcher '{self.launcher_id}' after timeout"
+                )
                 self._process.kill()
-            except Exception as e:
-                logger.error(f"Error stopping process: {e}")
+                self._process.wait(timeout=1)
+        except Exception as e:
+            logger.error(f"Error terminating process for '{self.launcher_id}': {e}")
+
+    def _cleanup_process(self):
+        """Clean up process resources."""
+        if self._process:
+            # Ensure process is terminated
+            if self._process.poll() is None:
+                self._terminate_process()
+            self._process = None
+
+    def request_stop(self) -> bool:
+        """Override to handle process termination."""
+        # Call parent implementation first
+        if super().request_stop():
+            # Also terminate the subprocess if running
+            if self._process and self._process.poll() is None:
+                self._terminate_process()
+            return True
+        return False
 
 
 @dataclass
@@ -281,7 +351,8 @@ class LauncherManager(QObject):
         self._active_processes: Dict[str, ProcessInfo] = {}
         self._active_workers: Dict[str, LauncherWorker] = {}  # Track worker threads
         self._process_lock = threading.RLock()
-        self._cleanup_in_progress = threading.Event()  # Prevent concurrent cleanups
+        self._cleanup_lock = threading.Lock()  # Separate lock for cleanup coordination
+        self._cleanup_in_progress = False  # Track cleanup state with lock protection
 
         # Periodic cleanup timer
         self._cleanup_timer = QTimer()
@@ -661,7 +732,7 @@ class LauncherManager(QObject):
                 return launcher
         return None
 
-    def validate_command_syntax(self, command: str) -> tuple[bool, Optional[str]]:
+    def validate_command_syntax(self, command: str) -> "tuple[bool, Optional[str]]":
         """Validate command syntax for variable substitutions.
 
         Args:
@@ -799,11 +870,17 @@ class LauncherManager(QObject):
             # Treat all apps as GUI apps - always launch in terminal window
             if launcher.terminal.required:
                 # Try to launch in a terminal (like command_launcher.py does)
+                # Properly escape command for shell safety
+                import shlex
+
+                escaped_command = shlex.quote(command)
+                bash_command = f"bash -i -c {escaped_command}"
+
                 terminal_commands = [
                     # Try gnome-terminal first
                     ["gnome-terminal", "--", "bash", "-i", "-c", command],
                     # Try xterm as fallback
-                    ["xterm", "-e", f"bash -i -c '{command}'"],
+                    ["xterm", "-e", bash_command],
                     # Try konsole
                     ["konsole", "-e", "bash", "-i", "-c", command],
                 ]
@@ -943,7 +1020,13 @@ class LauncherManager(QObject):
                 )
 
                 # For shot context, use ws command if available
-                full_command = f"bash -i -c 'ws {shot.workspace_path} && {command}'"
+                # Properly escape workspace path and command for shell safety
+                import shlex
+
+                escaped_workspace = shlex.quote(shot.workspace_path)
+                # Build the inner command that will be passed to bash -c
+                inner_command = f"ws {escaped_workspace} && {command}"
+                full_command = f"bash -i -c {shlex.quote(inner_command)}"
 
                 # Treat all apps as GUI apps - always launch in terminal window
                 if launcher.terminal.required:
@@ -952,7 +1035,7 @@ class LauncherManager(QObject):
                         # Try gnome-terminal first
                         ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
                         # Try xterm as fallback
-                        ["xterm", "-e", f"bash -i -c '{full_command}'"],
+                        ["xterm", "-e", full_command],
                         # Try konsole
                         ["konsole", "-e", "bash", "-i", "-c", full_command],
                     ]
@@ -1388,14 +1471,22 @@ class LauncherManager(QObject):
             # Create worker
             worker = LauncherWorker(launcher_id, command, working_dir)
 
-            # Connect worker signals
-            worker.command_started.connect(
-                lambda lid, cmd: logger.debug(f"Worker started: {lid} - {cmd}")
+            # Connect worker signals with explicit connection types for thread safety
+            # Use safe_connect from ThreadSafeWorker for proper tracking
+            worker.safe_connect(
+                worker.command_started,
+                lambda lid, cmd: logger.debug(f"Worker started: {lid} - {cmd}"),
+                Qt.ConnectionType.QueuedConnection,  # Cross-thread signal
             )
-            # command_output removed - all apps use DEVNULL, no output captured
-            worker.command_finished.connect(self._on_worker_finished)
-            worker.command_error.connect(
-                lambda lid, error: logger.error(f"Worker error [{lid}]: {error}")
+            worker.safe_connect(
+                worker.command_finished,
+                self._on_worker_finished,
+                Qt.ConnectionType.QueuedConnection,  # Cross-thread signal
+            )
+            worker.safe_connect(
+                worker.command_error,
+                lambda lid, error: logger.error(f"Worker error [{lid}]: {error}"),
+                Qt.ConnectionType.QueuedConnection,  # Cross-thread signal
             )
 
             # Store worker reference
@@ -1437,85 +1528,112 @@ class LauncherManager(QObject):
         QTimer.singleShot(1000, self._cleanup_finished_workers)
 
     def _cleanup_finished_workers(self):
-        """Clean up finished worker threads."""
-        # Prevent concurrent cleanup operations
-        if self._cleanup_in_progress.is_set():
-            logger.debug("Worker cleanup already in progress, skipping")
+        """Thread-safe cleanup of finished worker threads.
+
+        This method uses proper locking and the ThreadSafeWorker state
+        management to safely clean up finished workers.
+        """
+        # Try to acquire cleanup lock without blocking
+        if not self._cleanup_lock.acquire(blocking=False):
+            logger.debug("Worker cleanup already in progress, scheduling retry")
+            # Schedule retry to ensure cleanup happens eventually
+            QTimer.singleShot(500, self._cleanup_finished_workers)
             return
 
-        self._cleanup_in_progress.set()
         try:
-            # Create a snapshot of workers to check - prevents iteration issues
+            # Get snapshot of workers to check
             with self._process_lock:
-                workers_to_check = dict(self._active_workers)
+                workers_to_check = list(self._active_workers.items())
 
-            # Second pass: check workers outside the lock to avoid blocking
             finished_workers = []
-            for worker_key, worker in workers_to_check.items():
+
+            for worker_key, worker in workers_to_check:
                 try:
-                    # Check if worker is finished
-                    if worker.isFinished():
+                    # Use ThreadSafeWorker state management
+                    state = worker.get_state()
+
+                    if state in ["STOPPED", "DELETED"]:
+                        # Worker finished normally
                         finished_workers.append(worker_key)
-                        # Ensure worker is properly cleaned up
-                        if not worker.wait(100):  # Wait up to 100ms
-                            logger.warning(
-                                f"Worker {worker_key} didn't finish cleanly, terminating"
-                            )
-                            worker.terminate()
-                            worker.wait(500)  # Give it more time after termination
 
-                        # Disconnect signals to prevent memory leaks
-                        try:
-                            worker.command_started.disconnect()
-                            # command_output removed - all apps use DEVNULL
-                            worker.command_finished.disconnect()
-                            worker.command_error.disconnect()
-                        except (RuntimeError, TypeError):
-                            # Signals might already be disconnected
-                            pass
+                        # Disconnect signals using thread-safe method
+                        worker.disconnect_all()
 
-                        # Schedule worker for deletion
+                        # Schedule for deletion
                         worker.deleteLater()
-                    elif not worker.isRunning():
-                        # Worker is not running but not finished - might be stuck
-                        logger.warning(
-                            f"Worker {worker_key} is not running but not finished, cleaning up"
+                        logger.debug(
+                            f"Cleaned up finished worker {worker_key} (state: {state})"
                         )
+
+                    elif state == "CREATED" and not worker.isRunning():
+                        # Worker never started - clean it up
                         finished_workers.append(worker_key)
-                        worker.stop()
-                        if not worker.wait(500):
-                            worker.terminate()
-                            worker.wait()
                         worker.deleteLater()
+                        logger.debug(f"Cleaned up unstarted worker {worker_key}")
+
+                    elif state == "RUNNING" and not worker.isRunning():
+                        # Worker is stuck - request stop
+                        logger.warning(
+                            f"Worker {worker_key} stuck in RUNNING but thread not running"
+                        )
+                        if worker.request_stop():
+                            if not worker.safe_wait(1000):
+                                worker.safe_terminate()
+                        finished_workers.append(worker_key)
+                        worker.deleteLater()
+
+                    elif state == "STOPPING":
+                        # Worker is stopping - give it more time
+                        if not worker.safe_wait(500):
+                            # Still not stopped - force terminate
+                            logger.warning(
+                                f"Force terminating stuck worker {worker_key}"
+                            )
+                            worker.safe_terminate()
+                            finished_workers.append(worker_key)
+                            worker.deleteLater()
+
                 except Exception as e:
                     logger.error(f"Error checking worker {worker_key}: {e}")
                     # Mark for cleanup anyway to prevent accumulation
                     finished_workers.append(worker_key)
+                    try:
+                        worker.safe_terminate()
+                        worker.deleteLater()
+                    except Exception:
+                        pass  # Best effort cleanup
 
-            # Third pass: remove finished workers with lock held
+            # Remove finished workers atomically
             if finished_workers:
                 with self._process_lock:
                     for key in finished_workers:
-                        if key in self._active_workers:
-                            del self._active_workers[key]
-                    logger.debug(f"Cleaned up {len(finished_workers)} finished workers")
+                        self._active_workers.pop(key, None)
+
+                logger.debug(f"Cleaned up {len(finished_workers)} finished workers")
+
         finally:
-            self._cleanup_in_progress.clear()
+            self._cleanup_lock.release()
 
     def stop_all_workers(self) -> None:
-        """Stop all active worker threads."""
+        """Stop all active worker threads using thread-safe methods."""
         # Get snapshot of workers to stop
-        workers_to_stop = {}
         with self._process_lock:
             workers_to_stop = dict(self._active_workers)
 
         # Stop workers outside the lock to avoid blocking
-        for worker in workers_to_stop.values():
-            if not worker.isFinished():
-                worker.stop()
-                if not worker.wait(1000):  # Wait up to 1 second
-                    worker.terminate()
-                    worker.wait()
+        for worker_key, worker in workers_to_stop.items():
+            try:
+                state = worker.get_state()
+                if state not in ["STOPPED", "DELETED"]:
+                    logger.debug(f"Stopping worker {worker_key} (state: {state})")
+                    if worker.request_stop():
+                        if not worker.safe_wait(1000):
+                            logger.warning(
+                                f"Worker {worker_key} didn't stop gracefully, terminating"
+                            )
+                            worker.safe_terminate()
+            except Exception as e:
+                logger.error(f"Error stopping worker {worker_key}: {e}")
 
         # Clear the dictionary with lock held
         with self._process_lock:

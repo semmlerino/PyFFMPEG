@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from config import Config
 from utils import VersionUtils
@@ -56,7 +56,7 @@ class UndistortionFinder:
 
         # Search for undistortion files in any plate directory (FG01, BG01, BC01, etc.)
         # Check all directories in scene path that match plate patterns
-        found_files = []
+        found_files: List[Tuple[Path, str, str]] = []
 
         if scene_path.exists():
             for potential_plate in scene_path.iterdir():
@@ -100,7 +100,7 @@ class UndistortionFinder:
             return None
 
         # Sort by version (newest first) and plate preference (FG > BG > BC)
-        def sort_key(item):
+        def sort_key(item: Tuple[Path, str, str]) -> Tuple[int, int]:
             file_path, version, plate = item
             # Extract version number for sorting (v001 or V001 -> 1)
             version_lower = version.lower()

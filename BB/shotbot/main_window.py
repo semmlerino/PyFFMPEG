@@ -14,7 +14,7 @@ The MainWindow follows a tabbed interface design with:
 Key Features:
     - Real-time shot data refresh with caching
     - Background 3DE scene discovery with progress reporting
-    - Thread-safe custom launcher management
+    - Thread-safe custom launcher management with race condition protection
     - Persistent UI state and settings storage
     - Memory-optimized thumbnail loading and caching
     - Cross-platform file system operations
@@ -22,7 +22,8 @@ Key Features:
 Architecture:
     The MainWindow uses Qt's signal-slot mechanism for loose coupling between
     components. It maintains a single CacheManager instance shared across all
-    thumbnail widgets and data models for memory efficiency.
+    thumbnail widgets and data models for memory efficiency. Thread safety is
+    ensured through proper mutex usage and state management.
 
 Examples:
     Basic usage:
@@ -49,7 +50,7 @@ import json
 import logging
 from typing import Any, Optional
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -74,9 +75,9 @@ from config import Config
 from launcher_dialog import LauncherManagerDialog
 from launcher_manager import LauncherManager
 from log_viewer import LogViewer
-from shot_grid import ShotGrid
-from shot_grid_optimized import ShotGridOptimized
+from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
+from shot_item_model import ShotItemModel  # Model/View data model
 from shot_model import Shot, ShotModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 from threede_scene_worker import ThreeDESceneWorker
@@ -94,11 +95,10 @@ class MainWindow(QMainWindow):
         # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager()
 
-        # Configure thumbnail widgets to use our cache manager
+        # Configure 3DE thumbnail widgets to use our cache manager
+        # TODO: Convert threede_shot_grid to Model/View architecture
         from threede_thumbnail_widget import ThreeDEThumbnailWidget
-        from thumbnail_widget import ThumbnailWidget
 
-        ThumbnailWidget.set_cache_manager(self.cache_manager)
         ThreeDEThumbnailWidget.set_cache_manager(self.cache_manager)
 
         # Pass to models
@@ -108,6 +108,8 @@ class MainWindow(QMainWindow):
         self.launcher_manager = LauncherManager()
         self._current_scene: Optional[ThreeDEScene] = None
         self._threede_worker: Optional[ThreeDESceneWorker] = None
+        self._worker_mutex = QMutex()  # Protect worker access
+        self._closing = False  # Track shutdown state
         self._launcher_dialog: Optional[LauncherManagerDialog] = None
         self._setup_ui()
         self._setup_menu()
@@ -144,11 +146,10 @@ class MainWindow(QMainWindow):
         self.splitter.addWidget(self.tab_widget)
 
         # Tab 1: My Shots
-        # Use optimized grid if enabled in config
-        if Config.USE_MEMORY_OPTIMIZED_GRID:
-            self.shot_grid = ShotGridOptimized(self.shot_model)
-        else:
-            self.shot_grid = ShotGrid(self.shot_model)
+        # Always use Model/View architecture for maximum efficiency
+        self.shot_item_model = ShotItemModel(cache_manager=self.cache_manager)
+        self.shot_item_model.set_shots(self.shot_model.shots)
+        self.shot_grid = ShotGridView(model=self.shot_item_model)
         self.tab_widget.addTab(self.shot_grid, "My Shots")
 
         # Tab 2: Other 3DE scenes
@@ -206,7 +207,7 @@ class MainWindow(QMainWindow):
         for app_name, command in Config.APPS.items():
             button = QPushButton(app_name.upper())
             button.setObjectName("builtInLauncherButton")
-            button.clicked.connect(lambda checked, app=app_name: self._launch_app(app))
+            button.clicked.connect(lambda checked: self._launch_app(app_name))
             button.setEnabled(False)  # Disabled until shot selected
 
             # Add tooltip with keyboard shortcut
@@ -386,7 +387,7 @@ class MainWindow(QMainWindow):
         """Initial shot loading."""
         # First, show cached shots immediately if available
         if self.shot_model.shots:
-            self.shot_grid.refresh_shots()
+            self._refresh_shot_display()
             self._update_status(
                 f"Loaded {len(self.shot_model.shots)} shots (from cache)"
             )
@@ -395,7 +396,7 @@ class MainWindow(QMainWindow):
             if hasattr(self, "_last_selected_shot_name"):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
-                    self.shot_grid.select_shot(shot)
+                    self.shot_grid.select_shot_by_name(shot.full_name)
 
         # Also show cached 3DE scenes immediately if available
         if self.threede_scene_model.scenes:
@@ -415,7 +416,7 @@ class MainWindow(QMainWindow):
 
         if success:
             if has_changes:
-                self.shot_grid.refresh_shots()
+                self._refresh_shot_display()
                 self._update_status(f"Loaded {len(self.shot_model.shots)} shots")
             else:
                 self._update_status(f"{len(self.shot_model.shots)} shots (no changes)")
@@ -424,7 +425,7 @@ class MainWindow(QMainWindow):
             if hasattr(self, "_last_selected_shot_name"):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
-                    self.shot_grid.select_shot(shot)
+                    self.shot_grid.select_shot_by_name(shot.full_name)
 
             # Also refresh 3DE scenes
             self._refresh_threede_scenes()
@@ -437,42 +438,96 @@ class MainWindow(QMainWindow):
             )
 
     def _refresh_threede_scenes(self):
-        """Refresh 3DE scene list using enhanced background worker."""
-        # Check if worker is already running
-        if self._threede_worker and not self._threede_worker.isFinished():
-            # Stop the existing worker properly before returning
-            logger.debug("Stopping existing 3DE worker before starting new one")
-            self._threede_worker.stop()
-            if not self._threede_worker.wait(1000):  # Wait up to 1 second
-                logger.warning("Failed to stop 3DE worker gracefully, terminating")
-                self._threede_worker.terminate()
-                self._threede_worker.wait()
-            self._update_status("Restarting 3DE scene discovery...")
-            # Continue to create new worker below
+        """Thread-safe refresh of 3DE scene list using background worker."""
+        with QMutexLocker(self._worker_mutex):
+            # Don't start new work during shutdown
+            if self._closing:
+                logger.debug("Ignoring refresh request during shutdown")
+                return
 
-        # Show loading state
-        self.threede_shot_grid.set_loading(True)
-        self._update_status("Starting enhanced 3DE scene discovery...")
+            # Check existing worker state
+            if self._threede_worker:
+                # Check if worker is still active
+                if not self._threede_worker.isFinished():
+                    logger.debug(
+                        "3DE worker still running, stopping before starting new one"
+                    )
+                    self._threede_worker.stop()
+                    # Release mutex while waiting to avoid deadlock
+                    self._worker_mutex.unlock()
+                    try:
+                        if not self._threede_worker.wait(1000):  # Wait up to 1 second
+                            logger.warning(
+                                "Failed to stop 3DE worker gracefully, using safe termination"
+                            )
+                            # Use safe_terminate which avoids dangerous terminate() call
+                            self._threede_worker.safe_terminate()
+                    finally:
+                        self._worker_mutex.lock()  # Re-acquire mutex
 
-        # Create enhanced worker with progressive scanning enabled
-        self._threede_worker = ThreeDESceneWorker(
-            shots=self.shot_model.shots,
-            enable_progressive=True,  # Enable progressive scanning for better UI responsiveness
-            batch_size=None,  # Use config default
-        )
+                    # Check again if we're closing (could have changed while waiting)
+                    if self._closing:
+                        return
 
-        # Connect enhanced worker signals
-        self._threede_worker.started.connect(self._on_threede_discovery_started)
-        self._threede_worker.batch_ready.connect(self._on_threede_batch_ready)
-        self._threede_worker.progress.connect(self._on_threede_discovery_progress)
-        self._threede_worker.scan_progress.connect(self._on_threede_scan_progress)
-        self._threede_worker.finished.connect(self._on_threede_discovery_finished)
-        self._threede_worker.error.connect(self._on_threede_discovery_error)
-        self._threede_worker.paused.connect(self._on_threede_discovery_paused)
-        self._threede_worker.resumed.connect(self._on_threede_discovery_resumed)
+                # Clean up old worker
+                self._threede_worker.deleteLater()
+                self._threede_worker = None
 
-        # Start the worker
-        self._threede_worker.start()
+            # Show loading state
+            self.threede_shot_grid.set_loading(True)
+            self._update_status("Starting enhanced 3DE scene discovery...")
+
+            # Create enhanced worker with progressive scanning enabled
+            self._threede_worker = ThreeDESceneWorker(
+                shots=self.shot_model.shots,
+                enable_progressive=True,  # Enable progressive scanning for better UI responsiveness
+                batch_size=None,  # Use config default
+            )
+
+            # Connect enhanced worker signals using safe_connect method for proper cleanup
+            self._threede_worker.safe_connect(
+                self._threede_worker.started,
+                self._on_threede_discovery_started,
+                Qt.ConnectionType.QueuedConnection,
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.batch_ready,
+                self._on_threede_batch_ready,
+                Qt.ConnectionType.QueuedConnection,
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.progress,
+                self._on_threede_discovery_progress,
+                Qt.ConnectionType.QueuedConnection,
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.scan_progress,
+                self._on_threede_scan_progress,
+                Qt.ConnectionType.QueuedConnection,
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.finished,
+                self._on_threede_discovery_finished,
+                Qt.ConnectionType.QueuedConnection,
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.error,
+                self._on_threede_discovery_error,
+                Qt.ConnectionType.QueuedConnection,
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.paused,
+                self._on_threede_discovery_paused,
+                Qt.ConnectionType.QueuedConnection,
+            )
+            self._threede_worker.safe_connect(
+                self._threede_worker.resumed,
+                self._on_threede_discovery_resumed,
+                Qt.ConnectionType.QueuedConnection,
+            )
+
+            # Start the worker
+            self._threede_worker.start()
 
     def _on_threede_discovery_started(self):
         """Handle 3DE discovery worker started signal."""
@@ -530,9 +585,12 @@ class MainWindow(QMainWindow):
             self.threede_scene_model.scenes.sort(key=lambda s: (s.full_name, s.user))
 
             # ALWAYS cache results, even if empty, to avoid re-scanning
-            self.threede_scene_model.cache_manager.cache_threede_scenes(
-                self.threede_scene_model.to_dict()
-            )
+            try:
+                self.threede_scene_model.cache_manager.cache_threede_scenes(
+                    self.threede_scene_model.to_dict()
+                )
+            except Exception as e:
+                logger.warning(f"Failed to cache 3DE scenes after scan: {e}")
 
             # Update UI
             self.threede_shot_grid.refresh_scenes()
@@ -546,9 +604,12 @@ class MainWindow(QMainWindow):
         else:
             # No changes, but still cache the current state to refresh TTL
             # This ensures cache persists across restarts
-            self.threede_scene_model.cache_manager.cache_threede_scenes(
-                self.threede_scene_model.to_dict()
-            )
+            try:
+                self.threede_scene_model.cache_manager.cache_threede_scenes(
+                    self.threede_scene_model.to_dict()
+                )
+            except Exception as e:
+                logger.warning(f"Failed to refresh 3DE scene cache TTL: {e}")
 
             # Ensure UI is populated if this is the first load
             # (scenes might have been loaded from cache but UI not yet updated)
@@ -628,7 +689,7 @@ class MainWindow(QMainWindow):
 
         if success and has_changes:
             # Only update UI if there were actual changes
-            self.shot_grid.refresh_shots()
+            self._refresh_shot_display()
             self._update_status(
                 f"Updated: {len(self.shot_model.shots)} shots (new changes)"
             )
@@ -637,7 +698,7 @@ class MainWindow(QMainWindow):
             if current_shot_name:
                 shot = self.shot_model.find_shot_by_name(current_shot_name)
                 if shot:
-                    self.shot_grid.select_shot(shot)
+                    self.shot_grid.select_shot_by_name(shot.full_name)
 
         # Also refresh 3DE scenes if shots were successful
         if success:
@@ -646,6 +707,12 @@ class MainWindow(QMainWindow):
             )
             if scene_success and scene_changes:
                 self.threede_shot_grid.refresh_scenes()
+
+    def _refresh_shot_display(self):
+        """Refresh the shot display using Model/View implementation."""
+        # Always use Model/View implementation
+        if hasattr(self, "shot_item_model"):
+            self.shot_item_model.set_shots(self.shot_model.shots)
 
     def _on_shot_selected(self, shot: Shot):
         """Handle shot selection."""
@@ -1225,27 +1292,57 @@ class MainWindow(QMainWindow):
             button.setEnabled(enabled)
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        """Handle close event."""
+        """Thread-safe close event handler.
+
+        Ensures proper cleanup without double termination of workers.
+        """
         # Stop the background refresh timer first to prevent it firing on closed window
         if hasattr(self, "refresh_timer") and self.refresh_timer:
             self.refresh_timer.stop()
+        if hasattr(self, "_refresh_timer") and self._refresh_timer:
+            self._refresh_timer.stop()
 
-        # Stop and cleanup worker if running
-        if self._threede_worker:
-            # Check if it's a real worker (not a Mock in tests)
-            # Use isinstance check for better type safety
-            from threede_scene_worker import ThreeDESceneWorker
+        # Mark that we're closing to prevent new operations
+        with QMutexLocker(self._worker_mutex):
+            self._closing = True
 
-            if isinstance(self._threede_worker, ThreeDESceneWorker):
-                if not self._threede_worker.isFinished():
-                    self._threede_worker.stop()
-                    if not self._threede_worker.wait(3000):  # Wait up to 3 seconds
-                        self._threede_worker.terminate()
-                        self._threede_worker.wait()
+            # Stop and cleanup worker if running
+            if self._threede_worker:
+                # Check if it's a real worker (not a Mock in tests)
+                # Use isinstance check for better type safety
+                from threede_scene_worker import ThreeDESceneWorker
+
+                if isinstance(self._threede_worker, ThreeDESceneWorker):
+                    # Only stop if not already finished
+                    if not self._threede_worker.isFinished():
+                        logger.debug("Stopping 3DE worker during shutdown")
+                        self._threede_worker.stop()
+
+                        # Release mutex while waiting to avoid deadlock
+                        self._worker_mutex.unlock()
+                        try:
+                            if not self._threede_worker.wait(
+                                3000
+                            ):  # Wait up to 3 seconds
+                                logger.warning(
+                                    "3DE worker didn't stop gracefully, using safe termination"
+                                )
+                                # Use safe_terminate which avoids dangerous terminate() call
+                                self._threede_worker.safe_terminate()
+                        finally:
+                            self._worker_mutex.lock()  # Re-acquire for cleanup
+
+                    # Clean up the worker reference
+                    self._threede_worker.deleteLater()
+                    self._threede_worker = None
 
         # Shutdown launcher manager to stop all worker threads
         if hasattr(self.launcher_manager, "shutdown"):
             self.launcher_manager.shutdown()
+
+        # Shutdown cache if it exists
+        if hasattr(self, "cache_manager") and self.cache_manager:
+            self.cache_manager.shutdown()
 
         self._save_settings()
         event.accept()

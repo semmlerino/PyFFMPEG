@@ -1,3 +1,5 @@
+from tests.helpers.synchronization import simulate_work_without_sleep
+
 """Snapshot testing for ShotBot UI states and configurations.
 
 This module provides snapshot testing capabilities to detect
@@ -515,7 +517,6 @@ class TestCacheSnapshots:
 
     def test_cache_after_expiration(self, snapshot_tester):
         """Test cache state after some entries expire."""
-        import time
 
         from cache_manager import CacheManager
 
@@ -528,7 +529,7 @@ class TestCacheSnapshots:
         test_shots = [Shot("EXP", "seq01", "shot01", "/test/path")]
         cache.cache_shots(test_shots)  # This will persist normally
 
-        time.sleep(0.002)
+        simulate_work_without_sleep(2)
 
         # Capture state
         state = CacheSnapshot.capture_cache_state(cache)

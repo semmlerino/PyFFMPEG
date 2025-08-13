@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 try:
-    from hypothesis import assume, example, given, settings
+    from hypothesis import given
     from hypothesis import strategies as st
     from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, rule
 

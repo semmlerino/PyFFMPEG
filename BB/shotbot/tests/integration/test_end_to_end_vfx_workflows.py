@@ -609,7 +609,7 @@ class TestCompleteVFXWorkflows:
         )
 
         # Step 2: Use real undistortion finder
-        undist_file = UndistortionFinder.find_latest_undistortion_file(
+        undist_file = UndistortionFinder.find_latest_undistortion(
             str(shot_path), test_shot.full_name
         )
 
@@ -786,7 +786,7 @@ class TestCompleteVFXWorkflows:
 
         # Verify they're actually gone
         remaining = [launcher_manager.get_launcher(lid) for lid in created_ids]
-        assert all(l is None for l in remaining), (
+        assert all(launcher is None for launcher in remaining), (
             "Some launchers were not properly deleted"
         )
 

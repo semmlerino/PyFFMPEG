@@ -1,3 +1,5 @@
+from tests.helpers.synchronization import simulate_work_without_sleep
+
 """Progressive scanning integration tests.
 
 This module tests progressive scanning functionality with realistic datasets:
@@ -21,6 +23,7 @@ from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import QObject, Signal
+from PySide6.QtWidgets import QApplication
 
 from cache_manager import CacheManager
 from shot_model import Shot
@@ -270,7 +273,7 @@ class TestProgressiveScanningCore:
                         break
 
                     # Simulate work
-                    time.sleep(0.01)  # Small delay to simulate work
+                    simulate_work_without_sleep(10)  # Small delay to simulate work
 
                     if callback:
                         callback(i + 1, len(paths), f"Processing {path}")
@@ -289,7 +292,7 @@ class TestProgressiveScanningCore:
         scan_thread.start()
 
         # Wait briefly then cancel
-        time.sleep(0.05)  # Let it start
+        simulate_work_without_sleep(50)  # Let it start
         scanner.cancel()
 
         scan_thread.join(timeout=1.0)  # Wait for completion
@@ -336,7 +339,7 @@ class TestProgressiveScanningCore:
                         break
 
                     # Simulate work
-                    time.sleep(0.01)
+                    simulate_work_without_sleep(10)
                     results.append(f"processed_{item}")
 
                     if progress_callback:
@@ -362,14 +365,16 @@ class TestProgressiveScanningCore:
         scan_thread.start()
 
         # Let it run for a bit
-        time.sleep(0.05)
+        simulate_work_without_sleep(50)
 
         # Pause
         scanner.pause()
         pause_time = time.time()
 
-        # Wait while paused
-        time.sleep(0.1)
+        # Wait while paused using proper synchronization
+        from tests.helpers.synchronization import process_qt_events
+
+        process_qt_events(QApplication.instance(), 100)
 
         # Resume
         scanner.resume()

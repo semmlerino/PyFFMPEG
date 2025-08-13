@@ -96,10 +96,12 @@ class Config:
     # Threading
     MAX_THUMBNAIL_THREADS = 4
 
-    # Memory optimization
-    USE_MEMORY_OPTIMIZED_GRID = True  # Enable viewport-based loading
-    MAX_LOADED_THUMBNAILS = 50  # Maximum thumbnails to keep in memory
-    VIEWPORT_BUFFER_ROWS = 2  # Extra rows to load beyond viewport
+    # Memory optimization (deprecated - Model/View is always used)
+    # The Model/View architecture provides automatic memory optimization
+    # through virtualization and delegate-based rendering
+    # These are kept temporarily for backward compatibility with legacy code
+    MAX_LOADED_THUMBNAILS = 50  # DEPRECATED - will be removed
+    VIEWPORT_BUFFER_ROWS = 2  # DEPRECATED - will be removed
     THUMBNAIL_UNLOAD_DELAY_MS = 5000  # Delay before unloading invisible thumbnails
 
     # Process and command settings

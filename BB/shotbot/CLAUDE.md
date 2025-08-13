@@ -286,6 +286,32 @@ def test_shot_model(qtbot):
 - **Optimized pattern matching**: Pre-computed uppercase pattern sets for O(1) lookup
 - **Improved error handling**: Added proper exception handling for filesystem operations
 
+## Critical Fixes (2025-08-12)
+
+### Nuke Script Generator Colorspace Fix
+- **Colorspace Quoting Issue**: Fixed critical bug where colorspace values containing spaces were not properly quoted in generated Nuke scripts
+- **Root Cause**: Colorspace names like "Input - Sony - S-Gamut3.Cine - Linear" were inserted as unquoted strings (`colorspace Input - Sony - S-Gamut3.Cine - Linear`), causing Nuke to parse them as multiple arguments
+- **Solution**: Properly quote colorspace values in Read node templates (`colorspace "Input - Sony - S-Gamut3.Cine - Linear"`)
+- **VFX Pipeline Impact**: This fix is critical for production workflows using modern ACES colorspaces with complex naming conventions that include spaces and special characters
+- **Error Prevention**: Eliminates "no such knob" errors that would prevent Nuke scripts from loading correctly with auto-detected colorspaces
+
+#### Technical Details
+The fix addresses script generation in two methods:
+```python
+# Before (problematic)
+colorspace {colorspace}
+
+# After (fixed)  
+colorspace "{colorspace}"
+```
+
+This ensures that colorspace values detected from plate paths (such as ACES, Sony S-Gamut3.Cine, etc.) are properly handled as single string parameters in the generated .nk files. The fix maintains backward compatibility with simple colorspace names while enabling support for modern VFX pipeline colorspace naming conventions.
+
+#### Additional Improvements
+- **Temporary File Management**: Added automatic cleanup tracking for generated .nk files to prevent disk space leaks
+- **Security Enhancement**: Shot name sanitization to prevent path traversal attacks in temporary file creation
+- **Resource Management**: Proper file handle cleanup with exit handlers for robust temporary file management
+
 ## Type System Improvements (2025-08-08)
 
 ### Enhanced Type Safety Architecture

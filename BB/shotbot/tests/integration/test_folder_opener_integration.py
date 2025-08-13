@@ -1,8 +1,9 @@
+from tests.helpers.synchronization import wait_for_condition
+
 """Integration tests for non-blocking folder opening functionality."""
 
 import sys
 import tempfile
-import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -214,7 +215,7 @@ class TestFolderOpenerIntegration:
 
         # Simulate slow operation
         def slow_open(url):
-            time.sleep(0.5)  # Simulate network delay
+            wait_for_condition(lambda: False, timeout_ms=500)  # Simulate network delay
             return True
 
         worker = FolderOpenerWorker(temp_folder)

@@ -1,3 +1,5 @@
+from tests.helpers.synchronization import process_qt_events
+
 """Unit tests for memory management performance optimizations.
 
 These tests verify that:
@@ -9,12 +11,12 @@ These tests verify that:
 """
 
 import gc
-import time
 from typing import Dict, List
 from unittest.mock import patch
 
 import psutil
 import pytest
+from PySide6.QtWidgets import QApplication
 
 from tests.performance.timed_operation import TimingRegistry, timed_operation
 
@@ -439,7 +441,7 @@ class TestMemoryManagement:
             gc.collect()
 
             # Give GC time to clean up
-            time.sleep(0.1)
+            process_qt_events(QApplication.instance(), 100)
             gc.collect()
 
             final_memory = memory_tracker.measure()

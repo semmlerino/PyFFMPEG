@@ -17,12 +17,10 @@ Compare with original test_threede_scene_finder.py which has:
 
 import os
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from threede_scene_finder import ThreeDESceneFinder
-from threede_scene_model import ThreeDEScene
 
 
 class TestThreeDESceneFinderRefactored:

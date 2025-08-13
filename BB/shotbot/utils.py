@@ -23,7 +23,7 @@ def clear_all_caches():
     """Clear all utility caches - useful for testing or debugging."""
     global _path_cache
     _path_cache.clear()
-    VersionUtils._version_cache.clear()
+    VersionUtils.clear_version_cache()
     # Clear lru_cache decorated functions
     VersionUtils.extract_version_from_path.cache_clear()
     logger.info("Cleared all utility caches")
@@ -33,7 +33,7 @@ def get_cache_stats() -> Dict[str, Any]:
     """Get statistics about current cache usage."""
     stats: Dict[str, Any] = {
         "path_cache_size": len(_path_cache),
-        "version_cache_size": len(VersionUtils._version_cache),
+        "version_cache_size": VersionUtils.get_version_cache_size(),
         "extract_version_cache_info": VersionUtils.extract_version_from_path.cache_info(),
     }
     return stats
@@ -302,6 +302,16 @@ class VersionUtils:
     # Cache for version directory listings
     _version_cache: Dict[str, Tuple[List[Tuple[int, str]], float]] = {}
 
+    @classmethod
+    def clear_version_cache(cls) -> None:
+        """Clear the version cache."""
+        cls._version_cache.clear()
+
+    @classmethod
+    def get_version_cache_size(cls) -> int:
+        """Get the size of the version cache."""
+        return len(cls._version_cache)
+
     @staticmethod
     @timed_operation("find_version_directories", log_threshold_ms=20)
     def find_version_directories(base_path: Union[str, Path]) -> List[Tuple[int, str]]:
@@ -371,7 +381,7 @@ class VersionUtils:
         )
 
         # Keep the most recent 250 entries
-        VersionUtils._version_cache.clear()
+        VersionUtils.clear_version_cache()
         for key, value in sorted_items[:250]:
             VersionUtils._version_cache[key] = value
 

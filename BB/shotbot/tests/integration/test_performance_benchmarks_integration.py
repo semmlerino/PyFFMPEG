@@ -293,11 +293,30 @@ class TestPerformanceBenchmarks:
                 qapp.processEvents()
             batch_creation_time = time.time() - start_time
 
-            # Allow time for background loading
-            time.sleep(1.0)
-            for _ in range(100):
-                qapp.processEvents()
-                time.sleep(0.01)
+            # Allow time for background loading using proper synchronization
+            # Wait for all thumbnails to load (check if loading indicators are gone)
+            from tests.helpers.synchronization import (
+                process_qt_events,
+                wait_for_condition,
+            )
+
+            def all_thumbnails_loaded():
+                for widget in widgets:
+                    if (
+                        hasattr(widget, "loading_indicator")
+                        and widget.loading_indicator.isVisible()
+                    ):
+                        return False
+                return True
+
+            # Wait up to 2 seconds for thumbnails to load, processing events
+            loaded = wait_for_condition(
+                all_thumbnails_loaded, timeout_ms=2000, poll_interval_ms=50
+            )
+            if not loaded:
+                # Fallback: just process events for a bit
+                for _ in range(20):
+                    process_qt_events(qapp, 50)
 
             batch_total_time = time.time() - start_time
 
@@ -783,8 +802,10 @@ class TestStressTestsIntegration:
                     # Simulate 3DE scene processing
                     ThreeDESceneModel(temp_cache, load_cache=False)
 
-                    # Brief pause to allow UI events
-                    time.sleep(0.01)
+                    # Brief pause to allow UI events using proper Qt event processing
+                    from tests.helpers.synchronization import process_qt_events
+
+                    process_qt_events(qapp, 10)
 
                 heavy_work_complete.set()
 
@@ -805,7 +826,10 @@ class TestStressTestsIntegration:
                 response_time = time.time() - start_time
                 ui_response_times.append(response_time)
 
-                time.sleep(0.1)  # 100ms between interactions
+                # 100ms between interactions using Qt event processing
+                from tests.helpers.synchronization import process_qt_events
+
+                process_qt_events(qapp, 100)
 
                 if heavy_work_complete.is_set():
                     break

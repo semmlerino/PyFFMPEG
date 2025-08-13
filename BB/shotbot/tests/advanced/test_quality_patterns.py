@@ -1,3 +1,5 @@
+from tests.helpers.synchronization import simulate_work_without_sleep
+
 """Test quality improvement patterns for ShotBot.
 
 This module provides test data factories, builders, and patterns
@@ -15,6 +17,12 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QWidget
+
+# Import classes for type annotations
+from cache_manager import CacheManager
+from launcher_manager import CustomLauncher
+from shot_model import ShotModel
+from threede_scene_model import ThreeDEScene
 
 T = TypeVar("T")
 
@@ -114,7 +122,7 @@ class ThreeDESceneFactory(Factory):
         file_size: Optional[int] = None,
         modified_time: Optional[float] = None,
         **kwargs,
-    ) -> "ThreeDEScene":
+    ) -> ThreeDEScene:
         """Create a test 3DE scene.
 
         Returns:
@@ -169,7 +177,7 @@ class LauncherFactory(Factory):
         command: Optional[str] = None,
         icon: Optional[str] = None,
         **kwargs,
-    ) -> "CustomLauncher":
+    ) -> CustomLauncher:
         """Create a test launcher configuration.
 
         Returns:
@@ -280,7 +288,7 @@ class ShotModelBuilder(Builder):
         self._mock_ws_output = output
         return self
 
-    def build(self) -> "ShotModel":
+    def build(self) -> ShotModel:
         """Build the configured ShotModel.
 
         Returns:
@@ -361,13 +369,12 @@ class CacheBuilder(Builder):
         self._entries[key] = (value, 0.001)
         return self
 
-    def build(self) -> "CacheManager":
+    def build(self) -> CacheManager:
         """Build the configured cache.
 
         Returns:
             Configured CacheManager instance
         """
-        import time
 
         from cache_manager import CacheManager
 
@@ -383,7 +390,7 @@ class CacheBuilder(Builder):
 
             # If entry should be expired, wait
             if ttl <= 0.001:
-                time.sleep(0.002)
+                simulate_work_without_sleep(2)
 
         return cache
 

@@ -5,7 +5,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 
 class NukeScriptGenerator:
@@ -17,17 +17,17 @@ class NukeScriptGenerator:
 
     # Track all temporary files created for cleanup
     _temp_files: Set[str] = set()
-    _cleanup_registered = False
+    _cleanup_registered: bool = False
 
     @classmethod
-    def _register_cleanup(cls):
+    def _register_cleanup(cls) -> None:
         """Register cleanup function to run at program exit."""
         if not cls._cleanup_registered:
             atexit.register(cls._cleanup_temp_files)
             cls._cleanup_registered = True
 
     @classmethod
-    def _cleanup_temp_files(cls):
+    def _cleanup_temp_files(cls) -> None:
         """Clean up all temporary files created during session."""
         for temp_file in cls._temp_files:
             try:
@@ -77,7 +77,7 @@ class NukeScriptGenerator:
             pattern = base_name.replace("####", r"(\d{4})").replace("%04d", r"(\d{4})")
             frame_regex = re.compile(pattern)
 
-            frame_numbers = []
+            frame_numbers: List[int] = []
             for file in plate_dir.iterdir():
                 match = frame_regex.match(file.name)
                 if match:
@@ -164,9 +164,7 @@ class NukeScriptGenerator:
         """
         try:
             # Sanitize shot_name to prevent path traversal
-            import re
-
-            safe_shot_name = re.sub(r"[^\w\-_.]", "_", shot_name)
+            safe_shot_name = re.sub(r"[^\w\-_]", "_", shot_name)
 
             # Convert path for Nuke
             nuke_path = NukeScriptGenerator._escape_path(plate_path)
@@ -312,7 +310,7 @@ Viewer {{
                 content = f.read()
 
             # Parse nodes from the file
-            imported_nodes = []
+            imported_nodes: List[str] = []
             lines = content.split("\n")
             i = 0
 
@@ -424,9 +422,7 @@ Viewer {{
         """
         try:
             # Sanitize shot_name to prevent path traversal
-            import re
-
-            safe_shot_name = re.sub(r"[^\w\-_.]", "_", shot_name)
+            safe_shot_name = re.sub(r"[^\w\-_]", "_", shot_name)
 
             # Handle empty or None paths
             plate_path = plate_path or ""
@@ -528,6 +524,14 @@ Read {{
                     undistortion_path, ypos_offset=-200
                 )
                 if imported_nodes:
+                    # Fix the first node to connect to Read_Plate (if it exists)
+                    # and ensure proper chaining
+                    if plate_path and nuke_plate_path:
+                        # Connect first undistortion node to Read_Plate
+                        imported_nodes = imported_nodes.replace(
+                            "inputs 0", "inputs 1", 1
+                        )
+
                     script_content += imported_nodes
                     script_content += f"""
 # Reference to original undistortion file

@@ -23,6 +23,7 @@ from PySide6.QtGui import (
     QContextMenuEvent,
     QDesktopServices,
     QFont,
+    QImage,
     QMouseEvent,
     QPainter,
     QPixmap,
@@ -157,17 +158,21 @@ class BaseThumbnailLoader(QRunnable):
         self.signals = self.Signals()
 
     def run(self):
-        """Load the thumbnail with memory bounds checking and proper error handling."""
+        """Load the thumbnail with memory bounds checking and proper error handling.
+
+        Uses QImage for thread safety - QPixmap can only be used in the main GUI thread.
+        """
         if not self.path or not self.path.exists():
             logger.warning(f"Thumbnail path does not exist: {self.path}")
             self.signals.failed.emit(self.widget)
             return
 
+        image = None
         pixmap = None
         try:
-            # Load the image
-            pixmap = QPixmap(str(self.path))
-            if pixmap.isNull():
+            # Load the image using QImage (thread-safe)
+            image = QImage(str(self.path))
+            if image.isNull():
                 logger.debug(f"Failed to load thumbnail image: {self.path}")
                 self.signals.failed.emit(self.widget)
                 return
@@ -175,11 +180,13 @@ class BaseThumbnailLoader(QRunnable):
             # Use utility for memory bounds checking
             from utils import ImageUtils
 
-            if not ImageUtils.validate_image_dimensions(
-                pixmap.width(), pixmap.height()
-            ):
+            if not ImageUtils.validate_image_dimensions(image.width(), image.height()):
                 self.signals.failed.emit(self.widget)
                 return
+
+            # Convert to QPixmap for GUI display
+            # This conversion is safe because the signal will be processed in the main thread
+            pixmap = QPixmap.fromImage(image)
 
             # Success - emit the loaded signal
             self.signals.loaded.emit(self.widget, pixmap)
@@ -202,7 +209,10 @@ class BaseThumbnailLoader(QRunnable):
             self.signals.failed.emit(self.widget)
         finally:
             # Clean up Qt objects
-            del pixmap
+            if image is not None:
+                del image
+            if pixmap is not None:
+                del pixmap
 
 
 class ThumbnailWidgetBase(QFrame):
