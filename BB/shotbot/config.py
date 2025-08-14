@@ -57,7 +57,7 @@ class Config:
 
     # App info
     APP_NAME = "ShotBot"
-    APP_VERSION = "1.0.0"
+    APP_VERSION = "1.0.1"  # Updated for fixed filename encoding
 
     # Window settings
     DEFAULT_WINDOW_WIDTH = 1200
