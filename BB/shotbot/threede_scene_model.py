@@ -149,7 +149,7 @@ class ThreeDESceneModel:
                     if had_scenes:
                         self.scenes = []  # Clear scenes since none exist
                     # Cache the "no scenes" result with metadata
-                    self.cache_manager.cache_threede_scenes([], {
+                    self.cache_manager.cache_threede_scenes([], metadata={  # type: ignore[call-arg]
                         "scan_type": "quick_check",
                         "result": "no_files_found",
                         "paths_checked": len(base_paths)

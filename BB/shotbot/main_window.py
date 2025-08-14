@@ -410,7 +410,7 @@ class MainWindow(QMainWindow):
         if has_cached_shots and has_cached_scenes:
             self._update_status(
                 f"Loaded {len(self.shot_model.shots)} shots and "
-                f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
+                + f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
             )
         elif has_cached_shots:
             self._update_status(
@@ -430,7 +430,7 @@ class MainWindow(QMainWindow):
         # This avoids unnecessary scans when we already know there are no scenes
         if has_cached_shots:
             # Check if we have a valid cache (including valid empty results)
-            if not self.cache_manager.has_valid_threede_cache():
+            if not self.cache_manager.has_valid_threede_cache():  # type: ignore[attr-defined]
                 logger.info("3DE cache invalid/expired - starting discovery")
                 QTimer.singleShot(100, self._refresh_threede_scenes)
             else:
@@ -608,7 +608,7 @@ class MainWindow(QMainWindow):
         if has_changes:
             # Update the model with new scenes (deduplication happens in model)
             self.threede_scene_model.scenes = (
-                self.threede_scene_model._deduplicate_scenes_by_shot(scenes)
+                self.threede_scene_model._deduplicate_scenes_by_shot(scenes)  # type: ignore[private-usage]
             )
             # Sort deduplicated scenes
             self.threede_scene_model.scenes.sort(key=lambda s: (s.full_name, s.user))
@@ -1340,7 +1340,7 @@ class MainWindow(QMainWindow):
             self.launcher_manager.shutdown()
 
         # Shutdown cache manager
-        self.cache_manager.shutdown()
+        self.cache_manager.shutdown()  # type: ignore[attr-defined]
 
         self._save_settings()
         event.accept()

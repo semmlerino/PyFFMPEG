@@ -488,7 +488,7 @@ class CacheManager(QObject):
                 scene_count = len(data.get("scenes", []))
                 logger.debug(
                     f"3DE cache is valid (age: {age.total_seconds()/60:.1f} min, "
-                    f"scenes: {scene_count})"
+                    + f"scenes: {scene_count})"
                 )
             
             return is_valid

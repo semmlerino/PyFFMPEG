@@ -4,7 +4,6 @@
 import os
 import shutil
 import sys
-import time
 from pathlib import Path
 
 # Add the current directory to the Python path
@@ -12,7 +11,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from cache_manager import CacheManager
 from shot_model import ShotModel
-from config import Config
 
 
 def test_empty_cache_startup():
@@ -26,7 +24,7 @@ def test_empty_cache_startup():
     # Clean up any existing test cache
     if test_cache_dir.exists():
         shutil.rmtree(test_cache_dir.parent)
-        print(f"✓ Cleaned up existing test cache")
+        print("✓ Cleaned up existing test cache")
     
     # Create cache manager with test directory
     cache_manager = CacheManager(cache_dir=test_cache_dir)
@@ -38,17 +36,17 @@ def test_empty_cache_startup():
     
     assert cached_shots is None, "Cache should be empty for shots"
     assert cached_scenes is None, "Cache should be empty for 3DE scenes"
-    print(f"✓ Verified cache is empty")
+    print("✓ Verified cache is empty")
     
     # Create shot model with empty cache
     shot_model = ShotModel(cache_manager=cache_manager, load_cache=True)
     
     # Verify no shots loaded from cache
     assert len(shot_model.shots) == 0, "Should have no shots from empty cache"
-    print(f"✓ Shot model initialized with 0 shots (expected)")
+    print("✓ Shot model initialized with 0 shots (expected)")
     
     # Now trigger a refresh (simulating what _initial_load should do)
-    print(f"\nFetching fresh shots...")
+    print("\nFetching fresh shots...")
     success, has_changes = shot_model.refresh_shots()
     
     if success:
@@ -59,15 +57,15 @@ def test_empty_cache_startup():
         if cached_shots:
             print(f"✓ Shots are now cached ({len(cached_shots)} shots)")
         else:
-            print(f"✗ Shots were not cached after fetch")
+            print("✗ Shots were not cached after fetch")
     else:
-        print(f"✗ Failed to fetch shots")
-        print(f"  Note: This might be expected if 'ws -sg' is not available")
+        print("✗ Failed to fetch shots")
+        print("  Note: This might be expected if 'ws -sg' is not available")
     
     # Clean up test cache
     if test_cache_dir.exists():
         shutil.rmtree(test_cache_dir.parent)
-        print(f"\n✓ Cleaned up test cache")
+        print("\n✓ Cleaned up test cache")
     
     print("\n=== Test Complete ===\n")
     
