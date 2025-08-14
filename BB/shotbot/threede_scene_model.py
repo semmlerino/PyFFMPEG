@@ -47,7 +47,10 @@ class ThreeDEScene:
     def get_thumbnail_path(self) -> Optional[Path]:
         """Get first available thumbnail or None.
 
-        Tries editorial directory first, then falls back to turnover plates.
+        Tries three fallback options:
+        1. Editorial directory thumbnails
+        2. Turnover plate thumbnails
+        3. Any EXR file containing '1001' in publish folder
         """
         # Try editorial thumbnail first
         if PathUtils.validate_path_exists(self.thumbnail_dir, "Thumbnail directory"):
@@ -57,7 +60,14 @@ class ThreeDEScene:
                 return thumbnail
 
         # Fall back to turnover plate thumbnails
-        return PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
+        thumbnail = PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
+        )
+        if thumbnail:
+            return thumbnail
+
+        # Third fallback: any EXR with 1001 in publish folder
+        return PathUtils.find_any_publish_thumbnail(  # type: ignore[attr-defined]
             Config.SHOWS_ROOT, self.show, self.sequence, self.shot
         )
 

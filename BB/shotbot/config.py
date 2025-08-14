@@ -57,7 +57,7 @@ class Config:
 
     # App info
     APP_NAME = "ShotBot"
-    APP_VERSION = "1.0.1"  # Updated for fixed filename encoding
+    APP_VERSION = "1.0.2"  # Added third thumbnail fallback for EXR files
 
     # Window settings
     DEFAULT_WINDOW_WIDTH = 1200

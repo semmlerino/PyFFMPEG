@@ -368,6 +368,84 @@ class PathUtils:
             return False
 
     @staticmethod
+    def find_any_publish_thumbnail(
+        shows_root: str, show: str, sequence: str, shot: str, max_depth: int = 5
+    ) -> Optional[Path]:
+        """Find any EXR file containing '1001' in the publish folder as a third fallback.
+
+        Searches recursively in the publish folder for any .exr file that contains
+        "1001" in the filename, up to a specified depth for performance.
+
+        Args:
+            shows_root: Root shows directory
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
+            max_depth: Maximum search depth to prevent deep recursion (default: 5)
+
+        Returns:
+            Path to first suitable .exr file found, or None if not found
+        """
+        # Build base path to publish directory
+        shot_dir = f"{sequence}_{shot}"
+        publish_path = PathUtils.build_path(
+            shows_root,
+            show,
+            "shots",
+            sequence,
+            shot_dir,
+            "publish",
+        )
+
+        if not PathUtils.validate_path_exists(publish_path, "Publish directory"):
+            return None
+
+        # Recursive search with depth limit for efficiency
+        def _search_directory(
+            directory: Path, current_depth: int = 0
+        ) -> Optional[Path]:
+            """Recursively search directory for 1001 EXR files."""
+            if current_depth > max_depth:
+                return None
+
+            try:
+                # First check for .exr files with 1001 in current directory
+                for file_path in directory.iterdir():
+                    if file_path.is_file():
+                        if (
+                            file_path.suffix.lower() == ".exr"
+                            and "1001" in file_path.name
+                        ):
+                            logger.info(
+                                f"Found publish EXR thumbnail: {file_path.name}"
+                            )
+                            return file_path
+
+                # Then recurse into subdirectories
+                for sub_path in directory.iterdir():
+                    if sub_path.is_dir():
+                        result = _search_directory(sub_path, current_depth + 1)
+                        if result:
+                            return result
+
+            except (OSError, PermissionError) as e:
+                logger.debug(f"Error searching {directory}: {e}")
+
+            return None
+
+        result = _search_directory(publish_path)
+        if result:
+            logger.info(
+                f"Found any publish thumbnail for {sequence}_{shot}: {result.name}"
+            )
+        else:
+            logger.debug(
+                f"No 1001.exr files found in publish folder for {sequence}_{shot}"
+            )
+
+        return result
+
+    @staticmethod
     def discover_plate_directories(
         base_path: Union[str, Path],
     ) -> List[Tuple[str, int]]:
