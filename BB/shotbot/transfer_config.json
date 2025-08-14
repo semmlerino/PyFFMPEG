@@ -64,7 +64,7 @@
   "chunk_size_kb": 5120,
   "output_dir": "encoded_releases",
   "remote_branch": "encoded-releases",
-  "auto_push": false,
+  "auto_push": true,
   "clean_old_releases": true,
   "max_releases_to_keep": 10,
   "commit_message_template": "Auto-encoded release for commit {commit_hash}",
