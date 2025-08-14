@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtCore import Qt
 
+from config import Config
 from main_window import MainWindow
 from shot_model import Shot
 
@@ -23,6 +24,8 @@ class TestMainWindowShotGridIntegration:
                 shot=f"shot{i:03d}",
                 workspace_path=f"/shows/testshow{i}/shots/seq{i:03d}/shot{i:03d}",
             )
+            # Mock the thumbnail path method to prevent filesystem operations
+            shot.get_thumbnail_path = Mock(return_value=None)
             shots.append(shot)
         return shots
 
@@ -45,6 +48,10 @@ class TestMainWindowShotGridIntegration:
             window.shot_model.shots = mock_shots
             window.shot_model.refresh_shots = Mock(return_value=(True, True))
 
+            # Update the Model/View's data model with test shots
+            if window.shot_grid.model:
+                window.shot_grid.model.set_shots(mock_shots)
+            
             # Refresh the UI - use the actual grid type
             window.shot_grid.refresh_shots()
 
@@ -68,7 +75,7 @@ class TestMainWindowShotGridIntegration:
         shot = mock_shots[0]
 
         # Select it through the grid's public API
-        main_window.shot_grid.select_shot(shot)
+        main_window.shot_grid.select_shot_by_name(shot.full_name)
 
         # Verify selection
         assert main_window.shot_grid.selected_shot == shot
@@ -84,7 +91,7 @@ class TestMainWindowShotGridIntegration:
         """Test double-click launches application."""
         # Select a shot first
         shot = mock_shots[0]
-        main_window.shot_grid.select_shot(shot)
+        main_window.shot_grid.select_shot_by_name(shot.full_name)
 
         # Mock the launch method
         with patch.object(main_window.command_launcher, "launch_app") as mock_launch:
@@ -115,11 +122,59 @@ class TestMainWindowShotGridIntegration:
 
         # Select a shot
         shot = mock_shots[0]
-        main_window.shot_grid.select_shot(shot)
+        main_window.shot_grid.select_shot_by_name(shot.full_name)
 
         # Buttons should be enabled
         assert main_window.app_buttons["nuke"].isEnabled()
         assert main_window.app_buttons["maya"].isEnabled()
+    
+    def test_each_button_launches_different_app(self, main_window, mock_shots, qtbot):
+        """Test that each button launches its own app, not all the same one.
+        
+        This test specifically catches the lambda closure bug where all buttons
+        might launch the same application.
+        """
+        # Select a shot to enable buttons
+        shot = mock_shots[0]
+        main_window.shot_grid.select_shot_by_name(shot.full_name)
+        
+        from unittest.mock import patch, Mock
+        
+        # Test at least 3 different apps to ensure they're different
+        apps_to_test = ["nuke", "maya", "3de"]
+        launched_apps = {}
+        
+        for app_name in apps_to_test:
+            if app_name not in main_window.app_buttons:
+                continue
+                
+            with patch("subprocess.Popen") as mock_popen:
+                mock_process = Mock()
+                mock_process.poll.return_value = None
+                mock_process.pid = 12345
+                mock_popen.return_value = mock_process
+                
+                # Click the specific app button
+                main_window.app_buttons[app_name].click()
+                qtbot.wait(50)
+                
+                # Capture what was launched
+                if mock_popen.called:
+                    call_args = mock_popen.call_args
+                    if call_args and call_args[0]:
+                        command = str(call_args[0][0])
+                        launched_apps[app_name] = command
+        
+        # Verify each button launched its own app
+        for app_name, command in launched_apps.items():
+            expected_command = Config.APPS.get(app_name, app_name)
+            assert expected_command in command, \
+                f"Button {app_name} should launch {expected_command}, but command was: {command}"
+        
+        # Verify all commands are different (no duplicates from lambda bug)
+        unique_commands = set(launched_apps.values())
+        assert len(unique_commands) == len(launched_apps), \
+            "Each button should launch a different command (lambda closure bug detected!)"
 
     def test_settings_checkboxes(self, main_window, qtbot):
         """Test settings checkboxes work."""
@@ -137,17 +192,30 @@ class TestMainWindowShotGridIntegration:
         """Test log viewer receives command messages."""
         # Select a shot
         shot = mock_shots[0]
-        main_window.shot_grid.select_shot(shot)
+        main_window.shot_grid.select_shot_by_name(shot.full_name)
 
-        # Mock subprocess to prevent actual launch
-        with patch("command_launcher.subprocess.Popen"):
+        # Mock subprocess to capture what command is launched
+        with patch("subprocess.Popen") as mock_popen:
+            mock_process = Mock()
+            mock_process.poll.return_value = None
+            mock_process.pid = 12345
+            mock_popen.return_value = mock_process
+            
             # Launch an app
             main_window.app_buttons["nuke"].click()
+            qtbot.wait(100)
+            
+            # Verify correct app was launched
+            assert mock_popen.called, "Subprocess should be called"
+            call_args = mock_popen.call_args
+            if call_args and call_args[0]:
+                command = str(call_args[0][0])
+                assert "nuke" in command.lower(), f"Should launch nuke, but command was: {command}"
 
-        # Check log has content
-        qtbot.wait(100)  # Give it time to update
+        # Check log has content about the correct app
         log_text = main_window.log_viewer.log_text.toPlainText()
-        assert len(log_text) > 0  # Should have some log content
+        assert len(log_text) > 0, "Should have some log content"
+        assert "nuke" in log_text.lower() or "Nuke" in log_text, "Log should mention Nuke was launched"
 
     def test_keyboard_navigation_basics(self, main_window, mock_shots, qtbot):
         """Test basic keyboard navigation."""
@@ -156,7 +224,8 @@ class TestMainWindowShotGridIntegration:
 
         # Select first shot
         if len(mock_shots) > 0:
-            main_window.shot_grid.select_shot(mock_shots[0])
+            shot = mock_shots[0]
+            main_window.shot_grid.select_shot_by_name(shot.full_name)
 
             # Try arrow key navigation (if multiple shots exist)
             if len(mock_shots) > 1:
@@ -179,13 +248,15 @@ class TestMainWindowShotGridIntegration:
 
     def test_tab_switching(self, main_window, qtbot):
         """Test switching between tabs."""
-        # Start on first tab
-        assert main_window.tab_widget.currentIndex() == 0
+        # Get initial tab (could be 0 or 1 depending on settings)
+        initial_tab = main_window.tab_widget.currentIndex()
+        assert initial_tab in [0, 1], "Tab should be either My Shots (0) or Other 3DE scenes (1)"
 
-        # Switch to 3DE tab
-        main_window.tab_widget.setCurrentIndex(1)
-        assert main_window.tab_widget.currentIndex() == 1
+        # Switch to the other tab
+        new_tab = 1 if initial_tab == 0 else 0
+        main_window.tab_widget.setCurrentIndex(new_tab)
+        assert main_window.tab_widget.currentIndex() == new_tab
 
-        # Switch back
-        main_window.tab_widget.setCurrentIndex(0)
-        assert main_window.tab_widget.currentIndex() == 0
+        # Switch back to original
+        main_window.tab_widget.setCurrentIndex(initial_tab)
+        assert main_window.tab_widget.currentIndex() == initial_tab

@@ -712,35 +712,67 @@ class MainWindow(QMainWindow):
         if hasattr(self, "shot_item_model"):
             self.shot_item_model.set_shots(self.shot_model.shots)
 
-    def _on_shot_selected(self, shot: Shot):
-        """Handle shot selection."""
+    def _on_shot_selected(self, shot: Optional[Shot]):
+        """Handle shot selection or deselection.
+        
+        Args:
+            shot: Shot object or None to clear selection
+        """
         # Clear any 3DE scene context when selecting a regular shot
         self._current_scene = None
-        self.command_launcher.set_current_shot(shot)
+        
+        if shot is None:
+            # Handle deselection
+            self.command_launcher.set_current_shot(None)
+            self.shot_info_panel.set_shot(None)
+            
+            # Disable app buttons and show info label
+            for button in self.app_buttons.values():
+                button.setEnabled(False)
+            self.launcher_info_label.show()
+            
+            # Update custom launcher menu availability
+            self._update_launcher_menu_availability(False)
+            
+            # Disable custom launcher buttons
+            self._enable_custom_launcher_buttons(False)
+            
+            # Reset window title
+            self.setWindowTitle(Config.APP_NAME)
+            
+            # Update status
+            self._update_status("No shot selected")
+            
+            # Clear saved selection
+            self._last_selected_shot_name = None
+            self._save_settings()
+        else:
+            # Handle selection
+            self.command_launcher.set_current_shot(shot)
 
-        # Update shot info panel
-        self.shot_info_panel.set_shot(shot)
+            # Update shot info panel
+            self.shot_info_panel.set_shot(shot)
 
-        # Enable app buttons and hide info label
-        for button in self.app_buttons.values():
-            button.setEnabled(True)
-        self.launcher_info_label.hide()
+            # Enable app buttons and hide info label
+            for button in self.app_buttons.values():
+                button.setEnabled(True)
+            self.launcher_info_label.hide()
 
-        # Update custom launcher menu availability
-        self._update_launcher_menu_availability(True)
+            # Update custom launcher menu availability
+            self._update_launcher_menu_availability(True)
 
-        # Enable custom launcher buttons
-        self._enable_custom_launcher_buttons(True)
+            # Enable custom launcher buttons
+            self._enable_custom_launcher_buttons(True)
 
-        # Update window title
-        self.setWindowTitle(f"{Config.APP_NAME} - {shot.full_name} ({shot.show})")
+            # Update window title
+            self.setWindowTitle(f"{Config.APP_NAME} - {shot.full_name} ({shot.show})")
 
-        # Update status
-        self._update_status(f"Selected: {shot.full_name} ({shot.show})")
+            # Update status
+            self._update_status(f"Selected: {shot.full_name} ({shot.show})")
 
-        # Save selection
-        self._last_selected_shot_name = shot.full_name
-        self._save_settings()
+            # Save selection
+            self._last_selected_shot_name = shot.full_name
+            self._save_settings()
 
     def _on_shot_double_clicked(self, shot: Shot):
         """Handle shot double click - launch default app."""

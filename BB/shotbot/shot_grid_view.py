@@ -139,6 +139,24 @@ class ShotGridView(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.list_view.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+    @property
+    def model(self) -> Optional[ShotItemModel]:
+        """Get the current data model.
+        
+        Returns:
+            The shot item model or None
+        """
+        return self._model
+    
+    @property
+    def selected_shot(self):
+        """Get the currently selected shot.
+        
+        Returns:
+            The selected Shot object or None
+        """
+        return self._selected_shot
+
     def refresh_shots(self) -> None:
         """Compatibility method for refreshing shots.
 

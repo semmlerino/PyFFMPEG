@@ -4,9 +4,9 @@ import logging
 import os
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
@@ -16,6 +16,9 @@ from utils import FileUtils, PathUtils, ValidationUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
+
+# Sentinel value to distinguish between "not searched" and "searched but found nothing"
+_NOT_SEARCHED = object()
 
 
 class RefreshResult(NamedTuple):
@@ -79,6 +82,7 @@ class Shot:
     sequence: str
     shot: str
     workspace_path: str
+    _cached_thumbnail_path: Any = field(default=_NOT_SEARCHED, init=False, repr=False, compare=False)
 
     @property
     def full_name(self) -> str:
@@ -99,12 +103,23 @@ class Shot:
         1. Editorial directory thumbnails
         2. Turnover plate thumbnails
         3. Any EXR file containing '1001' in publish folder
+        
+        Results are cached after the first search to avoid repeated
+        expensive filesystem operations.
         """
+        # Return cached result if we've already searched
+        if self._cached_thumbnail_path is not _NOT_SEARCHED:
+            return self._cached_thumbnail_path
+        
+        # Perform the search and cache the result
+        thumbnail = None
+        
         # Try editorial thumbnail first
         if PathUtils.validate_path_exists(self.thumbnail_dir, "Thumbnail directory"):
             # Use utility to find first image file
             thumbnail = FileUtils.get_first_image_file(self.thumbnail_dir)
             if thumbnail:
+                self._cached_thumbnail_path = thumbnail
                 return thumbnail
 
         # Fall back to turnover plate thumbnails
@@ -112,12 +127,17 @@ class Shot:
             Config.SHOWS_ROOT, self.show, self.sequence, self.shot
         )
         if thumbnail:
+            self._cached_thumbnail_path = thumbnail
             return thumbnail
 
         # Third fallback: any EXR with 1001 in publish folder
-        return PathUtils.find_any_publish_thumbnail(  # type: ignore[attr-defined]
+        thumbnail = PathUtils.find_any_publish_thumbnail(  # type: ignore[attr-defined]
             Config.SHOWS_ROOT, self.show, self.sequence, self.shot
         )
+        
+        # Cache the result (even if None) to avoid repeated searches
+        self._cached_thumbnail_path = thumbnail
+        return thumbnail
 
     def to_dict(self) -> Dict[str, str]:
         """Convert shot to dictionary for serialization."""
@@ -131,12 +151,15 @@ class Shot:
     @classmethod
     def from_dict(cls, data: Dict[str, str]) -> "Shot":
         """Create shot from dictionary data."""
-        return cls(
+        shot = cls(
             show=data["show"],
             sequence=data["sequence"],
             shot=data["shot"],
             workspace_path=data["workspace_path"],
         )
+        # Don't restore cached thumbnail path from dict - let it be re-discovered if needed
+        # This ensures we don't cache stale paths across sessions
+        return shot
 
 
 class ShotModel:
