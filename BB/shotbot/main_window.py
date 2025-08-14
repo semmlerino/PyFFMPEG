@@ -210,7 +210,7 @@ class MainWindow(QMainWindow):
         for app_name, command in Config.APPS.items():
             button = QPushButton(app_name.upper())
             button.setObjectName("builtInLauncherButton")
-            button.clicked.connect(lambda checked: self._launch_app(app_name))
+            button.clicked.connect(lambda checked, app=app_name: self._launch_app(app))
             button.setEnabled(False)  # Disabled until shot selected
 
             # Add tooltip with keyboard shortcut
