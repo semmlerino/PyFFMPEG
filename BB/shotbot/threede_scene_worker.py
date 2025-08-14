@@ -175,16 +175,15 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         self._all_scenes: List[ThreeDEScene] = []
         self._files_processed = 0
 
-        # Set thread priority - convert int to QThread.Priority enum
+        # Store desired priority for setting after thread starts
         priority_map = {
             -1: QThread.Priority.LowPriority,
             0: QThread.Priority.NormalPriority,
             1: QThread.Priority.HighPriority,
         }
-        priority = priority_map.get(
+        self._desired_priority = priority_map.get(
             Config.WORKER_THREAD_PRIORITY, QThread.Priority.NormalPriority
         )
-        self.setPriority(priority)
 
     def stop(self):
         """Request the worker to stop processing.
@@ -270,6 +269,10 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         The base class run() method handles state management and calls this.
         """
         try:
+            # Set thread priority now that thread is running
+            if hasattr(self, '_desired_priority'):
+                self.setPriority(self._desired_priority)
+                
             logger.info("Starting enhanced 3DE scene discovery")
             self.started.emit()
 

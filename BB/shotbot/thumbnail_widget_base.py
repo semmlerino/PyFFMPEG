@@ -72,7 +72,12 @@ class FolderOpenerWorker(QRunnable):
 
             # Check if path exists
             if not Path(folder_path).exists():
-                self.signals.error.emit(f"Path does not exist: {folder_path}")
+                # Safe signal emission
+                if hasattr(self, 'signals') and self.signals:
+                    try:
+                        self.signals.error.emit(f"Path does not exist: {folder_path}")
+                    except RuntimeError:
+                        pass  # Signals object was deleted
                 return
 
             # Try Qt method first (cross-platform)
@@ -101,20 +106,40 @@ class FolderOpenerWorker(QRunnable):
                         # Try gio as fallback
                         subprocess.run(["gio", "open", folder_path], check=True)
 
-            self.signals.success.emit()
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.success.emit()
+                except RuntimeError:
+                    pass  # Signals object was deleted
 
         except subprocess.CalledProcessError as e:
             error_msg = f"Failed to open folder: {e}"
             logger.error(error_msg)
-            self.signals.error.emit(error_msg)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.error.emit(error_msg)
+                except RuntimeError:
+                    pass  # Signals object was deleted
         except FileNotFoundError as e:
             error_msg = f"File manager not found: {e}"
             logger.error(error_msg)
-            self.signals.error.emit(error_msg)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.error.emit(error_msg)
+                except RuntimeError:
+                    pass  # Signals object was deleted
         except Exception as e:
             error_msg = f"Unexpected error opening folder: {e}"
             logger.error(error_msg)
-            self.signals.error.emit(error_msg)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.error.emit(error_msg)
+                except RuntimeError:
+                    pass  # Signals object was deleted
 
 
 class LoadingState(Enum):
@@ -164,7 +189,12 @@ class BaseThumbnailLoader(QRunnable):
         """
         if not self.path or not self.path.exists():
             logger.warning(f"Thumbnail path does not exist: {self.path}")
-            self.signals.failed.emit(self.widget)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.failed.emit(self.widget)
+                except RuntimeError:
+                    pass  # Signals object was deleted
             return
 
         image = None
@@ -174,14 +204,24 @@ class BaseThumbnailLoader(QRunnable):
             image = QImage(str(self.path))
             if image.isNull():
                 logger.debug(f"Failed to load thumbnail image: {self.path}")
-                self.signals.failed.emit(self.widget)
+                # Safe signal emission
+                if hasattr(self, 'signals') and self.signals:
+                    try:
+                        self.signals.failed.emit(self.widget)
+                    except RuntimeError:
+                        pass  # Signals object was deleted
                 return
 
             # Use utility for memory bounds checking
             from utils import ImageUtils
 
             if not ImageUtils.validate_image_dimensions(image.width(), image.height()):
-                self.signals.failed.emit(self.widget)
+                # Safe signal emission
+                if hasattr(self, 'signals') and self.signals:
+                    try:
+                        self.signals.failed.emit(self.widget)
+                    except RuntimeError:
+                        pass  # Signals object was deleted
                 return
 
             # Convert to QPixmap for GUI display
@@ -189,24 +229,54 @@ class BaseThumbnailLoader(QRunnable):
             pixmap = QPixmap.fromImage(image)
 
             # Success - emit the loaded signal
-            self.signals.loaded.emit(self.widget, pixmap)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.loaded.emit(self.widget, pixmap)
+                except RuntimeError:
+                    pass  # Signals object was deleted
             logger.debug(f"Successfully loaded thumbnail: {self.path}")
 
         except FileNotFoundError:
             logger.debug(f"Thumbnail file not found: {self.path}")
-            self.signals.failed.emit(self.widget)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.failed.emit(self.widget)
+                except RuntimeError:
+                    pass  # Signals object was deleted
         except PermissionError:
             logger.warning(f"Permission denied loading thumbnail: {self.path}")
-            self.signals.failed.emit(self.widget)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.failed.emit(self.widget)
+                except RuntimeError:
+                    pass  # Signals object was deleted
         except MemoryError:
             logger.error(f"Out of memory loading thumbnail: {self.path}")
-            self.signals.failed.emit(self.widget)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.failed.emit(self.widget)
+                except RuntimeError:
+                    pass  # Signals object was deleted
         except (OSError, IOError) as e:
             logger.warning(f"I/O error loading thumbnail {self.path}: {e}")
-            self.signals.failed.emit(self.widget)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.failed.emit(self.widget)
+                except RuntimeError:
+                    pass  # Signals object was deleted
         except Exception as e:
             logger.exception(f"Unexpected error loading thumbnail {self.path}: {e}")
-            self.signals.failed.emit(self.widget)
+            # Safe signal emission
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.failed.emit(self.widget)
+                except RuntimeError:
+                    pass  # Signals object was deleted
         finally:
             # Clean up Qt objects
             if image is not None:

@@ -731,15 +731,33 @@ class ThumbnailCacheLoader(QRunnable):
                 self.source_path, self.show, self.sequence, self.shot
             )
             if cache_path:
-                self.signals.loaded.emit(
-                    self.show, self.sequence, self.shot, cache_path
-                )
+                # Check if signals object still exists before emitting
+                if hasattr(self, 'signals') and self.signals:
+                    try:
+                        self.signals.loaded.emit(
+                            self.show, self.sequence, self.shot, cache_path
+                        )
+                    except RuntimeError:
+                        # Signals object was deleted, safe to ignore
+                        pass
                 logger.debug(f"Successfully cached thumbnail for {self.shot}")
             else:
                 error_msg = f"Cache operation returned None for {self.shot}"
-                self.signals.failed.emit(self.show, self.sequence, self.shot, error_msg)
+                # Check if signals object still exists before emitting
+                if hasattr(self, 'signals') and self.signals:
+                    try:
+                        self.signals.failed.emit(self.show, self.sequence, self.shot, error_msg)
+                    except RuntimeError:
+                        # Signals object was deleted, safe to ignore
+                        pass
                 logger.warning(error_msg)
         except Exception as e:
             error_msg = f"Exception while caching thumbnail for {self.shot}: {e}"
-            self.signals.failed.emit(self.show, self.sequence, self.shot, str(e))
+            # Check if signals object still exists before emitting
+            if hasattr(self, 'signals') and self.signals:
+                try:
+                    self.signals.failed.emit(self.show, self.sequence, self.shot, str(e))
+                except RuntimeError:
+                    # Signals object was deleted, safe to ignore
+                    pass
             logger.error(error_msg)
