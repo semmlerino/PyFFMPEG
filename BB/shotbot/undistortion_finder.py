@@ -38,8 +38,8 @@ class UndistortionFinder:
         if username is None:
             username = Config.DEFAULT_USERNAME
 
-        # Build base path for scene exports (before plate-specific directories)
-        scene_path = (
+        # Build base path for exports
+        exports_path = (
             Path(shot_workspace_path)
             / "user"
             / username
@@ -47,19 +47,31 @@ class UndistortionFinder:
             / "3de"
             / "mm-default"
             / "exports"
-            / "scene"
         )
 
-        if not scene_path.exists():
-            logger.debug(f"Scene path does not exist: {scene_path}")
+        if not exports_path.exists():
+            logger.debug(f"Exports path does not exist: {exports_path}")
             return None
 
-        # Search for undistortion files in any plate directory (FG01, BG01, BC01, etc.)
-        # Check all directories in scene path that match plate patterns
+        # Search for undistortion files in any scene*/plate directory structure
+        # Handles both exports/scene/ and exports/sceneMasterSurvey/ etc.
         found_files: List[Tuple[Path, str, str]] = []
 
-        if scene_path.exists():
-            for potential_plate in scene_path.iterdir():
+        # Look for scene directories (scene, sceneMasterSurvey, etc.)
+        scene_dirs = [d for d in exports_path.iterdir() if d.is_dir() and "scene" in d.name.lower()]
+        
+        if not scene_dirs:
+            # Fallback to direct "scene" directory if it exists
+            scene_path = exports_path / "scene"
+            if scene_path.exists():
+                scene_dirs = [scene_path]
+            else:
+                logger.debug(f"No scene directories found in {exports_path}")
+                return None
+        
+        for scene_dir in scene_dirs:
+            logger.debug(f"Searching for undistortion in scene directory: {scene_dir.name}")
+            for potential_plate in scene_dir.iterdir():
                 if not potential_plate.is_dir():
                     continue
 
@@ -83,8 +95,17 @@ class UndistortionFinder:
 
                     for version_dir in version_dirs:
                         # Search for .nk files recursively in subdirectories
-                        # This handles both single and multiple levels of nesting
+                        # First try the specific LD pattern, then fallback to any .nk with shot name
                         nk_files = list(version_dir.rglob(f"{shot_name}*LD*.nk"))
+                        
+                        # If no LD files found, try more general pattern
+                        if not nk_files:
+                            nk_files = list(version_dir.rglob(f"{shot_name}*.nk"))
+                        
+                        # If still nothing, try any .nk file in the directory
+                        if not nk_files:
+                            nk_files = list(version_dir.rglob("*.nk"))
+                        
                         for nk_file in nk_files:
                             if nk_file.exists():
                                 # Extract version from path
