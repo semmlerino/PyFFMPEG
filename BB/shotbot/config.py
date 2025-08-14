@@ -173,15 +173,15 @@ class Config:
         "fg01",
         "plate",
     ]  # Common plate naming
-    
+
     # Turnover plate preferences (lower value = higher priority)
     TURNOVER_PLATE_PRIORITY = {
         "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
         "BG": 1,  # BG plates second priority (BG01, BG02, etc.)
         "EL": 2,  # Element plates third
-        "*": 3,   # All others lowest priority
+        "*": 3,  # All others lowest priority
     }
-    
+
     # Legacy plate priority (for backward compatibility)
     PLATE_PRIORITY_ORDER = {
         "FG01": 10,
@@ -274,3 +274,18 @@ class Config:
     PROGRESSIVE_IO_YIELD_INTERVAL = 25  # Yield to other threads every N files
     PROGRESSIVE_MEMORY_CHECK_INTERVAL = 100  # Check memory usage every N files
     PROGRESSIVE_MAX_MEMORY_MB = 512  # Maximum memory usage during scanning
+
+    # 3DE Scene Discovery Configuration (NEW - Efficient scanning)
+    THREEDE_SCAN_MODE = "smart"  # Options: "full_show", "user_sequences", "smart"
+    # - "full_show": Scan entire show (old behavior, can be slow)
+    # - "user_sequences": Only scan sequences where user has shots
+    # - "smart": Only scan shots that actually have .3de files (most efficient)
+
+    THREEDE_MAX_SHOTS_TO_SCAN = 200  # Limit number of shots to scan for performance
+    THREEDE_SCAN_RELATED_SEQUENCES = (
+        True  # Only scan user's sequences (when in user_sequences mode)
+    )
+    THREEDE_FILE_FIRST_DISCOVERY = True  # Use new efficient file-first discovery
+    THREEDE_SCAN_TIMEOUT_SECONDS = 30  # Maximum time for find command
+    THREEDE_CACHE_DISCOVERED_SHOTS = True  # Cache which shots have .3de files
+    THREEDE_INCREMENTAL_SCAN = False  # Only scan for changes (future feature)

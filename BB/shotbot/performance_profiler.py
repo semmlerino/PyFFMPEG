@@ -241,9 +241,7 @@ class ShotModelProfiler:
                 shot_dicts = [shot.to_dict() for shot in test_shots]
 
             with self.monitor.measure_time("shot_from_dict"):
-                [
-                    Shot.from_dict(shot_dict) for shot_dict in shot_dicts
-                ]
+                [Shot.from_dict(shot_dict) for shot_dict in shot_dicts]
 
             # Profile change detection (set operations)
             old_shot_data = {

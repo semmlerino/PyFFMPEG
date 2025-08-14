@@ -73,7 +73,7 @@ class FolderOpenerWorker(QRunnable):
             # Check if path exists
             if not Path(folder_path).exists():
                 # Safe signal emission
-                if hasattr(self, 'signals') and self.signals:
+                if hasattr(self, "signals") and self.signals:
                     try:
                         self.signals.error.emit(f"Path does not exist: {folder_path}")
                     except RuntimeError:
@@ -107,7 +107,7 @@ class FolderOpenerWorker(QRunnable):
                         subprocess.run(["gio", "open", folder_path], check=True)
 
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.success.emit()
                 except RuntimeError:
@@ -117,7 +117,7 @@ class FolderOpenerWorker(QRunnable):
             error_msg = f"Failed to open folder: {e}"
             logger.error(error_msg)
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.error.emit(error_msg)
                 except RuntimeError:
@@ -126,7 +126,7 @@ class FolderOpenerWorker(QRunnable):
             error_msg = f"File manager not found: {e}"
             logger.error(error_msg)
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.error.emit(error_msg)
                 except RuntimeError:
@@ -135,7 +135,7 @@ class FolderOpenerWorker(QRunnable):
             error_msg = f"Unexpected error opening folder: {e}"
             logger.error(error_msg)
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.error.emit(error_msg)
                 except RuntimeError:
@@ -190,7 +190,7 @@ class BaseThumbnailLoader(QRunnable):
         if not self.path or not self.path.exists():
             logger.warning(f"Thumbnail path does not exist: {self.path}")
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.failed.emit(self.widget)
                 except RuntimeError:
@@ -205,7 +205,7 @@ class BaseThumbnailLoader(QRunnable):
             if image.isNull():
                 logger.debug(f"Failed to load thumbnail image: {self.path}")
                 # Safe signal emission
-                if hasattr(self, 'signals') and self.signals:
+                if hasattr(self, "signals") and self.signals:
                     try:
                         self.signals.failed.emit(self.widget)
                     except RuntimeError:
@@ -217,7 +217,7 @@ class BaseThumbnailLoader(QRunnable):
 
             if not ImageUtils.validate_image_dimensions(image.width(), image.height()):
                 # Safe signal emission
-                if hasattr(self, 'signals') and self.signals:
+                if hasattr(self, "signals") and self.signals:
                     try:
                         self.signals.failed.emit(self.widget)
                     except RuntimeError:
@@ -230,7 +230,7 @@ class BaseThumbnailLoader(QRunnable):
 
             # Success - emit the loaded signal
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.loaded.emit(self.widget, pixmap)
                 except RuntimeError:
@@ -240,7 +240,7 @@ class BaseThumbnailLoader(QRunnable):
         except FileNotFoundError:
             logger.debug(f"Thumbnail file not found: {self.path}")
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.failed.emit(self.widget)
                 except RuntimeError:
@@ -248,7 +248,7 @@ class BaseThumbnailLoader(QRunnable):
         except PermissionError:
             logger.warning(f"Permission denied loading thumbnail: {self.path}")
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.failed.emit(self.widget)
                 except RuntimeError:
@@ -256,7 +256,7 @@ class BaseThumbnailLoader(QRunnable):
         except MemoryError:
             logger.error(f"Out of memory loading thumbnail: {self.path}")
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.failed.emit(self.widget)
                 except RuntimeError:
@@ -264,7 +264,7 @@ class BaseThumbnailLoader(QRunnable):
         except (OSError, IOError) as e:
             logger.warning(f"I/O error loading thumbnail {self.path}: {e}")
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.failed.emit(self.widget)
                 except RuntimeError:
@@ -272,7 +272,7 @@ class BaseThumbnailLoader(QRunnable):
         except Exception as e:
             logger.exception(f"Unexpected error loading thumbnail {self.path}: {e}")
             # Safe signal emission
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.failed.emit(self.widget)
                 except RuntimeError:

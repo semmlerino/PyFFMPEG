@@ -248,7 +248,9 @@ class TestMemoryManagement:
                 source_image, "show1", f"seq{i}", f"shot{i}"
             )
             cached_paths.append(result)
-            process_qt_events(QApplication.instance(), 100)  # Small delay to ensure different mtimes
+            process_qt_events(
+                QApplication.instance(), 100
+            )  # Small delay to ensure different mtimes
 
         # Force eviction by adding more
         for i in range(5, 10):

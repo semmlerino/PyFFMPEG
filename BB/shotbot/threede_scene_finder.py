@@ -156,54 +156,74 @@ class ThreeDESceneFinder:
     @staticmethod
     def quick_3de_exists_check(base_paths: List[str], timeout_seconds: int = 5) -> bool:
         """Quick check if ANY .3de files exist in the given paths.
-        
+
         Uses 'find' command with -quit to exit as soon as first file is found.
         This is much faster than full directory traversal.
-        
+
         Args:
             base_paths: List of base paths to check
             timeout_seconds: Maximum time to search before giving up
-            
+
         Returns:
             True if at least one .3de file exists, False otherwise
         """
         import subprocess
-        
+
         for base_path in base_paths:
             if not os.path.exists(base_path):
                 continue
-                
+
             try:
                 # Use find with -quit to exit on first match (very fast)
                 # -name "*.3de" -o -name "*.3DE" to catch both cases
                 result = subprocess.run(
-                    ["find", base_path, "-type", "f", "(", "-name", "*.3de", "-o", "-name", "*.3DE", ")", "-print", "-quit"],
+                    [
+                        "find",
+                        base_path,
+                        "-type",
+                        "f",
+                        "(",
+                        "-name",
+                        "*.3de",
+                        "-o",
+                        "-name",
+                        "*.3DE",
+                        ")",
+                        "-print",
+                        "-quit",
+                    ],
                     capture_output=True,
                     text=True,
-                    timeout=timeout_seconds
+                    timeout=timeout_seconds,
                 )
-                
+
                 # If find returns any output, a .3de file exists
                 if result.stdout.strip():
-                    logger.debug(f"Quick check found .3de file: {result.stdout.strip()}")
+                    logger.debug(
+                        f"Quick check found .3de file: {result.stdout.strip()}"
+                    )
                     return True
-                    
+
             except subprocess.TimeoutExpired:
-                logger.warning(f"Quick .3de check timed out after {timeout_seconds}s for {base_path}")
+                logger.warning(
+                    f"Quick .3de check timed out after {timeout_seconds}s for {base_path}"
+                )
                 # Assume files might exist if timeout (better to scan than miss files)
                 return True
             except FileNotFoundError:
                 # 'find' command not available (Windows?), assume files might exist
-                logger.debug("'find' command not available, assuming .3de files might exist")
+                logger.debug(
+                    "'find' command not available, assuming .3de files might exist"
+                )
                 return True
             except Exception as e:
                 logger.warning(f"Quick .3de check failed: {e}")
                 # On error, assume files might exist
                 return True
-                
+
         logger.debug("Quick check found no .3de files in any path")
         return False
-    
+
     @staticmethod
     @timed_operation("extract_plate_from_path", log_threshold_ms=5)
     def extract_plate_from_path(file_path: Path, user_path: Path) -> str:
@@ -966,3 +986,321 @@ class ThreeDESceneFinder:
         except Exception as e:
             logger.warning(f"Error verifying 3DE scene file {scene_path}: {e}")
             return False
+
+    @staticmethod
+    def find_all_3de_files_in_show(
+        show_root: str,
+        show: str,
+        sequences: Optional[Set[str]] = None,
+        timeout_seconds: int = 30,
+    ) -> List[Path]:
+        """Efficiently find ALL .3de files in a show using a single find command.
+
+        This is the new efficient approach - find files first, then extract shots.
+        Much faster than discovering all shots then checking each one.
+
+        Args:
+            show_root: Root directory for shows (e.g., /shows)
+            show: Show name
+            sequences: Optional set of sequences to limit search to (for performance)
+            timeout_seconds: Maximum time for find command
+
+        Returns:
+            List of all .3de file paths found in the show/sequences
+        """
+        import subprocess
+
+        show_path = Path(show_root) / show / "shots"
+        if not show_path.exists():
+            logger.warning(f"Show shots directory does not exist: {show_path}")
+            return []
+
+        # Determine search paths based on sequences parameter
+        search_paths = []
+        if sequences:
+            # Limit to specific sequences for performance
+            logger.info(
+                f"Efficiently finding .3de files in {len(sequences)} sequences of {show}"
+            )
+            for seq in sequences:
+                seq_path = show_path / seq
+                if seq_path.exists():
+                    search_paths.append(str(seq_path))
+            if not search_paths:
+                logger.warning(f"No valid sequence paths found in {show}")
+                return []
+        else:
+            # Search entire show
+            logger.info(f"Efficiently finding all .3de files in {show}")
+            search_paths = [str(show_path)]
+
+        try:
+            # Use find to get all .3de files in one command (very fast)
+            # Include both .3de and .3DE extensions
+            cmd = (
+                ["find"]
+                + search_paths
+                + ["-type", "f", "(", "-name", "*.3de", "-o", "-name", "*.3DE", ")"]
+            )
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=timeout_seconds
+            )
+
+            if result.returncode != 0:
+                logger.warning(f"Find command failed: {result.stderr}")
+                return []
+
+            # Parse output into Path objects
+            threede_files = []
+            for line in result.stdout.strip().split("\n"):
+                if line:
+                    threede_files.append(Path(line))
+
+            logger.info(f"Found {len(threede_files)} .3de files in {show}")
+            return threede_files
+
+        except subprocess.TimeoutExpired:
+            logger.error(f"Find command timed out after {timeout_seconds}s")
+            return []
+        except FileNotFoundError:
+            logger.error("'find' command not available - falling back to slower method")
+            # Fall back to recursive glob (slower but works everywhere)
+            threede_files = list(show_path.rglob("*.3de"))
+            threede_files.extend(list(show_path.rglob("*.3DE")))
+            return threede_files
+        except Exception as e:
+            logger.error(f"Error finding .3de files: {e}")
+            return []
+
+    @staticmethod
+    def extract_shot_info_from_path(
+        file_path: Path,
+    ) -> Optional[Tuple[str, str, str, str]]:
+        """Extract shot information from a .3de file path.
+
+        Expected pattern: /shows/{show}/shots/{sequence}/{shot}/user/{username}/.../*.3de
+
+        Args:
+            file_path: Path to .3de file
+
+        Returns:
+            Tuple of (workspace_path, sequence, shot, username) or None if invalid
+        """
+        try:
+            parts = file_path.parts
+
+            # Find the shots directory index
+            if "shots" not in parts:
+                logger.debug(f"No 'shots' in path: {file_path}")
+                return None
+
+            shots_idx = parts.index("shots")
+
+            # Need at least: shots/{sequence}/{shot}/user/{username}/...
+            if len(parts) < shots_idx + 5:
+                logger.debug(f"Path too short: {file_path}")
+                return None
+
+            # Extract components
+            sequence = parts[shots_idx + 1]
+            shot = parts[shots_idx + 2]
+
+            # Verify user directory exists
+            if parts[shots_idx + 3] != "user":
+                logger.debug(f"No 'user' directory in expected position: {file_path}")
+                return None
+
+            username = parts[shots_idx + 4]
+
+            # Build workspace path (up to shot directory)
+            workspace_path = str(Path(*parts[: shots_idx + 3]))
+
+            return (workspace_path, sequence, shot, username)
+
+        except (IndexError, ValueError) as e:
+            logger.debug(f"Could not extract shot info from {file_path}: {e}")
+            return None
+
+    @staticmethod
+    def find_all_scenes_in_shows_efficient(
+        user_shots: List[Any],  # List of Shot objects
+        excluded_users: Optional[Set[str]] = None,
+    ) -> List[ThreeDEScene]:
+        """Efficient version of find_all_scenes_in_shows using file-first discovery.
+
+        Instead of discovering all shots then checking each, this:
+        1. Finds all .3de files in the show first (respecting scan mode)
+        2. Extracts shot information from the paths
+        3. Only processes shots that actually have .3de files
+
+        This is orders of magnitude faster for shows with many shots.
+
+        Args:
+            user_shots: User's assigned shots (used to determine which shows to search)
+            excluded_users: Set of usernames to exclude
+
+        Returns:
+            List of all ThreeDEScene objects found
+        """
+        if not user_shots:
+            logger.info("No user shots provided for show-wide search")
+            return []
+
+        if excluded_users is None:
+            excluded_users = ValidationUtils.get_excluded_users()
+
+        # Check scan mode configuration
+        scan_mode = (
+            Config.THREEDE_SCAN_MODE
+            if hasattr(Config, "THREEDE_SCAN_MODE")
+            else "smart"
+        )
+        max_shots = (
+            Config.THREEDE_MAX_SHOTS_TO_SCAN
+            if hasattr(Config, "THREEDE_MAX_SHOTS_TO_SCAN")
+            else 200
+        )
+
+        # For backwards compatibility with old find_all_scenes_in_shows
+        if not Config.THREEDE_FILE_FIRST_DISCOVERY:
+            logger.info("File-first discovery disabled, using old method")
+            return ThreeDESceneFinder.find_all_scenes_in_shows(
+                user_shots, excluded_users
+            )
+
+        # Extract unique shows and their roots
+        shows_to_search = set()
+        show_roots = {}
+        user_sequences = {}  # show -> set of sequences
+
+        for shot in user_shots:
+            shows_to_search.add(shot.show)
+            # Extract show root from workspace path
+            workspace_parts = Path(shot.workspace_path).parts
+            if "shows" in workspace_parts:
+                shows_idx = workspace_parts.index("shows")
+                show_root = "/".join(workspace_parts[: shows_idx + 1])
+                show_roots[shot.show] = show_root
+
+            # Track user's sequences for each show
+            if shot.show not in user_sequences:
+                user_sequences[shot.show] = set()
+            user_sequences[shot.show].add(shot.sequence)
+
+        if not show_roots:
+            # Use default if we couldn't extract
+            default_root = (
+                Config.SHOWS_ROOT if hasattr(Config, "SHOWS_ROOT") else "/shows"
+            )
+            for show in shows_to_search:
+                show_roots[show] = default_root
+
+        logger.info(
+            f"Efficient 3DE search across shows: {shows_to_search} (mode: {scan_mode})"
+        )
+
+        all_scenes = []
+        total_shots_processed = 0
+
+        for show in shows_to_search:
+            show_root = show_roots.get(show, "/shows")
+
+            # Determine which sequences to search based on scan mode
+            sequences_to_search = None
+            if scan_mode == "user_sequences" and Config.THREEDE_SCAN_RELATED_SEQUENCES:
+                sequences_to_search = user_sequences.get(show, set())
+                logger.info(
+                    f"Limiting search to user's {len(sequences_to_search)} sequences in {show}"
+                )
+
+            # Step 1: Find .3de files (respecting sequence limits)
+            threede_files = ThreeDESceneFinder.find_all_3de_files_in_show(
+                show_root,
+                show,
+                sequences_to_search,
+                timeout_seconds=Config.THREEDE_SCAN_TIMEOUT_SECONDS,
+            )
+
+            if not threede_files:
+                logger.info(f"No .3de files found in {show}")
+                continue
+
+            logger.info(f"Processing {len(threede_files)} .3de files in {show}")
+
+            # Step 2: Group files by shot for efficient processing
+            shots_with_files = {}  # (sequence, shot) -> list of (username, file_path)
+
+            for file_path in threede_files:
+                # Extract shot info from path
+                shot_info = ThreeDESceneFinder.extract_shot_info_from_path(file_path)
+                if not shot_info:
+                    continue
+
+                workspace_path, sequence, shot_name, username = shot_info
+
+                # Skip excluded users
+                if username in excluded_users:
+                    continue
+
+                shot_key = (sequence, shot_name)
+                if shot_key not in shots_with_files:
+                    shots_with_files[shot_key] = {
+                        "workspace_path": workspace_path,
+                        "files": [],
+                    }
+                shots_with_files[shot_key]["files"].append((username, file_path))
+
+            # Check if we're approaching the max shots limit
+            shots_to_process = len(shots_with_files)
+            if total_shots_processed + shots_to_process > max_shots:
+                remaining = max_shots - total_shots_processed
+                logger.warning(
+                    f"Reached max shots limit ({max_shots}). "
+                    f"Processing only {remaining} of {shots_to_process} shots in {show}"
+                )
+                # Limit the shots we process
+                shots_with_files = dict(list(shots_with_files.items())[:remaining])
+
+            # Step 3: Create ThreeDEScene objects for each file
+            for (sequence, shot_name), shot_data in shots_with_files.items():
+                workspace_path = shot_data["workspace_path"]
+
+                for username, file_path in shot_data["files"]:
+                    # Extract plate info
+                    user_path = file_path.parent
+                    while user_path.name != username and user_path.parent != user_path:
+                        user_path = user_path.parent
+
+                    plate = ThreeDESceneFinder.extract_plate_from_path(
+                        file_path, user_path
+                    )
+
+                    # Create scene object
+                    scene = ThreeDEScene(
+                        show=show,
+                        sequence=sequence,
+                        shot=shot_name,
+                        workspace_path=workspace_path,
+                        user=username,
+                        plate=plate,
+                        scene_path=file_path,
+                    )
+                    all_scenes.append(scene)
+
+            total_shots_processed += len(shots_with_files)
+            logger.info(
+                f"Found {len(all_scenes)} scenes in {show} from {len(shots_with_files)} shots "
+                f"(total shots processed: {total_shots_processed})"
+            )
+
+            # Early exit if we've hit the limit
+            if total_shots_processed >= max_shots:
+                logger.info(
+                    f"Reached maximum shot limit ({max_shots}), stopping search"
+                )
+                break
+
+        logger.info(
+            f"Efficient search complete: {len(all_scenes)} total scenes from {total_shots_processed} shots"
+        )
+        return all_scenes

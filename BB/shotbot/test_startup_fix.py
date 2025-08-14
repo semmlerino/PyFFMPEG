@@ -15,43 +15,43 @@ from shot_model import ShotModel
 
 def test_empty_cache_startup():
     """Test that the application loads shots correctly when cache is empty."""
-    
+
     print("\n=== Testing Empty Cache Startup ===\n")
-    
+
     # Create a temporary cache directory
     test_cache_dir = Path.home() / ".shotbot_test" / "cache"
-    
+
     # Clean up any existing test cache
     if test_cache_dir.exists():
         shutil.rmtree(test_cache_dir.parent)
         print("✓ Cleaned up existing test cache")
-    
+
     # Create cache manager with test directory
     cache_manager = CacheManager(cache_dir=test_cache_dir)
     print(f"✓ Created cache manager with test directory: {test_cache_dir}")
-    
+
     # Verify cache is empty
     cached_shots = cache_manager.get_cached_shots()
     cached_scenes = cache_manager.get_cached_threede_scenes()
-    
+
     assert cached_shots is None, "Cache should be empty for shots"
     assert cached_scenes is None, "Cache should be empty for 3DE scenes"
     print("✓ Verified cache is empty")
-    
+
     # Create shot model with empty cache
     shot_model = ShotModel(cache_manager=cache_manager, load_cache=True)
-    
+
     # Verify no shots loaded from cache
     assert len(shot_model.shots) == 0, "Should have no shots from empty cache"
     print("✓ Shot model initialized with 0 shots (expected)")
-    
+
     # Now trigger a refresh (simulating what _initial_load should do)
     print("\nFetching fresh shots...")
     success, has_changes = shot_model.refresh_shots()
-    
+
     if success:
         print(f"✓ Successfully fetched {len(shot_model.shots)} shots")
-        
+
         # Verify shots are now cached
         cached_shots = cache_manager.get_cached_shots()
         if cached_shots:
@@ -61,25 +61,25 @@ def test_empty_cache_startup():
     else:
         print("✗ Failed to fetch shots")
         print("  Note: This might be expected if 'ws -sg' is not available")
-    
+
     # Clean up test cache
     if test_cache_dir.exists():
         shutil.rmtree(test_cache_dir.parent)
         print("\n✓ Cleaned up test cache")
-    
+
     print("\n=== Test Complete ===\n")
-    
+
     return success
 
 
 def test_background_worker_timing():
     """Test that background worker checks immediately on startup."""
-    
+
     print("\n=== Testing Background Worker Timing ===\n")
-    
+
     # This would require actually running the MainWindow and worker
     # which needs a Qt application context
-    
+
     print("Background worker timing test requires Qt application context")
     print("Manual verification needed:")
     print("1. Start app with empty cache")
@@ -90,13 +90,13 @@ def test_background_worker_timing():
     print("  - 'Background refresh worker started'")
     print("  - (2 second delay)")
     print("  - 'Background refresh: checking for shot updates'")
-    
+
     print("\n=== Manual Verification Required ===\n")
 
 
 if __name__ == "__main__":
     # Test empty cache startup
     test_empty_cache_startup()
-    
+
     # Info about background worker test
     test_background_worker_timing()

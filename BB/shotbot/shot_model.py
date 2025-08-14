@@ -94,18 +94,16 @@ class Shot:
 
     def get_thumbnail_path(self) -> Optional[Path]:
         """Get first available thumbnail or None.
-        
+
         Tries editorial directory first, then falls back to turnover plates.
         """
         # Try editorial thumbnail first
-        if PathUtils.validate_path_exists(
-            self.thumbnail_dir, "Thumbnail directory"
-        ):
+        if PathUtils.validate_path_exists(self.thumbnail_dir, "Thumbnail directory"):
             # Use utility to find first image file
             thumbnail = FileUtils.get_first_image_file(self.thumbnail_dir)
             if thumbnail:
                 return thumbnail
-        
+
         # Fall back to turnover plate thumbnails
         return PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
             Config.SHOWS_ROOT, self.show, self.sequence, self.shot

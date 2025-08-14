@@ -270,9 +270,9 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         """
         try:
             # Set thread priority now that thread is running
-            if hasattr(self, '_desired_priority'):
+            if hasattr(self, "_desired_priority"):
                 self.setPriority(self._desired_priority)
-                
+
             logger.info("Starting enhanced 3DE scene discovery")
             self.started.emit()
 

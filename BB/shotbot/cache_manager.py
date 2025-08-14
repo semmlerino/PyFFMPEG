@@ -204,11 +204,13 @@ class CacheManager(QObject):
         try:
             # Check if this is a large EXR file that needs special handling
             file_size_mb = source_path.stat().st_size / (1024 * 1024)
-            is_exr = source_path.suffix.lower() == '.exr'
-            
+            is_exr = source_path.suffix.lower() == ".exr"
+
             if is_exr and file_size_mb > 10:
-                logger.info(f"Processing large EXR file ({file_size_mb:.1f}MB): {source_path.name}")
-            
+                logger.info(
+                    f"Processing large EXR file ({file_size_mb:.1f}MB): {source_path.name}"
+                )
+
             # Load image using QImage (thread-safe)
             image = QImage(str(source_path))
             if image.isNull():
@@ -463,34 +465,34 @@ class CacheManager(QObject):
         except Exception as e:
             logger.exception(f"Unexpected error reading 3DE scene cache: {e}")
             return None
-    
+
     def has_valid_threede_cache(self) -> bool:
         """Check if we have a valid 3DE cache (including valid empty results).
-        
+
         Returns:
             True if cache exists and is not expired (even if empty), False otherwise
         """
         if not self.threede_scenes_cache_file.exists():
             return False
-            
+
         try:
             with open(self.threede_scenes_cache_file, "r") as f:
                 data = json.load(f)
-                
+
             # Check if cache is expired
             cache_time = datetime.fromisoformat(data.get("timestamp", "1970-01-01"))
             age = datetime.now() - cache_time
-            
+
             # Cache is valid if not expired (even if scenes list is empty)
             is_valid = age <= timedelta(minutes=self.CACHE_EXPIRY_MINUTES)
-            
+
             if is_valid:
                 scene_count = len(data.get("scenes", []))
                 logger.debug(
-                    f"3DE cache is valid (age: {age.total_seconds()/60:.1f} min, "
+                    f"3DE cache is valid (age: {age.total_seconds() / 60:.1f} min, "
                     + f"scenes: {scene_count})"
                 )
-            
+
             return is_valid
         except FileNotFoundError:
             logger.debug("3DE scene cache file not found")
@@ -511,9 +513,11 @@ class CacheManager(QObject):
             logger.exception(f"Unexpected error reading 3DE scene cache: {e}")
             return False
 
-    def cache_threede_scenes(self, scenes: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None):
+    def cache_threede_scenes(
+        self, scenes: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
+    ):
         """Cache 3DE scene list to file with optional metadata.
-        
+
         Args:
             scenes: List of scene dictionaries to cache
             metadata: Optional metadata about the scan (e.g., paths checked, quick check result)
@@ -522,11 +526,12 @@ class CacheManager(QObject):
             data: dict[str, Any] = {
                 "timestamp": datetime.now().isoformat(),
                 "scenes": scenes,
-                "metadata": metadata or {
+                "metadata": metadata
+                or {
                     "scan_type": "full" if scenes else "empty",
                     "scene_count": len(scenes),
-                    "cached_at": datetime.now().isoformat()
-                }
+                    "cached_at": datetime.now().isoformat(),
+                },
             }
 
             # Ensure directory exists
@@ -803,7 +808,7 @@ class ThumbnailCacheLoader(QRunnable):
             )
             if cache_path:
                 # Check if signals object still exists before emitting
-                if hasattr(self, 'signals') and self.signals:
+                if hasattr(self, "signals") and self.signals:
                     try:
                         self.signals.loaded.emit(
                             self.show, self.sequence, self.shot, cache_path
@@ -815,9 +820,11 @@ class ThumbnailCacheLoader(QRunnable):
             else:
                 error_msg = f"Cache operation returned None for {self.shot}"
                 # Check if signals object still exists before emitting
-                if hasattr(self, 'signals') and self.signals:
+                if hasattr(self, "signals") and self.signals:
                     try:
-                        self.signals.failed.emit(self.show, self.sequence, self.shot, error_msg)
+                        self.signals.failed.emit(
+                            self.show, self.sequence, self.shot, error_msg
+                        )
                     except RuntimeError:
                         # Signals object was deleted, safe to ignore
                         pass
@@ -825,9 +832,11 @@ class ThumbnailCacheLoader(QRunnable):
         except Exception as e:
             error_msg = f"Exception while caching thumbnail for {self.shot}: {e}"
             # Check if signals object still exists before emitting
-            if hasattr(self, 'signals') and self.signals:
+            if hasattr(self, "signals") and self.signals:
                 try:
-                    self.signals.failed.emit(self.show, self.sequence, self.shot, str(e))
+                    self.signals.failed.emit(
+                        self.show, self.sequence, self.shot, str(e)
+                    )
                 except RuntimeError:
                     # Signals object was deleted, safe to ignore
                     pass

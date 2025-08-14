@@ -46,18 +46,16 @@ class ThreeDEScene:
 
     def get_thumbnail_path(self) -> Optional[Path]:
         """Get first available thumbnail or None.
-        
+
         Tries editorial directory first, then falls back to turnover plates.
         """
         # Try editorial thumbnail first
-        if PathUtils.validate_path_exists(
-            self.thumbnail_dir, "Thumbnail directory"
-        ):
+        if PathUtils.validate_path_exists(self.thumbnail_dir, "Thumbnail directory"):
             # Use utility to find first image file
             thumbnail = FileUtils.get_first_image_file(self.thumbnail_dir)
             if thumbnail:
                 return thumbnail
-        
+
         # Fall back to turnover plate thumbnails
         return PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
             Config.SHOWS_ROOT, self.show, self.sequence, self.shot
@@ -131,40 +129,15 @@ class ThreeDESceneModel:
         from threede_scene_finder import ThreeDESceneFinder
 
         try:
-            # First do a quick check if any .3de files exist at all
-            # This avoids expensive traversal when there are no scenes
-            base_paths = []
-            for shot in shots[:5]:  # Check first few shots as sample
-                shot_path = Path(shot.workspace_path) if shot.workspace_path else None
-                if shot_path and shot_path.exists():
-                    base_paths.append(str(shot_path / "user"))
-            
-            # If quick check finds no files, skip the full scan
-            if base_paths:
-                has_any_3de = ThreeDESceneFinder.quick_3de_exists_check(base_paths, timeout_seconds=2)
-                if not has_any_3de:
-                    logger.info("Quick check found no .3de files - skipping full scan")
-                    # If we already had no scenes, no changes
-                    had_scenes = len(self.scenes) > 0
-                    if had_scenes:
-                        self.scenes = []  # Clear scenes since none exist
-                    # Cache the "no scenes" result with metadata
-                    self.cache_manager.cache_threede_scenes([], metadata={  # type: ignore[call-arg]
-                        "scan_type": "quick_check",
-                        "result": "no_files_found",
-                        "paths_checked": len(base_paths)
-                    })
-                    return True, had_scenes  # Changes only if we had scenes before
-            
             # Save current scenes for comparison
             old_scene_data = {
                 (scene.full_name, scene.user, scene.plate, str(scene.scene_path))
                 for scene in self.scenes
             }
 
-            # Perform show-wide discovery - search ALL shots in the shows the user is working on
-            # This is different from "My Shots" which only shows the user's assigned shots
-            new_scenes = ThreeDESceneFinder.find_all_scenes_in_shows(
+            # Use the new efficient discovery method
+            # This finds .3de files first, then extracts shots - much faster!
+            new_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_efficient(
                 shots,  # User's shots are used to determine which shows to search
                 self._excluded_users,
             )
