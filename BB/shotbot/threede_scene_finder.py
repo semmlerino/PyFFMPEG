@@ -998,7 +998,7 @@ class ThreeDESceneFinder:
 
         This is the new efficient approach - find files first, then extract shots.
         Much faster than discovering all shots then checking each one.
-        
+
         Optimizations:
         - Uses depth limit to avoid deep directory traversal
         - Can run multiple find commands in parallel for sequences
@@ -1016,16 +1016,24 @@ class ThreeDESceneFinder:
         """
         import concurrent.futures
         import subprocess
-        
+
         show_path = Path(show_root) / show / "shots"
         if not show_path.exists():
             logger.warning(f"Show shots directory does not exist: {show_path}")
             return []
 
         # Get max depth from config
-        max_depth = Config.THREEDE_SCAN_MAX_DEPTH if hasattr(Config, 'THREEDE_SCAN_MAX_DEPTH') else 8
-        max_files = Config.THREEDE_SCAN_MAX_FILES_PER_SHOT * Config.THREEDE_MAX_SHOTS_TO_SCAN if hasattr(Config, 'THREEDE_SCAN_MAX_FILES_PER_SHOT') else 10000
-        
+        max_depth = (
+            Config.THREEDE_SCAN_MAX_DEPTH
+            if hasattr(Config, "THREEDE_SCAN_MAX_DEPTH")
+            else 8
+        )
+        max_files = (
+            Config.THREEDE_SCAN_MAX_FILES_PER_SHOT * Config.THREEDE_MAX_SHOTS_TO_SCAN
+            if hasattr(Config, "THREEDE_SCAN_MAX_FILES_PER_SHOT")
+            else 10000
+        )
+
         # Helper function to run find command on a single path
         def find_in_path(search_path: str) -> List[Path]:
             """Run find command on a single path."""
@@ -1035,21 +1043,28 @@ class ThreeDESceneFinder:
                 cmd = [
                     "find",
                     search_path,
-                    "-maxdepth", str(max_depth),
-                    "-type", "f",
-                    "(", "-name", "*.3de", "-o", "-name", "*.3DE", ")"
+                    "-maxdepth",
+                    str(max_depth),
+                    "-type",
+                    "f",
+                    "(",
+                    "-name",
+                    "*.3de",
+                    "-o",
+                    "-name",
+                    "*.3DE",
+                    ")",
                 ]
-                
+
                 result = subprocess.run(
-                    cmd, 
-                    capture_output=True, 
-                    text=True, 
-                    timeout=timeout_seconds
+                    cmd, capture_output=True, text=True, timeout=timeout_seconds
                 )
-                
+
                 if result.returncode != 0 and result.stderr:
-                    logger.debug(f"Find command warning for {search_path}: {result.stderr}")
-                
+                    logger.debug(
+                        f"Find command warning for {search_path}: {result.stderr}"
+                    )
+
                 # Parse output
                 files = []
                 for line in result.stdout.strip().split("\n"):
@@ -1057,13 +1072,17 @@ class ThreeDESceneFinder:
                         files.append(Path(line))
                         # Early termination if we have too many files
                         if len(files) >= max_files:
-                            logger.info(f"Reached max files limit ({max_files}) in {search_path}")
+                            logger.info(
+                                f"Reached max files limit ({max_files}) in {search_path}"
+                            )
                             break
-                
+
                 return files
-                
+
             except subprocess.TimeoutExpired:
-                logger.warning(f"Find command timed out for {search_path} after {timeout_seconds}s")
+                logger.warning(
+                    f"Find command timed out for {search_path} after {timeout_seconds}s"
+                )
                 return []
             except Exception as e:
                 logger.error(f"Error finding files in {search_path}: {e}")
@@ -1091,10 +1110,12 @@ class ThreeDESceneFinder:
                 seq_dirs = [d for d in show_path.iterdir() if d.is_dir()]
                 # Limit to reasonable number of sequences
                 if len(seq_dirs) > 50:
-                    logger.warning(f"Show has {len(seq_dirs)} sequences, limiting to first 50")
+                    logger.warning(
+                        f"Show has {len(seq_dirs)} sequences, limiting to first 50"
+                    )
                     seq_dirs = seq_dirs[:50]
                 search_paths = [str(d) for d in seq_dirs]
-                
+
                 if not search_paths:
                     # No sequences found, search entire show directory
                     search_paths = [str(show_path)]
@@ -1104,17 +1125,28 @@ class ThreeDESceneFinder:
 
         try:
             # Check if we should use parallel search
-            parallel_sequences = Config.THREEDE_SCAN_PARALLEL_SEQUENCES if hasattr(Config, 'THREEDE_SCAN_PARALLEL_SEQUENCES') else 1
-            
+            parallel_sequences = (
+                Config.THREEDE_SCAN_PARALLEL_SEQUENCES
+                if hasattr(Config, "THREEDE_SCAN_PARALLEL_SEQUENCES")
+                else 1
+            )
+
             if len(search_paths) > 1 and parallel_sequences > 1:
                 # Use parallel execution for multiple paths
-                logger.info(f"Searching {len(search_paths)} paths in parallel (max {parallel_sequences} threads)")
-                
+                logger.info(
+                    f"Searching {len(search_paths)} paths in parallel (max {parallel_sequences} threads)"
+                )
+
                 all_files = []
-                with concurrent.futures.ThreadPoolExecutor(max_workers=parallel_sequences) as executor:
+                with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=parallel_sequences
+                ) as executor:
                     # Submit all search tasks
-                    future_to_path = {executor.submit(find_in_path, path): path for path in search_paths}
-                    
+                    future_to_path = {
+                        executor.submit(find_in_path, path): path
+                        for path in search_paths
+                    }
+
                     # Collect results as they complete
                     for future in concurrent.futures.as_completed(future_to_path):
                         path = future_to_path[future]
@@ -1122,21 +1154,23 @@ class ThreeDESceneFinder:
                             files = future.result()
                             all_files.extend(files)
                             logger.debug(f"Found {len(files)} files in {path}")
-                            
+
                             # Early termination if we have enough files
                             if len(all_files) >= max_files:
-                                logger.info(f"Reached global max files limit ({max_files}), stopping search")
+                                logger.info(
+                                    f"Reached global max files limit ({max_files}), stopping search"
+                                )
                                 # Cancel remaining futures
                                 for f in future_to_path:
                                     f.cancel()
                                 break
-                                
+
                         except Exception as e:
                             logger.error(f"Error processing results from {path}: {e}")
-                
+
                 logger.info(f"Found total of {len(all_files)} .3de files in {show}")
                 return all_files[:max_files]  # Ensure we don't exceed max
-                
+
             else:
                 # Single path or sequential search
                 logger.info(f"Searching {len(search_paths)} path(s) sequentially")
@@ -1144,12 +1178,14 @@ class ThreeDESceneFinder:
                 for path in search_paths:
                     files = find_in_path(path)
                     all_files.extend(files)
-                    
+
                     # Early termination
                     if len(all_files) >= max_files:
-                        logger.info(f"Reached max files limit ({max_files}), stopping search")
+                        logger.info(
+                            f"Reached max files limit ({max_files}), stopping search"
+                        )
                         break
-                
+
                 logger.info(f"Found {len(all_files)} .3de files in {show}")
                 return all_files[:max_files]
 
@@ -1164,7 +1200,9 @@ class ThreeDESceneFinder:
                     for i, file in enumerate(path_obj.rglob(ext)):
                         threede_files.append(file)
                         if len(threede_files) >= max_files:
-                            logger.info(f"Reached max files limit ({max_files}) in fallback search")
+                            logger.info(
+                                f"Reached max files limit ({max_files}) in fallback search"
+                            )
                             return threede_files
             return threede_files
         except Exception as e:

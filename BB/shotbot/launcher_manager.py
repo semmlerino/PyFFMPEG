@@ -1556,31 +1556,52 @@ class LauncherManager(QObject):
                         # Worker finished normally
                         finished_workers.append(worker_key)
 
+                        # Ensure thread is truly finished before deletion
+                        if worker.isRunning():
+                            logger.warning(f"Worker {worker_key} marked as {state} but still running - waiting")
+                            if not worker.wait(2000):  # Wait up to 2 seconds
+                                logger.error(f"Worker {worker_key} failed to stop properly - forcing termination")
+                                worker.safe_terminate()
+                                worker.wait(500)  # Give it time to terminate
+
                         # Disconnect signals using thread-safe method
                         worker.disconnect_all()
 
-                        # Schedule for deletion
-                        worker.deleteLater()
-                        logger.debug(
-                            f"Cleaned up finished worker {worker_key} (state: {state})"
-                        )
+                        # Only schedule for deletion after thread is fully stopped
+                        if not worker.isRunning():
+                            worker.deleteLater()
+                            logger.debug(
+                                f"Cleaned up finished worker {worker_key} (state: {state})"
+                            )
+                        else:
+                            logger.error(f"Cannot delete worker {worker_key} - still running after termination")
 
                     elif state == "CREATED" and not worker.isRunning():
-                        # Worker never started - clean it up
+                        # Worker never started - safe to clean up
                         finished_workers.append(worker_key)
+                        worker.disconnect_all()
                         worker.deleteLater()
                         logger.debug(f"Cleaned up unstarted worker {worker_key}")
 
                     elif state == "RUNNING" and not worker.isRunning():
-                        # Worker is stuck - request stop
+                        # Worker is stuck - request stop and wait for completion
                         logger.warning(
                             f"Worker {worker_key} stuck in RUNNING but thread not running"
                         )
+                        finished_workers.append(worker_key)
+                        
+                        # Try to stop gracefully first
                         if worker.request_stop():
                             if not worker.safe_wait(1000):
                                 worker.safe_terminate()
-                        finished_workers.append(worker_key)
-                        worker.deleteLater()
+                                worker.wait(500)  # Give it time to terminate
+                        
+                        # Only delete if truly stopped
+                        if not worker.isRunning():
+                            worker.disconnect_all()
+                            worker.deleteLater()
+                        else:
+                            logger.error(f"Cannot delete worker {worker_key} - still running after termination")
 
                     elif state == "STOPPING":
                         # Worker is stopping - give it more time
@@ -1590,7 +1611,16 @@ class LauncherManager(QObject):
                                 f"Force terminating stuck worker {worker_key}"
                             )
                             worker.safe_terminate()
+                            if worker.wait(1000):  # Wait for termination to complete
+                                finished_workers.append(worker_key)
+                                worker.disconnect_all()
+                                worker.deleteLater()
+                            else:
+                                logger.error(f"Worker {worker_key} failed to terminate - not deleting")
+                        else:
+                            # Worker stopped successfully
                             finished_workers.append(worker_key)
+                            worker.disconnect_all()
                             worker.deleteLater()
 
                 except Exception as e:
@@ -1598,8 +1628,13 @@ class LauncherManager(QObject):
                     # Mark for cleanup anyway to prevent accumulation
                     finished_workers.append(worker_key)
                     try:
+                        # Try to safely stop and clean up
                         worker.safe_terminate()
-                        worker.deleteLater()
+                        if worker.wait(1000):  # Wait for termination
+                            worker.disconnect_all()
+                            worker.deleteLater()
+                        else:
+                            logger.error(f"Failed to clean up error worker {worker_key} - still running")
                     except Exception:
                         pass  # Best effort cleanup
 

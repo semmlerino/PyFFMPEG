@@ -142,16 +142,16 @@ class ShotGridView(QWidget):
     @property
     def model(self) -> Optional[ShotItemModel]:
         """Get the current data model.
-        
+
         Returns:
             The shot item model or None
         """
         return self._model
-    
+
     @property
     def selected_shot(self):
         """Get the currently selected shot.
-        
+
         Returns:
             The selected Shot object or None
         """

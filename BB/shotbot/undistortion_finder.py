@@ -58,8 +58,12 @@ class UndistortionFinder:
         found_files: List[Tuple[Path, str, str]] = []
 
         # Look for scene directories (scene, sceneMasterSurvey, etc.)
-        scene_dirs = [d for d in exports_path.iterdir() if d.is_dir() and "scene" in d.name.lower()]
-        
+        scene_dirs = [
+            d
+            for d in exports_path.iterdir()
+            if d.is_dir() and "scene" in d.name.lower()
+        ]
+
         if not scene_dirs:
             # Fallback to direct "scene" directory if it exists
             scene_path = exports_path / "scene"
@@ -68,9 +72,11 @@ class UndistortionFinder:
             else:
                 logger.debug(f"No scene directories found in {exports_path}")
                 return None
-        
+
         for scene_dir in scene_dirs:
-            logger.debug(f"Searching for undistortion in scene directory: {scene_dir.name}")
+            logger.debug(
+                f"Searching for undistortion in scene directory: {scene_dir.name}"
+            )
             for potential_plate in scene_dir.iterdir():
                 if not potential_plate.is_dir():
                     continue
@@ -97,15 +103,15 @@ class UndistortionFinder:
                         # Search for .nk files recursively in subdirectories
                         # First try the specific LD pattern, then fallback to any .nk with shot name
                         nk_files = list(version_dir.rglob(f"{shot_name}*LD*.nk"))
-                        
+
                         # If no LD files found, try more general pattern
                         if not nk_files:
                             nk_files = list(version_dir.rglob(f"{shot_name}*.nk"))
-                        
+
                         # If still nothing, try any .nk file in the directory
                         if not nk_files:
                             nk_files = list(version_dir.rglob("*.nk"))
-                        
+
                         for nk_file in nk_files:
                             if nk_file.exists():
                                 # Extract version from path

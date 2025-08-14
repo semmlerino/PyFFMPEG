@@ -466,39 +466,48 @@ class MainWindow(QMainWindow):
 
     def _refresh_threede_scenes(self):
         """Thread-safe refresh of 3DE scene list using background worker."""
+        # First check if we're closing without holding mutex
+        if self._closing:
+            logger.debug("Ignoring refresh request during shutdown")
+            return
+            
+        # Store worker reference for cleanup outside mutex
+        worker_to_stop = None
+        
+        # Use mutex only for critical section
         with QMutexLocker(self._worker_mutex):
-            # Don't start new work during shutdown
+            # Double-check closing state with mutex held
             if self._closing:
-                logger.debug("Ignoring refresh request during shutdown")
                 return
-
+                
             # Check existing worker state
-            if self._threede_worker:
-                # Check if worker is still active
-                if not self._threede_worker.isFinished():
-                    logger.debug(
-                        "3DE worker still running, stopping before starting new one"
-                    )
-                    self._threede_worker.stop()
-                    # Release mutex while waiting to avoid deadlock
-                    self._worker_mutex.unlock()
-                    try:
-                        if not self._threede_worker.wait(1000):  # Wait up to 1 second
-                            logger.warning(
-                                "Failed to stop 3DE worker gracefully, using safe termination"
-                            )
-                            # Use safe_terminate which avoids dangerous terminate() call
-                            self._threede_worker.safe_terminate()
-                    finally:
-                        self._worker_mutex.lock()  # Re-acquire mutex
-
-                    # Check again if we're closing (could have changed while waiting)
-                    if self._closing:
-                        return
-
-                # Clean up old worker
-                self._threede_worker.deleteLater()
+            if self._threede_worker and not self._threede_worker.isFinished():
+                logger.debug(
+                    "3DE worker still running, will stop before starting new one"
+                )
+                worker_to_stop = self._threede_worker
                 self._threede_worker = None
+        
+        # Stop old worker outside of mutex to avoid deadlock
+        if worker_to_stop:
+            worker_to_stop.stop()
+            if not worker_to_stop.wait(1000):  # Wait up to 1 second
+                logger.warning(
+                    "Failed to stop 3DE worker gracefully, using safe termination"
+                )
+                # Use safe_terminate which avoids dangerous terminate() call
+                worker_to_stop.safe_terminate()
+            worker_to_stop.deleteLater()
+            
+        # Check once more if closing (could have changed while stopping worker)
+        if self._closing:
+            return
+            
+        # Now create new worker with mutex protection
+        with QMutexLocker(self._worker_mutex):
+            # Final check before creating new worker
+            if self._closing or self._threede_worker:
+                return
 
             # Show loading state
             self.threede_shot_grid.set_loading(True)
@@ -511,50 +520,51 @@ class MainWindow(QMainWindow):
                 batch_size=None,  # Use config default
             )
 
-            # Connect enhanced worker signals using safe_connect method for proper cleanup
-            self._threede_worker.safe_connect(
-                self._threede_worker.started,
-                self._on_threede_discovery_started,
-                Qt.ConnectionType.QueuedConnection,
-            )
-            self._threede_worker.safe_connect(
-                self._threede_worker.batch_ready,
-                self._on_threede_batch_ready,
-                Qt.ConnectionType.QueuedConnection,
-            )
-            self._threede_worker.safe_connect(
-                self._threede_worker.progress,
-                self._on_threede_discovery_progress,
-                Qt.ConnectionType.QueuedConnection,
-            )
-            self._threede_worker.safe_connect(
-                self._threede_worker.scan_progress,
-                self._on_threede_scan_progress,
-                Qt.ConnectionType.QueuedConnection,
-            )
-            self._threede_worker.safe_connect(
-                self._threede_worker.finished,
-                self._on_threede_discovery_finished,
-                Qt.ConnectionType.QueuedConnection,
-            )
-            self._threede_worker.safe_connect(
-                self._threede_worker.error,
-                self._on_threede_discovery_error,
-                Qt.ConnectionType.QueuedConnection,
-            )
-            self._threede_worker.safe_connect(
-                self._threede_worker.paused,
-                self._on_threede_discovery_paused,
-                Qt.ConnectionType.QueuedConnection,
-            )
-            self._threede_worker.safe_connect(
-                self._threede_worker.resumed,
-                self._on_threede_discovery_resumed,
-                Qt.ConnectionType.QueuedConnection,
-            )
+        # Connect worker signals outside of mutex (signals are thread-safe)
+        # Connect enhanced worker signals using safe_connect method for proper cleanup
+        self._threede_worker.safe_connect(
+            self._threede_worker.started,
+            self._on_threede_discovery_started,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        self._threede_worker.safe_connect(
+            self._threede_worker.batch_ready,
+            self._on_threede_batch_ready,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        self._threede_worker.safe_connect(
+            self._threede_worker.progress,
+            self._on_threede_discovery_progress,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        self._threede_worker.safe_connect(
+            self._threede_worker.scan_progress,
+            self._on_threede_scan_progress,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        self._threede_worker.safe_connect(
+            self._threede_worker.finished,
+            self._on_threede_discovery_finished,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        self._threede_worker.safe_connect(
+            self._threede_worker.error,
+            self._on_threede_discovery_error,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        self._threede_worker.safe_connect(
+            self._threede_worker.paused,
+            self._on_threede_discovery_paused,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        self._threede_worker.safe_connect(
+            self._threede_worker.resumed,
+            self._on_threede_discovery_resumed,
+            Qt.ConnectionType.QueuedConnection,
+        )
 
-            # Start the worker
-            self._threede_worker.start()
+        # Start the worker
+        self._threede_worker.start()
 
     def _on_threede_discovery_started(self):
         """Handle 3DE discovery worker started signal."""
@@ -714,35 +724,35 @@ class MainWindow(QMainWindow):
 
     def _on_shot_selected(self, shot: Optional[Shot]):
         """Handle shot selection or deselection.
-        
+
         Args:
             shot: Shot object or None to clear selection
         """
         # Clear any 3DE scene context when selecting a regular shot
         self._current_scene = None
-        
+
         if shot is None:
             # Handle deselection
             self.command_launcher.set_current_shot(None)
             self.shot_info_panel.set_shot(None)
-            
+
             # Disable app buttons and show info label
             for button in self.app_buttons.values():
                 button.setEnabled(False)
             self.launcher_info_label.show()
-            
+
             # Update custom launcher menu availability
             self._update_launcher_menu_availability(False)
-            
+
             # Disable custom launcher buttons
             self._enable_custom_launcher_buttons(False)
-            
+
             # Reset window title
             self.setWindowTitle(Config.APP_NAME)
-            
+
             # Update status
             self._update_status("No shot selected")
-            
+
             # Clear saved selection
             self._last_selected_shot_name = None
             self._save_settings()
@@ -909,38 +919,22 @@ class MainWindow(QMainWindow):
 
     def _sync_thumbnail_sizes(self, value: int):
         """Synchronize thumbnail sizes between both tabs."""
-        # Prevent recursive calls by temporarily disconnecting signals
-        # Use try/except to handle case where signals might not be connected
+        # Use signal blocking instead of disconnection to prevent race conditions
+        # This is thread-safe and guaranteed to work
+        
+        # Block signals temporarily to prevent recursion
+        shot_grid_was_blocked = self.shot_grid.size_slider.blockSignals(True)
+        threede_grid_was_blocked = self.threede_shot_grid.size_slider.blockSignals(True)
+        
         try:
-            self.shot_grid.size_slider.valueChanged.disconnect(
-                self._sync_thumbnail_sizes
-            )
-        except (RuntimeError, TypeError):
-            pass  # Signal was not connected
-
-        try:
-            self.threede_shot_grid.size_slider.valueChanged.disconnect(
-                self._sync_thumbnail_sizes
-            )
-        except (RuntimeError, TypeError):
-            pass  # Signal was not connected
-
-        # Update both sliders
-        self.shot_grid.size_slider.setValue(value)
-        self.threede_shot_grid.size_slider.setValue(value)
-
-        # Reconnect signals
-        try:
-            self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
-        except (RuntimeError, TypeError):
-            logger.warning("Failed to reconnect shot_grid size slider signal")
-
-        try:
-            self.threede_shot_grid.size_slider.valueChanged.connect(
-                self._sync_thumbnail_sizes
-            )
-        except (RuntimeError, TypeError):
-            logger.warning("Failed to reconnect threede_shot_grid size slider signal")
+            # Update both sliders without triggering signals
+            self.shot_grid.size_slider.setValue(value)
+            self.threede_shot_grid.size_slider.setValue(value)
+        finally:
+            # Always restore signal state, even if an exception occurs
+            # This prevents leaving signals permanently blocked
+            self.shot_grid.size_slider.blockSignals(shot_grid_was_blocked)
+            self.threede_shot_grid.size_slider.blockSignals(threede_grid_was_blocked)
 
     def _update_status(self, message: str):
         """Update status bar."""
@@ -1440,16 +1434,16 @@ class BackgroundRefreshWorker(QThread):
     refresh_requested = Signal()  # Request refresh on main thread
     status_update = Signal(str)  # Status messages
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QObject] = None):
         super().__init__(parent)
         self._stop_requested = False
         self._refresh_interval_ms = Config.CACHE_REFRESH_INTERVAL_MINUTES * 60 * 1000
 
-    def stop(self):
+    def stop(self) -> None:
         """Request the worker to stop."""
         self._stop_requested = True
 
-    def run(self):
+    def run(self) -> None:
         """Main worker thread execution."""
         logger.info("Background refresh worker started")
 

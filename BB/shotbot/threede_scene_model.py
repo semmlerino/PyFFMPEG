@@ -28,7 +28,9 @@ class ThreeDEScene:
     user: str
     plate: str
     scene_path: Path
-    _cached_thumbnail_path: Any = field(default=_NOT_SEARCHED, init=False, repr=False, compare=False)
+    _cached_thumbnail_path: Any = field(
+        default=_NOT_SEARCHED, init=False, repr=False, compare=False
+    )
 
     @property
     def full_name(self) -> str:
@@ -55,17 +57,17 @@ class ThreeDEScene:
         1. Editorial directory thumbnails
         2. Turnover plate thumbnails
         3. Any EXR file containing '1001' in publish folder
-        
+
         Results are cached after the first search to avoid repeated
         expensive filesystem operations.
         """
         # Return cached result if we've already searched
         if self._cached_thumbnail_path is not _NOT_SEARCHED:
             return self._cached_thumbnail_path
-        
+
         # Perform the search and cache the result
         thumbnail = None
-        
+
         # Try editorial thumbnail first
         if PathUtils.validate_path_exists(self.thumbnail_dir, "Thumbnail directory"):
             # Use utility to find first image file
@@ -86,7 +88,7 @@ class ThreeDEScene:
         thumbnail = PathUtils.find_any_publish_thumbnail(  # type: ignore[attr-defined]
             Config.SHOWS_ROOT, self.show, self.sequence, self.shot
         )
-        
+
         # Cache the result (even if None) to avoid repeated searches
         self._cached_thumbnail_path = thumbnail
         return thumbnail
@@ -239,7 +241,7 @@ class ThreeDESceneModel:
             shot_key = f"{scene.show}/{scene.sequence}/{scene.shot}"
             scenes_by_shot[shot_key].append(scene)
 
-        deduplicated = []
+        deduplicated: List[ThreeDEScene] = []
         for shot_scenes in scenes_by_shot.values():
             if len(shot_scenes) == 1:
                 deduplicated.append(shot_scenes[0])
