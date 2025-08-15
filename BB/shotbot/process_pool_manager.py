@@ -276,6 +276,27 @@ class PersistentBashSession:
 
             # Set up session - with proper output draining to prevent deadlock
             try:
+                # First, drain any initial output from bash startup (like motd, etc)
+                if DEBUG_VERBOSE:
+                    logger.debug(f"[{self.session_id}] Draining initial bash output...")
+                    
+                if HAS_FCNTL and self._process.stdout:
+                    try:
+                        import select
+                        # Drain any initial output with very short timeout
+                        drain_start = time.time()
+                        while time.time() - drain_start < 0.2:  # Max 200ms draining
+                            ready, _, _ = select.select([self._process.stdout], [], [], 0.01)
+                            if ready:
+                                chunk = self._process.stdout.read(1024)
+                                if DEBUG_VERBOSE and chunk:
+                                    logger.debug(f"[{self.session_id}] Drained {len(chunk)} bytes of initial output")
+                            else:
+                                break  # No more data to drain
+                    except Exception as drain_error:
+                        if DEBUG_VERBOSE:
+                            logger.debug(f"[{self.session_id}] Error draining initial output: {drain_error}")
+                
                 # Send a unique marker to verify session is ready
                 import uuid
                 marker = f"SHOTBOT_INIT_{uuid.uuid4().hex[:8]}"
@@ -298,12 +319,17 @@ class PersistentBashSession:
                     logger.debug(f"[{self.session_id}] Waiting for initialization marker: {marker}")
                 
                 while time.time() - start_time < timeout:
+                    elapsed = time.time() - start_time
+                    
                     if self._process.stdout:
                         try:
                             if HAS_FCNTL:
                                 # Non-blocking read - check if data is available
                                 try:
                                     import select
+                                    if DEBUG_VERBOSE and int(elapsed * 10) % 5 == 0:  # Log every 0.5 seconds
+                                        logger.debug(f"[{self.session_id}] Checking for data at {elapsed:.1f}s...")
+                                    
                                     # Use very short timeout to avoid hanging
                                     ready, _, _ = select.select([self._process.stdout], [], [], 0.01)
                                     if ready:
@@ -315,6 +341,9 @@ class PersistentBashSession:
                                             found_marker = True
                                             logger.debug(f"[{self.session_id}] Session initialized successfully (non-blocking)")
                                             break
+                                    elif DEBUG_VERBOSE and elapsed > 0.5:
+                                        # Log if we've been waiting a while with no data
+                                        logger.debug(f"[{self.session_id}] No data available after {elapsed:.1f}s, continuing to wait...")
                                 except ImportError:
                                     # select not available, fall back to readline
                                     logger.debug("select module not available, using readline")
@@ -331,13 +360,15 @@ class PersistentBashSession:
                                     logger.debug("Session initialized successfully (blocking)")
                                     break
                         except Exception as read_error:
-                            logger.debug(f"Read error during initialization: {read_error}")
+                            logger.debug(f"[{self.session_id}] Read error during initialization: {read_error}")
                             # Small sleep to avoid busy loop
                             time.sleep(0.01)
                     
                     # Also check if process died
                     if self._process.poll() is not None:
-                        raise RuntimeError("Bash process died during initialization")
+                        exit_code = self._process.returncode
+                        logger.error(f"[{self.session_id}] Bash process died during initialization with exit code: {exit_code}")
+                        raise RuntimeError(f"Bash process died during initialization (exit code: {exit_code})")
                 
                 # Check if we successfully initialized
                 if not found_marker:
@@ -873,6 +904,12 @@ class ProcessPoolManager(QObject):
                         session = PersistentBashSession(session_id)
                         pool.append(session)
                         logger.info(f"Created session {session_id} in pool")
+                        
+                        # Small delay between creating sessions to avoid resource contention
+                        if i < self._sessions_per_type - 1:
+                            time.sleep(0.1)
+                            if DEBUG_VERBOSE:
+                                logger.debug(f"Brief pause before creating next session...")
                     except Exception as e:
                         logger.error(f"Failed to create session {session_id}: {e}")
                         # Continue with fewer sessions if some fail

@@ -1,19 +1,31 @@
 #!/usr/bin/env python3
-"""Test script to verify ProcessPoolManager fix."""
+"""Test script to verify ProcessPoolManager initialization fix."""
 
-import logging
+import os
 import sys
+import time
+import logging
 
-# Setup logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Enable verbose debug mode
+os.environ['SHOTBOT_DEBUG_VERBOSE'] = '1'
+
+# Set up logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 logger = logging.getLogger(__name__)
 
-def test_pool_manager():
-    """Test ProcessPoolManager initialization and basic command execution."""
+def test_pool_initialization():
+    """Test that ProcessPoolManager can initialize without hanging."""
+    logger.info("=" * 60)
+    logger.info("Testing ProcessPoolManager initialization...")
+    logger.info("=" * 60)
+    
     try:
-        # Import ProcessPoolManager (this would fail if Qt is needed)
-        # First, let's mock Qt components
-        import sys
+        # Mock Qt components
         from unittest.mock import MagicMock
         
         # Mock PySide6 before importing ProcessPoolManager
@@ -22,33 +34,49 @@ def test_pool_manager():
         sys.modules['PySide6.QtCore'].QObject = object
         sys.modules['PySide6.QtCore'].Signal = MagicMock
         
-        # Now import ProcessPoolManager
+        # Import after setting environment variable and mocks
         from process_pool_manager import ProcessPoolManager
         
         logger.info("Creating ProcessPoolManager instance...")
-        manager = ProcessPoolManager.get_instance()
-        logger.info("✓ ProcessPoolManager created successfully")
+        start_time = time.time()
         
-        # Test simple command execution
-        logger.info("Testing simple command execution...")
-        result = manager.execute_workspace_command("echo 'Hello from fixed pool'", timeout=5)
-        logger.info(f"✓ Command executed: {result.strip()}")
+        # This should trigger lazy initialization of sessions
+        pm = ProcessPoolManager.get_instance()
         
-        # Test that we didn't hang
-        logger.info("✓ All tests passed - no hanging detected!")
+        logger.info("Executing test command to trigger session creation...")
+        result = pm.execute_workspace_command("echo 'test'", timeout=10)
         
-        # Cleanup
-        manager.shutdown()
-        logger.info("✓ Shutdown completed")
+        elapsed = time.time() - start_time
+        logger.info(f"✓ Command executed successfully in {elapsed:.2f}s")
+        logger.info(f"✓ Result: {result.strip()}")
         
+        # Test multiple commands to use the pool
+        logger.info("\nTesting multiple commands...")
+        for i in range(3):
+            cmd = f"echo 'test_{i}'"
+            result = pm.execute_workspace_command(cmd, timeout=5)
+            logger.info(f"✓ Command {i+1}: {result.strip()}")
+        
+        # Test that all sessions were created successfully
+        metrics = pm.get_metrics()
+        if 'sessions' in metrics and 'workspace' in metrics['sessions']:
+            pool_size = metrics['sessions']['workspace']['pool_size']
+            logger.info(f"✓ Created {pool_size} sessions in pool")
+        
+        logger.info("\n" + "=" * 60)
+        logger.info("✓ ALL TESTS PASSED - ProcessPoolManager working correctly!")
+        logger.info("=" * 60)
+        
+        # Clean shutdown
+        pm.shutdown()
         return True
         
     except Exception as e:
-        logger.error(f"Test failed: {e}")
+        logger.error(f"✗ Test failed with error: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 if __name__ == "__main__":
-    success = test_pool_manager()
+    success = test_pool_initialization()
     sys.exit(0 if success else 1)
