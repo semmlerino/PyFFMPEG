@@ -8,8 +8,8 @@ import tarfile
 
 # Try PySide2 first, fall back to PySide6
 try:
-    from PySide2.QtCore import QMimeData, QSettings, QSize, Qt, QThread, QTimer, Signal
-    from PySide2.QtGui import QColor, QDragEnterEvent, QDropEvent, QFont, QPalette
+    from PySide2.QtCore import QSettings, Qt, QThread, QTimer, Signal
+    from PySide2.QtGui import QDragEnterEvent, QDropEvent
     from PySide2.QtWidgets import (
         QApplication,
         QCheckBox,
@@ -24,7 +24,6 @@ try:
         QProgressBar,
         QPushButton,
         QScrollArea,
-        QSizePolicy,
         QSpinBox,
         QTabWidget,
         QTextEdit,
@@ -43,7 +42,7 @@ except ImportError:
             QTimer,
             Signal,
         )
-        from PySide6.QtGui import QColor, QDragEnterEvent, QDropEvent, QFont, QPalette
+        from PySide6.QtGui import QDragEnterEvent, QDropEvent
         from PySide6.QtWidgets import (
             QApplication,
             QCheckBox,
@@ -58,7 +57,6 @@ except ImportError:
             QProgressBar,
             QPushButton,
             QScrollArea,
-            QSizePolicy,
             QSpinBox,
             QTabWidget,
             QTextEdit,
@@ -88,6 +86,7 @@ if PYSIDE_VERSION == "PySide6":
     PointingHandCursor = Qt.CursorShape.PointingHandCursor
     # PySide6 uses Qt.FocusPolicy.StrongFocus
     StrongFocus = Qt.FocusPolicy.StrongFocus
+
     # PySide6 uses exec() instead of exec_()
     def exec_app(app):
         """Execute the application event loop."""
@@ -103,6 +102,7 @@ else:
     PointingHandCursor = Qt.PointingHandCursor
     # PySide2 uses Qt.StrongFocus
     StrongFocus = Qt.StrongFocus
+
     # PySide2 uses exec_()
     def exec_app(app):
         """Execute the application event loop."""
@@ -648,18 +648,20 @@ class FolderTransferApp(QMainWindow):
         self.chunks_data = {}
         self.current_chunks = []
         self.selected_folders = []
-        
+
         # Initialize QSettings for persistent storage
         self.settings = QSettings("FolderTransfer", "Transfer")
-        
+
         # Load last folder path
-        self.last_folder_path = self.settings.value("last_folder_path", os.path.expanduser("~"))
-        
+        self.last_folder_path = self.settings.value(
+            "last_folder_path", os.path.expanduser("~")
+        )
+
         self.init_ui()
 
     def init_ui(self):
         self.setWindowTitle(f"Folder Transfer Tool ({PYSIDE_VERSION})")
-        
+
         # Restore window geometry from settings
         geometry = self.settings.value("window_geometry")
         if geometry:
@@ -884,7 +886,9 @@ class FolderTransferApp(QMainWindow):
         self.auto_copy_check.setChecked(auto_copy)
         # Save preference when it changes
         self.auto_copy_check.stateChanged.connect(
-            lambda: self.settings.setValue("auto_copy", self.auto_copy_check.isChecked())
+            lambda: self.settings.setValue(
+                "auto_copy", self.auto_copy_check.isChecked()
+            )
         )
         other_layout.addWidget(self.auto_copy_check)
 
@@ -1131,15 +1135,13 @@ class FolderTransferApp(QMainWindow):
     def browse_folder(self):
         # Use last folder path as starting directory
         folder = QFileDialog.getExistingDirectory(
-            self, 
-            "Select Folder to Encode",
-            self.last_folder_path
+            self, "Select Folder to Encode", self.last_folder_path
         )
         if folder:
             # Save the parent directory of the selected folder for next time
             self.save_last_folder_path(os.path.dirname(folder))
             self.folder_dropped(folder)
-    
+
     def save_last_folder_path(self, path):
         """Save the last selected folder path to settings."""
         if path and os.path.exists(path):
@@ -1162,7 +1164,7 @@ class FolderTransferApp(QMainWindow):
     def folder_dropped(self, folder_path):
         # Save the parent directory for next time
         self.save_last_folder_path(os.path.dirname(folder_path))
-        
+
         # Add folder to grid
         self.folder_grid.add_folder(folder_path)
 
@@ -1596,9 +1598,7 @@ class FolderTransferApp(QMainWindow):
     def browse_output_dir(self):
         current_dir = self.output_dir_label.text()
         folder = QFileDialog.getExistingDirectory(
-            self, 
-            "Select Output Directory",
-            current_dir
+            self, "Select Output Directory", current_dir
         )
         if folder:
             self.output_dir_label.setText(folder)
@@ -1707,7 +1707,7 @@ class FolderTransferApp(QMainWindow):
     def browse_chunk_file(self):
         # Use last chunk file directory or fall back to last folder path
         last_chunk_dir = self.settings.value("last_chunk_dir", self.last_folder_path)
-        
+
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Base64 Chunk File",
@@ -1843,7 +1843,7 @@ class FolderTransferApp(QMainWindow):
             "Drag and drop a base64 file here\n(.txt, .base64, .b64)"
         )
         self.file_drop_label.setStyleSheet(self.file_drop_label.default_style)
-    
+
     def closeEvent(self, event):
         """Save settings when closing the application."""
         # Save window geometry

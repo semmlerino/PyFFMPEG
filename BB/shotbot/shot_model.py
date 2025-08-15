@@ -18,7 +18,11 @@ from utils import FileUtils, PathUtils, ValidationUtils
 logger = logging.getLogger(__name__)
 
 # Enable verbose debug logging if environment variable is set
-DEBUG_VERBOSE = os.environ.get('SHOTBOT_DEBUG_VERBOSE', '').lower() in ('1', 'true', 'yes')
+DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
 if DEBUG_VERBOSE:
     logger.setLevel(logging.DEBUG)
     logger.info("VERBOSE DEBUG MODE ENABLED for ShotModel")
@@ -199,7 +203,9 @@ class ShotModel:
                 logger.debug("Loading shots from cache...")
             loaded = self._load_from_cache()
             if DEBUG_VERBOSE:
-                logger.debug(f"Cache load result: {loaded}, shots loaded: {len(self.shots)}")
+                logger.debug(
+                    f"Cache load result: {loaded}, shots loaded: {len(self.shots)}"
+                )
 
     def _load_from_cache(self) -> bool:
         """Load shots from cache if available."""
@@ -238,7 +244,9 @@ class ShotModel:
                     cache_ttl=30,  # Cache for 30 seconds
                 )
                 if DEBUG_VERBOSE:
-                    logger.debug(f"'ws -sg' command returned {len(output) if output else 0} bytes")
+                    logger.debug(
+                        f"'ws -sg' command returned {len(output) if output else 0} bytes"
+                    )
                     if output:
                         logger.debug(f"First 200 chars of output: {output[:200]}...")
             except TimeoutError as e:
@@ -252,6 +260,7 @@ class ShotModel:
                 if DEBUG_VERBOSE:
                     logger.debug(f"RuntimeError details: {e}")
                     import traceback
+
                     logger.debug(f"Traceback: {traceback.format_exc()}")
                 return RefreshResult(success=False, has_changes=False)
 

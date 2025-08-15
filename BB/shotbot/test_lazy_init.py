@@ -3,11 +3,14 @@
 
 import sys
 
+from PySide6.QtWidgets import QApplication  # noqa: E402
+
+from process_pool_manager import ProcessPoolManager  # noqa: E402
+
 print("Testing lazy initialization...")
 
 # Step 1: Import and create ProcessPoolManager
 print("1. Importing ProcessPoolManager...")
-from process_pool_manager import ProcessPoolManager
 
 print("✓ Imported")
 
@@ -16,7 +19,6 @@ pm = ProcessPoolManager.get_instance()
 print("✓ Instance created (sessions should NOT be created yet)")
 
 print("3. Creating QApplication...")
-from PySide6.QtWidgets import QApplication
 
 app = QApplication(sys.argv)
 print("✓ QApplication created")

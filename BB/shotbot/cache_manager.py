@@ -229,7 +229,51 @@ class CacheManager(QObject):
                 # In a real implementation, you'd wait for the result
                 return None
 
-            # Load image using QImage (safe on main thread)
+            # If on main thread, call the direct method
+            return self._cache_thumbnail_direct(source_path, show, sequence, shot)
+
+        except Exception as e:
+            logger.exception(f"Unexpected error caching thumbnail {source_path}: {e}")
+            return None
+
+    def _cache_thumbnail_direct(
+        self, source_path: Path, show: str, sequence: str, shot: str
+    ) -> Optional[Path]:
+        """Direct thumbnail caching implementation without thread checks.
+
+        This method does the actual work of caching thumbnails and should only
+        be called from the main thread or from ThumbnailCacheLoader to avoid
+        infinite recursion.
+
+        Args:
+            source_path: Path to the source image file
+            show: Show name for organizing cache
+            sequence: Sequence name for organizing cache
+            shot: Shot name for the cached file
+
+        Returns:
+            Path to cached thumbnail if successful, None otherwise
+        """
+        # Build cache path
+        cache_dir = self.thumbnails_dir / show / sequence
+        cache_path = cache_dir / f"{shot}_thumb.jpg"
+
+        # Load and process image with proper resource management
+        # Use QImage instead of QPixmap for thread safety
+        image = None
+        scaled = None
+
+        try:
+            # Check if this is a large EXR file that needs special handling
+            file_size_mb = source_path.stat().st_size / (1024 * 1024)
+            is_exr = source_path.suffix.lower() == ".exr"
+
+            if is_exr and file_size_mb > 10:
+                logger.info(
+                    f"Processing large EXR file ({file_size_mb:.1f}MB): {source_path.name}"
+                )
+
+            # Load image using QImage
             image = QImage(str(source_path))
             if image.isNull():
                 logger.warning(f"Failed to load image: {source_path}")
@@ -821,7 +865,10 @@ class ThumbnailCacheLoader(QRunnable):
     def run(self):
         """Cache the thumbnail in background with error handling."""
         try:
-            cache_path = self.cache_manager.cache_thumbnail(
+            # Call the internal method directly to avoid infinite recursion
+            # This is already running on a background thread, so we don't need
+            # to check for thread context again
+            cache_path = self.cache_manager._cache_thumbnail_direct(
                 self.source_path, self.show, self.sequence, self.shot
             )
             if cache_path:

@@ -271,10 +271,10 @@ class PersistentBashSession:
 
             # Prepare environment to prevent terminal escape sequences
             env = os.environ.copy()
-            env['TERM'] = 'dumb'  # Disable terminal escape sequences
-            env['PS1'] = ''  # Clear primary prompt
-            env['PS2'] = ''  # Clear secondary prompt
-            
+            env["TERM"] = "dumb"  # Disable terminal escape sequences
+            env["PS1"] = ""  # Clear primary prompt
+            env["PS2"] = ""  # Clear secondary prompt
+
             # Use interactive bash for real applications where ws command is needed
             # The -i flag is required for shell functions like 'ws'
             self._process = subprocess.Popen(
@@ -520,29 +520,29 @@ class PersistentBashSession:
 
     def _strip_escape_sequences(self, text: str) -> str:
         """Strip ANSI/terminal escape sequences from text.
-        
+
         Args:
             text: Text potentially containing escape sequences
-            
+
         Returns:
             Clean text without escape sequences
         """
         import re
-        
+
         # Remove OSC (Operating System Command) sequences like ]777;...
-        text = re.sub(r'\x1b\].*?(\x07|\x1b\\)', '', text)  # ESC ] ... BEL or ESC \
-        text = re.sub(r'\]777;[^\x07\n]*', '', text)  # ]777; sequences without ESC
-        
+        text = re.sub(r"\x1b\].*?(\x07|\x1b\\)", "", text)  # ESC ] ... BEL or ESC \
+        text = re.sub(r"\]777;[^\x07\n]*", "", text)  # ]777; sequences without ESC
+
         # Remove CSI (Control Sequence Introducer) sequences like ESC[...
-        text = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
-        
+        text = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", text)
+
         # Remove other escape sequences
-        text = re.sub(r'\x1b[>=]', '', text)  # ESC > or ESC =
-        text = re.sub(r'\x1b\([B0UK]', '', text)  # Character set sequences
-        
+        text = re.sub(r"\x1b[>=]", "", text)  # ESC > or ESC =
+        text = re.sub(r"\x1b\([B0UK]", "", text)  # Character set sequences
+
         # Remove any remaining control characters except newline and tab
-        text = ''.join(char for char in text if ord(char) >= 32 or char in '\n\t')
-        
+        text = "".join(char for char in text if ord(char) >= 32 or char in "\n\t")
+
         return text
 
     def execute(self, command: str, timeout: int = 120) -> str:
@@ -691,7 +691,9 @@ class PersistentBashSession:
                                 # Filter out initialization markers and clean escape sequences
                                 if not line.startswith("SHOTBOT_INIT_"):
                                     # Strip escape sequences from individual lines as well
-                                    clean_line = self._strip_escape_sequences(line.rstrip())
+                                    clean_line = self._strip_escape_sequences(
+                                        line.rstrip()
+                                    )
                                     if clean_line:  # Only append non-empty lines
                                         output.append(clean_line)
                             continue  # Skip the chunk processing below
@@ -720,7 +722,9 @@ class PersistentBashSession:
                                 # Filter out initialization markers and clean escape sequences
                                 if not line.startswith("SHOTBOT_INIT_"):
                                     # Strip escape sequences from individual lines as well
-                                    clean_line = self._strip_escape_sequences(line.rstrip())
+                                    clean_line = self._strip_escape_sequences(
+                                        line.rstrip()
+                                    )
                                     if clean_line:  # Only append non-empty lines
                                         output.append(clean_line)
                     except (IOError, OSError) as e:
