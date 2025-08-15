@@ -276,8 +276,12 @@ class PersistentBashSession:
 
             # Set up session - simplified without problematic draining
             try:
-                # Small delay to let bash initialize
-                time.sleep(0.05)
+                # Delay to let bash initialize properly
+                # Increase delay for subsequent sessions to avoid resource contention
+                if "workspace_1" in self.session_id or "workspace_2" in self.session_id:
+                    time.sleep(0.2)  # More delay for second/third sessions
+                else:
+                    time.sleep(0.1)  # Standard delay for first session
                 
                 # Send a unique marker to verify session is ready
                 import uuid
@@ -363,7 +367,24 @@ class PersistentBashSession:
                 
                 # Check if we successfully initialized
                 if not found_marker:
-                    logger.warning(f"Session initialization marker not found after {timeout}s")
+                    logger.warning(f"[{self.session_id}] Session initialization marker not found after {timeout}s")
+                    logger.warning(f"[{self.session_id}] Accumulated output: {accumulated_output[:500]}")
+                    # Try a simpler initialization as fallback
+                    try:
+                        if self._process.stdin:
+                            self._process.stdin.write("echo 'FALLBACK_INIT'\n")
+                            self._process.stdin.flush()
+                            time.sleep(0.2)
+                            # Try to read any response
+                            if self._process.stdout:
+                                try:
+                                    test_line = self._process.stdout.readline()
+                                    if test_line:
+                                        logger.info(f"[{self.session_id}] Fallback init response: {test_line.strip()}")
+                                except:
+                                    pass
+                    except:
+                        pass
                     # Continue anyway - the session might still work
                 
             except Exception as e:
@@ -896,11 +917,11 @@ class ProcessPoolManager(QObject):
                         pool.append(session)
                         logger.info(f"Created session {session_id} in pool")
                         
-                        # Small delay between creating sessions to avoid resource contention
+                        # Delay between creating sessions to avoid resource contention
                         if i < self._sessions_per_type - 1:
-                            time.sleep(0.1)
+                            time.sleep(0.3)  # Increased from 0.1 to 0.3
                             if DEBUG_VERBOSE:
-                                logger.debug(f"Brief pause before creating next session...")
+                                logger.debug(f"Pause before creating next session (0.3s)...")
                     except Exception as e:
                         logger.error(f"Failed to create session {session_id}: {e}")
                         # Continue with fewer sessions if some fail

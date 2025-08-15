@@ -286,7 +286,13 @@ class ApplicationBundler:
             bundle_dir = output_dir
             os.makedirs(bundle_dir, exist_ok=True)
         else:
-            bundle_dir = tempfile.mkdtemp(prefix="shotbot_bundle_")
+            # Use a fixed temp directory name to avoid accumulation and race conditions
+            # This will be overwritten on each run
+            bundle_dir = os.path.join(tempfile.gettempdir(), "shotbot_bundle_temp")
+            # Clean up any existing directory first
+            if os.path.exists(bundle_dir):
+                shutil.rmtree(bundle_dir)
+            os.makedirs(bundle_dir)
 
         # Copy files to bundle directory
         for source_path, relative_path in files_to_bundle:
