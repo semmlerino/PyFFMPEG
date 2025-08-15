@@ -274,28 +274,10 @@ class PersistentBashSession:
                 # This is not critical - continue without non-blocking mode
                 pass
 
-            # Set up session - with proper output draining to prevent deadlock
+            # Set up session - simplified without problematic draining
             try:
-                # First, drain any initial output from bash startup (like motd, etc)
-                if DEBUG_VERBOSE:
-                    logger.debug(f"[{self.session_id}] Draining initial bash output...")
-                    
-                if HAS_FCNTL and self._process.stdout:
-                    try:
-                        import select
-                        # Drain any initial output with very short timeout
-                        drain_start = time.time()
-                        while time.time() - drain_start < 0.2:  # Max 200ms draining
-                            ready, _, _ = select.select([self._process.stdout], [], [], 0.01)
-                            if ready:
-                                chunk = self._process.stdout.read(1024)
-                                if DEBUG_VERBOSE and chunk:
-                                    logger.debug(f"[{self.session_id}] Drained {len(chunk)} bytes of initial output")
-                            else:
-                                break  # No more data to drain
-                    except Exception as drain_error:
-                        if DEBUG_VERBOSE:
-                            logger.debug(f"[{self.session_id}] Error draining initial output: {drain_error}")
+                # Small delay to let bash initialize
+                time.sleep(0.05)
                 
                 # Send a unique marker to verify session is ready
                 import uuid
@@ -318,6 +300,9 @@ class PersistentBashSession:
                 if DEBUG_VERBOSE:
                     logger.debug(f"[{self.session_id}] Waiting for initialization marker: {marker}")
                 
+                # Accumulate all output to search for marker
+                accumulated_output = ""
+                
                 while time.time() - start_time < timeout:
                     elapsed = time.time() - start_time
                     
@@ -333,14 +318,16 @@ class PersistentBashSession:
                                     # Use very short timeout to avoid hanging
                                     ready, _, _ = select.select([self._process.stdout], [], [], 0.01)
                                     if ready:
-                                        # Read available data
-                                        chunk = self._process.stdout.read(1024)
-                                        if DEBUG_VERBOSE:
-                                            logger.debug(f"[{self.session_id}] Read chunk ({len(chunk) if chunk else 0} bytes): {chunk[:100] if chunk else 'None'}")
-                                        if chunk and marker in chunk:
-                                            found_marker = True
-                                            logger.debug(f"[{self.session_id}] Session initialized successfully (non-blocking)")
-                                            break
+                                        # Read available data - use readline to avoid blocking
+                                        line = self._process.stdout.readline()
+                                        if line:
+                                            accumulated_output += line
+                                            if DEBUG_VERBOSE:
+                                                logger.debug(f"[{self.session_id}] Read line ({len(line)} bytes): {line[:100].strip()}")
+                                            if marker in accumulated_output:
+                                                found_marker = True
+                                                logger.debug(f"[{self.session_id}] Session initialized successfully (non-blocking)")
+                                                break
                                     elif DEBUG_VERBOSE and elapsed > 0.5:
                                         # Log if we've been waiting a while with no data
                                         logger.debug(f"[{self.session_id}] No data available after {elapsed:.1f}s, continuing to wait...")
@@ -348,17 +335,21 @@ class PersistentBashSession:
                                     # select not available, fall back to readline
                                     logger.debug("select module not available, using readline")
                                     line = self._process.stdout.readline()
-                                    if line and marker in line:
-                                        found_marker = True
-                                        logger.debug("Session initialized successfully (readline)")
-                                        break
+                                    if line:
+                                        accumulated_output += line
+                                        if marker in accumulated_output:
+                                            found_marker = True
+                                            logger.debug("Session initialized successfully (readline)")
+                                            break
                             else:
                                 # Blocking read with readline
                                 line = self._process.stdout.readline()
-                                if line and marker in line:
-                                    found_marker = True
-                                    logger.debug("Session initialized successfully (blocking)")
-                                    break
+                                if line:
+                                    accumulated_output += line
+                                    if marker in accumulated_output:
+                                        found_marker = True
+                                        logger.debug("Session initialized successfully (blocking)")
+                                        break
                         except Exception as read_error:
                             logger.debug(f"[{self.session_id}] Read error during initialization: {read_error}")
                             # Small sleep to avoid busy loop

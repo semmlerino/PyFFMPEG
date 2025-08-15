@@ -1,0 +1,4 @@
+Testing critical imports...
+✗ process_pool_manager import failed: No module named 'process_pool_manager'
+✗ shot_model import failed: No module named 'shot_model'
+✗ main_window import failed: No module named 'main_window'
