@@ -277,6 +277,10 @@ class PersistentBashSession:
                 text=True,
                 bufsize=1,  # Line buffered (unbuffered not supported with text mode)
                 env=os.environ.copy(),
+                # CRITICAL Linux fixes to prevent file descriptor inheritance deadlock
+                close_fds=True,  # Close all FDs except stdin/stdout/stderr to prevent Qt FD inheritance
+                start_new_session=True,  # Create new process group (POSIX only, ignored on Windows)
+                restore_signals=True,  # Reset signal handlers to defaults (prevents Qt signal interference)
             )
 
             if DEBUG_VERBOSE:
