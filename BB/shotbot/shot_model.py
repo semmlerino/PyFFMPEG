@@ -1,6 +1,7 @@
 """Shot data model and parser for ws -sg output."""
 
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,6 +16,12 @@ from utils import FileUtils, PathUtils, ValidationUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
+
+# Enable verbose debug logging if environment variable is set
+DEBUG_VERBOSE = os.environ.get('SHOTBOT_DEBUG_VERBOSE', '').lower() in ('1', 'true', 'yes')
+if DEBUG_VERBOSE:
+    logger.setLevel(logging.DEBUG)
+    logger.info("VERBOSE DEBUG MODE ENABLED for ShotModel")
 
 # Sentinel value to distinguish between "not searched" and "searched but found nothing"
 _NOT_SEARCHED = object()
@@ -169,6 +176,7 @@ class ShotModel:
     def __init__(
         self, cache_manager: Optional["CacheManager"] = None, load_cache: bool = True
     ):
+        super().__init__()
         from cache_manager import (
             CacheManager,  # Runtime import to avoid circular dependency
         )
@@ -179,11 +187,19 @@ class ShotModel:
             r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))"
         )
         # Initialize ProcessPoolManager singleton
+        if DEBUG_VERBOSE:
+            logger.debug("Getting ProcessPoolManager singleton instance")
         self._process_pool = ProcessPoolManager.get_instance()
+        if DEBUG_VERBOSE:
+            logger.debug(f"ProcessPoolManager instance obtained: {self._process_pool}")
 
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
-            self._load_from_cache()
+            if DEBUG_VERBOSE:
+                logger.debug("Loading shots from cache...")
+            loaded = self._load_from_cache()
+            if DEBUG_VERBOSE:
+                logger.debug(f"Cache load result: {loaded}, shots loaded: {len(self.shots)}")
 
     def _load_from_cache(self) -> bool:
         """Load shots from cache if available."""
@@ -213,24 +229,43 @@ class ShotModel:
             # Execute workspace command through ProcessPoolManager
             # 30-second cache TTL is appropriate for workspace commands
             # as shot assignments change infrequently
+            if DEBUG_VERBOSE:
+                logger.debug("Executing 'ws -sg' command via ProcessPoolManager")
+                logger.debug(f"ProcessPoolManager instance: {self._process_pool}")
             try:
                 output = self._process_pool.execute_workspace_command(
                     "ws -sg",
                     cache_ttl=30,  # Cache for 30 seconds
                 )
+                if DEBUG_VERBOSE:
+                    logger.debug(f"'ws -sg' command returned {len(output) if output else 0} bytes")
+                    if output:
+                        logger.debug(f"First 200 chars of output: {output[:200]}...")
             except TimeoutError as e:
                 logger.error(f"Timeout while running ws -sg command: {e}")
+                if DEBUG_VERBOSE:
+                    logger.debug(f"TimeoutError details: {e}")
                 return RefreshResult(success=False, has_changes=False)
             except RuntimeError as e:
                 # Handle session failures and other runtime errors
                 logger.error(f"Failed to execute ws -sg command: {e}")
+                if DEBUG_VERBOSE:
+                    logger.debug(f"RuntimeError details: {e}")
+                    import traceback
+                    logger.debug(f"Traceback: {traceback.format_exc()}")
                 return RefreshResult(success=False, has_changes=False)
 
             # Parse output (reuse existing parser)
             try:
+                if DEBUG_VERBOSE:
+                    logger.debug("Parsing ws -sg output...")
                 new_shots = self._parse_ws_output(output)
+                if DEBUG_VERBOSE:
+                    logger.debug(f"Parsed {len(new_shots)} shots from output")
             except ValueError as e:
                 logger.error(f"Failed to parse ws -sg output: {e}")
+                if DEBUG_VERBOSE:
+                    logger.debug(f"Parse error details: {e}")
                 return RefreshResult(success=False, has_changes=False)
 
             new_shot_data = {

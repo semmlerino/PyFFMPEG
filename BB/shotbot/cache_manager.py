@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
 
-from PySide6.QtCore import QObject, QRunnable, Qt, Signal, QThread, QThreadPool
+from PySide6.QtCore import QObject, QRunnable, Qt, QThread, QThreadPool, Signal
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication
 
@@ -214,24 +214,21 @@ class CacheManager(QObject):
 
             # Check if we're on the main thread for Qt operations
             app = QApplication.instance()
-            is_main_thread = (
-                app is not None and 
-                QThread.currentThread() == app.thread()
-            )
-            
+            is_main_thread = app is not None and QThread.currentThread() == app.thread()
+
             if not is_main_thread:
                 # If called from background thread, use thread pool for Qt operations
-                logger.debug(f"Cache thumbnail called from background thread - using thread pool")
-                # Create a loader task and run it on the main thread via thread pool
-                loader = ThumbnailCacheLoader(
-                    self, source_path, show, sequence, shot
+                logger.debug(
+                    "Cache thumbnail called from background thread - using thread pool"
                 )
+                # Create a loader task and run it on the main thread via thread pool
+                loader = ThumbnailCacheLoader(self, source_path, show, sequence, shot)
                 pool = QThreadPool.globalInstance()
                 pool.start(loader)
                 # For now, return None - the loader will cache it asynchronously
                 # In a real implementation, you'd wait for the result
                 return None
-            
+
             # Load image using QImage (safe on main thread)
             image = QImage(str(source_path))
             if image.isNull():

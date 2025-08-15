@@ -327,7 +327,7 @@ class TestThreeDEDiscoveryIntegration(TestCase):
         from utils import FileUtils, PathUtils
 
         # Create shot structure
-        shot_path = self.create_shot_structure("seq01", "shot010", ["user1"])
+        self.create_shot_structure("seq01", "shot010", ["user1"])
 
         # Create editorial thumbnail directory (primary)
         # Note: VFX convention uses sequence_shot format for directory name

@@ -1,6 +1,6 @@
 {
   "id": "launcher_dialog_form",
-  "timestamp": "2025-08-11T10:13:15.904559",
+  "timestamp": "2025-08-15T07:28:47.286716",
   "data": {
     "class": "LauncherEditDialog",
     "enabled": true,
@@ -114,7 +114,7 @@
                     "class": "QListView",
                     "enabled": true,
                     "visible": false,
-                    "currentIndex": "<PySide6.QtCore.QModelIndex(0,0,0x3315ce0,QStandardItemModel(0x3315d00)) at 0x7fdf4b5a9d80>",
+                    "currentIndex": "QModelIndex(0,0)",
                     "children": [
                       {
                         "class": "QWidget",
@@ -229,5 +229,5 @@
     ]
   },
   "metadata": {},
-  "checksum": "c23e63a5a7ecc78f7f0a5671dc2decbfecfa746cfdce846cc719b01da4afd19e"
+  "checksum": "5828914fb1eed9a4aef38d066c88a867530b238ae087bf6bbaaa4a6ece5843af"
 }

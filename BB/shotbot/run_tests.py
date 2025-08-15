@@ -12,6 +12,10 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 os.chdir(project_root)
 
+# Set Qt to run in offscreen mode to prevent GUI popups during tests
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+os.environ["QT_LOGGING_RULES"] = "*.debug=false"  # Reduce Qt debug output
+
 # Disable xvfb plugin to avoid WSL issues
 # Add coverage if requested
 args = [

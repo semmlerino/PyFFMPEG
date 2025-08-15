@@ -18,6 +18,8 @@
     "launcher_manager.py",
     "nuke_script_generator.py",
     "undistortion_finder.py",
+    "process_pool_manager.py",
+    "timeout_config.py",
     "tests/unit/test_type_safety.py",
     "tests/unit/test_basedpyright_config.py",
     "tests/unit/test_raw_plate_finder_types.py"

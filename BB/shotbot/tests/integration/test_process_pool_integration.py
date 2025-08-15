@@ -129,7 +129,7 @@ class ProcessPoolTestHarness:
         try:
             if ProcessPoolManager._instance:
                 ProcessPoolManager._instance.shutdown()
-        except:
+        except Exception:
             pass
 
         # Clean up temporary directories
@@ -138,7 +138,7 @@ class ProcessPoolTestHarness:
         for temp_dir in self.temp_dirs:
             try:
                 shutil.rmtree(temp_dir)
-            except:
+            except Exception:
                 pass
 
         # Clean up any leaked processes
@@ -158,7 +158,7 @@ class ProcessPoolTestHarness:
             process = psutil.Process(os.getpid())
             memory_mb = process.memory_info().rss / 1024 / 1024
             self.memory_snapshots.append((time.time(), memory_mb))
-        except:
+        except Exception:
             pass
 
     def get_memory_growth(self) -> float:
@@ -1071,7 +1071,7 @@ class TestPerformanceBenchmarks:
         # Warm up both implementations
         try:
             old_implementation(test_command)
-        except:
+        except Exception:
             pass  # May fail in test environment
 
         with patch.object(pool, "_get_bash_session") as mock_session:
@@ -1296,7 +1296,7 @@ class TestMemoryUsageTracking:
             try:
                 result = session.execute(f"echo 'session_{i}'", timeout=5)
                 assert f"session_{i}" in result
-            except:
+            except Exception:
                 pass  # Ignore failures in test environment
 
         # Check sessions are alive
@@ -1307,7 +1307,7 @@ class TestMemoryUsageTracking:
         for session in sessions:
             try:
                 session.close()
-            except:
+            except Exception:
                 pass
 
         # Force garbage collection

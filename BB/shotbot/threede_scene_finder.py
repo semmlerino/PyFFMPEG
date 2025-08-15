@@ -16,6 +16,11 @@ from utils import PathUtils, ValidationUtils
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 
+# Configuration for file discovery method
+# Can be overridden by environment variables
+USE_PYTHON_FILE_DISCOVERY = os.environ.get('SHOTBOT_USE_PYTHON_DISCOVERY', 'true').lower() == 'true'
+FALLBACK_TO_SUBPROCESS = os.environ.get('SHOTBOT_FALLBACK_TO_SUBPROCESS', 'true').lower() == 'true'
+
 
 class PathDiagnostics:
     """Helper class for detailed path diagnostics during 3DE scene finding."""
@@ -154,7 +159,61 @@ class ThreeDESceneFinder:
     }
 
     @staticmethod
-    def quick_3de_exists_check(base_paths: List[str], timeout_seconds: int = 5) -> bool:
+    def quick_3de_exists_check_python(
+        base_paths: List[str], timeout_seconds: int = 15
+    ) -> bool:
+        """Quick check if ANY .3de files exist using Python pathlib (no subprocess).
+
+        Uses early termination with pathlib to avoid spawning external processes.
+        Significantly faster than subprocess find commands.
+
+        Args:
+            base_paths: List of base paths to check
+            timeout_seconds: Maximum time to search before giving up
+
+        Returns:
+            True if at least one .3de file exists, False otherwise
+        """
+        import time
+        from pathlib import Path
+
+        start_time = time.time()
+
+        for base_path_str in base_paths:
+            base_path = Path(base_path_str)
+            if not base_path.exists():
+                continue
+
+            try:
+                # Use generator for memory efficiency and early termination
+                for file_path in base_path.rglob("*"):
+                    # Check timeout periodically
+                    if time.time() - start_time > timeout_seconds:
+                        logger.warning(
+                            f"Quick check timed out after {timeout_seconds}s"
+                        )
+                        return True  # Assume files exist if timeout
+
+                    # Check for .3de files (case insensitive)
+                    if file_path.is_file() and file_path.suffix.lower() == ".3de":
+                        logger.debug(f"Quick check found .3de file: {file_path}")
+                        return True
+
+            except (PermissionError, OSError) as e:
+                logger.debug(f"Permission denied/error accessing {base_path}: {e}")
+                continue
+            except Exception as e:
+                logger.warning(f"Quick .3de check failed for {base_path}: {e}")
+                # On error, assume files might exist
+                return True
+
+        logger.debug("Quick check found no .3de files in any path")
+        return False
+
+    @staticmethod
+    def quick_3de_exists_check(
+        base_paths: List[str], timeout_seconds: int = 15
+    ) -> bool:
         """Quick check if ANY .3de files exist in the given paths.
 
         Uses 'find' command with -quit to exit as soon as first file is found.
@@ -988,11 +1047,143 @@ class ThreeDESceneFinder:
             return False
 
     @staticmethod
+    def find_all_3de_files_in_show_python(
+        show_root: str,
+        show: str,
+        sequences: Optional[Set[str]] = None,
+        timeout_seconds: int = 120,
+    ) -> List[Path]:
+        """Find ALL .3de files using Python pathlib instead of subprocess find.
+
+        Performance improvements:
+        - No process spawning overhead (10-50ms per call eliminated)
+        - Better memory efficiency with generators
+        - Early termination when limits reached
+        - Native Python exception handling
+
+        Args:
+            show_root: Root directory for shows (e.g., /shows)
+            show: Show name
+            sequences: Optional set of sequences to limit search to
+            timeout_seconds: Maximum time for search
+
+        Returns:
+            List of all .3de file paths found in the show/sequences
+        """
+        import concurrent.futures
+        import time
+        from pathlib import Path
+
+        show_path = Path(show_root) / show / "shots"
+        if not show_path.exists():
+            logger.warning(f"Show shots directory does not exist: {show_path}")
+            return []
+
+        # Get configuration
+        max_depth = getattr(Config, "THREEDE_SCAN_MAX_DEPTH", 8)
+        max_files = getattr(Config, "THREEDE_SCAN_MAX_FILES_PER_SHOT", 10000)
+
+        def find_3de_files_python(search_path: Path, start_time: float) -> List[Path]:
+            """Python replacement for find command."""
+            files = []
+            try:
+                # Manual depth-limited traversal for better control
+                def walk_limited(path: Path, current_depth: int = 0):
+                    if current_depth > max_depth:
+                        return
+
+                    # Check timeout
+                    if time.time() - start_time > timeout_seconds:
+                        logger.warning(f"Search timed out in {path}")
+                        return
+
+                    try:
+                        for item in path.iterdir():
+                            if item.is_file() and item.suffix.lower() == ".3de":
+                                files.append(item)
+                                if len(files) >= max_files:
+                                    logger.info(
+                                        f"Reached max files ({max_files}) in {search_path}"
+                                    )
+                                    return
+                            elif (
+                                item.is_dir()
+                                and item.name not in ThreeDESceneFinder.EXCLUDED_DIRS
+                            ):
+                                walk_limited(item, current_depth + 1)
+                                if len(files) >= max_files:
+                                    return
+                    except (PermissionError, OSError) as e:
+                        logger.debug(f"Cannot access {path}: {e}")
+
+                walk_limited(search_path)
+
+            except Exception as e:
+                logger.debug(f"Error scanning {search_path}: {e}")
+
+            return files
+
+        # Determine search paths
+        search_paths = []
+        if sequences:
+            for seq in sequences:
+                seq_path = show_path / seq
+                if seq_path.exists():
+                    search_paths.append(seq_path)
+        else:
+            # Get sequence directories
+            try:
+                search_paths = [d for d in show_path.iterdir() if d.is_dir()][:50]
+            except Exception as e:
+                logger.error(f"Error listing sequences: {e}")
+                return []
+
+        if not search_paths:
+            logger.debug(f"No valid search paths in {show_path}")
+            return []
+
+        # Use concurrent processing without subprocess
+        all_files = []
+        start_time = time.time()
+
+        if len(search_paths) > 1:
+            # Parallel processing with ThreadPoolExecutor (no subprocess)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                future_to_path = {
+                    executor.submit(find_3de_files_python, path, start_time): path
+                    for path in search_paths
+                }
+
+                for future in concurrent.futures.as_completed(future_to_path):
+                    try:
+                        files = future.result()
+                        all_files.extend(files)
+
+                        if len(all_files) >= max_files:
+                            logger.info(f"Reached global max ({max_files}), stopping")
+                            # Cancel remaining futures
+                            for f in future_to_path:
+                                f.cancel()
+                            break
+
+                    except Exception as e:
+                        path = future_to_path[future]
+                        logger.error(f"Error processing {path}: {e}")
+        else:
+            # Single path processing
+            for path in search_paths:
+                files = find_3de_files_python(path, start_time)
+                all_files.extend(files)
+
+        logger.info(f"Found {len(all_files)} .3de files using Python pathlib")
+        return all_files[:max_files]
+
+    @staticmethod
     def find_all_3de_files_in_show(
         show_root: str,
         show: str,
         sequences: Optional[Set[str]] = None,
-        timeout_seconds: int = 30,
+        timeout_seconds: int = 120,
     ) -> List[Path]:
         """Efficiently find ALL .3de files in a show using optimized find commands.
 
@@ -1014,6 +1205,22 @@ class ThreeDESceneFinder:
         Returns:
             List of all .3de file paths found in the show/sequences
         """
+        # Use optimized Python version if enabled
+        if USE_PYTHON_FILE_DISCOVERY:
+            try:
+                return ThreeDESceneFinder.find_all_3de_files_in_show_python(
+                    show_root, show, sequences, timeout_seconds
+                )
+            except Exception as e:
+                if FALLBACK_TO_SUBPROCESS:
+                    logger.warning(
+                        f"Python method failed, falling back to subprocess: {e}"
+                    )
+                    # Continue with subprocess implementation below
+                else:
+                    raise
+
+        # Original subprocess implementation
         import concurrent.futures
         import subprocess
 

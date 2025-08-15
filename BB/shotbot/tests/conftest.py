@@ -14,7 +14,11 @@ from shot_model import Shot, ShotModel
 
 @pytest.fixture(scope="session")
 def qapp():
-    """Create QApplication instance for GUI tests."""
+    """Create QApplication instance for GUI tests in headless mode."""
+    import os
+    # Set Qt to run in offscreen mode to prevent popups
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    
     # Import here to avoid issues when not testing GUI
     from PySide6.QtWidgets import QApplication
 
