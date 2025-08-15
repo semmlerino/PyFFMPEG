@@ -45,12 +45,11 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
         """Test that shot model caches data on refresh."""
         cache_dir, _ = temp_dirs
 
-        # Mock subprocess to return our test data
-        with patch("shot_model.subprocess.run") as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = mock_ws_output
-            mock_run.return_value = mock_result
+        # Mock ProcessPoolManager to return our test data
+        with patch.object(
+            shot_model_with_cache._process_pool, "execute_workspace_command"
+        ) as mock_execute:
+            mock_execute.return_value = mock_ws_output
 
             # Refresh shots
             success, has_changes = shot_model_with_cache.refresh_shots()
@@ -104,21 +103,19 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
     def test_shot_model_change_detection(self, shot_model_with_cache, mock_ws_output):
         """Test shot model detects changes correctly."""
         # First refresh
-        with patch("shot_model.subprocess.run") as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = mock_ws_output
-            mock_run.return_value = mock_result
+        with patch.object(
+            shot_model_with_cache._process_pool, "execute_workspace_command"
+        ) as mock_execute:
+            mock_execute.return_value = mock_ws_output
 
             success1, has_changes1 = shot_model_with_cache.refresh_shots()
             assert success1 and has_changes1
 
         # Second refresh with same data
-        with patch("shot_model.subprocess.run") as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = mock_ws_output
-            mock_run.return_value = mock_result
+        with patch.object(
+            shot_model_with_cache._process_pool, "execute_workspace_command"
+        ) as mock_execute:
+            mock_execute.return_value = mock_ws_output
 
             success2, has_changes2 = shot_model_with_cache.refresh_shots()
             assert success2 and not has_changes2
@@ -127,11 +124,10 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
         new_output = (
             mock_ws_output + "\nworkspace /shows/testshow/shots/103_GHI/103_GHI_0040"
         )
-        with patch("shot_model.subprocess.run") as mock_run:
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = new_output
-            mock_run.return_value = mock_result
+        with patch.object(
+            shot_model_with_cache._process_pool, "execute_workspace_command"
+        ) as mock_execute:
+            mock_execute.return_value = new_output
 
             success3, has_changes3 = shot_model_with_cache.refresh_shots()
             assert success3 and has_changes3
@@ -179,13 +175,18 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
     def test_cache_expiry(self, temp_dirs, monkeypatch):
         """Test cache expiry mechanism."""
         cache_dir, _ = temp_dirs
+        
+        # Import Config to patch the expiry time
+        from config import Config
 
-        # Setup cache manager
+        # Mock the expiry time to be shorter for testing (1 minute instead of 24 hours)
+        monkeypatch.setattr(Config, "CACHE_EXPIRY_MINUTES", 1)
 
+        # Setup cache manager after patching
         cache_manager = CacheManager(cache_dir=cache_dir)
 
-        # Create expired cache
-        old_time = datetime.now() - timedelta(hours=2)
+        # Create expired cache (older than 1 minute)
+        old_time = datetime.now() - timedelta(minutes=2)
         cache_data = {
             "timestamp": old_time.isoformat(),
             "shots": [
@@ -243,9 +244,9 @@ workspace /shows/testshow/shots/102_DEF/102_DEF_0030"""
         # Clear cache
         cache_manager.clear_cache()
 
-        # Thumbnails directory should exist but be empty
-        assert (cache_dir / "thumbnails").exists()
-        assert not list((cache_dir / "thumbnails").iterdir())
+        # Thumbnails directory should exist but be empty (with new UUID name)
+        assert cache_manager.thumbnails_dir.exists()
+        assert not list(cache_manager.thumbnails_dir.iterdir())
 
         # Shots cache should be gone
         assert not (cache_dir / "shots.json").exists()

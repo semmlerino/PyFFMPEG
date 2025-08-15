@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
 from config import Config
+from process_pool_manager import ProcessPoolManager
 from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
 from utils import PathUtils
@@ -102,7 +103,7 @@ class LauncherWorker(ThreadSafeWorker):
             while not self.is_stop_requested():
                 try:
                     # Check if process finished with timeout
-                    return_code = self._process.wait(timeout=0.5)
+                    return_code = self._process.wait(timeout=1.0)
                     # Process finished normally
                     success = return_code == 0
                     logger.info(
@@ -140,14 +141,14 @@ class LauncherWorker(ThreadSafeWorker):
             # Try graceful termination first
             self._process.terminate()
             try:
-                self._process.wait(timeout=2)
+                self._process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 # Force kill if necessary
                 logger.warning(
                     f"Force killing launcher '{self.launcher_id}' after timeout"
                 )
                 self._process.kill()
-                self._process.wait(timeout=1)
+                self._process.wait(timeout=5)
         except Exception as e:
             logger.error(f"Error terminating process for '{self.launcher_id}': {e}")
 
@@ -340,12 +341,20 @@ class LauncherManager(QObject):
     # Process management constants
     MAX_CONCURRENT_PROCESSES = 100
     CLEANUP_INTERVAL_MS = 30000  # 30 seconds
-    PROCESS_STARTUP_TIMEOUT_MS = 5000  # 5 seconds for process validation
+    PROCESS_STARTUP_TIMEOUT_MS = (
+        30000  # 30 seconds for process validation (VFX apps can be slow)
+    )
 
     def __init__(self):
         super().__init__()
         self.config = LauncherConfig()
         self._launchers: Dict[str, CustomLauncher] = {}
+
+        # Initialize ProcessPoolManager for optimized command execution
+        self._process_pool = ProcessPoolManager.get_instance()
+        self._use_process_pool = (
+            os.environ.get("SHOTBOT_USE_PROCESS_POOL", "true").lower() == "true"
+        )
 
         # Thread-safe process tracking with detailed information
         self._active_processes: Dict[str, ProcessInfo] = {}
@@ -867,6 +876,19 @@ class LauncherManager(QObject):
             self.execution_started.emit(launcher_id)
             logger.info(f"Executing launcher '{launcher.name}': {command}")
 
+            # Try ProcessPoolManager for simple commands (non-terminal)
+            if self._use_process_pool and not launcher.terminal.required:
+                # Use ProcessPoolManager for better performance
+                success = self._execute_with_process_pool(
+                    launcher_id, launcher.name, command
+                )
+                if success:
+                    return True
+                # Fall back to legacy method if pool execution fails
+                logger.warning(
+                    "ProcessPool execution failed, falling back to subprocess"
+                )
+
             # Treat all apps as GUI apps - always launch in terminal window
             if launcher.terminal.required:
                 # Try to launch in a terminal (like command_launcher.py does)
@@ -917,7 +939,7 @@ class LauncherManager(QObject):
                 if not success:
                     try:
                         process.terminate()
-                        process.wait(timeout=3)
+                        process.wait(timeout=10)
                     except (subprocess.TimeoutExpired, OSError):
                         pass
                     error_msg = "Process failed to start properly"
@@ -1074,7 +1096,7 @@ class LauncherManager(QObject):
                     if not success:
                         try:
                             process.terminate()
-                            process.wait(timeout=3)
+                            process.wait(timeout=10)
                         except (subprocess.TimeoutExpired, OSError):
                             pass
                         error_msg = "Process failed to start properly in shot context"
@@ -1384,12 +1406,12 @@ class LauncherManager(QObject):
 
                 # Wait a short time for process to exit
                 try:
-                    process.wait(timeout=3)
+                    process.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     if not force:
                         # Try force kill if terminate didn't work
                         process.kill()
-                        process.wait(timeout=3)
+                        process.wait(timeout=10)
 
                 del self._active_processes[process_key]
                 return True
@@ -1447,6 +1469,67 @@ class LauncherManager(QObject):
             return True
         except Exception as e:
             logger.error(f"Failed to reload launcher configuration: {e}")
+            return False
+
+    def _execute_with_process_pool(
+        self,
+        launcher_id: str,
+        launcher_name: str,
+        command: str,
+        working_dir: Optional[str] = None,
+    ) -> bool:
+        """Execute command using ProcessPoolManager for better performance.
+
+        This method leverages persistent bash sessions and command caching
+        to reduce subprocess overhead.
+
+        Args:
+            launcher_id: ID of the launcher
+            launcher_name: Name of the launcher
+            command: Command to execute
+            working_dir: Optional working directory
+
+        Returns:
+            True if execution succeeded, False otherwise
+        """
+        try:
+            logger.info(f"Executing '{launcher_name}' via ProcessPoolManager")
+
+            # Build full command with working directory if needed
+            if working_dir:
+                full_command = f"cd {shlex.quote(working_dir)} && {command}"
+            else:
+                full_command = command
+
+            # Execute through process pool
+            # Note: Application launches shouldn't be cached
+            try:
+                self._process_pool.execute_workspace_command(
+                    full_command,
+                    cache_ttl=0,  # Don't cache application launches
+                    timeout=300,  # 5 minutes for app launches
+                )
+
+                # Command executed successfully
+                logger.info(f"ProcessPool execution of '{launcher_name}' completed")
+                self.execution_finished.emit(launcher_id, True)
+                return True
+
+            except TimeoutError as e:
+                logger.error(f"ProcessPool timeout for '{launcher_name}': {e}")
+                self.validation_error.emit("general", f"Command timed out: {e}")
+                self.execution_finished.emit(launcher_id, False)
+                return False
+
+            except Exception as e:
+                logger.error(f"ProcessPool execution failed for '{launcher_name}': {e}")
+                self.validation_error.emit("general", f"Execution failed: {e}")
+                self.execution_finished.emit(launcher_id, False)
+                return False
+
+        except Exception as e:
+            logger.exception(f"Unexpected error in ProcessPool execution: {e}")
+            self.execution_finished.emit(launcher_id, False)
             return False
 
     def _execute_with_worker(
@@ -1558,9 +1641,13 @@ class LauncherManager(QObject):
 
                         # Ensure thread is truly finished before deletion
                         if worker.isRunning():
-                            logger.warning(f"Worker {worker_key} marked as {state} but still running - waiting")
+                            logger.warning(
+                                f"Worker {worker_key} marked as {state} but still running - waiting"
+                            )
                             if not worker.wait(2000):  # Wait up to 2 seconds
-                                logger.error(f"Worker {worker_key} failed to stop properly - forcing termination")
+                                logger.error(
+                                    f"Worker {worker_key} failed to stop properly - forcing termination"
+                                )
                                 worker.safe_terminate()
                                 worker.wait(500)  # Give it time to terminate
 
@@ -1574,7 +1661,9 @@ class LauncherManager(QObject):
                                 f"Cleaned up finished worker {worker_key} (state: {state})"
                             )
                         else:
-                            logger.error(f"Cannot delete worker {worker_key} - still running after termination")
+                            logger.error(
+                                f"Cannot delete worker {worker_key} - still running after termination"
+                            )
 
                     elif state == "CREATED" and not worker.isRunning():
                         # Worker never started - safe to clean up
@@ -1589,19 +1678,21 @@ class LauncherManager(QObject):
                             f"Worker {worker_key} stuck in RUNNING but thread not running"
                         )
                         finished_workers.append(worker_key)
-                        
+
                         # Try to stop gracefully first
                         if worker.request_stop():
                             if not worker.safe_wait(1000):
                                 worker.safe_terminate()
                                 worker.wait(500)  # Give it time to terminate
-                        
+
                         # Only delete if truly stopped
                         if not worker.isRunning():
                             worker.disconnect_all()
                             worker.deleteLater()
                         else:
-                            logger.error(f"Cannot delete worker {worker_key} - still running after termination")
+                            logger.error(
+                                f"Cannot delete worker {worker_key} - still running after termination"
+                            )
 
                     elif state == "STOPPING":
                         # Worker is stopping - give it more time
@@ -1616,7 +1707,9 @@ class LauncherManager(QObject):
                                 worker.disconnect_all()
                                 worker.deleteLater()
                             else:
-                                logger.error(f"Worker {worker_key} failed to terminate - not deleting")
+                                logger.error(
+                                    f"Worker {worker_key} failed to terminate - not deleting"
+                                )
                         else:
                             # Worker stopped successfully
                             finished_workers.append(worker_key)
@@ -1634,7 +1727,9 @@ class LauncherManager(QObject):
                             worker.disconnect_all()
                             worker.deleteLater()
                         else:
-                            logger.error(f"Failed to clean up error worker {worker_key} - still running")
+                            logger.error(
+                                f"Failed to clean up error worker {worker_key} - still running"
+                            )
                     except Exception:
                         pass  # Best effort cleanup
 

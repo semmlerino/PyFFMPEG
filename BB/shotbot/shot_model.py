@@ -1,9 +1,7 @@
 """Shot data model and parser for ws -sg output."""
 
 import logging
-import os
 import re
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional
@@ -12,6 +10,7 @@ if TYPE_CHECKING:
     from cache_manager import CacheManager
 
 from config import Config
+from process_pool_manager import ProcessPoolManager
 from utils import FileUtils, PathUtils, ValidationUtils
 
 # Set up logger for this module
@@ -179,6 +178,9 @@ class ShotModel:
         self._parse_pattern = re.compile(
             r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))"
         )
+        # Initialize ProcessPoolManager singleton
+        self._process_pool = ProcessPoolManager.get_instance()
+
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
             self._load_from_cache()
@@ -194,6 +196,11 @@ class ShotModel:
     def refresh_shots(self) -> RefreshResult:
         """Fetch and parse shot list from ws -sg command.
 
+        Uses ProcessPoolManager for optimized command execution with:
+        - Command caching (30-second TTL for workspace commands)
+        - Persistent bash session reuse
+        - Automatic retry on session failure
+
         Returns:
             RefreshResult with success status and change indicator
         """
@@ -203,27 +210,25 @@ class ShotModel:
                 (shot.full_name, shot.workspace_path) for shot in self.shots
             }
 
-            # Run ws -sg command in interactive bash shell to load functions
-            result = subprocess.run(
-                ["/bin/bash", "-i", "-c", "ws -sg"],
-                capture_output=True,
-                text=True,
-                timeout=Config.WS_COMMAND_TIMEOUT_SECONDS,
-                env=os.environ.copy(),
-            )
-
-            if result.returncode != 0:
-                error_msg = (
-                    f"ws -sg command failed with return code {result.returncode}"
+            # Execute workspace command through ProcessPoolManager
+            # 30-second cache TTL is appropriate for workspace commands
+            # as shot assignments change infrequently
+            try:
+                output = self._process_pool.execute_workspace_command(
+                    "ws -sg",
+                    cache_ttl=30,  # Cache for 30 seconds
                 )
-                if result.stderr:
-                    error_msg += f": {result.stderr.strip()}"
-                logger.error(error_msg)
+            except TimeoutError as e:
+                logger.error(f"Timeout while running ws -sg command: {e}")
+                return RefreshResult(success=False, has_changes=False)
+            except RuntimeError as e:
+                # Handle session failures and other runtime errors
+                logger.error(f"Failed to execute ws -sg command: {e}")
                 return RefreshResult(success=False, has_changes=False)
 
-            # Parse output
+            # Parse output (reuse existing parser)
             try:
-                new_shots = self._parse_ws_output(result.stdout)
+                new_shots = self._parse_ws_output(output)
             except ValueError as e:
                 logger.error(f"Failed to parse ws -sg output: {e}")
                 return RefreshResult(success=False, has_changes=False)
@@ -249,25 +254,8 @@ class ShotModel:
 
             return RefreshResult(success=True, has_changes=has_changes)
 
-        except subprocess.TimeoutExpired:
-            logger.error("Timeout while running ws -sg command (>10 seconds)")
-            return RefreshResult(success=False, has_changes=False)
-        except FileNotFoundError as e:
-            if "bash" in str(e):
-                logger.error("bash shell not found - cannot execute ws command")
-            else:
-                logger.error("ws command not found in PATH")
-            return RefreshResult(success=False, has_changes=False)
-        except PermissionError as e:
-            logger.error(f"Permission denied while executing ws command: {e}")
-            return RefreshResult(success=False, has_changes=False)
-        except subprocess.SubprocessError as e:
-            logger.error(f"Subprocess error while running ws -sg: {e}")
-            return RefreshResult(success=False, has_changes=False)
-        except MemoryError:
-            logger.error("Out of memory while processing shot list")
-            return RefreshResult(success=False, has_changes=False)
         except Exception as e:
+            # Catch any unexpected errors not handled by ProcessPoolManager
             logger.exception(f"Unexpected error while fetching shots: {e}")
             return RefreshResult(success=False, has_changes=False)
 
@@ -359,3 +347,27 @@ class ShotModel:
             if shot.full_name == full_name:
                 return shot
         return None
+
+    def invalidate_workspace_cache(self) -> None:
+        """Invalidate workspace command cache.
+
+        Useful when shot assignments have changed and immediate
+        refresh is needed without waiting for cache TTL expiry.
+        This forces the next refresh_shots() call to fetch fresh data.
+        """
+        self._process_pool.invalidate_cache("ws -sg")
+        logger.info("Invalidated workspace cache for immediate refresh")
+
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """Get performance metrics for subprocess operations.
+
+        Returns:
+            Dictionary containing:
+            - subprocess_calls: Total subprocess calls made
+            - cache_hits: Number of cache hits
+            - cache_misses: Number of cache misses
+            - average_response_ms: Average command execution time
+            - cache_hit_rate: Percentage of requests served from cache
+            - sessions: Status of persistent bash sessions
+        """
+        return self._process_pool.get_metrics()

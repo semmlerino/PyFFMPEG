@@ -224,7 +224,14 @@ class UISnapshotCapture:
             state["value"] = widget.value()
 
         if hasattr(widget, "currentIndex"):
-            state["currentIndex"] = widget.currentIndex()
+            index = widget.currentIndex()
+            # Handle QModelIndex specially (has memory addresses in string repr)
+            if hasattr(index, "row") and hasattr(index, "column"):
+                # It's a QModelIndex - serialize as row/column
+                state["currentIndex"] = f"QModelIndex({index.row()},{index.column()})"
+            else:
+                # It's a regular integer index (like QComboBox)
+                state["currentIndex"] = index
 
         if hasattr(widget, "count"):
             state["count"] = widget.count()

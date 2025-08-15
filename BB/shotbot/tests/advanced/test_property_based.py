@@ -21,46 +21,48 @@ from utils import PathUtils
 
 
 # Custom strategies for ShotBot-specific data types
-@st.composite
-def shot_name_strategy(draw):
+def shot_name_strategy():
     """Generate valid shot names."""
-    show_code = draw(
-        st.text(alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ", min_size=2, max_size=4)
+    show_code = st.text(alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ", min_size=2, max_size=4)
+    sequence = st.integers(min_value=1, max_value=999)
+    shot = st.integers(min_value=0, max_value=9999)
+    return st.builds(
+        lambda show, seq, sht: f"{show}_{seq:03d}_{sht:04d}",
+        show_code, sequence, shot
     )
-    sequence = draw(st.integers(min_value=1, max_value=999))
-    shot = draw(st.integers(min_value=0, max_value=9999))
-    return f"{show_code}_{sequence:03d}_{shot:04d}"
 
 
-@st.composite
-def plate_name_strategy(draw):
+def plate_name_strategy():
     """Generate valid plate names."""
     plate_types = ["FG", "BG", "fg", "bg", "plate", "PLATE"]
-    plate_type = draw(st.sampled_from(plate_types))
-    plate_num = draw(st.integers(min_value=1, max_value=99))
-    return f"{plate_type}{plate_num:02d}"
+    plate_type = st.sampled_from(plate_types)
+    plate_num = st.integers(min_value=1, max_value=99)
+    return st.builds(
+        lambda pt, pn: f"{pt}{pn:02d}",
+        plate_type, plate_num
+    )
 
 
-@st.composite
-def version_strategy(draw):
+def version_strategy():
     """Generate valid version strings."""
-    version_num = draw(st.integers(min_value=1, max_value=999))
-    return f"v{version_num:03d}"
+    version_num = st.integers(min_value=1, max_value=999)
+    return st.builds(lambda v: f"v{v:03d}", version_num)
 
 
-@st.composite
-def color_space_strategy(draw):
+def color_space_strategy():
     """Generate valid color space names."""
     color_spaces = ["aces", "lin_sgamut3cine", "rec709", "linear", "srgb", "linear_ap0"]
-    return draw(st.sampled_from(color_spaces))
+    return st.sampled_from(color_spaces)
 
 
-@st.composite
-def resolution_strategy(draw):
+def resolution_strategy():
     """Generate valid resolution strings."""
-    width = draw(st.sampled_from([1920, 2048, 4096, 4312]))
-    height = draw(st.sampled_from([1080, 1137, 2160, 2274, 2304]))
-    return f"{width}x{height}"
+    width = st.sampled_from([1920, 2048, 4096, 4312])
+    height = st.sampled_from([1080, 1137, 2160, 2274, 2304])
+    return st.builds(
+        lambda w, h: f"{w}x{h}",
+        width, height
+    )
 
 
 @st.composite

@@ -431,11 +431,12 @@ class TestFinderContracts(ContractTestBase):
 class TestCacheContracts(ContractTestBase):
     """Test cache component contracts."""
 
-    def test_cache_manager_contract(self):
+    def test_cache_manager_contract(self, tmp_path):
         """Test CacheManager implements CacheContract."""
         from cache_manager import CacheManager
 
-        cache = CacheManager()
+        # Use a temporary directory for test isolation
+        cache = CacheManager(cache_dir=tmp_path / "test_cache")
 
         # Check interface
         assert hasattr(cache, "get_cached_shots")
@@ -446,12 +447,13 @@ class TestCacheContracts(ContractTestBase):
         # Test contract behavior
         assert cache.get_cached_shots() is None  # No shots cached initially
 
-    def test_cache_ttl_contract(self):
+    def test_cache_ttl_contract(self, tmp_path):
         """Test cache TTL behavior contract."""
 
         from cache_manager import CacheManager
 
-        cache = CacheManager()
+        # Use a temporary directory for test isolation
+        cache = CacheManager(cache_dir=tmp_path / "test_cache")
 
         # Contract: Cache should handle TTL behavior properly
         # Current CacheManager doesn't have generic set/get, it has specific methods
