@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # Try to import fcntl for non-blocking I/O (Unix-only)
 try:
     import fcntl
+
     HAS_FCNTL = True
 except ImportError:
     HAS_FCNTL = False
@@ -27,21 +28,29 @@ from PySide6.QtCore import QObject, Signal
 # Import debug utilities
 try:
     from debug_utils import (
-        timing_profiler, state_tracker, deadlock_detector,
-        CommandTracer, IOBufferInspector, setup_enhanced_debugging
+        CommandTracer,
+        deadlock_detector,
+        setup_enhanced_debugging,
+        state_tracker,
+        timing_profiler,
     )
+
     HAS_DEBUG_UTILS = True
 except ImportError:
     HAS_DEBUG_UTILS = False
-    
+
 logger = logging.getLogger(__name__)
 
 # Enable verbose debug logging if environment variable is set
-DEBUG_VERBOSE = os.environ.get('SHOTBOT_DEBUG_VERBOSE', '').lower() in ('1', 'true', 'yes')
+DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
 if DEBUG_VERBOSE:
     logger.setLevel(logging.DEBUG)
     logger.info("VERBOSE DEBUG MODE ENABLED for ProcessPoolManager")
-    
+
 # Setup enhanced debugging if available
 if HAS_DEBUG_UTILS:
     setup_enhanced_debugging()
@@ -209,18 +218,24 @@ class PersistentBashSession:
             with_backoff: Whether to use exponential backoff for retries
         """
         if DEBUG_VERBOSE:
-            logger.debug(f"[{self.session_id}] Starting session (with_backoff={with_backoff})")
-        
+            logger.debug(
+                f"[{self.session_id}] Starting session (with_backoff={with_backoff})"
+            )
+
         # Track state transition
         if HAS_DEBUG_UTILS:
-            state_tracker.transition(self.session_id, "STARTING", "Session initialization")
-            
+            state_tracker.transition(
+                self.session_id, "STARTING", "Session initialization"
+            )
+
         # Ensure any existing process is cleaned up first
         if self._process is not None:
             if DEBUG_VERBOSE:
-                logger.debug(f"[{self.session_id}] Cleaning up existing process before start")
+                logger.debug(
+                    f"[{self.session_id}] Cleaning up existing process before start"
+                )
             self._kill_session()
-        
+
         if with_backoff:
             # Apply exponential backoff if this is a retry
             if self._retry_count > 0:
@@ -244,11 +259,16 @@ class PersistentBashSession:
         try:
             # Use interactive bash (required for ws command)
             if DEBUG_VERBOSE:
-                logger.debug(f"[{self.session_id}] Creating subprocess.Popen with interactive bash")
+                logger.debug(
+                    f"[{self.session_id}] Creating subprocess.Popen with interactive bash"
+                )
                 # Log file descriptors before subprocess creation
                 import sys
-                logger.debug(f"[{self.session_id}] FDs before Popen: stdin={sys.stdin.fileno() if hasattr(sys.stdin, 'fileno') else 'N/A'}, stdout={sys.stdout.fileno() if hasattr(sys.stdout, 'fileno') else 'N/A'}, stderr={sys.stderr.fileno() if hasattr(sys.stderr, 'fileno') else 'N/A'}")
-                
+
+                logger.debug(
+                    f"[{self.session_id}] FDs before Popen: stdin={sys.stdin.fileno() if hasattr(sys.stdin, 'fileno') else 'N/A'}, stdout={sys.stdout.fileno() if hasattr(sys.stdout, 'fileno') else 'N/A'}, stderr={sys.stderr.fileno() if hasattr(sys.stderr, 'fileno') else 'N/A'}"
+                )
+
             self._process = subprocess.Popen(
                 ["/bin/bash", "-i"],
                 stdin=subprocess.PIPE,
@@ -258,11 +278,15 @@ class PersistentBashSession:
                 bufsize=1,  # Line buffered (unbuffered not supported with text mode)
                 env=os.environ.copy(),
             )
-            
+
             if DEBUG_VERBOSE:
-                logger.debug(f"[{self.session_id}] Process created with PID: {self._process.pid}")
+                logger.debug(
+                    f"[{self.session_id}] Process created with PID: {self._process.pid}"
+                )
                 if self._process.stdin and self._process.stdout:
-                    logger.debug(f"[{self.session_id}] Process FDs: stdin={self._process.stdin.fileno()}, stdout={self._process.stdout.fileno()}")
+                    logger.debug(
+                        f"[{self.session_id}] Process FDs: stdin={self._process.stdin.fileno()}, stdout={self._process.stdout.fileno()}"
+                    )
 
             # Verify process started successfully
             if self._process.poll() is not None:
@@ -272,12 +296,12 @@ class PersistentBashSession:
             try:
                 if self._process.stdout is None:
                     raise RuntimeError("Process stdout is None")
-                    
+
                 stdout_fd = self._process.stdout.fileno()
-                
+
                 # Only attempt non-blocking I/O if fcntl is available
                 if HAS_FCNTL:
-                    if hasattr(os, 'set_blocking'):
+                    if hasattr(os, "set_blocking"):
                         # Python 3.5+ way
                         os.set_blocking(stdout_fd, False)
                     else:
@@ -285,8 +309,10 @@ class PersistentBashSession:
                         flags = fcntl.fcntl(stdout_fd, fcntl.F_GETFL)
                         fcntl.fcntl(stdout_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
                 else:
-                    logger.debug("Skipping non-blocking I/O setup (fcntl not available)")
-                    
+                    logger.debug(
+                        "Skipping non-blocking I/O setup (fcntl not available)"
+                    )
+
             except (OSError, ValueError, AttributeError) as e:
                 logger.debug(f"Could not set non-blocking mode on stdout: {e}")
                 # This is not critical - continue without non-blocking mode
@@ -300,11 +326,12 @@ class PersistentBashSession:
                     time.sleep(0.2)  # More delay for second/third sessions
                 else:
                     time.sleep(0.1)  # Standard delay for first session
-                
+
                 # Send a unique marker to verify session is ready
                 import uuid
+
                 marker = f"SHOTBOT_INIT_{uuid.uuid4().hex[:8]}"
-                
+
                 # Simple initialization - just set PS1 and echo marker
                 init_command = f"export PS1=''; export PS2=''; echo '{marker}'\n"
                 if self._process.stdin is not None:
@@ -312,61 +339,82 @@ class PersistentBashSession:
                     self._process.stdin.flush()
                 else:
                     raise RuntimeError("Process stdin is None")
-                
+
                 # CRITICAL FIX: Read output until we find our marker
                 # This ensures the session is ready and prevents deadlock
                 start_time = time.time()
                 timeout = 2.0  # 2 second timeout for initialization
                 found_marker = False
-                
+
                 if DEBUG_VERBOSE:
-                    logger.debug(f"[{self.session_id}] Waiting for initialization marker: {marker}")
-                
+                    logger.debug(
+                        f"[{self.session_id}] Waiting for initialization marker: {marker}"
+                    )
+
                 # Track state
                 if HAS_DEBUG_UTILS:
-                    state_tracker.transition(self.session_id, "WAITING_MARKER", "Waiting for init marker")
+                    state_tracker.transition(
+                        self.session_id, "WAITING_MARKER", "Waiting for init marker"
+                    )
                     deadlock_detector.waiting(self.session_id, "initialization_marker")
-                
+
                 # Accumulate all output to search for marker
                 accumulated_output = ""
-                
+
                 while time.time() - start_time < timeout:
                     elapsed = time.time() - start_time
-                    
+
                     if self._process.stdout:
                         try:
                             if HAS_FCNTL:
                                 # Non-blocking read - check if data is available
                                 try:
                                     import select
-                                    if DEBUG_VERBOSE and int(elapsed * 10) % 5 == 0:  # Log every 0.5 seconds
-                                        logger.debug(f"[{self.session_id}] Checking for data at {elapsed:.1f}s...")
-                                    
+
+                                    if (
+                                        DEBUG_VERBOSE and int(elapsed * 10) % 5 == 0
+                                    ):  # Log every 0.5 seconds
+                                        logger.debug(
+                                            f"[{self.session_id}] Checking for data at {elapsed:.1f}s..."
+                                        )
+
                                     # Use very short timeout to avoid hanging
-                                    ready, _, _ = select.select([self._process.stdout], [], [], 0.01)
+                                    ready, _, _ = select.select(
+                                        [self._process.stdout], [], [], 0.01
+                                    )
                                     if ready:
                                         # Read available data - use readline to avoid blocking
                                         line = self._process.stdout.readline()
                                         if line:
                                             accumulated_output += line
                                             if DEBUG_VERBOSE:
-                                                logger.debug(f"[{self.session_id}] Read line ({len(line)} bytes): {line[:100].strip()}")
+                                                logger.debug(
+                                                    f"[{self.session_id}] Read line ({len(line)} bytes): {line[:100].strip()}"
+                                                )
                                             if marker in accumulated_output:
                                                 found_marker = True
-                                                logger.debug(f"[{self.session_id}] Session initialized successfully (non-blocking)")
+                                                logger.debug(
+                                                    f"[{self.session_id}] Session initialized successfully (non-blocking)"
+                                                )
                                                 break
                                     elif DEBUG_VERBOSE and elapsed > 0.5:
                                         # Log if we've been waiting a while with no data
-                                        logger.debug(f"[{self.session_id}] No data available after {elapsed:.1f}s, continuing to wait...")
+                                        logger.debug(
+                                            f"[{self.session_id}] No data available after {elapsed:.1f}s, continuing to wait..."
+                                        )
                                 except ImportError:
                                     # select not available, fall back to readline
-                                    logger.debug("select module not available, using readline")
+                                    logger.debug(
+                                        "select module not available, using readline"
+                                    )
                                     line = self._process.stdout.readline()
                                     if line:
                                         accumulated_output += line
                                         if marker in accumulated_output:
                                             found_marker = True
-                                            logger.debug("Session initialized successfully (readline)")
+                                            logger.debug(
+                                                "Session initialized successfully (readline)"
+                                            )
                                             break
                             else:
                                 # Blocking read with readline
@@ -375,23 +423,35 @@ class PersistentBashSession:
                                     accumulated_output += line
                                     if marker in accumulated_output:
                                         found_marker = True
-                                        logger.debug("Session initialized successfully (blocking)")
+                                        logger.debug(
+                                            "Session initialized successfully (blocking)"
+                                        )
                                         break
                         except Exception as read_error:
-                            logger.debug(f"[{self.session_id}] Read error during initialization: {read_error}")
+                            logger.debug(
+                                f"[{self.session_id}] Read error during initialization: {read_error}"
+                            )
                             # Small sleep to avoid busy loop
                             time.sleep(0.01)
-                    
+
                     # Also check if process died
                     if self._process.poll() is not None:
                         exit_code = self._process.returncode
-                        logger.error(f"[{self.session_id}] Bash process died during initialization with exit code: {exit_code}")
-                        raise RuntimeError(f"Bash process died during initialization (exit code: {exit_code})")
-                
+                        logger.error(
+                            f"[{self.session_id}] Bash process died during initialization with exit code: {exit_code}"
+                        )
+                        raise RuntimeError(
+                            f"Bash process died during initialization (exit code: {exit_code})"
+                        )
+
                 # Check if we successfully initialized
                 if not found_marker:
-                    logger.warning(f"[{self.session_id}] Session initialization marker not found after {timeout}s")
-                    logger.warning(f"[{self.session_id}] Accumulated output: {accumulated_output[:500]}")
+                    logger.warning(
+                        f"[{self.session_id}] Session initialization marker not found after {timeout}s"
+                    )
+                    logger.warning(
+                        f"[{self.session_id}] Accumulated output: {accumulated_output[:500]}"
+                    )
                     # Try a simpler initialization as fallback
                     try:
                         if self._process.stdin:
@@ -403,13 +463,15 @@ class PersistentBashSession:
                                 try:
                                     test_line = self._process.stdout.readline()
                                     if test_line:
-                                        logger.info(f"[{self.session_id}] Fallback init response: {test_line.strip()}")
-                                except:
+                                        logger.info(
+                                            f"[{self.session_id}] Fallback init response: {test_line.strip()}"
+                                        )
+                                except (IOError, OSError):
                                     pass
-                    except:
+                    except (IOError, OSError):
                         pass
                     # Continue anyway - the session might still work
-                
+
             except Exception as e:
                 logger.error(f"Failed to initialize bash session: {e}")
                 self._kill_session()
@@ -422,10 +484,12 @@ class PersistentBashSession:
             logger.info(f"Started persistent bash session: {self.session_id}")
             if DEBUG_VERBOSE:
                 logger.debug(f"[{self.session_id}] Session fully initialized and ready")
-            
+
             # Track successful initialization
             if HAS_DEBUG_UTILS:
-                state_tracker.transition(self.session_id, "READY", "Session initialized")
+                state_tracker.transition(
+                    self.session_id, "READY", "Session initialized"
+                )
                 deadlock_detector.done_waiting(self.session_id)
 
         except Exception as e:
@@ -457,13 +521,15 @@ class PersistentBashSession:
             RuntimeError: If session is dead
         """
         if DEBUG_VERBOSE:
-            logger.debug(f"[{self.session_id}] Execute called with command: {command[:100]}...")
-        
+            logger.debug(
+                f"[{self.session_id}] Execute called with command: {command[:100]}..."
+            )
+
         # Trace command execution
         if HAS_DEBUG_UTILS:
             CommandTracer.trace(command, self.session_id)
-            state_tracker.transition(self.session_id, "EXECUTING", f"Running command")
-            
+            state_tracker.transition(self.session_id, "EXECUTING", "Running command")
+
         with self._lock:
             # Try to restart session with exponential backoff if dead
             if not self._is_alive():
@@ -498,18 +564,24 @@ class PersistentBashSession:
             # Send command with unique marker
             marker = f"<<<SHOTBOT_{self.session_id}_{time.time()}>>>"
             # Always print the marker, even if command fails (using || true to bypass set -e)
-            full_command = f"({command}) || true; echo \"{marker}\""
+            full_command = f'({command}) || true; echo "{marker}"'
 
             if DEBUG_VERBOSE:
-                logger.debug(f"[{self.session_id}] Sending command with marker: {marker}")
-                logger.debug(f"[{self.session_id}] Full command: {full_command[:200]}...")
+                logger.debug(
+                    f"[{self.session_id}] Sending command with marker: {marker}"
+                )
+                logger.debug(
+                    f"[{self.session_id}] Full command: {full_command[:200]}..."
+                )
 
             try:
                 self._process.stdin.write(f"{full_command}\n")
                 self._process.stdin.flush()
-                
+
                 if DEBUG_VERBOSE:
-                    logger.debug(f"[{self.session_id}] Command sent to stdin and flushed")
+                    logger.debug(
+                        f"[{self.session_id}] Command sent to stdin and flushed"
+                    )
 
                 # Read output until marker using non-blocking I/O
                 output: List[str] = []
@@ -519,9 +591,13 @@ class PersistentBashSession:
                 while True:
                     elapsed = time.time() - start_time
                     if elapsed > timeout:
-                        logger.debug(f"[{self.session_id}] Timeout reached after {elapsed:.2f}s for command: {command[:50]}...")
+                        logger.debug(
+                            f"[{self.session_id}] Timeout reached after {elapsed:.2f}s for command: {command[:50]}..."
+                        )
                         if DEBUG_VERBOSE:
-                            logger.debug(f"[{self.session_id}] Output collected before timeout: {output[:5] if output else 'None'}")
+                            logger.debug(
+                                f"[{self.session_id}] Output collected before timeout: {output[:5] if output else 'None'}"
+                            )
                         # Try to recover
                         self._kill_session()
                         # Don't try to restart here - let next execute() handle it
@@ -533,45 +609,61 @@ class PersistentBashSession:
                     # Safe access with None check
                     if self._process is None or self._process.stdout is None:
                         raise RuntimeError("Process died during execution")
-                    
+
                     # Read from stdout (blocking or non-blocking depending on fcntl availability)
                     try:
                         if HAS_FCNTL:
                             # Non-blocking read
-                            if DEBUG_VERBOSE and elapsed - int(elapsed) < 0.01:  # Log once per second
-                                logger.debug(f"[{self.session_id}] Reading (non-blocking) at {elapsed:.1f}s...")
+                            if (
+                                DEBUG_VERBOSE and elapsed - int(elapsed) < 0.01
+                            ):  # Log once per second
+                                logger.debug(
+                                    f"[{self.session_id}] Reading (non-blocking) at {elapsed:.1f}s..."
+                                )
                             chunk = self._process.stdout.read(4096)
                         else:
                             # Blocking read with readline to avoid hanging
-                            if DEBUG_VERBOSE and elapsed - int(elapsed) < 0.01:  # Log once per second
-                                logger.debug(f"[{self.session_id}] Reading line (blocking) at {elapsed:.1f}s...")
+                            if (
+                                DEBUG_VERBOSE and elapsed - int(elapsed) < 0.01
+                            ):  # Log once per second
+                                logger.debug(
+                                    f"[{self.session_id}] Reading line (blocking) at {elapsed:.1f}s..."
+                                )
                             line = self._process.stdout.readline()
                             if line:
                                 if DEBUG_VERBOSE:
-                                    logger.debug(f"[{self.session_id}] Read line ({len(line)} chars): {line[:100] if line else 'empty'}")
+                                    logger.debug(
+                                        f"[{self.session_id}] Read line ({len(line)} chars): {line[:100] if line else 'empty'}"
+                                    )
                                 if marker in line:
-                                    logger.debug(f"[{self.session_id}] Found marker, command complete")
+                                    logger.debug(
+                                        f"[{self.session_id}] Found marker, command complete"
+                                    )
                                     self._command_count += 1
                                     self._last_command_time = time.time()
                                     result = "\n".join(output)
                                     if DEBUG_VERBOSE:
-                                        logger.debug(f"[{self.session_id}] Returning {len(result)} chars of output")
+                                        logger.debug(
+                                            f"[{self.session_id}] Returning {len(result)} chars of output"
+                                        )
                                     return result
                                 # Filter out initialization markers
                                 if not line.startswith("SHOTBOT_INIT_"):
                                     output.append(line.rstrip())
                             continue  # Skip the chunk processing below
-                            
+
                         # Process chunk for non-blocking mode
                         if chunk:
                             buffer += chunk
                             # Process complete lines
-                            lines = buffer.split('\n')
+                            lines = buffer.split("\n")
                             # Keep incomplete line in buffer
                             buffer = lines[-1]
                             # Process complete lines
                             for line in lines[:-1]:
-                                logger.debug(f"Read line: {line[:100] if line else 'empty'}")
+                                logger.debug(
+                                    f"Read line: {line[:100] if line else 'empty'}"
+                                )
                                 if marker in line:
                                     logger.debug("Found marker, breaking")
                                     # Return everything collected so far
@@ -585,11 +677,12 @@ class PersistentBashSession:
                         # EAGAIN means no data available (expected for non-blocking)
                         if HAS_FCNTL:
                             import errno
+
                             if e.errno != errno.EAGAIN:
                                 raise
                         else:
                             raise
-                    
+
                     # Small sleep to avoid busy waiting (only for non-blocking mode)
                     if HAS_FCNTL:
                         time.sleep(0.01)
@@ -616,13 +709,13 @@ class PersistentBashSession:
 
         Args:
             command: Setup command to execute
-            
+
         Raises:
             RuntimeError: If process is not available
         """
         if not self._process or not self._process.stdin:
             raise RuntimeError("Process not available for internal command")
-        
+
         try:
             self._process.stdin.write(f"{command}\n")
             self._process.stdin.flush()
@@ -646,7 +739,9 @@ class PersistentBashSession:
                 self._process.terminate()
                 self._process.wait(timeout=2)
             except subprocess.TimeoutExpired:
-                logger.warning(f"Session {self.session_id} didn't terminate gracefully, killing")
+                logger.warning(
+                    f"Session {self.session_id} didn't terminate gracefully, killing"
+                )
                 try:
                     self._process.kill()
                     self._process.wait(timeout=1)
@@ -678,6 +773,8 @@ class PersistentBashSession:
         """Close the session gracefully."""
         self._kill_session()
         logger.info(f"Closed bash session: {self.session_id}")
+
+
 class ProcessPoolManager(QObject):
     """Centralized process management with pooling and caching.
 
@@ -755,7 +852,7 @@ class ProcessPoolManager(QObject):
         """
         if DEBUG_VERBOSE:
             logger.debug(f"execute_workspace_command called: {command[:50]}...")
-            
+
         # Check cache first
         cached = self._cache.get(command)
         if cached is not None:
@@ -763,7 +860,7 @@ class ProcessPoolManager(QObject):
             if DEBUG_VERBOSE:
                 logger.debug(f"Cache HIT for command: {command[:50]}...")
             return cached
-        
+
         if DEBUG_VERBOSE:
             logger.debug(f"Cache MISS for command: {command[:50]}... - will execute")
 
@@ -922,7 +1019,7 @@ class ProcessPoolManager(QObject):
         """
         if DEBUG_VERBOSE:
             logger.debug(f"Getting bash session for type: {session_type}")
-            
+
         with self._session_lock:
             # Initialize pool structure if needed (but don't create sessions yet)
             if session_type not in self._session_pools:
@@ -930,51 +1027,65 @@ class ProcessPoolManager(QObject):
                 self._session_round_robin[session_type] = 0
                 logger.info(f"Initialized empty pool for session type: {session_type}")
                 if DEBUG_VERBOSE:
-                    logger.debug(f"Pool structure created, no sessions yet (lazy init)")
+                    logger.debug("Pool structure created, no sessions yet (lazy init)")
 
             # Get or create sessions as needed
             pool = self._session_pools[session_type]
-            
+
             # Create sessions lazily if pool is empty
             if not pool:
-                logger.info(f"LAZY INIT: Creating {self._sessions_per_type} sessions for pool type: {session_type}")
+                logger.info(
+                    f"LAZY INIT: Creating {self._sessions_per_type} sessions for pool type: {session_type}"
+                )
                 if DEBUG_VERBOSE:
-                    logger.debug(f"This is the FIRST use of {session_type} pool - creating sessions now")
-                    
+                    logger.debug(
+                        f"This is the FIRST use of {session_type} pool - creating sessions now"
+                    )
+
                 for i in range(self._sessions_per_type):
                     session_id = f"{session_type}_{i}"
                     try:
                         if DEBUG_VERBOSE:
-                            logger.debug(f"Creating session {i+1}/{self._sessions_per_type}: {session_id}")
-                        
+                            logger.debug(
+                                f"Creating session {i + 1}/{self._sessions_per_type}: {session_id}"
+                            )
+
                         # Time session creation
                         if HAS_DEBUG_UTILS:
-                            with timing_profiler.measure(f"create_session_{session_id}"):
+                            with timing_profiler.measure(
+                                f"create_session_{session_id}"
+                            ):
                                 session = PersistentBashSession(session_id)
                         else:
                             session = PersistentBashSession(session_id)
-                            
+
                         pool.append(session)
                         logger.info(f"Created session {session_id} in pool")
-                        
+
                         # Delay between creating sessions to avoid resource contention
                         if i < self._sessions_per_type - 1:
                             time.sleep(0.3)  # Increased from 0.1 to 0.3
                             if DEBUG_VERBOSE:
-                                logger.debug(f"Pause before creating next session (0.3s)...")
+                                logger.debug(
+                                    "Pause before creating next session (0.3s)..."
+                                )
                     except Exception as e:
                         logger.error(f"Failed to create session {session_id}: {e}")
                         # Continue with fewer sessions if some fail
-                
+
                 if not pool:
-                    raise RuntimeError(f"Failed to create any sessions for type {session_type}")
-            
+                    raise RuntimeError(
+                        f"Failed to create any sessions for type {session_type}"
+                    )
+
             # Get next session using round-robin
             index = self._session_round_robin[session_type]
             session = pool[index]
-            
+
             if DEBUG_VERBOSE:
-                logger.debug(f"Selected session {session.session_id} (index {index}/{len(pool)})")
+                logger.debug(
+                    f"Selected session {session.session_id} (index {index}/{len(pool)})"
+                )
 
             # Update round-robin counter
             self._session_round_robin[session_type] = (index + 1) % len(pool)
@@ -984,7 +1095,9 @@ class ProcessPoolManager(QObject):
             if not session._is_alive():  # type: ignore[reportPrivateUsage]
                 logger.warning(f"Session {session.session_id} dead, restarting")
                 if DEBUG_VERBOSE:
-                    logger.debug(f"Session {session.session_id} needs restart (process dead)")
+                    logger.debug(
+                        f"Session {session.session_id} needs restart (process dead)"
+                    )
                 session._start_session()  # type: ignore[reportPrivateUsage]
             elif DEBUG_VERBOSE:
                 logger.debug(f"Session {session.session_id} is alive and ready")
@@ -1126,4 +1239,3 @@ if __name__ == "__main__":
     pool.shutdown()
 
     sys.exit(0)
-
