@@ -275,11 +275,13 @@ class PersistentBashSession:
             env['PS1'] = ''  # Clear primary prompt
             env['PS2'] = ''  # Clear secondary prompt
             
+            # Use interactive bash for real applications where ws command is needed
+            # The -i flag is required for shell functions like 'ws'
             self._process = subprocess.Popen(
-                ["/bin/bash", "-i"],
+                ["/bin/bash", "-i"],  # Interactive mode required for ws command
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,  # Redirect stderr to stdout to prevent separate buffer deadlock
+                stderr=subprocess.PIPE,  # Separate stderr to filter warnings
                 text=True,
                 bufsize=1,  # Line buffered (unbuffered not supported with text mode)
                 env=env,

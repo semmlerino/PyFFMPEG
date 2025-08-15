@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Test script to verify ProcessPoolManager initialization fix."""
 
+import logging
 import os
 import sys
 import time
-import logging
 
 # Enable verbose debug mode
 os.environ['SHOTBOT_DEBUG_VERBOSE'] = '1'

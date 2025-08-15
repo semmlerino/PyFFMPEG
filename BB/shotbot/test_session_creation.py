@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Test script to verify multiple session creation doesn't hang."""
 
+import logging
 import os
+import signal
 import sys
 import time
-import logging
-import signal
 
 # Enable verbose debug mode
 os.environ['SHOTBOT_DEBUG_VERBOSE'] = '1'
@@ -42,7 +42,7 @@ def test_session_creation():
         sys.modules['PySide6.QtCore'].Signal = MagicMock
         
         # Import after mocking
-        from process_pool_manager import ProcessPoolManager, PersistentBashSession
+        from process_pool_manager import PersistentBashSession
         
         logger.info("Creating individual sessions to test for hangs...")
         
