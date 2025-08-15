@@ -213,13 +213,14 @@ class PersistentBashSession:
                 self._last_retry_time = current_time
 
         try:
+            # Use interactive bash (required for ws command)
             self._process = subprocess.Popen(
                 ["/bin/bash", "-i"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Redirect stderr to stdout to prevent separate buffer deadlock
                 text=True,
-                bufsize=1,  # Line buffered instead of unbuffered
+                bufsize=1,  # Line buffered (unbuffered not supported with text mode)
                 env=os.environ.copy(),
             )
 
@@ -253,51 +254,66 @@ class PersistentBashSession:
 
             # Set up session - with proper output draining to prevent deadlock
             try:
-                # Don't use set -e as it can cause issues with command chaining
-                # Just remove the prompt
-                self._process.stdin.write("export PS1=''\n")
+                # Send a unique marker to verify session is ready
+                import uuid
+                marker = f"SHOTBOT_INIT_{uuid.uuid4().hex[:8]}"
+                
+                # Simple initialization - just set PS1 and echo marker
+                init_command = f"export PS1=''; export PS2=''; echo '{marker}'\n"
+                self._process.stdin.write(init_command)
                 self._process.stdin.flush()
                 
-                # CRITICAL FIX: Drain any startup output to prevent deadlock
-                # Instead of just sleeping, we need to read any output that bash produces
-                time.sleep(0.05)  # Brief pause for command to start
+                # CRITICAL FIX: Read output until we find our marker
+                # This ensures the session is ready and prevents deadlock
+                start_time = time.time()
+                timeout = 2.0  # 2 second timeout for initialization
+                found_marker = False
                 
-                # Drain stdout to prevent blocking
-                if self._process.stdout:
-                    try:
-                        if HAS_FCNTL:
-                            # Non-blocking read to drain any startup output
-                            import select
-                            # Check if data is available
-                            ready, _, _ = select.select([self._process.stdout], [], [], 0.1)
-                            if ready:
-                                # Read available data to clear the buffer
+                while time.time() - start_time < timeout:
+                    if self._process.stdout:
+                        try:
+                            if HAS_FCNTL:
+                                # Non-blocking read - check if data is available
                                 try:
-                                    chunk = self._process.stdout.read(4096)
-                                    if chunk:
-                                        logger.debug(f"Drained {len(chunk)} bytes of startup output")
-                                except:
-                                    pass  # Ignore read errors during initialization
-                        else:
-                            # For systems without fcntl, send a marker and read until we get it
-                            import uuid
-                            marker = f"SHOTBOT_READY_{uuid.uuid4().hex[:8]}"
-                            self._process.stdin.write(f"echo '{marker}'\n")
-                            self._process.stdin.flush()
-                            
-                            # Read output until we find our marker or timeout
-                            start_time = time.time()
-                            while time.time() - start_time < 1.0:
-                                try:
+                                    import select
+                                    # Use very short timeout to avoid hanging
+                                    ready, _, _ = select.select([self._process.stdout], [], [], 0.01)
+                                    if ready:
+                                        # Read available data
+                                        chunk = self._process.stdout.read(1024)
+                                        if chunk and marker in chunk:
+                                            found_marker = True
+                                            logger.debug("Session initialized successfully (non-blocking)")
+                                            break
+                                except ImportError:
+                                    # select not available, fall back to readline
+                                    logger.debug("select module not available, using readline")
                                     line = self._process.stdout.readline()
                                     if line and marker in line:
-                                        logger.debug("Session initialized successfully")
+                                        found_marker = True
+                                        logger.debug("Session initialized successfully (readline)")
                                         break
-                                except:
-                                    break  # Stop on any read error
-                    except Exception as drain_error:
-                        logger.debug(f"Non-critical drain error: {drain_error}")
-                        # Continue even if draining fails
+                            else:
+                                # Blocking read with readline
+                                line = self._process.stdout.readline()
+                                if line and marker in line:
+                                    found_marker = True
+                                    logger.debug("Session initialized successfully (blocking)")
+                                    break
+                        except Exception as read_error:
+                            logger.debug(f"Read error during initialization: {read_error}")
+                            # Small sleep to avoid busy loop
+                            time.sleep(0.01)
+                    
+                    # Also check if process died
+                    if self._process.poll() is not None:
+                        raise RuntimeError("Bash process died during initialization")
+                
+                # Check if we successfully initialized
+                if not found_marker:
+                    logger.warning(f"Session initialization marker not found after {timeout}s")
+                    # Continue anyway - the session might still work
+                
             except Exception as e:
                 logger.error(f"Failed to initialize bash session: {e}")
                 self._kill_session()
@@ -413,7 +429,9 @@ class PersistentBashSession:
                                     self._command_count += 1
                                     self._last_command_time = time.time()
                                     return "\n".join(output)
-                                output.append(line.rstrip())
+                                # Filter out initialization markers
+                                if not line.startswith("SHOTBOT_INIT_"):
+                                    output.append(line.rstrip())
                             continue  # Skip the chunk processing below
                             
                         # Process chunk for non-blocking mode
@@ -432,7 +450,9 @@ class PersistentBashSession:
                                     self._command_count += 1
                                     self._last_command_time = time.time()
                                     return "\n".join(output)
-                                output.append(line.rstrip())
+                                # Filter out initialization markers
+                                if not line.startswith("SHOTBOT_INIT_"):
+                                    output.append(line.rstrip())
                     except (IOError, OSError) as e:
                         # EAGAIN means no data available (expected for non-blocking)
                         if HAS_FCNTL:
@@ -756,7 +776,7 @@ class ProcessPoolManager(QObject):
     def _get_bash_session(self, session_type: str) -> PersistentBashSession:
         """Get next available bash session from pool using round-robin.
 
-        Creates a pool of sessions for parallel execution.
+        Creates sessions lazily on first use to avoid conflicts with Qt initialization.
 
         Args:
             session_type: Type of session (workspace, general, etc.)
@@ -765,20 +785,32 @@ class ProcessPoolManager(QObject):
             PersistentBashSession instance
         """
         with self._session_lock:
-            # Initialize pool if needed
+            # Initialize pool structure if needed (but don't create sessions yet)
             if session_type not in self._session_pools:
                 self._session_pools[session_type] = []
                 self._session_round_robin[session_type] = 0
+                logger.debug(f"Initialized empty pool for session type: {session_type}")
 
-                # Create initial pool of sessions
+            # Get or create sessions as needed
+            pool = self._session_pools[session_type]
+            
+            # Create sessions lazily if pool is empty
+            if not pool:
+                logger.info(f"Creating initial sessions for pool type: {session_type}")
                 for i in range(self._sessions_per_type):
                     session_id = f"{session_type}_{i}"
-                    session = PersistentBashSession(session_id)
-                    self._session_pools[session_type].append(session)
-                    logger.info(f"Created session {session_id} in pool")
-
+                    try:
+                        session = PersistentBashSession(session_id)
+                        pool.append(session)
+                        logger.info(f"Created session {session_id} in pool")
+                    except Exception as e:
+                        logger.error(f"Failed to create session {session_id}: {e}")
+                        # Continue with fewer sessions if some fail
+                
+                if not pool:
+                    raise RuntimeError(f"Failed to create any sessions for type {session_type}")
+            
             # Get next session using round-robin
-            pool = self._session_pools[session_type]
             index = self._session_round_robin[session_type]
             session = pool[index]
 
