@@ -230,13 +230,13 @@ class CacheManager(QObject):
                 return None
 
             # If on main thread, call the direct method
-            return self._cache_thumbnail_direct(source_path, show, sequence, shot)
+            return self.cache_thumbnail_direct(source_path, show, sequence, shot)
 
         except Exception as e:
             logger.exception(f"Unexpected error caching thumbnail {source_path}: {e}")
             return None
 
-    def _cache_thumbnail_direct(
+    def cache_thumbnail_direct(
         self, source_path: Path, show: str, sequence: str, shot: str
     ) -> Optional[Path]:
         """Direct thumbnail caching implementation without thread checks.
@@ -868,7 +868,7 @@ class ThumbnailCacheLoader(QRunnable):
             # Call the internal method directly to avoid infinite recursion
             # This is already running on a background thread, so we don't need
             # to check for thread context again
-            cache_path = self.cache_manager._cache_thumbnail_direct(
+            cache_path = self.cache_manager.cache_thumbnail_direct(
                 self.source_path, self.show, self.sequence, self.shot
             )
             if cache_path:

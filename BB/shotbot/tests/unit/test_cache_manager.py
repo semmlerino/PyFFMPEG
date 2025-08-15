@@ -46,21 +46,36 @@ class TestCacheManager:
         result = cache_manager.get_cached_thumbnail("show1", "seq1", "shot1")
         assert result == cache_path
 
-    @patch("cache_manager.QPixmap")
+    @patch("cache_manager.QApplication")
+    @patch("cache_manager.QThread")
+    @patch("cache_manager.QImage")
     def test_cache_thumbnail_success(
-        self, mock_pixmap_class, cache_manager, temp_cache_dir
+        self, mock_qimage_class, mock_qthread, mock_qapp, cache_manager, temp_cache_dir
     ):
         """Test successful thumbnail caching."""
-        # Setup mock
-        mock_pixmap = Mock()
-        mock_pixmap.isNull.return_value = False
-        mock_pixmap.width.return_value = 800  # Valid size
-        mock_pixmap.height.return_value = 600  # Valid size
+        # Mock Qt thread detection to think we're on main thread
+        mock_app_instance = Mock()
+        mock_current_thread = Mock()
+        mock_qapp.instance.return_value = mock_app_instance
+        mock_qthread.currentThread.return_value = mock_current_thread
+        mock_app_instance.thread.return_value = mock_current_thread  # Same thread = main thread
+        
+        # Setup mock for image
+        mock_image = Mock()
+        mock_image.isNull.return_value = False
+        mock_image.width.return_value = 800  # Valid size
+        mock_image.height.return_value = 600  # Valid size
         mock_scaled = Mock()
         mock_scaled.isNull.return_value = False  # Scaling succeeded
-        mock_scaled.save.return_value = True
-        mock_pixmap.scaled.return_value = mock_scaled
-        mock_pixmap_class.return_value = mock_pixmap
+        
+        # Make save actually create the temp file so replace() works
+        def mock_save(path, format, quality):
+            Path(path).touch()  # Create the file
+            return True
+        mock_scaled.save.side_effect = mock_save
+        
+        mock_image.scaled.return_value = mock_scaled
+        mock_qimage_class.return_value = mock_image
 
         # Create source file
         source = temp_cache_dir / "source.jpg"
@@ -72,17 +87,31 @@ class TestCacheManager:
         )
 
         assert result == expected_path
-        mock_scaled.save.assert_called_once_with(str(expected_path), "JPEG", 85)
+        # The implementation saves to a temp file first, so we check it was called with ANY path
+        assert mock_scaled.save.called
+        # Check it was called with JPEG format and quality 85 (not EXR)
+        args, kwargs = mock_scaled.save.call_args
+        assert args[1] == "JPEG"
+        assert args[2] == 85
 
-    @patch("cache_manager.QPixmap")
+    @patch("cache_manager.QApplication")
+    @patch("cache_manager.QThread")
+    @patch("cache_manager.QImage")
     def test_cache_thumbnail_invalid_image(
-        self, mock_pixmap_class, cache_manager, temp_cache_dir
+        self, mock_qimage_class, mock_qthread, mock_qapp, cache_manager, temp_cache_dir
     ):
         """Test caching invalid thumbnail."""
+        # Mock Qt thread detection to think we're on main thread
+        mock_app_instance = Mock()
+        mock_current_thread = Mock()
+        mock_qapp.instance.return_value = mock_app_instance
+        mock_qthread.currentThread.return_value = mock_current_thread
+        mock_app_instance.thread.return_value = mock_current_thread  # Same thread = main thread
+        
         # Setup mock for invalid image
-        mock_pixmap = Mock()
-        mock_pixmap.isNull.return_value = True
-        mock_pixmap_class.return_value = mock_pixmap
+        mock_image = Mock()
+        mock_image.isNull.return_value = True
+        mock_qimage_class.return_value = mock_image
 
         source = temp_cache_dir / "invalid.jpg"
         source.touch()
@@ -225,7 +254,7 @@ class TestThumbnailCacheLoader:
         source_path = Path("/source/image.jpg")
         cache_path = Path("/cache/thumb.jpg")
 
-        mock_cache_manager.cache_thumbnail.return_value = cache_path
+        mock_cache_manager.cache_thumbnail_direct.return_value = cache_path
 
         loader = ThumbnailCacheLoader(
             mock_cache_manager, source_path, "show1", "seq1", "shot1"
@@ -237,7 +266,7 @@ class TestThumbnailCacheLoader:
 
         loader.run()
 
-        mock_cache_manager.cache_thumbnail.assert_called_once_with(
+        mock_cache_manager.cache_thumbnail_direct.assert_called_once_with(
             source_path, "show1", "seq1", "shot1"
         )
         assert len(emitted) == 1
@@ -247,7 +276,7 @@ class TestThumbnailCacheLoader:
         """Test failed thumbnail caching."""
         source_path = Path("/source/image.jpg")
 
-        mock_cache_manager.cache_thumbnail.return_value = None
+        mock_cache_manager.cache_thumbnail_direct.return_value = None
 
         loader = ThumbnailCacheLoader(
             mock_cache_manager, source_path, "show1", "seq1", "shot1"
@@ -259,5 +288,5 @@ class TestThumbnailCacheLoader:
 
         loader.run()
 
-        mock_cache_manager.cache_thumbnail.assert_called_once()
+        mock_cache_manager.cache_thumbnail_direct.assert_called_once()
         assert len(emitted) == 0  # No signal should be emitted on failure

@@ -157,6 +157,21 @@ class ThreeDESceneFinder:
         "files",
         "data",
     }
+    
+    # Directories to exclude during recursive scanning
+    EXCLUDED_DIRS = {
+        ".git",
+        ".svn",
+        ".hg",
+        "__pycache__",
+        "node_modules",
+        ".venv",
+        "venv",
+        ".cache",
+        ".tmp",
+        "temp",
+        "tmp",
+    }
 
     @staticmethod
     def quick_3de_exists_check_python(
