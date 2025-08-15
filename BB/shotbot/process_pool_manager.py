@@ -24,6 +24,16 @@ except ImportError:
 
 from PySide6.QtCore import QObject, Signal
 
+# Import debug utilities
+try:
+    from debug_utils import (
+        timing_profiler, state_tracker, deadlock_detector,
+        CommandTracer, IOBufferInspector, setup_enhanced_debugging
+    )
+    HAS_DEBUG_UTILS = True
+except ImportError:
+    HAS_DEBUG_UTILS = False
+    
 logger = logging.getLogger(__name__)
 
 # Enable verbose debug logging if environment variable is set
@@ -31,6 +41,10 @@ DEBUG_VERBOSE = os.environ.get('SHOTBOT_DEBUG_VERBOSE', '').lower() in ('1', 'tr
 if DEBUG_VERBOSE:
     logger.setLevel(logging.DEBUG)
     logger.info("VERBOSE DEBUG MODE ENABLED for ProcessPoolManager")
+    
+# Setup enhanced debugging if available
+if HAS_DEBUG_UTILS:
+    setup_enhanced_debugging()
 
 
 class CommandCache:
@@ -196,6 +210,10 @@ class PersistentBashSession:
         """
         if DEBUG_VERBOSE:
             logger.debug(f"[{self.session_id}] Starting session (with_backoff={with_backoff})")
+        
+        # Track state transition
+        if HAS_DEBUG_UTILS:
+            state_tracker.transition(self.session_id, "STARTING", "Session initialization")
             
         # Ensure any existing process is cleaned up first
         if self._process is not None:
@@ -304,6 +322,11 @@ class PersistentBashSession:
                 if DEBUG_VERBOSE:
                     logger.debug(f"[{self.session_id}] Waiting for initialization marker: {marker}")
                 
+                # Track state
+                if HAS_DEBUG_UTILS:
+                    state_tracker.transition(self.session_id, "WAITING_MARKER", "Waiting for init marker")
+                    deadlock_detector.waiting(self.session_id, "initialization_marker")
+                
                 # Accumulate all output to search for marker
                 accumulated_output = ""
                 
@@ -399,6 +422,11 @@ class PersistentBashSession:
             logger.info(f"Started persistent bash session: {self.session_id}")
             if DEBUG_VERBOSE:
                 logger.debug(f"[{self.session_id}] Session fully initialized and ready")
+            
+            # Track successful initialization
+            if HAS_DEBUG_UTILS:
+                state_tracker.transition(self.session_id, "READY", "Session initialized")
+                deadlock_detector.done_waiting(self.session_id)
 
         except Exception as e:
             self._process = None  # Ensure clean state
@@ -430,6 +458,11 @@ class PersistentBashSession:
         """
         if DEBUG_VERBOSE:
             logger.debug(f"[{self.session_id}] Execute called with command: {command[:100]}...")
+        
+        # Trace command execution
+        if HAS_DEBUG_UTILS:
+            CommandTracer.trace(command, self.session_id)
+            state_tracker.transition(self.session_id, "EXECUTING", f"Running command")
             
         with self._lock:
             # Try to restart session with exponential backoff if dead
@@ -913,7 +946,14 @@ class ProcessPoolManager(QObject):
                     try:
                         if DEBUG_VERBOSE:
                             logger.debug(f"Creating session {i+1}/{self._sessions_per_type}: {session_id}")
-                        session = PersistentBashSession(session_id)
+                        
+                        # Time session creation
+                        if HAS_DEBUG_UTILS:
+                            with timing_profiler.measure(f"create_session_{session_id}"):
+                                session = PersistentBashSession(session_id)
+                        else:
+                            session = PersistentBashSession(session_id)
+                            
                         pool.append(session)
                         logger.info(f"Created session {session_id} in pool")
                         
