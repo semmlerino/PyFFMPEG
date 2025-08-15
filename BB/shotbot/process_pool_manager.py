@@ -269,6 +269,12 @@ class PersistentBashSession:
                     f"[{self.session_id}] FDs before Popen: stdin={sys.stdin.fileno() if hasattr(sys.stdin, 'fileno') else 'N/A'}, stdout={sys.stdout.fileno() if hasattr(sys.stdout, 'fileno') else 'N/A'}, stderr={sys.stderr.fileno() if hasattr(sys.stderr, 'fileno') else 'N/A'}"
                 )
 
+            # Prepare environment to prevent terminal escape sequences
+            env = os.environ.copy()
+            env['TERM'] = 'dumb'  # Disable terminal escape sequences
+            env['PS1'] = ''  # Clear primary prompt
+            env['PS2'] = ''  # Clear secondary prompt
+            
             self._process = subprocess.Popen(
                 ["/bin/bash", "-i"],
                 stdin=subprocess.PIPE,
@@ -276,7 +282,7 @@ class PersistentBashSession:
                 stderr=subprocess.STDOUT,  # Redirect stderr to stdout to prevent separate buffer deadlock
                 text=True,
                 bufsize=1,  # Line buffered (unbuffered not supported with text mode)
-                env=os.environ.copy(),
+                env=env,
                 # CRITICAL Linux fixes to prevent file descriptor inheritance deadlock
                 close_fds=True,  # Close all FDs except stdin/stdout/stderr to prevent Qt FD inheritance
                 start_new_session=True,  # Create new process group (POSIX only, ignored on Windows)
@@ -510,6 +516,33 @@ class PersistentBashSession:
             )
             raise
 
+    def _strip_escape_sequences(self, text: str) -> str:
+        """Strip ANSI/terminal escape sequences from text.
+        
+        Args:
+            text: Text potentially containing escape sequences
+            
+        Returns:
+            Clean text without escape sequences
+        """
+        import re
+        
+        # Remove OSC (Operating System Command) sequences like ]777;...
+        text = re.sub(r'\x1b\].*?(\x07|\x1b\\)', '', text)  # ESC ] ... BEL or ESC \
+        text = re.sub(r'\]777;[^\x07\n]*', '', text)  # ]777; sequences without ESC
+        
+        # Remove CSI (Control Sequence Introducer) sequences like ESC[...
+        text = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
+        
+        # Remove other escape sequences
+        text = re.sub(r'\x1b[>=]', '', text)  # ESC > or ESC =
+        text = re.sub(r'\x1b\([B0UK]', '', text)  # Character set sequences
+        
+        # Remove any remaining control characters except newline and tab
+        text = ''.join(char for char in text if ord(char) >= 32 or char in '\n\t')
+        
+        return text
+
     def execute(self, command: str, timeout: int = 120) -> str:
         """Execute command in persistent session.
 
@@ -646,14 +679,19 @@ class PersistentBashSession:
                                     self._command_count += 1
                                     self._last_command_time = time.time()
                                     result = "\n".join(output)
+                                    # Strip escape sequences from the result
+                                    result = self._strip_escape_sequences(result)
                                     if DEBUG_VERBOSE:
                                         logger.debug(
-                                            f"[{self.session_id}] Returning {len(result)} chars of output"
+                                            f"[{self.session_id}] Returning {len(result)} chars of output (after stripping escape sequences)"
                                         )
                                     return result
-                                # Filter out initialization markers
+                                # Filter out initialization markers and clean escape sequences
                                 if not line.startswith("SHOTBOT_INIT_"):
-                                    output.append(line.rstrip())
+                                    # Strip escape sequences from individual lines as well
+                                    clean_line = self._strip_escape_sequences(line.rstrip())
+                                    if clean_line:  # Only append non-empty lines
+                                        output.append(clean_line)
                             continue  # Skip the chunk processing below
 
                         # Process chunk for non-blocking mode
@@ -673,10 +711,16 @@ class PersistentBashSession:
                                     # Return everything collected so far
                                     self._command_count += 1
                                     self._last_command_time = time.time()
-                                    return "\n".join(output)
-                                # Filter out initialization markers
+                                    result = "\n".join(output)
+                                    # Strip escape sequences from the result
+                                    result = self._strip_escape_sequences(result)
+                                    return result
+                                # Filter out initialization markers and clean escape sequences
                                 if not line.startswith("SHOTBOT_INIT_"):
-                                    output.append(line.rstrip())
+                                    # Strip escape sequences from individual lines as well
+                                    clean_line = self._strip_escape_sequences(line.rstrip())
+                                    if clean_line:  # Only append non-empty lines
+                                        output.append(clean_line)
                     except (IOError, OSError) as e:
                         # EAGAIN means no data available (expected for non-blocking)
                         if HAS_FCNTL:
