@@ -13,7 +13,14 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-import fcntl  # For non-blocking I/O
+
+# Try to import fcntl for non-blocking I/O (Unix-only)
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
+    logging.warning("fcntl module not available - will use blocking I/O")
 
 from PySide6.QtCore import QObject, Signal
 
@@ -221,23 +228,76 @@ class PersistentBashSession:
                 raise RuntimeError("Bash process died immediately after starting")
 
             # Set stdout to non-blocking mode to avoid hanging in pytest
-            if hasattr(os, 'set_blocking'):
-                # Python 3.5+ way
-                os.set_blocking(self._process.stdout.fileno(), False)
-            else:
-                # Fallback for older Python
-                import fcntl
-                fd = self._process.stdout.fileno()
-                flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+            try:
+                if self._process.stdout is None:
+                    raise RuntimeError("Process stdout is None")
+                    
+                stdout_fd = self._process.stdout.fileno()
+                
+                # Only attempt non-blocking I/O if fcntl is available
+                if HAS_FCNTL:
+                    if hasattr(os, 'set_blocking'):
+                        # Python 3.5+ way
+                        os.set_blocking(stdout_fd, False)
+                    else:
+                        # Fallback for older Python - fcntl already imported at module level
+                        flags = fcntl.fcntl(stdout_fd, fcntl.F_GETFL)
+                        fcntl.fcntl(stdout_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+                else:
+                    logger.debug("Skipping non-blocking I/O setup (fcntl not available)")
+                    
+            except (OSError, ValueError, AttributeError) as e:
+                logger.debug(f"Could not set non-blocking mode on stdout: {e}")
+                # This is not critical - continue without non-blocking mode
+                pass
 
-            # Set up session - simplified without verification
+            # Set up session - with proper output draining to prevent deadlock
             try:
                 # Don't use set -e as it can cause issues with command chaining
                 # Just remove the prompt
                 self._process.stdin.write("export PS1=''\n")
                 self._process.stdin.flush()
-                time.sleep(0.2)  # Give bash time to process
+                
+                # CRITICAL FIX: Drain any startup output to prevent deadlock
+                # Instead of just sleeping, we need to read any output that bash produces
+                time.sleep(0.05)  # Brief pause for command to start
+                
+                # Drain stdout to prevent blocking
+                if self._process.stdout:
+                    try:
+                        if HAS_FCNTL:
+                            # Non-blocking read to drain any startup output
+                            import select
+                            # Check if data is available
+                            ready, _, _ = select.select([self._process.stdout], [], [], 0.1)
+                            if ready:
+                                # Read available data to clear the buffer
+                                try:
+                                    chunk = self._process.stdout.read(4096)
+                                    if chunk:
+                                        logger.debug(f"Drained {len(chunk)} bytes of startup output")
+                                except:
+                                    pass  # Ignore read errors during initialization
+                        else:
+                            # For systems without fcntl, send a marker and read until we get it
+                            import uuid
+                            marker = f"SHOTBOT_READY_{uuid.uuid4().hex[:8]}"
+                            self._process.stdin.write(f"echo '{marker}'\n")
+                            self._process.stdin.flush()
+                            
+                            # Read output until we find our marker or timeout
+                            start_time = time.time()
+                            while time.time() - start_time < 1.0:
+                                try:
+                                    line = self._process.stdout.readline()
+                                    if line and marker in line:
+                                        logger.debug("Session initialized successfully")
+                                        break
+                                except:
+                                    break  # Stop on any read error
+                    except Exception as drain_error:
+                        logger.debug(f"Non-critical drain error: {drain_error}")
+                        # Continue even if draining fails
             except Exception as e:
                 logger.error(f"Failed to initialize bash session: {e}")
                 self._kill_session()
@@ -338,10 +398,25 @@ class PersistentBashSession:
                     if self._process is None or self._process.stdout is None:
                         raise RuntimeError("Process died during execution")
                     
-                    # Non-blocking read
+                    # Read from stdout (blocking or non-blocking depending on fcntl availability)
                     try:
-                        # Read available data
-                        chunk = self._process.stdout.read(4096)
+                        if HAS_FCNTL:
+                            # Non-blocking read
+                            chunk = self._process.stdout.read(4096)
+                        else:
+                            # Blocking read with readline to avoid hanging
+                            line = self._process.stdout.readline()
+                            if line:
+                                logger.debug(f"Read line: {line[:100] if line else 'empty'}")
+                                if marker in line:
+                                    logger.debug(f"Found marker, breaking")
+                                    self._command_count += 1
+                                    self._last_command_time = time.time()
+                                    return "\n".join(output)
+                                output.append(line.rstrip())
+                            continue  # Skip the chunk processing below
+                            
+                        # Process chunk for non-blocking mode
                         if chunk:
                             buffer += chunk
                             # Process complete lines
@@ -360,12 +435,16 @@ class PersistentBashSession:
                                 output.append(line.rstrip())
                     except (IOError, OSError) as e:
                         # EAGAIN means no data available (expected for non-blocking)
-                        import errno
-                        if e.errno != errno.EAGAIN:
+                        if HAS_FCNTL:
+                            import errno
+                            if e.errno != errno.EAGAIN:
+                                raise
+                        else:
                             raise
                     
-                    # Small sleep to avoid busy waiting
-                    time.sleep(0.01)
+                    # Small sleep to avoid busy waiting (only for non-blocking mode)
+                    if HAS_FCNTL:
+                        time.sleep(0.01)
 
             except TimeoutError:
                 # Re-raise timeout errors as-is

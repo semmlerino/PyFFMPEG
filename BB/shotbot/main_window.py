@@ -50,7 +50,7 @@ import json
 import logging
 from typing import Any, Optional
 
-from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -125,7 +125,9 @@ class MainWindow(QMainWindow):
             self._on_background_refresh_requested
         )
         self._background_refresh_worker.status_update.connect(self._update_status)
-        self._background_refresh_worker.start()
+        # Delay background refresh to avoid startup conflicts
+        # Start after 5 seconds to let UI fully initialize
+        QTimer.singleShot(5000, self._background_refresh_worker.start)
 
     def _setup_ui(self):
         """Set up the main UI."""
@@ -470,16 +472,16 @@ class MainWindow(QMainWindow):
         if self._closing:
             logger.debug("Ignoring refresh request during shutdown")
             return
-            
+
         # Store worker reference for cleanup outside mutex
         worker_to_stop = None
-        
+
         # Use mutex only for critical section
         with QMutexLocker(self._worker_mutex):
             # Double-check closing state with mutex held
             if self._closing:
                 return
-                
+
             # Check existing worker state
             if self._threede_worker and not self._threede_worker.isFinished():
                 logger.debug(
@@ -487,7 +489,7 @@ class MainWindow(QMainWindow):
                 )
                 worker_to_stop = self._threede_worker
                 self._threede_worker = None
-        
+
         # Stop old worker outside of mutex to avoid deadlock
         if worker_to_stop:
             worker_to_stop.stop()
@@ -498,11 +500,11 @@ class MainWindow(QMainWindow):
                 # Use safe_terminate which avoids dangerous terminate() call
                 worker_to_stop.safe_terminate()
             worker_to_stop.deleteLater()
-            
+
         # Check once more if closing (could have changed while stopping worker)
         if self._closing:
             return
-            
+
         # Now create new worker with mutex protection
         with QMutexLocker(self._worker_mutex):
             # Final check before creating new worker
@@ -921,11 +923,11 @@ class MainWindow(QMainWindow):
         """Synchronize thumbnail sizes between both tabs."""
         # Use signal blocking instead of disconnection to prevent race conditions
         # This is thread-safe and guaranteed to work
-        
+
         # Block signals temporarily to prevent recursion
         shot_grid_was_blocked = self.shot_grid.size_slider.blockSignals(True)
         threede_grid_was_blocked = self.threede_shot_grid.size_slider.blockSignals(True)
-        
+
         try:
             # Update both sliders without triggering signals
             self.shot_grid.size_slider.setValue(value)
