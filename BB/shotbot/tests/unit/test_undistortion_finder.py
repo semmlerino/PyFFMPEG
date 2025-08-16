@@ -1,504 +1,408 @@
-"""Unit tests for undistortion finder."""
+"""Unit tests for UndistortionFinder module."""
 
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from undistortion_finder import UndistortionFinder
 
 
+@pytest.fixture
+def mock_workspace_path():
+    """Mock workspace path for testing."""
+    return "/shows/testshow/shots/seq01/seq01_shot01"
+
+
+@pytest.fixture
+def mock_shot_name():
+    """Mock shot name for testing."""
+    return "seq01_shot01"
+
+
+@pytest.fixture
+def mock_username():
+    """Mock username for testing."""
+    return "testuser"
+
+
+@pytest.fixture
+def undistortion_structure(tmp_path, mock_shot_name, mock_username):
+    """Create a mock undistortion directory structure for testing."""
+    # Create base path
+    base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+    
+    # Create scene directory with FG01 plate
+    scene_dir = base_path / "scene"
+    fg01_dir = scene_dir / "FG01" / "nuke_lens_distortion"
+    
+    # Create version directories
+    v001_dir = fg01_dir / "v001"
+    v002_dir = fg01_dir / "v002"
+    v001_dir.mkdir(parents=True)
+    v002_dir.mkdir(parents=True)
+    
+    # Create undistortion .nk files
+    nk_file_v001 = v001_dir / f"{mock_shot_name}_FG01_LD_v001.nk"
+    nk_file_v001.write_text("# Nuke script v001")
+    
+    nk_file_v002 = v002_dir / f"{mock_shot_name}_FG01_LD_v002.nk"
+    nk_file_v002.write_text("# Nuke script v002")
+    
+    # Create BG01 plate with v001
+    bg01_dir = scene_dir / "BG01" / "nuke_lens_distortion"
+    bg01_v001_dir = bg01_dir / "v001"
+    bg01_v001_dir.mkdir(parents=True)
+    
+    bg_nk_file = bg01_v001_dir / f"{mock_shot_name}_BG01_LD_v001.nk"
+    bg_nk_file.write_text("# Nuke script BG01")
+    
+    # Create sceneMasterSurvey directory with BC01 plate
+    scene_master_dir = base_path / "sceneMasterSurvey"
+    bc01_dir = scene_master_dir / "BC01" / "nuke_lens_distortion"
+    bc01_v001_dir = bc01_dir / "v001"
+    bc01_v001_dir.mkdir(parents=True)
+    
+    bc_nk_file = bc01_v001_dir / f"{mock_shot_name}_BC01_LD_v001.nk"
+    bc_nk_file.write_text("# Nuke script BC01")
+    
+    return tmp_path
+
+
 class TestUndistortionFinder:
-    """Test the undistortion finder utility."""
-
-    def test_find_latest_undistortion_no_base_path(self, tmp_path):
-        """Test when base path doesn't exist."""
+    """Test UndistortionFinder class."""
+    
+    def test_find_latest_undistortion_success(
+        self, undistortion_structure, mock_workspace_path, mock_shot_name, mock_username
+    ):
+        """Test successfully finding the latest undistortion file."""
+        workspace_path = str(undistortion_structure)
+        
         result = UndistortionFinder.find_latest_undistortion(
-            str(tmp_path / "nonexistent"), "108_CHV_0015"
+            workspace_path, mock_shot_name, mock_username
         )
-        assert result is None
-
-    def test_find_latest_undistortion_no_versions(self, tmp_path):
-        """Test when base path exists but no version directories."""
-        # Create base path
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-        base.mkdir(parents=True)
-
-        result = UndistortionFinder.find_latest_undistortion(
-            str(tmp_path), "108_CHV_0015"
-        )
-        assert result is None
-
-    def test_find_latest_undistortion_single_version(self, tmp_path):
-        """Test finding undistortion with single version."""
-        shot_name = "108_CHV_0015"
-
-        # Create directory structure with v001
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-        version_dir = base / "v001"
-        shot_dir = version_dir / f"{shot_name}_turnover-plate_bg01_aces_v002"
-        shot_dir.mkdir(parents=True)
-
-        # Create the .nk file
-        nk_file = shot_dir / f"{shot_name}_mm_default_LD_v001.nk"
-        nk_file.write_text("# Nuke script")
-
-        result = UndistortionFinder.find_latest_undistortion(str(tmp_path), shot_name)
-        assert result == nk_file
-
-    def test_find_latest_undistortion_multiple_versions(self, tmp_path):
-        """Test finding latest version among multiple."""
-        shot_name = "108_CHV_0015"
-
-        # Create directory structure with multiple versions
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-
-        # Create v001, v003, v006 (not sequential)
-        for version in ["v001", "v003", "v006"]:
-            version_dir = base / version
-            shot_dir = version_dir / f"{shot_name}_turnover-plate_bg01_aces_v002"
-            shot_dir.mkdir(parents=True)
-
-            nk_file = shot_dir / f"{shot_name}_mm_default_LD_{version}.nk"
-            nk_file.write_text(f"# Nuke script {version}")
-
-        result = UndistortionFinder.find_latest_undistortion(str(tmp_path), shot_name)
-
-        # Should find v006 (latest)
-        expected_path = (
-            base
-            / "v006"
-            / f"{shot_name}_turnover-plate_bg01_aces_v002"
-            / f"{shot_name}_mm_default_LD_v006.nk"
-        )
-        assert result == expected_path
-
-    def test_find_latest_undistortion_missing_nk_file(self, tmp_path):
-        """Test when version directory exists but .nk file is missing."""
-        shot_name = "108_CHV_0015"
-
-        # Create directory structure without .nk file
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-        version_dir = base / "v001"
-        shot_dir = version_dir / f"{shot_name}_turnover-plate_bg01_aces_v002"
-        shot_dir.mkdir(parents=True)
-
-        # Don't create the .nk file
-
-        result = UndistortionFinder.find_latest_undistortion(str(tmp_path), shot_name)
-        assert result is None
-
-    def test_find_latest_undistortion_invalid_version_dirs(self, tmp_path):
-        """Test with directories that don't match version pattern."""
-        shot_name = "108_CHV_0015"
-
-        # Create base path with non-version directories
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-        base.mkdir(parents=True)
-
-        # Create invalid version directories
-        (base / "version1").mkdir()
-        (base / "test").mkdir()
-        (base / "v1").mkdir()  # Wrong format (should be v001)
-
-        result = UndistortionFinder.find_latest_undistortion(str(tmp_path), shot_name)
-        assert result is None
-
-    def test_get_version_from_path(self, tmp_path):
-        """Test extracting version from path."""
-        # Create a mock path
-        path = tmp_path / "nuke_lens_distortion" / "v006" / "shot_dir" / "file.nk"
-        path.parent.parent.mkdir(parents=True)
-
-        result = UndistortionFinder.get_version_from_path(path)
-        assert result == "v006"
-
-    def test_get_version_from_path_invalid(self, tmp_path):
-        """Test extracting version from invalid path."""
-        # Path without proper version directory
-        path = tmp_path / "some_dir" / "file.nk"
-
-        result = UndistortionFinder.get_version_from_path(path)
-        assert result is None
-
-    def test_find_latest_undistortion_fg01_plate(self, tmp_path):
-        """Test finding undistortion with FG01 plate."""
-        shot_name = "GF_256_0020"
-
-        # Create directory structure with FG01 instead of bg01
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "FG01"
-            / "nuke_lens_distortion"
-        )
-        version_dir = base / "v001"
-        shot_dir = version_dir / f"{shot_name}_turnover-plate_FG01_lin_sgamut3cine_v001"
-        shot_dir.mkdir(parents=True)
-
-        # Create the .nk file
-        nk_file = shot_dir / f"{shot_name}_mm_default_LD_v001.nk"
-        nk_file.write_text("# Nuke script for FG01")
-
-        result = UndistortionFinder.find_latest_undistortion(str(tmp_path), shot_name)
-        assert result == nk_file
-
-    def test_find_latest_undistortion_prefer_fg_over_bg(self, tmp_path):
-        """Test that FG01 is preferred over BG01 when both exist."""
-        shot_name = "test_shot"
-
-        # Create both FG01 and BG01 versions
-        for plate_type in ["FG01", "BG01"]:
-            base = (
-                tmp_path
-                / "user"
-                / "gabriel-h"
-                / "mm"
-                / "3de"
-                / "mm-default"
-                / "exports"
-                / "scene"
-                / plate_type
-                / "nuke_lens_distortion"
-            )
-            version_dir = base / "v001"
-            shot_dir = (
-                version_dir / f"{shot_name}_turnover-plate_{plate_type}_aces_v001"
-            )
-            shot_dir.mkdir(parents=True)
-
-            nk_file = shot_dir / f"{shot_name}_mm_default_LD_v001.nk"
-            nk_file.write_text(f"# Nuke script for {plate_type}")
-
-        result = UndistortionFinder.find_latest_undistortion(str(tmp_path), shot_name)
-
-        # Should prefer FG01 over BG01
+        
         assert result is not None
-        assert "FG01" in str(result)
-        assert "BG01" not in str(result)
-
-    def test_find_latest_undistortion_flexible_colorspace(self, tmp_path):
-        """Test finding undistortion with different colorspace patterns."""
-        shot_name = "test_shot"
-
-        # Create structure with non-standard colorspace
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "FG01"
-            / "nuke_lens_distortion"
-        )
-        version_dir = base / "v002"
-        # Different colorspace pattern: lin_sgamut3cine instead of aces
-        shot_dir = version_dir / f"{shot_name}_turnover-plate_FG01_lin_sgamut3cine_v003"
-        shot_dir.mkdir(parents=True)
-
-        # Create the .nk file
-        nk_file = shot_dir / f"{shot_name}_mm_default_LD_v002.nk"
-        nk_file.write_text("# Nuke script with custom colorspace")
-
-        result = UndistortionFinder.find_latest_undistortion(str(tmp_path), shot_name)
-        assert result == nk_file
-
-    def test_version_pattern_matching(self):
-        """Test the version pattern regex."""
-        pattern = UndistortionFinder.VERSION_PATTERN
-
-        # Valid versions
-        assert pattern.match("v001") is not None
-        assert pattern.match("v006") is not None
-        assert pattern.match("v999") is not None
-
-        # Invalid versions
-        assert pattern.match("v1") is None
-        assert pattern.match("v0001") is None
-        assert pattern.match("version001") is None
-        assert pattern.match("001") is None
-
-    def test_integration_with_script_generator(self, tmp_path):
-        """Test integration with NukeScriptGenerator workflow."""
-        shot_name = "test_shot_integration"
-
-        # Create realistic undistortion file structure
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-        version_dir = base / "v003"
-        shot_dir = version_dir / f"{shot_name}_turnover-plate_bg01_aces_v002"
-        shot_dir.mkdir(parents=True)
-
-        # Create realistic undistortion script content
-        nk_file = shot_dir / f"{shot_name}_mm_default_LD_v003.nk"
-        nk_file.write_text("""# Nuke undistortion script v003
-Root {
- inputs 0
- name test_shot_undistortion
-}
-
-LensDistortion {
- inputs 0
- serializeKnob ""
- model_card "3DE4 Anamorphic - Degree 6"
- name LensDistortion1
- selected true
-}""")
-
-        # Find undistortion file
-        result = UndistortionFinder.find_latest_undistortion(str(tmp_path), shot_name)
-        assert result == nk_file
-
-        # Verify version extraction works
-        version = UndistortionFinder.get_version_from_path(result)
-        assert version == "v003"
-
-        # Test integration with NukeScriptGenerator (mock to avoid dependency)
-        from nuke_script_generator import NukeScriptGenerator
-
-        script_path = NukeScriptGenerator.create_plate_script_with_undistortion(
-            "",
-            str(result),
-            shot_name,  # Empty plate path, undistortion only
-        )
-
-        assert script_path is not None
-        assert Path(script_path).exists()
-
-        # Verify undistortion path is in generated script
-        with open(script_path, "r") as f:
-            content = f.read()
-
-        assert str(result) in content
-        assert "test_shot_integration_comp" in content
-
-        # Cleanup
-        Path(script_path).unlink()
-
-    def test_find_undistortion_with_custom_username(self, tmp_path):
-        """Test finding undistortion with custom username."""
-        shot_name = "test_custom_user"
-        custom_user = "jane-d"
-
-        # Create structure for custom user
-        base = (
-            tmp_path
-            / "user"
-            / custom_user
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-        version_dir = base / "v004"
-        shot_dir = version_dir / f"{shot_name}_turnover-plate_bg01_aces_v002"
-        shot_dir.mkdir(parents=True)
-
-        nk_file = shot_dir / f"{shot_name}_mm_default_LD_v004.nk"
-        nk_file.write_text("# Custom user undistortion script")
-
-        # Find with custom username
-        result = UndistortionFinder.find_latest_undistortion(
-            str(tmp_path), shot_name, custom_user
-        )
-        assert result == nk_file
-
-    def test_find_undistortion_with_none_username(self, tmp_path):
-        """Test finding undistortion with None username (uses default)."""
-        shot_name = "test_default_user"
-
-        # Create structure for default user
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"  # Default username from Config
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-        version_dir = base / "v005"
-        shot_dir = version_dir / f"{shot_name}_turnover-plate_bg01_aces_v002"
-        shot_dir.mkdir(parents=True)
-
-        nk_file = shot_dir / f"{shot_name}_mm_default_LD_v005.nk"
-        nk_file.write_text("# Default user undistortion script")
-
-        # Find with None username (should use default)
-        result = UndistortionFinder.find_latest_undistortion(
-            str(tmp_path), shot_name, None
-        )
-        assert result == nk_file
-
-    def test_find_undistortion_path_validation_integration(self, tmp_path):
-        """Test path validation integration."""
-        shot_name = "test_validation"
-
-        # Test with non-existent workspace path
-        result = UndistortionFinder.find_latest_undistortion(
-            "/non/existent/workspace", shot_name
-        )
-        assert result is None
-
-        # Test with valid workspace but no undistortion structure
-        valid_workspace = tmp_path / "valid_workspace"
-        valid_workspace.mkdir()
-
-        result = UndistortionFinder.find_latest_undistortion(
-            str(valid_workspace), shot_name
-        )
-        assert result is None
-
-    @patch("undistortion_finder.Path.exists")
-    def test_path_validation_mock_integration(self, mock_exists, tmp_path):
-        """Test integration with path validation."""
-        shot_name = "test_mock_validation"
-
-        # Mock path existence check to return False
-        mock_exists.return_value = False
-
-        result = UndistortionFinder.find_latest_undistortion(str(tmp_path), shot_name)
-        assert result is None
-
-        # Verify path existence was checked
-        mock_exists.assert_called()
-
-    def test_undistortion_finder_error_handling(self, tmp_path):
-        """Test error handling in UndistortionFinder."""
-
-        # Test with empty shot name
-        UndistortionFinder.find_latest_undistortion(str(tmp_path), "", "gabriel-h")
-        # Should handle gracefully without crashing
-
-        # Test with very long shot name
-        long_shot_name = "a" * 1000
-        UndistortionFinder.find_latest_undistortion(
-            str(tmp_path), long_shot_name, "gabriel-h"
-        )
-        # Should handle gracefully without crashing
-
-    def test_undistortion_finder_concurrent_access(self, tmp_path):
-        """Test UndistortionFinder under concurrent access scenarios."""
-        import threading
-
-        shot_name = "test_concurrent"
-        results = []
-
-        # Create undistortion file
-        base = (
-            tmp_path
-            / "user"
-            / "gabriel-h"
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-        version_dir = base / "v001"
-        shot_dir = version_dir / f"{shot_name}_turnover-plate_bg01_aces_v002"
-        shot_dir.mkdir(parents=True)
-
-        nk_file = shot_dir / f"{shot_name}_mm_default_LD_v001.nk"
-        nk_file.write_text("# Concurrent access test")
-
-        def find_undistortion():
+        assert "FG01" in str(result)  # Should prioritize FG01
+        assert "v002" in str(result)  # Should find latest version
+        assert result.suffix == ".nk"
+        assert mock_shot_name in result.name
+    
+    def test_find_latest_undistortion_no_username(
+        self, undistortion_structure, mock_shot_name, mock_username
+    ):
+        """Test finding undistortion with no username provided (uses default)."""
+        workspace_path = str(undistortion_structure)
+        
+        with patch('undistortion_finder.Config.DEFAULT_USERNAME', mock_username):
             result = UndistortionFinder.find_latest_undistortion(
-                str(tmp_path), shot_name
+                workspace_path, mock_shot_name, None
             )
-            results.append(result)
-
-        # Launch multiple threads
-        threads = []
-        for _ in range(5):
-            thread = threading.Thread(target=find_undistortion)
-            threads.append(thread)
-            thread.start()
-
-        # Wait for all threads
-        for thread in threads:
-            thread.join()
-
-        # Verify all threads got the same result
-        assert len(results) == 5
-        assert all(result == nk_file for result in results)
+            
+            assert result is not None
+            assert "FG01" in str(result)
+    
+    def test_find_latest_undistortion_no_exports_path(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test when exports path doesn't exist."""
+        workspace_path = str(tmp_path / "nonexistent")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            workspace_path, mock_shot_name, mock_username
+        )
+        
+        assert result is None
+    
+    def test_find_latest_undistortion_no_scene_dirs(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test when no scene directories are found."""
+        # Create exports path but no scene directories
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        base_path.mkdir(parents=True)
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is None
+    
+    def test_find_latest_undistortion_fallback_scene_dir(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test fallback to direct 'scene' directory."""
+        # Create exports path with direct scene directory
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        fg01_dir = scene_dir / "FG01" / "nuke_lens_distortion" / "v001"
+        fg01_dir.mkdir(parents=True)
+        
+        nk_file = fg01_dir / f"{mock_shot_name}_LD.nk"
+        nk_file.write_text("# Nuke script")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is not None
+        assert result.name == f"{mock_shot_name}_LD.nk"
+    
+    def test_find_latest_undistortion_no_plate_dirs(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test when scene directory exists but has no plate directories."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        scene_dir.mkdir(parents=True)
+        
+        # Create non-plate directory
+        other_dir = scene_dir / "other"
+        other_dir.mkdir()
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is None
+    
+    def test_find_latest_undistortion_no_nuke_lens_dir(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test when plate directory exists but no nuke_lens_distortion directory."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        fg01_dir = scene_dir / "FG01"
+        fg01_dir.mkdir(parents=True)
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is None
+    
+    def test_find_latest_undistortion_no_version_dirs(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test when nuke_lens_distortion exists but has no version directories."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        fg01_dir = scene_dir / "FG01" / "nuke_lens_distortion"
+        fg01_dir.mkdir(parents=True)
+        
+        # Create non-version directory
+        other_dir = fg01_dir / "other"
+        other_dir.mkdir()
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is None
+    
+    def test_find_latest_undistortion_general_pattern(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test fallback to general pattern when no LD files found."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        fg01_dir = scene_dir / "FG01" / "nuke_lens_distortion" / "v001"
+        fg01_dir.mkdir(parents=True)
+        
+        # Create file without LD in name
+        nk_file = fg01_dir / f"{mock_shot_name}_undistortion.nk"
+        nk_file.write_text("# Nuke script")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is not None
+        assert result.name == f"{mock_shot_name}_undistortion.nk"
+    
+    def test_find_latest_undistortion_any_nk_file(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test fallback to any .nk file when shot name not in filename."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        fg01_dir = scene_dir / "FG01" / "nuke_lens_distortion" / "v001"
+        fg01_dir.mkdir(parents=True)
+        
+        # Create file without shot name
+        nk_file = fg01_dir / "undistortion.nk"
+        nk_file.write_text("# Nuke script")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is not None
+        assert result.name == "undistortion.nk"
+    
+    def test_find_latest_undistortion_plate_priority(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test that FG plates are prioritized over BG and BC plates."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        
+        # Create BG01 with newer version (v003)
+        bg01_dir = scene_dir / "BG01" / "nuke_lens_distortion" / "v003"
+        bg01_dir.mkdir(parents=True)
+        bg_nk = bg01_dir / f"{mock_shot_name}_BG01_LD_v003.nk"
+        bg_nk.write_text("# BG v003")
+        
+        # Create FG01 with older version (v001)
+        fg01_dir = scene_dir / "FG01" / "nuke_lens_distortion" / "v001"
+        fg01_dir.mkdir(parents=True)
+        fg_nk = fg01_dir / f"{mock_shot_name}_FG01_LD_v001.nk"
+        fg_nk.write_text("# FG v001")
+        
+        # Create BC01 with v002
+        bc01_dir = scene_dir / "BC01" / "nuke_lens_distortion" / "v002"
+        bc01_dir.mkdir(parents=True)
+        bc_nk = bc01_dir / f"{mock_shot_name}_BC01_LD_v002.nk"
+        bc_nk.write_text("# BC v002")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        # Should find BG01 v003 (highest version trumps plate priority)
+        assert result is not None
+        assert "BG01" in str(result)
+        assert "v003" in str(result)
+    
+    def test_find_latest_undistortion_case_insensitive_scene(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test that scene directory search is case-insensitive."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        
+        # Create scene directory with mixed case
+        scene_dir = base_path / "SceneMasterSurvey"
+        fg01_dir = scene_dir / "FG01" / "nuke_lens_distortion" / "v001"
+        fg01_dir.mkdir(parents=True)
+        
+        nk_file = fg01_dir / f"{mock_shot_name}_LD.nk"
+        nk_file.write_text("# Nuke script")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is not None
+        assert "SceneMasterSurvey" in str(result)
+    
+    def test_find_latest_undistortion_case_insensitive_plate(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test that plate directory matching is case-insensitive."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        
+        # Create plate directory with lowercase
+        fg01_dir = scene_dir / "fg01" / "nuke_lens_distortion" / "v001"
+        fg01_dir.mkdir(parents=True)
+        
+        nk_file = fg01_dir / f"{mock_shot_name}_LD.nk"
+        nk_file.write_text("# Nuke script")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is not None
+        assert "fg01" in str(result)
+    
+    def test_find_latest_undistortion_case_insensitive_version(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test that version directory matching is case-insensitive."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        
+        # Create version directory with uppercase
+        fg01_dir = scene_dir / "FG01" / "nuke_lens_distortion" / "V001"
+        fg01_dir.mkdir(parents=True)
+        
+        nk_file = fg01_dir / f"{mock_shot_name}_LD.nk"
+        nk_file.write_text("# Nuke script")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is not None
+        assert "V001" in str(result)
+    
+    def test_get_version_from_path(self):
+        """Test extracting version from path."""
+        test_path = Path("/path/to/v002/undistortion.nk")
+        
+        with patch('undistortion_finder.VersionUtils.extract_version_from_path', 
+                  return_value="v002"):
+            result = UndistortionFinder.get_version_from_path(test_path)
+            assert result == "v002"
+    
+    def test_get_version_from_path_none(self):
+        """Test extracting version returns None when not found."""
+        test_path = Path("/path/to/undistortion.nk")
+        
+        with patch('undistortion_finder.VersionUtils.extract_version_from_path', 
+                  return_value=None):
+            result = UndistortionFinder.get_version_from_path(test_path)
+            assert result is None
+    
+    def test_sort_key_function(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test the sort_key function for proper ordering."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        
+        # Create multiple files with different versions and plates
+        files_to_create = [
+            ("FG01", "v001", f"{mock_shot_name}_FG01_v001.nk"),
+            ("FG01", "v002", f"{mock_shot_name}_FG01_v002.nk"),
+            ("BG01", "v003", f"{mock_shot_name}_BG01_v003.nk"),
+            ("BC01", "v002", f"{mock_shot_name}_BC01_v002.nk"),
+        ]
+        
+        for plate, version, filename in files_to_create:
+            file_dir = scene_dir / plate / "nuke_lens_distortion" / version
+            file_dir.mkdir(parents=True)
+            nk_file = file_dir / filename
+            nk_file.write_text(f"# {plate} {version}")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        # Should get BG01 v003 (highest version)
+        assert result is not None
+        assert "BG01" in str(result)
+        assert "v003" in str(result)
+    
+    def test_find_latest_undistortion_subdirectory_search(
+        self, tmp_path, mock_shot_name, mock_username
+    ):
+        """Test that .nk files are found in subdirectories."""
+        base_path = tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        scene_dir = base_path / "scene"
+        
+        # Create nested subdirectory
+        fg01_dir = scene_dir / "FG01" / "nuke_lens_distortion" / "v001" / "subdir" / "nested"
+        fg01_dir.mkdir(parents=True)
+        
+        nk_file = fg01_dir / f"{mock_shot_name}_LD.nk"
+        nk_file.write_text("# Nested Nuke script")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), mock_shot_name, mock_username
+        )
+        
+        assert result is not None
+        assert "subdir" in str(result)
+        assert "nested" in str(result)

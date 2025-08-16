@@ -9,8 +9,7 @@ Following the testing guide principles:
 """
 
 from pathlib import Path
-from typing import List, Optional
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QSize, Qt
@@ -19,7 +18,7 @@ from PySide6.QtTest import QSignalSpy
 
 from cache_manager import CacheManager
 from shot_item_model import ShotItemModel, ShotRole
-from shot_model import RefreshResult, Shot
+from shot_model import Shot
 
 
 # Test Fixtures

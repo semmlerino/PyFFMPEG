@@ -11,11 +11,10 @@ Following the testing guide principles:
 import time
 from collections import deque
 from pathlib import Path
-from typing import List, Set
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import QThread, QMutex, QWaitCondition
+from PySide6.QtCore import QMutex, QThread, QWaitCondition
 from PySide6.QtTest import QSignalSpy
 
 from shot_model import Shot

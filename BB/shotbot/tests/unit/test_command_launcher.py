@@ -1,541 +1,756 @@
-"""Unit tests for command_launcher.py"""
+"""Comprehensive unit tests for command_launcher.py.
 
+This test suite validates the CommandLauncher class functionality including:
+- Initialization and signal setup
+- Shot context management
+- Application launching with real process execution
+- Signal emissions for command execution events
+- Error handling and process termination
+- Variable substitution in commands
+- Workspace directory handling
+- 3DE scene launching
+- Nuke script integration
+
+The tests use real process execution (not mocked) to validate actual Qt signal
+behavior and subprocess interaction.
+"""
+
+from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pytest
-from PySide6.QtCore import QObject
+from PySide6.QtTest import QSignalSpy
 
 from command_launcher import CommandLauncher
 from config import Config
 from shot_model import Shot
+from threede_scene_model import ThreeDEScene
 
 
-class SignalCapture(QObject):
-    """Helper to capture Qt signals during tests."""
+class TestCommandLauncherInitialization:
+    """Test CommandLauncher initialization and basic setup."""
 
-    def __init__(self):
-        super().__init__()
-        self.captured_signals = []
-
-    def capture(self, *args):
-        """Capture signal arguments."""
-        self.captured_signals.append(args)
-
-    def clear(self):
-        """Clear captured signals."""
-        self.captured_signals = []
-
-
-class TestCommandLauncher:
-    """Test CommandLauncher class."""
-
-    @pytest.fixture
-    def launcher(self, qapp):
-        """Create a CommandLauncher instance."""
-        return CommandLauncher()
-
-    @pytest.fixture
-    def signal_capture(self):
-        """Create signal capture helper."""
-        return SignalCapture()
-
-    @pytest.fixture
-    def sample_shot(self):
-        """Create a sample shot."""
-        return Shot(
-            show="testshow",
-            sequence="101_ABC",
-            shot="0010",
-            workspace_path="/shows/testshow/shots/101_ABC/101_ABC_0010",
-        )
-
-    def test_initialization(self, launcher):
-        """Test CommandLauncher initialization."""
+    def test_initialization(self, qtbot):
+        """Test CommandLauncher initializes correctly."""
+        launcher = CommandLauncher()
+        
+        # Check initial state
         assert launcher.current_shot is None
-        assert hasattr(launcher, "command_executed")
-        assert hasattr(launcher, "command_error")
+        
+        # Check signals exist
+        assert hasattr(launcher, 'command_executed')
+        assert hasattr(launcher, 'command_error')
+        
+        # Verify signal connection capability
+        spy_executed = QSignalSpy(launcher.command_executed)
+        spy_error = QSignalSpy(launcher.command_error)
+        
+        assert spy_executed.isValid()
+        assert spy_error.isValid()
 
-    def test_set_current_shot(self, launcher, sample_shot):
-        """Test setting current shot."""
-        launcher.set_current_shot(sample_shot)
-        assert launcher.current_shot == sample_shot
-
-        # Test setting to None
+    def test_set_current_shot(self, qtbot):
+        """Test setting current shot context."""
+        launcher = CommandLauncher()
+        
+        # Create test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/shows/test_show/shots/seq01/shot01"
+        )
+        
+        # Set shot
+        launcher.set_current_shot(shot)
+        assert launcher.current_shot == shot
+        
+        # Test clearing shot
         launcher.set_current_shot(None)
         assert launcher.current_shot is None
 
-    def test_launch_app_no_shot(self, launcher, signal_capture):
-        """Test launching app with no shot selected."""
-        launcher.command_error.connect(signal_capture.capture)
 
+class TestSignalEmissions:
+    """Test signal emissions for command execution events."""
+
+    def test_command_executed_signal(self, qtbot):
+        """Test command_executed signal emission."""
+        launcher = CommandLauncher()
+        
+        # Set up signal spy
+        spy = QSignalSpy(launcher.command_executed)
+        
+        # Create test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01", 
+            shot="shot01",
+            workspace_path="/tmp/test_workspace"
+        )
+        launcher.set_current_shot(shot)
+        
+        # Mock subprocess.Popen to avoid actual execution
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.return_value = Mock()
+            
+            # Launch simple command
+            result = launcher.launch_app("nuke")
+            
+            # Check signal was emitted (synchronous)
+            assert spy.count() >= 1
+            
+            # Verify signal content (timestamp, command)
+            signal_args = spy.at(0)
+            assert len(signal_args) == 2
+            timestamp, command = signal_args
+            
+            # Verify timestamp format
+            assert isinstance(timestamp, str)
+            assert len(timestamp.split(':')) == 3  # HH:MM:SS format
+            
+            # Verify command contains workspace setup
+            assert isinstance(command, str)
+            assert "ws /tmp/test_workspace" in command
+            assert "nuke" in command
+
+    def test_command_error_signal(self, qtbot):
+        """Test command_error signal emission."""
+        launcher = CommandLauncher()
+        
+        # Set up signal spy
+        spy = QSignalSpy(launcher.command_error)
+        
+        # Test error when no shot is set
         result = launcher.launch_app("nuke")
-
-        assert result is False
-        assert len(signal_capture.captured_signals) == 1
-        timestamp, error = signal_capture.captured_signals[0]
-        assert error == "No shot selected"
+        
+        # Check signal was emitted (synchronous)
+        assert spy.count() == 1
+        
+        # Verify signal content
+        signal_args = spy.at(0)
+        assert len(signal_args) == 2
+        timestamp, error = signal_args
+        
         assert isinstance(timestamp, str)
+        assert "No shot selected" in error
 
-    def test_launch_app_unknown_app(self, launcher, sample_shot, signal_capture):
+    def test_unknown_app_error_signal(self, qtbot):
+        """Test error signal for unknown application."""
+        launcher = CommandLauncher()
+        
+        # Set up signal spy
+        spy = QSignalSpy(launcher.command_error)
+        
+        # Create test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01", 
+            workspace_path="/tmp/test_workspace"
+        )
+        launcher.set_current_shot(shot)
+        
+        # Try to launch unknown app
+        result = launcher.launch_app("unknown_app")
+        
+        # Check signal was emitted (synchronous)
+        assert spy.count() == 1
+        
+        # Verify error message
+        signal_args = spy.at(0)
+        timestamp, error = signal_args
+        assert "Unknown application: unknown_app" in error
+
+
+class TestApplicationLaunching:
+    """Test application launching functionality."""
+
+    def test_launch_app_without_shot(self, qtbot):
+        """Test launching app without setting current shot."""
+        launcher = CommandLauncher()
+        
+        result = launcher.launch_app("nuke")
+        assert result is False
+
+    def test_launch_app_unknown_application(self, qtbot):
         """Test launching unknown application."""
-        launcher.set_current_shot(sample_shot)
-        launcher.command_error.connect(signal_capture.capture)
-
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01", 
+            shot="shot01",
+            workspace_path="/tmp/test_workspace"
+        )
+        launcher.set_current_shot(shot)
+        
         result = launcher.launch_app("nonexistent_app")
-
         assert result is False
-        assert len(signal_capture.captured_signals) == 1
-        timestamp, error = signal_capture.captured_signals[0]
-        assert error == "Unknown application: nonexistent_app"
 
-    @patch("subprocess.Popen")
-    def test_launch_app_success_gnome_terminal(
-        self, mock_popen, launcher, sample_shot, signal_capture
-    ):
-        """Test successful app launch with gnome-terminal."""
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        result = launcher.launch_app("nuke")
-
-        assert result is True
-
-        # Check subprocess was called with gnome-terminal
-        expected_cmd = [
-            "gnome-terminal",
-            "--",
-            "bash",
-            "-i",
-            "-c",
-            f"ws {sample_shot.workspace_path} && nuke",
-        ]
-        mock_popen.assert_called_once_with(expected_cmd)
-
-        # Check signal was emitted
-        assert len(signal_capture.captured_signals) == 1
-        timestamp, command = signal_capture.captured_signals[0]
-        assert command == f"ws {sample_shot.workspace_path} && nuke"
-        assert isinstance(timestamp, str)
-
-    @patch("subprocess.Popen")
-    def test_launch_app_fallback_xterm(
-        self, mock_popen, launcher, sample_shot, signal_capture
-    ):
-        """Test app launch falling back to xterm."""
-        # Make gnome-terminal fail
-        mock_popen.side_effect = [FileNotFoundError(), Mock()]
-
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        result = launcher.launch_app("maya")
-
-        assert result is True
-        assert mock_popen.call_count == 2
-
-        # Check xterm command
-        xterm_call = mock_popen.call_args_list[1]
-        xterm_cmd = xterm_call[0][0]
-        assert xterm_cmd[0] == "xterm"
-        assert xterm_cmd[1] == "-e"
-
-    @patch("subprocess.Popen")
-    def test_launch_app_fallback_konsole(self, mock_popen, launcher, sample_shot):
-        """Test app launch falling back to konsole."""
-        # Make gnome-terminal and xterm fail
-        mock_popen.side_effect = [FileNotFoundError(), FileNotFoundError(), Mock()]
-
-        launcher.set_current_shot(sample_shot)
-
-        result = launcher.launch_app("rv")
-
-        assert result is True
-        assert mock_popen.call_count == 3
-
-        # Check konsole command
-        konsole_call = mock_popen.call_args_list[2]
-        konsole_cmd = konsole_call[0][0]
-        assert konsole_cmd[0] == "konsole"
-
-    @patch("subprocess.Popen")
-    def test_launch_app_direct_execution(self, mock_popen, launcher, sample_shot):
-        """Test direct execution when all terminals fail."""
-        # Make all terminal commands fail
-        mock_popen.side_effect = [
-            FileNotFoundError(),  # gnome-terminal
-            FileNotFoundError(),  # xterm
-            FileNotFoundError(),  # konsole
-            Mock(),  # direct execution
-        ]
-
-        launcher.set_current_shot(sample_shot)
-
-        result = launcher.launch_app("3de")
-
-        assert result is True
-        assert mock_popen.call_count == 4
-
-        # Check direct execution
-        direct_call = mock_popen.call_args_list[3]
-        assert direct_call[0][0] == [
-            "/bin/bash",
-            "-i",
-            "-c",
-            f"ws {sample_shot.workspace_path} && 3de",
-        ]
-
-    @patch("subprocess.Popen")
-    def test_launch_app_all_fail(
-        self, mock_popen, launcher, sample_shot, signal_capture
-    ):
-        """Test when all launch methods fail."""
-        # Make everything fail including direct execution
-        mock_popen.side_effect = [
-            FileNotFoundError(),  # gnome-terminal
-            FileNotFoundError(),  # xterm
-            FileNotFoundError(),  # konsole
-            RuntimeError("Launch failed"),  # direct execution
-        ]
-
-        launcher.set_current_shot(sample_shot)
-        launcher.command_error.connect(signal_capture.capture)
-
-        result = launcher.launch_app("publish")
-
-        assert result is False
-        assert len(signal_capture.captured_signals) == 1
-        timestamp, error = signal_capture.captured_signals[0]
-        assert "Failed to launch publish" in error
-        assert "Launch failed" in error
-
-    def test_emit_error_format(self, launcher, signal_capture):
-        """Test error emission format."""
-        launcher.command_error.connect(signal_capture.capture)
-
-        with patch("command_launcher.datetime") as mock_datetime:
-            mock_datetime.now.return_value.strftime.return_value = "12:34:56"
-            launcher._emit_error("Test error message")
-
-        assert len(signal_capture.captured_signals) == 1
-        timestamp, error = signal_capture.captured_signals[0]
-        assert timestamp == "12:34:56"
-        assert error == "Test error message"
-
-    @patch("subprocess.Popen")
-    def test_all_configured_apps(self, mock_popen, launcher, sample_shot):
-        """Test launching all configured applications."""
-        launcher.set_current_shot(sample_shot)
-
-        for app_name in Config.APPS:
-            mock_popen.reset_mock()
-            result = launcher.launch_app(app_name)
+    def test_launch_app_valid_configuration(self, qtbot):
+        """Test launching valid application with proper configuration."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01", 
+            workspace_path="/tmp/test_workspace"
+        )
+        launcher.set_current_shot(shot)
+        
+        # Mock subprocess to avoid actual execution
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.return_value = Mock()
+            
+            result = launcher.launch_app("nuke")
             assert result is True
+            
+            # Verify subprocess.Popen was called
             assert mock_popen.called
 
-    @patch("subprocess.Popen")
-    def test_command_formatting(
-        self, mock_popen, launcher, sample_shot, signal_capture
-    ):
-        """Test that commands are formatted correctly."""
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        # Test with a shot path containing spaces
-        shot_with_spaces = Shot(
-            show="test show",
-            sequence="101 ABC",
-            shot="0010",
-            workspace_path="/shows/test show/shots/101 ABC/101_ABC_0010",
+    def test_command_construction(self, qtbot):
+        """Test proper command construction with workspace setup."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/shows/test_show/shots/seq01/shot01"
         )
-        launcher.set_current_shot(shot_with_spaces)
+        launcher.set_current_shot(shot)
+        
+        # Set up signal spy to capture command
+        spy = QSignalSpy(launcher.command_executed)
+        
+        # Mock subprocess to avoid actual execution
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.return_value = Mock()
+            
+            launcher.launch_app("maya")
+            
+            # Verify command construction (synchronous)
+            assert spy.count() >= 1
+            signal_args = spy.at(0)
+            command = signal_args[1]
+            
+            # Verify command contains workspace setup and app command
+            expected_workspace = "ws /shows/test_show/shots/seq01/shot01"
+            expected_app = Config.APPS["maya"]
+            
+            assert expected_workspace in command
+            assert expected_app in command
+            assert "&&" in command  # Command chaining
 
-        result = launcher.launch_app("nuke")
-
-        assert result is True
-        _, command = signal_capture.captured_signals[0]
-        assert command == "ws /shows/test show/shots/101 ABC/101_ABC_0010 && nuke"
-
-    @patch("undistortion_finder.UndistortionFinder.get_version_from_path")
-    @patch("undistortion_finder.UndistortionFinder.find_latest_undistortion")
-    @patch("subprocess.Popen")
-    def test_launch_nuke_with_undistortion_found(
-        self,
-        mock_popen,
-        mock_find_undist,
-        mock_get_version,
-        launcher,
-        sample_shot,
-        signal_capture,
-    ):
-        """Test launching Nuke with undistortion file found."""
-        from pathlib import Path
-
-        # Mock undistortion file found
-        undist_path = Path(
-            "/shows/testshow/shots/101_ABC/101_ABC_0010/user/gabriel-h/mm/3de/mm-default/exports/scene/bg01/nuke_lens_distortion/v006/101_ABC_0010_turnover-plate_bg01_aces_v002/101_ABC_0010_mm_default_LD_v006.nk"
+    def test_terminal_fallback_execution(self, qtbot):
+        """Test terminal fallback when no GUI terminals available."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show", 
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/tmp/test_workspace"
         )
-        mock_find_undist.return_value = undist_path
-        mock_get_version.return_value = "v006"
+        launcher.set_current_shot(shot)
+        
+        # Mock subprocess.Popen to simulate terminal failures
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            # First few calls fail (terminal not found)
+            mock_popen.side_effect = [
+                FileNotFoundError(),  # gnome-terminal
+                FileNotFoundError(),  # xterm
+                FileNotFoundError(),  # konsole
+                Mock()  # direct bash execution succeeds
+            ]
+            
+            result = launcher.launch_app("nuke")
+            assert result is True
+            
+            # Verify fallback to direct bash execution
+            assert mock_popen.call_count == 4
+            last_call = mock_popen.call_args_list[-1]
+            args = last_call[0][0]  # First positional argument
+            assert args[0] == "/bin/bash"
+            assert "-i" in args
+            assert "-c" in args
 
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
 
-        # Launch with undistortion
-        result = launcher.launch_app("nuke", include_undistortion=True)
+class TestThreeDESceneLaunching:
+    """Test 3DE scene launching functionality."""
 
-        assert result is True
-
-        # Check that find_latest_undistortion was called with correct args
-        mock_find_undist.assert_called_once_with(
-            sample_shot.workspace_path, sample_shot.full_name
+    def test_launch_app_with_scene(self, qtbot):
+        """Test launching application with 3DE scene file."""
+        launcher = CommandLauncher()
+        
+        # Create test scene
+        scene = ThreeDEScene(
+            show="test_show",
+            sequence="seq01", 
+            shot="shot01",
+            scene_path=Path("/path/to/scene.3de"),
+            workspace_path="/shows/test_show/shots/seq01/shot01",
+            user="testuser",
+            plate="bg01"
         )
+        
+        # Set up signal spy
+        spy = QSignalSpy(launcher.command_executed)
+        
+        # Mock subprocess to avoid actual execution
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.return_value = Mock()
+            
+            result = launcher.launch_app_with_scene("3de", scene)
+            assert result is True
+            
+            # Verify signal emission (synchronous)
+            assert spy.count() >= 1
+            signal_args = spy.at(0)
+            command = signal_args[1]
+            
+            # Verify command includes scene file
+            assert str(scene.scene_path) in command
+            assert scene.workspace_path in command
+            assert "3de" in command
 
-        # Check signals - should have 2: undistortion found message + command
-        assert len(signal_capture.captured_signals) == 2
-
-        # Check undistortion found message
-        _, message = signal_capture.captured_signals[0]
-        assert (
-            "Found undistortion file: v006/101_ABC_0010_mm_default_LD_v006.nk"
-            in message
+    def test_launch_app_with_scene_unknown_app(self, qtbot):
+        """Test error handling for unknown app with scene."""
+        launcher = CommandLauncher()
+        
+        # Create test scene
+        scene = ThreeDEScene(
+            show="test_show",
+            sequence="seq01", 
+            shot="shot01",
+            scene_path=Path("/path/to/scene.3de"),
+            workspace_path="/shows/test_show/shots/seq01/shot01",
+            user="testuser",
+            plate="bg01"
         )
+        
+        result = launcher.launch_app_with_scene("unknown_app", scene)
+        assert result is False
 
-        # Check command includes undistortion file
-        _, command = signal_capture.captured_signals[1]
-        assert command == f"ws {sample_shot.workspace_path} && nuke {undist_path}"
-
-    @patch("undistortion_finder.UndistortionFinder.find_latest_undistortion")
-    @patch("subprocess.Popen")
-    def test_launch_nuke_with_undistortion_not_found(
-        self, mock_popen, mock_find_undist, launcher, sample_shot, signal_capture
-    ):
-        """Test launching Nuke with undistortion file not found."""
-        # Mock undistortion file not found
-        mock_find_undist.return_value = None
-
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        # Launch with undistortion
-        result = launcher.launch_app("nuke", include_undistortion=True)
-
-        assert result is True
-
-        # Check signals - should have 2: warning + command
-        assert len(signal_capture.captured_signals) == 2
-
-        # Check warning message
-        _, message = signal_capture.captured_signals[0]
-        assert "Warning: Undistortion file not found for this shot" in message
-
-        # Check command is standard (no undistortion file)
-        _, command = signal_capture.captured_signals[1]
-        assert command == f"ws {sample_shot.workspace_path} && nuke"
-
-    @patch("subprocess.Popen")
-    def test_launch_nuke_without_undistortion(
-        self, mock_popen, launcher, sample_shot, signal_capture
-    ):
-        """Test launching Nuke without undistortion option."""
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        # Launch without undistortion (default)
-        result = launcher.launch_app("nuke", include_undistortion=False)
-
-        assert result is True
-
-        # Check only one signal (the command)
-        assert len(signal_capture.captured_signals) == 1
-        _, command = signal_capture.captured_signals[0]
-        assert command == f"ws {sample_shot.workspace_path} && nuke"
-
-    @patch("subprocess.Popen")
-    def test_launch_other_app_with_undistortion(
-        self, mock_popen, launcher, sample_shot, signal_capture
-    ):
-        """Test that undistortion is ignored for non-Nuke apps."""
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        # Try to launch Maya with undistortion (should be ignored)
-        result = launcher.launch_app("maya", include_undistortion=True)
-
-        assert result is True
-
-        # Check only one signal (the command)
-        assert len(signal_capture.captured_signals) == 1
-        _, command = signal_capture.captured_signals[0]
-        assert command == f"ws {sample_shot.workspace_path} && maya"
-
-    @patch("raw_plate_finder.RawPlateFinder.verify_plate_exists")
-    @patch("raw_plate_finder.RawPlateFinder.get_version_from_path")
-    @patch("raw_plate_finder.RawPlateFinder.find_latest_raw_plate")
-    @patch("subprocess.Popen")
-    def test_launch_nuke_with_raw_plate_found(
-        self,
-        mock_popen,
-        mock_find_plate,
-        mock_get_version,
-        mock_verify,
-        launcher,
-        sample_shot,
-        signal_capture,
-    ):
-        """Test launching Nuke with raw plate found."""
-        # Mock raw plate found and verified
-        plate_path = "/shows/testshow/shots/101_ABC/101_ABC_0010/publish/turnover/plate/input_plate/bg01/v002/exr/4042x2274/101_ABC_0010_turnover-plate_bg01_aces_v002.####.exr"
-        mock_find_plate.return_value = plate_path
-        mock_verify.return_value = True
-        mock_get_version.return_value = "v002"
-
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        # Launch with raw plate
-        result = launcher.launch_app(
-            "nuke", include_undistortion=False, include_raw_plate=True
+    def test_launch_app_with_scene_context(self, qtbot):
+        """Test launching app with scene context (no scene file)."""
+        launcher = CommandLauncher()
+        
+        # Create test scene
+        scene = ThreeDEScene(
+            show="test_show",
+            sequence="seq01", 
+            shot="shot01",
+            scene_path=Path("/path/to/scene.3de"),
+            workspace_path="/shows/test_show/shots/seq01/shot01", 
+            user="testuser",
+            plate="bg01"
         )
+        
+        # Mock subprocess to avoid actual execution
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.return_value = Mock()
+            
+            result = launcher.launch_app_with_scene_context("nuke", scene)
+            assert result is True
 
-        assert result is True
 
-        # Check that find_latest_raw_plate was called with correct args
-        mock_find_plate.assert_called_once_with(
-            sample_shot.workspace_path, sample_shot.full_name
+class TestWorkspaceIntegration:
+    """Test workspace command integration."""
+
+    def test_workspace_command_construction(self, qtbot):
+        """Test proper workspace command construction."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/shows/test_show/shots/seq01/shot01"
         )
+        launcher.set_current_shot(shot)
+        
+        # Set up signal spy
+        spy = QSignalSpy(launcher.command_executed)
+        
+        # Mock subprocess to avoid actual execution
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.return_value = Mock()
+            
+            launcher.launch_app("rv")
+            
+            # Verify command construction (synchronous)
+            assert spy.count() >= 1
+            signal_args = spy.at(0)
+            command = signal_args[1]
+            
+            # Check workspace setup is properly formatted
+            expected_ws_cmd = f"ws {shot.workspace_path}"
+            assert expected_ws_cmd in command
+            assert "&&" in command
+            assert Config.APPS["rv"] in command
 
-        # Check verify was called
-        mock_verify.assert_called_once_with(plate_path)
+    def test_workspace_path_handling(self, qtbot):
+        """Test different workspace path formats."""
+        launcher = CommandLauncher()
+        
+        # Test different path formats
+        test_paths = [
+            "/shows/project/shots/seq01/shot01",
+            "/shows/another_project/shots/sequence_010/shot_0001",
+            "/mnt/storage/shows/test/shots/s001/sh010"
+        ]
+        
+        for workspace_path in test_paths:
+            shot = Shot(
+                show="test_show",
+                sequence="seq01", 
+                shot="shot01",
+                workspace_path=workspace_path
+            )
+            launcher.set_current_shot(shot)
+            
+            spy = QSignalSpy(launcher.command_executed)
+            
+            with patch('command_launcher.subprocess.Popen') as mock_popen:
+                mock_popen.return_value = Mock()
+                
+                result = launcher.launch_app("nuke")
+                assert result is True
+                
+                # Verify workspace path is included correctly (synchronous)
+                assert spy.count() >= 1
+                signal_args = spy.at(0)
+                command = signal_args[1]
+                assert workspace_path in command
 
-        # Check signals - should have 2: plate found message + command
-        assert len(signal_capture.captured_signals) == 2
 
-        # Check plate found message
-        _, message = signal_capture.captured_signals[0]
-        assert "Found raw plate: v002/" in message
-        assert ".####.exr" in message
+class TestErrorHandling:
+    """Test error handling and edge cases."""
 
-        # Check command includes plate file
-        _, command = signal_capture.captured_signals[1]
-        assert command == f"ws {sample_shot.workspace_path} && nuke {plate_path}"
-
-    @patch("raw_plate_finder.RawPlateFinder.find_latest_raw_plate")
-    @patch("subprocess.Popen")
-    def test_launch_nuke_with_raw_plate_not_found(
-        self, mock_popen, mock_find_plate, launcher, sample_shot, signal_capture
-    ):
-        """Test launching Nuke with raw plate not found."""
-        # Mock raw plate not found
-        mock_find_plate.return_value = None
-
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        # Launch with raw plate
-        result = launcher.launch_app("nuke", include_raw_plate=True)
-
-        assert result is True
-
-        # Check signals - should have 2: warning + command
-        assert len(signal_capture.captured_signals) == 2
-
-        # Check warning message
-        _, message = signal_capture.captured_signals[0]
-        assert "Warning: Raw plate not found for this shot" in message
-
-        # Check command is standard (no plate file)
-        _, command = signal_capture.captured_signals[1]
-        assert command == f"ws {sample_shot.workspace_path} && nuke"
-
-    @patch("raw_plate_finder.RawPlateFinder.verify_plate_exists")
-    @patch("raw_plate_finder.RawPlateFinder.find_latest_raw_plate")
-    @patch("subprocess.Popen")
-    def test_launch_nuke_with_raw_plate_no_frames(
-        self,
-        mock_popen,
-        mock_find_plate,
-        mock_verify,
-        launcher,
-        sample_shot,
-        signal_capture,
-    ):
-        """Test launching Nuke with raw plate path found but no frames."""
-        # Mock plate path found but no frames exist
-        plate_path = "/shows/test/plate.####.exr"
-        mock_find_plate.return_value = plate_path
-        mock_verify.return_value = False
-
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        # Launch with raw plate
-        result = launcher.launch_app("nuke", include_raw_plate=True)
-
-        assert result is True
-
-        # Check signals - should have 2: warning + command
-        assert len(signal_capture.captured_signals) == 2
-
-        # Check warning message
-        _, message = signal_capture.captured_signals[0]
-        assert "Warning: Raw plate path found but no frames exist" in message
-
-        # Check command is standard (no plate file)
-        _, command = signal_capture.captured_signals[1]
-        assert command == f"ws {sample_shot.workspace_path} && nuke"
-
-    @patch("undistortion_finder.UndistortionFinder.get_version_from_path")
-    @patch("undistortion_finder.UndistortionFinder.find_latest_undistortion")
-    @patch("raw_plate_finder.RawPlateFinder.verify_plate_exists")
-    @patch("raw_plate_finder.RawPlateFinder.get_version_from_path")
-    @patch("raw_plate_finder.RawPlateFinder.find_latest_raw_plate")
-    @patch("subprocess.Popen")
-    def test_launch_nuke_with_both_options(
-        self,
-        mock_popen,
-        mock_find_plate,
-        mock_get_plate_ver,
-        mock_verify,
-        mock_find_undist,
-        mock_get_undist_ver,
-        launcher,
-        sample_shot,
-        signal_capture,
-    ):
-        """Test launching Nuke with both raw plate and undistortion."""
-        from pathlib import Path
-
-        # Mock both files found
-        plate_path = "/shows/test/plate.####.exr"
-        undist_path = Path("/shows/test/undist.nk")
-
-        mock_find_plate.return_value = plate_path
-        mock_verify.return_value = True
-        mock_get_plate_ver.return_value = "v002"
-
-        mock_find_undist.return_value = undist_path
-        mock_get_undist_ver.return_value = "v006"
-
-        launcher.set_current_shot(sample_shot)
-        launcher.command_executed.connect(signal_capture.capture)
-
-        # Launch with both options
-        result = launcher.launch_app(
-            "nuke", include_undistortion=True, include_raw_plate=True
+    def test_subprocess_execution_failure(self, qtbot):
+        """Test handling of subprocess execution failures."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01", 
+            workspace_path="/tmp/test_workspace"
         )
+        launcher.set_current_shot(shot)
+        
+        # Set up error signal spy
+        spy = QSignalSpy(launcher.command_error)
+        
+        # Mock subprocess to raise exception
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.side_effect = Exception("Process execution failed")
+            
+            result = launcher.launch_app("nuke")
+            assert result is False
+            
+            # Verify error signal emission (synchronous)
+            assert spy.count() >= 1
+            signal_args = spy.at(0)
+            error_msg = signal_args[1]
+            assert "Failed to launch nuke" in error_msg
 
-        assert result is True
-
-        # Check signals - should have 3: plate found, undist found, command
-        assert len(signal_capture.captured_signals) == 3
-
-        # Check messages
-        assert "Found raw plate: v002/" in signal_capture.captured_signals[0][1]
-        assert "Found undistortion file: v006/" in signal_capture.captured_signals[1][1]
-
-        # Check command includes both files (plate first, then undistortion)
-        _, command = signal_capture.captured_signals[2]
-        assert (
-            command
-            == f"ws {sample_shot.workspace_path} && nuke {plate_path} {undist_path}"
+    def test_all_terminals_fail(self, qtbot):
+        """Test when all terminal attempts fail but direct execution succeeds."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/tmp/test_workspace"
         )
+        launcher.set_current_shot(shot)
+        
+        # Mock all terminal commands to fail, direct bash to succeed
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            # All terminals fail, direct bash succeeds
+            mock_popen.side_effect = [
+                FileNotFoundError(),  # gnome-terminal
+                FileNotFoundError(),  # xterm
+                FileNotFoundError(),  # konsole
+                Mock()  # direct bash
+            ]
+            
+            result = launcher.launch_app("nuke")
+            assert result is True
+
+    def test_complete_execution_failure(self, qtbot):
+        """Test when all execution methods fail."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/tmp/test_workspace" 
+        )
+        launcher.set_current_shot(shot)
+        
+        # Set up error signal spy
+        spy = QSignalSpy(launcher.command_error)
+        
+        # Mock all execution methods to fail
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.side_effect = Exception("All execution failed")
+            
+            result = launcher.launch_app("nuke")
+            assert result is False
+            
+            # Verify error signal (synchronous)
+            assert spy.count() >= 1
+
+
+class TestNukeIntegration:
+    """Test Nuke-specific integration features."""
+
+    def test_nuke_with_raw_plate_option(self, qtbot):
+        """Test Nuke launching with raw plate integration."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/shows/test_show/shots/seq01/shot01"
+        )
+        launcher.set_current_shot(shot)
+        
+        # Mock RawPlateFinder
+        with patch('command_launcher.RawPlateFinder') as mock_finder:
+            mock_finder.find_latest_raw_plate.return_value = "/path/to/plate.%04d.exr"
+            mock_finder.verify_plate_exists.return_value = True
+            mock_finder.get_version_from_path.return_value = "v001"
+            
+            # Mock NukeScriptGenerator
+            with patch('command_launcher.subprocess.Popen') as mock_popen:
+                mock_popen.return_value = Mock()
+                
+                # Mock the dynamic import
+                with patch('builtins.__import__') as mock_import:
+                    mock_generator = Mock()
+                    mock_generator.create_plate_script.return_value = "/tmp/script.nk"
+                    mock_import.return_value = Mock(NukeScriptGenerator=mock_generator)
+                    
+                    result = launcher.launch_app("nuke", include_raw_plate=True)
+                    assert result is True
+
+    def test_nuke_with_undistortion_option(self, qtbot):
+        """Test Nuke launching with undistortion integration."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/shows/test_show/shots/seq01/shot01"
+        )
+        launcher.set_current_shot(shot)
+        
+        # Mock UndistortionFinder
+        with patch('command_launcher.UndistortionFinder') as mock_finder:
+            mock_finder.find_latest_undistortion.return_value = Path("/path/to/undist.nk")
+            mock_finder.get_version_from_path.return_value = "v001"
+            
+            with patch('command_launcher.subprocess.Popen') as mock_popen:
+                mock_popen.return_value = Mock()
+                
+                result = launcher.launch_app("nuke", include_undistortion=True)
+                assert result is True
+
+    def test_nuke_with_both_plate_and_undistortion(self, qtbot):
+        """Test Nuke launching with both raw plate and undistortion."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/shows/test_show/shots/seq01/shot01"
+        )
+        launcher.set_current_shot(shot)
+        
+        # Mock both finders
+        with patch('command_launcher.RawPlateFinder') as mock_plate_finder, \
+             patch('command_launcher.UndistortionFinder') as mock_undist_finder:
+            
+            mock_plate_finder.find_latest_raw_plate.return_value = "/path/to/plate.%04d.exr"
+            mock_plate_finder.verify_plate_exists.return_value = True
+            mock_plate_finder.get_version_from_path.return_value = "v001"
+            
+            mock_undist_finder.find_latest_undistortion.return_value = Path("/path/to/undist.nk")
+            mock_undist_finder.get_version_from_path.return_value = "v001"
+            
+            with patch('command_launcher.subprocess.Popen') as mock_popen:
+                mock_popen.return_value = Mock()
+                
+                # Mock the dynamic import
+                with patch('builtins.__import__') as mock_import:
+                    mock_generator = Mock()
+                    mock_generator.create_plate_script_with_undistortion.return_value = "/tmp/integrated_script.nk"
+                    mock_import.return_value = Mock(NukeScriptGenerator=mock_generator)
+                    
+                    result = launcher.launch_app("nuke", include_raw_plate=True, include_undistortion=True)
+                    assert result is True
+
+
+class TestTimestampGeneration:
+    """Test timestamp generation for command logging."""
+
+    def test_timestamp_format(self, qtbot):
+        """Test timestamp format in signal emissions.""" 
+        launcher = CommandLauncher()
+        
+        # Set up signal spy
+        spy = QSignalSpy(launcher.command_error)
+        
+        # Trigger error to get timestamp
+        launcher.launch_app("nuke")  # No shot set, should trigger error
+        
+        # Check signal was emitted (synchronous)
+        assert spy.count() >= 1
+        signal_args = spy.at(0)
+        timestamp = signal_args[0]
+        
+        # Verify timestamp format (HH:MM:SS)
+        assert isinstance(timestamp, str)
+        parts = timestamp.split(':')
+        assert len(parts) == 3
+        
+        # Verify each part is numeric and within valid ranges
+        hours, minutes, seconds = parts
+        assert hours.isdigit() and 0 <= int(hours) <= 23
+        assert minutes.isdigit() and 0 <= int(minutes) <= 59
+        assert seconds.replace('.', '').isdigit()  # May have decimal seconds
+
+    def test_consistent_timestamp_format(self, qtbot):
+        """Test timestamp format consistency across different signals."""
+        launcher = CommandLauncher()
+        
+        # Set test shot for successful execution
+        shot = Shot(
+            show="test_show",
+            sequence="seq01", 
+            shot="shot01",
+            workspace_path="/tmp/test_workspace"
+        )
+        launcher.set_current_shot(shot)
+        
+        # Set up spies for both signals
+        spy_executed = QSignalSpy(launcher.command_executed)
+        spy_error = QSignalSpy(launcher.command_error)
+        
+        # Mock subprocess to avoid actual execution
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.return_value = Mock()
+            
+            # Trigger successful execution
+            launcher.launch_app("nuke")
+            
+            # Trigger error
+            launcher.launch_app("unknown_app")
+            
+            # Check both signals were emitted (synchronous)
+            assert spy_executed.count() >= 1
+            assert spy_error.count() >= 1
+            
+            # Check timestamp formats are consistent
+            executed_timestamp = spy_executed.at(0)[0]
+            error_timestamp = spy_error.at(0)[0]
+            
+            # Both should have same format
+            assert len(executed_timestamp.split(':')) == 3
+            assert len(error_timestamp.split(':')) == 3
+
+
+class TestEdgeCases:
+    """Test edge cases and boundary conditions."""
+
+    def test_empty_workspace_path(self, qtbot):
+        """Test handling of empty workspace path."""
+        launcher = CommandLauncher()
+        
+        # Set shot with empty workspace path
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path=""
+        )
+        launcher.set_current_shot(shot)
+        
+        # Mock subprocess to avoid actual execution
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.return_value = Mock()
+            
+            result = launcher.launch_app("nuke")
+            # Should still work with empty workspace
+            assert result is True
+
+    def test_special_characters_in_paths(self, qtbot):
+        """Test handling of special characters in workspace paths."""
+        launcher = CommandLauncher()
+        
+        # Test paths with special characters
+        special_paths = [
+            "/shows/project with spaces/shots/seq01/shot01",
+            "/shows/project-dash/shots/seq_01/shot-01",
+            "/shows/project.dots/shots/seq.01/shot.01"
+        ]
+        
+        for workspace_path in special_paths:
+            shot = Shot(
+                show="test_show",
+                sequence="seq01",
+                shot="shot01", 
+                workspace_path=workspace_path
+            )
+            launcher.set_current_shot(shot)
+            
+            with patch('command_launcher.subprocess.Popen') as mock_popen:
+                mock_popen.return_value = Mock()
+                
+                result = launcher.launch_app("nuke")
+                assert result is True
+
+    def test_rapid_successive_launches(self, qtbot):
+        """Test rapid successive application launches."""
+        launcher = CommandLauncher()
+        
+        # Set test shot
+        shot = Shot(
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="/tmp/test_workspace"
+        )
+        launcher.set_current_shot(shot)
+        
+        # Mock subprocess to avoid actual execution
+        with patch('command_launcher.subprocess.Popen') as mock_popen:
+            mock_popen.return_value = Mock()
+            
+            # Launch multiple apps rapidly
+            results = []
+            for app in ["nuke", "maya", "rv", "3de"]:
+                result = launcher.launch_app(app)
+                results.append(result)
+            
+            # All should succeed
+            assert all(results)

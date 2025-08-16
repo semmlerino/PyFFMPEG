@@ -661,14 +661,27 @@ class PersistentBashSession:
                                 )
                             chunk = self._process.stdout.read(4096)
                         else:
-                            # Blocking read with readline to avoid hanging
+                            # Use select to check if data is available before blocking read
+                            import select
+                            
                             if (
                                 DEBUG_VERBOSE and elapsed - int(elapsed) < 0.01
                             ):  # Log once per second
                                 logger.debug(
-                                    f"[{self.session_id}] Reading line (blocking) at {elapsed:.1f}s..."
+                                    f"[{self.session_id}] Checking for available data at {elapsed:.1f}s..."
                                 )
-                            line = self._process.stdout.readline()
+                            
+                            # Check if data is available with a short timeout (0.1 seconds)
+                            remaining_time = max(0.1, timeout - elapsed)
+                            ready, _, _ = select.select([self._process.stdout], [], [], min(0.1, remaining_time))
+                            
+                            if ready:
+                                line = self._process.stdout.readline()
+                            else:
+                                # No data available, continue to check timeout
+                                time.sleep(0.01)
+                                continue
+                                
                             if line:
                                 if DEBUG_VERBOSE:
                                     logger.debug(

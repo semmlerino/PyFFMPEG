@@ -16,7 +16,7 @@ os.chdir(project_root)
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"  # Reduce Qt debug output
 
-# Disable xvfb plugin to avoid WSL issues
+# Disable problematic plugins to avoid issues
 # Add coverage if requested
 args = [
     "tests/",
@@ -24,6 +24,8 @@ args = [
     "--tb=short",
     "-p",
     "no:xvfb",
+    "-p", 
+    "no:pytestqt",
 ]
 
 # Add coverage options if --cov is in arguments

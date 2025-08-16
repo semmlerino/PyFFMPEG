@@ -7,10 +7,8 @@ Following the testing guide principles:
 - Mock only at system boundaries
 """
 
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

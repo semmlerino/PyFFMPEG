@@ -9,15 +9,12 @@ Following the testing guide principles:
 """
 
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QMouseEvent
 from PySide6.QtTest import QSignalSpy
-from PySide6.QtWidgets import QApplication, QLabel, QMenu
+from PySide6.QtWidgets import QLabel, QMenu
 
-from config import Config
 from threede_scene_model import ThreeDEScene
 from threede_thumbnail_widget import ThreeDEThumbnailWidget
 

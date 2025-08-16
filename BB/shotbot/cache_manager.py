@@ -199,8 +199,6 @@ class CacheManager(QObject):
 
         # Load and process image with proper resource management
         # Use QImage instead of QPixmap for thread safety
-        image = None
-        scaled = None
 
         try:
             # Check if this is a large EXR file that needs special handling
@@ -260,8 +258,6 @@ class CacheManager(QObject):
 
         # Load and process image with proper resource management
         # Use QImage instead of QPixmap for thread safety
-        image = None
-        scaled = None
 
         try:
             # Check if this is a large EXR file that needs special handling
@@ -434,63 +430,65 @@ class CacheManager(QObject):
             logger.warning("Attempted to cache None shots")
             return
 
-        try:
-            # Convert to list of dictionaries
-            shot_dicts: List[Dict[str, str]]
+        with self._lock:  # Thread safety for concurrent cache operations
+            try:
+                # Convert to list of dictionaries
+                shot_dicts: List[Dict[str, str]]
 
-            if not shots:
-                shot_dicts = []
-            elif isinstance(shots[0], dict):
-                # It's already a list of dictionaries
-                shot_dicts = shots  # type: ignore[assignment]
-            else:
-                # It's a list of Shot objects - convert using to_dict()
+                if not shots:
+                    shot_dicts = []
+                elif isinstance(shots[0], dict):
+                    # It's already a list of dictionaries
+                    shot_dicts = shots  # type: ignore[assignment]
+                else:
+                    # It's a list of Shot objects - convert using to_dict()
+                    try:
+                        shot_dicts = [shot.to_dict() for shot in shots]  # type: ignore[attr-defined]
+                    except AttributeError as e:
+                        logger.error(f"Shot objects missing to_dict() method: {e}")
+                        return
+
+                data: dict[str, Any] = {
+                    "timestamp": datetime.now().isoformat(),
+                    "shots": shot_dicts,
+                }
+
+                # Ensure directory exists
                 try:
-                    shot_dicts = [shot.to_dict() for shot in shots]  # type: ignore[attr-defined]
-                except AttributeError as e:
-                    logger.error(f"Shot objects missing to_dict() method: {e}")
+                    self.shots_cache_file.parent.mkdir(parents=True, exist_ok=True)
+                except (OSError, PermissionError) as e:
+                    logger.error(f"Failed to create cache directory: {e}")
                     return
 
-            data: dict[str, Any] = {
-                "timestamp": datetime.now().isoformat(),
-                "shots": shot_dicts,
-            }
+                # Write cache file with atomic operation (write to temp file first)
+                # Use unique temp file name to avoid collisions between threads
+                temp_file = self.shots_cache_file.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
+                try:
+                    with open(temp_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=2)
 
-            # Ensure directory exists
-            try:
-                self.shots_cache_file.parent.mkdir(parents=True, exist_ok=True)
-            except (OSError, PermissionError) as e:
-                logger.error(f"Failed to create cache directory: {e}")
-                return
+                    # Atomic move to final location
+                    temp_file.replace(self.shots_cache_file)
+                    logger.debug(
+                        f"Cached {len(shot_dicts)} shots to {self.shots_cache_file}"
+                    )
 
-            # Write cache file with atomic operation (write to temp file first)
-            temp_file = self.shots_cache_file.with_suffix(".tmp")
-            try:
-                with open(temp_file, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=2)
+                except (OSError, IOError) as e:
+                    logger.error(f"Failed to write shot cache: {e}")
+                    # Clean up temp file if it exists
+                    if temp_file.exists():
+                        try:
+                            temp_file.unlink()
+                        except OSError:
+                            pass
+                    return
 
-                # Atomic move to final location
-                temp_file.replace(self.shots_cache_file)
-                logger.debug(
-                    f"Cached {len(shot_dicts)} shots to {self.shots_cache_file}"
-                )
-
-            except (OSError, IOError) as e:
-                logger.error(f"Failed to write shot cache: {e}")
-                # Clean up temp file if it exists
-                if temp_file.exists():
-                    try:
-                        temp_file.unlink()
-                    except OSError:
-                        pass
-                return
-
-        except (TypeError, ValueError) as e:
-            logger.error(f"Invalid data while caching shots: {e}")
-        except MemoryError:
-            logger.error("Out of memory while caching shots")
-        except Exception as e:
-            logger.exception(f"Unexpected error caching shots: {e}")
+            except (TypeError, ValueError) as e:
+                logger.error(f"Invalid data while caching shots: {e}")
+            except MemoryError:
+                logger.error("Out of memory while caching shots")
+            except Exception as e:
+                logger.exception(f"Unexpected error caching shots: {e}")
 
     def get_cached_threede_scenes(self) -> Optional[List[Dict[str, Any]]]:
         """Get cached 3DE scene list if valid."""
@@ -584,29 +582,47 @@ class CacheManager(QObject):
             scenes: List of scene dictionaries to cache
             metadata: Optional metadata about the scan (e.g., paths checked, quick check result)
         """
-        try:
-            data: dict[str, Any] = {
-                "timestamp": datetime.now().isoformat(),
-                "scenes": scenes,
-                "metadata": metadata
-                or {
-                    "scan_type": "full" if scenes else "empty",
-                    "scene_count": len(scenes),
-                    "cached_at": datetime.now().isoformat(),
-                },
-            }
+        with self._lock:  # Thread safety for concurrent cache operations
+            try:
+                data: dict[str, Any] = {
+                    "timestamp": datetime.now().isoformat(),
+                    "scenes": scenes,
+                    "metadata": metadata
+                    or {
+                        "scan_type": "full" if scenes else "empty",
+                        "scene_count": len(scenes),
+                        "cached_at": datetime.now().isoformat(),
+                    },
+                }
 
-            # Ensure directory exists
-            self.threede_scenes_cache_file.parent.mkdir(parents=True, exist_ok=True)
+                # Ensure directory exists
+                self.threede_scenes_cache_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(self.threede_scenes_cache_file, "w") as f:
-                json.dump(data, f, indent=2)
-        except (OSError, IOError, PermissionError) as e:
-            logger.error(f"Failed to write 3DE scene cache: {e}")
-        except (TypeError, ValueError) as e:
-            logger.error(f"Invalid data while caching 3DE scenes: {e}")
-        except Exception as e:
-            logger.exception(f"Unexpected error caching 3DE scenes: {e}")
+                # Use atomic write with unique temp file
+                temp_file = self.threede_scenes_cache_file.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
+                try:
+                    with open(temp_file, "w") as f:
+                        json.dump(data, f, indent=2)
+                    
+                    # Atomic move to final location
+                    temp_file.replace(self.threede_scenes_cache_file)
+                    logger.debug(f"Cached {len(scenes)} 3DE scenes")
+                    
+                except (OSError, IOError) as e:
+                    logger.error(f"Failed to write 3DE scene cache: {e}")
+                    # Clean up temp file if it exists
+                    if temp_file.exists():
+                        try:
+                            temp_file.unlink()
+                        except OSError:
+                            pass
+                            
+            except (OSError, IOError, PermissionError) as e:
+                logger.error(f"Failed to create 3DE cache directory: {e}")
+            except (TypeError, ValueError) as e:
+                logger.error(f"Invalid data while caching 3DE scenes: {e}")
+            except Exception as e:
+                logger.exception(f"Unexpected error caching 3DE scenes: {e}")
 
     def _evict_old_thumbnails(self):
         """Evict oldest thumbnails when memory limit is exceeded."""

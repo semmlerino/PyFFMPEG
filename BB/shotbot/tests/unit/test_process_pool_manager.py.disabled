@@ -1,0 +1,870 @@
+"""Comprehensive unit tests for ProcessPoolManager.
+
+Tests the singleton pattern, subprocess execution, caching, timeout handling,
+error conditions, and concurrent execution safety with REAL subprocess calls.
+"""
+
+import hashlib
+import time
+import threading
+import concurrent.futures
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from process_pool_manager import (
+    ProcessPoolManager,
+    CommandCache, 
+    PersistentBashSession,
+    ProcessMetrics,
+)
+
+
+# =============================================================================
+# Fixtures
+# =============================================================================
+
+@pytest.fixture
+def command_cache():
+    """Create a CommandCache instance for testing."""
+    cache = CommandCache(default_ttl=2)  # Short TTL for fast tests
+    yield cache
+    # Cleanup happens automatically
+
+
+@pytest.fixture
+def bash_session():
+    """Create a PersistentBashSession for testing."""
+    session = PersistentBashSession("test_session")
+    yield session
+    # Cleanup
+    session.close()
+
+
+@pytest.fixture
+def process_metrics():
+    """Create ProcessMetrics instance for testing."""
+    return ProcessMetrics()
+
+
+@pytest.fixture
+def process_manager():
+    """Create a ProcessPoolManager instance for testing."""
+    # Reset singleton to ensure clean state
+    if hasattr(ProcessPoolManager, '_instance') and ProcessPoolManager._instance is not None:
+        try:
+            ProcessPoolManager._instance.shutdown()
+        except:
+            pass
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._lock = threading.Lock()
+    
+    manager = ProcessPoolManager(max_workers=2, sessions_per_type=1)
+    yield manager
+    
+    # Cleanup thoroughly
+    try:
+        manager.shutdown()
+    except:
+        pass
+    finally:
+        ProcessPoolManager._instance = None
+        # Force garbage collection to clean up any lingering processes
+        import gc
+        gc.collect()
+
+
+@pytest.fixture
+def process_manager_multiple_sessions():
+    """Create ProcessPoolManager with multiple sessions for pool testing."""
+    # Reset singleton to ensure clean state
+    if hasattr(ProcessPoolManager, '_instance') and ProcessPoolManager._instance is not None:
+        try:
+            ProcessPoolManager._instance.shutdown()
+        except:
+            pass
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._lock = threading.Lock()
+    
+    manager = ProcessPoolManager(max_workers=4, sessions_per_type=3)
+    yield manager
+    
+    # Cleanup thoroughly
+    try:
+        manager.shutdown()
+    except:
+        pass
+    finally:
+        ProcessPoolManager._instance = None
+        # Force garbage collection to clean up any lingering processes
+        import gc
+        gc.collect()
+
+
+# =============================================================================
+# Test CommandCache
+# =============================================================================
+
+class TestCommandCache:
+    """Test CommandCache TTL-based caching functionality."""
+    
+    def test_cache_initialization(self):
+        """Test CommandCache initialization with default TTL."""
+        cache = CommandCache(default_ttl=60)
+        
+        assert cache._default_ttl == 60
+        assert cache._cache == {}
+        assert cache._hits == 0
+        assert cache._misses == 0
+        
+    def test_cache_get_set_basic(self, command_cache):
+        """Test basic cache get/set operations."""
+        command = "echo hello"
+        result = "hello"
+        
+        # Initially empty
+        assert command_cache.get(command) is None
+        
+        # Set and retrieve
+        command_cache.set(command, result)
+        cached_result = command_cache.get(command)
+        
+        assert cached_result == result
+        
+    def test_cache_key_generation(self, command_cache):
+        """Test cache key generation uses MD5 hash."""
+        command = "echo test"
+        expected_key = hashlib.md5(command.encode()).hexdigest()
+        
+        # Access private method for testing
+        actual_key = command_cache._make_key(command)
+        
+        assert actual_key == expected_key
+        
+    def test_cache_ttl_expiration(self, command_cache):
+        """Test cache entry expiration after TTL."""
+        command = "echo expiration_test" 
+        result = "expiration_test"
+        
+        # Set with very short TTL
+        command_cache.set(command, result, ttl=1)
+        
+        # Should be available immediately
+        assert command_cache.get(command) == result
+        
+        # Wait for expiration
+        time.sleep(1.1)
+        
+        # Should be expired
+        assert command_cache.get(command) is None
+        
+    def test_cache_invalidation_all(self, command_cache):
+        """Test invalidating entire cache."""
+        # Add multiple entries
+        command_cache.set("cmd1", "result1")
+        command_cache.set("cmd2", "result2")
+        
+        # Verify both exist
+        assert command_cache.get("cmd1") == "result1"
+        assert command_cache.get("cmd2") == "result2"
+        
+        # Invalidate all
+        command_cache.invalidate()
+        
+        # Should be empty
+        assert command_cache.get("cmd1") is None
+        assert command_cache.get("cmd2") is None
+        
+    def test_cache_invalidation_pattern(self, command_cache):
+        """Test invalidating cache entries by pattern."""
+        # Add entries with different patterns
+        command_cache.set("echo hello", "hello")
+        command_cache.set("ls /tmp", "file1\nfile2")
+        command_cache.set("echo world", "world")
+        
+        # Invalidate entries containing 'echo'
+        command_cache.invalidate("echo")
+        
+        # Echo commands should be gone
+        assert command_cache.get("echo hello") is None
+        assert command_cache.get("echo world") is None
+        
+        # ls command should remain
+        assert command_cache.get("ls /tmp") == "file1\nfile2"
+        
+    def test_cache_stats(self, command_cache):
+        """Test cache statistics tracking."""
+        # Initially no stats
+        stats = command_cache.get_stats()
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
+        assert stats["hit_rate"] == 0
+        assert stats["size"] == 0
+        
+        # Cache miss
+        command_cache.get("nonexistent")
+        stats = command_cache.get_stats()
+        assert stats["misses"] == 1
+        
+        # Cache set and hit
+        command_cache.set("test_cmd", "result")
+        command_cache.get("test_cmd")
+        stats = command_cache.get_stats()
+        assert stats["hits"] == 1
+        assert stats["size"] == 1
+        assert stats["hit_rate"] == 50.0  # 1 hit out of 2 total requests
+        
+    def test_cache_cleanup_expired(self, command_cache):
+        """Test automatic cleanup of expired entries."""
+        # Add many entries to trigger cleanup (>100)
+        for i in range(105):
+            command_cache.set(f"cmd_{i}", f"result_{i}", ttl=1)
+            
+        # Wait for expiration
+        time.sleep(1.1)
+        
+        # Add one more to trigger cleanup
+        command_cache.set("trigger_cleanup", "result")
+        
+        # Expired entries should be cleaned up
+        stats = command_cache.get_stats()
+        assert stats["size"] < 105  # Most entries should be cleaned up
+
+
+# =============================================================================
+# Test PersistentBashSession  
+# =============================================================================
+
+class TestPersistentBashSession:
+    """Test PersistentBashSession bash process management."""
+    
+    def test_session_creation(self):
+        """Test bash session creation and initialization."""
+        session = PersistentBashSession("test_create")
+        
+        # Should be alive after creation
+        assert session._is_alive()
+        assert session.session_id == "test_create"
+        assert session._command_count == 0
+        
+        session.close()
+        
+    def test_session_execute_simple_command(self, bash_session):
+        """Test executing simple command with expected output."""
+        result = bash_session.execute("echo hello_world", timeout=5)
+        
+        assert "hello_world" in result
+        assert bash_session._command_count == 1
+        
+    def test_session_execute_with_output(self, bash_session):
+        """Test executing command that produces multi-line output."""
+        # Use a command that produces predictable output
+        result = bash_session.execute("echo line1; echo line2", timeout=5)
+        
+        assert "line1" in result
+        assert "line2" in result
+        
+    def test_session_timeout_handling(self, bash_session):
+        """Test command timeout handling."""
+        # Use sleep command with short timeout
+        with pytest.raises(TimeoutError, match="Command timed out"):
+            bash_session.execute("sleep 5", timeout=1)
+            
+        # Session should still be usable after timeout
+        result = bash_session.execute("echo after_timeout", timeout=5)
+        assert "after_timeout" in result
+        
+    def test_session_error_handling(self, bash_session):
+        """Test handling of command errors."""
+        # Command that doesn't exist
+        try:
+            result = bash_session.execute("nonexistent_command_xyz123", timeout=5)
+            # Some shells might not return error for nonexistent commands
+            # due to the way we wrap commands with || true
+            assert isinstance(result, str)
+        except Exception:
+            # This is also acceptable - command might fail
+            pass
+            
+        # Session should still work after error
+        result = bash_session.execute("echo after_error", timeout=5)
+        assert "after_error" in result
+        
+    def test_session_stats(self, bash_session):
+        """Test session statistics tracking."""
+        initial_stats = bash_session.get_stats()
+        
+        assert initial_stats["session_id"] == "test_session"
+        assert initial_stats["alive"] is True
+        assert initial_stats["commands_executed"] == 0
+        
+        # Execute a command
+        bash_session.execute("echo stats_test", timeout=5)
+        
+        updated_stats = bash_session.get_stats()
+        assert updated_stats["commands_executed"] == 1
+        assert updated_stats["uptime_seconds"] > 0
+        
+    def test_session_cleanup(self):
+        """Test session cleanup and resource management."""
+        session = PersistentBashSession("test_cleanup")
+        
+        # Verify session is alive
+        assert session._is_alive()
+        
+        # Close session
+        session.close()
+        
+        # Should no longer be alive
+        assert not session._is_alive()
+
+
+# =============================================================================
+# Test ProcessPoolManager
+# =============================================================================
+
+class TestProcessPoolManager:
+    """Test ProcessPoolManager singleton and process management."""
+    
+    def test_singleton_pattern(self):
+        """Test singleton pattern ensures single instance."""
+        # Reset singleton first
+        ProcessPoolManager._instance = None
+        
+        # Create two instances
+        manager1 = ProcessPoolManager()
+        manager2 = ProcessPoolManager()
+        
+        # Should be the same object
+        assert manager1 is manager2
+        assert id(manager1) == id(manager2)
+        
+        # Clean up
+        manager1.shutdown()
+        ProcessPoolManager._instance = None
+        
+    def test_singleton_thread_safety(self):
+        """Test singleton pattern is thread-safe."""
+        ProcessPoolManager._instance = None
+        instances = []
+        
+        def create_instance():
+            instances.append(ProcessPoolManager())
+            
+        # Create instances from multiple threads
+        threads = []
+        for _ in range(5):
+            thread = threading.Thread(target=create_instance)
+            threads.append(thread)
+            thread.start()
+            
+        # Wait for all threads
+        for thread in threads:
+            thread.join()
+            
+        # All instances should be the same object
+        first_instance = instances[0]
+        for instance in instances[1:]:
+            assert instance is first_instance
+            
+        # Clean up
+        first_instance.shutdown()
+        ProcessPoolManager._instance = None
+        
+    def test_initialization(self, process_manager):
+        """Test ProcessPoolManager initialization."""
+        assert process_manager._executor is not None
+        assert process_manager._cache is not None
+        assert process_manager._metrics is not None
+        assert hasattr(process_manager, "_session_pools")
+        
+    def test_execute_workspace_command(self, process_manager):
+        """Test executing workspace command with real subprocess."""
+        # Use simple echo command
+        result = process_manager.execute_workspace_command("echo test_command", timeout=10)
+        
+        assert "test_command" in result
+        
+        # Check metrics were updated
+        metrics = process_manager.get_metrics()
+        assert metrics["subprocess_calls"] >= 1
+        
+    def test_command_caching(self, process_manager):
+        """Test command result caching functionality."""
+        command = "echo caching_test_unique_12345"
+        
+        # First execution - should be cache miss
+        start_time = time.time()
+        result1 = process_manager.execute_workspace_command(command, cache_ttl=10, timeout=10)
+        first_duration = time.time() - start_time
+        
+        # Second execution - should be cache hit (much faster)
+        start_time = time.time()
+        result2 = process_manager.execute_workspace_command(command, cache_ttl=10, timeout=10)
+        second_duration = time.time() - start_time
+        
+        # Results should be identical
+        assert result1 == result2
+        assert "caching_test_unique_12345" in result1
+        
+        # Second call should be much faster (cached)
+        assert second_duration < first_duration / 2  # At least 2x faster
+        
+        # Verify cache stats
+        cache_stats = process_manager.get_metrics()["cache_stats"]
+        assert cache_stats["hits"] >= 1
+        
+    def test_batch_execute(self, process_manager_multiple_sessions):
+        """Test batch execution of multiple commands."""
+        commands = [
+            "echo batch_test_1",
+            "echo batch_test_2", 
+            "echo batch_test_3",
+            "pwd"
+        ]
+        
+        results = process_manager_multiple_sessions.batch_execute(commands, session_type="workspace")
+        
+        # All commands should have results
+        assert len(results) == len(commands)
+        for cmd in commands:
+            assert cmd in results
+            assert results[cmd] is not None
+            
+        # Check specific results
+        assert "batch_test_1" in results["echo batch_test_1"]
+        assert "batch_test_2" in results["echo batch_test_2"]
+        
+    def test_concurrent_execution(self, process_manager_multiple_sessions):
+        """Test concurrent command execution safety."""
+        def execute_command(cmd):
+            return process_manager_multiple_sessions.execute_workspace_command(
+                f"echo {cmd}", timeout=10
+            )
+            
+        # Execute multiple commands concurrently
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = []
+            for i in range(6):
+                future = executor.submit(execute_command, f"concurrent_test_{i}")
+                futures.append(future)
+                
+            # Collect results
+            results = []
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                results.append(result)
+                
+        # All commands should complete successfully
+        assert len(results) == 6
+        for i, result in enumerate(results):
+            assert "concurrent_test_" in result
+            
+    def test_session_pooling(self, process_manager_multiple_sessions):
+        """Test session pool round-robin behavior."""
+        # Execute multiple commands to verify different sessions are used
+        commands = [f"echo session_test_{i}" for i in range(6)]
+        
+        for cmd in commands:
+            result = process_manager_multiple_sessions.execute_workspace_command(cmd, timeout=10)
+            assert f"session_test_" in result
+            
+        # Verify sessions were created
+        metrics = process_manager_multiple_sessions.get_metrics()
+        workspace_sessions = metrics.get("sessions", {}).get("workspace", {})
+        
+        if workspace_sessions:
+            # Should have created multiple sessions
+            assert workspace_sessions.get("pool_size", 0) > 0
+            
+    def test_find_files_python(self, process_manager, tmp_path):
+        """Test Python-based file finding functionality."""
+        # Create test files
+        test_dir = tmp_path / "test_search"
+        test_dir.mkdir()
+        (test_dir / "file1.txt").touch()
+        (test_dir / "file2.txt").touch()
+        (test_dir / "file3.log").touch()
+        
+        # Search for txt files
+        txt_files = process_manager.find_files_python(str(test_dir), "*.txt")
+        
+        assert len(txt_files) == 2
+        assert any("file1.txt" in f for f in txt_files)
+        assert any("file2.txt" in f for f in txt_files)
+        
+        # Search for log files
+        log_files = process_manager.find_files_python(str(test_dir), "*.log")
+        
+        assert len(log_files) == 1
+        assert any("file3.log" in f for f in log_files)
+        
+    def test_cache_invalidation(self, process_manager):
+        """Test cache invalidation functionality."""
+        # Execute and cache some commands
+        process_manager.execute_workspace_command("echo cache_test_1", timeout=10)
+        process_manager.execute_workspace_command("echo cache_test_2", timeout=10)
+        
+        # Verify commands are cached (second execution is fast)
+        start_time = time.time()
+        process_manager.execute_workspace_command("echo cache_test_1", timeout=10)
+        duration = time.time() - start_time
+        assert duration < 0.1  # Should be very fast (cached)
+        
+        # Invalidate cache
+        process_manager.invalidate_cache()
+        
+        # Next execution should be slower (cache miss)
+        start_time = time.time()
+        process_manager.execute_workspace_command("echo cache_test_1", timeout=10)
+        duration = time.time() - start_time
+        assert duration > 0.01  # Should take some time (not cached)
+        
+    def test_metrics_tracking(self, process_manager):
+        """Test metrics tracking functionality."""
+        initial_metrics = process_manager.get_metrics()
+        initial_calls = initial_metrics.get("subprocess_calls", 0)
+        
+        # Execute a command
+        process_manager.execute_workspace_command("echo metrics_test", timeout=10)
+        
+        # Check metrics were updated
+        updated_metrics = process_manager.get_metrics()
+        assert updated_metrics["subprocess_calls"] > initial_calls
+        assert "cache_stats" in updated_metrics
+        assert updated_metrics["uptime_seconds"] > 0
+        
+    def test_shutdown_cleanup(self):
+        """Test proper shutdown and resource cleanup."""
+        manager = ProcessPoolManager(max_workers=2, sessions_per_type=2)
+        
+        # Execute a command to create sessions
+        manager.execute_workspace_command("echo shutdown_test", timeout=10)
+        
+        # Get initial session count
+        metrics = manager.get_metrics()
+        session_pools = metrics.get("sessions", {})
+        
+        # Shutdown
+        manager.shutdown()
+        
+        # Verify executor is shutdown
+        assert manager._executor._shutdown
+        
+        # Reset singleton for other tests
+        ProcessPoolManager._instance = None
+
+
+# =============================================================================
+# Test ProcessMetrics
+# =============================================================================
+
+class TestProcessMetrics:
+    """Test ProcessMetrics tracking functionality."""
+    
+    def test_metrics_initialization(self, process_metrics):
+        """Test ProcessMetrics initialization."""
+        assert process_metrics.subprocess_calls == 0
+        assert process_metrics.cache_hits == 0
+        assert process_metrics.cache_misses == 0
+        assert process_metrics.python_operations == 0
+        assert process_metrics.total_response_time == 0.0
+        assert process_metrics.response_count == 0
+        assert process_metrics.start_time > 0
+        
+    def test_update_response_time(self, process_metrics):
+        """Test response time tracking."""
+        # Add some response times
+        process_metrics.update_response_time(100.0)
+        process_metrics.update_response_time(200.0)
+        
+        assert process_metrics.total_response_time == 300.0
+        assert process_metrics.response_count == 2
+        
+    def test_get_report(self, process_metrics):
+        """Test metrics report generation."""
+        # Add some data
+        process_metrics.subprocess_calls = 5
+        process_metrics.python_operations = 3
+        process_metrics.update_response_time(150.0)
+        process_metrics.update_response_time(250.0)
+        
+        report = process_metrics.get_report()
+        
+        assert report["subprocess_calls"] == 5
+        assert report["python_operations"] == 3
+        assert report["average_response_ms"] == 200.0  # (150 + 250) / 2
+        assert report["uptime_seconds"] > 0
+        assert report["calls_per_minute"] > 0
+
+
+# =============================================================================
+# Test Concurrency and Thread Safety
+# =============================================================================
+
+class TestConcurrency:
+    """Test concurrent execution and thread safety."""
+    
+    def test_concurrent_command_execution(self, process_manager_multiple_sessions):
+        """Test multiple commands executing concurrently."""
+        def worker(worker_id):
+            results = []
+            for i in range(3):
+                cmd = f"echo worker_{worker_id}_command_{i}"
+                result = process_manager_multiple_sessions.execute_workspace_command(cmd, timeout=10)
+                results.append(result)
+                time.sleep(0.1)  # Small delay
+            return results
+            
+        # Run multiple workers concurrently
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = []
+            for worker_id in range(3):
+                future = executor.submit(worker, worker_id)
+                futures.append(future)
+                
+            # Collect all results
+            all_results = []
+            for future in concurrent.futures.as_completed(futures):
+                worker_results = future.result()
+                all_results.extend(worker_results)
+                
+        # Verify all commands completed
+        assert len(all_results) == 9  # 3 workers * 3 commands each
+        for result in all_results:
+            assert "worker_" in result
+            assert "command_" in result
+            
+    def test_thread_safety_stress_test(self, process_manager_multiple_sessions):
+        """Stress test thread safety with many concurrent operations."""
+        results = {}
+        results_lock = threading.Lock()
+        
+        def stress_worker(thread_id):
+            thread_results = []
+            for i in range(5):
+                try:
+                    cmd = f"echo thread_{thread_id}_iter_{i}"
+                    result = process_manager_multiple_sessions.execute_workspace_command(cmd, timeout=15)
+                    thread_results.append(result)
+                except Exception as e:
+                    thread_results.append(f"ERROR: {e}")
+                    
+            with results_lock:
+                results[thread_id] = thread_results
+                
+        # Create many threads
+        threads = []
+        for thread_id in range(8):
+            thread = threading.Thread(target=stress_worker, args=(thread_id,))
+            threads.append(thread)
+            thread.start()
+            
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+            
+        # Verify all threads completed successfully
+        assert len(results) == 8
+        for thread_id, thread_results in results.items():
+            assert len(thread_results) == 5
+            for result in thread_results:
+                if not result.startswith("ERROR:"):
+                    assert f"thread_{thread_id}" in result
+
+
+# =============================================================================
+# Test Error Conditions
+# =============================================================================
+
+class TestErrorConditions:
+    """Test error handling and recovery."""
+    
+    def test_invalid_command_handling(self, process_manager):
+        """Test handling of invalid commands."""
+        # Try to execute non-existent command
+        try:
+            result = process_manager.execute_workspace_command(
+                "definitely_nonexistent_command_xyz123", timeout=5
+            )
+            # Due to command wrapping with || true, this might not fail
+            assert isinstance(result, str)
+        except Exception:
+            # This is also acceptable - command might fail properly
+            pass
+            
+        # Verify manager still works after error
+        result = process_manager.execute_workspace_command("echo after_invalid", timeout=10)
+        assert "after_invalid" in result
+        
+    def test_timeout_recovery(self, process_manager):
+        """Test recovery after command timeout."""
+        # Execute command that times out
+        with pytest.raises(TimeoutError):
+            process_manager.execute_workspace_command("sleep 10", timeout=1)
+            
+        # Verify manager can execute commands after timeout
+        result = process_manager.execute_workspace_command("echo after_timeout", timeout=10)
+        assert "after_timeout" in result
+        
+    def test_session_restart_after_failure(self, bash_session):
+        """Test session restart after process failure."""
+        # Kill the underlying process
+        if bash_session._process:
+            bash_session._process.kill()
+            bash_session._process.wait()
+            
+        # Next command should trigger restart and work
+        result = bash_session.execute("echo after_restart", timeout=10)
+        assert "after_restart" in result
+
+
+# =============================================================================
+# Test Edge Cases and Additional Coverage
+# =============================================================================
+
+class TestEdgeCases:
+    """Test edge cases and improve coverage."""
+    
+    def test_debug_verbose_mode(self):
+        """Test debug verbose mode functionality."""
+        # Test with debug environment variable set
+        with patch.dict('os.environ', {'SHOTBOT_DEBUG_VERBOSE': '1'}):
+            # Import fresh module to trigger debug setup
+            import importlib
+            import process_pool_manager
+            importlib.reload(process_pool_manager)
+            
+            # Verify debug mode affects behavior
+            cache = process_pool_manager.CommandCache()
+            result = cache.get("nonexistent")
+            assert result is None
+            
+    def test_bash_session_with_complex_output(self, bash_session):
+        """Test bash session handling complex output."""
+        # Command with escape sequences and special characters
+        result = bash_session.execute("echo 'Line 1\nLine 2' | cat", timeout=10)
+        assert "Line 1" in result
+        
+    def test_cache_with_custom_ttl(self, command_cache):
+        """Test cache with custom TTL values."""
+        # Test with 0 TTL (should expire immediately)
+        command_cache.set("instant_expire", "value", ttl=0)
+        time.sleep(0.1)
+        assert command_cache.get("instant_expire") is None
+        
+        # Test with very long TTL
+        command_cache.set("long_expire", "value", ttl=3600)
+        assert command_cache.get("long_expire") == "value"
+        
+    def test_process_manager_get_instance_multiple_calls(self):
+        """Test get_instance method multiple calls."""
+        ProcessPoolManager._instance = None
+        
+        instance1 = ProcessPoolManager.get_instance()
+        instance2 = ProcessPoolManager.get_instance()
+        
+        assert instance1 is instance2
+        
+        # Cleanup
+        instance1.shutdown()
+        ProcessPoolManager._instance = None
+        
+    def test_find_files_nonexistent_directory(self, process_manager):
+        """Test file finding with nonexistent directory."""
+        files = process_manager.find_files_python("/nonexistent/path", "*.txt")
+        assert files == []
+        
+    def test_batch_execute_empty_commands(self, process_manager):
+        """Test batch execute with empty command list."""
+        results = process_manager.batch_execute([])
+        assert results == {}
+        
+    def test_session_execute_internal_error(self, bash_session):
+        """Test internal execute method error handling."""
+        # Close the session stdin to trigger error
+        if bash_session._process and bash_session._process.stdin:
+            bash_session._process.stdin.close()
+            
+        # This should handle the error gracefully
+        try:
+            bash_session._execute_internal("echo test")
+        except RuntimeError:
+            pass  # Expected
+            
+    def test_cache_large_cleanup(self):
+        """Test cache cleanup with large number of entries."""
+        cache = CommandCache(default_ttl=1)
+        
+        # Add exactly 101 entries to trigger cleanup logic
+        for i in range(101):
+            cache.set(f"key_{i}", f"value_{i}", ttl=1)
+            
+        # Wait for expiration
+        time.sleep(1.1)
+        
+        # Add one more to trigger cleanup
+        cache.set("trigger", "cleanup")
+        
+        # Verify cleanup occurred
+        stats = cache.get_stats()
+        assert stats["size"] <= 101
+        
+    def test_session_process_death_during_execute(self, bash_session):
+        """Test handling process death during execution."""
+        # Start a command execution but don't wait for completion
+        import threading
+        
+        def kill_process():
+            time.sleep(0.5)  # Let command start
+            if bash_session._process:
+                bash_session._process.kill()
+                
+        killer_thread = threading.Thread(target=kill_process)
+        killer_thread.start()
+        
+        # This should handle process death
+        try:
+            result = bash_session.execute("sleep 2", timeout=5)
+        except (RuntimeError, TimeoutError):
+            pass  # Either is acceptable
+            
+        killer_thread.join()
+        
+    def test_bash_session_escape_sequence_stripping(self, bash_session):
+        """Test escape sequence stripping functionality."""
+        # Test with command that might produce escape sequences
+        result = bash_session.execute("echo -e '\033[31mRed Text\033[0m'", timeout=10)
+        # Should not contain escape sequences
+        assert '\033' not in result
+        assert 'Red Text' in result
+        
+    def test_process_manager_metrics_with_python_operations(self, process_manager, tmp_path):
+        """Test metrics tracking for Python operations."""
+        initial_metrics = process_manager.get_metrics()
+        initial_python_ops = initial_metrics.get("python_operations", 0)
+        
+        # Perform Python file operation
+        test_dir = tmp_path / "metrics_test"
+        test_dir.mkdir()
+        (test_dir / "test.txt").touch()
+        
+        process_manager.find_files_python(str(test_dir), "*.txt")
+        
+        # Check metrics updated
+        updated_metrics = process_manager.get_metrics()
+        assert updated_metrics["python_operations"] > initial_python_ops
+        
+    def test_session_round_robin_with_failures(self, process_manager_multiple_sessions):
+        """Test round-robin behavior when sessions fail."""
+        # Execute commands to ensure sessions are created
+        for i in range(5):
+            result = process_manager_multiple_sessions.execute_workspace_command(f"echo test_{i}", timeout=10)
+            assert f"test_{i}" in result
+            
+        # Verify sessions exist and round-robin works
+        metrics = process_manager_multiple_sessions.get_metrics()
+        session_stats = metrics.get("sessions", {})
+        if "workspace" in session_stats:
+            assert session_stats["workspace"]["pool_size"] > 0

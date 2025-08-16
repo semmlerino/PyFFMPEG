@@ -1,273 +1,115 @@
-"""Shared fixtures for pytest tests."""
+"""Shared fixtures for pytest tests following best practices.
+
+This conftest provides clean, isolated fixtures for tests that need them.
+Qt components are NOT mocked to allow real signal testing.
+"""
 
 import sys
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shot_model import Shot, ShotModel
+# =============================================================================
+# Test Fixtures
+# =============================================================================
 
+@pytest.fixture
+def temp_cache_dir(tmp_path):
+    """Create a temporary cache directory for testing."""
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    return cache_dir
 
-@pytest.fixture(scope="session")
-def qapp():
-    """Create QApplication instance for GUI tests in headless mode."""
-    import os
-    # Set Qt to run in offscreen mode to prevent popups
-    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+@pytest.fixture
+def mock_filesystem(tmp_path):
+    """Create a mock filesystem structure for testing."""
+    # Create show structure
+    show_path = tmp_path / "testshow" / "shots" / "101_ABC" / "101_ABC_0010"
+    show_path.mkdir(parents=True)
     
-    # Import here to avoid issues when not testing GUI
-    from PySide6.QtWidgets import QApplication
+    # Create thumbnail path following THUMBNAIL_SEGMENTS config
+    # ["publish", "editorial", "cutref", "v001", "jpg", "1920x1080"]
+    thumb_path = show_path / "publish" / "editorial" / "cutref" / "v001" / "jpg" / "1920x1080"
+    thumb_path.mkdir(parents=True)
+    
+    # Create mock thumbnail files in the correct directory
+    (thumb_path / "frame.1001.jpg").touch()
+    (thumb_path / "frame.1002.jpg").touch()
+    
+    # Create 3DE file
+    threede_path = show_path / "matchmove"
+    threede_path.mkdir(parents=True)
+    (threede_path / "101_ABC_0010_v001.3de").touch()
+    
+    # Create raw plate path
+    plate_path = show_path / "plates" / "raw" / "BG01"
+    plate_path.mkdir(parents=True)
+    (plate_path / "frame.1001.exr").touch()
+    
+    return tmp_path
 
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication(sys.argv)
-    yield app
-    # Don't quit the app, let pytest handle it
-
+@pytest.fixture
+def cache_manager(temp_cache_dir):
+    """Create a CacheManager instance with temporary storage."""
+    from cache_manager import CacheManager
+    return CacheManager(cache_dir=temp_cache_dir)
 
 @pytest.fixture
 def sample_shot():
-    """Create a sample Shot instance."""
+    """Create a sample Shot instance for testing."""
+    from shot_model import Shot
     return Shot(
         show="testshow",
         sequence="101_ABC",
         shot="0010",
-        workspace_path="/shows/testshow/shots/101_ABC/101_ABC_0010",
+        workspace_path="/shows/testshow/shots/101_ABC/101_ABC_0010"
     )
 
+@pytest.fixture
+def shot_model(cache_manager):
+    """Create a ShotModel instance for testing."""
+    from shot_model import ShotModel
+    return ShotModel(cache_manager=cache_manager, load_cache=False)
 
 @pytest.fixture
-def temp_thumbnail_dir(tmp_path):
-    """Create temporary directory structure for thumbnail testing."""
-    # Create the expected directory structure
-    thumb_dir = (
-        tmp_path
-        / "shows"
-        / "testshow"
-        / "shots"
-        / "101_ABC"
-        / "101_ABC_0010"
-        / "publish"
-        / "editorial"
-        / "cutref"
-        / "v001"
-        / "jpg"
-        / "1920x1080"
-    )
-    thumb_dir.mkdir(parents=True)
-
-    # Create some test image files
-    (thumb_dir / "thumbnail_001.jpg").touch()
-    (thumb_dir / "thumbnail_002.jpg").touch()
-    (thumb_dir / "preview.jpeg").touch()
-    (thumb_dir / "not_an_image.txt").touch()
-
-    return thumb_dir
-
-
-@pytest.fixture
-def mock_ws_output():
-    """Sample output from ws -sg command."""
-    return """workspace /shows/ygsk/shots/108_BQS/108_BQS_0005
-workspace /shows/ygsk/shots/108_BQS/108_BQS_0010  
-workspace /shows/ygsk/shots/109_ABC/109_ABC_0020
-invalid line without workspace
-workspace /invalid/path/format
-workspace /shows/proj2/shots/201_XYZ/201_XYZ_0100
-workspace /shows/test/shots/300_TEST/SIMPLE"""
-
-
-@pytest.fixture
-def shot_model_with_shots(qapp, monkeypatch):
+def shot_model_with_shots(cache_manager):
     """Create a ShotModel with pre-populated shots."""
-    # Mock cache manager
-    from unittest.mock import Mock
-
-    mock_cache_manager = Mock()
-    mock_cache_manager.get_cached_shots.return_value = None
-    monkeypatch.setattr("cache_manager.CacheManager", lambda: mock_cache_manager)
-
-    model = ShotModel()
-    model.shots = [
-        Shot("ygsk", "108_BQS", "0005", "/shows/ygsk/shots/108_BQS/108_BQS_0005"),
-        Shot("ygsk", "108_BQS", "0010", "/shows/ygsk/shots/108_BQS/108_BQS_0010"),
-        Shot("ygsk", "109_ABC", "0020", "/shows/ygsk/shots/109_ABC/109_ABC_0020"),
-    ]
-    return model
-
-
-@pytest.fixture
-def mock_subprocess_success(monkeypatch):
-    """Mock subprocess.run for successful ws -sg execution."""
-
-    def mock_run(*args, **kwargs):
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_result.stdout = """workspace /shows/ygsk/shots/108_BQS/108_BQS_0005
-workspace /shows/ygsk/shots/108_BQS/108_BQS_0010"""
-        mock_result.stderr = ""
-        return mock_result
-
-    monkeypatch.setattr("subprocess.run", mock_run)
-    return mock_run
-
-
-@pytest.fixture
-def mock_subprocess_failure(monkeypatch):
-    """Mock subprocess.run for failed ws -sg execution."""
-
-    def mock_run(*args, **kwargs):
-        mock_result = Mock()
-        mock_result.returncode = 1
-        mock_result.stdout = ""
-        mock_result.stderr = "ws: command not found"
-        return mock_result
-
-    monkeypatch.setattr("subprocess.run", mock_run)
-    return mock_run
-
-
-@pytest.fixture
-def mock_shot_model():
-    """Mock shot model with test shots."""
-    from tests.fixtures.test_data import TEST_SHOTS
-
-    model = Mock()
-    model.shots = TEST_SHOTS
-    model.get_shot_by_index = (
-        lambda idx: TEST_SHOTS[idx] if 0 <= idx < len(TEST_SHOTS) else None
-    )
-    model.find_shot_by_name = lambda name: next(
-        (s for s in TEST_SHOTS if s.full_name == name), None
-    )
-    return model
-
-
-@pytest.fixture
-def mock_shot_model_empty():
-    """Mock shot model with no shots."""
-    model = Mock()
-    model.shots = []
-    model.get_shot_by_index = lambda idx: None
-    model.find_shot_by_name = lambda name: None
-    return model
-
-
-# Common fixtures for refactored tests with reduced mocking
-
-
-@pytest.fixture
-def sample_image(tmp_path):
-    """Create a simple test image file for testing image operations.
-
-    Creates a minimal valid JPEG file with proper headers that can be
-    used for testing without requiring Qt to actually load the image.
-    """
-    # Create a minimal valid JPEG header (SOI and EOI markers)
-    jpeg_data = bytes(
-        [
-            0xFF,
-            0xD8,  # SOI (Start of Image)
-            0xFF,
-            0xE0,  # APP0 marker
-            0x00,
-            0x10,  # Length
-            0x4A,
-            0x46,
-            0x49,
-            0x46,
-            0x00,  # "JFIF\0"
-            0x01,
-            0x01,  # Version
-            0x00,  # Units
-            0x00,
-            0x01,
-            0x00,
-            0x01,  # X/Y density
-            0x00,
-            0x00,  # Thumbnails
-            0xFF,
-            0xD9,  # EOI (End of Image)
-        ]
-    )
-
-    image_path = tmp_path / "test_image.jpg"
-    image_path.write_bytes(jpeg_data)
-    return image_path
-
-
-@pytest.fixture
-def real_cache_manager(tmp_path):
-    """Create a real CacheManager with temporary directory.
-
-    This fixture provides a real CacheManager instance that uses
-    actual filesystem operations instead of mocks, enabling more
-    realistic testing of cache behavior.
-    """
-    from cache_manager import CacheManager
-
-    cache_dir = tmp_path / "cache"
-    cache_dir.mkdir()
-    return CacheManager(cache_dir=cache_dir)
-
-
-@pytest.fixture
-def sample_shots():
-    """Create a list of sample Shot objects for testing.
-
-    Returns a list of diverse Shot objects covering different
-    shows, sequences, and shot numbers for comprehensive testing.
-    """
-    return [
+    from shot_model import Shot, ShotModel
+    
+    model = ShotModel(cache_manager=cache_manager, load_cache=False)
+    
+    # Add test shots to the shots list
+    test_shots = [
         Shot("show1", "seq1", "0010", "/shows/show1/shots/seq1/seq1_0010"),
         Shot("show1", "seq1", "0020", "/shows/show1/shots/seq1/seq1_0020"),
         Shot("show2", "seq2", "0030", "/shows/show2/shots/seq2/seq2_0030"),
-        Shot(
-            "testshow", "101_ABC", "0010", "/shows/testshow/shots/101_ABC/101_ABC_0010"
-        ),
-        Shot(
-            "testshow", "101_ABC", "0020", "/shows/testshow/shots/101_ABC/101_ABC_0020"
-        ),
-        Shot(
-            "testshow", "102_XYZ", "0030", "/shows/testshow/shots/102_XYZ/102_XYZ_0030"
-        ),
-        Shot(
-            "othershow",
-            "201_FOO",
-            "0040",
-            "/shows/othershow/shots/201_FOO/201_FOO_0040",
-        ),
     ]
-
-
-@pytest.fixture
-def real_shot_model(qtbot, real_cache_manager, sample_shots):
-    """Create a real ShotModel with test data and real cache manager.
-
-    This fixture provides a real ShotModel instance populated with
-    sample shots, using a real cache manager for realistic testing
-    of model behavior.
-    """
-    from shot_model import ShotModel
-
-    model = ShotModel(cache_manager=real_cache_manager)
-    # ShotModel is a QObject, not a widget - don't use qtbot.addWidget
-    model.shots = sample_shots[:3]  # Use first 3 shots by default
+    
+    model.shots = test_shots
+    
     return model
 
+@pytest.fixture
+def mock_process_pool_manager():
+    """Mock ProcessPoolManager for subprocess isolation."""
+    with patch('shot_model.ProcessPoolManager') as mock_pool_class:
+        instance = Mock()
+        instance.execute_workspace_command.return_value = """workspace /shows/show1/shots/seq1/seq1_0010
+workspace /shows/show1/shots/seq1/seq1_0020
+workspace /shows/show2/shots/seq2/seq2_0030"""
+        
+        mock_pool_class.get_instance.return_value = instance
+        yield instance
 
 @pytest.fixture
-def empty_shot_model(qtbot, real_cache_manager):
-    """Create an empty real ShotModel with no shots.
-
-    Useful for testing edge cases and empty state behavior.
-    """
-    from shot_model import ShotModel
-
-    model = ShotModel(cache_manager=real_cache_manager)
-    model.shots = []  # Empty shot list
-    return model
+def test_image_file(tmp_path):
+    """Create a test image file for caching tests."""
+    image_file = tmp_path / "test_image.jpg"
+    # Create a minimal JPEG file (just write some bytes)
+    # This is a minimal valid JPEG header
+    image_file.write_bytes(b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9')
+    return image_file  # Return Path object, not string
