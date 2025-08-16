@@ -51,7 +51,9 @@ class CacheManager(QObject):
     def get_memory_usage(self) -> Dict[str, Any]: ...
     def clear_cache(self) -> None: ...
 
-class ThumbnailCacheLoader:
+from PySide6.QtCore import QRunnable
+
+class ThumbnailCacheLoader(QRunnable):
     """Background thumbnail cache loader."""
 
     class Signals(QObject):
