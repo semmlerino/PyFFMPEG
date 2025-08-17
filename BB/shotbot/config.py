@@ -150,11 +150,17 @@ class Config:
     UNDISTORTION_SUBPATH = "mm"  # Subdirectory for undistortion files
 
     # File extensions
-    # Separate thumbnail extensions from general image extensions
-    # Thumbnails should be lightweight formats only, NOT raw plates like EXR
+    # Thumbnail discovery strategy
+    # Primary: Lightweight formats that can be loaded directly
     THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png"]
     
-    # Keep IMAGE_EXTENSIONS for general image handling (including EXR for other purposes)
+    # Fallback: Heavy formats that require PIL resizing before use
+    THUMBNAIL_FALLBACK_EXTENSIONS = [".exr", ".tiff", ".tif"]
+    
+    # Maximum file size (MB) for direct loading without resizing
+    THUMBNAIL_MAX_DIRECT_SIZE_MB = 10
+    
+    # Keep IMAGE_EXTENSIONS for general image handling
     IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".exr"]
     NUKE_EXTENSIONS = [".nk", ".nknc"]
     THREEDE_EXTENSIONS = [".3de"]

@@ -209,13 +209,23 @@ class PathUtils:
 
                 if sorted_frames:
                     first_frame = sorted_frames[0]
-                    # IMPORTANT: Don't return EXR files as thumbnails - they're too large
-                    # and will crash when loaded as QPixmaps
-                    logger.debug(
-                        f"Skipping turnover plate EXR: {plate_name} - {first_frame.name} (too large for thumbnail)"
-                    )
-                    # Return None to force fallback to other thumbnail sources
-                    return None
+                    # Check if we should use EXR as fallback
+                    # Only return EXR if it's reasonably sized or if we're explicitly allowing fallback
+                    file_size_mb = first_frame.stat().st_size / (1024 * 1024)
+                    max_direct_size = getattr(Config, "THUMBNAIL_MAX_DIRECT_SIZE_MB", 10)
+                    
+                    if file_size_mb <= max_direct_size:
+                        # Small enough to use directly
+                        logger.debug(
+                            f"Using turnover plate EXR as fallback: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB)"
+                        )
+                        return first_frame
+                    else:
+                        # Large EXR - return it anyway, cache_manager will resize with PIL
+                        logger.debug(
+                            f"Found large turnover plate EXR: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB) - will resize"
+                        )
+                        return first_frame
 
         logger.debug(f"No suitable turnover plates found for {sequence}_{shot}")
         return None
@@ -397,10 +407,10 @@ class PathUtils:
     def find_any_publish_thumbnail(
         shows_root: str, show: str, sequence: str, shot: str, max_depth: int = 5
     ) -> Optional[Path]:
-        """Find any EXR file containing '1001' in the publish folder as a third fallback.
+        """Find any image file containing '1001' in the publish folder as a fallback.
 
-        Searches recursively in the publish folder for any .exr file that contains
-        "1001" in the filename, up to a specified depth for performance.
+        Searches recursively in the publish folder for thumbnail files, with preference
+        for lightweight formats (JPG/PNG) but will use EXR as a last resort.
 
         Args:
             shows_root: Root shows directory
@@ -410,7 +420,7 @@ class PathUtils:
             max_depth: Maximum search depth to prevent deep recursion (default: 5)
 
         Returns:
-            Path to first suitable .exr file found, or None if not found
+            Path to first suitable image file found, or None if not found
         """
         # Build base path to publish directory
         shot_dir = f"{sequence}_{shot}"
@@ -448,24 +458,32 @@ class PathUtils:
                 return None
 
             try:
-                # First check for .exr files with 1001 in current directory
+                # Collect all candidate files
+                lightweight_candidates = []
+                exr_candidates = []
+                
                 for file_path in directory.iterdir():
-                    if file_path.is_file():
-                        # Skip EXR files - they're raw plates, not thumbnails
-                        if file_path.suffix.lower() == ".exr":
-                            logger.debug(
-                                f"Skipping EXR file (not a thumbnail): {file_path.name}"
-                            )
-                            continue
-                        # Look for actual thumbnail formats with 1001 in name
-                        if (
-                            file_path.suffix.lower() in [".jpg", ".jpeg", ".png"]
-                            and "1001" in file_path.name
-                        ):
-                            logger.info(
-                                f"Found publish thumbnail: {file_path.name}"
-                            )
-                            return file_path
+                    if file_path.is_file() and "1001" in file_path.name:
+                        suffix_lower = file_path.suffix.lower()
+                        # Prefer lightweight formats
+                        if suffix_lower in Config.THUMBNAIL_EXTENSIONS:
+                            lightweight_candidates.append(file_path)
+                        # Collect EXR as fallback
+                        elif suffix_lower in getattr(Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr"]):
+                            exr_candidates.append(file_path)
+                
+                # Return first lightweight format if found
+                if lightweight_candidates:
+                    logger.info(f"Found publish thumbnail: {lightweight_candidates[0].name}")
+                    return lightweight_candidates[0]
+                
+                # Use EXR as last resort (will be resized by cache_manager)
+                if exr_candidates:
+                    file_size_mb = exr_candidates[0].stat().st_size / (1024 * 1024)
+                    logger.info(
+                        f"Using EXR as fallback thumbnail: {exr_candidates[0].name} ({file_size_mb:.1f}MB)"
+                    )
+                    return exr_candidates[0]
 
                 # Then recurse into subdirectories
                 for sub_path in directory.iterdir():
@@ -754,23 +772,43 @@ class FileUtils:
         return matching_files
 
     @staticmethod
-    def get_first_image_file(directory: Union[str, Path]) -> Optional[Path]:
+    def get_first_image_file(
+        directory: Union[str, Path], allow_fallback: bool = True
+    ) -> Optional[Path]:
         """Get the first image file found in a directory.
 
         Args:
             directory: Directory to search
+            allow_fallback: If True, will check heavy formats (EXR, TIFF) as fallback
 
         Returns:
             Path to first image file or None if none found
         """
-        # Try common image extensions from config in order of preference
-        # Use THUMBNAIL_EXTENSIONS for thumbnails (excludes EXR files)
-        preferred_extensions = Config.THUMBNAIL_EXTENSIONS
-
-        for ext in preferred_extensions:
+        # First try lightweight preferred extensions
+        for ext in Config.THUMBNAIL_EXTENSIONS:
             files = FileUtils.find_files_by_extension(directory, ext, limit=1)
             if files:
                 return files[0]
+
+        # If no lightweight formats found and fallback allowed, try heavy formats
+        if allow_fallback and hasattr(Config, "THUMBNAIL_FALLBACK_EXTENSIONS"):
+            for ext in Config.THUMBNAIL_FALLBACK_EXTENSIONS:
+                files = FileUtils.find_files_by_extension(directory, ext, limit=1)
+                if files:
+                    # Check file size before returning
+                    file_path = files[0]
+                    max_size_mb = getattr(Config, "THUMBNAIL_MAX_DIRECT_SIZE_MB", 10)
+                    if FileUtils.validate_file_size(file_path, max_size_mb):
+                        logger.debug(
+                            f"Using fallback {ext} file as thumbnail: {file_path.name}"
+                        )
+                        return file_path
+                    else:
+                        logger.debug(
+                            f"Fallback {ext} file too large for direct loading: {file_path.name}"
+                        )
+                        # Still return it - let cache_manager handle resizing
+                        return file_path
 
         return None
 

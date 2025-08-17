@@ -290,13 +290,14 @@ class CacheManager(QObject):
         cache_path = cache_dir / f"{shot}_thumb.jpg"
 
         try:
-            # Check if this is a large EXR file that needs special handling
+            # Check if this is a large file that needs special handling
             file_size_mb = source_path.stat().st_size / (1024 * 1024)
-            is_exr = source_path.suffix.lower() == ".exr"
+            suffix_lower = source_path.suffix.lower()
+            is_heavy_format = suffix_lower in getattr(Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr", ".tiff", ".tif"])
 
-            if is_exr and file_size_mb > 10:
+            if is_heavy_format and file_size_mb > 10:
                 logger.info(
-                    f"Processing large EXR file ({file_size_mb:.1f}MB): {source_path.name}"
+                    f"Processing large {suffix_lower} file ({file_size_mb:.1f}MB): {source_path.name}"
                 )
 
             # Check if we're on the main thread for Qt operations
@@ -369,30 +370,91 @@ class CacheManager(QObject):
         cache_path = cache_dir / f"{shot}_thumb.jpg"
 
         # Load and process image with proper resource management
-        # Use QImage instead of QPixmap for thread safety
+        # Use QImage for most formats, PIL for EXR files
 
         try:
-            # Check if this is a large EXR file that needs special handling
+            # Check if this is a large file that needs special handling
             file_size_mb = source_path.stat().st_size / (1024 * 1024)
-            is_exr = source_path.suffix.lower() == ".exr"
-
-            if is_exr and file_size_mb > 10:
-                logger.info(
-                    f"Processing large EXR file ({file_size_mb:.1f}MB): {source_path.name}"
-                )
-
-            # Load image using QImage
-            image = QImage(str(source_path))
-            if image.isNull():
-                logger.warning(f"Failed to load image: {source_path}")
-                # For EXR files, provide helpful message about potential missing plugin
-                if is_exr:
-                    logger.info("Note: EXR support requires Qt imageformats plugin")
-                return None
+            suffix_lower = source_path.suffix.lower()
+            is_heavy_format = suffix_lower in getattr(Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr", ".tiff", ".tif"])
+            
+            # Decide whether to use PIL or Qt based on format and size
+            use_pil = False
+            if is_heavy_format:
+                # Always use PIL for heavy formats for better memory handling
+                use_pil = True
+                if file_size_mb > 10:
+                    logger.info(
+                        f"Processing large {suffix_lower} file with PIL ({file_size_mb:.1f}MB): {source_path.name}"
+                    )
+            
+            # Try PIL first for heavy formats
+            if use_pil:
+                try:
+                    # Import PIL on demand to avoid dependency if not needed
+                    from PIL import Image as PILImage
+                    
+                    # Open with PIL - it handles EXR efficiently
+                    pil_image = PILImage.open(str(source_path))
+                    
+                    # Convert to RGB if necessary (EXR might be in different modes)
+                    if pil_image.mode not in ["RGB", "RGBA"]:
+                        pil_image = pil_image.convert("RGB")
+                    
+                    # Calculate thumbnail size maintaining aspect ratio
+                    thumb_size = (self.CACHE_THUMBNAIL_SIZE, self.CACHE_THUMBNAIL_SIZE)
+                    pil_image.thumbnail(thumb_size, PILImage.Resampling.LANCZOS)
+                    
+                    # Save directly as JPEG
+                    cache_dir.mkdir(parents=True, exist_ok=True)
+                    temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
+                    
+                    # Higher quality for EXR-derived thumbnails
+                    quality = 95 if suffix_lower == ".exr" else 90
+                    pil_image.save(str(temp_path), "JPEG", quality=quality, optimize=True)
+                    
+                    # Atomic move
+                    temp_path.replace(cache_path)
+                    
+                    # Track memory usage
+                    with self._lock:
+                        try:
+                            file_size = cache_path.stat().st_size
+                            self._cached_thumbnails[str(cache_path)] = file_size
+                            self._memory_usage_bytes += file_size
+                            
+                            if self._memory_usage_bytes > self._max_memory_bytes:
+                                self._evict_old_thumbnails()
+                        except (OSError, IOError):
+                            pass
+                    
+                    logger.debug(
+                        f"Cached {suffix_lower} thumbnail with PIL: {cache_path} "
+                        f"({file_size_mb:.1f}MB -> {cache_path.stat().st_size / 1024:.1f}KB)"
+                    )
+                    return cache_path
+                    
+                except ImportError:
+                    logger.warning("PIL not available, falling back to Qt for image loading")
+                    use_pil = False
+                except Exception as e:
+                    logger.warning(f"PIL failed to process {suffix_lower}: {e}, trying Qt")
+                    use_pil = False
+            
+            # Fall back to Qt if PIL wasn't used or failed
+            if not use_pil:
+                # Load image using QImage
+                image = QImage(str(source_path))
+                if image.isNull():
+                    logger.warning(f"Failed to load image: {source_path}")
+                    # For EXR files, provide helpful message
+                    if suffix_lower == ".exr":
+                        logger.info("Note: Install Pillow with 'pip install Pillow' for better EXR support")
+                    return None
 
             # Validate image dimensions to prevent memory issues
-            # Be more lenient with EXR files as they're often high-res plates
-            max_dim = 20000 if is_exr else 10000
+            # Be more lenient with heavy formats as they're often high-res plates
+            max_dim = 20000 if is_heavy_format else 10000
             if image.width() > max_dim or image.height() > max_dim:
                 logger.warning(
                     f"Image too large ({image.width()}x{image.height()} > {max_dim}): {source_path}"
@@ -419,8 +481,8 @@ class CacheManager(QObject):
             temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
 
             try:
-                # Use higher quality for EXR-derived thumbnails
-                quality = 95 if is_exr else 85
+                # Use higher quality for heavy format-derived thumbnails
+                quality = 95 if is_heavy_format else 85
                 if scaled.save(str(temp_path), "JPEG", quality):  # type: ignore[call-overload]
                     # Atomic move - replace if exists
                     temp_path.replace(cache_path)
