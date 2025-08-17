@@ -287,7 +287,7 @@ class Config:
     )
     THREEDE_FILE_FIRST_DISCOVERY = True  # Use new efficient file-first discovery
     THREEDE_SCAN_TIMEOUT_SECONDS = 60  # Extended timeout for large/slow filesystems
-    THREEDE_SCAN_MAX_DEPTH = 8  # Max directory depth for find command (performance)
+    THREEDE_SCAN_MAX_DEPTH = 15  # Max directory depth for find command (increased for deeply nested files)
     THREEDE_SCAN_PARALLEL_SEQUENCES = 4  # Number of sequences to search in parallel
     THREEDE_SCAN_MAX_FILES_PER_SHOT = 50  # Stop searching shot after this many files
     THREEDE_CACHE_DISCOVERED_SHOTS = True  # Cache which shots have .3de files

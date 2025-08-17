@@ -122,12 +122,33 @@ class PathUtils:
             "input_plate",
         )
 
+        # Try the expected path first, but also check parent directories if it doesn't exist
         if not PathUtils.validate_path_exists(base_path, "Turnover plate base"):
-            return None
+            # Try without input_plate subdirectory
+            base_path = PathUtils.build_path(
+                shows_root,
+                show,
+                "shots",
+                sequence,
+                shot_dir,
+                "publish",
+                "turnover",
+                "plate",
+            )
+            if not PathUtils.validate_path_exists(base_path, "Turnover plate directory"):
+                return None
 
         # Find all available plate directories
         try:
-            plate_dirs = [d for d in base_path.iterdir() if d.is_dir()]
+            plate_dirs = []
+            # Check if input_plate is a subdirectory
+            input_plate_path = base_path / "input_plate"
+            if input_plate_path.exists() and input_plate_path.is_dir():
+                # Look for plate directories inside input_plate
+                plate_dirs = [d for d in input_plate_path.iterdir() if d.is_dir()]
+            else:
+                # Look for plate directories directly in base_path
+                plate_dirs = [d for d in base_path.iterdir() if d.is_dir()]
         except (OSError, PermissionError) as e:
             logger.debug(f"Error accessing turnover plates: {e}")
             return None
@@ -397,8 +418,21 @@ class PathUtils:
             "publish",
         )
 
+        # If publish directory doesn't exist, try the shot directory itself
         if not PathUtils.validate_path_exists(publish_path, "Publish directory"):
-            return None
+            # Try searching the entire shot directory as a fallback
+            shot_path = PathUtils.build_path(
+                shows_root,
+                show,
+                "shots",
+                sequence,
+                shot_dir,
+            )
+            if PathUtils.validate_path_exists(shot_path, "Shot directory"):
+                publish_path = shot_path
+                max_depth = min(max_depth, 3)  # Limit depth when searching entire shot
+            else:
+                return None
 
         # Recursive search with depth limit for efficiency
         def _search_directory(
