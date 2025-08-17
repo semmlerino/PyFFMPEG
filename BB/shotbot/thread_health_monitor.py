@@ -74,7 +74,8 @@ from PySide6.QtCore import (
 
 # Import existing components for integration
 try:
-    from thread_safe_worker import ThreadSafeWorker, WorkerState
+    from thread_safe_worker import ThreadSafeWorker
+    from thread_safe_worker import WorkerState as TSWorkerState
 
     HAS_THREAD_SAFE_WORKER = True
 except ImportError:
@@ -394,7 +395,7 @@ class QtThreadMonitor:
 
     def _setup_heartbeat(self, thread: QThread) -> None:
         """Set up heartbeat monitoring for a thread."""
-        thread_id = int(thread.currentThreadId()) if thread.isRunning() else id(thread)
+        thread_id = int(QThread.currentThread().currentThreadId()) if thread.isRunning() else id(thread)
 
         # Create heartbeat timer
         timer = QTimer()
@@ -411,7 +412,7 @@ class QtThreadMonitor:
         if not thread.isRunning():
             return
 
-        thread_id = int(thread.currentThreadId())
+        thread_id = int(QThread.currentThread().currentThreadId())
         start_time = time.time()
 
         def heartbeat_response():
@@ -1234,7 +1235,7 @@ class ThreadHealthMonitor(QObject):
             return 100  # Default healthy score
         return self._health_history[-1]["health_score"]
 
-    def get_health_report(self, format: str = "dict") -> Union[Dict, str]:
+    def get_health_report(self, format: str = "dict") -> Union[Dict[str, Any], str]:
         """Get comprehensive health report.
 
         Args:
@@ -1280,6 +1281,10 @@ class ThreadHealthMonitor(QObject):
         """
         # Get basic health report
         report = self.get_health_report(format="dict")
+        
+        # Ensure report is a dict before adding to it
+        if not isinstance(report, dict):
+            return {"error": "Failed to get health report"}
 
         # Add detailed metrics
         report["detailed_metrics"] = {

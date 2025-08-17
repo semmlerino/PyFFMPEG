@@ -429,8 +429,8 @@ class CacheManager(QObject):
                             pass
                     
                     logger.debug(
-                        f"Cached {suffix_lower} thumbnail with PIL: {cache_path} "
-                        f"({file_size_mb:.1f}MB -> {cache_path.stat().st_size / 1024:.1f}KB)",
+                        "Cached %s thumbnail with PIL: %s (%0.1fMB -> %0.1fKB)",
+                        suffix_lower, cache_path, file_size_mb, cache_path.stat().st_size / 1024,
                     )
                     return cache_path
                     
