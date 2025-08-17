@@ -1488,14 +1488,26 @@ class ThreeDESceneFinder:
 
         # Get configuration
         max_depth = getattr(Config, "THREEDE_SCAN_MAX_DEPTH", 8)
-        max_files = getattr(Config, "THREEDE_SCAN_MAX_FILES_PER_SHOT", 10000)
+
+        # Determine max_files based on stop_after_first setting
+        # If stop_after_first is True, we want 1 file per shot for up to max_shots shots
+        # Otherwise, we want max_files_per_shot * max_shots total files
+        if getattr(Config, "THREEDE_STOP_AFTER_FIRST", False):
+            # When stop_after_first is True, we want to find 1 file per shot
+            # for up to THREEDE_MAX_SHOTS_TO_SCAN shots total
+            max_files = getattr(Config, "THREEDE_MAX_SHOTS_TO_SCAN", 1000)
+        else:
+            # When stop_after_first is False, we want max_files_per_shot * max_shots
+            max_files_per_shot = getattr(Config, "THREEDE_SCAN_MAX_FILES_PER_SHOT", 10)
+            max_shots = getattr(Config, "THREEDE_MAX_SHOTS_TO_SCAN", 1000)
+            max_files = max_files_per_shot * max_shots
 
         def find_3de_files_python(search_path: Path, start_time: float) -> List[Path]:
             """Python replacement for find command."""
             files = []
             shot_dirs_found = set()  # Track which shot directories we've found files in
             stop_after_first = getattr(Config, "THREEDE_STOP_AFTER_FIRST", False)
-            
+
             try:
                 # Manual depth-limited traversal for better control
                 def walk_limited(path: Path, current_depth: int = 0):
@@ -1517,16 +1529,20 @@ class ThreeDESceneFinder:
                                     if "shots" in parts:
                                         shots_idx = parts.index("shots")
                                         if shots_idx + 2 < len(parts):
-                                            shot_dir = f"{parts[shots_idx+1]}/{parts[shots_idx+2]}"
-                                
+                                            shot_dir = f"{parts[shots_idx + 1]}/{parts[shots_idx + 2]}"
+
                                 # If stop_after_first is enabled and we already have a file for this shot, skip
-                                if stop_after_first and shot_dir and shot_dir in shot_dirs_found:
+                                if (
+                                    stop_after_first
+                                    and shot_dir
+                                    and shot_dir in shot_dirs_found
+                                ):
                                     continue
-                                    
+
                                 files.append(item)
                                 if shot_dir:
                                     shot_dirs_found.add(shot_dir)
-                                    
+
                                 if len(files) >= max_files:
                                     logger.info(
                                         f"Reached max files ({max_files}) in {search_path}"
@@ -1586,7 +1602,9 @@ class ThreeDESceneFinder:
                         all_files.extend(files)
 
                         if len(all_files) >= max_files:
-                            logger.info(f"Reached global max ({max_files}), stopping")
+                            logger.info(
+                                f"Reached max file limit ({max_files} files), stopping search"
+                            )
                             # Cancel remaining futures
                             for f in future_to_path:
                                 f.cancel()
@@ -1665,7 +1683,8 @@ class ThreeDESceneFinder:
             max_files = Config.THREEDE_MAX_SHOTS_TO_SCAN
         else:
             max_files = (
-                Config.THREEDE_SCAN_MAX_FILES_PER_SHOT * Config.THREEDE_MAX_SHOTS_TO_SCAN
+                Config.THREEDE_SCAN_MAX_FILES_PER_SHOT
+                * Config.THREEDE_MAX_SHOTS_TO_SCAN
                 if hasattr(Config, "THREEDE_SCAN_MAX_FILES_PER_SHOT")
                 else 10000
             )
@@ -1794,7 +1813,7 @@ class ThreeDESceneFinder:
                             # Early termination if we have enough files
                             if len(all_files) >= max_files:
                                 logger.info(
-                                    f"Reached global max files limit ({max_files}), stopping search"
+                                    f"Reached max files limit ({max_files}), stopping search"
                                 )
                                 # Cancel remaining futures
                                 for f in future_to_path:
@@ -1878,18 +1897,20 @@ class ThreeDESceneFinder:
 
             # Extract components
             sequence = parts[shots_idx + 1]
-            shot_dir = parts[shots_idx + 2]  # This is the full shot directory name (e.g., GF_256_1400)
-            
+            shot_dir = parts[
+                shots_idx + 2
+            ]  # This is the full shot directory name (e.g., GF_256_1400)
+
             # Parse shot directory name to extract actual shot number
             # The shot directory follows the pattern: {sequence}_{shot}
             # e.g., "GF_256_1400" where sequence is "GF_256" and shot is "1400"
             if shot_dir.startswith(f"{sequence}_"):
                 # Remove the sequence prefix to get the actual shot number
-                shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
+                shot = shot_dir[len(sequence) + 1 :]  # +1 for the underscore
             else:
                 # If it doesn't follow the expected pattern, use the full name as shot
                 shot = shot_dir
-            
+
             path_type = parts[shots_idx + 3]  # "user" or "publish"
 
             # Handle different path types
@@ -2061,13 +2082,15 @@ class ThreeDESceneFinder:
 
             # Step 3: Create ThreeDEScene objects for each file
             stop_after_first = getattr(Config, "THREEDE_STOP_AFTER_FIRST", False)
-            
+
             for (sequence, shot_name), shot_data in shots_with_files.items():
                 workspace_path = shot_data["workspace_path"]
 
                 # If stop_after_first is enabled, only process the first file per shot
-                files_to_process = shot_data["files"][:1] if stop_after_first else shot_data["files"]
-                
+                files_to_process = (
+                    shot_data["files"][:1] if stop_after_first else shot_data["files"]
+                )
+
                 for username, file_path in files_to_process:
                     # Extract plate info
                     user_path = file_path.parent

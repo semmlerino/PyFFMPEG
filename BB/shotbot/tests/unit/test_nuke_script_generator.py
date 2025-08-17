@@ -8,8 +8,6 @@ in generated Nuke scripts, preventing "no such knob" errors.
 import os
 import tempfile
 import unittest
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
 
 from nuke_script_generator import NukeScriptGenerator
 
@@ -21,24 +19,28 @@ class TestNukeScriptGenerator(unittest.TestCase):
         """Set up test fixtures."""
         self.generator = NukeScriptGenerator()
         self.temp_dir = tempfile.mkdtemp()
-        
+
     def tearDown(self):
         """Clean up test fixtures."""
         # Clean up temp directory
         import shutil
+
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
 
     def test_colorspace_quoting_with_spaces(self):
         """Test that colorspaces with spaces are properly quoted.
-        
+
         This tests the critical bug fix where colorspaces like
         "Input - Sony - S-Gamut3.Cine - Linear" were not quoted,
         causing Nuke to fail with "no such knob" errors.
         """
         test_cases = [
             # (colorspace, expected_in_script)
-            ("Input - Sony - S-Gamut3.Cine - Linear", '"Input - Sony - S-Gamut3.Cine - Linear"'),
+            (
+                "Input - Sony - S-Gamut3.Cine - Linear",
+                '"Input - Sony - S-Gamut3.Cine - Linear"',
+            ),
             ("Output - sRGB", '"Output - sRGB"'),
             ("ACES - ACEScg", '"ACES - ACEScg"'),
             ("Utility - Linear - sRGB", '"Utility - Linear - sRGB"'),
@@ -47,7 +49,7 @@ class TestNukeScriptGenerator(unittest.TestCase):
             ("sRGB", '"sRGB"'),
             ("ACEScg", '"ACEScg"'),
         ]
-        
+
         for colorspace, expected_quoted in test_cases:
             with self.subTest(colorspace=colorspace):
                 # Generate a test script
@@ -55,42 +57,42 @@ class TestNukeScriptGenerator(unittest.TestCase):
                     file_path="/path/to/plate.exr",
                     colorspace=colorspace,
                     first_frame=1001,
-                    last_frame=1100
+                    last_frame=1100,
                 )
-                
+
                 # Check that colorspace is properly quoted
-                self.assertIn(f'colorspace {expected_quoted}', script_content)
+                self.assertIn(f"colorspace {expected_quoted}", script_content)
                 # Should NOT have unquoted version
                 if " " in colorspace:
-                    self.assertNotIn(f'colorspace {colorspace}', script_content)
+                    self.assertNotIn(f"colorspace {colorspace}", script_content)
 
     def test_generate_comp_script(self):
         """Test full comp script generation."""
         shot_name = "GF_256_1400"
         plate_path = "/shows/jack_ryan/shots/GF_256/GF_256_1400/publish/plates/BG01/BG01.%04d.exr"
         colorspace = "Input - Sony - S-Gamut3.Cine - Linear"
-        
+
         script_path = self.generator.generate_comp_script(
             shot_name=shot_name,
             plate_path=plate_path,
             colorspace=colorspace,
             first_frame=1001,
             last_frame=1100,
-            output_dir=self.temp_dir
+            output_dir=self.temp_dir,
         )
-        
+
         self.assertIsNotNone(script_path)
         self.assertTrue(os.path.exists(script_path))
-        
+
         # Read the generated script
-        with open(script_path, 'r') as f:
+        with open(script_path, "r") as f:
             content = f.read()
-        
+
         # Verify content
         self.assertIn(shot_name, content)
         self.assertIn('"Input - Sony - S-Gamut3.Cine - Linear"', content)
-        self.assertIn('first 1001', content)
-        self.assertIn('last 1100', content)
+        self.assertIn("first 1001", content)
+        self.assertIn("last 1100", content)
 
     def test_special_characters_in_colorspace(self):
         """Test handling of special characters in colorspace names."""
@@ -101,34 +103,36 @@ class TestNukeScriptGenerator(unittest.TestCase):
             "Utility - Rec.709 - Camera",
             "Input - RED - REDWideGamutRGB - REDLog3G10",
         ]
-        
+
         for colorspace in special_colorspaces:
             with self.subTest(colorspace=colorspace):
                 script_content = self.generator._generate_read_node(
                     file_path="/path/to/plate.exr",
                     colorspace=colorspace,
                     first_frame=1001,
-                    last_frame=1100
+                    last_frame=1100,
                 )
-                
+
                 # Should be properly quoted
                 self.assertIn(f'colorspace "{colorspace}"', script_content)
 
     def test_undistortion_node_generation(self):
         """Test undistortion node generation."""
-        undisto_path = "/shows/project/shots/SEQ_01/SEQ_01_0010/publish/3de/undistortion.nk"
-        
+        undisto_path = (
+            "/shows/project/shots/SEQ_01/SEQ_01_0010/publish/3de/undistortion.nk"
+        )
+
         node_content = self.generator._generate_undistortion_node(undisto_path)
-        
-        self.assertIn('Group {', node_content)
-        self.assertIn('name Undistortion', node_content)
-        self.assertIn(f'# Undistortion file: {undisto_path}', node_content)
+
+        self.assertIn("Group {", node_content)
+        self.assertIn("name Undistortion", node_content)
+        self.assertIn(f"# Undistortion file: {undisto_path}", node_content)
 
     def test_temporary_file_cleanup(self):
         """Test that temporary files are properly tracked for cleanup."""
         # Track generated files
         generated_files = []
-        
+
         for i in range(3):
             script_path = self.generator.generate_comp_script(
                 shot_name=f"test_shot_{i}",
@@ -136,14 +140,14 @@ class TestNukeScriptGenerator(unittest.TestCase):
                 colorspace="linear",
                 first_frame=1001,
                 last_frame=1100,
-                output_dir=self.temp_dir
+                output_dir=self.temp_dir,
             )
             generated_files.append(script_path)
-        
+
         # All files should exist
         for path in generated_files:
             self.assertTrue(os.path.exists(path))
-        
+
         # Verify files are in temp directory
         for path in generated_files:
             self.assertTrue(str(path).startswith(self.temp_dir))
@@ -156,7 +160,7 @@ class TestNukeScriptGenerator(unittest.TestCase):
             "shot/../../../name",
             "shot\\..\\..\\name",
         ]
-        
+
         for dangerous_name in dangerous_names:
             with self.subTest(name=dangerous_name):
                 # Should sanitize the name
@@ -166,9 +170,9 @@ class TestNukeScriptGenerator(unittest.TestCase):
                     colorspace="linear",
                     first_frame=1001,
                     last_frame=1100,
-                    output_dir=self.temp_dir
+                    output_dir=self.temp_dir,
                 )
-                
+
                 # Path should not contain directory traversal
                 self.assertNotIn("..", str(script_path))
                 self.assertTrue(str(script_path).startswith(self.temp_dir))
@@ -176,13 +180,13 @@ class TestNukeScriptGenerator(unittest.TestCase):
     def test_frame_range_validation(self):
         """Test frame range validation in script generation."""
         test_cases = [
-            (1001, 1100, True),   # Valid range
-            (1, 100, True),       # Valid range
-            (-100, 100, True),    # Valid with negative frames
+            (1001, 1100, True),  # Valid range
+            (1, 100, True),  # Valid range
+            (-100, 100, True),  # Valid with negative frames
             (1100, 1001, False),  # Invalid: last before first
-            (1001, 1001, True),   # Valid: single frame
+            (1001, 1001, True),  # Valid: single frame
         ]
-        
+
         for first, last, should_succeed in test_cases:
             with self.subTest(first=first, last=last):
                 if should_succeed:
@@ -190,10 +194,10 @@ class TestNukeScriptGenerator(unittest.TestCase):
                         file_path="/path/to/plate.exr",
                         colorspace="linear",
                         first_frame=first,
-                        last_frame=last
+                        last_frame=last,
                     )
-                    self.assertIn(f'first {first}', script_content)
-                    self.assertIn(f'last {last}', script_content)
+                    self.assertIn(f"first {first}", script_content)
+                    self.assertIn(f"last {last}", script_content)
                 else:
                     # Should handle invalid ranges gracefully
                     with self.assertRaises(ValueError):
@@ -201,32 +205,32 @@ class TestNukeScriptGenerator(unittest.TestCase):
                             file_path="/path/to/plate.exr",
                             colorspace="linear",
                             first_frame=first,
-                            last_frame=last
+                            last_frame=last,
                         )
 
     def test_plate_path_formats(self):
         """Test various plate path formats."""
         path_formats = [
             "/path/to/plate.%04d.exr",  # Printf style
-            "/path/to/plate.####.exr",   # Hash style
-            "/path/to/plate_1001.exr",   # Single frame
-            "/path/to/plate.%06d.dpx",   # DPX sequence
-            "/path/to/plate.%d.jpg",     # Variable padding
+            "/path/to/plate.####.exr",  # Hash style
+            "/path/to/plate_1001.exr",  # Single frame
+            "/path/to/plate.%06d.dpx",  # DPX sequence
+            "/path/to/plate.%d.jpg",  # Variable padding
         ]
-        
+
         for plate_path in path_formats:
             with self.subTest(path=plate_path):
                 script_content = self.generator._generate_read_node(
                     file_path=plate_path,
                     colorspace="linear",
                     first_frame=1001,
-                    last_frame=1100
+                    last_frame=1100,
                 )
-                
+
                 # Should include the file path
-                self.assertIn('file ', script_content)
+                self.assertIn("file ", script_content)
                 # Path should be preserved
-                if '%' in plate_path or '#' in plate_path:
+                if "%" in plate_path or "#" in plate_path:
                     # Sequence paths might be modified
                     pass
                 else:
@@ -239,36 +243,36 @@ class TestNukeScriptGenerator(unittest.TestCase):
             file_path="/shows/project/plates/BG01.%04d.exr",
             colorspace="Input - Sony - S-Gamut3.Cine - Linear",
             first_frame=1001,
-            last_frame=1100
+            last_frame=1100,
         )
-        
+
         # Check structure
-        self.assertIn('Read {', read_node)
-        self.assertIn('inputs 0', read_node)
+        self.assertIn("Read {", read_node)
+        self.assertIn("inputs 0", read_node)
         self.assertIn('file "/shows/project/plates/BG01.%04d.exr"', read_node)
         self.assertIn('colorspace "Input - Sony - S-Gamut3.Cine - Linear"', read_node)
-        self.assertIn('first 1001', read_node)
-        self.assertIn('last 1100', read_node)
-        self.assertIn('origfirst 1001', read_node)
-        self.assertIn('origlast 1100', read_node)
-        self.assertIn('name Read1', read_node)
-        self.assertIn('}', read_node)
+        self.assertIn("first 1001", read_node)
+        self.assertIn("last 1100", read_node)
+        self.assertIn("origfirst 1001", read_node)
+        self.assertIn("origlast 1100", read_node)
+        self.assertIn("name Read1", read_node)
+        self.assertIn("}", read_node)
 
     def test_write_node_generation(self):
         """Test Write node generation."""
         write_node = self.generator._generate_write_node(
             output_path="/output/comp_output.%04d.exr"
         )
-        
-        self.assertIn('Write {', write_node)
+
+        self.assertIn("Write {", write_node)
         self.assertIn('file "/output/comp_output.%04d.exr"', write_node)
-        self.assertIn('file_type exr', write_node)
-        self.assertIn('name Write1', write_node)
+        self.assertIn("file_type exr", write_node)
+        self.assertIn("name Write1", write_node)
 
     def test_empty_colorspace(self):
         """Test handling of empty or None colorspace."""
         test_cases = [None, "", "   "]
-        
+
         for colorspace in test_cases:
             with self.subTest(colorspace=repr(colorspace)):
                 # Should handle gracefully - use default or skip
@@ -276,13 +280,13 @@ class TestNukeScriptGenerator(unittest.TestCase):
                     file_path="/path/to/plate.exr",
                     colorspace=colorspace,
                     first_frame=1001,
-                    last_frame=1100
+                    last_frame=1100,
                 )
-                
+
                 # Should either omit colorspace or use a default
                 if colorspace:
                     # If whitespace, should be trimmed and quoted
-                    self.assertIn('colorspace', script_content)
+                    self.assertIn("colorspace", script_content)
                 else:
                     # If None or empty, might omit or use default
                     pass  # Implementation dependent
@@ -290,7 +294,7 @@ class TestNukeScriptGenerator(unittest.TestCase):
 
 class MockNukeScriptGenerator:
     """Mock implementation for testing."""
-    
+
     def _generate_read_node(self, file_path, colorspace, first_frame, last_frame):
         """Generate a Read node with proper colorspace quoting."""
         # Quote colorspace if it exists
@@ -298,11 +302,11 @@ class MockNukeScriptGenerator:
             colorspace_line = f'colorspace "{colorspace}"'
         else:
             colorspace_line = ""
-            
+
         # Handle invalid frame ranges
         if first_frame > last_frame:
             raise ValueError(f"Invalid frame range: {first_frame} to {last_frame}")
-            
+
         return f"""Read {{
   inputs 0
   file "{file_path}"
@@ -329,26 +333,30 @@ class MockNukeScriptGenerator:
   # Undistortion file: {undisto_path}
 }}"""
 
-    def generate_comp_script(self, shot_name, plate_path, colorspace, 
-                            first_frame, last_frame, output_dir):
+    def generate_comp_script(
+        self, shot_name, plate_path, colorspace, first_frame, last_frame, output_dir
+    ):
         """Generate complete comp script."""
         # Sanitize shot name
         import re
-        safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', shot_name)
+
+        safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", shot_name)
         safe_name = safe_name.replace("..", "_")
-        
+
         # Create output path
         output_path = os.path.join(output_dir, f"{safe_name}_comp.nk")
-        
+
         # Generate content
-        content = f"#! /usr/bin/env nuke\n"
+        content = "#! /usr/bin/env nuke\n"
         content += f"# Shot: {shot_name}\n\n"
-        content += self._generate_read_node(plate_path, colorspace, first_frame, last_frame)
-        
+        content += self._generate_read_node(
+            plate_path, colorspace, first_frame, last_frame
+        )
+
         # Write file
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(content)
-            
+
         return output_path
 
 
