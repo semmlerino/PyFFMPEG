@@ -1070,63 +1070,137 @@ class ThreeDESceneFinder:
             status_msg = f"Scanning shot {show}/{sequence}/{shot}"
 
             user_dir = PathUtils.build_path(workspace_path, "user")
+            publish_dir = PathUtils.build_path(workspace_path, "publish")
 
-            # Check if user directory exists
-            if not PathUtils.validate_path_exists(user_dir, "User directory"):
-                logger.debug(f"User directory missing for {show}/{sequence}/{shot}")
+            # Check if at least one directory exists
+            has_user_dir = PathUtils.validate_path_exists(user_dir, "User directory")
+            has_publish_dir = PathUtils.validate_path_exists(publish_dir, "Publish directory")
+            
+            if not has_user_dir and not has_publish_dir:
+                logger.debug(f"Neither user nor publish directory exists for {show}/{sequence}/{shot}")
                 # Yield empty batch with progress info
-                yield ([], current_shot_index, total_shots, f"{status_msg} (no users)")
+                yield ([], current_shot_index, total_shots, f"{status_msg} (no directories)")
                 continue
 
-            logger.debug(f"Scanning users in {user_dir}")
+            # First scan user directories
+            if has_user_dir:
+                logger.debug(f"Scanning users in {user_dir}")
+                try:
+                    # Iterate through user directories
+                    for user_path in user_dir.iterdir():
+                        if not user_path.is_dir():
+                            continue
 
-            try:
-                # Iterate through user directories
-                for user_path in user_dir.iterdir():
-                    if not user_path.is_dir():
-                        continue
+                        user_name = user_path.name
 
-                    user_name = user_path.name
+                        # Skip excluded users
+                        if user_name in excluded_users:
+                            logger.debug(f"Skipping excluded user: {user_name}")
+                            continue
 
-                    # Skip excluded users
-                    if user_name in excluded_users:
-                        logger.debug(f"Skipping excluded user: {user_name}")
-                        continue
+                        # Use progressive scanning for this user
+                        user_status = f"{status_msg} - user {user_name}"
 
-                    # Use progressive scanning for this user
-                    user_status = f"{status_msg} - user {user_name}"
+                        # Generator for this user's scenes
+                        for scene_batch in ThreeDESceneFinder.find_scenes_progressive(
+                            user_path,
+                            show,
+                            sequence,
+                            shot,
+                            user_name,
+                            batch_size,
+                            excluded_users,
+                        ):
+                            # Yield the batch with current progress
+                            yield (
+                                scene_batch,
+                                current_shot_index,
+                                total_shots,
+                                user_status,
+                            )
 
-                    # Generator for this user's scenes
-                    for scene_batch in ThreeDESceneFinder.find_scenes_progressive(
-                        user_path,
-                        show,
-                        sequence,
-                        shot,
-                        user_name,
-                        batch_size,
-                        excluded_users,
-                    ):
-                        # Yield the batch with current progress
-                        yield (
-                            scene_batch,
-                            current_shot_index,
-                            total_shots,
-                            user_status,
-                        )
-
-            except PermissionError:
-                logger.warning(
-                    f"Permission denied accessing user directories for {show}/{sequence}/{shot}"
-                )
-                yield (
-                    [],
-                    current_shot_index,
-                    total_shots,
-                    f"{status_msg} (access denied)",
-                )
-            except Exception as e:
-                logger.error(f"Error scanning shot {show}/{sequence}/{shot}: {e}")
-                yield ([], current_shot_index, total_shots, f"{status_msg} (error)")
+                except PermissionError:
+                    logger.warning(
+                        f"Permission denied accessing user directories for {show}/{sequence}/{shot}"
+                    )
+                except Exception as e:
+                    logger.error(f"Error scanning user directories {show}/{sequence}/{shot}: {e}")
+            
+            # Then scan publish directories
+            if has_publish_dir:
+                logger.debug(f"Scanning publish directory for 3DE files: {publish_dir}")
+                try:
+                    import subprocess
+                    # Use find command for publish directory (deeper nesting possible)
+                    find_cmd = [
+                        "find",
+                        str(publish_dir),
+                        "-maxdepth", "15",  # Allow deep nesting in publish
+                        "-type", "f",
+                        "(",
+                        "-name", "*.3de",
+                        "-o",
+                        "-name", "*.3DE",
+                        ")",
+                    ]
+                    
+                    result = subprocess.run(
+                        find_cmd, capture_output=True, text=True, timeout=30
+                    )
+                    
+                    if result.returncode == 0 and result.stdout.strip():
+                        batch = []
+                        for file_path_str in result.stdout.strip().split("\n"):
+                            if not file_path_str:
+                                continue
+                            
+                            file_path = Path(file_path_str)
+                            
+                            # Extract department from publish path structure
+                            # e.g., /publish/mm/default/...
+                            try:
+                                relative_to_publish = file_path.relative_to(publish_dir)
+                                parts = relative_to_publish.parts
+                                
+                                if len(parts) > 0:
+                                    department = parts[0]  # First directory under publish
+                                    pseudo_user = f"published-{department}"
+                                    
+                                    # Extract plate info
+                                    plate = ThreeDESceneFinder.extract_plate_from_path(
+                                        file_path, publish_dir
+                                    )
+                                    
+                                    # Create scene object
+                                    scene = ThreeDEScene(
+                                        show=show,
+                                        sequence=sequence,
+                                        shot=shot,
+                                        workspace_path=workspace_path,
+                                        user=pseudo_user,
+                                        plate=plate,
+                                        scene_path=file_path,
+                                    )
+                                    batch.append(scene)
+                                    
+                                    # Yield batch when it reaches target size
+                                    if len(batch) >= batch_size:
+                                        yield (batch, current_shot_index, total_shots, f"{status_msg} - published")
+                                        batch = []
+                            except ValueError:
+                                # File not relative to publish_dir, skip it
+                                continue
+                        
+                        # Yield remaining scenes if any
+                        if batch:
+                            yield (batch, current_shot_index, total_shots, f"{status_msg} - published")
+                            
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"Timeout scanning publish directory {publish_dir}")
+                except (OSError, PermissionError) as e:
+                    logger.warning(f"Error scanning publish directory {publish_dir}: {e}")
+                except Exception as e:
+                    logger.error(f"Unexpected error scanning publish directory {publish_dir}: {e}")
 
         logger.info("Progressive scan complete")
 
