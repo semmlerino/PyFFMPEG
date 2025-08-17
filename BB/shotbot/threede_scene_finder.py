@@ -4,6 +4,7 @@ import itertools
 import logging
 import os
 import re
+import subprocess
 import time
 from pathlib import Path
 from typing import Any, Generator, List, Optional, Set, Tuple
@@ -241,8 +242,6 @@ class ThreeDESceneFinder:
         Returns:
             True if at least one .3de file exists, False otherwise
         """
-        import subprocess
-
         for base_path in base_paths:
             if not os.path.exists(base_path):
                 continue
@@ -440,9 +439,68 @@ class ThreeDESceneFinder:
 
                 # Recursively find ALL .3de files in the user's directory
                 try:
-                    # Search for both lowercase and uppercase extensions
-                    threede_files = list(user_path.rglob("*.3de"))
-                    threede_files.extend(list(user_path.rglob("*.3DE")))
+                    # Use efficient file discovery - try find command first
+                    threede_files = []
+                    use_find_command = os.environ.get('SHOTBOT_USE_FIND', 'true').lower() == 'true'
+                    
+                    if use_find_command:
+                        try:
+                            # Use find command for efficient deep directory search
+                            result = subprocess.run(
+                                [
+                                    "find",
+                                    str(user_path),
+                                    "-maxdepth", "15",  # Allow very deep nesting (e.g., mm/3de/mm-default/scenes/scene/FG01/)
+                                    "-type", "f",
+                                    "(",
+                                    "-name", "*.3de",
+                                    "-o",
+                                    "-name", "*.3DE",
+                                    ")",
+                                ],
+                                capture_output=True,
+                                text=True,
+                                timeout=10,  # 10 second timeout per user
+                            )
+                            
+                            if result.returncode == 0 and result.stdout:
+                                file_paths = result.stdout.strip().split('\n')
+                                threede_files = [Path(p) for p in file_paths if p]
+                                if threede_files:
+                                    logger.info(f"Find command found {len(threede_files)} .3de files for user {user_name}")
+                                
+                        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+                            logger.debug(f"Find command failed for {user_name}, using rglob: {e}")
+                            use_find_command = False
+                    
+                    # Fallback to targeted rglob search
+                    if not use_find_command or not threede_files:
+                        # Check common deep path patterns first for efficiency
+                        # Based on real VFX pipeline structure: mm/3de/mm-default/scenes/scene/FG01/
+                        common_patterns = [
+                            user_path / "mm" / "3de",
+                            user_path / "matchmove" / "3de",
+                            user_path / "tracking" / "3de",
+                            user_path / "3de",
+                        ]
+                        
+                        found_in_common = False
+                        for pattern_path in common_patterns:
+                            if pattern_path.exists():
+                                logger.debug(f"Checking common path: {pattern_path}")
+                                for ext in ["*.3de", "*.3DE"]:
+                                    pattern_files = list(pattern_path.rglob(ext))
+                                    if pattern_files:
+                                        threede_files.extend(pattern_files)
+                                        found_in_common = True
+                                        logger.debug(f"Found {len(pattern_files)} files in {pattern_path}")
+                        
+                        # If still no files in common locations, do full scan
+                        if not found_in_common:
+                            logger.debug(f"No files in common locations, doing full recursive scan of {user_path}")
+                            # Search for both lowercase and uppercase extensions
+                            threede_files = list(user_path.rglob("*.3de"))
+                            threede_files.extend(list(user_path.rglob("*.3DE")))
 
                     if threede_files:
                         logger.info(
@@ -760,14 +818,85 @@ class ThreeDESceneFinder:
 
         batch = []
         processed_count = 0
+        
+        # First, try to use the find command for better performance on deep directories
+        threede_files = []
+        use_find_command = True
+        
+        if use_find_command:
+            try:
+                # Use find command for efficient deep directory search
+                # Limit depth to prevent infinite recursion but allow deep nesting
+                result = subprocess.run(
+                    [
+                        "find",
+                        str(user_path),
+                        "-maxdepth", "15",  # Allow very deep nesting
+                        "-type", "f",
+                        "(",
+                        "-name", "*.3de",
+                        "-o",
+                        "-name", "*.3DE",
+                        ")",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,  # 30 second timeout for find
+                )
+                
+                if result.returncode == 0 and result.stdout:
+                    file_paths = result.stdout.strip().split('\n')
+                    threede_files = [Path(p) for p in file_paths if p]
+                    logger.debug(f"Find command found {len(threede_files)} .3de files for {user_name}")
+                else:
+                    logger.debug(f"Find command found no .3de files for {user_name}")
+                    
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+                logger.debug(f"Find command failed, falling back to rglob: {e}")
+                use_find_command = False
+        
+        # Fallback to rglob if find command fails or is disabled
+        if not use_find_command or not threede_files:
+            try:
+                # Log the search depth
+                logger.debug(f"Using rglob to search {user_path} (this may take time for deep directories)")
+                
+                # Check common deep path patterns first for faster discovery
+                # Based on example: mm/3de/mm-default/scenes/scene/FG01/
+                common_patterns = [
+                    user_path / "mm" / "3de",
+                    user_path / "matchmove" / "3de",
+                    user_path / "tracking" / "3de",
+                    user_path / "3de" / "scenes",
+                ]
+                
+                # Quick check of common locations first
+                found_in_common = False
+                for pattern_path in common_patterns:
+                    if pattern_path.exists():
+                        logger.debug(f"Checking common path: {pattern_path}")
+                        for ext in ["*.3de", "*.3DE"]:
+                            pattern_files = list(pattern_path.rglob(ext))
+                            if pattern_files:
+                                threede_files.extend(pattern_files)
+                                found_in_common = True
+                                logger.debug(f"Found {len(pattern_files)} files in {pattern_path}")
+                
+                # If not found in common locations, do full scan
+                if not found_in_common:
+                    logger.debug(f"No files in common locations, doing full recursive scan of {user_path}")
+                    # Use rglob for recursive search - handle both cases
+                    # Combine both lowercase and uppercase extensions
+                    threede_files = list(itertools.chain(
+                        user_path.rglob("*.3de"), user_path.rglob("*.3DE")
+                    ))
+                    logger.debug(f"Full rglob found {len(threede_files)} .3de files for {user_name}")
+                    
+            except Exception as e:
+                logger.error(f"Error during rglob scan: {e}")
+                threede_files = []
 
         try:
-            # Use rglob for recursive search - handle both cases
-            # Combine both lowercase and uppercase extensions
-            threede_files = itertools.chain(
-                user_path.rglob("*.3de"), user_path.rglob("*.3DE")
-            )
-
             for threede_file in threede_files:
                 # Verify file exists and is accessible
                 if not ThreeDESceneFinder.verify_scene_exists(threede_file):
@@ -1237,7 +1366,6 @@ class ThreeDESceneFinder:
 
         # Original subprocess implementation
         import concurrent.futures
-        import subprocess
 
         show_path = Path(show_root) / show / "shots"
         if not show_path.exists():
