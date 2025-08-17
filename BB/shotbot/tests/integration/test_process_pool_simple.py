@@ -138,7 +138,7 @@ class TestPersistentSessions:
             assert "hello" in result1
             
             # Variable persists in same session
-            result2 = session.execute("echo $MY_TEST_VAR")
+            session.execute("echo $MY_TEST_VAR")
             # Note: Variable might not persist across commands
             # This depends on implementation
         finally:

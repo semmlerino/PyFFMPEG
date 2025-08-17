@@ -951,7 +951,7 @@ class TestThreadSafety:
         def access_processes(thread_id):
             """Simulate concurrent process operations."""
             with launcher_manager._process_lock:
-                current_count = len(launcher_manager._active_processes)
+                len(launcher_manager._active_processes)
                 # Simulate some work that could cause race conditions
                 time.sleep(0.001)
                 
@@ -1780,7 +1780,7 @@ class TestLauncherWorkerLifecycle:
         """
         import pytest
         pytest.skip("Qt multi-threading with signals not reliable in test environment")
-        launcher_manager = create_real_launcher_manager(temp_config_dir)
+        create_real_launcher_manager(temp_config_dir)
         
         # Create multiple workers
         num_workers = 6
@@ -1915,7 +1915,7 @@ class TestSignalThreadSafety:
         signal_thread_ids = [entry[1] for entry in signal_log]
         
         # At least some signals should come from worker threads (different from main)
-        worker_signals = [tid for tid in signal_thread_ids if tid != main_thread_id]
+        [tid for tid in signal_thread_ids if tid != main_thread_id]
         # Note: Due to Qt's signal/slot system, signals may be delivered on main thread
         # The important thing is that no data corruption occurred
         

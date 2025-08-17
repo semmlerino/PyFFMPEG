@@ -3,14 +3,12 @@
 Tests for thread safety, deadlock prevention, and concurrent operation safety.
 """
 
-import logging
 import threading
 import time
 import uuid
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtCore import QTimer
 
 from config import ThreadingConfig
 from launcher_manager import LauncherManager

@@ -8,6 +8,7 @@ This is an example file and should be adapted based on your specific integration
 """
 
 import logging
+import sys
 from typing import Optional
 
 from PySide6.QtCore import QThread, QTimer
@@ -16,19 +17,16 @@ from PySide6.QtWidgets import QApplication
 # Import the health monitoring system
 from thread_health_monitor import (
     ThreadHealthMonitor,
-    start_monitoring,
-    register_thread_for_monitoring,
-    register_worker_for_monitoring,
     get_health_status,
+    start_monitoring,
 )
 
 # Import existing ShotBot components
 try:
-    from main_window import MainWindow
-    from launcher_manager import LauncherManager, LauncherWorker
     from cache_manager import CacheManager
+    from launcher_manager import LauncherManager, LauncherWorker
+    from main_window import MainWindow
     from process_pool_manager import ProcessPoolManager
-    from threede_scene_worker import ThreeDESceneWorker
     HAS_SHOTBOT_COMPONENTS = True
 except ImportError:
     HAS_SHOTBOT_COMPONENTS = False
@@ -285,7 +283,6 @@ def create_monitored_shotbot_application() -> ShotBotWithHealthMonitoring:
 # Example usage for integration into main application
 def main():
     """Example main function showing integration."""
-    import sys
     
     # Create Qt application
     qt_app = QApplication(sys.argv)

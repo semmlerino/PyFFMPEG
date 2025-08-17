@@ -11,7 +11,7 @@ import time
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import QSettings, QTimer
+from PySide6.QtCore import QSettings
 from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication
@@ -273,7 +273,7 @@ class TestMainWindowIntegration:
         result1 = main_window.shot_model.refresh_shots()
         
         # Create launcher while refresh might be ongoing
-        launcher_id = main_window.launcher_manager.create_launcher(
+        main_window.launcher_manager.create_launcher(
             name="Concurrent",
             command="echo concurrent",
             description="Test launcher for concurrent operations"
@@ -292,7 +292,7 @@ class TestMainWindowSignals:
         # The shot model doesn't inherit from QObject
         # so it doesn't have Qt signals
         # Test the refresh mechanism instead
-        initial_shots = main_window.shot_model.get_shots()
+        main_window.shot_model.get_shots()
         
         # Trigger refresh
         result = main_window.shot_model.refresh_shots()
@@ -430,7 +430,7 @@ class TestMainWindowWorkflows:
         main_window.shot_model._process_pool.workspace_output = "invalid output"
         
         # Attempt refresh
-        result1 = main_window.shot_model.refresh_shots()
+        main_window.shot_model.refresh_shots()
         
         # Fix the issue
         main_window.shot_model._process_pool.workspace_output = """workspace /shows/test_show/shots/seq01/seq01_0010"""

@@ -485,8 +485,8 @@ class TestThreeDEShotGridReflow:
         # Check that widgets are in correct positions
         for i, scene in enumerate(sample_scenes):
             if scene.display_name in threede_grid.thumbnails:
-                row = i // 2
-                col = i % 2
+                i // 2
+                i % 2
                 # We'd need to check actual grid positions here
     
     def test_reflow_empty_grid(self, threede_grid):
@@ -528,7 +528,7 @@ class TestThreeDEShotGridSignalConnections:
         """Test size slider is connected."""
         # Change slider value
         new_value = 200
-        with patch.object(threede_grid, '_on_size_changed') as mock_handler:
+        with patch.object(threede_grid, '_on_size_changed'):
             threede_grid.size_slider.setValue(new_value)
             # The valueChanged signal should trigger the handler
             # Note: In real Qt this would work, but in test we need to verify setup

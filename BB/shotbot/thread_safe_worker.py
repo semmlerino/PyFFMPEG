@@ -10,7 +10,6 @@ from PySide6.QtCore import (
     QMutexLocker,
     Qt,
     QThread,
-    QTimer,
     QWaitCondition,
     Signal,
 )
@@ -122,7 +121,9 @@ class ThreadSafeWorker(QThread):
             if new_state == WorkerState.STOPPED:
                 signal_to_emit = self.worker_stopped
             elif new_state == WorkerState.ERROR:
-                signal_to_emit = lambda: self.worker_error.emit("State error")
+                def emit_error():
+                    self.worker_error.emit("State error")
+                signal_to_emit = emit_error
         
         # Emit signals outside the mutex to prevent deadlock
         # Direct emission is safe here since we're outside the mutex

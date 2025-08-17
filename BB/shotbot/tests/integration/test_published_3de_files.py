@@ -1,6 +1,5 @@
 """Test that 3DE scanner properly handles published files."""
 
-import shutil
 from pathlib import Path
 
 import pytest
@@ -101,7 +100,7 @@ class TestPublished3DEFiles:
 
     def test_published_files_not_excluded(self, published_file_structure):
         """Test that published files are not excluded even when username filtering is active."""
-        show_root = str(published_file_structure["show_root"])
+        str(published_file_structure["show_root"])
         
         # Create mock shot list
         shots = [

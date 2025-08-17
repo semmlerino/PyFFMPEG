@@ -3,14 +3,12 @@
 Tests for thread-safe state transitions, signal emission, and proper lifecycle management.
 """
 
-import logging
-import time
 import threading
-from unittest.mock import MagicMock, patch
+import time
+from unittest.mock import MagicMock
 
 import pytest
-from PySide6.QtCore import QMutex, QMutexLocker, QTimer, QCoreApplication
-from pytestqt.qtbot import QtBot
+from PySide6.QtCore import QMutex, QMutexLocker
 
 from config import ThreadingConfig
 from thread_safe_worker import ThreadSafeWorker, WorkerState

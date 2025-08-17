@@ -151,7 +151,6 @@ def test_shot_list_refresh_performance():
             except TypeError:
                 # Handle if refresh_shots returns different format
                 success1 = shot_model.refresh_shots()
-                changes1 = True
             
             first_refresh_time = time.perf_counter() - start_time
             initial_fs_accesses = mock_vfx.get_access_count()
@@ -172,7 +171,6 @@ def test_shot_list_refresh_performance():
                 success2, changes2 = shot_model.refresh_shots()
             except TypeError:
                 success2 = shot_model.refresh_shots()
-                changes2 = False
             
             second_refresh_time = time.perf_counter() - start_time
             final_fs_accesses = mock_vfx.get_access_count()

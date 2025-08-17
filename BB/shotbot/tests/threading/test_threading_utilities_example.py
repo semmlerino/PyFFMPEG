@@ -8,13 +8,11 @@ Run with: python run_tests.py tests/threading/test_threading_utilities_example.p
 
 import threading
 import time
-from typing import List
 
 import pytest
-from PySide6.QtCore import QMutex, Qt, Signal
+from PySide6.QtCore import Signal
 
 from launcher_manager import LauncherManager, LauncherWorker
-from thread_safe_worker import ThreadSafeWorker, WorkerState
 from tests.threading.threading_test_utils import (
     DeadlockDetector,
     PerformanceMetrics,
@@ -25,6 +23,7 @@ from tests.threading.threading_test_utils import (
     temporary_worker,
     thread_safety_monitor,
 )
+from thread_safe_worker import WorkerState
 
 
 class TestWorkerStateTransitions:

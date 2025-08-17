@@ -219,7 +219,7 @@ class TestThreeDEThumbnailWidget:
         actions = menu.actions()
         
         # The action should be connected to _open_shot_folder
-        open_folder_action = actions[0]
+        actions[0]
         
         # Check the action has a connection (we can't easily test the actual connection)
         # but we can verify the method exists

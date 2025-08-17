@@ -5,17 +5,14 @@ to find .3de files in deeply nested VFX pipeline structures.
 """
 
 import os
-import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import List, Set
 from unittest.mock import patch
 
 import pytest
 
 from threede_scene_finder import ThreeDESceneFinder
-from threede_scene_model import ThreeDEScene
 
 
 class Test3DEScennerDeepNesting:
@@ -234,7 +231,7 @@ class Test3DEScennerDeepNesting:
         import logging
         caplog.set_level(logging.DEBUG)
         
-        scenes = ThreeDESceneFinder.find_scenes_for_shot(
+        ThreeDESceneFinder.find_scenes_for_shot(
             shot_workspace_path=shot_path,
             show="jack_ryan",
             sequence="GF_256",
@@ -255,7 +252,6 @@ class Test3DEScennerDeepNesting:
         
         # Temporarily reduce minimum batch size for testing
         from config import Config
-        original_min = Config.PROGRESSIVE_SCAN_MIN_BATCH_SIZE
         monkeypatch.setattr(Config, "PROGRESSIVE_SCAN_MIN_BATCH_SIZE", 1)
         
         # Use the progressive scanner

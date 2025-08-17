@@ -1,10 +1,6 @@
 """Test progressive scanner with publish directory support."""
 
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from config import Config
 from threede_scene_finder import ThreeDESceneFinder

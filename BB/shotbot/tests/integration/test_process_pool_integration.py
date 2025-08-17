@@ -81,12 +81,12 @@ class TestProcessPoolIntegration:
         # First execution
         start = time.time()
         result1 = process_pool.execute_workspace_command("echo 'cached'")
-        first_time = time.time() - start
+        time.time() - start
         
         # Second execution (should be from cache)
         start = time.time()
         result2 = process_pool.execute_workspace_command("echo 'cached'")
-        second_time = time.time() - start
+        time.time() - start
         
         assert result1 == result2
         # Cache hit should be much faster (but timing can be unreliable in CI)

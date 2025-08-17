@@ -5,10 +5,10 @@ signal handling and event loop management.
 """
 
 import time
-from typing import Any, Callable, List, Optional
 from contextlib import contextmanager
+from typing import Any, Callable, List
 
-from PySide6.QtCore import QCoreApplication, QTimer, QThread, Signal
+from PySide6.QtCore import QCoreApplication, QThread, Signal
 from pytestqt.qtbot import QtBot
 
 
@@ -159,7 +159,8 @@ class WorkerTestFramework:
         if hasattr(worker, 'worker_stopped'):
             self.signal_tester.capture_signal(worker.worker_stopped)
         if hasattr(worker, 'worker_error'):
-            error_handler = lambda msg: results['error_messages'].append(msg)
+            def error_handler(msg):
+                results['error_messages'].append(msg)
             worker.worker_error.connect(error_handler)
         
         # Start worker

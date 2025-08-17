@@ -4,7 +4,7 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QRunnable, Signal
 
 from shot_model import Shot
 
@@ -50,8 +50,6 @@ class CacheManager(QObject):
     def _evict_old_thumbnails(self) -> None: ...
     def get_memory_usage(self) -> Dict[str, Any]: ...
     def clear_cache(self) -> None: ...
-
-from PySide6.QtCore import QRunnable
 
 class ThumbnailCacheLoader(QRunnable):
     """Background thumbnail cache loader."""

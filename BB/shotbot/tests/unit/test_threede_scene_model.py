@@ -383,7 +383,6 @@ class TestThreeDESceneModel:
         model = ThreeDESceneModel(cache_manager=mock_cache_manager, load_cache=False)
         
         # Mock file modification times for priority testing
-        original_stat = Path.stat
         def mock_stat(self):
             mock_result = Mock()
             if "new.3de" in str(self):

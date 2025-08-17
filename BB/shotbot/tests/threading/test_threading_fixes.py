@@ -22,24 +22,19 @@ Test Requirements:
 import concurrent.futures
 import logging
 import subprocess
-import tempfile
 import threading
 import time
-import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import QEventLoop, QMutex, QMutexLocker, Qt, QThread, QTimer
-from PySide6.QtTest import QSignalSpy
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 # Import ShotBot threading components
-from cache_manager import CacheManager, ThumbnailCacheResult
-from launcher_manager import LauncherManager, LauncherWorker
-from process_pool_manager import ProcessPoolManager, PersistentBashSession
-from shot_model import Shot
+from cache_manager import CacheManager
+from launcher_manager import LauncherManager
+from process_pool_manager import PersistentBashSession, ProcessPoolManager
 from thread_safe_worker import ThreadSafeWorker, WorkerState
 
 logger = logging.getLogger(__name__)
@@ -312,7 +307,7 @@ class TestWorkerStateTransitions:
                 })
                 
         # Start worker and wait for started signal using qtbot (thread-safe)
-        with qtbot.waitSignal(worker.worker_started, timeout=2000) as blocker:
+        with qtbot.waitSignal(worker.worker_started, timeout=2000):
             worker.start()
         
         # Verify worker is in RUNNING state
@@ -422,7 +417,7 @@ class TestWorkerStateTransitions:
             
         # Wait for completion
         for worker in workers:
-            assert worker.wait(2000), f"Worker did not stop"
+            assert worker.wait(2000), "Worker did not stop"
             
         # Signal monitoring threads to stop
         stop_monitoring.set()
@@ -443,7 +438,7 @@ class TestWorkerStateTransitions:
             # This is acceptable as long as the worker functions correctly
             if from_state == WorkerState.CREATED and to_state == WorkerState.RUNNING:
                 # This can happen if monitoring misses the brief STARTING state
-                logger.debug(f"Observed direct CREATED -> RUNNING transition (likely missed STARTING)")
+                logger.debug("Observed direct CREATED -> RUNNING transition (likely missed STARTING)")
                 continue
                 
             assert to_state in valid_transitions, f"Invalid transition: {from_state} -> {to_state}"
@@ -523,7 +518,6 @@ class TestExponentialBackoff:
         # Now mock the process to simulate termination
         if session._process:
             read_attempts = 0
-            original_poll = session._process.poll
             
             def mock_poll_with_termination():
                 nonlocal read_attempts
@@ -540,7 +534,7 @@ class TestExponentialBackoff:
                 result = session.execute("echo 'test command'", timeout=2)
                 # If it succeeds, the process was restarted which is fine
                 assert result is None or isinstance(result, str)
-            except (RuntimeError, TimeoutError, Exception) as e:
+            except (RuntimeError, TimeoutError, Exception):
                 # Expected if process termination is detected
                 # Any exception is acceptable as long as it's handled
                 pass
@@ -672,7 +666,7 @@ class TestFutureBasedSynchronization:
                     source_path=test_image,
                     show="testshow",
                     sequence="seq01",
-                    shot=f"shot01"  # Use same shot name for all to test concurrency
+                    shot="shot01"  # Use same shot name for all to test concurrency
                 )
                 
                 with request_lock:
@@ -853,7 +847,7 @@ class TestComprehensiveThreadingStress:
                 try:
                     result = cache_manager.cache_thumbnail(
                         source_path=image,
-                        show=f"stresstest",
+                        show="stresstest",
                         sequence=f"seq{i}",
                         shot=f"shot{i}",
                         wait=True,

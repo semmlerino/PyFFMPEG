@@ -45,7 +45,7 @@ def qt_signal_blocker():
         timer.start(timeout_ms)
         
         # Process events until timer expires
-        start_time = QCoreApplication.instance().time if hasattr(QCoreApplication.instance(), 'time') else 0
+        QCoreApplication.instance().time if hasattr(QCoreApplication.instance(), 'time') else 0
         while timer.isActive():
             QCoreApplication.processEvents()
             

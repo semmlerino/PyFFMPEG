@@ -61,20 +61,14 @@ import threading
 import time
 import weakref
 from collections import defaultdict, deque
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
-import uuid
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from PySide6.QtCore import (
-    QMutex,
-    QMutexLocker,
     QObject,
     QThread,
     QTimer,
-    QWaitCondition,
     Signal,
 )
 
@@ -1284,6 +1278,7 @@ def register_worker_for_monitoring(worker: 'ThreadSafeWorker') -> None:
 # Example usage and testing
 if __name__ == "__main__":
     import sys
+
     from PySide6.QtWidgets import QApplication
     
     # Basic test of the monitoring system

@@ -27,7 +27,7 @@ class TestCacheManager:
         cache_dir = tmp_path / "new_cache"
         assert not cache_dir.exists()
         
-        manager = CacheManager(cache_dir=cache_dir)
+        CacheManager(cache_dir=cache_dir)
         
         assert cache_dir.exists()
         assert cache_dir.is_dir()
@@ -127,10 +127,10 @@ class TestCacheManager:
             mock_qimage_class.return_value = mock_image
             
             # Cache thumbnail - use correct argument order
-            result = cache_manager.cache_thumbnail(test_image_file, shot.show, shot.sequence, shot.shot)
+            cache_manager.cache_thumbnail(test_image_file, shot.show, shot.sequence, shot.shot)
             
             # Verify cache file was expected
-            expected_path = temp_cache_dir / "thumbnails" / "test" / "seq1" / "0010_thumb.jpg"
+            temp_cache_dir / "thumbnails" / "test" / "seq1" / "0010_thumb.jpg"
             # Note: method returns None from background thread
             # Can still verify mock was called
             

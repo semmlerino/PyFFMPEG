@@ -4,16 +4,16 @@ Tests for thread safety, multiple completion prevention, and concurrent operatio
 """
 
 import logging
+import tempfile
 import threading
 import time
-import tempfile
 from concurrent.futures import Future
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtCore import QObject, QSize
-from PySide6.QtGui import QPixmap, QImage, QColor
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QColor, QImage
 
 from cache_manager import CacheManager, ThumbnailCacheResult
 from config import ThreadingConfig
@@ -262,7 +262,6 @@ class TestCacheManagerThreading:
         
     def test_async_sync_mode_behavior(self, cache_manager, test_shot):
         """Test cache manager threading behavior with different wait modes."""
-        manager = cache_manager
         
         # Test that ThumbnailCacheResult behaves correctly in threaded environment
         result = ThumbnailCacheResult()
@@ -289,7 +288,7 @@ class TestCacheManagerThreading:
                 path = result.cache_path
                 is_complete = result._is_complete
                 access_results.append((thread_id, path is not None, is_complete))
-            except Exception as e:
+            except Exception:
                 access_results.append((thread_id, False, False))
                 
         # Multiple threads accessing completed result
@@ -402,7 +401,6 @@ class TestCacheManagerThreading:
             
     def test_cache_key_generation_thread_safety(self, cache_manager):
         """Test thread-safe cache key generation."""
-        manager = cache_manager
         
         cache_keys = []
         errors = []
@@ -441,7 +439,7 @@ class TestCacheManagerThreading:
         result = ThumbnailCacheResult()
         
         # Complete with resources using thread-safe test double
-        future = Future()
+        Future()
         cache_path = Path("/test/cache/path.jpg")
         result.set_result(cache_path)
         
@@ -459,7 +457,7 @@ class TestCacheManagerThreading:
         manager = cache_manager
         
         # Mock the cache file system since get_cached_thumbnail checks disk files
-        cache_path = manager.thumbnails_dir / test_shot.show / test_shot.sequence / f"{test_shot.shot}_thumb.jpg"
+        manager.thumbnails_dir / test_shot.show / test_shot.sequence / f"{test_shot.shot}_thumb.jpg"
         
         retrieval_results = []
         errors = []

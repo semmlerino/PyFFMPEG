@@ -1,13 +1,9 @@
 """Test improved thumbnail discovery with flexible directory structures."""
 
-import os
-from pathlib import Path
-import pytest
-import tempfile
 from unittest.mock import patch
 
-from utils import PathUtils
 from config import Config
+from utils import PathUtils
 
 
 class TestImprovedThumbnailDiscovery:

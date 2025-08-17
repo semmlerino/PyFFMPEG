@@ -339,7 +339,7 @@ class TestThreeDESceneWorker:
                 # Set up signal spies
                 started_spy = QSignalSpy(worker.started)
                 batch_spy = QSignalSpy(worker.batch_ready)
-                progress_spy = QSignalSpy(worker.progress)
+                QSignalSpy(worker.progress)
                 finished_spy = QSignalSpy(worker.finished)
                 
                 # Run the worker
@@ -370,7 +370,7 @@ class TestThreeDESceneWorker:
             with patch.object(ThreeDESceneFinder, 'find_scenes_for_shot', return_value=[]):
                 # Set up signal spies
                 started_spy = QSignalSpy(worker.started)
-                progress_spy = QSignalSpy(worker.progress)
+                QSignalSpy(worker.progress)
                 finished_spy = QSignalSpy(worker.finished)
                 
                 # Run the worker

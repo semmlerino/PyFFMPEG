@@ -33,20 +33,15 @@ Example Usage:
     assert not analysis.deadlock_detected
 """
 
-import gc
-import inspect
 import logging
-import os
 import sys
 import threading
 import time
 import traceback
 import uuid
-import weakref
-from collections import defaultdict, deque
+from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
@@ -57,29 +52,23 @@ from typing import (
     NamedTuple,
     Optional,
     Protocol,
-    Set,
     Tuple,
     TypeVar,
-    Union,
 )
 
 import pytest
 from PySide6.QtCore import (
     QEventLoop,
-    QMutex,
-    QMutexLocker,
     QObject,
     Qt,
     QThread,
-    QTimer,
     Signal,
 )
-from PySide6.QtTest import QSignalSpy
 
 # Import project modules
 try:
-    from thread_safe_worker import ThreadSafeWorker, WorkerState
     from launcher_manager import LauncherManager, LauncherWorker
+    from thread_safe_worker import ThreadSafeWorker, WorkerState
 except ImportError:
     # Handle relative imports for test context
     import sys
@@ -89,8 +78,8 @@ except ImportError:
     project_root = Path(__file__).parent.parent.parent
     sys.path.insert(0, str(project_root))
     
-    from thread_safe_worker import ThreadSafeWorker, WorkerState
     from launcher_manager import LauncherManager, LauncherWorker
+    from thread_safe_worker import WorkerState
 
 logger = logging.getLogger(__name__)
 
@@ -394,7 +383,7 @@ class ThreadingTestHelpers:
             assert len(violations) == 0  # No thread safety violations
         """
         violations: List[ThreadSafetyViolation] = []
-        monitor_start = time.perf_counter()
+        time.perf_counter()
         
         # TODO: Implement resource access monitoring
         # This would require instrumentation of the monitored resources

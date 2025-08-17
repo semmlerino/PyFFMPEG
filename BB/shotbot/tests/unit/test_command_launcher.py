@@ -92,7 +92,7 @@ class TestSignalEmissions:
             mock_popen.return_value = Mock()
             
             # Launch simple command
-            result = launcher.launch_app("nuke")
+            launcher.launch_app("nuke")
             
             # Check signal was emitted (synchronous)
             assert spy.count() >= 1
@@ -119,7 +119,7 @@ class TestSignalEmissions:
         spy = QSignalSpy(launcher.command_error)
         
         # Test error when no shot is set
-        result = launcher.launch_app("nuke")
+        launcher.launch_app("nuke")
         
         # Check signal was emitted (synchronous)
         assert spy.count() == 1
@@ -149,7 +149,7 @@ class TestSignalEmissions:
         launcher.set_current_shot(shot)
         
         # Try to launch unknown app
-        result = launcher.launch_app("unknown_app")
+        launcher.launch_app("unknown_app")
         
         # Check signal was emitted (synchronous)
         assert spy.count() == 1

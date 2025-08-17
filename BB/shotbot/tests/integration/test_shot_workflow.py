@@ -192,7 +192,7 @@ class TestShotDiscoveryWorkflow:
         
         # Second instance - should load from cache
         cache_manager2 = CacheManager(cache_dir=temp_cache_dir)
-        model2 = ShotModel(cache_manager=cache_manager2)
+        ShotModel(cache_manager=cache_manager2)
         
         # Load from cache without refresh
         cached_shots = cache_manager2.get_cached_shots()

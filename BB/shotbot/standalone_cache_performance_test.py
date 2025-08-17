@@ -200,13 +200,13 @@ def test_cache_ttl_expiration():
                 
                 # Second access at time 1100 (within TTL of 300s)
                 mock_time_value = 1100.0
-                result2 = PathUtils.validate_path_exists(test_path, "TTL test") 
+                PathUtils.validate_path_exists(test_path, "TTL test") 
                 accesses_after_second = filesystem_access_count
                 print(f"✓ Second access (within TTL): {accesses_after_second} filesystem accesses")
                 
                 # Third access at time 1400 (beyond TTL of 300s)
                 mock_time_value = 1400.0
-                result3 = PathUtils.validate_path_exists(test_path, "TTL test")
+                PathUtils.validate_path_exists(test_path, "TTL test")
                 accesses_after_third = filesystem_access_count
                 print(f"✓ Third access (beyond TTL): {accesses_after_third} filesystem accesses")
                 
