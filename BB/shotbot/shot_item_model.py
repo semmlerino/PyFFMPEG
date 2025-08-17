@@ -329,50 +329,67 @@ class ShotItemModel(QAbstractListModel):
         # For now, load synchronously but emit proper signals
         thumbnail_path = shot.get_thumbnail_path()
         if thumbnail_path and thumbnail_path.exists():
-            # Safety check: don't load EXR or huge files directly
-            if thumbnail_path.suffix.lower() == ".exr":
-                logger.warning(f"Skipping EXR file for thumbnail: {thumbnail_path}")
-                self._loading_states[shot.full_name] = "failed"
-                self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
-                return
-            
-            # Check file size to prevent loading huge files
-            try:
-                file_size_mb = thumbnail_path.stat().st_size / (1024 * 1024)
-                if file_size_mb > 10:  # Don't load files larger than 10MB
-                    logger.warning(f"Thumbnail file too large ({file_size_mb:.1f}MB): {thumbnail_path}")
+            # Use cache manager for proper thumbnail handling
+            # It will automatically resize EXR files using PIL if needed
+            if self._cache_manager:
+                pixmap = self._cache_manager.get_cached_thumbnail(
+                    str(thumbnail_path), 
+                    Config.DEFAULT_THUMBNAIL_SIZE
+                )
+                if pixmap and not pixmap.isNull():
+                    self._thumbnail_cache[shot.full_name] = pixmap
+                    self._loading_states[shot.full_name] = "loaded"
+                    logger.debug(f"Loaded thumbnail for {shot.full_name} from {thumbnail_path.name}")
+                    
+                    # Notify view of update
+                    self.dataChanged.emit(
+                        index,
+                        index,
+                        [
+                            ShotRole.ThumbnailPixmapRole,
+                            ShotRole.LoadingStateRole,
+                            Qt.ItemDataRole.DecorationRole,
+                        ],
+                    )
+                    self.thumbnail_loaded.emit(row)
+                else:
+                    logger.warning(f"Failed to load thumbnail from {thumbnail_path}")
                     self._loading_states[shot.full_name] = "failed"
                     self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
-                    return
-            except Exception as e:
-                logger.error(f"Error checking file size: {e}")
-            
-            pixmap = QPixmap(str(thumbnail_path))
-            if not pixmap.isNull():
-                # Scale to thumbnail size
-                pixmap = pixmap.scaled(
-                    Config.DEFAULT_THUMBNAIL_SIZE,
-                    Config.DEFAULT_THUMBNAIL_SIZE,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                self._thumbnail_cache[shot.full_name] = pixmap
-                self._loading_states[shot.full_name] = "loaded"
-
-                # Notify view of update
-                self.dataChanged.emit(
-                    index,
-                    index,
-                    [
-                        ShotRole.ThumbnailPixmapRole,
-                        ShotRole.LoadingStateRole,
-                        Qt.ItemDataRole.DecorationRole,
-                    ],
-                )
-                self.thumbnail_loaded.emit(row)
             else:
-                self._loading_states[shot.full_name] = "failed"
-                self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
+                # Fallback without cache manager - only load lightweight formats
+                suffix_lower = thumbnail_path.suffix.lower()
+                if suffix_lower in Config.THUMBNAIL_EXTENSIONS:
+                    pixmap = QPixmap(str(thumbnail_path))
+                    if not pixmap.isNull():
+                        # Scale to thumbnail size
+                        pixmap = pixmap.scaled(
+                            Config.DEFAULT_THUMBNAIL_SIZE,
+                            Config.DEFAULT_THUMBNAIL_SIZE,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                        self._thumbnail_cache[shot.full_name] = pixmap
+                        self._loading_states[shot.full_name] = "loaded"
+                        
+                        # Notify view of update
+                        self.dataChanged.emit(
+                            index,
+                            index,
+                            [
+                                ShotRole.ThumbnailPixmapRole,
+                                ShotRole.LoadingStateRole,
+                                Qt.ItemDataRole.DecorationRole,
+                            ],
+                        )
+                        self.thumbnail_loaded.emit(row)
+                    else:
+                        self._loading_states[shot.full_name] = "failed"
+                        self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
+                else:
+                    logger.debug(f"Cannot load {suffix_lower} file without cache manager: {thumbnail_path}")
+                    self._loading_states[shot.full_name] = "failed"
+                    self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
         else:
             self._loading_states[shot.full_name] = "failed"
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
