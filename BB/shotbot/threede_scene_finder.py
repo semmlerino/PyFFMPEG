@@ -407,13 +407,17 @@ class ThreeDESceneFinder:
 
         scenes: List[ThreeDEScene] = []
         user_dir = PathUtils.build_path(shot_workspace_path, "user")
+        publish_dir = PathUtils.build_path(shot_workspace_path, "publish")
 
-        # Check if user directory exists
-        if not PathUtils.validate_path_exists(user_dir, "User directory"):
-            logger.warning(f"User directory does not exist: {user_dir}")
+        # Check if at least one directory exists
+        has_user_dir = PathUtils.validate_path_exists(user_dir, "User directory")
+        has_publish_dir = PathUtils.validate_path_exists(publish_dir, "Publish directory")
+        
+        if not has_user_dir and not has_publish_dir:
+            logger.warning(f"Neither user nor publish directory exists in {shot_workspace_path}")
             return scenes
 
-        logger.info(f"Performing flexible 3DE scene search in {user_dir}")
+        logger.info(f"Performing flexible 3DE scene search in {shot_workspace_path}")
         logger.debug(f"Excluding users: {excluded_users}")
 
         try:
@@ -422,35 +426,145 @@ class ThreeDESceneFinder:
             user_count = 0
             total_scanned = 0
 
-            for user_path in user_dir.iterdir():
-                if not user_path.is_dir():
-                    continue
+            # Scan user directories if they exist
+            if has_user_dir:
+                for user_path in user_dir.iterdir():
+                    if not user_path.is_dir():
+                        continue
 
-                user_name = user_path.name
-                total_scanned += 1
+                    user_name = user_path.name
+                    total_scanned += 1
 
-                # Skip excluded users
-                if user_name in excluded_users:
-                    logger.debug(f"Skipping excluded user: {user_name}")
-                    continue
+                    # Skip excluded users
+                    if user_name in excluded_users:
+                        logger.debug(f"Skipping excluded user: {user_name}")
+                        continue
 
-                user_count += 1
-                logger.debug(f"Scanning user directory: {user_name}")
+                    user_count += 1
+                    logger.debug(f"Scanning user directory: {user_name}")
 
-                # Recursively find ALL .3de files in the user's directory
+                    # Recursively find ALL .3de files in the user's directory
+                    try:
+                        # Use efficient file discovery - try find command first
+                        threede_files = []
+                        use_find_command = os.environ.get('SHOTBOT_USE_FIND', 'true').lower() == 'true'
+                        
+                        if use_find_command:
+                            try:
+                                # Use find command for efficient deep directory search
+                                result = subprocess.run(
+                                    [
+                                        "find",
+                                        str(user_path),
+                                        "-maxdepth", "15",  # Allow very deep nesting (e.g., mm/3de/mm-default/scenes/scene/FG01/)
+                                        "-type", "f",
+                                        "(",
+                                        "-name", "*.3de",
+                                        "-o",
+                                        "-name", "*.3DE",
+                                        ")",
+                                    ],
+                                    capture_output=True,
+                                    text=True,
+                                    timeout=10,  # 10 second timeout per user
+                                )
+                                
+                                if result.returncode == 0 and result.stdout:
+                                    file_paths = result.stdout.strip().split('\n')
+                                    threede_files = [Path(p) for p in file_paths if p]
+                                    if threede_files:
+                                        logger.info(f"Find command found {len(threede_files)} .3de files for user {user_name}")
+                                    
+                            except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+                                logger.debug(f"Find command failed for {user_name}, using rglob: {e}")
+                                use_find_command = False
+                        
+                        # Fallback to targeted rglob search
+                        if not use_find_command or not threede_files:
+                            # Check common deep path patterns first for efficiency
+                            # Based on real VFX pipeline structure: mm/3de/mm-default/scenes/scene/FG01/
+                            common_patterns = [
+                                user_path / "mm" / "3de",
+                                user_path / "matchmove" / "3de",
+                                user_path / "tracking" / "3de",
+                                user_path / "3de",
+                            ]
+                            
+                            found_in_common = False
+                            for pattern_path in common_patterns:
+                                if pattern_path.exists():
+                                    logger.debug(f"Checking common path: {pattern_path}")
+                                    for ext in ["*.3de", "*.3DE"]:
+                                        pattern_files = list(pattern_path.rglob(ext))
+                                        if pattern_files:
+                                            threede_files.extend(pattern_files)
+                                            found_in_common = True
+                                            logger.debug(f"Found {len(pattern_files)} files in {pattern_path}")
+                            
+                            # If still no files in common locations, do full scan
+                            if not found_in_common:
+                                logger.debug(f"No files in common locations, doing full recursive scan of {user_path}")
+                                # Search for both lowercase and uppercase extensions
+                                threede_files = list(user_path.rglob("*.3de"))
+                                threede_files.extend(list(user_path.rglob("*.3DE")))
+
+                        if threede_files:
+                            logger.info(
+                                f"Found {len(threede_files)} .3de files for user {user_name}"
+                            )
+
+                            for threede_file in threede_files:
+                                # Skip if file doesn't exist or isn't readable
+                                if not ThreeDESceneFinder.verify_scene_exists(threede_file):
+                                    logger.debug(
+                                        f"Skipping inaccessible file: {threede_file}"
+                                    )
+                                    continue
+
+                                # Extract meaningful plate/grouping from path
+                                plate = ThreeDESceneFinder.extract_plate_from_path(
+                                    threede_file, user_path
+                                )
+
+                                # Create ThreeDEScene object
+                                scene = ThreeDEScene(
+                                    show=show,
+                                    sequence=sequence,
+                                    shot=shot,
+                                    workspace_path=shot_workspace_path,
+                                    user=user_name,
+                                    plate=plate,
+                                    scene_path=threede_file,
+                                )
+                                scenes.append(scene)
+                                scene_count += 1
+
+                                logger.debug(
+                                    f"Added 3DE scene: {user_name}/{plate} -> {threede_file.name}"
+                                )
+                        else:
+                            logger.debug(f"No .3de files found for user {user_name}")
+
+                    except PermissionError:
+                        logger.warning(f"Permission denied accessing {user_name} directory")
+                    except Exception as e:
+                        logger.error(f"Error scanning user {user_name}: {e}")
+
+            # Also scan publish directory for published 3DE files
+            if has_publish_dir:
+                logger.info(f"Scanning publish directory for 3DE files: {publish_dir}")
                 try:
-                    # Use efficient file discovery - try find command first
-                    threede_files = []
+                    # Find all .3de files in publish directory
+                    publish_files = []
                     use_find_command = os.environ.get('SHOTBOT_USE_FIND', 'true').lower() == 'true'
                     
                     if use_find_command:
                         try:
-                            # Use find command for efficient deep directory search
                             result = subprocess.run(
                                 [
                                     "find",
-                                    str(user_path),
-                                    "-maxdepth", "15",  # Allow very deep nesting (e.g., mm/3de/mm-default/scenes/scene/FG01/)
+                                    str(publish_dir),
+                                    "-maxdepth", "15",
                                     "-type", "f",
                                     "(",
                                     "-name", "*.3de",
@@ -460,89 +574,60 @@ class ThreeDESceneFinder:
                                 ],
                                 capture_output=True,
                                 text=True,
-                                timeout=10,  # 10 second timeout per user
+                                timeout=10,
                             )
                             
                             if result.returncode == 0 and result.stdout:
                                 file_paths = result.stdout.strip().split('\n')
-                                threede_files = [Path(p) for p in file_paths if p]
-                                if threede_files:
-                                    logger.info(f"Find command found {len(threede_files)} .3de files for user {user_name}")
+                                publish_files = [Path(p) for p in file_paths if p]
+                                logger.info(f"Found {len(publish_files)} published .3de files")
                                 
                         except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
-                            logger.debug(f"Find command failed for {user_name}, using rglob: {e}")
+                            logger.debug(f"Find command failed for publish dir, using rglob: {e}")
                             use_find_command = False
                     
-                    # Fallback to targeted rglob search
-                    if not use_find_command or not threede_files:
-                        # Check common deep path patterns first for efficiency
-                        # Based on real VFX pipeline structure: mm/3de/mm-default/scenes/scene/FG01/
-                        common_patterns = [
-                            user_path / "mm" / "3de",
-                            user_path / "matchmove" / "3de",
-                            user_path / "tracking" / "3de",
-                            user_path / "3de",
-                        ]
+                    # Fallback to rglob
+                    if not use_find_command or not publish_files:
+                        publish_files = list(publish_dir.rglob("*.3de"))
+                        publish_files.extend(list(publish_dir.rglob("*.3DE")))
+                        logger.info(f"Found {len(publish_files)} published .3de files using rglob")
+                    
+                    # Process published files
+                    for threede_file in publish_files:
+                        if not ThreeDESceneFinder.verify_scene_exists(threede_file):
+                            logger.debug(f"Skipping inaccessible published file: {threede_file}")
+                            continue
                         
-                        found_in_common = False
-                        for pattern_path in common_patterns:
-                            if pattern_path.exists():
-                                logger.debug(f"Checking common path: {pattern_path}")
-                                for ext in ["*.3de", "*.3DE"]:
-                                    pattern_files = list(pattern_path.rglob(ext))
-                                    if pattern_files:
-                                        threede_files.extend(pattern_files)
-                                        found_in_common = True
-                                        logger.debug(f"Found {len(pattern_files)} files in {pattern_path}")
+                        # Extract department/type from publish path
+                        # Pattern: publish/{department}/.../*.3de
+                        relative_path = threede_file.relative_to(publish_dir)
+                        department = relative_path.parts[0] if relative_path.parts else "unknown"
+                        pseudo_user = f"published-{department}"
                         
-                        # If still no files in common locations, do full scan
-                        if not found_in_common:
-                            logger.debug(f"No files in common locations, doing full recursive scan of {user_path}")
-                            # Search for both lowercase and uppercase extensions
-                            threede_files = list(user_path.rglob("*.3de"))
-                            threede_files.extend(list(user_path.rglob("*.3DE")))
-
-                    if threede_files:
-                        logger.info(
-                            f"Found {len(threede_files)} .3de files for user {user_name}"
+                        # Extract plate from path
+                        plate = ThreeDESceneFinder.extract_plate_from_path(
+                            threede_file, publish_dir
                         )
-
-                        for threede_file in threede_files:
-                            # Skip if file doesn't exist or isn't readable
-                            if not ThreeDESceneFinder.verify_scene_exists(threede_file):
-                                logger.debug(
-                                    f"Skipping inaccessible file: {threede_file}"
-                                )
-                                continue
-
-                            # Extract meaningful plate/grouping from path
-                            plate = ThreeDESceneFinder.extract_plate_from_path(
-                                threede_file, user_path
-                            )
-
-                            # Create ThreeDEScene object
-                            scene = ThreeDEScene(
-                                show=show,
-                                sequence=sequence,
-                                shot=shot,
-                                workspace_path=shot_workspace_path,
-                                user=user_name,
-                                plate=plate,
-                                scene_path=threede_file,
-                            )
-                            scenes.append(scene)
-                            scene_count += 1
-
-                            logger.debug(
-                                f"Added 3DE scene: {user_name}/{plate} -> {threede_file.name}"
-                            )
-                    else:
-                        logger.debug(f"No .3de files found for user {user_name}")
-
-                except PermissionError:
-                    logger.warning(f"Permission denied accessing {user_name} directory")
+                        
+                        # Create scene object for published file
+                        scene = ThreeDEScene(
+                            show=show,
+                            sequence=sequence,
+                            shot=shot,
+                            workspace_path=shot_workspace_path,
+                            user=pseudo_user,
+                            plate=plate,
+                            scene_path=threede_file,
+                        )
+                        scenes.append(scene)
+                        scene_count += 1
+                        
+                        logger.debug(f"Added published 3DE scene: {pseudo_user}/{plate} -> {threede_file.name}")
+                        
+                except PermissionError as e:
+                    logger.warning(f"Permission denied accessing publish directory: {e}")
                 except Exception as e:
-                    logger.error(f"Error scanning user {user_name}: {e}")
+                    logger.error(f"Error scanning publish directory: {e}")
 
             logger.info(
                 f"Flexible search complete: Found {scene_count} 3DE scenes from {user_count} users (scanned {total_scanned} directories)"
@@ -1565,7 +1650,9 @@ class ThreeDESceneFinder:
     ) -> Optional[Tuple[str, str, str, str]]:
         """Extract shot information from a .3de file path.
 
-        Expected pattern: /shows/{show}/shots/{sequence}/{shot}/user/{username}/.../*.3de
+        Handles both patterns:
+        - User workspace: /shows/{show}/shots/{sequence}/{shot}/user/{username}/.../*.3de
+        - Published: /shows/{show}/shots/{sequence}/{shot}/publish/{department}/.../*.3de
 
         Args:
             file_path: Path to .3de file
@@ -1583,7 +1670,7 @@ class ThreeDESceneFinder:
 
             shots_idx = parts.index("shots")
 
-            # Need at least: shots/{sequence}/{shot}/user/{username}/...
+            # Need at least: shots/{sequence}/{shot}/{user|publish}/{identifier}/...
             if len(parts) < shots_idx + 5:
                 logger.debug(f"Path too short: {file_path}")
                 return None
@@ -1591,13 +1678,26 @@ class ThreeDESceneFinder:
             # Extract components
             sequence = parts[shots_idx + 1]
             shot = parts[shots_idx + 2]
+            path_type = parts[shots_idx + 3]  # "user" or "publish"
 
-            # Verify user directory exists
-            if parts[shots_idx + 3] != "user":
-                logger.debug(f"No 'user' directory in expected position: {file_path}")
-                return None
-
-            username = parts[shots_idx + 4]
+            # Handle different path types
+            if path_type == "user":
+                # User workspace path
+                username = parts[shots_idx + 4]
+            elif path_type == "publish":
+                # Published path - extract department as pseudo-username
+                # Typically: publish/mm/default/... or publish/matchmove/...
+                if len(parts) > shots_idx + 4:
+                    department = parts[shots_idx + 4]
+                    # Use department with "published-" prefix to distinguish
+                    username = f"published-{department}"
+                else:
+                    username = "published"
+            else:
+                # Neither user nor publish - could be other valid structure
+                # Use the directory name as identifier
+                logger.debug(f"Non-standard path structure at {path_type}: {file_path}")
+                username = f"other-{path_type}"
 
             # Build workspace path (up to shot directory)
             workspace_path = str(Path(*parts[: shots_idx + 3]))
@@ -1725,8 +1825,8 @@ class ThreeDESceneFinder:
 
                 workspace_path, sequence, shot_name, username = shot_info
 
-                # Skip excluded users
-                if username in excluded_users:
+                # Skip excluded users (but never exclude published files)
+                if username in excluded_users and not username.startswith("published-"):
                     continue
 
                 shot_key = (sequence, shot_name)
