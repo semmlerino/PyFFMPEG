@@ -5,11 +5,11 @@ import logging
 import os
 
 # Enable all debug logging
-os.environ['SHOTBOT_DEBUG'] = '1'
+os.environ["SHOTBOT_DEBUG"] = "1"
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
+    format="%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%H:%M:%S",
 )
 
 print("=== Debugging Hang ===")
@@ -28,6 +28,7 @@ try:
 except Exception as e:
     print(f"✗ Command failed: {e}")
     import traceback
+
     traceback.print_exc()
 
 print("\n3. Shutting down...")

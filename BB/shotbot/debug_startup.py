@@ -7,8 +7,7 @@ import sys
 
 # Set up very verbose logging
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 print("=== Debug Startup ===")
@@ -20,6 +19,7 @@ print(f"QT_QPA_PLATFORM: {os.environ.get('QT_QPA_PLATFORM', 'NOT SET')}")
 print("\n1. Importing PySide6...")
 try:
     from PySide6 import QtCore
+
     print(f"✓ Qt version: {QtCore.qVersion()}")
     print("✓ PySide6 imported successfully")
 except Exception as e:
@@ -29,12 +29,14 @@ except Exception as e:
 print("\n2. Creating QApplication...")
 try:
     from PySide6.QtWidgets import QApplication
+
     print("About to create QApplication...")
     app = QApplication(sys.argv)
     print("✓ QApplication created")
 except Exception as e:
     print(f"✗ Failed to create QApplication: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
@@ -58,15 +60,17 @@ print("\n5. Testing MainWindow creation...")
 try:
     print("Importing main_window...")
     from main_window import MainWindow
+
     print("✓ MainWindow imported")
-    
+
     print("Creating MainWindow instance...")
     window = MainWindow()
     print("✓ MainWindow created successfully!")
-    
+
     print("\n✅ Full application initialization successful!")
     print("The application should be able to start.")
 except Exception as e:
     print(f"✗ MainWindow creation failed: {e}")
     import traceback
+
     traceback.print_exc()

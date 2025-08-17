@@ -398,7 +398,9 @@ class MainWindow(QMainWindow):
             self._refresh_shot_display()
 
             # Restore last selected shot if available
-            if hasattr(self, "_last_selected_shot_name") and isinstance(self._last_selected_shot_name, str):
+            if hasattr(self, "_last_selected_shot_name") and isinstance(
+                self._last_selected_shot_name, str
+            ):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
                     self.shot_grid.select_shot_by_name(shot.full_name)
@@ -451,7 +453,9 @@ class MainWindow(QMainWindow):
                 self._update_status(f"{len(self.shot_model.shots)} shots (no changes)")
 
             # Restore last selected shot if available
-            if hasattr(self, "_last_selected_shot_name") and isinstance(self._last_selected_shot_name, str):
+            if hasattr(self, "_last_selected_shot_name") and isinstance(
+                self._last_selected_shot_name, str
+            ):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
                     self.shot_grid.select_shot_by_name(shot.full_name)
@@ -691,7 +695,7 @@ class MainWindow(QMainWindow):
             # Don't directly add to model - let _on_threede_discovery_finished handle deduplication
             # Just log the progress for now
             logger.debug(f"Processed batch of {len(scene_batch)} scenes")
-            
+
             # Note: The scenes are accumulated in the worker itself
             # and will be deduplicated when discovery finishes
 

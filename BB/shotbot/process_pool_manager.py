@@ -194,7 +194,7 @@ class PersistentBashSession:
     MAX_RETRY_DELAY = 5.0  # 5 seconds
     BACKOFF_MULTIPLIER = 2.0
     MAX_RETRIES = 5
-    
+
     # Polling configuration for efficient subprocess reading
     INITIAL_POLL_INTERVAL = ThreadingConfig.INITIAL_POLL_INTERVAL  # 10ms
     MAX_POLL_INTERVAL = ThreadingConfig.MAX_POLL_INTERVAL  # 500ms
@@ -403,8 +403,10 @@ class PersistentBashSession:
 
                                     # Use adaptive timeout with exponential backoff
                                     ready, _, _ = select.select(
-                                        [self._process.stdout], [], [], 
-                                        min(poll_interval, remaining_time)
+                                        [self._process.stdout],
+                                        [],
+                                        [],
+                                        min(poll_interval, remaining_time),
                                     )
                                     if ready:
                                         # Read available data - use readline to avoid blocking
@@ -429,15 +431,18 @@ class PersistentBashSession:
                                         self._consecutive_empty_polls += 1
                                         poll_interval = min(
                                             poll_interval * self.POLL_BACKOFF_FACTOR,
-                                            self.MAX_POLL_INTERVAL
+                                            self.MAX_POLL_INTERVAL,
                                         )
-                                        
+
                                         # Log if polling for extended time
-                                        if self._consecutive_empty_polls > 10 and DEBUG_VERBOSE:
+                                        if (
+                                            self._consecutive_empty_polls > 10
+                                            and DEBUG_VERBOSE
+                                        ):
                                             logger.debug(
                                                 f"[{self.session_id}] No output for {self._consecutive_empty_polls} polls, interval: {poll_interval:.3f}s"
                                             )
-                                        
+
                                         # Yield CPU to other threads for long polls
                                         if poll_interval > 0.1:
                                             time.sleep(0.001)  # Small yield
@@ -602,7 +607,9 @@ class PersistentBashSession:
             use_select = True
         except ImportError:
             if not HAS_FCNTL:
-                logger.warning("Neither select nor fcntl available - using blocking I/O")
+                logger.warning(
+                    "Neither select nor fcntl available - using blocking I/O"
+                )
 
         while time.time() - start_time < timeout:
             elapsed = time.time() - start_time
@@ -612,7 +619,10 @@ class PersistentBashSession:
                 if use_select:
                     # Use select with adaptive timeout
                     ready, _, _ = select.select(
-                        [self._process.stdout], [], [], min(poll_interval, remaining_time)
+                        [self._process.stdout],
+                        [],
+                        [],
+                        min(poll_interval, remaining_time),
                     )
 
                     if ready:
@@ -632,7 +642,9 @@ class PersistentBashSession:
 
                                     # Filter initialization markers
                                     if not line.startswith("SHOTBOT_INIT_"):
-                                        clean_line = self._strip_escape_sequences(line.rstrip())
+                                        clean_line = self._strip_escape_sequences(
+                                            line.rstrip()
+                                        )
                                         if clean_line:
                                             output.append(clean_line)
 
@@ -648,7 +660,9 @@ class PersistentBashSession:
                                     return "\n".join(output), found_marker
 
                                 if not line.startswith("SHOTBOT_INIT_"):
-                                    clean_line = self._strip_escape_sequences(line.rstrip())
+                                    clean_line = self._strip_escape_sequences(
+                                        line.rstrip()
+                                    )
                                     if clean_line:
                                         output.append(clean_line)
 
@@ -659,7 +673,8 @@ class PersistentBashSession:
                         # No data available - apply exponential backoff
                         consecutive_empty_polls += 1
                         poll_interval = min(
-                            poll_interval * self.POLL_BACKOFF_FACTOR, self.MAX_POLL_INTERVAL
+                            poll_interval * self.POLL_BACKOFF_FACTOR,
+                            self.MAX_POLL_INTERVAL,
                         )
 
                         # Yield CPU to other threads for long polls
@@ -693,7 +708,8 @@ class PersistentBashSession:
                     else:
                         # Apply backoff
                         poll_interval = min(
-                            poll_interval * self.POLL_BACKOFF_FACTOR, self.MAX_POLL_INTERVAL
+                            poll_interval * self.POLL_BACKOFF_FACTOR,
+                            self.MAX_POLL_INTERVAL,
                         )
                         time.sleep(poll_interval)
 
@@ -719,19 +735,22 @@ class PersistentBashSession:
                     if e.errno == errno.EAGAIN:
                         # No data available - apply backoff
                         poll_interval = min(
-                            poll_interval * self.POLL_BACKOFF_FACTOR, self.MAX_POLL_INTERVAL
+                            poll_interval * self.POLL_BACKOFF_FACTOR,
+                            self.MAX_POLL_INTERVAL,
                         )
                         time.sleep(poll_interval)
                         continue
                 # Log if it's a select error
-                if 'select' in str(type(e).__name__).lower():
+                if "select" in str(type(e).__name__).lower():
                     logger.error(f"Select error during read: {e}")
                 raise
 
         # Timeout reached
         return "\n".join(output), found_marker
 
-    def execute(self, command: str, timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT)) -> str:
+    def execute(
+        self, command: str, timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
+    ) -> str:
         """Execute command in persistent session.
 
         Args:
@@ -811,7 +830,7 @@ class PersistentBashSession:
                 # Read output until marker using improved polling
                 try:
                     output, found_marker = self._read_with_backoff(timeout, marker)
-                    
+
                     if not found_marker:
                         logger.debug(
                             f"[{self.session_id}] Marker not found after {timeout}s for command: {command[:50]}..."
@@ -827,20 +846,22 @@ class PersistentBashSession:
                         raise TimeoutError(
                             f"Command timed out after {timeout}s: {command}"
                         )
-                    
+
                     # Success - update counters
                     self._command_count += 1
                     self._last_command_time = time.time()
-                    
+
                     if DEBUG_VERBOSE:
                         logger.debug(
                             f"[{self.session_id}] Returning {len(output)} chars of output"
                         )
-                    
+
                     return output
-                    
+
                 except RuntimeError as e:
-                    logger.error(f"[{self.session_id}] Process died during execution: {e}")
+                    logger.error(
+                        f"[{self.session_id}] Process died during execution: {e}"
+                    )
                     self._kill_session()
                     self._process = None
                     raise
@@ -996,7 +1017,10 @@ class ProcessPoolManager(QObject):
         return cls._instance
 
     def execute_workspace_command(
-        self, command: str, cache_ttl: int = 30, timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
+        self,
+        command: str,
+        cache_ttl: int = 30,
+        timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT),
     ) -> str:
         """Execute workspace command with caching and session reuse.
 

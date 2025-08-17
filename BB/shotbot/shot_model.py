@@ -382,7 +382,7 @@ class ShotModel:
     def get_shots(self) -> List[Shot]:
         """Get list of all shots."""
         return self.shots
-    
+
     def get_shot_by_index(self, index: int) -> Optional[Shot]:
         """Get shot by index."""
         if 0 <= index < len(self.shots):
@@ -395,7 +395,7 @@ class ShotModel:
             if shot.full_name == full_name:
                 return shot
         return None
-    
+
     def get_shot_by_name(self, full_name: str) -> Optional[Shot]:
         """Get shot by full name (alias for find_shot_by_name)."""
         return self.find_shot_by_name(full_name)

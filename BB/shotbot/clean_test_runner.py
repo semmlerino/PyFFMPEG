@@ -10,33 +10,35 @@ env = os.environ.copy()
 env["PYTEST_QT_API"] = "none"
 env["QT_QPA_PLATFORM"] = "offscreen"
 
+
 def run_tests():
     """Run tests with clean environment."""
     print("Running clean pytest suite...")
     print("=" * 70)
-    
+
     cmd = [
-        sys.executable, "-m", "pytest",
-        "-p", "no:qt",  # Disable pytest-qt
-        "-p", "no:xvfb",  # Disable xvfb
-        "-p", "no:warnings",  # Disable warnings
+        sys.executable,
+        "-m",
+        "pytest",
+        "-p",
+        "no:qt",  # Disable pytest-qt
+        "-p",
+        "no:xvfb",  # Disable xvfb
+        "-p",
+        "no:warnings",  # Disable warnings
         "--tb=short",
         "-v",
         "--no-header",
-        "tests/"
+        "tests/",
     ]
-    
-    result = subprocess.run(
-        cmd,
-        env=env,
-        capture_output=True,
-        text=True
-    )
-    
+
+    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+
     print(result.stdout)
     print(result.stderr)
-    
+
     return result.returncode
+
 
 if __name__ == "__main__":
     sys.exit(run_tests())

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class ThumbnailCacheResult:
     """Result container for async thumbnail caching."""
-    
+
     def __init__(self):
         self.future: Future = Future()
         self.cache_path: Optional[Path] = None
@@ -34,46 +34,46 @@ class ThumbnailCacheResult:
         self._complete_event = threading.Event()
         self._completed_lock = threading.Lock()
         self._is_complete = False
-        
+
     def set_result(self, cache_path: Path):
         """Set successful result (thread-safe, prevents multiple completions)."""
         with self._completed_lock:
             if self._is_complete:
                 return  # Already completed, ignore
             self._is_complete = True
-            
+
         self.cache_path = cache_path
         try:
             self.future.set_result(cache_path)
         except Exception:
             pass  # Future already completed
         self._complete_event.set()
-        
+
     def set_error(self, error: str):
         """Set error result (thread-safe, prevents multiple completions)."""
         with self._completed_lock:
             if self._is_complete:
                 return  # Already completed, ignore
             self._is_complete = True
-            
+
         self.error = error
         try:
             self.future.set_exception(Exception(error))
         except Exception:
             pass  # Future already completed
         self._complete_event.set()
-        
+
     def wait(self, timeout: Optional[float] = None) -> bool:
         """Wait for completion.
-        
+
         Returns:
             True if completed within timeout
         """
         return self._complete_event.wait(timeout)
-        
+
     def get_result(self, timeout: Optional[float] = None) -> Optional[Path]:
         """Get result with optional timeout.
-        
+
         Returns:
             Cached path or None if failed/timeout
         """
@@ -124,14 +124,16 @@ class CacheManager(QObject):
 
     def __init__(self, cache_dir: Optional[Path] = None):
         super().__init__()
-        
+
         # Thread safety for cache operations - INSTANCE variables, not class!
         self._lock: threading.RLock = threading.RLock()
-        
+
         # Memory tracking with proper type annotations - INSTANCE variables, not class!
         self._memory_usage_bytes: int = 0
-        self._max_memory_bytes: int = ThreadingConfig.CACHE_MAX_MEMORY_MB * 1024 * 1024  # Cache memory limit
-        
+        self._max_memory_bytes: int = (
+            ThreadingConfig.CACHE_MAX_MEMORY_MB * 1024 * 1024
+        )  # Cache memory limit
+
         # Use provided cache_dir or default to ~/.shotbot/cache
         self.cache_dir = cache_dir or (Path.home() / ".shotbot" / "cache")
         self.thumbnails_dir = self.cache_dir / "thumbnails"
@@ -141,7 +143,7 @@ class CacheManager(QObject):
 
         # Track cached thumbnails for memory management
         self._cached_thumbnails: Dict[str, int] = {}  # path -> size in bytes
-        
+
         # Track active async loaders for synchronization
         self._active_loaders: Dict[str, ThumbnailCacheResult] = {}
 
@@ -221,13 +223,13 @@ class CacheManager(QObject):
             return None
 
     def cache_thumbnail(
-        self, 
-        source_path: Path, 
-        show: str, 
-        sequence: str, 
+        self,
+        source_path: Path,
+        show: str,
+        sequence: str,
         shot: str,
         wait: bool = True,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ) -> Optional[Union[Path, ThumbnailCacheResult]]:
         """Cache a thumbnail from source path with optional synchronization.
 
@@ -251,7 +253,7 @@ class CacheManager(QObject):
         if not all([show, sequence, shot]):
             logger.error("Missing required parameters for thumbnail caching")
             return None
-        
+
         # Generate cache key for tracking
         cache_key = f"{show}_{sequence}_{shot}"
 
@@ -263,7 +265,7 @@ class CacheManager(QObject):
                 if wait:
                     return result.get_result(timeout)
                 return result
-            
+
             # Check if already cached on disk
             cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
             if cache_path.exists():
@@ -312,7 +314,7 @@ class CacheManager(QObject):
                 )
                 pool = QThreadPool.globalInstance()
                 pool.start(loader)
-                
+
                 # Return based on wait parameter
                 if wait:
                     return result.get_result(timeout)
@@ -320,16 +322,16 @@ class CacheManager(QObject):
 
             # If on main thread, call the direct method
             cached_path = self.cache_thumbnail_direct(source_path, show, sequence, shot)
-            
+
             # Update result
             if cached_path:
                 result.set_result(cached_path)
             else:
                 result.set_error("Failed to cache thumbnail")
-            
+
             # Cleanup loader tracking
             self._cleanup_loader(cache_key)
-            
+
             # Return appropriate value
             return cached_path if wait else result
 
@@ -338,7 +340,7 @@ class CacheManager(QObject):
             result.set_error(str(e))
             self._cleanup_loader(cache_key)
             return None if wait else result
-    
+
     def _cleanup_loader(self, cache_key: str):
         """Remove completed loader from tracking."""
         with self._lock:
@@ -572,7 +574,9 @@ class CacheManager(QObject):
 
                 # Write cache file with atomic operation (write to temp file first)
                 # Use unique temp file name to avoid collisions between threads
-                temp_file = self.shots_cache_file.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
+                temp_file = self.shots_cache_file.with_suffix(
+                    f".tmp_{uuid.uuid4().hex[:8]}"
+                )
                 try:
                     with open(temp_file, "w", encoding="utf-8") as f:
                         json.dump(data, f, indent=2)
@@ -709,15 +713,17 @@ class CacheManager(QObject):
                 self.threede_scenes_cache_file.parent.mkdir(parents=True, exist_ok=True)
 
                 # Use atomic write with unique temp file
-                temp_file = self.threede_scenes_cache_file.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
+                temp_file = self.threede_scenes_cache_file.with_suffix(
+                    f".tmp_{uuid.uuid4().hex[:8]}"
+                )
                 try:
                     with open(temp_file, "w") as f:
                         json.dump(data, f, indent=2)
-                    
+
                     # Atomic move to final location
                     temp_file.replace(self.threede_scenes_cache_file)
                     logger.debug(f"Cached {len(scenes)} 3DE scenes")
-                    
+
                 except (OSError, IOError) as e:
                     logger.error(f"Failed to write 3DE scene cache: {e}")
                     # Clean up temp file if it exists
@@ -726,7 +732,7 @@ class CacheManager(QObject):
                             temp_file.unlink()
                         except OSError:
                             pass
-                            
+
             except (OSError, IOError, PermissionError) as e:
                 logger.error(f"Failed to create 3DE cache directory: {e}")
             except (TypeError, ValueError) as e:
@@ -1000,11 +1006,11 @@ class ThumbnailCacheLoader(QRunnable):
             cache_path = self.cache_manager.cache_thumbnail_direct(
                 self.source_path, self.show, self.sequence, self.shot
             )
-            
+
             if cache_path:
                 # Set successful result
                 self.result.set_result(cache_path)
-                
+
                 # Emit signal if still valid
                 if hasattr(self, "signals") and self.signals:
                     try:
@@ -1013,13 +1019,13 @@ class ThumbnailCacheLoader(QRunnable):
                         )
                     except RuntimeError:
                         pass  # Signals deleted
-                        
+
                 logger.debug(f"Successfully cached thumbnail for {self.shot}")
             else:
                 # Set error result
                 error_msg = f"Cache operation returned None for {self.shot}"
                 self.result.set_error(error_msg)
-                
+
                 if hasattr(self, "signals") and self.signals:
                     try:
                         self.signals.failed.emit(
@@ -1029,12 +1035,12 @@ class ThumbnailCacheLoader(QRunnable):
                         # Signals object was deleted, safe to ignore
                         pass
                 logger.warning(error_msg)
-                
+
         except Exception as e:
             # Set exception result
             error_msg = f"Exception while caching thumbnail for {self.shot}: {e}"
             self.result.set_error(str(e))
-            
+
             # Check if signals object still exists before emitting
             if hasattr(self, "signals") and self.signals:
                 try:
@@ -1045,7 +1051,7 @@ class ThumbnailCacheLoader(QRunnable):
                     # Signals object was deleted, safe to ignore
                     pass
             logger.error(error_msg)
-        
+
         finally:
             # Cleanup loader from tracking
             cache_key = f"{self.show}_{self.sequence}_{self.shot}"

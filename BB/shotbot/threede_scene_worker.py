@@ -326,7 +326,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             # When scanning all shots, use the efficient file-first discovery
             # This finds ALL 3DE files in the shows, then filters
             return self._discover_all_scenes_in_shows()
-        
+
         # Original behavior: scan only the provided shots
         # Convert shots to the format expected by the finder
         shot_tuples = []
@@ -417,40 +417,42 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             raise
 
         return self._all_scenes
-    
+
     def _discover_all_scenes_in_shows(self) -> List[ThreeDEScene]:
         """Discover ALL 3DE scenes in the shows (not just user's shots).
-        
+
         This uses the efficient file-first discovery to find ALL 3DE files,
         then filters out the user's own shots for "Other 3DE scenes" display.
-        
+
         Returns:
             List of all discovered ThreeDEScene objects
         """
         logger.info("Discovering ALL 3DE scenes in shows (not just user's shots)")
-        
+
         # Use the efficient file-first discovery
         # This finds ALL .3de files in the shows, not just user's shots
         all_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_efficient(
             self.user_shots,  # Used to determine which shows to search
             self.excluded_users,
         )
-        
+
         # Create a set of user's shot identifiers for filtering
         user_shot_ids = set()
         for shot in self.user_shots:
             shot_id = f"{shot.show}/{shot.sequence}/{shot.shot}"
             user_shot_ids.add(shot_id)
-        
+
         # Filter out user's shots from the results (for "Other 3DE scenes")
         other_scenes = []
         for scene in all_scenes:
             scene_id = f"{scene.show}/{scene.sequence}/{scene.shot}"
             if scene_id not in user_shot_ids:
                 other_scenes.append(scene)
-        
-        logger.info(f"Found {len(all_scenes)} total scenes, {len(other_scenes)} are from other shots")
-        
+
+        logger.info(
+            f"Found {len(all_scenes)} total scenes, {len(other_scenes)} are from other shots"
+        )
+
         # Emit progress updates
         self.progress.emit(
             len(other_scenes),
@@ -459,7 +461,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             f"Found {len(other_scenes)} scenes from other shots",
             "",
         )
-        
+
         return other_scenes
 
     def _discover_scenes_traditional(self) -> List[ThreeDEScene]:

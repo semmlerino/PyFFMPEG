@@ -17,7 +17,7 @@ from pathlib import Path
 def test_file_standalone(test_file: Path, timeout: int = 5) -> dict:
     """Test a file standalone without pytest."""
     print(f"Testing: {test_file.name}...", end=" ")
-    
+
     # Create a simple test script
     test_script = f"""
 import sys
@@ -43,23 +43,27 @@ try:
 except Exception as e:
     print(f"IMPORT_FAILED: {{e}}")
 """
-    
+
     # Run the test
     try:
         result = subprocess.run(
             [sys.executable, "-c", test_script],
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=timeout,
         )
-        
+
         if "IMPORT_SUCCESS" in result.stdout:
             print("✓ OK")
             return {"status": "ok", "file": test_file}
         else:
             print("✗ IMPORT FAILED")
-            return {"status": "import_failed", "file": test_file, "error": result.stdout + result.stderr}
-            
+            return {
+                "status": "import_failed",
+                "file": test_file,
+                "error": result.stdout + result.stderr,
+            }
+
     except subprocess.TimeoutExpired:
         print("✗ TIMEOUT")
         return {"status": "timeout", "file": test_file}
@@ -74,21 +78,21 @@ def main():
     print("=" * 70)
     print("Following best practices: Deleting all problematic tests")
     print()
-    
+
     # Find all test files
     test_dir = Path("tests")
     test_files = list(test_dir.rglob("test_*.py"))
-    
+
     # Exclude our known good fast tests
     keep_files = [
         "test_process_pool_fast.py",
         "test_subprocess_fast.py",
     ]
-    
+
     print(f"Found {len(test_files)} test files")
     print(f"Keeping {len(keep_files)} known good files")
     print()
-    
+
     # Test each file
     results = []
     for test_file in sorted(test_files):
@@ -97,43 +101,49 @@ def main():
             print(f"Keeping: {test_file.name} (known good)")
             results.append({"status": "kept", "file": test_file})
             continue
-            
+
         # Skip __pycache__ files
         if "__pycache__" in str(test_file):
             continue
-            
+
         result = test_file_standalone(test_file, timeout=3)
         results.append(result)
-    
+
     # Analyze results
     print("\n" + "=" * 70)
     print("RESULTS")
     print("=" * 70)
-    
+
     ok_count = sum(1 for r in results if r["status"] == "ok")
     kept_count = sum(1 for r in results if r["status"] == "kept")
-    failed_count = sum(1 for r in results if r["status"] in ["import_failed", "timeout", "error"])
-    
+    failed_count = sum(
+        1 for r in results if r["status"] in ["import_failed", "timeout", "error"]
+    )
+
     print(f"OK tests: {ok_count}")
     print(f"Kept tests: {kept_count}")
     print(f"Failed tests: {failed_count}")
-    
+
     # List files to delete
-    to_delete = [r["file"] for r in results if r["status"] in ["import_failed", "timeout", "error"]]
-    
+    to_delete = [
+        r["file"]
+        for r in results
+        if r["status"] in ["import_failed", "timeout", "error"]
+    ]
+
     if to_delete:
         print("\n" + "=" * 70)
         print("FILES TO DELETE (Problematic Tests)")
         print("=" * 70)
-        
+
         for f in to_delete:
             print(f"  - {f.relative_to(Path.cwd())}")
-        
+
         print(f"\nTotal files to delete: {len(to_delete)}")
-        
+
         # Ask for confirmation
         response = input("\nDelete these files? (yes/no): ").strip().lower()
-        
+
         if response == "yes":
             print("\nDeleting problematic tests...")
             for f in to_delete:
@@ -147,7 +157,7 @@ def main():
             print("\nCleanup cancelled.")
     else:
         print("\nNo problematic tests found!")
-    
+
     # Also clean up __pycache__ directories
     print("\nCleaning __pycache__ directories...")
     for cache_dir in test_dir.rglob("__pycache__"):
@@ -156,7 +166,7 @@ def main():
             print(f"  Removed: {cache_dir}")
         except Exception as e:
             print(f"  Error removing {cache_dir}: {e}")
-    
+
     print("\n" + "=" * 70)
     print("CLEANUP COMPLETE")
     print("=" * 70)

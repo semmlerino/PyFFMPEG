@@ -33,12 +33,12 @@ class TestWorkerStateTransitions:
         """Test successful state transition waiting."""
         # Start worker
         monitored_worker.start()
-        
+
         # Wait for RUNNING state
         result = ThreadingTestHelpers.wait_for_worker_state(
             monitored_worker, WorkerState.RUNNING, timeout_ms=1000
         )
-        
+
         assert result.success
         assert result.final_state == WorkerState.RUNNING
         assert result.transition_time_ms < 1000
@@ -51,7 +51,7 @@ class TestWorkerStateTransitions:
         result = ThreadingTestHelpers.wait_for_worker_state(
             monitored_worker, WorkerState.RUNNING, timeout_ms=100
         )
-        
+
         assert not result.success
         assert result.final_state == WorkerState.CREATED
         assert result.timeout_occurred
@@ -62,22 +62,22 @@ class TestWorkerStateTransitions:
         # Define expected sequence
         expected_transitions = [
             WorkerState.CREATED,
-            WorkerState.STARTING, 
+            WorkerState.STARTING,
             WorkerState.RUNNING,
             WorkerState.STOPPING,
-            WorkerState.STOPPED
+            WorkerState.STOPPED,
         ]
-        
+
         # Start worker in background thread to allow state monitoring
         def worker_lifecycle():
             time.sleep(0.01)  # Let monitor start
             monitored_worker.start()
             time.sleep(0.05)  # Let it run briefly
             monitored_worker.request_stop()
-        
+
         worker_thread = threading.Thread(target=worker_lifecycle)
         worker_thread.start()
-        
+
         try:
             # Assert the transition sequence
             assert_worker_state_transition(
@@ -93,31 +93,28 @@ class TestRaceConditions:
     def test_create_state_race(self, isolated_launcher_manager):
         """Test creating deterministic state race."""
         # Create multiple workers
-        workers = [
-            LauncherWorker(f"test_{i}", f"echo 'worker {i}'")
-            for i in range(3)
-        ]
-        
+        workers = [LauncherWorker(f"test_{i}", f"echo 'worker {i}'") for i in range(3)]
+
         try:
             # Start all workers
             for worker in workers:
                 worker.start()
-                
+
             # Wait for all to be running
             for worker in workers:
                 ThreadingTestHelpers.wait_for_worker_state(
                     worker, WorkerState.RUNNING, timeout_ms=1000
                 )
-            
+
             # Create race to stop all workers simultaneously
             result = RaceConditionFactory.create_state_race(
                 workers, WorkerState.STOPPED, timeout_ms=2000
             )
-            
+
             assert result.participants == 3
             assert result.race_duration_ms < 1000
             # Race may or may not occur depending on timing
-            
+
         finally:
             # Cleanup workers
             for worker in workers:
@@ -128,18 +125,18 @@ class TestRaceConditions:
     def test_create_signal_race(self, qtbot):
         """Test signal emission vs disconnection race."""
         from PySide6.QtCore import QObject
-        
+
         class TestSignaler(QObject):
             test_signal = Signal(str)
-        
+
         signaler = TestSignaler()
         # Note: TestSignaler is QObject, not QWidget - no qtbot.addWidget needed
-        
+
         # Create race between signal emission and disconnection
         result = RaceConditionFactory.create_signal_race(
             signaler.test_signal, emit_count=5, disconnect_after=2
         )
-        
+
         assert result.participants == 2  # emit and disconnect operations
         assert result.setup_time_ms >= 0
         assert result.race_duration_ms >= 0
@@ -149,18 +146,18 @@ class TestRaceConditions:
     def test_resource_race_condition(self, isolated_launcher_manager):
         """Test race for shared resource access."""
         manager = isolated_launcher_manager
-        
+
         # Define operations that race for manager resources
         operations = [
             lambda: manager.get_active_process_count(),
             lambda: manager.get_active_process_info(),
             lambda: manager.list_launchers(),
         ]
-        
+
         result = RaceConditionFactory.create_resource_race(
             operations, "launcher_manager", timeout_ms=1000
         )
-        
+
         assert result.participants == 3
         assert result.race_duration_ms < 1000
         assert len(result.violations_detected) == 0  # Should be thread-safe
@@ -173,11 +170,11 @@ class TestDeadlockDetection:
         """Test deadlock detection with no deadlock present."""
         # Get current threads
         current_threads = [t for t in threading.enumerate() if t.is_alive()]
-        
+
         analysis = DeadlockDetector.detect_deadlock(
             threads=current_threads, timeout_ms=1000
         )
-        
+
         assert not analysis.deadlock_detected
         assert len(analysis.involved_threads) == 0
         assert len(analysis.cycles) == 0
@@ -188,25 +185,25 @@ class TestDeadlockDetection:
         # Create two locks for deadlock scenario
         lock1 = threading.Lock()
         lock2 = threading.Lock()
-        
+
         # Create deadlock scenario
         thread1, thread2 = create_test_deadlock(lock1, lock2, timeout_ms=500)
-        
+
         try:
             # Give threads time to deadlock
             time.sleep(0.2)
-            
+
             # Detect deadlock
             analysis = DeadlockDetector.detect_deadlock(
                 threads=[thread1, thread2], timeout_ms=1000
             )
-            
+
             # Note: Actual deadlock detection requires instrumentation
             # This test verifies the API works correctly
             assert analysis.analysis_time_ms >= 0
             assert isinstance(analysis.lock_graph, dict)
             assert isinstance(analysis.cycles, list)
-            
+
         finally:
             # Force cleanup (threads will be in deadlock)
             # In real tests, you'd need to kill deadlocked threads
@@ -215,9 +212,9 @@ class TestDeadlockDetection:
     def test_get_thread_stacks(self):
         """Test stack trace capture functionality."""
         current_threads = [threading.current_thread()]
-        
+
         stacks = DeadlockDetector.get_thread_stacks(current_threads)
-        
+
         current_thread_id = threading.current_thread().ident
         assert current_thread_id in stacks
         assert isinstance(stacks[current_thread_id], list)
@@ -232,13 +229,14 @@ class TestPerformanceMeasurement:
 
     def test_measure_thread_creation(self):
         """Test thread creation performance measurement."""
+
         def simple_worker_factory():
             return LauncherWorker("perf_test", "echo 'performance test'")
-        
+
         result = PerformanceMetrics.measure_thread_creation(
             simple_worker_factory, iterations=5, warmup_iterations=1
         )
-        
+
         assert result.operation_name == "thread_creation"
         assert result.iterations == 5
         assert result.avg_duration_ms > 0
@@ -249,11 +247,11 @@ class TestPerformanceMeasurement:
     def test_measure_lock_contention(self):
         """Test lock contention measurement."""
         test_lock = threading.Lock()
-        
+
         result = PerformanceMetrics.measure_lock_contention(
             test_lock, contention_threads=3, operations_per_thread=5
         )
-        
+
         assert result.operation_name == "lock_contention"
         assert result.iterations == 15  # 3 threads * 5 operations
         assert result.avg_duration_ms > 0
@@ -263,17 +261,17 @@ class TestPerformanceMeasurement:
     def test_measure_signal_latency(self, qtbot):
         """Test Qt signal latency measurement."""
         from PySide6.QtCore import QObject
-        
+
         class TestSignaler(QObject):
             test_signal = Signal()
-        
+
         signaler = TestSignaler()
         # Note: TestSignaler is QObject, not QWidget - no qtbot.addWidget needed
-        
+
         result = PerformanceMetrics.measure_signal_latency(
             signaler.test_signal, iterations=10
         )
-        
+
         assert result.operation_name == "signal_latency"
         assert result.iterations <= 10  # May be less if some signals timeout
         assert result.avg_duration_ms >= 0
@@ -281,22 +279,21 @@ class TestPerformanceMeasurement:
 
     def test_compare_before_after(self):
         """Test before/after performance comparison."""
+
         def slow_operation():
             return PerformanceMetrics.measure_thread_creation(
-                lambda: LauncherWorker("slow", "sleep 0.01"),
-                iterations=3
+                lambda: LauncherWorker("slow", "sleep 0.01"), iterations=3
             )
-        
+
         def fast_operation():
             return PerformanceMetrics.measure_thread_creation(
-                lambda: LauncherWorker("fast", "echo fast"),
-                iterations=3
+                lambda: LauncherWorker("fast", "echo fast"), iterations=3
             )
-        
+
         comparison = PerformanceMetrics.compare_before_after(
             slow_operation, fast_operation, improvement_threshold=0.0
         )
-        
+
         assert "before_result" in comparison
         assert "after_result" in comparison
         assert "improvement_percent" in comparison
@@ -309,23 +306,24 @@ class TestConcurrentWorkers:
 
     def test_create_concurrent_workers(self):
         """Test creating multiple workers concurrently."""
+
         def worker_factory():
             return LauncherWorker("concurrent", "echo 'concurrent test'")
-        
+
         workers = ThreadingTestHelpers.create_concurrent_workers(
             worker_factory, count=3, start_delay_ms=20
         )
-        
+
         try:
             assert len(workers) == 3
-            
+
             # Verify all workers are running
             for worker in workers:
                 result = ThreadingTestHelpers.wait_for_worker_state(
                     worker, WorkerState.RUNNING, timeout_ms=1000
                 )
                 assert result.success
-                
+
         finally:
             # Cleanup workers
             for worker in workers:
@@ -341,18 +339,18 @@ class TestContextManagers:
         """Test temporary worker context manager."""
         worker_created = False
         worker_cleaned_up = False
-        
+
         with temporary_worker(LauncherWorker, "temp", "echo temp") as worker:
             worker_created = True
             assert isinstance(worker, LauncherWorker)
             worker.start()
-            
+
             # Wait for worker to start
             result = ThreadingTestHelpers.wait_for_worker_state(
                 worker, WorkerState.RUNNING, timeout_ms=1000
             )
             assert result.success
-        
+
         # Worker should be cleaned up automatically
         worker_cleaned_up = True
         assert worker_created and worker_cleaned_up
@@ -360,16 +358,14 @@ class TestContextManagers:
     def test_thread_safety_monitor_context(self):
         """Test thread safety monitoring context manager."""
         violations_captured = []
-        
+
         def violation_handler(violation):
             violations_captured.append(violation)
-        
-        with thread_safety_monitor(
-            ["test_resource"], violation_handler
-        ) as violations:
+
+        with thread_safety_monitor(["test_resource"], violation_handler) as violations:
             # Perform some operations
             time.sleep(0.01)
-            
+
         # Monitor should complete without issues
         assert isinstance(violations, list)
         # Note: Actual violations would require instrumentation
@@ -381,22 +377,22 @@ class TestFixtures:
     def test_isolated_launcher_manager_fixture(self, isolated_launcher_manager):
         """Test isolated launcher manager fixture."""
         manager = isolated_launcher_manager
-        
+
         # Manager should be functional
         assert isinstance(manager, LauncherManager)
         assert manager.get_active_process_count() == 0
-        
+
         # Should have isolated configuration
         assert manager.config.config_dir != LauncherManager().config.config_dir
 
     def test_monitored_worker_fixture(self, monitored_worker):
         """Test monitored worker fixture."""
         worker = monitored_worker
-        
+
         # Worker should be ready to use
         assert isinstance(worker, LauncherWorker)
         assert worker.get_state() == WorkerState.CREATED
-        
+
         # Start and verify monitoring works
         worker.start()
         result = ThreadingTestHelpers.wait_for_worker_state(
@@ -408,40 +404,41 @@ class TestFixtures:
         """Test deadlock timeout fixture."""
         # This fixture runs in background, just verify it doesn't interfere
         # with normal operations
-        
+
         # Perform some thread operations
         lock = threading.Lock()
-        
+
         def safe_operation():
             with lock:
                 time.sleep(0.01)
-        
+
         threads = []
         for i in range(3):
             thread = threading.Thread(target=safe_operation, name=f"SafeThread-{i}")
             threads.append(thread)
             thread.start()
-        
+
         for thread in threads:
             thread.join(timeout=1.0)
-        
+
         # If we reach here, no deadlock was detected (which is good)
         assert True
 
     def test_thread_pool_fixture(self, thread_pool):
         """Test thread pool fixture."""
+
         # Add some threads to the pool
         def simple_task():
             time.sleep(0.05)
-        
+
         for i in range(3):
             thread = threading.Thread(target=simple_task, name=f"PoolThread-{i}")
             thread_pool.append(thread)
             thread.start()
-        
+
         # Fixture should handle cleanup automatically
         assert len(thread_pool) == 3
-        
+
         # All threads should be running
         for thread in thread_pool:
             assert thread.is_alive()
@@ -453,15 +450,15 @@ class TestIntegrationScenarios:
     def test_launcher_manager_thread_safety(self, isolated_launcher_manager):
         """Test LauncherManager thread safety under concurrent access."""
         manager = isolated_launcher_manager
-        
+
         # Create launcher
         launcher_id = manager.create_launcher(
             name="Concurrent Test",
             command="echo 'concurrent test'",
-            description="Test launcher for concurrency"
+            description="Test launcher for concurrency",
         )
         assert launcher_id is not None
-        
+
         # Define concurrent operations
         operations = [
             lambda: manager.get_launcher(launcher_id),
@@ -469,26 +466,27 @@ class TestIntegrationScenarios:
             lambda: manager.get_active_process_count(),
             lambda: manager.get_active_process_info(),
         ]
-        
+
         # Run operations concurrently
         result = RaceConditionFactory.create_resource_race(
             operations, "launcher_manager_concurrent", timeout_ms=2000
         )
-        
+
         # Should handle concurrent access without issues
         assert result.participants == 4
         assert len(result.violations_detected) == 0
 
     def test_worker_lifecycle_under_stress(self):
         """Test worker lifecycle under stress conditions."""
+
         def stress_worker_factory():
             return LauncherWorker("stress", "echo 'stress test'")
-        
+
         # Create multiple workers rapidly
         workers = ThreadingTestHelpers.create_concurrent_workers(
             stress_worker_factory, count=5, start_delay_ms=5
         )
-        
+
         try:
             # Rapidly start and stop workers
             for worker in workers:
@@ -499,13 +497,13 @@ class TestIntegrationScenarios:
                 if result.success:
                     # Request stop immediately
                     worker.request_stop()
-            
+
             # Wait for all to stop
             for worker in workers:
                 ThreadingTestHelpers.wait_for_worker_state(
                     worker, WorkerState.STOPPED, timeout_ms=1000
                 )
-                
+
         finally:
             # Ensure cleanup
             for worker in workers:
@@ -515,29 +513,32 @@ class TestIntegrationScenarios:
 
     def test_performance_regression_detection(self):
         """Test detecting performance regressions."""
+
         def baseline_operation():
             return PerformanceMetrics.measure_thread_creation(
-                lambda: LauncherWorker("baseline", "echo baseline"),
-                iterations=3
+                lambda: LauncherWorker("baseline", "echo baseline"), iterations=3
             )
-        
+
         def potentially_slower_operation():
             def slow_factory():
                 # Simulate slightly slower operation
                 time.sleep(0.001)
                 return LauncherWorker("slower", "echo slower")
-            return PerformanceMetrics.measure_thread_creation(slow_factory, iterations=3)
-        
+
+            return PerformanceMetrics.measure_thread_creation(
+                slow_factory, iterations=3
+            )
+
         comparison = PerformanceMetrics.compare_before_after(
             baseline_operation,
             potentially_slower_operation,
-            improvement_threshold=5.0  # 5% improvement threshold
+            improvement_threshold=5.0,  # 5% improvement threshold
         )
-        
+
         # Should detect if there's a significant regression
         assert "improvement_percent" in comparison
         assert "is_significant_improvement" in comparison
-        
+
         # Log results for analysis
         print(f"Performance comparison: {comparison['comparison_summary']}")
 

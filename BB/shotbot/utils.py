@@ -135,7 +135,9 @@ class PathUtils:
                 "turnover",
                 "plate",
             )
-            if not PathUtils.validate_path_exists(base_path, "Turnover plate directory"):
+            if not PathUtils.validate_path_exists(
+                base_path, "Turnover plate directory"
+            ):
                 return None
 
         # Find all available plate directories

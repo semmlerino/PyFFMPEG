@@ -20,6 +20,7 @@ def signal_handler(sig, frame):
     print("\nShutting down Shotbot...")
     sys.exit(0)
 
+
 signal.signal(signal.SIGINT, signal_handler)
 
 # Run main
@@ -28,5 +29,6 @@ try:
 except Exception as e:
     print(f"Error: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)

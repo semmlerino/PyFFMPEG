@@ -29,17 +29,17 @@ class TestImprovedThumbnailDiscovery:
             / "4312x2304"
         )
         plate_path.mkdir(parents=True)
-        
+
         # Create a test EXR file
         test_file = plate_path / "seq01_shot01_turnover-plate_FG01_v001.1001.exr"
         test_file.touch()
-        
+
         # Test that it finds the plate
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_turnover_plate_thumbnail(
                 str(shows_root), "testshow", "seq01", "shot01"
             )
-            
+
         assert result is not None
         assert result == test_file
         assert "FG01" in str(result)
@@ -65,17 +65,17 @@ class TestImprovedThumbnailDiscovery:
             / "1920x1080"
         )
         plate_path.mkdir(parents=True)
-        
+
         # Create a test EXR file
         test_file = plate_path / "seq01_shot01_turnover-plate_BG01_v001.1001.exr"
         test_file.touch()
-        
+
         # Test that it finds the plate
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_turnover_plate_thumbnail(
                 str(shows_root), "testshow", "seq01", "shot01"
             )
-            
+
         assert result is not None
         assert result == test_file
         assert "BG01" in str(result)
@@ -86,25 +86,20 @@ class TestImprovedThumbnailDiscovery:
         # /shows/testshow/shots/seq01/seq01_shot01/some_path/test.1001.exr
         shows_root = tmp_path / "shows"
         shot_path = (
-            shows_root
-            / "testshow"
-            / "shots"
-            / "seq01"
-            / "seq01_shot01"
-            / "some_path"
+            shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01" / "some_path"
         )
         shot_path.mkdir(parents=True)
-        
+
         # Create a test EXR file
         test_file = shot_path / "test.1001.exr"
         test_file.touch()
-        
+
         # Test that it finds the file even without publish directory
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_any_publish_thumbnail(
                 str(shows_root), "testshow", "seq01", "shot01", max_depth=3
             )
-            
+
         assert result is not None
         assert result == test_file
         assert "1001" in result.name
@@ -123,25 +118,25 @@ class TestImprovedThumbnailDiscovery:
             / "turnover"
             / "plate"
         )
-        
+
         # Create BG01 plate
         bg_path = base_path / "BG01" / "v001" / "exr" / "1920x1080"
         bg_path.mkdir(parents=True)
         bg_file = bg_path / "shot01_BG01.1001.exr"
         bg_file.touch()
-        
+
         # Create FG01 plate
         fg_path = base_path / "FG01" / "v001" / "exr" / "1920x1080"
         fg_path.mkdir(parents=True)
         fg_file = fg_path / "shot01_FG01.1001.exr"
         fg_file.touch()
-        
+
         # Test that FG01 is preferred
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_turnover_plate_thumbnail(
                 str(shows_root), "testshow", "seq01", "shot01"
             )
-            
+
         assert result is not None
         assert result == fg_file
         assert "FG01" in str(result)
@@ -164,16 +159,16 @@ class TestImprovedThumbnailDiscovery:
             / "level5"
         )
         deep_path.mkdir(parents=True)
-        
+
         # Create a test EXR file
         test_file = deep_path / "deep.1001.exr"
         test_file.touch()
-        
+
         # Test that it finds the deeply nested file
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_any_publish_thumbnail(
                 str(shows_root), "testshow", "seq01", "shot01", max_depth=6
             )
-            
+
         assert result is not None
         assert result == test_file
