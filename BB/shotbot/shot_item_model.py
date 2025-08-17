@@ -332,28 +332,47 @@ class ShotItemModel(QAbstractListModel):
             # Use cache manager for proper thumbnail handling
             # It will automatically resize EXR files using PIL if needed
             if self._cache_manager:
-                pixmap = self._cache_manager.get_cached_thumbnail(
-                    str(thumbnail_path), 
-                    Config.DEFAULT_THUMBNAIL_SIZE
+                # First, cache the thumbnail (handles EXR with PIL resizing)
+                cached_path = self._cache_manager.cache_thumbnail(
+                    thumbnail_path,
+                    shot.show,
+                    shot.sequence,
+                    shot.shot,
+                    wait=True  # Wait for caching to complete
                 )
-                if pixmap and not pixmap.isNull():
-                    self._thumbnail_cache[shot.full_name] = pixmap
-                    self._loading_states[shot.full_name] = "loaded"
-                    logger.debug(f"Loaded thumbnail for {shot.full_name} from {thumbnail_path.name}")
-                    
-                    # Notify view of update
-                    self.dataChanged.emit(
-                        index,
-                        index,
-                        [
-                            ShotRole.ThumbnailPixmapRole,
-                            ShotRole.LoadingStateRole,
-                            Qt.ItemDataRole.DecorationRole,
-                        ],
-                    )
-                    self.thumbnail_loaded.emit(row)
+                
+                if cached_path and cached_path.exists():
+                    # Load the cached JPEG as QPixmap
+                    pixmap = QPixmap(str(cached_path))
+                    if not pixmap.isNull():
+                        # Scale to display size if needed
+                        pixmap = pixmap.scaled(
+                            Config.DEFAULT_THUMBNAIL_SIZE,
+                            Config.DEFAULT_THUMBNAIL_SIZE,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                        self._thumbnail_cache[shot.full_name] = pixmap
+                        self._loading_states[shot.full_name] = "loaded"
+                        logger.debug(f"Loaded thumbnail for {shot.full_name} from {thumbnail_path.name}")
+                        
+                        # Notify view of update
+                        self.dataChanged.emit(
+                            index,
+                            index,
+                            [
+                                ShotRole.ThumbnailPixmapRole,
+                                ShotRole.LoadingStateRole,
+                                Qt.ItemDataRole.DecorationRole,
+                            ],
+                        )
+                        self.thumbnail_loaded.emit(row)
+                    else:
+                        logger.warning(f"Failed to load cached thumbnail pixmap from {cached_path}")
+                        self._loading_states[shot.full_name] = "failed"
+                        self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
                 else:
-                    logger.warning(f"Failed to load thumbnail from {thumbnail_path}")
+                    logger.warning(f"Failed to cache thumbnail from {thumbnail_path}")
                     self._loading_states[shot.full_name] = "failed"
                     self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
             else:
