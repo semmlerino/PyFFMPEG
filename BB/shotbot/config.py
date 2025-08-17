@@ -276,7 +276,7 @@ class Config:
     PROGRESSIVE_MAX_MEMORY_MB = 512  # Maximum memory usage during scanning
 
     # 3DE Scene Discovery Configuration (NEW - Efficient scanning)
-    THREEDE_SCAN_MODE = "smart"  # Options: "full_show", "user_sequences", "smart"
+    THREEDE_SCAN_MODE = "full_show"  # Options: "full_show", "user_sequences", "smart"
     # - "full_show": Scan entire show (old behavior, can be slow)
     # - "user_sequences": Only scan sequences where user has shots
     # - "smart": Only scan shots that actually have .3de files (most efficient)

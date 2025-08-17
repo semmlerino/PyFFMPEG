@@ -516,10 +516,13 @@ class MainWindow(QMainWindow):
             self._update_status("Starting enhanced 3DE scene discovery...")
 
             # Create enhanced worker with progressive scanning enabled
+            # Pass user's shots so the worker knows which shows to scan
+            # The worker will scan ALL shots in those shows, not just the user's shots
             self._threede_worker = ThreeDESceneWorker(
-                shots=self.shot_model.shots,
+                shots=self.shot_model.shots,  # Used to determine which shows to scan
                 enable_progressive=True,  # Enable progressive scanning for better UI responsiveness
                 batch_size=None,  # Use config default
+                scan_all_shots=True,  # Scan ALL shots in the shows, not just user's shots
             )
 
         # Connect worker signals outside of mutex (signals are thread-safe)
@@ -685,14 +688,12 @@ class MainWindow(QMainWindow):
             scene_batch: List of ThreeDEScene objects in this batch
         """
         if scene_batch:
-            # Add batch to the model (model will handle deduplication)
-            self.threede_scene_model.scenes.extend(scene_batch)
-
-            # For now, we'll do a full refresh when batches are ready
-            # In future, we could implement incremental UI updates
-            # self.threede_shot_grid.refresh_scenes()  # Uncomment for real-time updates
-
+            # Don't directly add to model - let _on_threede_discovery_finished handle deduplication
+            # Just log the progress for now
             logger.debug(f"Processed batch of {len(scene_batch)} scenes")
+            
+            # Note: The scenes are accumulated in the worker itself
+            # and will be deduplicated when discovery finishes
 
     def _on_threede_scan_progress(
         self, current_shot: int, total_shots: int, status: str

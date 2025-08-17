@@ -147,6 +147,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         excluded_users: Optional[Set[str]] = None,
         batch_size: Optional[int] = None,
         enable_progressive: bool = True,
+        scan_all_shots: bool = False,
     ):
         """Initialize the enhanced worker with shots to search.
 
@@ -155,9 +156,12 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             excluded_users: Set of usernames to exclude from search
             batch_size: Number of scenes per batch for progressive scanning
             enable_progressive: Enable progressive scanning (vs. traditional all-at-once)
+            scan_all_shots: If True, scan ALL shots in shows (not just provided shots)
         """
         super().__init__()
         self.shots = shots
+        self.user_shots = shots  # Keep track of user's shots for filtering
+        self.scan_all_shots = scan_all_shots
         self.excluded_users = excluded_users or ValidationUtils.get_excluded_users()
         self.batch_size = batch_size or Config.PROGRESSIVE_SCAN_BATCH_SIZE
         self.enable_progressive = enable_progressive and Config.PROGRESSIVE_SCAN_ENABLED
@@ -318,6 +322,12 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         """
         logger.info("Starting progressive 3DE scene discovery")
 
+        if self.scan_all_shots:
+            # When scanning all shots, use the efficient file-first discovery
+            # This finds ALL 3DE files in the shows, then filters
+            return self._discover_all_scenes_in_shows()
+        
+        # Original behavior: scan only the provided shots
         # Convert shots to the format expected by the finder
         shot_tuples = []
         for shot in self.shots:
@@ -407,6 +417,50 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             raise
 
         return self._all_scenes
+    
+    def _discover_all_scenes_in_shows(self) -> List[ThreeDEScene]:
+        """Discover ALL 3DE scenes in the shows (not just user's shots).
+        
+        This uses the efficient file-first discovery to find ALL 3DE files,
+        then filters out the user's own shots for "Other 3DE scenes" display.
+        
+        Returns:
+            List of all discovered ThreeDEScene objects
+        """
+        logger.info("Discovering ALL 3DE scenes in shows (not just user's shots)")
+        
+        # Use the efficient file-first discovery
+        # This finds ALL .3de files in the shows, not just user's shots
+        all_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_efficient(
+            self.user_shots,  # Used to determine which shows to search
+            self.excluded_users,
+        )
+        
+        # Create a set of user's shot identifiers for filtering
+        user_shot_ids = set()
+        for shot in self.user_shots:
+            shot_id = f"{shot.show}/{shot.sequence}/{shot.shot}"
+            user_shot_ids.add(shot_id)
+        
+        # Filter out user's shots from the results (for "Other 3DE scenes")
+        other_scenes = []
+        for scene in all_scenes:
+            scene_id = f"{scene.show}/{scene.sequence}/{scene.shot}"
+            if scene_id not in user_shot_ids:
+                other_scenes.append(scene)
+        
+        logger.info(f"Found {len(all_scenes)} total scenes, {len(other_scenes)} are from other shots")
+        
+        # Emit progress updates
+        self.progress.emit(
+            len(other_scenes),
+            len(all_scenes),
+            100.0,
+            f"Found {len(other_scenes)} scenes from other shots",
+            "",
+        )
+        
+        return other_scenes
 
     def _discover_scenes_traditional(self) -> List[ThreeDEScene]:
         """Traditional scene discovery method for backward compatibility.
