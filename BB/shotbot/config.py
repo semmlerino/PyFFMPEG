@@ -150,6 +150,11 @@ class Config:
     UNDISTORTION_SUBPATH = "mm"  # Subdirectory for undistortion files
 
     # File extensions
+    # Separate thumbnail extensions from general image extensions
+    # Thumbnails should be lightweight formats only, NOT raw plates like EXR
+    THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png"]
+    
+    # Keep IMAGE_EXTENSIONS for general image handling (including EXR for other purposes)
     IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".exr"]
     NUKE_EXTENSIONS = [".nk", ".nknc"]
     THREEDE_EXTENSIONS = [".3de"]

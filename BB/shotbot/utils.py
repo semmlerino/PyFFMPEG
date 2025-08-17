@@ -209,10 +209,13 @@ class PathUtils:
 
                 if sorted_frames:
                     first_frame = sorted_frames[0]
-                    logger.info(
-                        f"Found turnover plate thumbnail: {plate_name} - {first_frame.name}"
+                    # IMPORTANT: Don't return EXR files as thumbnails - they're too large
+                    # and will crash when loaded as QPixmaps
+                    logger.debug(
+                        f"Skipping turnover plate EXR: {plate_name} - {first_frame.name} (too large for thumbnail)"
                     )
-                    return first_frame
+                    # Return None to force fallback to other thumbnail sources
+                    return None
 
         logger.debug(f"No suitable turnover plates found for {sequence}_{shot}")
         return None
@@ -448,12 +451,19 @@ class PathUtils:
                 # First check for .exr files with 1001 in current directory
                 for file_path in directory.iterdir():
                     if file_path.is_file():
+                        # Skip EXR files - they're raw plates, not thumbnails
+                        if file_path.suffix.lower() == ".exr":
+                            logger.debug(
+                                f"Skipping EXR file (not a thumbnail): {file_path.name}"
+                            )
+                            continue
+                        # Look for actual thumbnail formats with 1001 in name
                         if (
-                            file_path.suffix.lower() == ".exr"
+                            file_path.suffix.lower() in [".jpg", ".jpeg", ".png"]
                             and "1001" in file_path.name
                         ):
                             logger.info(
-                                f"Found publish EXR thumbnail: {file_path.name}"
+                                f"Found publish thumbnail: {file_path.name}"
                             )
                             return file_path
 
@@ -754,7 +764,8 @@ class FileUtils:
             Path to first image file or None if none found
         """
         # Try common image extensions from config in order of preference
-        preferred_extensions = Config.IMAGE_EXTENSIONS
+        # Use THUMBNAIL_EXTENSIONS for thumbnails (excludes EXR files)
+        preferred_extensions = Config.THUMBNAIL_EXTENSIONS
 
         for ext in preferred_extensions:
             files = FileUtils.find_files_by_extension(directory, ext, limit=1)

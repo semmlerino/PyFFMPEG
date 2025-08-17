@@ -329,6 +329,24 @@ class ShotItemModel(QAbstractListModel):
         # For now, load synchronously but emit proper signals
         thumbnail_path = shot.get_thumbnail_path()
         if thumbnail_path and thumbnail_path.exists():
+            # Safety check: don't load EXR or huge files directly
+            if thumbnail_path.suffix.lower() == ".exr":
+                logger.warning(f"Skipping EXR file for thumbnail: {thumbnail_path}")
+                self._loading_states[shot.full_name] = "failed"
+                self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
+                return
+            
+            # Check file size to prevent loading huge files
+            try:
+                file_size_mb = thumbnail_path.stat().st_size / (1024 * 1024)
+                if file_size_mb > 10:  # Don't load files larger than 10MB
+                    logger.warning(f"Thumbnail file too large ({file_size_mb:.1f}MB): {thumbnail_path}")
+                    self._loading_states[shot.full_name] = "failed"
+                    self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
+                    return
+            except Exception as e:
+                logger.error(f"Error checking file size: {e}")
+            
             pixmap = QPixmap(str(thumbnail_path))
             if not pixmap.isNull():
                 # Scale to thumbnail size
