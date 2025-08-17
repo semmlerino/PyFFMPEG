@@ -7,8 +7,9 @@
 3. [Signal Testing](#signal-testing)
 4. [Essential Test Doubles](#essential-test-doubles)
 5. [Qt-Specific Patterns](#qt-specific-patterns)
-6. [Critical Pitfalls](#critical-pitfalls)
-7. [Quick Reference](#quick-reference)
+6. [Qt Threading Safety](#qt-threading-safety)
+7. [Critical Pitfalls](#critical-pitfalls)
+8. [Quick Reference](#quick-reference)
 
 ---
 
@@ -134,11 +135,26 @@ def test_with_test_double():
 def test_async_operation(qtbot):
     processor = DataProcessor()  # Real Qt object
     
+    # ✅ CORRECT - Set up signal waiter BEFORE starting
     with qtbot.waitSignal(processor.finished, timeout=1000) as blocker:
         processor.start()
     
     assert blocker.signal_triggered
     assert blocker.args[0] == "success"
+```
+
+### ⚠️ Critical: Signal Race Conditions
+```python
+# ❌ RACE CONDITION - Signal may be emitted before waitSignal() setup
+def test_race_condition():
+    worker.start()  # Signal might emit immediately
+    with qtbot.waitSignal(worker.worker_started):  # Too late!
+        pass
+
+# ✅ THREAD-SAFE - Signal waiter ready before emission
+def test_no_race():
+    with qtbot.waitSignal(worker.worker_started):
+        worker.start()  # Signal captured correctly
 ```
 
 ---
@@ -269,7 +285,223 @@ def test_worker(qtbot):
 
 ---
 
+## Qt Threading Safety
+
+### The Fundamental Rule: QPixmap vs QImage
+
+Qt has **strict threading rules** that cause crashes if violated in tests:
+
+| Class | Thread Safety | Usage |
+|-------|---------------|--------|
+| **QPixmap** | ❌ **Main GUI thread ONLY** | Display, UI rendering |
+| **QImage** | ✅ **Any thread** | Image processing, workers |
+
+### ⚠️ Threading Violation Crash Symptoms
+```python
+# ❌ FATAL ERROR - Creates QPixmap in worker thread
+def test_worker_processing():
+    def worker():
+        pixmap = QPixmap(100, 100)  # CRASH: "Fatal Python error: Aborted"
+    
+    thread = threading.Thread(target=worker)
+    thread.start()  # Will crash Python
+```
+
+### The Canonical Qt Threading Pattern
+
+Qt's official threading pattern for image operations:
+
+```
+Worker Thread (Background):     Main Thread (GUI):
+┌─────────────────────┐        ┌──────────────────┐
+│ 1. Process with     │─signal→│ 4. Convert to    │
+│    QImage           │        │    QPixmap       │
+│                     │        │                  │
+│ 2. Emit signal      │        │ 5. Display in UI │
+│    with QImage      │        │                  │
+│                     │        │                  │
+│ 3. Worker finishes  │        │ 6. UI updates    │
+└─────────────────────┘        └──────────────────┘
+```
+
+### Thread-Safe Test Doubles
+
+Create thread-safe alternatives for Qt objects in tests:
+
+```python
+class ThreadSafeTestImage:
+    """Thread-safe test double for QPixmap using QImage internally.
+    
+    QPixmap is not thread-safe and can only be used in the main GUI thread.
+    QImage is thread-safe and can be used in any thread. This class provides
+    a QPixmap-like interface while using QImage internally for thread safety.
+    
+    Based on Qt's canonical threading pattern for image operations.
+    """
+    
+    def __init__(self, width: int = 100, height: int = 100):
+        """Create a thread-safe test image."""
+        # Use QImage which is thread-safe, unlike QPixmap
+        self._image = QImage(width, height, QImage.Format.Format_RGB32)
+        self._width = width
+        self._height = height
+        self._image.fill(QColor(255, 255, 255))  # Fill with white by default
+        
+    def fill(self, color: QColor = None) -> None:
+        """Fill the image with a color."""
+        if color is None:
+            color = QColor(255, 255, 255)
+        self._image.fill(color)
+        
+    def isNull(self) -> bool:
+        """Check if the image is null."""
+        return self._image.isNull()
+        
+    def sizeInBytes(self) -> int:
+        """Return the size of the image in bytes."""
+        return self._image.sizeInBytes()
+        
+    def size(self) -> QSize:
+        """Return the size of the image."""
+        return QSize(self._width, self._height)
+```
+
+### Usage in Threading Tests
+
+Replace QPixmap with ThreadSafeTestImage in tests that involve worker threads:
+
+```python
+def test_concurrent_image_processing():
+    """Test concurrent image operations without Qt threading violations."""
+    results = []
+    errors = []
+    
+    def process_image(thread_id: int):
+        """Process image in worker thread."""
+        try:
+            # ✅ SAFE - Use ThreadSafeTestImage instead of QPixmap
+            image = ThreadSafeTestImage(100, 100)
+            image.fill(QColor(255, 0, 0))  # Thread-safe operation
+            
+            # Mock the cache manager's QImage usage
+            with patch('cache_manager.QImage') as mock_image_class:
+                mock_image = MagicMock()
+                mock_image.isNull.return_value = False
+                mock_image.sizeInBytes.return_value = image.sizeInBytes()
+                mock_image_class.return_value = mock_image
+                
+                # Test the actual threading behavior
+                result = cache_manager.process_in_thread(image)
+                results.append((thread_id, result is not None))
+                
+        except Exception as e:
+            errors.append((thread_id, str(e)))
+    
+    # Start multiple worker threads
+    threads = []
+    for i in range(5):
+        t = threading.Thread(target=process_image, args=(i,))
+        threads.append(t)
+        t.start()
+        
+    # Wait for completion
+    for t in threads:
+        t.join(timeout=5.0)
+        
+    # Verify no threading violations occurred
+    assert len(errors) == 0, f"Threading errors: {errors}"
+    assert len(results) == 5
+```
+
+### Real-World Example: Cache Manager Threading
+
+Before (Crashes):
+```python
+# ❌ CAUSES CRASHES - QPixmap in worker thread
+def test_cache_threading():
+    def cache_worker():
+        pixmap = QPixmap(100, 100)  # FATAL ERROR
+        cache.store("key", pixmap)
+    
+    threading.Thread(target=cache_worker).start()
+```
+
+After (Thread-Safe):
+```python
+# ✅ THREAD-SAFE - QImage-based test double
+def test_cache_threading():
+    def cache_worker():
+        image = ThreadSafeTestImage(100, 100)  # Safe in any thread
+        
+        # Mock the internal QImage usage
+        with patch('cache_manager.QImage') as mock_qimage:
+            mock_qimage.return_value = mock_image
+            result = cache.store("key", image)
+            
+    threading.Thread(target=cache_worker).start()
+```
+
+### Key Implementation Insights
+
+1. **Internal Implementation Matters**: Even if your API accepts "image-like" objects, the internal implementation must use QImage in worker threads.
+
+2. **Patch the Right Level**: When mocking Qt image operations, patch `cache_manager.QImage`, not `QPixmap`.
+
+3. **Test Double Strategy**: Create test doubles that mimic the interface but use thread-safe internals.
+
+4. **Resource Management**: QImage cleanup is automatic, but track memory usage for performance tests.
+
+### Threading Test Checklist
+
+- [ ] ✅ Use `ThreadSafeTestImage` instead of `QPixmap` in worker threads
+- [ ] ✅ Patch `QImage` operations, not `QPixmap` operations  
+- [ ] ✅ Test both single-threaded and multi-threaded scenarios
+- [ ] ✅ Verify no "Fatal Python error: Aborted" crashes
+- [ ] ✅ Check that worker threads can create/manipulate images safely
+- [ ] ✅ Ensure main thread can display results from worker threads
+
+### Performance Considerations
+
+```python
+# QImage is slightly more expensive than QPixmap for creation
+# but essential for thread safety
+
+# ✅ GOOD - Efficient thread-safe testing
+class TestImagePool:
+    """Reuse ThreadSafeTestImage instances for performance."""
+    
+    def __init__(self):
+        self._pool = []
+        
+    def get_test_image(self, width=100, height=100):
+        if self._pool:
+            image = self._pool.pop()
+            image.fill()  # Reset to white
+            return image
+        return ThreadSafeTestImage(width, height)
+        
+    def return_image(self, image):
+        self._pool.append(image)
+```
+
+---
+
 ## Critical Pitfalls
+
+### ⚠️ Qt Threading Violations (FATAL)
+```python
+# ❌ CRASHES PYTHON - QPixmap in worker thread
+def test_worker():
+    def worker_func():
+        pixmap = QPixmap(100, 100)  # FATAL: "Fatal Python error: Aborted"
+    threading.Thread(target=worker_func).start()
+
+# ✅ SAFE - QImage-based test double
+def test_worker():
+    def worker_func():
+        image = ThreadSafeTestImage(100, 100)  # Thread-safe
+    threading.Thread(target=worker_func).start()
+```
 
 ### ⚠️ Qt Container Truthiness
 ```python
@@ -354,6 +586,10 @@ def test_controller():
 - [ ] Clean up workers in fixtures
 - [ ] Mock dialog `exec()` methods
 - [ ] Test both success and error paths
+- [ ] **Use ThreadSafeTestImage instead of QPixmap in worker threads**
+- [ ] **Patch QImage operations, not QPixmap operations in threading tests**
+- [ ] **Verify no "Fatal Python error: Aborted" crashes in threading tests**
+- [ ] **Set up qtbot.waitSignal() BEFORE starting operations to avoid race conditions**
 
 ### Command Patterns
 ```python
@@ -401,6 +637,9 @@ def test_good(self):
 
 ### Anti-Patterns Summary
 ```python
+# ❌ QPixmap in worker threads (CRASHES)
+threading.Thread(target=lambda: QPixmap(100, 100)).start()
+
 # ❌ QSignalSpy with mocks
 spy = QSignalSpy(mock.signal)
 
@@ -428,7 +667,7 @@ mock.assert_called_once()
 
 **Strategy**: Real components with test doubles for I/O.
 
-**Qt-Specific**: Respect the event loop, signals are first-class.
+**Qt-Specific**: Respect the event loop, signals are first-class, threading rules are FATAL.
 
 **Key Metrics**:
 - Test speed: 60% faster (no subprocess overhead)
@@ -436,4 +675,6 @@ mock.assert_called_once()
 - Maintenance: 75% less (fewer mock updates)
 
 ---
-*Last Updated: 2025-08-15 | Critical Reference - DO NOT DELETE*
+*Last Updated: 2025-08-17 | Critical Reference - DO NOT DELETE*
+
+**Recent Addition**: Qt Threading Safety section added - critical for preventing Qt threading violations that cause "Fatal Python error: Aborted" crashes.

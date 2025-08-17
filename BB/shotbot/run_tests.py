@@ -15,17 +15,17 @@ os.chdir(project_root)
 # Set Qt to run in offscreen mode to prevent GUI popups during tests
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"  # Reduce Qt debug output
+# Set Qt API for pytest-qt
+os.environ["PYTEST_QT_API"] = "pyside6"
 
-# Disable problematic plugins to avoid issues
+# Configure Qt testing environment
 # Add coverage if requested
 args = [
-    "tests/",
     "-v",
     "--tb=short",
     "-p",
-    "no:xvfb",
-    "-p", 
-    "no:pytestqt",
+    "no:xvfb",  # Keep xvfb disabled for WSL compatibility
+    # pytest-qt will be auto-enabled since we're not disabling it anymore
 ]
 
 # Add coverage options if --cov is in arguments
@@ -40,7 +40,7 @@ if "--cov" in sys.argv:
     )
 
 # Filter out script name and pass remaining arguments
-test_args = sys.argv[1:] if len(sys.argv) > 1 else []
+test_args = sys.argv[1:] if len(sys.argv) > 1 else ["tests/"]
 
 # Debug print
 if os.environ.get("DEBUG_TESTS"):

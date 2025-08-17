@@ -9,9 +9,49 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+from PySide6.QtCore import QCoreApplication, QTimer
+from PySide6.QtWidgets import QApplication
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# =============================================================================
+# Qt Application Fixtures for Threading Tests
+# =============================================================================
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Create QApplication instance for the entire test session.
+    
+    This ensures proper Qt event loop for signal processing.
+    """
+    app = QCoreApplication.instance()
+    if app is None:
+        app = QApplication([])
+    yield app
+    # Don't quit here - let pytest-qt handle cleanup
+
+@pytest.fixture
+def qt_signal_blocker():
+    """Helper fixture for blocking until Qt signals are processed.
+    
+    Use this when you need to ensure signals are delivered in tests.
+    """
+    def _process_events(timeout_ms=1000):
+        """Process Qt events for specified timeout."""
+        timer = QTimer()
+        timer.setSingleShot(True)
+        timer.timeout.connect(lambda: None)  # Dummy slot
+        timer.start(timeout_ms)
+        
+        # Process events until timer expires
+        start_time = QCoreApplication.instance().time if hasattr(QCoreApplication.instance(), 'time') else 0
+        while timer.isActive():
+            QCoreApplication.processEvents()
+            
+        return True
+    
+    return _process_events
 
 # =============================================================================
 # Test Fixtures

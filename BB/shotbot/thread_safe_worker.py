@@ -2,11 +2,33 @@
 
 import logging
 import weakref
+from enum import Enum
 from typing import Any, List, Tuple
 
-from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, Signal
+from PySide6.QtCore import (
+    QMutex,
+    QMutexLocker,
+    Qt,
+    QThread,
+    QTimer,
+    QWaitCondition,
+    Signal,
+)
+
+from config import ThreadingConfig
 
 logger = logging.getLogger(__name__)
+
+
+class WorkerState(Enum):
+    """Thread-safe worker states."""
+    CREATED = "CREATED"
+    STARTING = "STARTING"
+    RUNNING = "RUNNING"
+    STOPPING = "STOPPING"
+    STOPPED = "STOPPED"
+    DELETED = "DELETED"
+    ERROR = "ERROR"
 
 
 class ThreadSafeWorker(QThread):
@@ -30,11 +52,13 @@ class ThreadSafeWorker(QThread):
 
     # Valid state transitions
     VALID_TRANSITIONS = {
-        "CREATED": ["STARTING"],
-        "STARTING": ["RUNNING", "STOPPED"],  # Can stop before fully started
-        "RUNNING": ["STOPPING"],
-        "STOPPING": ["STOPPED"],
-        "STOPPED": ["DELETED"],
+        WorkerState.CREATED: [WorkerState.STARTING, WorkerState.STOPPED],
+        WorkerState.STARTING: [WorkerState.RUNNING, WorkerState.STOPPED, WorkerState.ERROR],
+        WorkerState.RUNNING: [WorkerState.STOPPING, WorkerState.ERROR],
+        WorkerState.STOPPING: [WorkerState.STOPPED],
+        WorkerState.STOPPED: [WorkerState.DELETED],
+        WorkerState.ERROR: [WorkerState.STOPPED],
+        WorkerState.DELETED: [],  # Terminal state
     }
 
     def __init__(self, parent=None):
@@ -45,45 +69,70 @@ class ThreadSafeWorker(QThread):
         """
         super().__init__(parent)
         self._state_mutex = QMutex()
-        self._state = "CREATED"
+        self._state = WorkerState.CREATED
+        self._state_condition = QWaitCondition()
         self._stop_requested = False
+        self._force_stop = False
         self._connections: List[Tuple[weakref.ref, weakref.ref]] = []
         self._zombie = False  # Track abandoned threads
 
         # Set up cleanup on thread finished
         self.finished.connect(self._on_finished)
 
-    def get_state(self) -> str:
+    def get_state(self) -> WorkerState:
         """Thread-safe state getter.
 
         Returns:
-            Current state string
+            Current WorkerState
         """
         with QMutexLocker(self._state_mutex):
             return self._state
 
-    def set_state(self, new_state: str) -> bool:
+    def set_state(self, new_state: WorkerState, force: bool = False) -> bool:
         """Thread-safe state setter with validation.
 
         Args:
             new_state: State to transition to
+            force: Force transition even if invalid (emergency stop)
 
         Returns:
             True if transition was valid and executed, False otherwise
         """
+        signal_to_emit = None
+        
         with QMutexLocker(self._state_mutex):
             current = self._state
-            valid_next_states = self.VALID_TRANSITIONS.get(current, [])
-
-            if new_state in valid_next_states:
-                logger.debug(f"Worker {id(self)}: {current} -> {new_state}")
-                self._state = new_state
-                return True
-            else:
+            
+            # Check if transition is valid
+            if not force and new_state not in self.VALID_TRANSITIONS.get(current, []):
                 logger.warning(
-                    f"Worker {id(self)}: Invalid transition {current} -> {new_state}"
+                    f"Worker {id(self)}: Invalid transition {current.value} -> {new_state.value}"
                 )
                 return False
+            
+            # Perform transition
+            logger.debug(f"Worker {id(self)}: {current.value} -> {new_state.value}" + 
+                        (" (forced)" if force else ""))
+            self._state = new_state
+            
+            # Wake waiting threads
+            self._state_condition.wakeAll()
+            
+            # Determine which signal to emit (but don't emit inside mutex!)
+            if new_state == WorkerState.STOPPED:
+                signal_to_emit = self.worker_stopped
+            elif new_state == WorkerState.ERROR:
+                signal_to_emit = lambda: self.worker_error.emit("State error")
+        
+        # Emit signals outside the mutex to prevent deadlock
+        # Direct emission is safe here since we're outside the mutex
+        if signal_to_emit:
+            if hasattr(signal_to_emit, 'emit'):
+                signal_to_emit.emit()
+            else:
+                signal_to_emit()
+                
+        return True
 
     def request_stop(self) -> bool:
         """Thread-safe stop request.
@@ -91,28 +140,37 @@ class ThreadSafeWorker(QThread):
         Returns:
             True if stop was requested successfully, False if already stopping/stopped
         """
+        signal_to_emit = None
+        
         with QMutexLocker(self._state_mutex):
             current = self._state
 
-            if current in ["STOPPED", "DELETED", "STOPPING"]:
-                logger.debug(f"Worker {id(self)}: Already stopping/stopped ({current})")
+            if current in [WorkerState.STOPPED, WorkerState.DELETED, WorkerState.STOPPING]:
+                logger.debug(f"Worker {id(self)}: Already stopping/stopped ({current.value})")
                 return False
 
             # Can stop from CREATED, STARTING, or RUNNING states
-            if current in ["CREATED", "STARTING"]:
+            if current in [WorkerState.CREATED, WorkerState.STARTING]:
                 # Direct transition to STOPPED if not yet running
-                self._state = "STOPPED"
+                self._state = WorkerState.STOPPED
                 self._stop_requested = True
-                self.worker_stopped.emit()
-                return True
-            elif current == "RUNNING":
+                signal_to_emit = self.worker_stopped
+                logger.debug(f"Worker {id(self)}: {current.value} -> STOPPED")
+            elif current == WorkerState.RUNNING:
                 # Normal stop sequence
-                self._state = "STOPPING"
+                self._state = WorkerState.STOPPING
                 self._stop_requested = True
-                self.worker_stopping.emit()
-                return True
-
-            return False
+                signal_to_emit = self.worker_stopping
+                logger.debug(f"Worker {id(self)}: {current.value} -> STOPPING")
+            else:
+                return False
+        
+        # Emit signal OUTSIDE mutex to prevent deadlock
+        # Direct emission is safe here since we're outside the mutex
+        if signal_to_emit:
+            signal_to_emit.emit()
+        
+        return True
 
     def is_stop_requested(self) -> bool:
         """Check if stop has been requested.
@@ -188,29 +246,29 @@ class ThreadSafeWorker(QThread):
         Override do_work() in subclasses to implement actual functionality.
         """
         # Transition to STARTING
-        if not self.set_state("STARTING"):
+        if not self.set_state(WorkerState.STARTING):
             logger.error(f"Worker {id(self)}: Failed to start - invalid state")
             return
 
         # Check if stop was requested before we even started
         if self._stop_requested:
-            self.set_state("STOPPED")
-            self.worker_stopped.emit()
+            self.set_state(WorkerState.STOPPED)
             return
 
         # Emit started signal
         self.worker_started.emit()
 
         # Transition to RUNNING
-        if not self.set_state("RUNNING"):
+        if not self.set_state(WorkerState.RUNNING):
             logger.error(f"Worker {id(self)}: Failed to transition to RUNNING")
-            self.set_state("STOPPED")
-            self.worker_stopped.emit()
+            self.set_state(WorkerState.STOPPED)
             return
 
         # Execute actual work
         try:
             # Check if thread should exit before starting work
+            if self._force_stop:
+                return
             if self.thread() and self.thread().isInterruptionRequested():
                 logger.debug(f"Worker {id(self)}: Interruption requested before work")
                 return
@@ -218,14 +276,30 @@ class ThreadSafeWorker(QThread):
             self.do_work()
         except Exception as e:
             logger.exception(f"Worker {id(self)}: Exception in do_work")
+            self.set_state(WorkerState.ERROR)
             self.worker_error.emit(str(e))
         finally:
-            # Ensure we transition to STOPPED
-            with QMutexLocker(self._state_mutex):
-                if self._state != "STOPPED":
-                    self._state = "STOPPED"
-
-            self.worker_stopped.emit()
+            # Respect the state machine - transition properly to STOPPED
+            current_state = self.get_state()
+            if current_state == WorkerState.RUNNING:
+                # Valid transition: RUNNING -> STOPPING -> STOPPED
+                if not self.set_state(WorkerState.STOPPING):
+                    logger.warning("Failed to transition to STOPPING, forcing it")
+                    self.set_state(WorkerState.STOPPING, force=True)
+                # Now transition from STOPPING to STOPPED
+                if not self.set_state(WorkerState.STOPPED):
+                    logger.warning("Failed to transition to STOPPED, forcing it")
+                    self.set_state(WorkerState.STOPPED, force=True)
+            elif current_state == WorkerState.ERROR:
+                # Valid transition: ERROR -> STOPPED
+                if not self.set_state(WorkerState.STOPPED):
+                    logger.warning("Failed to transition from ERROR to STOPPED, forcing it")
+                    self.set_state(WorkerState.STOPPED, force=True)
+            elif current_state not in [WorkerState.STOPPED, WorkerState.DELETED]:
+                # For other states, try direct transition to STOPPED
+                if not self.set_state(WorkerState.STOPPED):
+                    logger.warning(f"Forcing STOPPED state from {current_state}")
+                    self.set_state(WorkerState.STOPPED, force=True)
 
     def do_work(self) -> None:
         """Override this method with actual work implementation.
@@ -243,9 +317,9 @@ class ThreadSafeWorker(QThread):
         self.disconnect_all()
 
         # Transition to final state
-        self.set_state("DELETED")
+        self.set_state(WorkerState.DELETED)
 
-    def safe_wait(self, timeout_ms: int = 5000) -> bool:
+    def safe_wait(self, timeout_ms: int = ThreadingConfig.WORKER_STOP_TIMEOUT_MS) -> bool:
         """Safely wait for worker to finish with timeout.
 
         Args:
@@ -254,10 +328,42 @@ class ThreadSafeWorker(QThread):
         Returns:
             True if worker finished, False if timeout
         """
-        if self.get_state() in ["STOPPED", "DELETED"]:
+        if self.get_state() in [WorkerState.STOPPED, WorkerState.DELETED]:
             return True
 
         return self.wait(timeout_ms)
+    
+    def safe_stop(self, timeout_ms: int = ThreadingConfig.WORKER_STOP_TIMEOUT_MS) -> bool:
+        """Safely stop worker with timeout.
+        
+        Args:
+            timeout_ms: Maximum time to wait for stop
+            
+        Returns:
+            True if stopped successfully, False if timeout
+        """
+        # Use request_stop() to properly set stop flags
+        if not self.request_stop():
+            # If request_stop failed, try to force stop
+            with QMutexLocker(self._state_mutex):
+                self._stop_requested = True
+                self._force_stop = True
+        else:
+            # Also set force stop for additional safety
+            with QMutexLocker(self._state_mutex):
+                self._force_stop = True
+        
+        # Wake any waiting threads
+        self._state_condition.wakeAll()
+        
+        # Wait for thread to finish
+        if not self.wait(timeout_ms):
+            logger.warning(f"Worker failed to stop gracefully within {timeout_ms}ms")
+            # Use safe termination instead of terminate()
+            self.safe_terminate()
+            return False
+            
+        return True
 
     def safe_terminate(self) -> None:
         """Safely terminate the worker thread.
@@ -267,19 +373,20 @@ class ThreadSafeWorker(QThread):
         """
         state = self.get_state()
 
-        if state in ["STOPPED", "DELETED"]:
+        if state in [WorkerState.STOPPED, WorkerState.DELETED]:
             logger.debug(f"Worker {id(self)}: Already stopped, no termination needed")
             return
 
-        logger.warning(f"Worker {id(self)}: Requesting stop from state {state}")
+        logger.warning(f"Worker {id(self)}: Requesting stop from state {state.value}")
 
         # Disconnect signals before any termination attempt
         self.disconnect_all()
 
         # Force state transition
         with QMutexLocker(self._state_mutex):
-            self._state = "STOPPED"
+            self._state = WorkerState.STOPPED
             self._stop_requested = True
+            self._force_stop = True
 
         # Try graceful shutdown first
         if self.isRunning():
@@ -290,13 +397,13 @@ class ThreadSafeWorker(QThread):
             self.quit()
 
             # Wait for graceful shutdown with shorter initial timeout
-            if not self.wait(2000):  # 2 second initial timeout
+            if not self.wait(ThreadingConfig.WORKER_STOP_TIMEOUT_MS):  # Initial timeout
                 logger.warning(
-                    f"Worker {id(self)}: Still running after 2s, waiting longer..."
+                    f"Worker {id(self)}: Still running after {ThreadingConfig.WORKER_STOP_TIMEOUT_MS}ms, waiting longer..."
                 )
 
                 # Try one more time with longer timeout
-                if not self.wait(3000):  # 3 more seconds
+                if not self.wait(ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS * 3):  # Extended timeout
                     logger.error(
                         f"Worker {id(self)}: Failed to stop gracefully after 5s total. "
                         "Thread will be abandoned (NOT terminated) to prevent crashes."

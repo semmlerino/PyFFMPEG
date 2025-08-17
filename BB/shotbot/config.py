@@ -292,3 +292,38 @@ class Config:
     THREEDE_SCAN_MAX_FILES_PER_SHOT = 50  # Stop searching shot after this many files
     THREEDE_CACHE_DISCOVERED_SHOTS = True  # Cache which shots have .3de files
     THREEDE_INCREMENTAL_SCAN = False  # Only scan for changes (future feature)
+
+
+class ThreadingConfig:
+    """Threading and timeout configuration constants.
+    
+    This class centralizes all threading-related configuration to prevent 
+    deadlocks and ensure consistent timing across the application.
+    """
+    
+    # Worker timeouts
+    WORKER_STOP_TIMEOUT_MS = 2000  # Time to wait for graceful worker stop
+    WORKER_TERMINATE_TIMEOUT_MS = 1000  # Time to wait before force termination
+    WORKER_POLL_INTERVAL = 0.1  # Polling interval for worker state checks
+    
+    # Cleanup timings
+    CLEANUP_RETRY_DELAY_MS = 500  # Delay between cleanup retry attempts
+    CLEANUP_INITIAL_DELAY_MS = 1000  # Initial delay before cleanup starts
+    
+    # Process pool configuration
+    SESSION_INIT_TIMEOUT = 2.0  # Timeout for session initialization
+    SESSION_MAX_RETRIES = 5  # Maximum retry attempts for session operations
+    SUBPROCESS_TIMEOUT = 30.0  # General subprocess timeout
+    
+    # Polling configuration
+    INITIAL_POLL_INTERVAL = 0.01  # 10ms - Initial polling interval
+    MAX_POLL_INTERVAL = 0.5  # 500ms - Maximum polling interval
+    POLL_BACKOFF_FACTOR = 1.5  # Exponential backoff multiplier
+    
+    # Cache configuration
+    CACHE_MAX_MEMORY_MB = 100  # Maximum memory for caching
+    CACHE_CLEANUP_INTERVAL = 30  # Cache cleanup interval in minutes
+    
+    # Thread pool settings
+    MAX_WORKER_THREADS = 4  # Maximum number of worker threads
+    THREAD_POOL_TIMEOUT = 5.0  # Thread pool operation timeout

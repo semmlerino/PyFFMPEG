@@ -1659,7 +1659,8 @@ class TestLauncherWorkerLifecycle:
         worker = LauncherWorker("test_launcher", "echo test", None)
         
         # Initial state should be CREATED
-        assert worker.get_state() == "CREATED"
+        from thread_safe_worker import WorkerState
+        assert worker.get_state() == WorkerState.CREATED
         
         # Mock subprocess to control execution
         with patch('launcher_manager.subprocess.Popen') as mock_popen:
@@ -1675,10 +1676,10 @@ class TestLauncherWorkerLifecycle:
             
             # Should be in a valid running state or may have already finished
             current_state = worker.get_state()
-            assert current_state in ["STARTING", "RUNNING", "STOPPING", "STOPPED"], f"Expected valid state, got {current_state}"
+            assert current_state in [WorkerState.STARTING, WorkerState.RUNNING, WorkerState.STOPPING, WorkerState.STOPPED], f"Expected valid state, got {current_state}"
             
             # Request stop (if not already stopped)
-            if current_state not in ["STOPPED", "DELETED"]:
+            if current_state not in [WorkerState.STOPPED, WorkerState.DELETED]:
                 stop_result = worker.request_stop()
                 # Stop result depends on current state - may succeed or fail if already stopping
                 assert isinstance(stop_result, bool), "Stop request should return boolean"
@@ -1689,14 +1690,14 @@ class TestLauncherWorkerLifecycle:
             
             # Final state should be STOPPED or DELETED
             final_state = worker.get_state()
-            assert final_state in ["STOPPED", "DELETED"], f"Expected STOPPED/DELETED, got {final_state}"
+            assert final_state in [WorkerState.STOPPED, WorkerState.DELETED], f"Expected STOPPED/DELETED, got {final_state}"
         
         # Clean up
         worker.disconnect_all()
         worker.deleteLater()
         
         # Verify basic state machine worked (started as CREATED, ended as STOPPED/DELETED)
-        assert worker.get_state() in ["STOPPED", "DELETED"], "Worker should end in terminal state"
+        assert worker.get_state() in [WorkerState.STOPPED, WorkerState.DELETED], "Worker should end in terminal state"
     
     def test_launcher_worker_signal_emission_order(self):
         """Test LauncherWorker emits signals in correct order.

@@ -12,11 +12,11 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
-from config import Config
+from config import Config, ThreadingConfig
 from process_pool_manager import ProcessPoolManager
 from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
@@ -339,10 +339,10 @@ class LauncherManager(QObject):
     execution_finished = Signal(str, bool)  # launcher_id, success
 
     # Process management constants
-    MAX_CONCURRENT_PROCESSES = 100
-    CLEANUP_INTERVAL_MS = 30000  # 30 seconds
+    MAX_CONCURRENT_PROCESSES = ThreadingConfig.MAX_WORKER_THREADS * 25  # Scale with worker threads
+    CLEANUP_INTERVAL_MS = ThreadingConfig.CACHE_CLEANUP_INTERVAL * 1000  # Convert minutes to ms
     PROCESS_STARTUP_TIMEOUT_MS = (
-        30000  # 30 seconds for process validation (VFX apps can be slow)
+        ThreadingConfig.SUBPROCESS_TIMEOUT * 1000  # Convert seconds to ms for VFX apps
     )
 
     def __init__(self):
@@ -362,6 +362,12 @@ class LauncherManager(QObject):
         self._process_lock = threading.RLock()
         self._cleanup_lock = threading.Lock()  # Separate lock for cleanup coordination
         self._cleanup_in_progress = False  # Track cleanup state with lock protection
+        self._cleanup_scheduled = False  # Prevent cascading cleanup requests
+
+        # Managed timer for cleanup retry (prevents cascading timers)
+        self._cleanup_retry_timer = QTimer()
+        self._cleanup_retry_timer.timeout.connect(self._perform_cleanup_with_reset)
+        self._cleanup_retry_timer.setSingleShot(True)
 
         # Periodic cleanup timer
         self._cleanup_timer = QTimer()
@@ -1507,7 +1513,7 @@ class LauncherManager(QObject):
                 self._process_pool.execute_workspace_command(
                     full_command,
                     cache_ttl=0,  # Don't cache application launches
-                    timeout=300,  # 5 minutes for app launches
+                    timeout=int(ThreadingConfig.THREAD_POOL_TIMEOUT * 60),  # 5 minutes for app launches
                 )
 
                 # Command executed successfully
@@ -1607,142 +1613,218 @@ class LauncherManager(QObject):
         # Emit the finished signal
         self.execution_finished.emit(launcher_id, success)
 
-        # Schedule cleanup of finished workers
-        QTimer.singleShot(1000, self._cleanup_finished_workers)
+        # Schedule cleanup of finished workers using managed approach
+        self._schedule_cleanup_after_delay(ThreadingConfig.CLEANUP_INITIAL_DELAY_MS)
+
+    def _check_worker_state_atomic(self, worker_key: str) -> Tuple[str, bool]:
+        """Atomically check worker state and running status.
+        
+        Returns:
+            Tuple of (state, is_running)
+        """
+        # Get worker reference first, then release process lock to avoid deadlock
+        with self._process_lock:
+            worker = self._active_workers.get(worker_key)
+            if not worker:
+                return ("DELETED", False)
+        
+        # Now access worker state outside of process lock to prevent nested locking deadlock
+        # Access worker's internal mutex for atomic check
+        if hasattr(worker, '_state_mutex'):
+            from PySide6.QtCore import QMutexLocker
+            with QMutexLocker(worker._state_mutex):
+                state = worker._state.value if hasattr(worker._state, 'value') else str(worker._state)
+                is_running = worker.isRunning()
+                return (state, is_running)
+        else:
+            # Fallback for workers without state mutex
+            try:
+                state = worker.get_state()
+                if hasattr(state, 'value'):
+                    state = state.value
+                else:
+                    state = str(state)
+                is_running = worker.isRunning()
+                return (state, is_running)
+            except Exception as e:
+                logger.error(f"Failed to check worker {worker_key}: {e}")
+                return ("ERROR", False)
 
     def _cleanup_finished_workers(self):
-        """Thread-safe cleanup of finished worker threads.
+        """Thread-safe cleanup of finished worker threads with cascading prevention.
 
         This method uses proper locking and the ThreadSafeWorker state
-        management to safely clean up finished workers.
+        management to safely clean up finished workers without creating
+        cascading timer events.
         """
+        # Prevent multiple pending cleanup requests
+        if self._cleanup_scheduled:
+            logger.debug("Cleanup already scheduled, skipping duplicate request")
+            return
+
         # Try to acquire cleanup lock without blocking
         if not self._cleanup_lock.acquire(blocking=False):
-            logger.debug("Worker cleanup already in progress, scheduling retry")
-            # Schedule retry to ensure cleanup happens eventually
-            QTimer.singleShot(500, self._cleanup_finished_workers)
+            # Mark cleanup as scheduled before creating timer
+            self._cleanup_scheduled = True
+            logger.debug("Worker cleanup in progress, scheduling single retry")
+            
+            # Use managed timer to prevent cascading
+            if not self._cleanup_retry_timer.isActive():
+                self._cleanup_retry_timer.start(ThreadingConfig.CLEANUP_RETRY_DELAY_MS)
             return
 
         try:
-            # Get snapshot of workers to check
-            with self._process_lock:
-                workers_to_check = list(self._active_workers.items())
-
+            self._cleanup_in_progress = True
+            self._cleanup_scheduled = False
+            
+            # Get snapshot of workers to check with atomic state
             finished_workers = []
-
-            for worker_key, worker in workers_to_check:
+            inconsistent_workers = []
+            
+            with self._process_lock:
+                worker_keys = list(self._active_workers.keys())
+            
+            for worker_key in worker_keys:
                 try:
-                    # Use ThreadSafeWorker state management
-                    state = worker.get_state()
-
-                    if state in ["STOPPED", "DELETED"]:
-                        # Worker finished normally
-                        finished_workers.append(worker_key)
-
-                        # Ensure thread is truly finished before deletion
-                        if worker.isRunning():
-                            logger.warning(
-                                f"Worker {worker_key} marked as {state} but still running - waiting"
-                            )
-                            if not worker.wait(2000):  # Wait up to 2 seconds
-                                logger.error(
-                                    f"Worker {worker_key} failed to stop properly - forcing termination"
-                                )
-                                worker.safe_terminate()
-                                worker.wait(500)  # Give it time to terminate
-
-                        # Disconnect signals using thread-safe method
-                        worker.disconnect_all()
-
-                        # Only schedule for deletion after thread is fully stopped
-                        if not worker.isRunning():
-                            worker.deleteLater()
-                            logger.debug(
-                                f"Cleaned up finished worker {worker_key} (state: {state})"
-                            )
+                    # Atomic state check
+                    state, is_running = self._check_worker_state_atomic(worker_key)
+                    
+                    if state in ["STOPPED", "DELETED", "ERROR"]:
+                        if not is_running:
+                            # Consistent state - safe to remove
+                            finished_workers.append(worker_key)
                         else:
-                            logger.error(
-                                f"Cannot delete worker {worker_key} - still running after termination"
+                            # Inconsistent state - needs special handling
+                            inconsistent_workers.append((worker_key, state))
+                            logger.warning(
+                                f"Worker {worker_key} in {state} but thread still running"
                             )
-
-                    elif state == "CREATED" and not worker.isRunning():
+                    
+                    elif state == "CREATED" and not is_running:
                         # Worker never started - safe to clean up
                         finished_workers.append(worker_key)
-                        worker.disconnect_all()
-                        worker.deleteLater()
-                        logger.debug(f"Cleaned up unstarted worker {worker_key}")
-
-                    elif state == "RUNNING" and not worker.isRunning():
-                        # Worker is stuck - request stop and wait for completion
+                        logger.debug(f"Unstarted worker {worker_key} marked for cleanup")
+                    
+                    elif state == "RUNNING" and not is_running:
+                        # Worker is stuck - inconsistent state
+                        inconsistent_workers.append((worker_key, state))
                         logger.warning(
                             f"Worker {worker_key} stuck in RUNNING but thread not running"
                         )
-                        finished_workers.append(worker_key)
-
-                        # Try to stop gracefully first
-                        if worker.request_stop():
-                            if not worker.safe_wait(1000):
-                                worker.safe_terminate()
-                                worker.wait(500)  # Give it time to terminate
-
-                        # Only delete if truly stopped
-                        if not worker.isRunning():
-                            worker.disconnect_all()
-                            worker.deleteLater()
-                        else:
-                            logger.error(
-                                f"Cannot delete worker {worker_key} - still running after termination"
-                            )
-
+                    
                     elif state == "STOPPING":
                         # Worker is stopping - give it more time
-                        if not worker.safe_wait(500):
-                            # Still not stopped - force terminate
-                            logger.warning(
-                                f"Force terminating stuck worker {worker_key}"
-                            )
-                            worker.safe_terminate()
-                            if worker.wait(1000):  # Wait for termination to complete
-                                finished_workers.append(worker_key)
-                                worker.disconnect_all()
-                                worker.deleteLater()
-                            else:
-                                logger.error(
-                                    f"Worker {worker_key} failed to terminate - not deleting"
-                                )
-                        else:
-                            # Worker stopped successfully
-                            finished_workers.append(worker_key)
-                            worker.disconnect_all()
-                            worker.deleteLater()
+                        logger.debug(f"Worker {worker_key} is still stopping")
 
                 except Exception as e:
                     logger.error(f"Error checking worker {worker_key}: {e}")
                     # Mark for cleanup anyway to prevent accumulation
                     finished_workers.append(worker_key)
-                    try:
-                        # Try to safely stop and clean up
-                        worker.safe_terminate()
-                        if worker.wait(1000):  # Wait for termination
-                            worker.disconnect_all()
-                            worker.deleteLater()
-                        else:
-                            logger.error(
-                                f"Failed to clean up error worker {worker_key} - still running"
-                            )
-                    except Exception:
-                        pass  # Best effort cleanup
 
-            # Remove finished workers atomically
-            if finished_workers:
-                with self._process_lock:
-                    for key in finished_workers:
-                        self._active_workers.pop(key, None)
-
-                logger.debug(f"Cleaned up {len(finished_workers)} finished workers")
+            # Remove finished workers
+            for worker_key in finished_workers:
+                self._remove_worker_safe(worker_key)
+            
+            # Handle inconsistent workers
+            for worker_key, state in inconsistent_workers:
+                self._handle_inconsistent_worker(worker_key, state)
+            
+            if finished_workers or inconsistent_workers:
+                logger.debug(
+                    f"Cleaned up {len(finished_workers)} finished workers, handled {len(inconsistent_workers)} inconsistent workers"
+                )
 
         finally:
+            self._cleanup_in_progress = False
+            self._cleanup_scheduled = False
             self._cleanup_lock.release()
+
+    def _remove_worker_safe(self, worker_key: str):
+        """Safely remove worker with proper cleanup."""
+        with self._process_lock:
+            worker = self._active_workers.get(worker_key)
+            if not worker:
+                return
+            
+            # First ensure worker is stopped (while still tracked in dict)
+            if worker.isRunning():
+                logger.info(f"Stopping running worker {worker_key}")
+                if hasattr(worker, 'safe_stop'):
+                    if not worker.safe_stop(timeout_ms=ThreadingConfig.WORKER_STOP_TIMEOUT_MS):
+                        logger.warning(f"Worker {worker_key} failed to stop gracefully, terminating")
+                        worker.terminate()
+                        worker.wait(ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS)
+                else:
+                    worker.quit()
+                    if not worker.wait(ThreadingConfig.WORKER_STOP_TIMEOUT_MS):
+                        logger.warning(f"Worker {worker_key} failed to quit gracefully, terminating")
+                        worker.terminate()
+                        worker.wait()
+            
+            # NOW remove from tracking (after worker is fully stopped)
+            self._active_workers.pop(worker_key, None)
+            
+            # Disconnect signals
+            try:
+                if hasattr(worker, 'disconnect_all'):
+                    worker.disconnect_all()
+                else:
+                    # LauncherWorker doesn't have disconnect method
+                    pass
+            except Exception:
+                pass  # Already disconnected
+            
+            # Schedule for deletion
+            worker.deleteLater()
+            
+            logger.debug(f"Worker {worker_key} removed successfully")
+    
+    def _handle_inconsistent_worker(self, worker_key: str, reported_state: str):
+        """Handle worker with inconsistent state."""
+        logger.warning(f"Handling inconsistent worker {worker_key} in state {reported_state}")
+        
+        with self._process_lock:
+            worker = self._active_workers.get(worker_key)
+            if not worker:
+                return
+            
+            # Try graceful stop first
+            if hasattr(worker, 'safe_stop'):
+                if worker.safe_stop(timeout_ms=ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS):
+                    logger.info(f"Successfully stopped inconsistent worker {worker_key}")
+                    self._remove_worker_safe(worker_key)
+                    return
+            
+            # Force termination if graceful stop fails
+            logger.warning(f"Force terminating worker {worker_key}")
+            worker.terminate()
+            worker.wait(ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS)
+            self._remove_worker_safe(worker_key)
+    
+    def _schedule_cleanup_after_delay(self, delay_ms: int = ThreadingConfig.CLEANUP_INITIAL_DELAY_MS):
+        """Schedule cleanup using managed approach to prevent cascading.
+        
+        Args:
+            delay_ms: Delay before cleanup in milliseconds
+        """
+        if self._cleanup_scheduled:
+            logger.debug("Cleanup already scheduled, skipping duplicate")
+            return
+        
+        logger.debug(f"Scheduling cleanup after {delay_ms}ms delay")
+        self._cleanup_scheduled = True
+        
+        # Use the managed timer to prevent cascading
+        if not self._cleanup_retry_timer.isActive():
+            self._cleanup_retry_timer.setInterval(delay_ms)
+            self._cleanup_retry_timer.start()
+        else:
+            logger.debug("Cleanup retry timer already active, reusing")
+
+    def _perform_cleanup_with_reset(self):
+        """Timer callback that resets scheduled flag and performs cleanup."""
+        self._cleanup_scheduled = False
+        self._cleanup_finished_workers()
 
     def stop_all_workers(self) -> None:
         """Stop all active worker threads using thread-safe methods."""
@@ -1757,7 +1839,7 @@ class LauncherManager(QObject):
                 if state not in ["STOPPED", "DELETED"]:
                     logger.debug(f"Stopping worker {worker_key} (state: {state})")
                     if worker.request_stop():
-                        if not worker.safe_wait(1000):
+                        if not worker.safe_wait(ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS):
                             logger.warning(
                                 f"Worker {worker_key} didn't stop gracefully, terminating"
                             )

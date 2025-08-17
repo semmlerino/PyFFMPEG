@@ -25,6 +25,8 @@ except ImportError:
 
 from PySide6.QtCore import QObject, Signal
 
+from config import ThreadingConfig
+
 # Import debug utilities
 try:
     from debug_utils import (
@@ -192,6 +194,11 @@ class PersistentBashSession:
     MAX_RETRY_DELAY = 5.0  # 5 seconds
     BACKOFF_MULTIPLIER = 2.0
     MAX_RETRIES = 5
+    
+    # Polling configuration for efficient subprocess reading
+    INITIAL_POLL_INTERVAL = ThreadingConfig.INITIAL_POLL_INTERVAL  # 10ms
+    MAX_POLL_INTERVAL = ThreadingConfig.MAX_POLL_INTERVAL  # 500ms
+    POLL_BACKOFF_FACTOR = ThreadingConfig.POLL_BACKOFF_FACTOR
 
     def __init__(self, session_id: str):
         """Initialize persistent bash session.
@@ -209,6 +216,8 @@ class PersistentBashSession:
         self._retry_count = 0
         self._retry_delay = self.INITIAL_RETRY_DELAY
         self._last_retry_time = 0
+        self._poll_interval = self.INITIAL_POLL_INTERVAL
+        self._consecutive_empty_polls = 0
         self._start_session()
 
     def _start_session(self, with_backoff: bool = False):
@@ -372,9 +381,11 @@ class PersistentBashSession:
 
                 # Accumulate all output to search for marker
                 accumulated_output = ""
+                poll_interval = self.INITIAL_POLL_INTERVAL
 
                 while time.time() - start_time < timeout:
                     elapsed = time.time() - start_time
+                    remaining_time = timeout - elapsed
 
                     if self._process.stdout:
                         try:
@@ -390,15 +401,19 @@ class PersistentBashSession:
                                             f"[{self.session_id}] Checking for data at {elapsed:.1f}s..."
                                         )
 
-                                    # Use very short timeout to avoid hanging
+                                    # Use adaptive timeout with exponential backoff
                                     ready, _, _ = select.select(
-                                        [self._process.stdout], [], [], 0.01
+                                        [self._process.stdout], [], [], 
+                                        min(poll_interval, remaining_time)
                                     )
                                     if ready:
                                         # Read available data - use readline to avoid blocking
                                         line = self._process.stdout.readline()
                                         if line:
                                             accumulated_output += line
+                                            # Reset backoff on successful read
+                                            poll_interval = self.INITIAL_POLL_INTERVAL
+                                            self._consecutive_empty_polls = 0
                                             if DEBUG_VERBOSE:
                                                 logger.debug(
                                                     f"[{self.session_id}] Read line ({len(line)} bytes): {line[:100].strip()}"
@@ -409,11 +424,23 @@ class PersistentBashSession:
                                                     f"[{self.session_id}] Session initialized successfully (non-blocking)"
                                                 )
                                                 break
-                                    elif DEBUG_VERBOSE and elapsed > 0.5:
-                                        # Log if we've been waiting a while with no data
-                                        logger.debug(
-                                            f"[{self.session_id}] No data available after {elapsed:.1f}s, continuing to wait..."
+                                    else:
+                                        # No data available - apply exponential backoff
+                                        self._consecutive_empty_polls += 1
+                                        poll_interval = min(
+                                            poll_interval * self.POLL_BACKOFF_FACTOR,
+                                            self.MAX_POLL_INTERVAL
                                         )
+                                        
+                                        # Log if polling for extended time
+                                        if self._consecutive_empty_polls > 10 and DEBUG_VERBOSE:
+                                            logger.debug(
+                                                f"[{self.session_id}] No output for {self._consecutive_empty_polls} polls, interval: {poll_interval:.3f}s"
+                                            )
+                                        
+                                        # Yield CPU to other threads for long polls
+                                        if poll_interval > 0.1:
+                                            time.sleep(0.001)  # Small yield
                                 except ImportError:
                                     # select not available, fall back to readline
                                     logger.debug(
@@ -545,7 +572,166 @@ class PersistentBashSession:
 
         return text
 
-    def execute(self, command: str, timeout: int = 120) -> str:
+    def _read_with_backoff(
+        self, timeout: float, marker: Optional[str] = None
+    ) -> Tuple[str, bool]:
+        """Read from subprocess with exponential backoff polling.
+
+        Args:
+            timeout: Maximum time to wait for data
+            marker: Optional marker to stop reading when found
+
+        Returns:
+            Tuple of (output, found_marker)
+        """
+        if self._process is None or self._process.stdout is None:
+            raise RuntimeError("Process not available for reading")
+
+        output: List[str] = []
+        buffer = ""
+        start_time = time.time()
+        poll_interval = self.INITIAL_POLL_INTERVAL
+        consecutive_empty_polls = 0
+        found_marker = False
+
+        # Decide whether to use select or fcntl based on availability
+        use_select = False
+        try:
+            import select
+
+            use_select = True
+        except ImportError:
+            if not HAS_FCNTL:
+                logger.warning("Neither select nor fcntl available - using blocking I/O")
+
+        while time.time() - start_time < timeout:
+            elapsed = time.time() - start_time
+            remaining_time = max(0.01, timeout - elapsed)
+
+            try:
+                if use_select:
+                    # Use select with adaptive timeout
+                    ready, _, _ = select.select(
+                        [self._process.stdout], [], [], min(poll_interval, remaining_time)
+                    )
+
+                    if ready:
+                        # Data available - read it
+                        if HAS_FCNTL:
+                            # Non-blocking read
+                            chunk = self._process.stdout.read(4096)
+                            if chunk:
+                                buffer += chunk
+                                lines = buffer.split("\n")
+                                buffer = lines[-1]
+
+                                for line in lines[:-1]:
+                                    if marker and marker in line:
+                                        found_marker = True
+                                        return "\n".join(output), found_marker
+
+                                    # Filter initialization markers
+                                    if not line.startswith("SHOTBOT_INIT_"):
+                                        clean_line = self._strip_escape_sequences(line.rstrip())
+                                        if clean_line:
+                                            output.append(clean_line)
+
+                                # Reset backoff on successful read
+                                poll_interval = self.INITIAL_POLL_INTERVAL
+                                consecutive_empty_polls = 0
+                        else:
+                            # Blocking readline
+                            line = self._process.stdout.readline()
+                            if line:
+                                if marker and marker in line:
+                                    found_marker = True
+                                    return "\n".join(output), found_marker
+
+                                if not line.startswith("SHOTBOT_INIT_"):
+                                    clean_line = self._strip_escape_sequences(line.rstrip())
+                                    if clean_line:
+                                        output.append(clean_line)
+
+                                # Reset backoff
+                                poll_interval = self.INITIAL_POLL_INTERVAL
+                                consecutive_empty_polls = 0
+                    else:
+                        # No data available - apply exponential backoff
+                        consecutive_empty_polls += 1
+                        poll_interval = min(
+                            poll_interval * self.POLL_BACKOFF_FACTOR, self.MAX_POLL_INTERVAL
+                        )
+
+                        # Yield CPU to other threads for long polls
+                        if poll_interval > 0.1:
+                            time.sleep(0.001)
+
+                        if DEBUG_VERBOSE and consecutive_empty_polls > 10:
+                            logger.debug(
+                                f"[{self.session_id}] No output for {consecutive_empty_polls} polls, interval: {poll_interval:.3f}s"
+                            )
+
+                elif HAS_FCNTL:
+                    # No select, but have fcntl - non-blocking read with sleep
+                    chunk = self._process.stdout.read(4096)
+                    if chunk:
+                        buffer += chunk
+                        lines = buffer.split("\n")
+                        buffer = lines[-1]
+
+                        for line in lines[:-1]:
+                            if marker and marker in line:
+                                found_marker = True
+                                return "\n".join(output), found_marker
+
+                            if not line.startswith("SHOTBOT_INIT_"):
+                                clean_line = self._strip_escape_sequences(line.rstrip())
+                                if clean_line:
+                                    output.append(clean_line)
+
+                        poll_interval = self.INITIAL_POLL_INTERVAL
+                    else:
+                        # Apply backoff
+                        poll_interval = min(
+                            poll_interval * self.POLL_BACKOFF_FACTOR, self.MAX_POLL_INTERVAL
+                        )
+                        time.sleep(poll_interval)
+
+                else:
+                    # Fallback to blocking readline
+                    line = self._process.stdout.readline()
+                    if line:
+                        if marker and marker in line:
+                            found_marker = True
+                            return "\n".join(output), found_marker
+
+                        if not line.startswith("SHOTBOT_INIT_"):
+                            clean_line = self._strip_escape_sequences(line.rstrip())
+                            if clean_line:
+                                output.append(clean_line)
+
+            except (IOError, OSError) as e:
+                # Handle EAGAIN for non-blocking I/O
+                # Note: select.error is a subclass of IOError, so it's handled here too
+                if HAS_FCNTL:
+                    import errno
+
+                    if e.errno == errno.EAGAIN:
+                        # No data available - apply backoff
+                        poll_interval = min(
+                            poll_interval * self.POLL_BACKOFF_FACTOR, self.MAX_POLL_INTERVAL
+                        )
+                        time.sleep(poll_interval)
+                        continue
+                # Log if it's a select error
+                if 'select' in str(type(e).__name__).lower():
+                    logger.error(f"Select error during read: {e}")
+                raise
+
+        # Timeout reached
+        return "\n".join(output), found_marker
+
+    def execute(self, command: str, timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT)) -> str:
         """Execute command in persistent session.
 
         Args:
@@ -622,20 +808,17 @@ class PersistentBashSession:
                         f"[{self.session_id}] Command sent to stdin and flushed"
                     )
 
-                # Read output until marker using non-blocking I/O
-                output: List[str] = []
-                start_time = time.time()
-                buffer = ""  # Buffer for partial lines
-
-                while True:
-                    elapsed = time.time() - start_time
-                    if elapsed > timeout:
+                # Read output until marker using improved polling
+                try:
+                    output, found_marker = self._read_with_backoff(timeout, marker)
+                    
+                    if not found_marker:
                         logger.debug(
-                            f"[{self.session_id}] Timeout reached after {elapsed:.2f}s for command: {command[:50]}..."
+                            f"[{self.session_id}] Marker not found after {timeout}s for command: {command[:50]}..."
                         )
                         if DEBUG_VERBOSE:
                             logger.debug(
-                                f"[{self.session_id}] Output collected before timeout: {output[:5] if output else 'None'}"
+                                f"[{self.session_id}] Output collected: {output[:500] if output else 'None'}"
                             )
                         # Try to recover
                         self._kill_session()
@@ -644,115 +827,23 @@ class PersistentBashSession:
                         raise TimeoutError(
                             f"Command timed out after {timeout}s: {command}"
                         )
-
-                    # Safe access with None check
-                    if self._process is None or self._process.stdout is None:
-                        raise RuntimeError("Process died during execution")
-
-                    # Read from stdout (blocking or non-blocking depending on fcntl availability)
-                    try:
-                        if HAS_FCNTL:
-                            # Non-blocking read
-                            if (
-                                DEBUG_VERBOSE and elapsed - int(elapsed) < 0.01
-                            ):  # Log once per second
-                                logger.debug(
-                                    f"[{self.session_id}] Reading (non-blocking) at {elapsed:.1f}s..."
-                                )
-                            chunk = self._process.stdout.read(4096)
-                        else:
-                            # Use select to check if data is available before blocking read
-                            import select
-                            
-                            if (
-                                DEBUG_VERBOSE and elapsed - int(elapsed) < 0.01
-                            ):  # Log once per second
-                                logger.debug(
-                                    f"[{self.session_id}] Checking for available data at {elapsed:.1f}s..."
-                                )
-                            
-                            # Check if data is available with a short timeout (0.1 seconds)
-                            remaining_time = max(0.1, timeout - elapsed)
-                            ready, _, _ = select.select([self._process.stdout], [], [], min(0.1, remaining_time))
-                            
-                            if ready:
-                                line = self._process.stdout.readline()
-                            else:
-                                # No data available, continue to check timeout
-                                time.sleep(0.01)
-                                continue
-                                
-                            if line:
-                                if DEBUG_VERBOSE:
-                                    logger.debug(
-                                        f"[{self.session_id}] Read line ({len(line)} chars): {line[:100] if line else 'empty'}"
-                                    )
-                                if marker in line:
-                                    logger.debug(
-                                        f"[{self.session_id}] Found marker, command complete"
-                                    )
-                                    self._command_count += 1
-                                    self._last_command_time = time.time()
-                                    result = "\n".join(output)
-                                    # Strip escape sequences from the result
-                                    result = self._strip_escape_sequences(result)
-                                    if DEBUG_VERBOSE:
-                                        logger.debug(
-                                            f"[{self.session_id}] Returning {len(result)} chars of output (after stripping escape sequences)"
-                                        )
-                                    return result
-                                # Filter out initialization markers and clean escape sequences
-                                if not line.startswith("SHOTBOT_INIT_"):
-                                    # Strip escape sequences from individual lines as well
-                                    clean_line = self._strip_escape_sequences(
-                                        line.rstrip()
-                                    )
-                                    if clean_line:  # Only append non-empty lines
-                                        output.append(clean_line)
-                            continue  # Skip the chunk processing below
-
-                        # Process chunk for non-blocking mode
-                        if chunk:
-                            buffer += chunk
-                            # Process complete lines
-                            lines = buffer.split("\n")
-                            # Keep incomplete line in buffer
-                            buffer = lines[-1]
-                            # Process complete lines
-                            for line in lines[:-1]:
-                                logger.debug(
-                                    f"Read line: {line[:100] if line else 'empty'}"
-                                )
-                                if marker in line:
-                                    logger.debug("Found marker, breaking")
-                                    # Return everything collected so far
-                                    self._command_count += 1
-                                    self._last_command_time = time.time()
-                                    result = "\n".join(output)
-                                    # Strip escape sequences from the result
-                                    result = self._strip_escape_sequences(result)
-                                    return result
-                                # Filter out initialization markers and clean escape sequences
-                                if not line.startswith("SHOTBOT_INIT_"):
-                                    # Strip escape sequences from individual lines as well
-                                    clean_line = self._strip_escape_sequences(
-                                        line.rstrip()
-                                    )
-                                    if clean_line:  # Only append non-empty lines
-                                        output.append(clean_line)
-                    except (IOError, OSError) as e:
-                        # EAGAIN means no data available (expected for non-blocking)
-                        if HAS_FCNTL:
-                            import errno
-
-                            if e.errno != errno.EAGAIN:
-                                raise
-                        else:
-                            raise
-
-                    # Small sleep to avoid busy waiting (only for non-blocking mode)
-                    if HAS_FCNTL:
-                        time.sleep(0.01)
+                    
+                    # Success - update counters
+                    self._command_count += 1
+                    self._last_command_time = time.time()
+                    
+                    if DEBUG_VERBOSE:
+                        logger.debug(
+                            f"[{self.session_id}] Returning {len(output)} chars of output"
+                        )
+                    
+                    return output
+                    
+                except RuntimeError as e:
+                    logger.error(f"[{self.session_id}] Process died during execution: {e}")
+                    self._kill_session()
+                    self._process = None
+                    raise
 
             except TimeoutError:
                 # Re-raise timeout errors as-is
@@ -905,7 +996,7 @@ class ProcessPoolManager(QObject):
         return cls._instance
 
     def execute_workspace_command(
-        self, command: str, cache_ttl: int = 30, timeout: int = 120
+        self, command: str, cache_ttl: int = 30, timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
     ) -> str:
         """Execute workspace command with caching and session reuse.
 
