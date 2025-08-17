@@ -351,11 +351,11 @@ def main():
     print(f"Working directory: {Path.cwd()}")
 
     # Check if psutil is available
-    try:
-        import psutil
+    import importlib.util
 
+    if importlib.util.find_spec("psutil") is not None:
         print("✓ psutil available for accurate memory measurement")
-    except ImportError:
+    else:
         print("! psutil not available, using approximate measurements")
 
     test_results = []

@@ -90,12 +90,9 @@ except ImportError:
         ERROR = "ERROR"
 
 
-try:
-    from process_pool_manager import ProcessPoolManager
+import importlib.util
 
-    HAS_PROCESS_POOL_MANAGER = True
-except ImportError:
-    HAS_PROCESS_POOL_MANAGER = False
+HAS_PROCESS_POOL_MANAGER = importlib.util.find_spec("process_pool_manager") is not None
 
 logger = logging.getLogger(__name__)
 

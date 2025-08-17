@@ -280,7 +280,7 @@ class TestLauncherThreadSafety:
             launchers.append(launcher)
 
         # FIXED: Use qtbot.waitSignal to set up signal monitoring BEFORE operations
-        expected_signals = len(launchers) * 2  # start + finish for each launcher
+        # Expected: len(launchers) * 2 signals (start + finish for each launcher)
 
         # Set up signal waiting BEFORE starting any operations
         signal_waiters = []
@@ -459,9 +459,16 @@ try:
     from launcher_manager import CustomLauncher, LauncherManager
 except ImportError:
     LauncherManager = MockLauncherManager
-    CustomLauncher = lambda id, name, command, icon: type(
-        "CustomLauncher", (), {"id": id, "name": name, "command": command, "icon": icon}
-    )()
+
+    def create_custom_launcher(id, name, command, icon):
+        """Create a mock CustomLauncher instance."""
+        return type(
+            "CustomLauncher",
+            (),
+            {"id": id, "name": name, "command": command, "icon": icon},
+        )()
+
+    CustomLauncher = create_custom_launcher
 
 
 if __name__ == "__main__":

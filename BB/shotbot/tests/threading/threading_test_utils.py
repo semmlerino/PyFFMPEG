@@ -68,7 +68,7 @@ from PySide6.QtCore import (
 # Import project modules
 try:
     from launcher_manager import LauncherManager, LauncherWorker
-    from thread_safe_worker import ThreadSafeWorker, WorkerState
+    from thread_safe_worker import WorkerState
 except ImportError:
     # Handle relative imports for test context
     import sys

@@ -252,6 +252,9 @@ class TestStopAfterFirstOptimization(unittest.TestCase):
         time_optimized = time.time() - start_time
 
         # Optimized version should process fewer files
+        # Log the performance difference for debugging
+        print(f"Time with all files: {time_all_files:.3f}s")
+        print(f"Time with optimization: {time_optimized:.3f}s")
         self.assertLess(len(scenes_optimized), len(scenes_all))
         # Should have 100 scenes vs 1000 scenes
         self.assertLessEqual(len(scenes_optimized), 100)
