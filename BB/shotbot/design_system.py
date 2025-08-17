@@ -460,7 +460,7 @@ class DesignSystem:
         """
 
     def get_component_style(
-        self, component: str, variant: str = "default"
+        self, component: str, variant: str = "default",
     ) -> Dict[str, str]:
         """Get style dictionary for specific component variants."""
         styles = {

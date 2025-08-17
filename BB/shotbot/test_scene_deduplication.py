@@ -22,7 +22,7 @@ def test_deduplication():
             user="published-mm",
             plate="FG01",
             scene_path=Path(
-                "/shows/jack_ryan/shots/GF_256/GF_256_1420/publish/mm/default/fg01/lens_distortion/v001/3de/GF_256_1420_mm-default_fg01_v001.3de"
+                "/shows/jack_ryan/shots/GF_256/GF_256_1420/publish/mm/default/fg01/lens_distortion/v001/3de/GF_256_1420_mm-default_fg01_v001.3de",
             ),
         ),
         ThreeDEScene(
@@ -33,7 +33,7 @@ def test_deduplication():
             user="published-mm",
             plate="FG01",
             scene_path=Path(
-                "/shows/jack_ryan/shots/GF_256/GF_256_1420/publish/mm/default/fg01/lens_distortion/v002/3de/GF_256_1420_mm-default_fg01_v002.3de"
+                "/shows/jack_ryan/shots/GF_256/GF_256_1420/publish/mm/default/fg01/lens_distortion/v002/3de/GF_256_1420_mm-default_fg01_v002.3de",
             ),
         ),
         ThreeDEScene(
@@ -44,7 +44,7 @@ def test_deduplication():
             user="published-mm",
             plate="BG01",
             scene_path=Path(
-                "/shows/jack_ryan/shots/GF_256/GF_256_1420/publish/mm/default/bg01/lens_distortion/v001/3de/GF_256_1420_mm-default_bg01_v001.3de"
+                "/shows/jack_ryan/shots/GF_256/GF_256_1420/publish/mm/default/bg01/lens_distortion/v001/3de/GF_256_1420_mm-default_bg01_v001.3de",
             ),
         ),
         ThreeDEScene(
@@ -55,7 +55,7 @@ def test_deduplication():
             user="rob-o",
             plate="FG01",
             scene_path=Path(
-                "/shows/jack_ryan/shots/GF_256/GF_256_0980/user/rob-o/3de/scenes/test.3de"
+                "/shows/jack_ryan/shots/GF_256/GF_256_0980/user/rob-o/3de/scenes/test.3de",
             ),
         ),
     ]

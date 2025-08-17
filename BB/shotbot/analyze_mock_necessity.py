@@ -150,16 +150,16 @@ def main():
     print("\n=== MOCK NECESSITY SUMMARY ===")
     print(f"Total mock usages analyzed: {total_count}")
     print(
-        f"  Necessary:     {necessary_count:4d} ({necessary_count / total_count * 100:.1f}%)"
+        f"  Necessary:     {necessary_count:4d} ({necessary_count / total_count * 100:.1f}%)",
     )
     print(
-        f"  Questionable:  {questionable_count:4d} ({questionable_count / total_count * 100:.1f}%)"
+        f"  Questionable:  {questionable_count:4d} ({questionable_count / total_count * 100:.1f}%)",
     )
     print(
-        f"  Excessive:     {excessive_count:4d} ({excessive_count / total_count * 100:.1f}%)"
+        f"  Excessive:     {excessive_count:4d} ({excessive_count / total_count * 100:.1f}%)",
     )
     print(
-        f"  Uncategorized: {uncategorized_count:4d} ({uncategorized_count / total_count * 100:.1f}%)"
+        f"  Uncategorized: {uncategorized_count:4d} ({uncategorized_count / total_count * 100:.1f}%)",
     )
 
     # Print category breakdown
@@ -183,7 +183,7 @@ def main():
             if files_for_category:
                 print("  Top files:")
                 for file, instances in sorted(
-                    files_for_category.items(), key=lambda x: len(x[1]), reverse=True
+                    files_for_category.items(), key=lambda x: len(x[1]), reverse=True,
                 )[:3]:
                     print(f"    - {file}: {len(instances)} instances")
 
@@ -201,7 +201,7 @@ def main():
             excessive_by_file[file] += len(instances)
 
     for file, count in sorted(
-        excessive_by_file.items(), key=lambda x: x[1], reverse=True
+        excessive_by_file.items(), key=lambda x: x[1], reverse=True,
     )[:10]:
         print(f"  {count:3d} - {file}")
 
@@ -213,7 +213,7 @@ def main():
     )
 
     print(
-        f"Potential mock reduction: {reduction_potential} instances ({reduction_percentage:.1f}%)"
+        f"Potential mock reduction: {reduction_potential} instances ({reduction_percentage:.1f}%)",
     )
     print("\nPriority refactoring targets:")
 
@@ -233,7 +233,7 @@ def main():
     print("\n=== VERDICT ===")
     if reduction_percentage > 30:
         print(
-            f"❌ EXCESSIVE MOCKING DETECTED: {reduction_percentage:.1f}% could be reduced"
+            f"❌ EXCESSIVE MOCKING DETECTED: {reduction_percentage:.1f}% could be reduced",
         )
         print("   The test suite has significant room for mock reduction.")
     elif reduction_percentage > 15:

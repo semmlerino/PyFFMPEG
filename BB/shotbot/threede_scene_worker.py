@@ -36,7 +36,7 @@ class ProgressCalculator:
         self.total_files_estimate = 0
 
     def update(
-        self, files_processed: int, total_estimate: Optional[int] = None
+        self, files_processed: int, total_estimate: Optional[int] = None,
     ) -> Tuple[float, str]:
         """Update progress and calculate ETA.
 
@@ -55,7 +55,7 @@ class ProgressCalculator:
         # Calculate progress percentage
         if self.total_files_estimate > 0:
             progress_pct = min(
-                100.0, (files_processed / self.total_files_estimate) * 100
+                100.0, (files_processed / self.total_files_estimate) * 100,
             )
         else:
             progress_pct = 0.0
@@ -104,13 +104,12 @@ class ProgressCalculator:
         # Format ETA
         if eta_seconds < 60:
             return f"~{int(eta_seconds)}s remaining"
-        elif eta_seconds < 3600:
+        if eta_seconds < 3600:
             minutes = int(eta_seconds / 60)
             return f"~{minutes}m remaining"
-        else:
-            hours = int(eta_seconds / 3600)
-            minutes = int((eta_seconds % 3600) / 60)
-            return f"~{hours}h {minutes}m remaining"
+        hours = int(eta_seconds / 3600)
+        minutes = int((eta_seconds % 3600) / 60)
+        return f"~{hours}h {minutes}m remaining"
 
 
 class ThreeDESceneWorker(ThreadSafeWorker):
@@ -133,7 +132,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
     started = Signal()  # Emitted when discovery starts
     batch_ready = Signal(list)  # Emitted with each batch of scenes
     progress = Signal(
-        int, int, float, str, str
+        int, int, float, str, str,
     )  # (current, total, percentage, description, eta)
     scan_progress = Signal(int, int, str)  # Emitted during individual shot scanning
     finished = Signal(list)  # Emitted with complete list of scenes
@@ -186,7 +185,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             1: QThread.Priority.HighPriority,
         }
         self._desired_priority = priority_map.get(
-            Config.WORKER_THREAD_PRIORITY, QThread.Priority.NormalPriority
+            Config.WORKER_THREAD_PRIORITY, QThread.Priority.NormalPriority,
         )
 
     def stop(self):
@@ -258,7 +257,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             while self._is_paused and not self.is_stop_requested():
                 logger.debug("Worker paused, waiting for resume...")
                 self._pause_condition.wait(
-                    self._pause_mutex, Config.WORKER_PAUSE_CHECK_INTERVAL_MS
+                    self._pause_mutex, Config.WORKER_PAUSE_CHECK_INTERVAL_MS,
                 )
         finally:
             self._pause_mutex.unlock()
@@ -304,7 +303,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 return
 
             logger.info(
-                f"Enhanced 3DE scene discovery completed: {len(scenes)} scenes found"
+                f"Enhanced 3DE scene discovery completed: {len(scenes)} scenes found",
             )
             self.finished.emit(scenes)
 
@@ -332,16 +331,16 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         shot_tuples = []
         for shot in self.shots:
             shot_tuples.append(
-                (shot.workspace_path, shot.show, shot.sequence, shot.shot)
+                (shot.workspace_path, shot.show, shot.sequence, shot.shot),
             )
 
         # Get size estimation for progress calculation
         try:
             estimated_users, estimated_files = ThreeDESceneFinder.estimate_scan_size(
-                shot_tuples, self.excluded_users
+                shot_tuples, self.excluded_users,
             )
             logger.debug(
-                f"Scan estimate: {estimated_users} users, ~{estimated_files} files"
+                f"Scan estimate: {estimated_users} users, ~{estimated_files} files",
             )
 
             # Initialize progress tracking
@@ -370,7 +369,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 total_shots,
                 status_msg,
             ) in ThreeDESceneFinder.find_all_scenes_progressive(
-                shot_tuples, self.excluded_users, self.batch_size
+                shot_tuples, self.excluded_users, self.batch_size,
             ):
                 # Check for pause/cancel between batches
                 if not self._check_pause_and_cancel():
@@ -392,7 +391,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                     Config.PROGRESS_UPDATE_INTERVAL_MS / 1000.0
                 ):
                     progress_pct, eta_str = self._progress_calculator.update(
-                        self._files_processed, estimated_files
+                        self._files_processed, estimated_files,
                     )
 
                     detailed_status = (
@@ -450,7 +449,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 other_scenes.append(scene)
 
         logger.info(
-            f"Found {len(all_scenes)} total scenes, {len(other_scenes)} are from other shots"
+            f"Found {len(all_scenes)} total scenes, {len(other_scenes)} are from other shots",
         )
 
         # Emit progress updates
@@ -507,12 +506,12 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
                 current_show += 1
                 self.progress.emit(
-                    current_show, total_shows, 0.0, f"Discovering shots in {show}", ""
+                    current_show, total_shows, 0.0, f"Discovering shots in {show}", "",
                 )
 
                 # Discover all shots in this show
                 all_shots = ThreeDESceneFinder.discover_all_shots_in_show(
-                    show_root, show
+                    show_root, show,
                 )
 
                 if not all_shots:
@@ -547,7 +546,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                         )
 
                     scenes = ThreeDESceneFinder.find_scenes_for_shot(
-                        workspace_path, show_name, sequence, shot, self.excluded_users
+                        workspace_path, show_name, sequence, shot, self.excluded_users,
                     )
                     all_scenes.extend(scenes)
 

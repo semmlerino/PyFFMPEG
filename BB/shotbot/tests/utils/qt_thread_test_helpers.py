@@ -33,7 +33,7 @@ class ThreadSignalTester:
         def handler(*args):
             if capture_args:
                 self.captured_signals.append(
-                    args if len(args) > 1 else (args[0] if args else None)
+                    args if len(args) > 1 else (args[0] if args else None),
                 )
             else:
                 self.captured_signals.append(True)
@@ -42,7 +42,7 @@ class ThreadSignalTester:
         return handler
 
     def wait_for_worker_lifecycle(
-        self, worker: QThread, expect_error: bool = False, timeout_ms: int = 5000
+        self, worker: QThread, expect_error: bool = False, timeout_ms: int = 5000,
     ) -> bool:
         """Wait for complete worker lifecycle including DELETED state.
 
@@ -82,7 +82,7 @@ class ThreadSignalTester:
 
 
 def wait_for_thread_state(
-    worker: Any, expected_state: Any, qtbot: QtBot, timeout_ms: int = 1000
+    worker: Any, expected_state: Any, qtbot: QtBot, timeout_ms: int = 1000,
 ) -> bool:
     """Wait for worker to reach expected state.
 

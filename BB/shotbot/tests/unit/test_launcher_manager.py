@@ -106,7 +106,7 @@ def test_shot():
         workspace_path="/test/workspace",
     ):
         return Shot(
-            show=show, sequence=sequence, shot=shot, workspace_path=workspace_path
+            show=show, sequence=sequence, shot=shot, workspace_path=workspace_path,
         )
 
     return _make_shot
@@ -177,7 +177,7 @@ class TestCustomLauncher:
     def test_custom_launcher_defaults(self):
         """Test CustomLauncher with minimal required fields."""
         launcher = CustomLauncher(
-            id="minimal", name="Minimal", description="Minimal launcher", command="test"
+            id="minimal", name="Minimal", description="Minimal launcher", command="test",
         )
 
         assert launcher.category == "custom"
@@ -205,7 +205,7 @@ class TestLauncherManager:
         assert hasattr(launcher_manager, "validation_error")
 
     def test_load_and_persist_launchers_from_config(
-        self, launcher_manager, test_launcher, temp_config_dir
+        self, launcher_manager, test_launcher, temp_config_dir,
     ):
         """Test loading and persisting launchers with real file I/O."""
         # Create test launcher data file
@@ -232,7 +232,7 @@ class TestLauncherManager:
                     },
                     "created_at": "2024-01-01T00:00:00",
                     "updated_at": "2024-01-01T00:00:00",
-                }
+                },
             },
         }
 
@@ -310,7 +310,7 @@ class TestLauncherManager:
         """Test duplicate name validation with real signal emission."""
         # Create first launcher
         first_id = launcher_manager.create_launcher(
-            name="Duplicate Name", command="echo first", description="First launcher"
+            name="Duplicate Name", command="echo first", description="First launcher",
         )
         assert first_id is not None
 
@@ -458,7 +458,7 @@ class TestLauncherManager:
 
         # Try to update non-existent launcher
         success = launcher_manager.update_launcher(
-            launcher_id="nonexistent_id", name="New Name"
+            launcher_id="nonexistent_id", name="New Name",
         )
 
         # Process Qt events
@@ -479,7 +479,7 @@ class TestLauncherManager:
         """Test deleting launcher with real persistence and signal emission."""
         # Create launcher to delete
         launcher_id = launcher_manager.create_launcher(
-            name="To Delete", command="echo delete", description="Will be deleted"
+            name="To Delete", command="echo delete", description="Will be deleted",
         )
         assert launcher_id is not None
         assert len(launcher_manager.list_launchers()) == 1
@@ -726,7 +726,7 @@ class TestLauncherExecution:
         shot_command = "echo $show $sequence $shot"
 
         shot_substituted = launcher_manager._substitute_variables(
-            shot_command, shot, {}
+            shot_command, shot, {},
         )
 
         assert "testshow" in shot_substituted
@@ -739,7 +739,7 @@ class TestLauncherExecution:
     def test_execute_in_shot_context(self, mock_qtimer, mock_config_class, mock_pool):
         """Test executing launcher with shot context."""
         test_launcher = CustomLauncher(
-            id="test", name="Test", description="Test launcher", command="echo $shot"
+            id="test", name="Test", description="Test launcher", command="echo $shot",
         )
 
         test_shot = Shot(
@@ -762,7 +762,7 @@ class TestLauncherExecution:
         with patch.object(manager, "_substitute_variables") as mock_substitute:
             with patch.object(manager, "_execute_with_worker", return_value=True):
                 with patch(
-                    "launcher_manager.PathUtils.validate_path_exists", return_value=True
+                    "launcher_manager.PathUtils.validate_path_exists", return_value=True,
                 ):
                     with patch("os.chdir"):
                         with patch("os.getcwd", return_value="/original"):
@@ -780,7 +780,7 @@ class TestLauncherExecution:
     def test_dry_run_execution(self, mock_qtimer, mock_config_class, mock_pool):
         """Test dry run execution logs command without executing."""
         test_launcher = CustomLauncher(
-            id="test", name="Test", description="Test launcher", command="echo test"
+            id="test", name="Test", description="Test launcher", command="echo test",
         )
 
         mock_config = Mock()
@@ -804,7 +804,7 @@ class TestLauncherExecution:
     def test_process_limit_enforcement(self, mock_qtimer, mock_config_class, mock_pool):
         """Test that process limits are enforced."""
         test_launcher = CustomLauncher(
-            id="test", name="Test", description="Test launcher", command="echo test"
+            id="test", name="Test", description="Test launcher", command="echo test",
         )
 
         mock_config = Mock()
@@ -822,7 +822,7 @@ class TestLauncherExecution:
         validation_errors = []
         manager.validation_error = Mock()
         manager.validation_error.emit = Mock(
-            side_effect=lambda field, error: validation_errors.append((field, error))
+            side_effect=lambda field, error: validation_errors.append((field, error)),
         )
 
         result = manager.execute_launcher("test")
@@ -871,7 +871,7 @@ class TestLauncherWorker:
             mock_worker_class.return_value = mock_worker
 
             worker = mock_worker_class(
-                launcher_id="test_id", command="echo test", working_dir="/tmp"
+                launcher_id="test_id", command="echo test", working_dir="/tmp",
             )
 
             assert worker.launcher_id == "test_id"
@@ -912,7 +912,7 @@ class TestThreadSafety:
     @patch("launcher_manager.LauncherConfig")
     @patch("launcher_manager.QTimer")
     def test_concurrent_launcher_creation(
-        self, mock_qtimer, mock_config_class, mock_pool
+        self, mock_qtimer, mock_config_class, mock_pool,
     ):
         """Test creating launchers concurrently."""
         mock_config = Mock()
@@ -1132,7 +1132,7 @@ class TestCommandValidation:
         assert all(launcher.category == "scripts" for launcher in scripts)
 
     def test_validate_launcher_paths_real_validation(
-        self, launcher_manager, test_shot, tmp_path
+        self, launcher_manager, test_shot, tmp_path,
     ):
         """Test launcher path validation with real file system."""
         # Create test files
@@ -1186,7 +1186,7 @@ class TestConcurrentExecution:
         import pytest
 
         pytest.skip(
-            "Qt threading with signal emission not reliable in test environment"
+            "Qt threading with signal emission not reliable in test environment",
         )
         # Create real LauncherManager
         launcher_manager = create_real_launcher_manager(temp_config_dir)
@@ -1381,7 +1381,7 @@ class TestConcurrentExecution:
         import pytest
 
         pytest.skip(
-            "Qt signal emission across threads not reliable in test environment"
+            "Qt signal emission across threads not reliable in test environment",
         )
         launcher_manager = create_real_launcher_manager(temp_config_dir)
 
@@ -1401,10 +1401,10 @@ class TestConcurrentExecution:
 
         # Connect to all relevant signals
         launcher_manager.execution_started.connect(
-            lambda lid: log_signal("execution_started", lid)
+            lambda lid: log_signal("execution_started", lid),
         )
         launcher_manager.execution_finished.connect(
-            lambda lid, success: log_signal("execution_finished", lid, success)
+            lambda lid, success: log_signal("execution_finished", lid, success),
         )
 
         # Create and test a LauncherWorker directly
@@ -1412,15 +1412,15 @@ class TestConcurrentExecution:
 
         # Connect worker signals
         worker.command_started.connect(
-            lambda lid, cmd: log_signal("command_started", lid, cmd)
+            lambda lid, cmd: log_signal("command_started", lid, cmd),
         )
         worker.command_finished.connect(
             lambda lid, success, code: log_signal(
-                "command_finished", lid, success, code
-            )
+                "command_finished", lid, success, code,
+            ),
         )
         worker.command_error.connect(
-            lambda lid, error: log_signal("command_error", lid, error)
+            lambda lid, error: log_signal("command_error", lid, error),
         )
 
         # Mock subprocess for the worker
@@ -1429,7 +1429,7 @@ class TestConcurrentExecution:
             mock_process.pid = 5000
             mock_process.poll.return_value = None
             mock_process.wait.side_effect = [
-                subprocess.TimeoutExpired("test", 1)
+                subprocess.TimeoutExpired("test", 1),
             ] * 2 + [0]
             mock_popen.return_value = mock_process
 
@@ -1657,20 +1657,20 @@ class TestThreadSafetyAdvanced:
             """Run cleanup from multiple threads."""
             # Try periodic cleanup
             log_cleanup(
-                thread_id, "START_PERIODIC", len(launcher_manager._active_processes)
+                thread_id, "START_PERIODIC", len(launcher_manager._active_processes),
             )
             launcher_manager._periodic_cleanup()
             log_cleanup(
-                thread_id, "END_PERIODIC", len(launcher_manager._active_processes)
+                thread_id, "END_PERIODIC", len(launcher_manager._active_processes),
             )
 
             # Try finished process cleanup
             log_cleanup(
-                thread_id, "START_FINISHED", len(launcher_manager._active_processes)
+                thread_id, "START_FINISHED", len(launcher_manager._active_processes),
             )
             launcher_manager._cleanup_finished_processes()
             log_cleanup(
-                thread_id, "END_FINISHED", len(launcher_manager._active_processes)
+                thread_id, "END_FINISHED", len(launcher_manager._active_processes),
             )
 
         # Run concurrent cleanup operations
@@ -1725,7 +1725,7 @@ class TestLauncherWorkerLifecycle:
             mock_process.pid = 8000
             mock_process.poll.return_value = None
             mock_process.wait.side_effect = [
-                subprocess.TimeoutExpired("test", 1)
+                subprocess.TimeoutExpired("test", 1),
             ] * 3 + [0]
             mock_popen.return_value = mock_process
 
@@ -1788,15 +1788,15 @@ class TestLauncherWorkerLifecycle:
 
         # Connect to all signals
         worker.command_started.connect(
-            lambda lid, cmd: log_signal("command_started", lid, cmd)
+            lambda lid, cmd: log_signal("command_started", lid, cmd),
         )
         worker.command_finished.connect(
             lambda lid, success, code: log_signal(
-                "command_finished", lid, success, code
-            )
+                "command_finished", lid, success, code,
+            ),
         )
         worker.command_error.connect(
-            lambda lid, error: log_signal("command_error", lid, error)
+            lambda lid, error: log_signal("command_error", lid, error),
         )
         worker.worker_started.connect(lambda: log_signal("worker_started"))
         worker.worker_stopped.connect(lambda: log_signal("worker_stopped"))
@@ -1807,7 +1807,7 @@ class TestLauncherWorkerLifecycle:
             mock_process.pid = 8100
             mock_process.poll.return_value = None
             mock_process.wait.side_effect = [
-                subprocess.TimeoutExpired("test", 1)
+                subprocess.TimeoutExpired("test", 1),
             ] * 2 + [0]
             mock_popen.return_value = mock_process
 
@@ -1881,12 +1881,12 @@ class TestLauncherWorkerLifecycle:
         for i, worker in enumerate(workers):
             worker_id = f"worker_{i}"
             worker.command_started.connect(
-                lambda lid, cmd, wid=worker_id: collect_signal(wid, "started", lid, cmd)
+                lambda lid, cmd, wid=worker_id: collect_signal(wid, "started", lid, cmd),
             )
             worker.command_finished.connect(
                 lambda lid, success, code, wid=worker_id: collect_signal(
-                    wid, "finished", lid, success, code
-                )
+                    wid, "finished", lid, success, code,
+                ),
             )
 
         # Mock subprocess for all workers
@@ -1897,7 +1897,7 @@ class TestLauncherWorkerLifecycle:
                 mock_process.pid = 8200 + i
                 mock_process.poll.return_value = None
                 mock_process.wait.side_effect = [
-                    subprocess.TimeoutExpired("test", 1)
+                    subprocess.TimeoutExpired("test", 1),
                 ] * 2 + [0]
                 mock_processes.append(mock_process)
 
@@ -1969,12 +1969,12 @@ class TestSignalThreadSafety:
 
         # Connect to launcher manager signals
         launcher_manager.execution_started.connect(
-            lambda lid: log_signal_with_thread("execution_started", lid)
+            lambda lid: log_signal_with_thread("execution_started", lid),
         )
         launcher_manager.execution_finished.connect(
             lambda lid, success: log_signal_with_thread(
-                "execution_finished", lid, success
-            )
+                "execution_finished", lid, success,
+            ),
         )
 
         # Execute launcher using worker thread
@@ -1983,7 +1983,7 @@ class TestSignalThreadSafety:
             mock_process.pid = 9000
             mock_process.poll.return_value = None
             mock_process.wait.side_effect = [
-                subprocess.TimeoutExpired("test", 1)
+                subprocess.TimeoutExpired("test", 1),
             ] * 2 + [0]
             mock_popen.return_value = mock_process
 
@@ -2036,7 +2036,7 @@ class TestSignalThreadSafety:
         import pytest
 
         pytest.skip(
-            "Qt signal emission across threads not reliable in test environment"
+            "Qt signal emission across threads not reliable in test environment",
         )
         launcher_manager = create_real_launcher_manager(temp_config_dir)
 
@@ -2063,13 +2063,13 @@ class TestSignalThreadSafety:
 
         # Connect to all signal types
         launcher_manager.execution_started.connect(
-            lambda lid: collect_all_signals("started", lid)
+            lambda lid: collect_all_signals("started", lid),
         )
         launcher_manager.execution_finished.connect(
-            lambda lid, success: collect_all_signals("finished", lid, success)
+            lambda lid, success: collect_all_signals("finished", lid, success),
         )
         launcher_manager.validation_error.connect(
-            lambda field, error: collect_all_signals("validation_error", field, error)
+            lambda field, error: collect_all_signals("validation_error", field, error),
         )
 
         # Execute launchers concurrently
@@ -2082,7 +2082,7 @@ class TestSignalThreadSafety:
                 mock_process.pid = 9100 + hash(lid) % 1000  # Unique PID
                 mock_process.poll.return_value = None
                 mock_process.wait.side_effect = [
-                    subprocess.TimeoutExpired("test", 1)
+                    subprocess.TimeoutExpired("test", 1),
                 ] * 2 + [0]
                 mock_popen.return_value = mock_process
 

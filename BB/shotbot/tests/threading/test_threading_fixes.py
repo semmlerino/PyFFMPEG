@@ -307,7 +307,7 @@ class TestWorkerStateTransitions:
                         "success": result,
                         "from_state": worker.get_state(),
                         "thread_id": threading.current_thread().ident,
-                    }
+                    },
                 )
 
         # Start worker and wait for started signal using qtbot (thread-safe)
@@ -329,7 +329,7 @@ class TestWorkerStateTransitions:
 
         for i, state in enumerate(target_states):
             thread = threading.Thread(
-                target=attempt_transition, args=(state,), name=f"transition_thread_{i}"
+                target=attempt_transition, args=(state,), name=f"transition_thread_{i}",
             )
             threads.append(thread)
             thread.start()
@@ -396,7 +396,7 @@ class TestWorkerStateTransitions:
                                 "from": last_state,
                                 "to": current_state,
                                 "timestamp": time.time(),
-                            }
+                            },
                         )
                     last_state = current_state
 
@@ -448,7 +448,7 @@ class TestWorkerStateTransitions:
             if from_state == WorkerState.CREATED and to_state == WorkerState.RUNNING:
                 # This can happen if monitoring misses the brief STARTING state
                 logger.debug(
-                    "Observed direct CREATED -> RUNNING transition (likely missed STARTING)"
+                    "Observed direct CREATED -> RUNNING transition (likely missed STARTING)",
                 )
                 continue
 
@@ -512,7 +512,7 @@ class TestExponentialBackoff:
     """
 
     def test_process_termination_during_read(
-        self, process_pool_manager, mock_subprocess
+        self, process_pool_manager, mock_subprocess,
     ):
         """Test process termination during backoff read operations.
 
@@ -578,7 +578,7 @@ class TestExponentialBackoff:
         delays = [current_delay]
         for _ in range(5):
             current_delay = min(
-                current_delay * session.BACKOFF_MULTIPLIER, session.MAX_RETRY_DELAY
+                current_delay * session.BACKOFF_MULTIPLIER, session.MAX_RETRY_DELAY,
             )
             delays.append(current_delay)
 
@@ -613,7 +613,7 @@ class TestExponentialBackoff:
                 for i, session in enumerate(sessions):
                     # Use longer timeout for concurrent operations
                     future = executor.submit(
-                        session.execute, f"echo 'session_{i}'", timeout=10
+                        session.execute, f"echo 'session_{i}'", timeout=10,
                     )
                     futures.append(future)
 
@@ -668,7 +668,7 @@ class TestFutureBasedSynchronization:
         test_image = tmp_path / "test_image.jpg"
         # Create a minimal valid JPEG file
         test_image.write_bytes(
-            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
         )
 
         # Track cache requests and results
@@ -694,7 +694,7 @@ class TestFutureBasedSynchronization:
                             "success": result is not None,
                             "path": str(result) if result else None,
                             "timestamp": time.time(),
-                        }
+                        },
                     )
 
             except Exception as e:
@@ -705,7 +705,7 @@ class TestFutureBasedSynchronization:
                             "success": False,
                             "error": str(e),
                             "timestamp": time.time(),
-                        }
+                        },
                     )
 
         # Launch 10 concurrent cache requests
@@ -714,7 +714,7 @@ class TestFutureBasedSynchronization:
 
         for i in range(10):
             thread = threading.Thread(
-                target=cache_thumbnail_request, args=(i,), name=f"cache_thread_{i}"
+                target=cache_thumbnail_request, args=(i,), name=f"cache_thread_{i}",
             )
             threads.append(thread)
             thread.start()
@@ -757,13 +757,13 @@ class TestFutureBasedSynchronization:
         # Create test image
         test_image = tmp_path / "future_test.jpg"
         test_image.write_bytes(
-            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
         )
 
         # For simplicity, use cache_thumbnail_direct which returns Path directly
         # This tests the core caching functionality without thread complications
         cached_path = cache_manager.cache_thumbnail_direct(
-            source_path=test_image, show="futuretest", sequence="seq01", shot="shot01"
+            source_path=test_image, show="futuretest", sequence="seq01", shot="shot01",
         )
 
         # Verify basic caching worked
@@ -773,14 +773,14 @@ class TestFutureBasedSynchronization:
 
         # Test that subsequent calls return the same cached file
         cached_path2 = cache_manager.cache_thumbnail_direct(
-            source_path=test_image, show="futuretest", sequence="seq01", shot="shot01"
+            source_path=test_image, show="futuretest", sequence="seq01", shot="shot01",
         )
 
         assert cached_path2 == cached_path, "Second call didn't return cached file"
 
         # Test with different shot name
         cached_path3 = cache_manager.cache_thumbnail_direct(
-            source_path=test_image, show="futuretest", sequence="seq01", shot="shot02"
+            source_path=test_image, show="futuretest", sequence="seq01", shot="shot02",
         )
 
         assert cached_path3 != cached_path, "Different shot returned same path"
@@ -806,7 +806,7 @@ class TestFutureBasedSynchronization:
         # Test with invalid parameters
         test_image = tmp_path / "error_test.jpg"
         test_image.write_bytes(
-            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
         )
 
         result = cache_manager.cache_thumbnail(
@@ -848,7 +848,7 @@ class TestComprehensiveThreadingStress:
         for i in range(5):
             test_image = tmp_path / f"stress_test_{i}.jpg"
             test_image.write_bytes(
-                b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+                b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
             )
             test_images.append(test_image)
 
@@ -875,7 +875,7 @@ class TestComprehensiveThreadingStress:
                                 "type": "cache",
                                 "success": result is not None,
                                 "thread": threading.current_thread().name,
-                            }
+                            },
                         )
 
                 except Exception as e:
@@ -886,7 +886,7 @@ class TestComprehensiveThreadingStress:
                                 "success": False,
                                 "error": str(e),
                                 "thread": threading.current_thread().name,
-                            }
+                            },
                         )
 
         def worker_operations():
@@ -895,7 +895,7 @@ class TestComprehensiveThreadingStress:
             try:
                 for i in range(3):
                     worker = SimpleTestWorker(
-                        work_duration=0.2, fail_on_purpose=(i == 2)
+                        work_duration=0.2, fail_on_purpose=(i == 2),
                     )
                     # Note: SimpleTestWorker is QThread, not QWidget - no qtbot.addWidget needed
                     workers.append(worker)
@@ -920,7 +920,7 @@ class TestComprehensiveThreadingStress:
                             "type": "workers",
                             "success": all_stopped,
                             "thread": threading.current_thread().name,
-                        }
+                        },
                     )
 
             except Exception as e:
@@ -931,7 +931,7 @@ class TestComprehensiveThreadingStress:
                             "success": False,
                             "error": str(e),
                             "thread": threading.current_thread().name,
-                        }
+                        },
                     )
 
         def process_pool_operations():
@@ -946,7 +946,7 @@ class TestComprehensiveThreadingStress:
                             "type": "process_pool",
                             "success": len(results) == 5,
                             "thread": threading.current_thread().name,
-                        }
+                        },
                     )
 
             except Exception as e:
@@ -957,7 +957,7 @@ class TestComprehensiveThreadingStress:
                             "success": False,
                             "error": str(e),
                             "thread": threading.current_thread().name,
-                        }
+                        },
                     )
 
         def launcher_operations():
@@ -986,7 +986,7 @@ class TestComprehensiveThreadingStress:
                                 "type": "launcher",
                                 "success": success_count >= 2,
                                 "thread": threading.current_thread().name,
-                            }
+                            },
                         )
                 else:
                     with result_lock:
@@ -996,7 +996,7 @@ class TestComprehensiveThreadingStress:
                                 "success": False,
                                 "error": "Failed to create launcher",
                                 "thread": threading.current_thread().name,
-                            }
+                            },
                         )
 
             except Exception as e:
@@ -1007,7 +1007,7 @@ class TestComprehensiveThreadingStress:
                             "success": False,
                             "error": str(e),
                             "thread": threading.current_thread().name,
-                        }
+                        },
                     )
 
         # Launch all operations concurrently
@@ -1140,7 +1140,7 @@ class TestPerformanceImprovements:
         # Create test image
         test_image = tmp_path / "perf_test.jpg"
         test_image.write_bytes(
-            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
         )
 
         # Test sequential vs concurrent caching

@@ -36,7 +36,7 @@ if "--cov" in sys.argv:
             "--cov-report=term-missing",
             "--cov-report=html",
             "--cov-config=.coveragerc",
-        ]
+        ],
     )
 
 # Filter out script name and pass remaining arguments

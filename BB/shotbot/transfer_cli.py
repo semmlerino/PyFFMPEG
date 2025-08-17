@@ -124,11 +124,11 @@ def get_folder_size(folder_path: str) -> int:
 def main():
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
-        description="Encode a folder to base64 format (compatible with Transfer.py)"
+        description="Encode a folder to base64 format (compatible with Transfer.py)",
     )
     parser.add_argument("folder", help="Path to the folder to encode")
     parser.add_argument(
-        "-o", "--output", help="Output file (default: stdout)", default=None
+        "-o", "--output", help="Output file (default: stdout)", default=None,
     )
     parser.add_argument(
         "-c",
@@ -138,13 +138,13 @@ def main():
         help="Chunk size in KB (0 for no chunking, default: 0)",
     )
     parser.add_argument(
-        "--chunk-dir", help="Directory to save individual chunk files", default=None
+        "--chunk-dir", help="Directory to save individual chunk files", default=None,
     )
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose output"
+        "-v", "--verbose", action="store_true", help="Enable verbose output",
     )
     parser.add_argument(
-        "--metadata", action="store_true", help="Include metadata JSON with output"
+        "--metadata", action="store_true", help="Include metadata JSON with output",
     )
     parser.add_argument(
         "--single-file",
@@ -209,13 +209,13 @@ def main():
                     f.write(chunk)
                 if args.verbose:
                     print(
-                        f"Saved chunk {i}/{len(chunks)}: {chunk_file}", file=sys.stderr
+                        f"Saved chunk {i}/{len(chunks)}: {chunk_file}", file=sys.stderr,
                     )
 
             # Save metadata file if requested
             if metadata:
                 metadata_file = os.path.join(
-                    args.chunk_dir, f"{folder_name}_{timestamp}_metadata.json"
+                    args.chunk_dir, f"{folder_name}_{timestamp}_metadata.json",
                 )
                 with open(metadata_file, "w") as f:
                     json.dump(metadata, f, indent=2)

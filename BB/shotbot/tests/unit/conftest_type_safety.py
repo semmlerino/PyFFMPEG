@@ -222,13 +222,13 @@ class TypeAssertionHelper:
 
     @staticmethod
     def assert_optional_type(
-        value: Any, expected_type: type, allow_none: bool = True
+        value: Any, expected_type: type, allow_none: bool = True,
     ) -> None:
         """Assert Optional type handling."""
         if value is None:
             if not allow_none:
                 raise AssertionError(
-                    f"None not allowed, expected {expected_type.__name__}"
+                    f"None not allowed, expected {expected_type.__name__}",
                 )
         else:
             assert isinstance(value, expected_type)

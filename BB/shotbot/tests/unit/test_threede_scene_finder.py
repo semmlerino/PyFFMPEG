@@ -66,7 +66,7 @@ def temp_vfx_structure(tmp_path):
 def shot_workspace_path(temp_vfx_structure):
     """Get a test shot workspace path."""
     return str(
-        temp_vfx_structure / "shows" / "test_show" / "shots" / "seq01" / "seq01_0010"
+        temp_vfx_structure / "shows" / "test_show" / "shots" / "seq01" / "seq01_0010",
     )
 
 
@@ -124,7 +124,7 @@ class TestThreeDESceneFinderBasics:
             / "test_show"
             / "shots"
             / "seq01"
-            / "seq01_0010"
+            / "seq01_0010",
         )
         assert ThreeDESceneFinder.quick_3de_exists_check_python([shot_path]) is True
 
@@ -195,7 +195,7 @@ class TestSceneDiscovery:
             / "test_show"
             / "shots"
             / "seq02"
-            / "seq02_0020"
+            / "seq02_0020",
         )
 
         scenes = ThreeDESceneFinder.find_scenes_for_shot(
@@ -255,7 +255,7 @@ class TestSceneDiscovery:
         show_root = str(temp_vfx_structure / "shows")
 
         shots = ThreeDESceneFinder.discover_all_shots_in_show(
-            show_root=show_root, show="test_show"
+            show_root=show_root, show="test_show",
         )
 
         # Should find all the shots we created
@@ -274,7 +274,7 @@ class TestSceneDiscovery:
         show_root = str(temp_vfx_structure / "shows")
 
         shots = ThreeDESceneFinder.discover_all_shots_in_show(
-            show_root=show_root, show="nonexistent_show"
+            show_root=show_root, show="nonexistent_show",
         )
 
         assert shots == []
@@ -327,7 +327,7 @@ class TestPerformance:
         # Should complete quickly
         start = time.time()
         result = ThreeDESceneFinder.quick_3de_exists_check_python(
-            [shot_path], timeout_seconds=1
+            [shot_path], timeout_seconds=1,
         )
         elapsed = time.time() - start
 

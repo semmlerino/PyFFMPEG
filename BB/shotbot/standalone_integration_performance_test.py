@@ -92,7 +92,7 @@ class MockVFXStructure:
         mock_file = Mock()
         mock_file.name = filename
         mock_file.is_file.return_value = filename.endswith(
-            (".jpg", ".exr", ".3de", ".nk")
+            (".jpg", ".exr", ".3de", ".nk"),
         )
         mock_file.is_dir.return_value = not mock_file.is_file()
         mock_file.suffix = Path(filename).suffix
@@ -131,7 +131,7 @@ def test_shot_list_refresh_performance():
             shot_name = f"{sequence}_{shot_idx:04d}"
             workspace = f"/shows/project_00/shots/{sequence}/{sequence}_{shot_name}"
             mock_shots_output.append(
-                f"project_00\t{sequence}\t{shot_name}\t{workspace}"
+                f"project_00\t{sequence}\t{shot_name}\t{workspace}",
             )
 
     mock_output = "\n".join(mock_shots_output)
@@ -198,10 +198,10 @@ def test_shot_list_refresh_performance():
 
             print("\nPERFORMANCE RESULTS:")
             print(
-                f"First refresh:  {first_refresh_time:.3f}s ({initial_fs_accesses} FS accesses)"
+                f"First refresh:  {first_refresh_time:.3f}s ({initial_fs_accesses} FS accesses)",
             )
             print(
-                f"Second refresh: {second_refresh_time:.3f}s ({additional_fs_accesses} additional FS accesses)"
+                f"Second refresh: {second_refresh_time:.3f}s ({additional_fs_accesses} additional FS accesses)",
             )
             print(f"Cache speedup:  {cache_speedup:.1f}x")
             print(f"FS reduction:   {fs_reduction_percent:.1f}%")
@@ -216,9 +216,8 @@ def test_shot_list_refresh_performance():
             if speedup_passed and fs_passed:
                 print("✓ SHOT REFRESH PERFORMANCE PASSED")
                 return True
-            else:
-                print("! Shot refresh performance could be improved")
-                return True  # Don't fail, performance may vary
+            print("! Shot refresh performance could be improved")
+            return True  # Don't fail, performance may vary
 
     return True
 
@@ -266,7 +265,7 @@ def test_3de_scene_discovery_performance():
             for workspace in shot_workspaces:
                 try:
                     scenes = ThreeDESceneFinder.find_threede_scenes(
-                        workspace, {"current_user"}
+                        workspace, {"current_user"},
                     )
                     all_scenes.extend(scenes)
                 except Exception as e:
@@ -279,10 +278,10 @@ def test_3de_scene_discovery_performance():
             print(f"   Scenes found: {len(all_scenes)}")
             print(f"   FS accesses: {total_fs_accesses}")
             print(
-                f"   Avg time per shot: {(discovery_time * 1000) / len(shot_workspaces):.1f}ms"
+                f"   Avg time per shot: {(discovery_time * 1000) / len(shot_workspaces):.1f}ms",
             )
             print(
-                f"   Avg FS accesses per shot: {total_fs_accesses / len(shot_workspaces):.1f}"
+                f"   Avg FS accesses per shot: {total_fs_accesses / len(shot_workspaces):.1f}",
             )
 
             # Performance validation
@@ -298,28 +297,27 @@ def test_3de_scene_discovery_performance():
             print("\nPERFORMANCE VALIDATION:")
             if time_passed:
                 print(
-                    f"✓ Time per shot acceptable: {time_per_shot_ms:.1f}ms <= {max_time_per_shot}ms"
+                    f"✓ Time per shot acceptable: {time_per_shot_ms:.1f}ms <= {max_time_per_shot}ms",
                 )
             else:
                 print(
-                    f"! Time per shot high: {time_per_shot_ms:.1f}ms > {max_time_per_shot}ms"
+                    f"! Time per shot high: {time_per_shot_ms:.1f}ms > {max_time_per_shot}ms",
                 )
 
             if fs_passed:
                 print(
-                    f"✓ FS accesses per shot acceptable: {fs_per_shot:.1f} <= {max_fs_per_shot}"
+                    f"✓ FS accesses per shot acceptable: {fs_per_shot:.1f} <= {max_fs_per_shot}",
                 )
             else:
                 print(
-                    f"! FS accesses per shot high: {fs_per_shot:.1f} > {max_fs_per_shot}"
+                    f"! FS accesses per shot high: {fs_per_shot:.1f} > {max_fs_per_shot}",
                 )
 
             if time_passed and fs_passed:
                 print("✓ 3DE DISCOVERY PERFORMANCE PASSED")
                 return True
-            else:
-                print("! 3DE discovery performance could be improved")
-                return True  # Don't fail
+            print("! 3DE discovery performance could be improved")
+            return True  # Don't fail
 
     return True
 
@@ -378,7 +376,7 @@ def test_raw_plate_finding_performance():
             print(f"   Plates found: {plates_found}/{len(test_shots)}")
             print(f"   FS accesses: {total_fs_accesses}")
             print(
-                f"   Avg time per shot: {(finding_time * 1000) / len(test_shots):.1f}ms"
+                f"   Avg time per shot: {(finding_time * 1000) / len(test_shots):.1f}ms",
             )
             print(f"   Success rate: {(plates_found / len(test_shots)) * 100:.1f}%")
 
@@ -395,16 +393,16 @@ def test_raw_plate_finding_performance():
             print("\nPERFORMANCE VALIDATION:")
             if time_passed:
                 print(
-                    f"✓ Time per shot acceptable: {time_per_shot_ms:.1f}ms <= {max_time_per_shot}ms"
+                    f"✓ Time per shot acceptable: {time_per_shot_ms:.1f}ms <= {max_time_per_shot}ms",
                 )
             else:
                 print(
-                    f"! Time per shot high: {time_per_shot_ms:.1f}ms > {max_time_per_shot}ms"
+                    f"! Time per shot high: {time_per_shot_ms:.1f}ms > {max_time_per_shot}ms",
                 )
 
             if success_passed:
                 print(
-                    f"✓ Success rate acceptable: {success_rate:.1f}% >= {min_success_rate}%"
+                    f"✓ Success rate acceptable: {success_rate:.1f}% >= {min_success_rate}%",
                 )
             else:
                 print(f"! Success rate low: {success_rate:.1f}% < {min_success_rate}%")
@@ -412,9 +410,8 @@ def test_raw_plate_finding_performance():
             if time_passed and success_passed:
                 print("✓ RAW PLATE FINDING PERFORMANCE PASSED")
                 return True
-            else:
-                print("! Raw plate finding performance could be improved")
-                return True
+            print("! Raw plate finding performance could be improved")
+            return True
 
     return True
 
@@ -500,7 +497,7 @@ def test_end_to_end_workflow_performance():
     for step_name, step_time, operations in workflow_steps:
         ops_per_sec = operations / step_time if step_time > 0 else 0
         print(
-            f"  {step_name}: {step_time:.3f}s ({operations} operations, {ops_per_sec:.1f} ops/sec)"
+            f"  {step_name}: {step_time:.3f}s ({operations} operations, {ops_per_sec:.1f} ops/sec)",
         )
 
     # Performance validation
@@ -521,7 +518,7 @@ def test_end_to_end_workflow_performance():
     print("\nWORKFLOW VALIDATION:")
     if time_passed:
         print(
-            f"✓ Total time acceptable: {total_workflow_time:.3f}s <= {max_total_time}s"
+            f"✓ Total time acceptable: {total_workflow_time:.3f}s <= {max_total_time}s",
         )
     else:
         print(f"! Total time high: {total_workflow_time:.3f}s > {max_total_time}s")
@@ -534,9 +531,8 @@ def test_end_to_end_workflow_performance():
     if time_passed and ops_passed:
         print("✓ END-TO-END WORKFLOW PERFORMANCE PASSED")
         return True
-    else:
-        print("! End-to-end workflow performance could be improved")
-        return True  # Don't fail, performance may vary
+    print("! End-to-end workflow performance could be improved")
+    return True  # Don't fail, performance may vary
 
 
 def main():
@@ -600,9 +596,8 @@ def main():
     if passed == total:
         print("✓ All integration performance tests PASSED")
         return 0
-    else:
-        print("✗ Some integration performance tests FAILED")
-        return 1
+    print("✗ Some integration performance tests FAILED")
+    return 1
 
 
 if __name__ == "__main__":

@@ -65,7 +65,7 @@ class OptimizedPatternMatcher:
                 "user",
                 "files",
                 "data",
-            }
+            },
         )
 
         # Cache for pattern matching results (LRU-style)
@@ -185,7 +185,7 @@ class ParallelSceneScanner:
                         with self._results_lock:
                             all_scenes.extend(user_scenes)
                         logger.debug(
-                            f"Found {len(user_scenes)} scenes for user {user_name}"
+                            f"Found {len(user_scenes)} scenes for user {user_name}",
                         )
                 except Exception as e:
                     logger.error(f"Error scanning user {user_name}: {e}")
@@ -193,7 +193,7 @@ class ParallelSceneScanner:
         return all_scenes
 
     def _scan_user_directory(
-        self, user_path: Path, show: str, sequence: str, shot: str, workspace_path: str
+        self, user_path: Path, show: str, sequence: str, shot: str, workspace_path: str,
     ) -> List[ThreeDEScene]:
         """Scan single user directory efficiently."""
         scenes = []
@@ -210,7 +210,7 @@ class ParallelSceneScanner:
 
                 # Extract plate name efficiently
                 plate = self._pattern_matcher.extract_plate_optimized(
-                    threede_file, user_path
+                    threede_file, user_path,
                 )
 
                 # Create scene object
@@ -237,7 +237,7 @@ class ParallelSceneScanner:
         try:
             # Use iterative approach instead of rglob for better control
             def _scan_directory(
-                directory: Path, depth: int = 0
+                directory: Path, depth: int = 0,
             ) -> Generator[Path, None, None]:
                 # Limit recursion depth to prevent excessive scanning
                 if depth > 10:
@@ -300,12 +300,12 @@ class OptimizedThreeDESceneFinder:
 
         # Use parallel scanner
         scenes = self._scanner.scan_shot_parallel(
-            shot_workspace_path, show, sequence, shot, excluded_users
+            shot_workspace_path, show, sequence, shot, excluded_users,
         )
 
         elapsed = time.perf_counter() - start_time
         logger.info(
-            f"Optimized scan complete: {len(scenes)} scenes found in {elapsed:.2f}s"
+            f"Optimized scan complete: {len(scenes)} scenes found in {elapsed:.2f}s",
         )
 
         return scenes
@@ -347,7 +347,7 @@ class OptimizedThreeDESceneFinder:
             for future, shot_name in futures:
                 try:
                     shot_scenes = future.result(
-                        timeout=120
+                        timeout=120,
                     )  # 2 minute timeout per shot
                     all_scenes.extend(shot_scenes)
                     completed += 1
@@ -361,13 +361,13 @@ class OptimizedThreeDESceneFinder:
         elapsed = time.perf_counter() - start_time
         logger.info(
             f"Multi-shot scan complete: {len(all_scenes)} scenes across "
-            f"{len(shots)} shots in {elapsed:.2f}s"
+            f"{len(shots)} shots in {elapsed:.2f}s",
         )
 
         return all_scenes
 
     def estimate_scan_performance(
-        self, shots: List[Tuple[str, str, str, str]]
+        self, shots: List[Tuple[str, str, str, str]],
     ) -> Dict[str, Any]:
         """Estimate scan performance for planning purposes."""
         if not shots:

@@ -93,7 +93,7 @@ class Shot:
     shot: str
     workspace_path: str
     _cached_thumbnail_path: Any = field(
-        default=_NOT_SEARCHED, init=False, repr=False, compare=False
+        default=_NOT_SEARCHED, init=False, repr=False, compare=False,
     )
 
     @property
@@ -105,7 +105,7 @@ class Shot:
     def thumbnail_dir(self) -> Path:
         """Get thumbnail directory path."""
         return PathUtils.build_thumbnail_path(
-            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot,
         )
 
     def get_thumbnail_path(self) -> Optional[Path]:
@@ -136,7 +136,7 @@ class Shot:
 
         # Fall back to turnover plate thumbnails
         thumbnail = PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
-            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot,
         )
         if thumbnail:
             self._cached_thumbnail_path = thumbnail
@@ -144,7 +144,7 @@ class Shot:
 
         # Third fallback: any EXR with 1001 in publish folder
         thumbnail = PathUtils.find_any_publish_thumbnail(  # type: ignore[attr-defined]
-            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot,
         )
 
         # Cache the result (even if None) to avoid repeated searches
@@ -178,7 +178,7 @@ class ShotModel:
     """Manages shot data and parsing."""
 
     def __init__(
-        self, cache_manager: Optional["CacheManager"] = None, load_cache: bool = True
+        self, cache_manager: Optional["CacheManager"] = None, load_cache: bool = True,
     ):
         super().__init__()
         from cache_manager import (
@@ -188,7 +188,7 @@ class ShotModel:
         self.shots: List[Shot] = []
         self.cache_manager = cache_manager or CacheManager()
         self._parse_pattern = re.compile(
-            r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))"
+            r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))",
         )
         # Initialize ProcessPoolManager singleton
         if DEBUG_VERBOSE:
@@ -204,7 +204,7 @@ class ShotModel:
             loaded = self._load_from_cache()
             if DEBUG_VERBOSE:
                 logger.debug(
-                    f"Cache load result: {loaded}, shots loaded: {len(self.shots)}"
+                    f"Cache load result: {loaded}, shots loaded: {len(self.shots)}",
                 )
 
     def _load_from_cache(self) -> bool:
@@ -245,7 +245,7 @@ class ShotModel:
                 )
                 if DEBUG_VERBOSE:
                     logger.debug(
-                        f"'ws -sg' command returned {len(output) if output else 0} bytes"
+                        f"'ws -sg' command returned {len(output) if output else 0} bytes",
                     )
                     if output:
                         logger.debug(f"First 200 chars of output: {output[:200]}...")
@@ -348,7 +348,7 @@ class ShotModel:
                         names=["workspace_path", "show", "sequence", "shot_name"],
                     ):
                         logger.warning(
-                            f"Line {line_num}: Missing required components in: {line}"
+                            f"Line {line_num}: Missing required components in: {line}",
                         )
                         continue
 
@@ -365,11 +365,11 @@ class ShotModel:
                             sequence=sequence,
                             shot=shot,
                             workspace_path=workspace_path,
-                        )
+                        ),
                     )
                 except (IndexError, AttributeError) as e:
                     logger.warning(
-                        f"Line {line_num}: Failed to parse shot data from: {line} ({e})"
+                        f"Line {line_num}: Failed to parse shot data from: {line} ({e})",
                     )
                     continue
             else:

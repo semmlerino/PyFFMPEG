@@ -10,7 +10,7 @@ import pytest
 def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line(
-        "markers", "performance: mark test as a performance benchmark"
+        "markers", "performance: mark test as a performance benchmark",
     )
     config.addinivalue_line("markers", "stress: mark test as a stress test")
     config.addinivalue_line("markers", "integration: mark test as an integration test")
@@ -227,7 +227,7 @@ def vfx_production_environment(integration_temp_dir):
                     )
                     thumb_file = thumb_path / f"{shot_name}_cutref_v001.jpg"
                     thumb_file.write_bytes(
-                        b"\\xff\\xd8\\xff\\xe0\\x00\\x10JFIF" + b"\\x00" * 200
+                        b"\\xff\\xd8\\xff\\xe0\\x00\\x10JFIF" + b"\\x00" * 200,
                     )  # Minimal JPEG
                     created_thumbnails.append(thumb_file)
 
@@ -257,7 +257,7 @@ def vfx_production_environment(integration_temp_dir):
                                     / f"{shot_name}_{artist}_{plate}_{version}.3de"
                                 )
                                 scene_file.write_bytes(
-                                    b"3DE_SCENE_DATA" * 50
+                                    b"3DE_SCENE_DATA" * 50,
                                 )  # Realistic file size
 
                                 # Set realistic modification times
@@ -285,14 +285,14 @@ def vfx_production_environment(integration_temp_dir):
                                         "plate": plate,
                                         "version": version,
                                         "mtime": mtime,
-                                    }
+                                    },
                                 )
 
                 # Create shot object
                 from shot_model import Shot
 
                 shot = Shot(
-                    show_name, seq_name, shot_name.split("_")[-1], str(shot_path)
+                    show_name, seq_name, shot_name.split("_")[-1], str(shot_path),
                 )
                 created_shots.append(shot)
 

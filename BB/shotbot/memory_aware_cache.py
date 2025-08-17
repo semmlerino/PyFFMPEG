@@ -159,12 +159,11 @@ class MemoryMonitor:
         """
         if percent_used >= self.THRESHOLDS[MemoryPressureLevel.HIGH]:
             return MemoryPressureLevel.CRITICAL
-        elif percent_used >= self.THRESHOLDS[MemoryPressureLevel.MODERATE]:
+        if percent_used >= self.THRESHOLDS[MemoryPressureLevel.MODERATE]:
             return MemoryPressureLevel.HIGH
-        elif percent_used >= self.THRESHOLDS[MemoryPressureLevel.NORMAL]:
+        if percent_used >= self.THRESHOLDS[MemoryPressureLevel.NORMAL]:
             return MemoryPressureLevel.MODERATE
-        else:
-            return MemoryPressureLevel.NORMAL
+        return MemoryPressureLevel.NORMAL
 
     def get_pressure_level(self) -> MemoryPressureLevel:
         """Get current memory pressure level.
@@ -193,12 +192,11 @@ class MemoryMonitor:
 
         if level == MemoryPressureLevel.CRITICAL:
             return 0.5  # Evict 50% under critical pressure
-        elif level == MemoryPressureLevel.HIGH:
+        if level == MemoryPressureLevel.HIGH:
             return 0.25  # Evict 25% under high pressure
-        elif level == MemoryPressureLevel.MODERATE:
+        if level == MemoryPressureLevel.MODERATE:
             return 0.1  # Evict 10% under moderate pressure
-        else:
-            return 0.0  # No eviction needed
+        return 0.0  # No eviction needed
 
 
 class EvictionStrategy:
@@ -408,7 +406,7 @@ class MemoryAwareCache:
             num_to_evict = max(1, int(total_entries * percentage))
 
             logger.info(
-                f"Evicting {num_to_evict}/{total_entries} entries ({percentage:.1%})"
+                f"Evicting {num_to_evict}/{total_entries} entries ({percentage:.1%})",
             )
 
             # Score all entries
@@ -446,7 +444,7 @@ class MemoryAwareCache:
                 gc.collect()
 
             logger.info(
-                f"Evicted {evicted} entries, freed ~{memory_freed / (1024 * 1024):.1f}MB"
+                f"Evicted {evicted} entries, freed ~{memory_freed / (1024 * 1024):.1f}MB",
             )
 
             return evicted
@@ -456,7 +454,7 @@ class MemoryAwareCache:
         if not self._running:
             self._running = True
             self._eviction_thread = threading.Thread(
-                target=self._auto_eviction_loop, daemon=True, name="MemoryAwareEviction"
+                target=self._auto_eviction_loop, daemon=True, name="MemoryAwareEviction",
             )
             self._eviction_thread.start()
             logger.info("Started automatic memory-aware eviction")

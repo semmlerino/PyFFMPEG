@@ -99,7 +99,7 @@ class DeadlockPreventingLockManager:
                     logger.error(
                         f"Lock hierarchy violation: Thread {thread_id} holds "
                         f"{held_context.name} (level {held_context.level.value}) "
-                        f"but trying to acquire {context.name} (level {context.level.value})"
+                        f"but trying to acquire {context.name} (level {context.level.value})",
                     )
                     return False
 
@@ -128,12 +128,11 @@ class DeadlockPreventingLockManager:
                 self._thread_locks[thread_id].append(context)
                 logger.debug(f"Thread {thread_id} acquired lock {context.name}")
                 return True
-            else:
-                logger.warning(
-                    f"Thread {thread_id} failed to acquire lock {context.name} "
-                    f"within {timeout}s timeout"
-                )
-                return False
+            logger.warning(
+                f"Thread {thread_id} failed to acquire lock {context.name} "
+                f"within {timeout}s timeout",
+            )
+            return False
 
     def release(self, context: LockContext):
         """Release a lock and update tracking."""
@@ -148,7 +147,7 @@ class DeadlockPreventingLockManager:
                 except ValueError:
                     logger.warning(
                         f"Thread {thread_id} tried to release lock {context.name} "
-                        "but didn't hold it"
+                        "but didn't hold it",
                     )
 
             # Release the actual lock
@@ -343,7 +342,7 @@ class ThreadSafeProcessManager:
         if not self.can_start_process():
             logger.warning(
                 f"Cannot start process {process_info.process_id}: "
-                f"limit reached or shutting down"
+                f"limit reached or shutting down",
             )
             return False
 
@@ -390,7 +389,7 @@ class ThreadSafeProcessManager:
         if state not in valid_transitions.get(process_info.state, []):
             logger.warning(
                 f"Invalid state transition for {process_id}: "
-                f"{process_info.state} -> {state}"
+                f"{process_info.state} -> {state}",
             )
             return
 
@@ -460,7 +459,7 @@ class ThreadSafeProcessManager:
         except Exception as e:
             logger.error(f"Error terminating process {process_id}: {e}")
             self.update_process_state(
-                process_id, ProcessState.FAILED, error_message=str(e)
+                process_id, ProcessState.FAILED, error_message=str(e),
             )
             return False
 
@@ -705,7 +704,7 @@ class ResourcePool(Generic[T]):
 
             logger.info(
                 f"Resource pool {self.name} shutdown complete. "
-                f"Total cleaned: {cleaned_count} resources"
+                f"Total cleaned: {cleaned_count} resources",
             )
 
             # Return the total cleaned count for testing purposes

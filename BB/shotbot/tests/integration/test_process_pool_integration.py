@@ -172,14 +172,14 @@ class TestProcessPoolIntegration:
         # Set an environment variable
         test_var = "TEST_VAR_12345"
         result = process_pool.execute_workspace_command(
-            f"export {test_var}=hello && echo ${test_var}"
+            f"export {test_var}=hello && echo ${test_var}",
         )
         assert "hello" in result
 
     def test_multiline_output_handling(self, process_pool):
         """Test handling of multiline command output."""
         result = process_pool.execute_workspace_command(
-            "echo 'line1' && echo 'line2' && echo 'line3'"
+            "echo 'line1' && echo 'line2' && echo 'line3'",
         )
         assert "line1" in result
         assert "line2" in result
@@ -189,7 +189,7 @@ class TestProcessPoolIntegration:
         """Test handling special characters in commands."""
         # Test with quotes and special chars
         result = process_pool.execute_workspace_command(
-            "echo 'test with spaces and \"quotes\"'"
+            "echo 'test with spaces and \"quotes\"'",
         )
         assert "test with spaces" in result
         assert "quotes" in result
@@ -199,13 +199,13 @@ class TestProcessPoolIntegration:
         # Execute commands that would share session state
         # Note: ProcessPoolManager manages sessions internally
         result1 = process_pool.execute_workspace_command(
-            "export TEST_VAR_123=hello && echo $TEST_VAR_123"
+            "export TEST_VAR_123=hello && echo $TEST_VAR_123",
         )
         assert "hello" in result1
 
         # In same command, variables persist
         result2 = process_pool.execute_workspace_command(
-            "export TEST_VAR_456=world && echo $TEST_VAR_456"
+            "export TEST_VAR_456=world && echo $TEST_VAR_456",
         )
         assert "world" in result2
 
@@ -312,14 +312,14 @@ class TestWorkspaceIntegration:
         valid_path = tmp_path / "valid"
         valid_path.mkdir()
         result = process_pool.execute_workspace_command(
-            "pwd", workspace_path=str(valid_path)
+            "pwd", workspace_path=str(valid_path),
         )
         assert str(valid_path) in result
 
         # Non-existent path should still work (command decides)
         invalid_path = tmp_path / "nonexistent"
         result = process_pool.execute_workspace_command(
-            "echo 'test'", workspace_path=str(invalid_path)
+            "echo 'test'", workspace_path=str(invalid_path),
         )
         assert "test" in result
 
@@ -331,7 +331,7 @@ class TestWorkspaceIntegration:
 
         # Should handle spaces properly
         result = process_pool.execute_workspace_command(
-            "pwd", workspace_path=str(special_workspace)
+            "pwd", workspace_path=str(special_workspace),
         )
         # The actual output format might vary
         assert "workspace" in result or "test" in result

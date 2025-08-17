@@ -73,7 +73,7 @@ class SynchronizationHelpers:
             raise ValueError(f"Unknown operation: {operation}")
 
         return SynchronizationHelpers.wait_for_condition(
-            conditions[operation], timeout_ms
+            conditions[operation], timeout_ms,
         )
 
     @staticmethod
@@ -102,10 +102,9 @@ class SynchronizationHelpers:
             with qtbot.waitSignal(signal, timeout=timeout_ms) as blocker:
                 trigger()
             return blocker.args
-        else:
-            with qtbot.waitSignal(signal, timeout=timeout_ms) as blocker:
-                pass
-            return blocker.args
+        with qtbot.waitSignal(signal, timeout=timeout_ms) as blocker:
+            pass
+        return blocker.args
 
     @staticmethod
     def process_qt_events(qapp: Any, duration_ms: int = 10) -> None:
@@ -142,7 +141,7 @@ class SynchronizationHelpers:
 
         # Wait for thread count to increase
         SynchronizationHelpers.wait_for_condition(
-            lambda: threading.active_count() > initial_count, timeout_ms=max_wait_ms
+            lambda: threading.active_count() > initial_count, timeout_ms=max_wait_ms,
         )
 
     @staticmethod
@@ -174,12 +173,11 @@ class SynchronizationHelpers:
                 is not None,
                 timeout_ms=timeout_ms,
             )
-        elif operation == "directory_exists":
+        if operation == "directory_exists":
             return SynchronizationHelpers.wait_for_condition(
-                lambda: cache_manager.thumbnails_dir.exists(), timeout_ms=timeout_ms
+                lambda: cache_manager.thumbnails_dir.exists(), timeout_ms=timeout_ms,
             )
-        else:
-            raise ValueError(f"Unknown operation: {operation}")
+        raise ValueError(f"Unknown operation: {operation}")
 
     @staticmethod
     def wait_for_process_completion(
@@ -237,7 +235,7 @@ class SynchronizationHelpers:
             return process.memory_info().rss < threshold_bytes
 
         return SynchronizationHelpers.wait_for_condition(
-            check_memory, timeout_ms=timeout_ms, poll_interval_ms=50
+            check_memory, timeout_ms=timeout_ms, poll_interval_ms=50,
         )
 
     @staticmethod

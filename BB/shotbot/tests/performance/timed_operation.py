@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def timed_operation(
-    name: str, log_threshold_ms: float = 0.0, store_results: bool = True
+    name: str, log_threshold_ms: float = 0.0, store_results: bool = True,
 ) -> Callable:
     """Decorator to time function execution for performance testing.
 

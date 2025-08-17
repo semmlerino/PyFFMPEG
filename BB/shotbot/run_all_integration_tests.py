@@ -120,16 +120,15 @@ def main():
     if failed == 0:
         print("🎉 ALL INTEGRATION TESTS PASSED!")
         return 0
-    else:
-        print(f"💥 {failed} INTEGRATION TESTS FAILED")
+    print(f"💥 {failed} INTEGRATION TESTS FAILED")
 
-        # Detailed failure report
-        print("\nFAILED TESTS:")
-        for description, success, status in results:
-            if not success:
-                print(f"  - {description}: {status}")
+    # Detailed failure report
+    print("\nFAILED TESTS:")
+    for description, success, status in results:
+        if not success:
+            print(f"  - {description}: {status}")
 
-        return 1
+    return 1
 
 
 if __name__ == "__main__":

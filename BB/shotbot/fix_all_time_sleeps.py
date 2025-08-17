@@ -183,7 +183,7 @@ def main():
             content = test_file.read_text()
             if "time.sleep" in content:
                 print(
-                    f"⚠ Skipped {relative_path} (intentional delays or complex pattern)"
+                    f"⚠ Skipped {relative_path} (intentional delays or complex pattern)",
                 )
 
     print()

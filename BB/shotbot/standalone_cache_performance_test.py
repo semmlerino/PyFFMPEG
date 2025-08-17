@@ -42,7 +42,7 @@ def test_path_cache_ttl_performance():
     iterations = 50
 
     print(
-        f"\nTesting with {len(test_paths)} unique paths, {iterations} iterations each"
+        f"\nTesting with {len(test_paths)} unique paths, {iterations} iterations each",
     )
 
     # Test 1: Baseline - direct filesystem access (mocked)
@@ -69,7 +69,7 @@ def test_path_cache_ttl_performance():
     print(f"   Baseline time: {baseline_time:.3f}s")
     print(f"   Filesystem accesses: {baseline_fs_accesses}")
     print(
-        f"   Average per path: {(baseline_time * 1000) / (len(test_paths) * iterations):.2f}ms"
+        f"   Average per path: {(baseline_time * 1000) / (len(test_paths) * iterations):.2f}ms",
     )
 
     # Reset counter
@@ -94,7 +94,7 @@ def test_path_cache_ttl_performance():
     print(f"   Optimized time: {optimized_time:.3f}s")
     print(f"   Filesystem accesses: {optimized_fs_accesses}")
     print(
-        f"   Average per path: {(optimized_time * 1000) / (len(test_paths) * iterations):.2f}ms"
+        f"   Average per path: {(optimized_time * 1000) / (len(test_paths) * iterations):.2f}ms",
     )
 
     # Check cache stats
@@ -147,25 +147,25 @@ def test_path_cache_ttl_performance():
 
         if fs_reduction_passed:
             print(
-                f"✓ FS reduction test PASSED: {fs_reduction_percent:.1f}% >= {min_fs_reduction}%"
+                f"✓ FS reduction test PASSED: {fs_reduction_percent:.1f}% >= {min_fs_reduction}%",
             )
         else:
             print(
-                f"✗ FS reduction test FAILED: {fs_reduction_percent:.1f}% < {min_fs_reduction}%"
+                f"✗ FS reduction test FAILED: {fs_reduction_percent:.1f}% < {min_fs_reduction}%",
             )
 
         # Expected cache behavior: first iteration fills cache, subsequent use cache
         expected_fs_accesses = len(
-            test_paths
+            test_paths,
         )  # Should only access once per unique path
         if optimized_fs_accesses <= expected_fs_accesses * 1.1:  # Allow 10% margin
             print(
-                f"✓ Cache efficiency test PASSED: {optimized_fs_accesses} <= {expected_fs_accesses} (expected)"
+                f"✓ Cache efficiency test PASSED: {optimized_fs_accesses} <= {expected_fs_accesses} (expected)",
             )
             cache_passed = True
         else:
             print(
-                f"✗ Cache efficiency test FAILED: {optimized_fs_accesses} > {expected_fs_accesses} (expected)"
+                f"✗ Cache efficiency test FAILED: {optimized_fs_accesses} > {expected_fs_accesses} (expected)",
             )
             cache_passed = False
 
@@ -175,15 +175,13 @@ def test_path_cache_ttl_performance():
             print(f"  Path caching provides {speedup:.1f}x speedup")
             print(f"  Reduces filesystem access by {fs_reduction_percent:.1f}%")
             return True
-        else:
-            print("\n✗ CACHE PERFORMANCE TEST FAILED")
-            print(
-                f"  Expected at least {min_speedup}x speedup and {min_fs_reduction}% FS reduction"
-            )
-            return False
-    else:
-        print("\n✗ ERROR: Invalid timing results")
+        print("\n✗ CACHE PERFORMANCE TEST FAILED")
+        print(
+            f"  Expected at least {min_speedup}x speedup and {min_fs_reduction}% FS reduction",
+        )
         return False
+    print("\n✗ ERROR: Invalid timing results")
+    return False
 
 
 def test_cache_ttl_expiration():
@@ -225,7 +223,7 @@ def test_cache_ttl_expiration():
                 PathUtils.validate_path_exists(test_path, "TTL test")
                 accesses_after_second = filesystem_access_count
                 print(
-                    f"✓ Second access (within TTL): {accesses_after_second} filesystem accesses"
+                    f"✓ Second access (within TTL): {accesses_after_second} filesystem accesses",
                 )
 
                 # Third access at time 1400 (beyond TTL of 300s)
@@ -233,7 +231,7 @@ def test_cache_ttl_expiration():
                 PathUtils.validate_path_exists(test_path, "TTL test")
                 accesses_after_third = filesystem_access_count
                 print(
-                    f"✓ Third access (beyond TTL): {accesses_after_third} filesystem accesses"
+                    f"✓ Third access (beyond TTL): {accesses_after_third} filesystem accesses",
                 )
 
                 # Validate TTL behavior
@@ -247,12 +245,11 @@ def test_cache_ttl_expiration():
                     print("  - Second access: cache hit (no additional FS access)")
                     print("  - Third access: cache expired (1 additional FS access)")
                     return True
-                else:
-                    print(
-                        f"! TTL behavior unexpected: {accesses_after_first}, {accesses_after_second}, {accesses_after_third}"
-                    )
-                    print("  This might indicate different cache implementation")
-                    return True  # Don't fail, implementation may vary
+                print(
+                    f"! TTL behavior unexpected: {accesses_after_first}, {accesses_after_second}, {accesses_after_third}",
+                )
+                print("  This might indicate different cache implementation")
+                return True  # Don't fail, implementation may vary
 
     except Exception as e:
         print(f"! TTL expiration test failed: {e}")
@@ -296,7 +293,7 @@ def test_cache_memory_efficiency():
         estimated_memory_mb = estimated_memory_kb / 1024
 
         print(
-            f"✓ Estimated memory usage: {estimated_memory_kb:.1f} KB ({estimated_memory_mb:.2f} MB)"
+            f"✓ Estimated memory usage: {estimated_memory_kb:.1f} KB ({estimated_memory_mb:.2f} MB)",
         )
 
         # Memory efficiency check
@@ -304,15 +301,14 @@ def test_cache_memory_efficiency():
 
         if estimated_memory_mb < max_acceptable_mb:
             print(
-                f"✓ Memory efficiency test PASSED: {estimated_memory_mb:.2f}MB < {max_acceptable_mb}MB"
+                f"✓ Memory efficiency test PASSED: {estimated_memory_mb:.2f}MB < {max_acceptable_mb}MB",
             )
             return True
-        else:
-            print(
-                f"! Memory efficiency test WARNING: {estimated_memory_mb:.2f}MB >= {max_acceptable_mb}MB"
-            )
-            print("  (This is just an estimate and may not reflect actual usage)")
-            return True  # Don't fail, this is just an estimate
+        print(
+            f"! Memory efficiency test WARNING: {estimated_memory_mb:.2f}MB >= {max_acceptable_mb}MB",
+        )
+        print("  (This is just an estimate and may not reflect actual usage)")
+        return True  # Don't fail, this is just an estimate
 
     except Exception as e:
         print(f"! Memory efficiency test failed: {e}")
@@ -372,9 +368,8 @@ def main():
     if passed == total:
         print("✓ All cache performance tests PASSED")
         return 0
-    else:
-        print("✗ Some cache performance tests FAILED")
-        return 1
+    print("✗ Some cache performance tests FAILED")
+    return 1
 
 
 if __name__ == "__main__":

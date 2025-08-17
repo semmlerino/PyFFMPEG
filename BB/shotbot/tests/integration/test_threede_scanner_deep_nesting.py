@@ -66,8 +66,8 @@ class Test3DEScennerDeepNesting:
                                     # No .3de files - empty directories
                                     "mm/3de/empty": [],
                                 },
-                            }
-                        }
+                            },
+                        },
                     },
                     "DB_256": {
                         "DB_256_1200": {
@@ -79,10 +79,10 @@ class Test3DEScennerDeepNesting:
                                         "DB_256_1200_hero_v002.3de",
                                     ],
                                 },
-                            }
-                        }
+                            },
+                        },
                     },
-                }
+                },
             },
             "gator": {
                 "shots": {
@@ -95,10 +95,10 @@ class Test3DEScennerDeepNesting:
                                         "012_DC_1000_main.3de",
                                     ],
                                 },
-                            }
-                        }
-                    }
-                }
+                            },
+                        },
+                    },
+                },
             },
         }
 
@@ -232,7 +232,7 @@ class Test3DEScennerDeepNesting:
         assert "ryan-p" in users_found, "rglob should find deeply nested files"
 
     def test_common_pattern_optimization(
-        self, deep_shot_structure, monkeypatch, caplog
+        self, deep_shot_structure, monkeypatch, caplog,
     ):
         """Test that common patterns are checked first for efficiency."""
         shot_path = str(deep_shot_structure["jack_ryan_shot"])
@@ -304,7 +304,7 @@ class Test3DEScennerDeepNesting:
 
         # Discover all shots in jack_ryan show
         shots = ThreeDESceneFinder.discover_all_shots_in_show(
-            show_root=show_root, show="jack_ryan"
+            show_root=show_root, show="jack_ryan",
         )
 
         # Should find both shots
@@ -323,13 +323,13 @@ class Test3DEScennerDeepNesting:
         shots = []
         for show in ["jack_ryan", "gator"]:
             show_shots = ThreeDESceneFinder.discover_all_shots_in_show(
-                show_root=show_root, show=show
+                show_root=show_root, show=show,
             )
             shots.extend(show_shots)
 
         # Find all scenes
         all_scenes = ThreeDESceneFinder.find_all_scenes(
-            shots=shots, excluded_users={"excluded-user"}
+            shots=shots, excluded_users={"excluded-user"},
         )
 
         # Should find scenes from both shows

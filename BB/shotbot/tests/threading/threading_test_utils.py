@@ -671,7 +671,7 @@ class RaceConditionFactory:
             raise ValueError(f"State race not implemented for {target_state}")
 
         return ThreadingTestHelpers.trigger_race_condition(
-            operations, setup_barrier=True, timeout_ms=timeout_ms
+            operations, setup_barrier=True, timeout_ms=timeout_ms,
         )
 
     @staticmethod
@@ -719,7 +719,7 @@ class RaceConditionFactory:
         # Enhance result with signal-specific information
         return result._replace(
             violations_detected=result.violations_detected
-            + [f"Received {len(received_signals)} signals during race"]
+            + [f"Received {len(received_signals)} signals during race"],
         )
 
     @staticmethod
@@ -748,7 +748,7 @@ class RaceConditionFactory:
             )
         """
         return ThreadingTestHelpers.trigger_race_condition(
-            resource_operations, setup_barrier=True, timeout_ms=timeout_ms
+            resource_operations, setup_barrier=True, timeout_ms=timeout_ms,
         )
 
     @staticmethod
@@ -770,7 +770,7 @@ class RaceConditionFactory:
         all_operations = cleanup_operations + active_operations
 
         return ThreadingTestHelpers.trigger_race_condition(
-            all_operations, setup_barrier=True, timeout_ms=timeout_ms
+            all_operations, setup_barrier=True, timeout_ms=timeout_ms,
         )
 
 
@@ -824,7 +824,7 @@ class PerformanceMetrics:
                 worker.deleteLater()
 
         return PerformanceMetrics._calculate_statistics(
-            "thread_creation", durations, iterations
+            "thread_creation", durations, iterations,
         )
 
     @staticmethod
@@ -869,7 +869,7 @@ class PerformanceMetrics:
         threads = []
         for i in range(contention_threads):
             thread = threading.Thread(
-                target=contending_operation, args=(i,), name=f"ContentionThread-{i}"
+                target=contending_operation, args=(i,), name=f"ContentionThread-{i}",
             )
             threads.append(thread)
             thread.start()
@@ -1080,7 +1080,7 @@ def monitored_worker(qtbot) -> Iterator[LauncherWorker]:
     worker.worker_started.connect(track_state_change)
     worker.worker_stopped.connect(track_state_change)
     worker.worker_error.connect(
-        lambda msg: state_changes.append((time.perf_counter(), f"ERROR: {msg}"))
+        lambda msg: state_changes.append((time.perf_counter(), f"ERROR: {msg}")),
     )
 
     try:
@@ -1267,7 +1267,7 @@ def assert_worker_state_transition(
             raise AssertionError(
                 f"Timeout waiting for state transition. "
                 f"Expected: {expected_state}, Got: {current_state}, "
-                f"Transition: {current_transition}/{len(expected_transitions)}"
+                f"Transition: {current_transition}/{len(expected_transitions)}",
             )
 
         current_state = worker.get_state()

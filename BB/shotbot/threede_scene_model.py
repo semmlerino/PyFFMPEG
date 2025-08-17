@@ -29,7 +29,7 @@ class ThreeDEScene:
     plate: str
     scene_path: Path
     _cached_thumbnail_path: Any = field(
-        default=_NOT_SEARCHED, init=False, repr=False, compare=False
+        default=_NOT_SEARCHED, init=False, repr=False, compare=False,
     )
 
     @property
@@ -47,7 +47,7 @@ class ThreeDEScene:
     def thumbnail_dir(self) -> Path:
         """Get thumbnail directory path (same as regular shots)."""
         return PathUtils.build_thumbnail_path(
-            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot,
         )
 
     def get_thumbnail_path(self) -> Optional[Path]:
@@ -78,7 +78,7 @@ class ThreeDEScene:
 
         # Fall back to turnover plate thumbnails
         thumbnail = PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
-            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot,
         )
         if thumbnail:
             self._cached_thumbnail_path = thumbnail
@@ -86,7 +86,7 @@ class ThreeDEScene:
 
         # Third fallback: any EXR with 1001 in publish folder
         thumbnail = PathUtils.find_any_publish_thumbnail(  # type: ignore[attr-defined]
-            Config.SHOWS_ROOT, self.show, self.sequence, self.shot
+            Config.SHOWS_ROOT, self.show, self.sequence, self.shot,
         )
 
         # Cache the result (even if None) to avoid repeated searches
@@ -126,7 +126,7 @@ class ThreeDESceneModel:
     """Manages 3DE scene data and discovery."""
 
     def __init__(
-        self, cache_manager: Optional[CacheManager] = None, load_cache: bool = True
+        self, cache_manager: Optional[CacheManager] = None, load_cache: bool = True,
     ):
         self.scenes: List[ThreeDEScene] = []
         self.cache_manager = cache_manager or CacheManager()
@@ -220,7 +220,7 @@ class ThreeDESceneModel:
         return [scene.to_dict() for scene in self.scenes]
 
     def _deduplicate_scenes_by_shot(
-        self, scenes: List[ThreeDEScene]
+        self, scenes: List[ThreeDEScene],
     ) -> List[ThreeDEScene]:
         """Keep only the latest/best scene per shot.
 
@@ -250,7 +250,7 @@ class ThreeDESceneModel:
                 best_scene = self._select_best_scene(shot_scenes)
                 deduplicated.append(best_scene)
                 logger.debug(
-                    f"Selected {best_scene.display_name} from {len(shot_scenes)} scenes"
+                    f"Selected {best_scene.display_name} from {len(shot_scenes)} scenes",
                 )
 
         return deduplicated

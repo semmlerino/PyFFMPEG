@@ -183,7 +183,7 @@ class LauncherEditDialog(QDialog):
         self.command_field = QTextEdit()
         self.command_field.setPlaceholderText(
             "e.g., nuke --nc {workspace_path}/nuke/{shot}_v001.nk\n"
-            "Available variables: {show}, {sequence}, {shot}, {full_name}, {workspace_path}"
+            "Available variables: {show}, {sequence}, {shot}, {full_name}, {workspace_path}",
         )
         self.command_field.setMaximumHeight(100)
         form_layout.addRow("Command:", self.command_field)
@@ -240,7 +240,7 @@ class LauncherEditDialog(QDialog):
         # Buttons
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
-            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.Cancel,
         )
         self.button_box.accepted.connect(self._save)
         self.button_box.rejected.connect(self.reject)
@@ -260,12 +260,12 @@ class LauncherEditDialog(QDialog):
             self.env_type_combo.setCurrentText(self.launcher.environment.type)
             if self.launcher.environment.type == "rez":
                 self.env_spec_field.setText(
-                    " ".join(self.launcher.environment.packages or [])
+                    " ".join(self.launcher.environment.packages or []),
                 )
             elif self.launcher.environment.type == "conda":
                 # Conda environments use command_prefix for environment name
                 self.env_spec_field.setText(
-                    self.launcher.environment.command_prefix or ""
+                    self.launcher.environment.command_prefix or "",
                 )
 
         if self.launcher.terminal:
@@ -333,7 +333,7 @@ class LauncherEditDialog(QDialog):
 
         try:
             self.launcher_manager.execute_launcher(
-                test_launcher.id, variables, dry_run=True
+                test_launcher.id, variables, dry_run=True,
             )
             self.test_output.setText("✓ Command validated successfully")
             self.test_output.setStyleSheet("color: #4caf50; font-style: italic;")
@@ -345,7 +345,7 @@ class LauncherEditDialog(QDialog):
         """Save the launcher."""
         if not self._validate_name() or not self._validate_command():
             QMessageBox.warning(
-                self, "Validation Error", "Please fix the highlighted fields."
+                self, "Validation Error", "Please fix the highlighted fields.",
             )
             return
 

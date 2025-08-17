@@ -19,7 +19,7 @@ class UndistortionFinder:
 
     @staticmethod
     def find_latest_undistortion(
-        shot_workspace_path: str, shot_name: str, username: Optional[str] = None
+        shot_workspace_path: str, shot_name: str, username: Optional[str] = None,
     ) -> Optional[Path]:
         """
         Find the latest undistortion .nk file for a shot.
@@ -75,7 +75,7 @@ class UndistortionFinder:
 
         for scene_dir in scene_dirs:
             logger.debug(
-                f"Searching for undistortion in scene directory: {scene_dir.name}"
+                f"Searching for undistortion in scene directory: {scene_dir.name}",
             )
             for potential_plate in scene_dir.iterdir():
                 if not potential_plate.is_dir():
@@ -151,7 +151,7 @@ class UndistortionFinder:
         latest_file, version, plate = found_files[0]
 
         logger.info(
-            f"Selected undistortion file: {latest_file} (version: {version}, plate: {plate})"
+            f"Selected undistortion file: {latest_file} (version: {version}, plate: {plate})",
         )
         return latest_file
 

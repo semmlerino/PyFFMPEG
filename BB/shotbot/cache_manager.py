@@ -157,23 +157,23 @@ class CacheManager(QObject):
         for attempt in range(max_retries):
             try:
                 self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
-                logger.debug(f"Ensured cache directory exists: {self.thumbnails_dir}")
+                logger.debug("Ensured cache directory exists: %s", self.thumbnails_dir)
                 return
             except (OSError, PermissionError) as e:
-                logger.error(f"Failed to create cache dir (attempt {attempt + 1}): {e}")
+                logger.error("Failed to create cache dir (attempt %d): %s", attempt + 1, e)
                 if attempt == max_retries - 1:
                     # Use fallback temp directory as last resort
                     try:
                         self.thumbnails_dir = Path(
-                            tempfile.mkdtemp(prefix="shotbot_cache_")
+                            tempfile.mkdtemp(prefix="shotbot_cache_"),
                         )
                         logger.warning(
-                            f"Using fallback cache dir: {self.thumbnails_dir}"
+                            f"Using fallback cache dir: {self.thumbnails_dir}",
                         )
                         return
                     except Exception as fallback_error:
                         logger.critical(
-                            f"Failed to create fallback cache dir: {fallback_error}"
+                            f"Failed to create fallback cache dir: {fallback_error}",
                         )
                         raise
             except Exception as e:
@@ -196,7 +196,7 @@ class CacheManager(QObject):
             return False
 
     def get_cached_thumbnail(
-        self, show: str, sequence: str, shot: str
+        self, show: str, sequence: str, shot: str,
     ) -> Optional[Path]:
         """Get path to cached thumbnail if it exists (thread-safe).
 
@@ -211,7 +211,7 @@ class CacheManager(QObject):
             # Check if we should run validation
             time_since_validation = datetime.now() - self._last_validation_time
             if time_since_validation > timedelta(
-                minutes=self._validation_interval_minutes
+                minutes=self._validation_interval_minutes,
             ):
                 logger.debug("Running periodic cache validation")
                 self.validate_cache()
@@ -297,7 +297,7 @@ class CacheManager(QObject):
 
             if is_heavy_format and file_size_mb > 10:
                 logger.info(
-                    f"Processing large {suffix_lower} file ({file_size_mb:.1f}MB): {source_path.name}"
+                    f"Processing large {suffix_lower} file ({file_size_mb:.1f}MB): {source_path.name}",
                 )
 
             # Check if we're on the main thread for Qt operations
@@ -307,11 +307,11 @@ class CacheManager(QObject):
             if not is_main_thread:
                 # If called from background thread, use thread pool for Qt operations
                 logger.debug(
-                    "Cache thumbnail called from background thread - using thread pool"
+                    "Cache thumbnail called from background thread - using thread pool",
                 )
                 # Create a loader task with result container
                 loader = ThumbnailCacheLoader(
-                    self, source_path, show, sequence, shot, result
+                    self, source_path, show, sequence, shot, result,
                 )
                 pool = QThreadPool.globalInstance()
                 pool.start(loader)
@@ -348,7 +348,7 @@ class CacheManager(QObject):
             self._active_loaders.pop(cache_key, None)
 
     def cache_thumbnail_direct(
-        self, source_path: Path, show: str, sequence: str, shot: str
+        self, source_path: Path, show: str, sequence: str, shot: str,
     ) -> Optional[Path]:
         """Direct thumbnail caching implementation without thread checks.
 
@@ -385,7 +385,7 @@ class CacheManager(QObject):
                 use_pil = True
                 if file_size_mb > 10:
                     logger.info(
-                        f"Processing large {suffix_lower} file with PIL ({file_size_mb:.1f}MB): {source_path.name}"
+                        f"Processing large {suffix_lower} file with PIL ({file_size_mb:.1f}MB): {source_path.name}",
                     )
             
             # Try PIL first for heavy formats
@@ -430,7 +430,7 @@ class CacheManager(QObject):
                     
                     logger.debug(
                         f"Cached {suffix_lower} thumbnail with PIL: {cache_path} "
-                        f"({file_size_mb:.1f}MB -> {cache_path.stat().st_size / 1024:.1f}KB)"
+                        f"({file_size_mb:.1f}MB -> {cache_path.stat().st_size / 1024:.1f}KB)",
                     )
                     return cache_path
                     
@@ -457,7 +457,7 @@ class CacheManager(QObject):
             max_dim = 20000 if is_heavy_format else 10000
             if image.width() > max_dim or image.height() > max_dim:
                 logger.warning(
-                    f"Image too large ({image.width()}x{image.height()} > {max_dim}): {source_path}"
+                    f"Image too large ({image.width()}x{image.height()} > {max_dim}): {source_path}",
                 )
                 return None
 
@@ -502,14 +502,13 @@ class CacheManager(QObject):
                             pass  # Ignore errors in memory tracking
 
                     logger.debug(
-                        f"Cached thumbnail: {cache_path} (total cache: {self._memory_usage_bytes / 1024 / 1024:.1f}MB)"
+                        f"Cached thumbnail: {cache_path} (total cache: {self._memory_usage_bytes / 1024 / 1024:.1f}MB)",
                     )
                     return cache_path
-                else:
-                    logger.warning(
-                        f"Failed to save thumbnail to temp file: {temp_path}"
-                    )
-                    return None
+                logger.warning(
+                    f"Failed to save thumbnail to temp file: {temp_path}",
+                )
+                return None
             finally:
                 # Clean up temp file if it still exists
                 if temp_path.exists():
@@ -563,7 +562,7 @@ class CacheManager(QObject):
                 return None
 
             if datetime.now() - cache_time > timedelta(
-                minutes=self.CACHE_EXPIRY_MINUTES
+                minutes=self.CACHE_EXPIRY_MINUTES,
             ):
                 logger.debug(f"Shot cache expired (age: {datetime.now() - cache_time})")
                 return None
@@ -637,7 +636,7 @@ class CacheManager(QObject):
                 # Write cache file with atomic operation (write to temp file first)
                 # Use unique temp file name to avoid collisions between threads
                 temp_file = self.shots_cache_file.with_suffix(
-                    f".tmp_{uuid.uuid4().hex[:8]}"
+                    f".tmp_{uuid.uuid4().hex[:8]}",
                 )
                 try:
                     with open(temp_file, "w", encoding="utf-8") as f:
@@ -646,7 +645,7 @@ class CacheManager(QObject):
                     # Atomic move to final location
                     temp_file.replace(self.shots_cache_file)
                     logger.debug(
-                        f"Cached {len(shot_dicts)} shots to {self.shots_cache_file}"
+                        f"Cached {len(shot_dicts)} shots to {self.shots_cache_file}",
                     )
 
                 except (OSError, IOError) as e:
@@ -678,7 +677,7 @@ class CacheManager(QObject):
             # Check if cache is expired
             cache_time = datetime.fromisoformat(data.get("timestamp", "1970-01-01"))
             if datetime.now() - cache_time > timedelta(
-                minutes=self.CACHE_EXPIRY_MINUTES
+                minutes=self.CACHE_EXPIRY_MINUTES,
             ):
                 return None
 
@@ -726,7 +725,7 @@ class CacheManager(QObject):
                 scene_count = len(data.get("scenes", []))
                 logger.debug(
                     f"3DE cache is valid (age: {age.total_seconds() / 60:.1f} min, "
-                    + f"scenes: {scene_count})"
+                    + f"scenes: {scene_count})",
                 )
 
             return is_valid
@@ -750,7 +749,7 @@ class CacheManager(QObject):
             return False
 
     def cache_threede_scenes(
-        self, scenes: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
+        self, scenes: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None,
     ):
         """Cache 3DE scene list to file with optional metadata.
 
@@ -776,7 +775,7 @@ class CacheManager(QObject):
 
                 # Use atomic write with unique temp file
                 temp_file = self.threede_scenes_cache_file.with_suffix(
-                    f".tmp_{uuid.uuid4().hex[:8]}"
+                    f".tmp_{uuid.uuid4().hex[:8]}",
                 )
                 try:
                     with open(temp_file, "w") as f:
@@ -809,7 +808,7 @@ class CacheManager(QObject):
         paths_to_remove: List[str] = []
 
         for path_str, size in list(
-            self._cached_thumbnails.items()
+            self._cached_thumbnails.items(),
         ):  # Create a copy to iterate
             try:
                 path = Path(path_str)
@@ -938,7 +937,7 @@ class CacheManager(QObject):
                             tracked_size = self._cached_thumbnails[path_str]
                             if actual_size != tracked_size:
                                 size_mismatches.append(
-                                    (path_str, actual_size, tracked_size)
+                                    (path_str, actual_size, tracked_size),
                                 )
                         except (OSError, IOError):
                             invalid_paths.append(path_str)
@@ -950,7 +949,7 @@ class CacheManager(QObject):
                         size = self._cached_thumbnails[path_str]
                         del self._cached_thumbnails[path_str]
                         self._memory_usage_bytes = max(
-                            0, self._memory_usage_bytes - size
+                            0, self._memory_usage_bytes - size,
                         )
                         issues_fixed += 1
 
@@ -960,7 +959,7 @@ class CacheManager(QObject):
                     self._memory_usage_bytes += actual_size - tracked_size
                     issues_fixed += 1
                     logger.debug(
-                        f"Fixed size mismatch for {path_str}: tracked={tracked_size}, actual={actual_size}"
+                        f"Fixed size mismatch for {path_str}: tracked={tracked_size}, actual={actual_size}",
                     )
 
                 # Check for orphaned thumbnail files not being tracked
@@ -981,7 +980,7 @@ class CacheManager(QObject):
                 actual_usage = sum(self._cached_thumbnails.values())
                 if actual_usage != self._memory_usage_bytes:
                     logger.info(
-                        f"Memory usage mismatch: tracked={self._memory_usage_bytes}, actual={actual_usage}. Correcting..."
+                        f"Memory usage mismatch: tracked={self._memory_usage_bytes}, actual={actual_usage}. Correcting...",
                     )
                     self._memory_usage_bytes = actual_usage
                     issues_fixed += 1
@@ -1016,7 +1015,7 @@ class CacheManager(QObject):
                 validation_result = self.validate_cache()
                 if not validation_result.get("valid", False):
                     logger.info(
-                        f"Fixed {validation_result.get('issues_fixed', 0)} cache issues during shutdown"
+                        f"Fixed {validation_result.get('issues_fixed', 0)} cache issues during shutdown",
                     )
 
                 # Flush any pending cache operations
@@ -1066,7 +1065,7 @@ class ThumbnailCacheLoader(QRunnable):
             # This is already running on a background thread, so we don't need
             # to check for thread context again
             cache_path = self.cache_manager.cache_thumbnail_direct(
-                self.source_path, self.show, self.sequence, self.shot
+                self.source_path, self.show, self.sequence, self.shot,
             )
 
             if cache_path:
@@ -1077,7 +1076,7 @@ class ThumbnailCacheLoader(QRunnable):
                 if hasattr(self, "signals") and self.signals:
                     try:
                         self.signals.loaded.emit(
-                            self.show, self.sequence, self.shot, cache_path
+                            self.show, self.sequence, self.shot, cache_path,
                         )
                     except RuntimeError:
                         pass  # Signals deleted
@@ -1091,7 +1090,7 @@ class ThumbnailCacheLoader(QRunnable):
                 if hasattr(self, "signals") and self.signals:
                     try:
                         self.signals.failed.emit(
-                            self.show, self.sequence, self.shot, error_msg
+                            self.show, self.sequence, self.shot, error_msg,
                         )
                     except RuntimeError:
                         # Signals object was deleted, safe to ignore
@@ -1107,7 +1106,7 @@ class ThumbnailCacheLoader(QRunnable):
             if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.failed.emit(
-                        self.show, self.sequence, self.shot, str(e)
+                        self.show, self.sequence, self.shot, str(e),
                     )
                 except RuntimeError:
                     # Signals object was deleted, safe to ignore

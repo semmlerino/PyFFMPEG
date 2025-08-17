@@ -33,7 +33,7 @@ class TestPublished3DEFiles:
         )
         publish_path.mkdir(parents=True)
         (publish_path / "019_JF_1080_mm-default_bg01_v001.3de").write_text(
-            "Published 3DE file"
+            "Published 3DE file",
         )
 
         # Also create v002
@@ -49,7 +49,7 @@ class TestPublished3DEFiles:
         )
         publish_path2.mkdir(parents=True)
         (publish_path2 / "019_JF_1080_mm-default_bg01_v002.3de").write_text(
-            "Published 3DE v2"
+            "Published 3DE v2",
         )
 
         # User workspace files
@@ -71,7 +71,7 @@ class TestPublished3DEFiles:
         )
         publish2_path.mkdir(parents=True)
         (publish2_path / "008_AC_1320_mm-default_bg01_v001.3de").write_text(
-            "Published only"
+            "Published only",
         )
 
         # Create user directory but no 3DE files (for validation)
@@ -87,7 +87,7 @@ class TestPublished3DEFiles:
     def test_extract_shot_info_from_published_path(self, published_file_structure):
         """Test that extract_shot_info_from_path handles published paths."""
         publish_path = Path(
-            "//shows/gator/shots/019_JF/019_JF_1080/publish/mm/default/bg01/lens_distortion/v001/3de/019_JF_1080_mm-default_bg01_v001.3de"
+            "//shows/gator/shots/019_JF/019_JF_1080/publish/mm/default/bg01/lens_distortion/v001/3de/019_JF_1080_mm-default_bg01_v001.3de",
         )
 
         shot_info = ThreeDESceneFinder.extract_shot_info_from_path(publish_path)
@@ -103,7 +103,7 @@ class TestPublished3DEFiles:
     def test_extract_shot_info_from_user_path(self):
         """Test that extract_shot_info_from_path still handles user paths."""
         user_path = Path(
-            "/shows/jack_ryan/shots/GF_256/GF_256_0020/user/ryan-p/mm/3de/GF_256_0020_scene.3de"
+            "/shows/jack_ryan/shots/GF_256/GF_256_0020/user/ryan-p/mm/3de/GF_256_0020_scene.3de",
         )
 
         shot_info = ThreeDESceneFinder.extract_shot_info_from_path(user_path)

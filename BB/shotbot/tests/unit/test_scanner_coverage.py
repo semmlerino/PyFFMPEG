@@ -27,45 +27,45 @@ class TestScannerCoverage(unittest.TestCase):
             "/shows/jack_ryan": [
                 # User's assigned shots (from ws -sg)
                 Path(
-                    "/shows/jack_ryan/shots/GF_256/GF_256_1400/user/johndoe/3de/scene1.3de"
+                    "/shows/jack_ryan/shots/GF_256/GF_256_1400/user/johndoe/3de/scene1.3de",
                 ),
                 Path(
-                    "/shows/jack_ryan/shots/GF_256/GF_256_1410/user/johndoe/3de/scene2.3de"
+                    "/shows/jack_ryan/shots/GF_256/GF_256_1410/user/johndoe/3de/scene2.3de",
                 ),
                 # Other users' shots in same sequence
                 Path(
-                    "/shows/jack_ryan/shots/GF_256/GF_256_1420/user/alice/3de/scene3.3de"
+                    "/shows/jack_ryan/shots/GF_256/GF_256_1420/user/alice/3de/scene3.3de",
                 ),
                 Path(
-                    "/shows/jack_ryan/shots/GF_256/GF_256_1430/user/bob/3de/scene4.3de"
+                    "/shows/jack_ryan/shots/GF_256/GF_256_1430/user/bob/3de/scene4.3de",
                 ),
                 # Different sequence entirely
                 Path(
-                    "/shows/jack_ryan/shots/ABC_123/ABC_123_0010/user/charlie/3de/scene5.3de"
+                    "/shows/jack_ryan/shots/ABC_123/ABC_123_0010/user/charlie/3de/scene5.3de",
                 ),
                 Path(
-                    "/shows/jack_ryan/shots/ABC_123/ABC_123_0020/user/dave/3de/scene6.3de"
+                    "/shows/jack_ryan/shots/ABC_123/ABC_123_0020/user/dave/3de/scene6.3de",
                 ),
                 Path(
-                    "/shows/jack_ryan/shots/ABC_123/ABC_123_0030/user/eve/3de/scene7.3de"
+                    "/shows/jack_ryan/shots/ABC_123/ABC_123_0030/user/eve/3de/scene7.3de",
                 ),
                 # Published files
                 Path("/shows/jack_ryan/shots/GF_256/GF_256_1400/publish/3de/final.3de"),
                 Path(
-                    "/shows/jack_ryan/shots/DEF_456/DEF_456_0100/publish/editorial/approved.3de"
+                    "/shows/jack_ryan/shots/DEF_456/DEF_456_0100/publish/editorial/approved.3de",
                 ),
                 # Deeply nested files
                 Path(
-                    "/shows/jack_ryan/shots/XYZ_789/XYZ_789_5000/user/frank/work/3de/deep/nested/file.3de"
+                    "/shows/jack_ryan/shots/XYZ_789/XYZ_789_5000/user/frank/work/3de/deep/nested/file.3de",
                 ),
             ],
             "/shows/other_show": [
                 # Files from a different show entirely
                 Path(
-                    "/shows/other_show/shots/SEQ_01/SEQ_01_0010/user/george/3de/other.3de"
+                    "/shows/other_show/shots/SEQ_01/SEQ_01_0010/user/george/3de/other.3de",
                 ),
                 Path(
-                    "/shows/other_show/shots/SEQ_01/SEQ_01_0020/user/helen/3de/another.3de"
+                    "/shows/other_show/shots/SEQ_01/SEQ_01_0020/user/helen/3de/another.3de",
                 ),
             ],
         }
@@ -73,7 +73,7 @@ class TestScannerCoverage(unittest.TestCase):
     def test_scan_all_shots_mode(self):
         """Test that scan_all_shots=True discovers all shots, not just user's."""
         with patch.object(
-            ThreeDESceneWorker, "__init__", return_value=None
+            ThreeDESceneWorker, "__init__", return_value=None,
         ) as mock_init:
             # Create worker with scan_all_shots=True
             worker = ThreeDESceneWorker(scan_all_shots=True)
@@ -143,7 +143,7 @@ class TestScannerCoverage(unittest.TestCase):
         published_paths = [
             Path("/shows/jack_ryan/shots/GF_256/GF_256_1400/publish/3de/final.3de"),
             Path(
-                "/shows/jack_ryan/shots/DEF_456/DEF_456_0100/publish/editorial/approved.3de"
+                "/shows/jack_ryan/shots/DEF_456/DEF_456_0100/publish/editorial/approved.3de",
             ),
         ]
 
@@ -159,7 +159,7 @@ class TestScannerCoverage(unittest.TestCase):
     def test_deep_directory_traversal(self):
         """Test that scanner can find deeply nested 3DE files."""
         deep_path = Path(
-            "/shows/jack_ryan/shots/XYZ_789/XYZ_789_5000/user/frank/work/3de/deep/nested/very/deep/folder/structure/file.3de"
+            "/shows/jack_ryan/shots/XYZ_789/XYZ_789_5000/user/frank/work/3de/deep/nested/very/deep/folder/structure/file.3de",
         )
 
         # Count depth from user directory
@@ -204,19 +204,19 @@ class TestScannerCoverage(unittest.TestCase):
         files = [
             (
                 Path(
-                    "/shows/jack_ryan/shots/GF_256/GF_256_1400/user/johndoe/3de/mine.3de"
+                    "/shows/jack_ryan/shots/GF_256/GF_256_1400/user/johndoe/3de/mine.3de",
                 ),
                 "johndoe",
             ),
             (
                 Path(
-                    "/shows/jack_ryan/shots/GF_256/GF_256_1400/user/alice/3de/other.3de"
+                    "/shows/jack_ryan/shots/GF_256/GF_256_1400/user/alice/3de/other.3de",
                 ),
                 "alice",
             ),
             (
                 Path(
-                    "/shows/jack_ryan/shots/GF_256/GF_256_1410/user/bob/3de/another.3de"
+                    "/shows/jack_ryan/shots/GF_256/GF_256_1410/user/bob/3de/another.3de",
                 ),
                 "bob",
             ),
@@ -244,7 +244,7 @@ class TestScannerCoverage(unittest.TestCase):
             seq_num = i // 100  # 10 sequences
             shot_num = i % 100  # 100 shots per sequence
             path = Path(
-                f"/shows/bigshow/shots/SEQ_{seq_num:02d}/SEQ_{seq_num:02d}_{shot_num:04d}/user/artist{i % 10}/3de/file_{i}.3de"
+                f"/shows/bigshow/shots/SEQ_{seq_num:02d}/SEQ_{seq_num:02d}_{shot_num:04d}/user/artist{i % 10}/3de/file_{i}.3de",
             )
             mock_files.append(path)
 
@@ -266,7 +266,7 @@ class TestScannerCoverage(unittest.TestCase):
 
         # Should be reasonably fast (< 1 second for 1000 files)
         self.assertLess(
-            elapsed, 1.0, f"Processing {num_files} files took {elapsed:.2f}s"
+            elapsed, 1.0, f"Processing {num_files} files took {elapsed:.2f}s",
         )
 
     def test_batch_processing(self):
@@ -304,7 +304,7 @@ class TestScannerCoverage(unittest.TestCase):
         for root in test_roots:
             with self.subTest(root=root):
                 path = Path(
-                    f"{root}/project/shots/SEQ_01/SEQ_01_0010/user/artist/3de/file.3de"
+                    f"{root}/project/shots/SEQ_01/SEQ_01_0010/user/artist/3de/file.3de",
                 )
                 # Path should be valid for any configured root
                 self.assertTrue(path.parts[0] == "/" or path.parts[0].startswith("/"))

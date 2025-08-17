@@ -122,7 +122,7 @@ class TestShotInfoPanel:
         assert shot_info_panel.path_label.text() == ""
 
     def test_load_thumbnail_from_cache(
-        self, shot_info_panel, sample_shot, mock_cache_manager, thumbnail_image
+        self, shot_info_panel, sample_shot, mock_cache_manager, thumbnail_image,
     ):
         """Test loading thumbnail from cache."""
         # Setup cache to return the test image
@@ -132,7 +132,7 @@ class TestShotInfoPanel:
 
         # Check cache was queried
         mock_cache_manager.get_cached_thumbnail.assert_called_once_with(
-            "test_show", "seq01", "shot01"
+            "test_show", "seq01", "shot01",
         )
 
         # Check thumbnail was loaded
@@ -141,7 +141,7 @@ class TestShotInfoPanel:
         assert not pixmap.isNull()
 
     def test_load_thumbnail_from_source(
-        self, shot_info_panel, sample_shot, mock_cache_manager, thumbnail_image, qtbot
+        self, shot_info_panel, sample_shot, mock_cache_manager, thumbnail_image, qtbot,
     ):
         """Test loading thumbnail from source when not cached."""
         # Setup cache to return None (not cached)
@@ -149,7 +149,7 @@ class TestShotInfoPanel:
 
         # Mock shot's get_thumbnail_path to return test image
         with patch.object(
-            sample_shot, "get_thumbnail_path", return_value=thumbnail_image
+            sample_shot, "get_thumbnail_path", return_value=thumbnail_image,
         ):
             shot_info_panel.set_shot(sample_shot)
 
@@ -162,7 +162,7 @@ class TestShotInfoPanel:
         assert not pixmap.isNull()
 
     def test_load_thumbnail_no_cache_no_source(
-        self, shot_info_panel, sample_shot, mock_cache_manager
+        self, shot_info_panel, sample_shot, mock_cache_manager,
     ):
         """Test placeholder is shown when no thumbnail available."""
         # Setup cache to return None
@@ -215,7 +215,7 @@ class TestShotInfoPanel:
         assert shot_info_panel.thumbnail_label.text() == "No Image"
 
     def test_load_pixmap_from_path_invalid_image(
-        self, shot_info_panel, tmp_path, caplog
+        self, shot_info_panel, tmp_path, caplog,
     ):
         """Test loading invalid image file."""
         # Create a text file with .jpg extension
@@ -241,13 +241,13 @@ class TestShotInfoPanel:
             assert shot_info_panel.thumbnail_label.text() == "No Image"
 
     def test_on_thumbnail_cached_current_shot(
-        self, shot_info_panel, sample_shot, thumbnail_image
+        self, shot_info_panel, sample_shot, thumbnail_image,
     ):
         """Test handling thumbnail cached signal for current shot."""
         shot_info_panel._current_shot = sample_shot
 
         shot_info_panel._on_thumbnail_cached(
-            "test_show", "seq01", "shot01", str(thumbnail_image)
+            "test_show", "seq01", "shot01", str(thumbnail_image),
         )
 
         # Should load the cached thumbnail
@@ -256,7 +256,7 @@ class TestShotInfoPanel:
         assert not pixmap.isNull()
 
     def test_on_thumbnail_cached_different_shot(
-        self, shot_info_panel, sample_shot, thumbnail_image
+        self, shot_info_panel, sample_shot, thumbnail_image,
     ):
         """Test handling thumbnail cached signal for different shot."""
         shot_info_panel._current_shot = sample_shot
@@ -265,20 +265,20 @@ class TestShotInfoPanel:
         initial_text = shot_info_panel.thumbnail_label.text()
 
         shot_info_panel._on_thumbnail_cached(
-            "other_show", "seq02", "shot02", str(thumbnail_image)
+            "other_show", "seq02", "shot02", str(thumbnail_image),
         )
 
         # Should not update since it's a different shot
         assert shot_info_panel.thumbnail_label.text() == initial_text
 
     def test_on_thumbnail_cached_no_current_shot(
-        self, shot_info_panel, thumbnail_image
+        self, shot_info_panel, thumbnail_image,
     ):
         """Test handling thumbnail cached signal with no current shot."""
         shot_info_panel._current_shot = None
 
         shot_info_panel._on_thumbnail_cached(
-            "test_show", "seq01", "shot01", str(thumbnail_image)
+            "test_show", "seq01", "shot01", str(thumbnail_image),
         )
 
         # Should not crash, but also not load anything
@@ -342,7 +342,7 @@ class TestShotInfoPanel:
         mock_thread_pool.globalInstance.return_value = mock_pool_instance
 
         with patch.object(
-            sample_shot, "get_thumbnail_path", return_value=thumbnail_image
+            sample_shot, "get_thumbnail_path", return_value=thumbnail_image,
         ):
             shot_info_panel.set_shot(sample_shot)
 
@@ -354,7 +354,7 @@ class TestShotInfoPanel:
         assert isinstance(worker, ThumbnailCacheLoader)
 
     def test_error_handling_permission_error(
-        self, shot_info_panel, tmp_path, caplog, monkeypatch
+        self, shot_info_panel, tmp_path, caplog, monkeypatch,
     ):
         """Test handling permission error when loading thumbnail."""
         test_file = tmp_path / "test.jpg"
@@ -381,7 +381,7 @@ class TestShotInfoPanel:
         assert shot_info_panel.thumbnail_label.text() == "No Image"
 
     def test_error_handling_memory_error(
-        self, shot_info_panel, tmp_path, caplog, monkeypatch
+        self, shot_info_panel, tmp_path, caplog, monkeypatch,
     ):
         """Test handling memory error when loading thumbnail."""
         test_file = tmp_path / "test.jpg"
@@ -408,7 +408,7 @@ class TestShotInfoPanel:
         assert shot_info_panel.thumbnail_label.text() == "No Image"
 
     def test_error_handling_io_error(
-        self, shot_info_panel, tmp_path, caplog, monkeypatch
+        self, shot_info_panel, tmp_path, caplog, monkeypatch,
     ):
         """Test handling I/O error when loading thumbnail."""
         test_file = tmp_path / "test.jpg"
@@ -435,7 +435,7 @@ class TestShotInfoPanel:
         assert shot_info_panel.thumbnail_label.text() == "No Image"
 
     def test_error_handling_unexpected_error(
-        self, shot_info_panel, tmp_path, caplog, monkeypatch
+        self, shot_info_panel, tmp_path, caplog, monkeypatch,
     ):
         """Test handling unexpected error when loading thumbnail."""
         test_file = tmp_path / "test.jpg"

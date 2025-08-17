@@ -37,7 +37,7 @@ class TestImprovedThumbnailDiscovery:
         # Test that it finds the plate
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_turnover_plate_thumbnail(
-                str(shows_root), "testshow", "seq01", "shot01"
+                str(shows_root), "testshow", "seq01", "shot01",
             )
 
         assert result is not None
@@ -73,7 +73,7 @@ class TestImprovedThumbnailDiscovery:
         # Test that it finds the plate
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_turnover_plate_thumbnail(
-                str(shows_root), "testshow", "seq01", "shot01"
+                str(shows_root), "testshow", "seq01", "shot01",
             )
 
         assert result is not None
@@ -97,7 +97,7 @@ class TestImprovedThumbnailDiscovery:
         # Test that it finds the file even without publish directory
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_any_publish_thumbnail(
-                str(shows_root), "testshow", "seq01", "shot01", max_depth=3
+                str(shows_root), "testshow", "seq01", "shot01", max_depth=3,
             )
 
         assert result is not None
@@ -134,7 +134,7 @@ class TestImprovedThumbnailDiscovery:
         # Test that FG01 is preferred
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_turnover_plate_thumbnail(
-                str(shows_root), "testshow", "seq01", "shot01"
+                str(shows_root), "testshow", "seq01", "shot01",
             )
 
         assert result is not None
@@ -167,7 +167,7 @@ class TestImprovedThumbnailDiscovery:
         # Test that it finds the deeply nested file
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             result = PathUtils.find_any_publish_thumbnail(
-                str(shows_root), "testshow", "seq01", "shot01", max_depth=6
+                str(shows_root), "testshow", "seq01", "shot01", max_depth=6,
             )
 
         assert result is not None

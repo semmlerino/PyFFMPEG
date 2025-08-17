@@ -106,7 +106,7 @@ class ShotInfoPanel(QWidget):
             # Update labels
             self.shot_name_label.setText(self._current_shot.full_name)
             self.show_sequence_label.setText(
-                f"{self._current_shot.show} • {self._current_shot.sequence}"
+                f"{self._current_shot.show} • {self._current_shot.sequence}",
             )
             self.path_label.setText(f"Workspace: {self._current_shot.workspace_path}")
 
@@ -225,7 +225,7 @@ class ShotInfoPanel(QWidget):
             del pixmap, scaled
 
     def _on_thumbnail_cached(
-        self, show: str, sequence: str, shot: str, cache_path: str
+        self, show: str, sequence: str, shot: str, cache_path: str,
     ):
         """Handle thumbnail cached signal."""
         # Update display if this is still the current shot

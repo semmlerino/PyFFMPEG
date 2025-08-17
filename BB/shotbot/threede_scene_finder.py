@@ -84,20 +84,20 @@ class PathDiagnostics:
         ]
 
         logger.debug(
-            f"Checking {len(path_patterns)} alternative path patterns for user {username}"
+            f"Checking {len(path_patterns)} alternative path patterns for user {username}",
         )
 
         for pattern in path_patterns:
             try:
                 alt_path = PathUtils.build_path(str(base_path), *pattern)
                 PathDiagnostics.log_path_attempt(
-                    alt_path, f"Alternative pattern {' -> '.join(pattern)}"
+                    alt_path, f"Alternative pattern {' -> '.join(pattern)}",
                 )
 
                 if alt_path.exists():
                     alternatives.append(alt_path)
                     logger.info(
-                        f"Found alternative 3DE path for {username}: {alt_path}"
+                        f"Found alternative 3DE path for {username}: {alt_path}",
                     )
 
             except Exception as e:
@@ -180,7 +180,7 @@ class ThreeDESceneFinder:
 
     @staticmethod
     def quick_3de_exists_check_python(
-        base_paths: List[str], timeout_seconds: int = 15
+        base_paths: List[str], timeout_seconds: int = 15,
     ) -> bool:
         """Quick check if ANY .3de files exist using Python pathlib (no subprocess).
 
@@ -210,7 +210,7 @@ class ThreeDESceneFinder:
                     # Check timeout periodically
                     if time.time() - start_time > timeout_seconds:
                         logger.warning(
-                            f"Quick check timed out after {timeout_seconds}s"
+                            f"Quick check timed out after {timeout_seconds}s",
                         )
                         return True  # Assume files exist if timeout
 
@@ -232,7 +232,7 @@ class ThreeDESceneFinder:
 
     @staticmethod
     def quick_3de_exists_check(
-        base_paths: List[str], timeout_seconds: int = 15
+        base_paths: List[str], timeout_seconds: int = 15,
     ) -> bool:
         """Quick check if ANY .3de files exist in the given paths.
 
@@ -277,20 +277,20 @@ class ThreeDESceneFinder:
                 # If find returns any output, a .3de file exists
                 if result.stdout.strip():
                     logger.debug(
-                        f"Quick check found .3de file: {result.stdout.strip()}"
+                        f"Quick check found .3de file: {result.stdout.strip()}",
                     )
                     return True
 
             except subprocess.TimeoutExpired:
                 logger.warning(
-                    f"Quick .3de check timed out after {timeout_seconds}s for {base_path}"
+                    f"Quick .3de check timed out after {timeout_seconds}s for {base_path}",
                 )
                 # Assume files might exist if timeout (better to scan than miss files)
                 return True
             except FileNotFoundError:
                 # 'find' command not available (Windows?), assume files might exist
                 logger.debug(
-                    "'find' command not available, assuming .3de files might exist"
+                    "'find' command not available, assuming .3de files might exist",
                 )
                 return True
             except Exception as e:
@@ -368,7 +368,7 @@ class ThreeDESceneFinder:
         except ValueError:
             # Can't make relative path, use parent directory
             logger.debug(
-                f"Cannot make relative path, using parent: {file_path.parent.name}"
+                f"Cannot make relative path, using parent: {file_path.parent.name}",
             )
             return file_path.parent.name
 
@@ -416,12 +416,12 @@ class ThreeDESceneFinder:
         # Check if at least one directory exists
         has_user_dir = PathUtils.validate_path_exists(user_dir, "User directory")
         has_publish_dir = PathUtils.validate_path_exists(
-            publish_dir, "Publish directory"
+            publish_dir, "Publish directory",
         )
 
         if not has_user_dir and not has_publish_dir:
             logger.warning(
-                f"Neither user nor publish directory exists in {shot_workspace_path}"
+                f"Neither user nor publish directory exists in {shot_workspace_path}",
             )
             return scenes
 
@@ -488,7 +488,7 @@ class ThreeDESceneFinder:
                                     threede_files = [Path(p) for p in file_paths if p]
                                     if threede_files:
                                         logger.info(
-                                            f"Find command found {len(threede_files)} .3de files for user {user_name}"
+                                            f"Find command found {len(threede_files)} .3de files for user {user_name}",
                                         )
 
                             except (
@@ -497,7 +497,7 @@ class ThreeDESceneFinder:
                                 Exception,
                             ) as e:
                                 logger.debug(
-                                    f"Find command failed for {user_name}, using rglob: {e}"
+                                    f"Find command failed for {user_name}, using rglob: {e}",
                                 )
                                 use_find_command = False
 
@@ -516,7 +516,7 @@ class ThreeDESceneFinder:
                             for pattern_path in common_patterns:
                                 if pattern_path.exists():
                                     logger.debug(
-                                        f"Checking common path: {pattern_path}"
+                                        f"Checking common path: {pattern_path}",
                                     )
                                     for ext in ["*.3de", "*.3DE"]:
                                         pattern_files = list(pattern_path.rglob(ext))
@@ -524,13 +524,13 @@ class ThreeDESceneFinder:
                                             threede_files.extend(pattern_files)
                                             found_in_common = True
                                             logger.debug(
-                                                f"Found {len(pattern_files)} files in {pattern_path}"
+                                                f"Found {len(pattern_files)} files in {pattern_path}",
                                             )
 
                             # If still no files in common locations, do full scan
                             if not found_in_common:
                                 logger.debug(
-                                    f"No files in common locations, doing full recursive scan of {user_path}"
+                                    f"No files in common locations, doing full recursive scan of {user_path}",
                                 )
                                 # Search for both lowercase and uppercase extensions
                                 threede_files = list(user_path.rglob("*.3de"))
@@ -538,22 +538,22 @@ class ThreeDESceneFinder:
 
                         if threede_files:
                             logger.info(
-                                f"Found {len(threede_files)} .3de files for user {user_name}"
+                                f"Found {len(threede_files)} .3de files for user {user_name}",
                             )
 
                             for threede_file in threede_files:
                                 # Skip if file doesn't exist or isn't readable
                                 if not ThreeDESceneFinder.verify_scene_exists(
-                                    threede_file
+                                    threede_file,
                                 ):
                                     logger.debug(
-                                        f"Skipping inaccessible file: {threede_file}"
+                                        f"Skipping inaccessible file: {threede_file}",
                                     )
                                     continue
 
                                 # Extract meaningful plate/grouping from path
                                 plate = ThreeDESceneFinder.extract_plate_from_path(
-                                    threede_file, user_path
+                                    threede_file, user_path,
                                 )
 
                                 # Create ThreeDEScene object
@@ -570,14 +570,14 @@ class ThreeDESceneFinder:
                                 scene_count += 1
 
                                 logger.debug(
-                                    f"Added 3DE scene: {user_name}/{plate} -> {threede_file.name}"
+                                    f"Added 3DE scene: {user_name}/{plate} -> {threede_file.name}",
                                 )
                         else:
                             logger.debug(f"No .3de files found for user {user_name}")
 
                     except PermissionError:
                         logger.warning(
-                            f"Permission denied accessing {user_name} directory"
+                            f"Permission denied accessing {user_name} directory",
                         )
                     except Exception as e:
                         logger.error(f"Error scanning user {user_name}: {e}")
@@ -619,7 +619,7 @@ class ThreeDESceneFinder:
                                 file_paths = result.stdout.strip().split("\n")
                                 publish_files = [Path(p) for p in file_paths if p]
                                 logger.info(
-                                    f"Found {len(publish_files)} published .3de files"
+                                    f"Found {len(publish_files)} published .3de files",
                                 )
 
                         except (
@@ -628,7 +628,7 @@ class ThreeDESceneFinder:
                             Exception,
                         ) as e:
                             logger.debug(
-                                f"Find command failed for publish dir, using rglob: {e}"
+                                f"Find command failed for publish dir, using rglob: {e}",
                             )
                             use_find_command = False
 
@@ -637,14 +637,14 @@ class ThreeDESceneFinder:
                         publish_files = list(publish_dir.rglob("*.3de"))
                         publish_files.extend(list(publish_dir.rglob("*.3DE")))
                         logger.info(
-                            f"Found {len(publish_files)} published .3de files using rglob"
+                            f"Found {len(publish_files)} published .3de files using rglob",
                         )
 
                     # Process published files
                     for threede_file in publish_files:
                         if not ThreeDESceneFinder.verify_scene_exists(threede_file):
                             logger.debug(
-                                f"Skipping inaccessible published file: {threede_file}"
+                                f"Skipping inaccessible published file: {threede_file}",
                             )
                             continue
 
@@ -658,7 +658,7 @@ class ThreeDESceneFinder:
 
                         # Extract plate from path
                         plate = ThreeDESceneFinder.extract_plate_from_path(
-                            threede_file, publish_dir
+                            threede_file, publish_dir,
                         )
 
                         # Create scene object for published file
@@ -675,18 +675,18 @@ class ThreeDESceneFinder:
                         scene_count += 1
 
                         logger.debug(
-                            f"Added published 3DE scene: {pseudo_user}/{plate} -> {threede_file.name}"
+                            f"Added published 3DE scene: {pseudo_user}/{plate} -> {threede_file.name}",
                         )
 
                 except PermissionError as e:
                     logger.warning(
-                        f"Permission denied accessing publish directory: {e}"
+                        f"Permission denied accessing publish directory: {e}",
                     )
                 except Exception as e:
                     logger.error(f"Error scanning publish directory: {e}")
 
             logger.info(
-                f"Flexible search complete: Found {scene_count} 3DE scenes from {user_count} users (scanned {total_scanned} directories)"
+                f"Flexible search complete: Found {scene_count} 3DE scenes from {user_count} users (scanned {total_scanned} directories)",
             )
 
         except PermissionError as e:
@@ -699,7 +699,7 @@ class ThreeDESceneFinder:
     @staticmethod
     @timed_operation("discover_all_shots_in_show", log_threshold_ms=500)
     def discover_all_shots_in_show(
-        show_root: str, show: str
+        show_root: str, show: str,
     ) -> List[Tuple[str, str, str, str]]:
         """Discover all shots in a show by scanning the filesystem.
 
@@ -775,14 +775,14 @@ class ThreeDESceneFinder:
                         )
                         if shot_count >= max_shots:
                             logger.warning(
-                                f"Reached maximum shot limit ({max_shots}) for {show}. Stopping discovery."
+                                f"Reached maximum shot limit ({max_shots}) for {show}. Stopping discovery.",
                             )
                             return shots
                     else:
                         logger.debug(f"Skipping {shot_dir} - no user directory")
 
             logger.info(
-                f"Discovered {shot_count} shots across {sequence_count} sequences in {show}"
+                f"Discovered {shot_count} shots across {sequence_count} sequences in {show}",
             )
 
         except PermissionError as e:
@@ -816,7 +816,7 @@ class ThreeDESceneFinder:
         # Check if show-wide search is enabled
         if hasattr(Config, "SHOW_SEARCH_ENABLED") and not Config.SHOW_SEARCH_ENABLED:
             logger.info(
-                "Show-wide search is disabled. Falling back to user's shots only."
+                "Show-wide search is disabled. Falling back to user's shots only.",
             )
             # Fall back to searching only user's assigned shots
             all_scenes = []
@@ -863,7 +863,7 @@ class ThreeDESceneFinder:
             for show in shows_to_search:
                 # Discover all shots in this show
                 all_shots = ThreeDESceneFinder.discover_all_shots_in_show(
-                    show_root, show
+                    show_root, show,
                 )
 
                 if not all_shots:
@@ -871,18 +871,18 @@ class ThreeDESceneFinder:
                     continue
 
                 logger.info(
-                    f"Searching {len(all_shots)} shots in {show} for 3DE scenes"
+                    f"Searching {len(all_shots)} shots in {show} for 3DE scenes",
                 )
 
                 # Search each discovered shot
                 for workspace_path, show_name, sequence, shot in all_shots:
                     scenes = ThreeDESceneFinder.find_scenes_for_shot(
-                        workspace_path, show_name, sequence, shot, excluded_users
+                        workspace_path, show_name, sequence, shot, excluded_users,
                     )
                     all_scenes.extend(scenes)
 
         logger.info(
-            f"Show-wide search complete: Found {len(all_scenes)} total 3DE scenes"
+            f"Show-wide search complete: Found {len(all_scenes)} total 3DE scenes",
         )
         return all_scenes
 
@@ -909,7 +909,7 @@ class ThreeDESceneFinder:
 
         for workspace_path, show, sequence, shot in shots:
             scenes = ThreeDESceneFinder.find_scenes_for_shot(
-                workspace_path, show, sequence, shot, excluded_users
+                workspace_path, show, sequence, shot, excluded_users,
             )
             all_scenes.extend(scenes)
 
@@ -954,7 +954,7 @@ class ThreeDESceneFinder:
         )
 
         logger.debug(
-            f"Starting progressive scan of {user_path} with batch size {batch_size}"
+            f"Starting progressive scan of {user_path} with batch size {batch_size}",
         )
 
         batch = []
@@ -993,7 +993,7 @@ class ThreeDESceneFinder:
                     file_paths = result.stdout.strip().split("\n")
                     threede_files = [Path(p) for p in file_paths if p]
                     logger.debug(
-                        f"Find command found {len(threede_files)} .3de files for {user_name}"
+                        f"Find command found {len(threede_files)} .3de files for {user_name}",
                     )
                 else:
                     logger.debug(f"Find command found no .3de files for {user_name}")
@@ -1007,7 +1007,7 @@ class ThreeDESceneFinder:
             try:
                 # Log the search depth
                 logger.debug(
-                    f"Using rglob to search {user_path} (this may take time for deep directories)"
+                    f"Using rglob to search {user_path} (this may take time for deep directories)",
                 )
 
                 # Check common deep path patterns first for faster discovery
@@ -1030,23 +1030,23 @@ class ThreeDESceneFinder:
                                 threede_files.extend(pattern_files)
                                 found_in_common = True
                                 logger.debug(
-                                    f"Found {len(pattern_files)} files in {pattern_path}"
+                                    f"Found {len(pattern_files)} files in {pattern_path}",
                                 )
 
                 # If not found in common locations, do full scan
                 if not found_in_common:
                     logger.debug(
-                        f"No files in common locations, doing full recursive scan of {user_path}"
+                        f"No files in common locations, doing full recursive scan of {user_path}",
                     )
                     # Use rglob for recursive search - handle both cases
                     # Combine both lowercase and uppercase extensions
                     threede_files = list(
                         itertools.chain(
-                            user_path.rglob("*.3de"), user_path.rglob("*.3DE")
-                        )
+                            user_path.rglob("*.3de"), user_path.rglob("*.3DE"),
+                        ),
                     )
                     logger.debug(
-                        f"Full rglob found {len(threede_files)} .3de files for {user_name}"
+                        f"Full rglob found {len(threede_files)} .3de files for {user_name}",
                     )
 
             except Exception as e:
@@ -1062,7 +1062,7 @@ class ThreeDESceneFinder:
 
                 # Extract meaningful plate/grouping from path
                 plate = ThreeDESceneFinder.extract_plate_from_path(
-                    threede_file, user_path
+                    threede_file, user_path,
                 )
 
                 # Create scene object
@@ -1080,7 +1080,7 @@ class ThreeDESceneFinder:
                 processed_count += 1
 
                 logger.debug(
-                    f"Added to batch: {user_name}/{plate} -> {threede_file.name}"
+                    f"Added to batch: {user_name}/{plate} -> {threede_file.name}",
                 )
 
                 # Yield batch when it reaches target size
@@ -1147,12 +1147,12 @@ class ThreeDESceneFinder:
             # Check if at least one directory exists
             has_user_dir = PathUtils.validate_path_exists(user_dir, "User directory")
             has_publish_dir = PathUtils.validate_path_exists(
-                publish_dir, "Publish directory"
+                publish_dir, "Publish directory",
             )
 
             if not has_user_dir and not has_publish_dir:
                 logger.debug(
-                    f"Neither user nor publish directory exists for {show}/{sequence}/{shot}"
+                    f"Neither user nor publish directory exists for {show}/{sequence}/{shot}",
                 )
                 # Yield empty batch with progress info
                 yield (
@@ -1202,11 +1202,11 @@ class ThreeDESceneFinder:
 
                 except PermissionError:
                     logger.warning(
-                        f"Permission denied accessing user directories for {show}/{sequence}/{shot}"
+                        f"Permission denied accessing user directories for {show}/{sequence}/{shot}",
                     )
                 except Exception as e:
                     logger.error(
-                        f"Error scanning user directories {show}/{sequence}/{shot}: {e}"
+                        f"Error scanning user directories {show}/{sequence}/{shot}: {e}",
                     )
 
             # Then scan publish directories
@@ -1233,7 +1233,7 @@ class ThreeDESceneFinder:
                     ]
 
                     result = subprocess.run(
-                        find_cmd, capture_output=True, text=True, timeout=30
+                        find_cmd, capture_output=True, text=True, timeout=30,
                     )
 
                     if result.returncode == 0 and result.stdout.strip():
@@ -1258,7 +1258,7 @@ class ThreeDESceneFinder:
 
                                     # Extract plate info
                                     plate = ThreeDESceneFinder.extract_plate_from_path(
-                                        file_path, publish_dir
+                                        file_path, publish_dir,
                                     )
 
                                     # Create scene object
@@ -1299,11 +1299,11 @@ class ThreeDESceneFinder:
                     logger.warning(f"Timeout scanning publish directory {publish_dir}")
                 except (OSError, PermissionError) as e:
                     logger.warning(
-                        f"Error scanning publish directory {publish_dir}: {e}"
+                        f"Error scanning publish directory {publish_dir}: {e}",
                     )
                 except Exception as e:
                     logger.error(
-                        f"Unexpected error scanning publish directory {publish_dir}: {e}"
+                        f"Unexpected error scanning publish directory {publish_dir}: {e}",
                     )
 
         logger.info("Progressive scan complete")
@@ -1392,7 +1392,7 @@ class ThreeDESceneFinder:
                         # Use a simple count - don't verify files yet
                         # Count both lowercase and uppercase extensions
                         file_count = len(list(user_path.rglob("*.3de"))) + len(
-                            list(user_path.rglob("*.3DE"))
+                            list(user_path.rglob("*.3DE")),
                         )
                         total_files_estimate += file_count
                     except (PermissionError, OSError):
@@ -1407,7 +1407,7 @@ class ThreeDESceneFinder:
                 total_files_estimate += 10  # Estimate 10 files total
 
         logger.debug(
-            f"Scan estimation: {total_users} users, ~{total_files_estimate} files"
+            f"Scan estimation: {total_users} users, ~{total_files_estimate} files",
         )
         return total_users, total_files_estimate
 
@@ -1545,7 +1545,7 @@ class ThreeDESceneFinder:
 
                                 if len(files) >= max_files:
                                     logger.info(
-                                        f"Reached max files ({max_files}) in {search_path}"
+                                        f"Reached max files ({max_files}) in {search_path}",
                                     )
                                     return
                             elif (
@@ -1603,7 +1603,7 @@ class ThreeDESceneFinder:
 
                         if len(all_files) >= max_files:
                             logger.info(
-                                f"Reached max file limit ({max_files} files), stopping search"
+                                f"Reached max file limit ({max_files} files), stopping search",
                             )
                             # Cancel remaining futures
                             for f in future_to_path:
@@ -1653,12 +1653,12 @@ class ThreeDESceneFinder:
         if USE_PYTHON_FILE_DISCOVERY:
             try:
                 return ThreeDESceneFinder.find_all_3de_files_in_show_python(
-                    show_root, show, sequences, timeout_seconds
+                    show_root, show, sequences, timeout_seconds,
                 )
             except Exception as e:
                 if FALLBACK_TO_SUBPROCESS:
                     logger.warning(
-                        f"Python method failed, falling back to subprocess: {e}"
+                        f"Python method failed, falling back to subprocess: {e}",
                     )
                     # Continue with subprocess implementation below
                 else:
@@ -1712,12 +1712,12 @@ class ThreeDESceneFinder:
                 ]
 
                 result = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=timeout_seconds
+                    cmd, capture_output=True, text=True, timeout=timeout_seconds,
                 )
 
                 if result.returncode != 0 and result.stderr:
                     logger.debug(
-                        f"Find command warning for {search_path}: {result.stderr}"
+                        f"Find command warning for {search_path}: {result.stderr}",
                     )
 
                 # Parse output
@@ -1728,7 +1728,7 @@ class ThreeDESceneFinder:
                         # Early termination if we have too many files
                         if len(files) >= max_files:
                             logger.info(
-                                f"Reached max files limit ({max_files}) in {search_path}"
+                                f"Reached max files limit ({max_files}) in {search_path}",
                             )
                             break
 
@@ -1736,7 +1736,7 @@ class ThreeDESceneFinder:
 
             except subprocess.TimeoutExpired:
                 logger.warning(
-                    f"Find command timed out for {search_path} after {timeout_seconds}s"
+                    f"Find command timed out for {search_path} after {timeout_seconds}s",
                 )
                 return []
             except Exception as e:
@@ -1748,7 +1748,7 @@ class ThreeDESceneFinder:
         if sequences:
             # Limit to specific sequences for performance
             logger.info(
-                f"Efficiently finding .3de files in {len(sequences)} sequences of {show}"
+                f"Efficiently finding .3de files in {len(sequences)} sequences of {show}",
             )
             for seq in sequences:
                 seq_path = show_path / seq
@@ -1766,7 +1766,7 @@ class ThreeDESceneFinder:
                 # Limit to reasonable number of sequences
                 if len(seq_dirs) > 50:
                     logger.warning(
-                        f"Show has {len(seq_dirs)} sequences, limiting to first 50"
+                        f"Show has {len(seq_dirs)} sequences, limiting to first 50",
                     )
                     seq_dirs = seq_dirs[:50]
                 search_paths = [str(d) for d in seq_dirs]
@@ -1789,12 +1789,12 @@ class ThreeDESceneFinder:
             if len(search_paths) > 1 and parallel_sequences > 1:
                 # Use parallel execution for multiple paths
                 logger.info(
-                    f"Searching {len(search_paths)} paths in parallel (max {parallel_sequences} threads)"
+                    f"Searching {len(search_paths)} paths in parallel (max {parallel_sequences} threads)",
                 )
 
                 all_files = []
                 with concurrent.futures.ThreadPoolExecutor(
-                    max_workers=parallel_sequences
+                    max_workers=parallel_sequences,
                 ) as executor:
                     # Submit all search tasks
                     future_to_path = {
@@ -1813,7 +1813,7 @@ class ThreeDESceneFinder:
                             # Early termination if we have enough files
                             if len(all_files) >= max_files:
                                 logger.info(
-                                    f"Reached max files limit ({max_files}), stopping search"
+                                    f"Reached max files limit ({max_files}), stopping search",
                                 )
                                 # Cancel remaining futures
                                 for f in future_to_path:
@@ -1826,23 +1826,22 @@ class ThreeDESceneFinder:
                 logger.info(f"Found total of {len(all_files)} .3de files in {show}")
                 return all_files[:max_files]  # Ensure we don't exceed max
 
-            else:
-                # Single path or sequential search
-                logger.info(f"Searching {len(search_paths)} path(s) sequentially")
-                all_files = []
-                for path in search_paths:
-                    files = find_in_path(path)
-                    all_files.extend(files)
+            # Single path or sequential search
+            logger.info(f"Searching {len(search_paths)} path(s) sequentially")
+            all_files = []
+            for path in search_paths:
+                files = find_in_path(path)
+                all_files.extend(files)
 
-                    # Early termination
-                    if len(all_files) >= max_files:
-                        logger.info(
-                            f"Reached max files limit ({max_files}), stopping search"
-                        )
-                        break
+                # Early termination
+                if len(all_files) >= max_files:
+                    logger.info(
+                        f"Reached max files limit ({max_files}), stopping search",
+                    )
+                    break
 
-                logger.info(f"Found {len(all_files)} .3de files in {show}")
-                return all_files[:max_files]
+            logger.info(f"Found {len(all_files)} .3de files in {show}")
+            return all_files[:max_files]
 
         except FileNotFoundError:
             logger.error("'find' command not available - falling back to slower method")
@@ -1856,7 +1855,7 @@ class ThreeDESceneFinder:
                         threede_files.append(file)
                         if len(threede_files) >= max_files:
                             logger.info(
-                                f"Reached max files limit ({max_files}) in fallback search"
+                                f"Reached max files limit ({max_files}) in fallback search",
                             )
                             return threede_files
             return threede_files
@@ -1985,7 +1984,7 @@ class ThreeDESceneFinder:
         if not Config.THREEDE_FILE_FIRST_DISCOVERY:
             logger.info("File-first discovery disabled, using old method")
             return ThreeDESceneFinder.find_all_scenes_in_shows(
-                user_shots, excluded_users
+                user_shots, excluded_users,
             )
 
         # Extract unique shows and their roots
@@ -2016,7 +2015,7 @@ class ThreeDESceneFinder:
                 show_roots[show] = default_root
 
         logger.info(
-            f"Efficient 3DE search across shows: {shows_to_search} (mode: {scan_mode})"
+            f"Efficient 3DE search across shows: {shows_to_search} (mode: {scan_mode})",
         )
 
         all_scenes = []
@@ -2030,7 +2029,7 @@ class ThreeDESceneFinder:
             if scan_mode == "user_sequences" and Config.THREEDE_SCAN_RELATED_SEQUENCES:
                 sequences_to_search = user_sequences.get(show, set())
                 logger.info(
-                    f"Limiting search to user's {len(sequences_to_search)} sequences in {show}"
+                    f"Limiting search to user's {len(sequences_to_search)} sequences in {show}",
                 )
 
             # Step 1: Find .3de files (respecting sequence limits)
@@ -2075,7 +2074,7 @@ class ThreeDESceneFinder:
             if total_shots_processed + shots_to_process > max_shots:
                 remaining = max_shots - total_shots_processed
                 logger.warning(
-                    f"Reached max shots limit ({max_shots}). Processing only {remaining} of {shots_to_process} shots in {show}"
+                    f"Reached max shots limit ({max_shots}). Processing only {remaining} of {shots_to_process} shots in {show}",
                 )
                 # Limit the shots we process
                 shots_with_files = dict(list(shots_with_files.items())[:remaining])
@@ -2098,7 +2097,7 @@ class ThreeDESceneFinder:
                         user_path = user_path.parent
 
                     plate = ThreeDESceneFinder.extract_plate_from_path(
-                        file_path, user_path
+                        file_path, user_path,
                     )
 
                     # Create scene object
@@ -2115,17 +2114,17 @@ class ThreeDESceneFinder:
 
             total_shots_processed += len(shots_with_files)
             logger.info(
-                f"Found {len(all_scenes)} scenes in {show} from {len(shots_with_files)} shots (total shots processed: {total_shots_processed})"
+                f"Found {len(all_scenes)} scenes in {show} from {len(shots_with_files)} shots (total shots processed: {total_shots_processed})",
             )
 
             # Early exit if we've hit the limit
             if total_shots_processed >= max_shots:
                 logger.info(
-                    f"Reached maximum shot limit ({max_shots}), stopping search"
+                    f"Reached maximum shot limit ({max_shots}), stopping search",
                 )
                 break
 
         logger.info(
-            f"Efficient search complete: {len(all_scenes)} total scenes from {total_shots_processed} shots"
+            f"Efficient search complete: {len(all_scenes)} total scenes from {total_shots_processed} shots",
         )
         return all_scenes

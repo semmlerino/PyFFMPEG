@@ -141,7 +141,7 @@ class CustomLauncherManager:
             from terminal_launcher import LaunchResult
 
             return LaunchResult(
-                success=False, error_message=f"Unknown custom launcher: {launcher_id}"
+                success=False, error_message=f"Unknown custom launcher: {launcher_id}",
             )
 
         launcher = self.custom_launchers[launcher_id]
@@ -157,7 +157,7 @@ class CustomLauncherManager:
                 "shotbot_path": "/path/to/shotbot.py",  # Would be configured
                 "nuke_script": f"{shot_context['workspace_path']}/comp/{shot_context['full_name']}_comp_v001.nk",
                 "frame_range": "1001-1100",  # Would be detected from shot
-            }
+            },
         )
 
         # Execute the launcher
@@ -227,11 +227,11 @@ def demo_integration():
                 "user": "demo_user",
                 "shotbot_path": "/path/to/shotbot.py",
                 "timestamp": datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-            }
+            },
         )
 
         substituted_command = manager.terminal_launcher._substitute_variables(
-            launcher.command, variables
+            launcher.command, variables,
         )
         print(f"    Original: {launcher.command}")
         print(f"    Substituted: {substituted_command}")

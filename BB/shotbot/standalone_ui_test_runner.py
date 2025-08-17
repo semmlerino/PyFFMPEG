@@ -42,7 +42,7 @@ def run_single_test_file(test_file_path):
         ]
 
         result = subprocess.run(
-            cmd, cwd=Path(__file__).parent, capture_output=True, text=True, timeout=120
+            cmd, cwd=Path(__file__).parent, capture_output=True, text=True, timeout=120,
         )
 
         print("STDOUT:")

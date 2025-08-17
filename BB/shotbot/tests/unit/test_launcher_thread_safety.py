@@ -65,7 +65,7 @@ class TestLauncherThreadSafety:
             start_time = time.time()
             try:
                 process_key = self.manager.execute_launcher(
-                    launcher, shot_name="TEST_SHOT", show="test_show"
+                    launcher, shot_name="TEST_SHOT", show="test_show",
                 )
                 with execution_lock:
                     execution_times[launcher.id] = {
@@ -166,13 +166,13 @@ class TestLauncherThreadSafety:
         """
         # Create test launcher
         launcher = CustomLauncher(
-            id="test", name="Test", description="Test launcher", command="echo test"
+            id="test", name="Test", description="Test launcher", command="echo test",
         )
 
         # Create worker (this method may not exist in real implementation)
         try:
             worker = self.manager._create_launcher_worker(
-                launcher=launcher, shot_name="TEST_SHOT", show="test_show"
+                launcher=launcher, shot_name="TEST_SHOT", show="test_show",
             )
 
             # Add worker to qtbot for proper cleanup
@@ -287,11 +287,11 @@ class TestLauncherThreadSafety:
         for launcher in launchers:
             # Wait for execution_started signal for this launcher
             signal_waiters.append(
-                self.qtbot.waitSignal(self.manager.execution_started, timeout=2000)
+                self.qtbot.waitSignal(self.manager.execution_started, timeout=2000),
             )
             # Wait for execution_finished signal for this launcher
             signal_waiters.append(
-                self.qtbot.waitSignal(self.manager.execution_finished, timeout=2000)
+                self.qtbot.waitSignal(self.manager.execution_finished, timeout=2000),
             )
 
         # Now start launcher executions INSIDE proper signal context
@@ -301,7 +301,7 @@ class TestLauncherThreadSafety:
             """Execute launcher with proper error handling."""
             try:
                 self.manager.execute_launcher(
-                    launcher, shot_name="TEST_SHOT", show="test_show"
+                    launcher, shot_name="TEST_SHOT", show="test_show",
                 )
             except Exception as e:
                 # Log but don't fail - this tests signal emission, not execution
@@ -366,7 +366,7 @@ class TestLauncherThreadSafety:
         # Execute with timeout tracking
         start_time = time.time()
         process_key = self.manager.execute_launcher(
-            launcher, shot_name="TEST_SHOT", show="test_show"
+            launcher, shot_name="TEST_SHOT", show="test_show",
         )
 
         # Should return immediately (non-blocking)
@@ -398,7 +398,7 @@ class TestLauncherThreadSafety:
 
             # Execute
             key = self.manager.execute_launcher(
-                launcher, shot_name="TEST_SHOT", show="test_show"
+                launcher, shot_name="TEST_SHOT", show="test_show",
             )
 
             # Simulate completion

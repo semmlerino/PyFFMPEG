@@ -192,7 +192,7 @@ class TestThreeDEShotGridColumnCalculation:
         # Mock viewport width
         viewport_width = 500
         with patch.object(
-            threede_grid.scroll_area.viewport(), "width", return_value=viewport_width
+            threede_grid.scroll_area.viewport(), "width", return_value=viewport_width,
         ):
             count = threede_grid._get_column_count()
 
@@ -206,7 +206,7 @@ class TestThreeDEShotGridColumnCalculation:
     def test_get_column_count_minimum(self, threede_grid):
         """Test minimum column count is 1."""
         with patch.object(
-            threede_grid.scroll_area.viewport(), "width", return_value=10
+            threede_grid.scroll_area.viewport(), "width", return_value=10,
         ):
             count = threede_grid._get_column_count()
         assert count >= 1
@@ -473,7 +473,7 @@ class TestThreeDEShotGridKeyboardNavigation:
         event.key.return_value = Qt.Key.Key_Right
 
         with patch.object(
-            threede_grid.scroll_area, "ensureWidgetVisible"
+            threede_grid.scroll_area, "ensureWidgetVisible",
         ) as mock_ensure:
             threede_grid.keyPressEvent(event)
 

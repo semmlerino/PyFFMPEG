@@ -51,7 +51,7 @@ class ShotGridView(QWidget):
     app_launch_requested = Signal(str)  # app_name
 
     def __init__(
-        self, model: Optional[ShotItemModel] = None, parent: Optional[QWidget] = None
+        self, model: Optional[ShotItemModel] = None, parent: Optional[QWidget] = None,
     ):
         """Initialize the grid view.
 
@@ -114,15 +114,15 @@ class ShotGridView(QWidget):
         # Set selection behavior
         self.list_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.list_view.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectItems
+            QAbstractItemView.SelectionBehavior.SelectItems,
         )
 
         # Enable smooth scrolling
         self.list_view.setVerticalScrollMode(
-            QAbstractItemView.ScrollMode.ScrollPerPixel
+            QAbstractItemView.ScrollMode.ScrollPerPixel,
         )
         self.list_view.setHorizontalScrollMode(
-            QAbstractItemView.ScrollMode.ScrollPerPixel
+            QAbstractItemView.ScrollMode.ScrollPerPixel,
         )
 
         # Create and set custom delegate
@@ -237,7 +237,7 @@ class ShotGridView(QWidget):
 
     @Slot(QModelIndex, QModelIndex)
     def _on_selection_changed(
-        self, current: QModelIndex, previous: QModelIndex
+        self, current: QModelIndex, previous: QModelIndex,
     ) -> None:
         """Handle selection change.
 
@@ -381,7 +381,7 @@ class ShotGridView(QWidget):
 
                 # Ensure it's visible
                 self.list_view.scrollTo(
-                    index, QAbstractItemView.ScrollHint.PositionAtCenter
+                    index, QAbstractItemView.ScrollHint.PositionAtCenter,
                 )
 
                 # Trigger selection
@@ -428,7 +428,7 @@ if __name__ == "__main__":
     # Connect signals
     view.shot_selected.connect(lambda shot: print(f"Selected: {shot.full_name}"))
     view.shot_double_clicked.connect(
-        lambda shot: print(f"Double-clicked: {shot.full_name}")
+        lambda shot: print(f"Double-clicked: {shot.full_name}"),
     )
 
     sys.exit(app.exec())

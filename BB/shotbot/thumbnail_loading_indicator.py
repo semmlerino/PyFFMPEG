@@ -122,7 +122,7 @@ class ShimmerLoadingIndicator(QWidget):
             # Create gradient effect
             for i in range(gradient_width):
                 alpha = int(
-                    255 * (1 - abs(i - gradient_width / 2) / (gradient_width / 2))
+                    255 * (1 - abs(i - gradient_width / 2) / (gradient_width / 2)),
                 )
                 color = QColor(255, 255, 255, int(alpha * 0.15))
                 painter.fillRect(

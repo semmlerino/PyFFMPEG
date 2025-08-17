@@ -323,12 +323,12 @@ class TestThreeDESceneWorker:
     def test_do_work_progressive_mode(self, qtbot, sample_shots, sample_scenes):
         """Test worker in progressive mode."""
         worker = ThreeDESceneWorker(
-            shots=sample_shots, enable_progressive=True, batch_size=1
+            shots=sample_shots, enable_progressive=True, batch_size=1,
         )
 
         # Mock the scene finder at the correct location
         with patch.object(
-            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10)
+            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10),
         ):
             # Mock progressive discovery - yield scenes one at a time
             def mock_progressive(*args, **kwargs):
@@ -378,7 +378,7 @@ class TestThreeDESceneWorker:
             return_value=mock_discover_result,
         ):
             with patch.object(
-                ThreeDESceneFinder, "find_scenes_for_shot", return_value=[]
+                ThreeDESceneFinder, "find_scenes_for_shot", return_value=[],
             ):
                 # Set up signal spies
                 started_spy = QSignalSpy(worker.started)
@@ -399,7 +399,7 @@ class TestThreeDESceneWorker:
         # Mock find_all_scenes_progressive to raise an exception during discovery
         # This will trigger the error signal since it's not caught with a fallback
         with patch.object(
-            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10)
+            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10),
         ):
             with patch.object(
                 ThreeDESceneFinder,
@@ -423,7 +423,7 @@ class TestThreeDESceneWorker:
     def test_discover_scenes_progressive_with_pause(self, sample_shots, sample_scenes):
         """Test progressive discovery with pause/resume."""
         worker = ThreeDESceneWorker(
-            shots=sample_shots, enable_progressive=True, batch_size=1
+            shots=sample_shots, enable_progressive=True, batch_size=1,
         )
 
         # Track pause check calls
@@ -444,7 +444,7 @@ class TestThreeDESceneWorker:
 
         # Mock the scene finder
         with patch.object(
-            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10)
+            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10),
         ):
 
             def mock_progressive(*args, **kwargs):
@@ -471,7 +471,7 @@ class TestThreeDESceneWorker:
     def test_discover_scenes_progressive_cancelled(self, sample_shots, sample_scenes):
         """Test progressive discovery when cancelled."""
         worker = ThreeDESceneWorker(
-            shots=sample_shots, enable_progressive=True, batch_size=1
+            shots=sample_shots, enable_progressive=True, batch_size=1,
         )
 
         # Track how many batches were yielded
@@ -479,7 +479,7 @@ class TestThreeDESceneWorker:
 
         # Mock the scene finder
         with patch.object(
-            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10)
+            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10),
         ):
 
             def mock_progressive(*args, **kwargs):
@@ -520,10 +520,10 @@ class TestThreeDESceneWorker:
         mock_find_scenes = Mock(return_value=[])
 
         with patch.object(
-            ThreeDESceneFinder, "discover_all_shots_in_show", mock_discover
+            ThreeDESceneFinder, "discover_all_shots_in_show", mock_discover,
         ):
             with patch.object(
-                ThreeDESceneFinder, "find_scenes_for_shot", mock_find_scenes
+                ThreeDESceneFinder, "find_scenes_for_shot", mock_find_scenes,
             ):
                 # Run discovery
                 scenes = worker._discover_scenes_traditional()
@@ -552,13 +552,13 @@ class TestThreeDESceneWorker:
 
                     # Should have set the priority
                     mock_set_priority.assert_called_once_with(
-                        QThread.Priority.HighPriority
+                        QThread.Priority.HighPriority,
                     )
 
     def test_progress_throttling(self, sample_shots, sample_scenes):
         """Test that progress updates are throttled."""
         worker = ThreeDESceneWorker(
-            shots=sample_shots, enable_progressive=True, batch_size=1
+            shots=sample_shots, enable_progressive=True, batch_size=1,
         )
 
         # Set up signal spy to track progress emissions
@@ -571,7 +571,7 @@ class TestThreeDESceneWorker:
 
             # Mock the scene finder
             with patch.object(
-                ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10)
+                ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10),
             ):
 
                 def mock_progressive(*args, **kwargs):
@@ -600,7 +600,7 @@ class TestThreeDESceneWorker:
 
         # Mock the scene finder
         with patch.object(
-            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10)
+            ThreeDESceneFinder, "estimate_scan_size", return_value=(2, 10),
         ):
 
             def mock_progressive(*args, **kwargs):

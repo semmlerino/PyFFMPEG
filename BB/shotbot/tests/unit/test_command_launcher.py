@@ -565,7 +565,7 @@ class TestNukeIntegration:
         # Mock UndistortionFinder
         with patch("command_launcher.UndistortionFinder") as mock_finder:
             mock_finder.find_latest_undistortion.return_value = Path(
-                "/path/to/undist.nk"
+                "/path/to/undist.nk",
             )
             mock_finder.get_version_from_path.return_value = "v001"
 
@@ -590,7 +590,7 @@ class TestNukeIntegration:
 
         # Mock both finders
         with patch("command_launcher.RawPlateFinder") as mock_plate_finder, patch(
-            "command_launcher.UndistortionFinder"
+            "command_launcher.UndistortionFinder",
         ) as mock_undist_finder:
             mock_plate_finder.find_latest_raw_plate.return_value = (
                 "/path/to/plate.%04d.exr"
@@ -599,7 +599,7 @@ class TestNukeIntegration:
             mock_plate_finder.get_version_from_path.return_value = "v001"
 
             mock_undist_finder.find_latest_undistortion.return_value = Path(
-                "/path/to/undist.nk"
+                "/path/to/undist.nk",
             )
             mock_undist_finder.get_version_from_path.return_value = "v001"
 
@@ -613,7 +613,7 @@ class TestNukeIntegration:
                     mock_import.return_value = Mock(NukeScriptGenerator=mock_generator)
 
                     result = launcher.launch_app(
-                        "nuke", include_raw_plate=True, include_undistortion=True
+                        "nuke", include_raw_plate=True, include_undistortion=True,
                     )
                     assert result is True
 
@@ -696,7 +696,7 @@ class TestEdgeCases:
 
         # Set shot with empty workspace path
         shot = Shot(
-            show="test_show", sequence="seq01", shot="shot01", workspace_path=""
+            show="test_show", sequence="seq01", shot="shot01", workspace_path="",
         )
         launcher.set_current_shot(shot)
 

@@ -19,7 +19,7 @@ class MockWorker(ThreadSafeWorker):
     """Mock worker for testing threading behavior."""
 
     def __init__(
-        self, worker_id: str = None, mock_state: WorkerState = WorkerState.RUNNING
+        self, worker_id: str = None, mock_state: WorkerState = WorkerState.RUNNING,
     ):
         super().__init__()
         self.worker_id = worker_id or str(uuid.uuid4())
@@ -88,13 +88,13 @@ class TestLauncherManagerThreading:
 
             # Schedule multiple cleanups rapidly
             manager._schedule_cleanup_after_delay(
-                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS
+                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS,
             )
             manager._schedule_cleanup_after_delay(
-                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS
+                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS,
             )
             manager._schedule_cleanup_after_delay(
-                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS
+                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS,
             )
 
             # Verify timer was started only once (or limited calls)
@@ -111,7 +111,7 @@ class TestLauncherManagerThreading:
         with patch.object(manager, "_cleanup_retry_timer") as mock_timer:
             # Attempt to schedule cleanup
             manager._schedule_cleanup_after_delay(
-                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS
+                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS,
             )
 
             # Verify timer was not touched
@@ -240,7 +240,7 @@ class TestLauncherManagerThreading:
                 for _ in range(10):
                     for worker_key in workers.keys():
                         state, is_running = manager._check_worker_state_atomic(
-                            worker_key
+                            worker_key,
                         )
                         results.append((thread_id, worker_key, state, is_running))
                     time.sleep(0.001)  # Small delay
@@ -272,7 +272,7 @@ class TestLauncherManagerThreading:
             "finished_2": MockWorker(mock_state=WorkerState.DELETED),
             "running_1": MockWorker(mock_state=WorkerState.RUNNING),
             "inconsistent_1": MockWorker(
-                mock_state=WorkerState.STOPPED
+                mock_state=WorkerState.STOPPED,
             ),  # Will be marked inconsistent
         }
 
@@ -363,13 +363,13 @@ class TestLauncherManagerThreading:
 
         # Mock the safe_stop method to check timeout parameter
         with patch.object(
-            mock_worker, "safe_stop", return_value=True
+            mock_worker, "safe_stop", return_value=True,
         ) as mock_safe_stop:
             manager._remove_worker_safe(worker_key)
 
             # Verify safe_stop was called with ThreadingConfig timeout
             mock_safe_stop.assert_called_once_with(
-                timeout_ms=ThreadingConfig.WORKER_STOP_TIMEOUT_MS
+                timeout_ms=ThreadingConfig.WORKER_STOP_TIMEOUT_MS,
             )
 
     def test_schedule_cleanup_delay_parameter(self, launcher_manager):
@@ -387,7 +387,7 @@ class TestLauncherManagerThreading:
 
             # Verify correct delay was set
             mock_timer.setInterval.assert_called_once_with(
-                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS
+                ThreadingConfig.CLEANUP_INITIAL_DELAY_MS,
             )
 
     def test_process_lock_protection(self, launcher_manager):
@@ -462,7 +462,7 @@ class TestLauncherManagerThreading:
         ],
     )
     def test_worker_categorization_logic(
-        self, launcher_manager, worker_state, expected_category
+        self, launcher_manager, worker_state, expected_category,
     ):
         """Test worker categorization logic in cleanup."""
         manager = launcher_manager

@@ -147,7 +147,7 @@ class LRUCache:
 
             # Add new entry
             entry = CacheEntry(
-                value=value, timestamp=time.time(), size_bytes=size_bytes
+                value=value, timestamp=time.time(), size_bytes=size_bytes,
             )
             self._cache[key] = entry
             self._total_memory += size_bytes
@@ -235,20 +235,19 @@ class LRUCache:
         # Basic estimation - can be improved for specific types
         if isinstance(value, (str, bytes)):
             return len(value)
-        elif isinstance(value, (list, tuple)):
+        if isinstance(value, (list, tuple)):
             return sum(self._estimate_size(v) for v in value)
-        elif isinstance(value, dict):
+        if isinstance(value, dict):
             return sum(
                 self._estimate_size(k) + self._estimate_size(v)
                 for k, v in value.items()
             )
-        elif isinstance(value, bool):
+        if isinstance(value, bool):
             return 1
-        elif isinstance(value, (int, float)):
+        if isinstance(value, (int, float)):
             return 8
-        else:
-            # Default estimate for complex objects
-            return 256
+        # Default estimate for complex objects
+        return 256
 
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics.
@@ -505,7 +504,7 @@ class EnhancedCacheManager:
         return exists
 
     def list_directory(
-        self, path: Union[str, Path], pattern: Optional[str] = None
+        self, path: Union[str, Path], pattern: Optional[str] = None,
     ) -> Optional[List[Path]]:
         """List directory contents with caching.
 
@@ -580,7 +579,7 @@ class EnhancedCacheManager:
                     self.shot_cache.get_stats()["memory_mb"],
                     self.scene_cache.get_stats()["memory_mb"],
                     self.thumb_cache.get_stats()["memory_mb"],
-                ]
+                ],
             ),
         }
 
@@ -636,7 +635,7 @@ def validate_path(path: Union[str, Path], description: str = "") -> bool:
 
 
 def list_directory(
-    path: Union[str, Path], pattern: Optional[str] = None
+    path: Union[str, Path], pattern: Optional[str] = None,
 ) -> Optional[List[Path]]:
     """List directory with enhanced caching.
 

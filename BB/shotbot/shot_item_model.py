@@ -129,48 +129,48 @@ class ShotItemModel(QAbstractListModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return shot.full_name
 
-        elif role == Qt.ItemDataRole.ToolTipRole:
+        if role == Qt.ItemDataRole.ToolTipRole:
             return f"{shot.show} / {shot.sequence} / {shot.shot}\n{shot.workspace_path}"
 
-        elif role == Qt.ItemDataRole.SizeHintRole:
+        if role == Qt.ItemDataRole.SizeHintRole:
             # Return size hint for delegates
             return QSize(
-                Config.DEFAULT_THUMBNAIL_SIZE, Config.DEFAULT_THUMBNAIL_SIZE + 40
+                Config.DEFAULT_THUMBNAIL_SIZE, Config.DEFAULT_THUMBNAIL_SIZE + 40,
             )
 
         # Handle custom roles
-        elif role == ShotRole.ShotObjectRole:
+        if role == ShotRole.ShotObjectRole:
             return shot
 
-        elif role == ShotRole.ShowRole:
+        if role == ShotRole.ShowRole:
             return shot.show
 
-        elif role == ShotRole.SequenceRole:
+        if role == ShotRole.SequenceRole:
             return shot.sequence
 
-        elif role == ShotRole.ShotNameRole:
+        if role == ShotRole.ShotNameRole:
             return shot.shot
 
-        elif role == ShotRole.FullNameRole:
+        if role == ShotRole.FullNameRole:
             return shot.full_name
 
-        elif role == ShotRole.WorkspacePathRole:
+        if role == ShotRole.WorkspacePathRole:
             return shot.workspace_path
 
-        elif role == ShotRole.ThumbnailPathRole:
+        if role == ShotRole.ThumbnailPathRole:
             return str(shot.get_thumbnail_path()) if shot.get_thumbnail_path() else None
 
-        elif role == ShotRole.ThumbnailPixmapRole:
+        if role == ShotRole.ThumbnailPixmapRole:
             # Return cached thumbnail if available
             return self._get_thumbnail_pixmap(shot)
 
-        elif role == ShotRole.LoadingStateRole:
+        if role == ShotRole.LoadingStateRole:
             return self._loading_states.get(shot.full_name, "idle")
 
-        elif role == ShotRole.IsSelectedRole:
+        if role == ShotRole.IsSelectedRole:
             return self._selected_index == QPersistentModelIndex(index)
 
-        elif role == Qt.ItemDataRole.DecorationRole:
+        if role == Qt.ItemDataRole.DecorationRole:
             # Return thumbnail icon for decoration
             pixmap = self._get_thumbnail_pixmap(shot)
             return QIcon(pixmap) if pixmap else None
@@ -196,7 +196,7 @@ class ShotItemModel(QAbstractListModel):
                 ShotRole.ThumbnailPixmapRole: b"thumbnailPixmap",
                 ShotRole.LoadingStateRole: b"loadingState",
                 ShotRole.IsSelectedRole: b"isSelected",
-            }
+            },
         )
         return roles
 
@@ -215,7 +215,7 @@ class ShotItemModel(QAbstractListModel):
         return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
     def setData(
-        self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
+        self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole,
     ) -> bool:
         """Set data for the given index and role.
 
@@ -245,7 +245,7 @@ class ShotItemModel(QAbstractListModel):
             return True
 
         # Handle loading state
-        elif role == ShotRole.LoadingStateRole:
+        if role == ShotRole.LoadingStateRole:
             self._loading_states[shot.full_name] = value
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
             return True

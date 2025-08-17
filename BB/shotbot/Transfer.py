@@ -142,7 +142,7 @@ class EncoderThread(QThread):
             total_chunks = (len(encoded) + chunk_size_chars - 1) // chunk_size_chars
 
             self.status.emit(
-                f"Encoded size: {len(encoded)} chars, creating {total_chunks} chunks"
+                f"Encoded size: {len(encoded)} chars, creating {total_chunks} chunks",
             )
 
             for i in range(total_chunks):
@@ -177,7 +177,7 @@ class FileLoaderThread(QThread):
             # Get file size
             file_size = os.path.getsize(self.file_path)
             self.status.emit(
-                f"Loading file: {os.path.basename(self.file_path)} ({file_size / 1024 / 1024:.1f} MB)"
+                f"Loading file: {os.path.basename(self.file_path)} ({file_size / 1024 / 1024:.1f} MB)",
             )
 
             # Read file in chunks for large files
@@ -239,7 +239,7 @@ class DecoderThread(QThread):
                 self.status.emit(f"Decoded to {len(tar_data)} bytes")
             except Exception as e:
                 self.error.emit(
-                    f"Base64 decode error: {str(e)}\nData length: {len(encoded_data)}"
+                    f"Base64 decode error: {str(e)}\nData length: {len(encoded_data)}",
                 )
                 return
 
@@ -366,7 +366,7 @@ class FileDropAreaLabel(QLabel):
             for url in event.mimeData().urls():
                 path = url.toLocalFile()
                 if os.path.isfile(path) and path.lower().endswith(
-                    (".txt", ".base64", ".b64")
+                    (".txt", ".base64", ".b64"),
                 ):
                     event.acceptProposedAction()
                     self.setStyleSheet(self.hover_style)
@@ -385,7 +385,7 @@ class FileDropAreaLabel(QLabel):
         for url in event.mimeData().urls():
             path = url.toLocalFile()
             if os.path.isfile(path) and path.lower().endswith(
-                (".txt", ".base64", ".b64")
+                (".txt", ".base64", ".b64"),
             ):
                 self.file_dropped.emit(path)
                 break
@@ -442,7 +442,7 @@ class FolderIconWidget(QFrame):
         name_label = QLabel(
             self.folder_name[:15] + "..."
             if len(self.folder_name) > 15
-            else self.folder_name
+            else self.folder_name,
         )
         name_label.setAlignment(AlignCenter)
         name_label.setStyleSheet("font-size: 12px; font-weight: bold;")
@@ -654,7 +654,7 @@ class FolderTransferApp(QMainWindow):
 
         # Load last folder path
         self.last_folder_path = self.settings.value(
-            "last_folder_path", os.path.expanduser("~")
+            "last_folder_path", os.path.expanduser("~"),
         )
 
         self.init_ui()
@@ -755,7 +755,7 @@ class FolderTransferApp(QMainWindow):
         title = QLabel("Folder Transfer Tool")
         title.setAlignment(AlignCenter)
         title.setStyleSheet(
-            "font-size: 24px; font-weight: bold; padding: 20px; color: #14ffec;"
+            "font-size: 24px; font-weight: bold; padding: 20px; color: #14ffec;",
         )
         main_layout.addWidget(title)
 
@@ -806,7 +806,7 @@ class FolderTransferApp(QMainWindow):
         # Folder count label
         self.folder_count_label = QLabel("No folders selected")
         self.folder_count_label.setStyleSheet(
-            "color: #14ffec; padding: 10px; font-weight: bold;"
+            "color: #14ffec; padding: 10px; font-weight: bold;",
         )
         self.folder_count_label.setAlignment(AlignCenter)
         folders_layout.addWidget(self.folder_count_label)
@@ -829,7 +829,7 @@ class FolderTransferApp(QMainWindow):
         self.chunk_size_spin.setSuffix(" KB")
         # Save chunk size when it changes
         self.chunk_size_spin.valueChanged.connect(
-            lambda value: self.settings.setValue("chunk_size", value)
+            lambda value: self.settings.setValue("chunk_size", value),
         )
         self.chunk_size_spin.setStyleSheet("""
             QSpinBox {
@@ -856,7 +856,7 @@ class FolderTransferApp(QMainWindow):
             btn = QPushButton(label)
             btn.setFixedHeight(30)
             btn.clicked.connect(
-                lambda checked=False, s=size: self.chunk_size_spin.setValue(s)
+                lambda checked=False, s=size: self.chunk_size_spin.setValue(s),
             )
             btn.setStyleSheet("""
                 QPushButton {
@@ -887,8 +887,8 @@ class FolderTransferApp(QMainWindow):
         # Save preference when it changes
         self.auto_copy_check.stateChanged.connect(
             lambda: self.settings.setValue(
-                "auto_copy", self.auto_copy_check.isChecked()
-            )
+                "auto_copy", self.auto_copy_check.isChecked(),
+            ),
         )
         other_layout.addWidget(self.auto_copy_check)
 
@@ -985,7 +985,7 @@ class FolderTransferApp(QMainWindow):
         file_drop_layout = QVBoxLayout(file_drop_group)
 
         self.file_drop_label = FileDropAreaLabel(
-            "Drag and drop a base64 file here\n(.txt, .base64, .b64)"
+            "Drag and drop a base64 file here\n(.txt, .base64, .b64)",
         )
         self.file_drop_label.file_dropped.connect(self.load_chunk_from_file)
         file_drop_layout.addWidget(self.file_drop_label)
@@ -1001,7 +1001,7 @@ class FolderTransferApp(QMainWindow):
         input_layout = QVBoxLayout(input_group)
 
         info_label = QLabel(
-            "Paste each chunk here and click 'Add Chunk'. The tool will automatically detect chunk order."
+            "Paste each chunk here and click 'Add Chunk'. The tool will automatically detect chunk order.",
         )
         info_label.setWordWrap(True)
         input_layout.addWidget(info_label)
@@ -1135,7 +1135,7 @@ class FolderTransferApp(QMainWindow):
     def browse_folder(self):
         # Use last folder path as starting directory
         folder = QFileDialog.getExistingDirectory(
-            self, "Select Folder to Encode", self.last_folder_path
+            self, "Select Folder to Encode", self.last_folder_path,
         )
         if folder:
             # Save the parent directory of the selected folder for next time
@@ -1238,7 +1238,7 @@ class FolderTransferApp(QMainWindow):
             if size_mb > 10:
                 text += " ⚠️ Large chunks may exceed clipboard limits"
                 self.chunk_size_label.setStyleSheet(
-                    "color: #ff9900; font-size: 12px; font-weight: bold;"
+                    "color: #ff9900; font-size: 12px; font-weight: bold;",
                 )
             else:
                 self.chunk_size_label.setStyleSheet("color: #888; font-size: 12px;")
@@ -1281,7 +1281,7 @@ class FolderTransferApp(QMainWindow):
         self.encoder_thread.finished.connect(self.on_encode_finished)
         self.encoder_thread.error.connect(self.on_encode_error)
         self.encoder_thread.status.connect(
-            lambda msg: self.statusBar().showMessage(msg)
+            lambda msg: self.statusBar().showMessage(msg),
         )
         self.encoder_thread.start()
 
@@ -1314,7 +1314,7 @@ class FolderTransferApp(QMainWindow):
         self.encode_btn.setEnabled(True)
         self.encode_btn.setStyleSheet("")  # Reset to default style
         self.statusBar().showMessage(
-            f"Encoding complete! {len(self.chunks_data)} chunks created."
+            f"Encoding complete! {len(self.chunks_data)} chunks created.",
         )
 
         # Show success in drop area
@@ -1345,7 +1345,7 @@ class FolderTransferApp(QMainWindow):
         self.encode_btn.setEnabled(True)
         self.encode_btn.setStyleSheet("")  # Reset to default style
         QMessageBox.critical(
-            self, "Encoding Error", f"Failed to encode folder: {error_msg}"
+            self, "Encoding Error", f"Failed to encode folder: {error_msg}",
         )
         self.statusBar().showMessage("Encoding failed")
 
@@ -1376,7 +1376,7 @@ class FolderTransferApp(QMainWindow):
         if self.current_chunk_index in self.chunks_data:
             QApplication.clipboard().setText(self.chunks_data[self.current_chunk_index])
             self.statusBar().showMessage(
-                f"Chunk {self.current_chunk_index} copied to clipboard"
+                f"Chunk {self.current_chunk_index} copied to clipboard",
             )
 
     def add_chunk(self):
@@ -1388,7 +1388,7 @@ class FolderTransferApp(QMainWindow):
             # Parse chunk header - find the first newline after the header
             if not chunk_text.startswith("FOLDER_TRANSFER_V1"):
                 QMessageBox.warning(
-                    self, "Invalid Chunk", "This doesn't appear to be a valid chunk."
+                    self, "Invalid Chunk", "This doesn't appear to be a valid chunk.",
                 )
                 return
 
@@ -1396,7 +1396,7 @@ class FolderTransferApp(QMainWindow):
             header_end = chunk_text.find("\n")
             if header_end == -1:
                 QMessageBox.warning(
-                    self, "Invalid Chunk", "No data found after header."
+                    self, "Invalid Chunk", "No data found after header.",
                 )
                 return
 
@@ -1408,7 +1408,7 @@ class FolderTransferApp(QMainWindow):
             header_parts = header_line.split("|")
             if len(header_parts) < 4:
                 QMessageBox.warning(
-                    self, "Invalid Chunk", "Invalid chunk header format."
+                    self, "Invalid Chunk", "Invalid chunk header format.",
                 )
                 return
 
@@ -1439,12 +1439,12 @@ class FolderTransferApp(QMainWindow):
 
             received = len(self.decode_chunks_info["chunks"])
             self.statusBar().showMessage(
-                f"Added chunk {chunk_num}/{total_chunks} ({len(chunk_data)} bytes)"
+                f"Added chunk {chunk_num}/{total_chunks} ({len(chunk_data)} bytes)",
             )
 
             # Debug print
             print(
-                f"Added chunk {chunk_num}/{total_chunks}, received so far: {received}"
+                f"Added chunk {chunk_num}/{total_chunks}, received so far: {received}",
             )
             print(f"Decode button enabled: {self.decode_btn.isEnabled()}")
 
@@ -1497,7 +1497,7 @@ class FolderTransferApp(QMainWindow):
         total = info["total"]
 
         self.chunks_status_label.setText(
-            f"Folder: {info['folder_name']}\nChunks: {received}/{total}"
+            f"Folder: {info['folder_name']}\nChunks: {received}/{total}",
         )
 
         # Show which chunks we have
@@ -1589,16 +1589,16 @@ class FolderTransferApp(QMainWindow):
 
             # Debug output
             print(
-                f"[update_decode_status] Button should be enabled now: {self.decode_btn.isEnabled()}"
+                f"[update_decode_status] Button should be enabled now: {self.decode_btn.isEnabled()}",
             )
             print(
-                f"[update_decode_status] Button is disabled: {self.decode_btn.isDisabled() if hasattr(self.decode_btn, 'isDisabled') else 'N/A'}"
+                f"[update_decode_status] Button is disabled: {self.decode_btn.isDisabled() if hasattr(self.decode_btn, 'isDisabled') else 'N/A'}",
             )
 
     def browse_output_dir(self):
         current_dir = self.output_dir_label.text()
         folder = QFileDialog.getExistingDirectory(
-            self, "Select Output Directory", current_dir
+            self, "Select Output Directory", current_dir,
         )
         if folder:
             self.output_dir_label.setText(folder)
@@ -1661,7 +1661,7 @@ class FolderTransferApp(QMainWindow):
         self.decoder_thread.finished.connect(self.on_decode_finished)
         self.decoder_thread.error.connect(self.on_decode_error)
         self.decoder_thread.status.connect(
-            lambda msg: self.statusBar().showMessage(msg)
+            lambda msg: self.statusBar().showMessage(msg),
         )
         self.decoder_thread.start()
 
@@ -1672,7 +1672,7 @@ class FolderTransferApp(QMainWindow):
         self.decode_btn.setEnabled(True)
 
         QMessageBox.information(
-            self, "Success", f"Folder successfully decoded to:\n{output_path}"
+            self, "Success", f"Folder successfully decoded to:\n{output_path}",
         )
 
         self.statusBar().showMessage("Decoding complete!")
@@ -1690,7 +1690,7 @@ class FolderTransferApp(QMainWindow):
         self.decode_progress.setVisible(False)
         self.decode_btn.setEnabled(True)
         QMessageBox.critical(
-            self, "Decoding Error", f"Failed to decode folder: {error_msg}"
+            self, "Decoding Error", f"Failed to decode folder: {error_msg}",
         )
         self.statusBar().showMessage("Decoding failed")
 
@@ -1744,23 +1744,23 @@ class FolderTransferApp(QMainWindow):
                 self.file_loader_thread = FileLoaderThread(file_path)
                 self.file_loader_thread.progress.connect(
                     lambda p: dialog.setText(
-                        f"Loading {os.path.basename(file_path)}...\nProgress: {p}%"
-                    )
+                        f"Loading {os.path.basename(file_path)}...\nProgress: {p}%",
+                    ),
                 )
                 self.file_loader_thread.finished.connect(
-                    lambda content: self.on_file_loaded(content, dialog)
+                    lambda content: self.on_file_loaded(content, dialog),
                 )
                 self.file_loader_thread.error.connect(
-                    lambda err: self.on_file_load_error(err, dialog)
+                    lambda err: self.on_file_load_error(err, dialog),
                 )
                 self.file_loader_thread.status.connect(
-                    lambda msg: self.statusBar().showMessage(msg)
+                    lambda msg: self.statusBar().showMessage(msg),
                 )
                 self.file_loader_thread.start()
             else:
                 # For smaller files, load directly
                 self.statusBar().showMessage(
-                    f"Loading file: {os.path.basename(file_path)}..."
+                    f"Loading file: {os.path.basename(file_path)}...",
                 )
 
                 try:
@@ -1768,13 +1768,13 @@ class FolderTransferApp(QMainWindow):
                         chunk_text = f.read()
                 except Exception as e:
                     QMessageBox.critical(
-                        self, "File Error", f"Failed to read file: {str(e)}"
+                        self, "File Error", f"Failed to read file: {str(e)}",
                     )
                     return
 
                 if not chunk_text.strip():
                     QMessageBox.warning(
-                        self, "Empty File", "The selected file is empty."
+                        self, "Empty File", "The selected file is empty.",
                     )
                     return
 
@@ -1840,7 +1840,7 @@ class FolderTransferApp(QMainWindow):
 
     def reset_file_drop_label(self):
         self.file_drop_label.setText(
-            "Drag and drop a base64 file here\n(.txt, .base64, .b64)"
+            "Drag and drop a base64 file here\n(.txt, .base64, .b64)",
         )
         self.file_drop_label.setStyleSheet(self.file_drop_label.default_style)
 

@@ -45,7 +45,7 @@ class TestCacheManager:
                     "sequence": "seq1",
                     "shot": "0010",
                     "workspace_path": "/test/path",
-                }
+                },
             ],
             "timestamp": datetime.now().isoformat(),
         }
@@ -112,7 +112,7 @@ class TestCacheManager:
                     "sequence": "seq1",
                     "shot": "0010",
                     "workspace_path": "/path1",
-                }
+                },
             ],
             "timestamp": (datetime.now() - timedelta(hours=25)).isoformat(),
         }
@@ -125,7 +125,7 @@ class TestCacheManager:
         assert cache_manager.get_cached_shots() is None
 
     def test_cache_thumbnail_with_qimage(
-        self, cache_manager, temp_cache_dir, test_image_file
+        self, cache_manager, temp_cache_dir, test_image_file,
     ):
         """Test thumbnail caching with QImage (thread-safe)."""
         shot = Shot("test", "seq1", "0010", "/test/path")
@@ -139,7 +139,7 @@ class TestCacheManager:
 
             # Cache thumbnail - use correct argument order
             cache_manager.cache_thumbnail(
-                test_image_file, shot.show, shot.sequence, shot.shot
+                test_image_file, shot.show, shot.sequence, shot.shot,
             )
 
             # Verify cache file was expected
@@ -214,7 +214,7 @@ class TestCacheManager:
                     mock_qimage.return_value = mock_image
 
                     result = cache_manager.cache_thumbnail(
-                        test_image_file, shot.show, shot.sequence, shot.shot
+                        test_image_file, shot.show, shot.sequence, shot.shot,
                     )
 
                     # Should return None from background thread

@@ -56,13 +56,12 @@ except Exception as e:
         if "IMPORT_SUCCESS" in result.stdout:
             print("✓ OK")
             return {"status": "ok", "file": test_file}
-        else:
-            print("✗ IMPORT FAILED")
-            return {
-                "status": "import_failed",
-                "file": test_file,
-                "error": result.stdout + result.stderr,
-            }
+        print("✗ IMPORT FAILED")
+        return {
+            "status": "import_failed",
+            "file": test_file,
+            "error": result.stdout + result.stderr,
+        }
 
     except subprocess.TimeoutExpired:
         print("✗ TIMEOUT")

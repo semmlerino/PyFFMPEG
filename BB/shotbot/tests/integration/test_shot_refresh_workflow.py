@@ -292,7 +292,7 @@ class TestShotThumbnailWorkflow:
 
         # Cache thumbnail
         cached_path = cache_manager.cache_thumbnail_direct(
-            image_path, "test_show", "seq01", "0010"
+            image_path, "test_show", "seq01", "0010",
         )
 
         assert cached_path is not None
@@ -372,7 +372,7 @@ class TestCacheInvalidation:
             image.save(str(image_path))
 
             cache_manager.cache_thumbnail_direct(
-                image_path, "show", "seq", f"shot{i:03d}"
+                image_path, "show", "seq", f"shot{i:03d}",
             )
 
         # Check memory usage

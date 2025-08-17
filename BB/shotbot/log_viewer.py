@@ -68,7 +68,7 @@ class LogViewer(QWidget):
 
         # Auto-scroll to bottom
         self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
+            self.log_text.verticalScrollBar().maximum(),
         )
 
         # Limit lines

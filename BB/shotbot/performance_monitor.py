@@ -92,7 +92,7 @@ class PerformanceMonitor:
         if not self._monitoring:
             self._monitoring = True
             self._monitor_thread = threading.Thread(
-                target=self._monitoring_loop, daemon=True, name="PerformanceMonitor"
+                target=self._monitoring_loop, daemon=True, name="PerformanceMonitor",
             )
             self._monitor_thread.start()
             logger.info("Started performance monitoring")
@@ -176,7 +176,7 @@ class PerformanceMonitor:
         for cache_name, hit_rate in metrics.cache_hit_rates.items():
             memory_mb = metrics.cache_memory_mb.get(cache_name, 0)
             cache_summary.append(
-                f"{cache_name}: {hit_rate:.1%} hit rate, {memory_mb:.1f}MB"
+                f"{cache_name}: {hit_rate:.1%} hit rate, {memory_mb:.1f}MB",
             )
 
         # Format pattern performance
@@ -188,7 +188,7 @@ class PerformanceMonitor:
             f"Performance Summary - "
             f"Caches: [{', '.join(cache_summary)}], "
             f"Patterns: {pattern_hits} hits/{pattern_misses} misses, "
-            f"Memory: {metrics.memory_pressure} ({metrics.process_memory_mb:.1f}MB process)"
+            f"Memory: {metrics.memory_pressure} ({metrics.process_memory_mb:.1f}MB process)",
         )
 
     def _check_regressions(self, metrics: PerformanceMetrics) -> None:
@@ -207,7 +207,7 @@ class PerformanceMonitor:
                     logger.warning(
                         f"Performance regression detected: "
                         f"{cache_name} cache hit rate dropped from "
-                        f"{baseline:.1%} to {hit_rate:.1%}"
+                        f"{baseline:.1%} to {hit_rate:.1%}",
                     )
             else:
                 # Set initial baseline
@@ -216,7 +216,7 @@ class PerformanceMonitor:
         # Check memory usage
         if metrics.process_memory_mb > 500:  # 500MB threshold
             logger.warning(
-                f"High memory usage detected: {metrics.process_memory_mb:.1f}MB"
+                f"High memory usage detected: {metrics.process_memory_mb:.1f}MB",
             )
 
     def get_performance_report(self) -> str:
@@ -273,16 +273,16 @@ class PerformanceMonitor:
 
             pattern_stats = latest.pattern_stats
             report.append(
-                f"  Static Pattern Hits: {pattern_stats.get('static_hits', 0):,}"
+                f"  Static Pattern Hits: {pattern_stats.get('static_hits', 0):,}",
             )
             report.append(
-                f"  Dynamic Pattern Hits: {pattern_stats.get('dynamic_hits', 0):,}"
+                f"  Dynamic Pattern Hits: {pattern_stats.get('dynamic_hits', 0):,}",
             )
             report.append(
-                f"  Dynamic Pattern Misses: {pattern_stats.get('dynamic_misses', 0):,}"
+                f"  Dynamic Pattern Misses: {pattern_stats.get('dynamic_misses', 0):,}",
             )
             report.append(
-                f"  Total Cached Patterns: {pattern_stats.get('cache_size', 0)}"
+                f"  Total Cached Patterns: {pattern_stats.get('cache_size', 0)}",
             )
 
             # Memory Performance
@@ -290,7 +290,7 @@ class PerformanceMonitor:
             report.append("-" * 40)
             report.append(f"  {latest.memory_status}")
             report.append(
-                f"  Total Cache Memory: {latest.cache_memory_mb.get('total', 0):.2f}MB"
+                f"  Total Cache Memory: {latest.cache_memory_mb.get('total', 0):.2f}MB",
             )
 
             # Operation Timings (if any)
@@ -307,7 +307,7 @@ class PerformanceMonitor:
                             f"  {operation}: "
                             f"avg={avg_time:.3f}s, "
                             f"min={min_time:.3f}s, "
-                            f"max={max_time:.3f}s"
+                            f"max={max_time:.3f}s",
                         )
 
             # Performance Improvements

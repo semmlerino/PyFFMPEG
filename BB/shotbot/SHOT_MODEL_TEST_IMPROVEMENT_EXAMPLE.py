@@ -40,7 +40,7 @@ class TestShotModelImproved:
                 "sequences": {
                     "seq010": ["seq010_0010", "seq010_0020", "seq010_0030"],
                     "seq020": ["seq020_0010", "seq020_0020"],
-                }
+                },
             },
             "ProjectB": {"sequences": {"intro": ["intro_0010", "intro_0020"]}},
         }
@@ -67,7 +67,7 @@ class TestShotModelImproved:
                     # Create mock thumbnail
                     thumb_file = thumb_dir / "frame.1001.jpg"
                     thumb_file.write_bytes(
-                        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+                        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
                     )
 
                     workspace_paths.append(f"workspace {shot_path}")
@@ -75,7 +75,7 @@ class TestShotModelImproved:
         return "\\n".join(workspace_paths)
 
     def test_refresh_shots_real_parsing_logic(
-        self, shot_model_real, mock_workspace_structure
+        self, shot_model_real, mock_workspace_structure,
     ):
         """Test refresh_shots with real parsing logic - not mocked.
 
@@ -84,7 +84,7 @@ class TestShotModelImproved:
         mocked away.
         """
         with patch.object(
-            shot_model_real._process_pool, "execute_workspace_command"
+            shot_model_real._process_pool, "execute_workspace_command",
         ) as mock_execute:
             # Only mock the external command, not the parsing logic
             mock_execute.return_value = mock_workspace_structure
@@ -107,7 +107,7 @@ class TestShotModelImproved:
 
             # Test specific shot parsing accuracy
             seq010_0010 = next(
-                (s for s in shots if s.shot == "0010" and s.sequence == "seq010"), None
+                (s for s in shots if s.shot == "0010" and s.sequence == "seq010"), None,
             )
             assert seq010_0010 is not None
             assert seq010_0010.show == "ProjectA"
@@ -136,7 +136,7 @@ class TestShotModelImproved:
         editorial_dir.mkdir(parents=True)
         editorial_file = editorial_dir / "frame.1001.jpg"
         editorial_file.write_bytes(
-            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
         )
 
         # Create shot with real workspace path
@@ -198,7 +198,7 @@ class TestShotModelImproved:
 
         # Create new ShotModel to test real cache loading
         new_cache_manager = CacheManager(
-            cache_dir=shot_model_real.cache_manager.cache_dir
+            cache_dir=shot_model_real.cache_manager.cache_dir,
         )
         new_shot_model = ShotModel(cache_manager=new_cache_manager, load_cache=True)
 
@@ -219,7 +219,7 @@ class TestShotModelImproved:
         """
         # Test timeout error with real ProcessPoolManager
         with patch.object(
-            shot_model_real._process_pool, "execute_workspace_command"
+            shot_model_real._process_pool, "execute_workspace_command",
         ) as mock_execute:
             # Simulate real timeout scenario
             mock_execute.side_effect = TimeoutError("Command timeout after 30 seconds")
@@ -249,7 +249,7 @@ workspace /shows/EmptyPath//double_slash
 workspace /shows/VeryLongProjectNameThatExceedsTypicalLimits/shots/very_long_sequence_name/very_long_shot_name_0010"""
 
         with patch.object(
-            shot_model_real._process_pool, "execute_workspace_command"
+            shot_model_real._process_pool, "execute_workspace_command",
         ) as mock_execute:
             mock_execute.return_value = problematic_output
 
@@ -287,7 +287,7 @@ workspace /shows/VeryLongProjectNameThatExceedsTypicalLimits/shots/very_long_seq
         workspace_text = "\\n".join(large_workspace_output)
 
         with patch.object(
-            shot_model_real._process_pool, "execute_workspace_command"
+            shot_model_real._process_pool, "execute_workspace_command",
         ) as mock_execute:
             mock_execute.return_value = workspace_text
 
@@ -368,5 +368,5 @@ if __name__ == "__main__":
     # Expected Coverage: 90%+ (real business logic tested)
     """
     print(
-        "Run with: python -m pytest SHOT_MODEL_TEST_IMPROVEMENT_EXAMPLE.py --cov=shot_model --cov-report=term-missing"
+        "Run with: python -m pytest SHOT_MODEL_TEST_IMPROVEMENT_EXAMPLE.py --cov=shot_model --cov-report=term-missing",
     )

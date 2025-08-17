@@ -69,7 +69,7 @@ def main():
 
     print("\n=== Mock Pattern Distribution ===")
     for pattern, count in sorted(
-        pattern_totals.items(), key=lambda x: x[1], reverse=True
+        pattern_totals.items(), key=lambda x: x[1], reverse=True,
     ):
         print(f"{pattern:20s}: {count:4d}")
 
@@ -78,7 +78,7 @@ def main():
     print(f"Files with mocks: {len(file_stats)}")
     print(f"Total mock occurrences: {total_mocks}")
     print(
-        f"Average mocks per file: {total_mocks / len(test_files) if test_files else 0:.1f}"
+        f"Average mocks per file: {total_mocks / len(test_files) if test_files else 0:.1f}",
     )
 
     # Separate by directory
@@ -91,13 +91,13 @@ def main():
     print("\n=== Distribution by Test Type ===")
     print(f"Unit tests: {len(unit_files)} files, {unit_mocks} mocks")
     print(
-        f"Integration tests: {len(integration_files)} files, {integration_mocks} mocks"
+        f"Integration tests: {len(integration_files)} files, {integration_mocks} mocks",
     )
     if unit_files:
         print(f"Avg mocks per unit test: {unit_mocks / len(unit_files):.1f}")
     if integration_files:
         print(
-            f"Avg mocks per integration test: {integration_mocks / len(integration_files):.1f}"
+            f"Avg mocks per integration test: {integration_mocks / len(integration_files):.1f}",
         )
 
     # Check for refactored versions
@@ -124,13 +124,13 @@ def main():
             comparisons += 1
             reduction_pct = (reduction / orig_count * 100) if orig_count > 0 else 0
             print(
-                f"  {base_name}: {orig_count} → {ref_count} mocks ({reduction_pct:.0f}% reduction)"
+                f"  {base_name}: {orig_count} → {ref_count} mocks ({reduction_pct:.0f}% reduction)",
             )
 
     if comparisons > 0:
         print(f"\nTotal mocks eliminated through refactoring: {total_reduction}")
         print(
-            f"Average reduction per refactored file: {total_reduction / comparisons:.1f} mocks"
+            f"Average reduction per refactored file: {total_reduction / comparisons:.1f} mocks",
         )
 
 

@@ -141,7 +141,7 @@ class ShotBotWithHealthMonitoring:
             if self.launcher_manager:
                 # Connect to launcher manager to monitor new workers
                 self.launcher_manager.command_started.connect(
-                    self._on_launcher_worker_started
+                    self._on_launcher_worker_started,
                 )
 
         else:
@@ -162,7 +162,7 @@ class ShotBotWithHealthMonitoring:
             if worker and isinstance(worker, LauncherWorker):
                 self.health_monitor.register_worker(worker)
                 logger.debug(
-                    f"Registered launcher worker for monitoring: {launcher_id}"
+                    f"Registered launcher worker for monitoring: {launcher_id}",
                 )
         except Exception as e:
             logger.debug(f"Could not register launcher worker for monitoring: {e}")
@@ -185,7 +185,7 @@ class ShotBotWithHealthMonitoring:
         # Log warnings for degraded health
         if health_score < 70:
             logger.warning(
-                f"System health degraded: score={health_score}, status={status}"
+                f"System health degraded: score={health_score}, status={status}",
             )
 
             # Get detailed component status

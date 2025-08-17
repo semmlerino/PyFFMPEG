@@ -200,7 +200,7 @@ class ApplicationBundler:
             if "*" in pattern:
                 regex_pattern = pattern.replace(".", r"\.").replace("*", ".*")
                 if re.match(regex_pattern, file_path) or re.match(
-                    regex_pattern, file_name
+                    regex_pattern, file_name,
                 ):
                     return False
             elif pattern in file_path or file_name == pattern:
@@ -211,7 +211,7 @@ class ApplicationBundler:
             if "*" in pattern:
                 regex_pattern = pattern.replace(".", r"\.").replace("*", ".*")
                 if re.match(regex_pattern, file_path) or re.match(
-                    regex_pattern, file_name
+                    regex_pattern, file_name,
                 ):
                     return True
             elif file_name == pattern:
@@ -370,13 +370,13 @@ class ApplicationBundler:
 def main():
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
-        description="Bundle application files for base64 encoding"
+        description="Bundle application files for base64 encoding",
     )
     parser.add_argument(
-        "-c", "--config", help="Configuration file path", default="transfer_config.json"
+        "-c", "--config", help="Configuration file path", default="transfer_config.json",
     )
     parser.add_argument(
-        "-o", "--output", help="Output file for encoded bundle", default=None
+        "-o", "--output", help="Output file for encoded bundle", default=None,
     )
     parser.add_argument(
         "--bundle-dir",
@@ -389,7 +389,7 @@ def main():
         help="Keep the bundle directory after encoding",
     )
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose output"
+        "-v", "--verbose", action="store_true", help="Enable verbose output",
     )
     parser.add_argument(
         "--list-files",

@@ -110,20 +110,19 @@ class NukeScriptGenerator:
             return "linear", True
 
         # Log plates (use raw=false with appropriate colorspace)
-        elif "logc" in path_lower or "alexa" in path_lower:
+        if "logc" in path_lower or "alexa" in path_lower:
             return "logc3ei800", False
-        elif "log" in path_lower:
+        if "log" in path_lower:
             return "log", False
 
         # Display-referred colorspaces
-        elif "rec709" in path_lower:
+        if "rec709" in path_lower:
             return "rec709", False
-        elif "srgb" in path_lower:
+        if "srgb" in path_lower:
             return "sRGB", False
 
         # Default to linear raw (safest for VFX plates)
-        else:
-            return "linear", True
+        return "linear", True
 
     @staticmethod
     def _detect_resolution(plate_path: str) -> Tuple[int, int]:
@@ -173,7 +172,7 @@ class NukeScriptGenerator:
 
             # Detect frame range
             first_frame, last_frame = NukeScriptGenerator._detect_frame_range(
-                plate_path
+                plate_path,
             )
 
             # Detect colorspace and raw flag
@@ -294,7 +293,7 @@ Viewer {{
 
     @staticmethod
     def _import_undistortion_nodes(
-        undistortion_path: str, ypos_offset: int = -200
+        undistortion_path: str, ypos_offset: int = -200,
     ) -> str:
         """Import nodes from an undistortion .nk file.
 
@@ -394,18 +393,17 @@ Viewer {{
                     + "\n".join(imported_nodes)
                     + "\n"
                 )
-            else:
-                return ""
+            return ""
 
         except Exception as e:
             print(
-                f"Warning: Could not import undistortion nodes from {undistortion_path}: {e}"
+                f"Warning: Could not import undistortion nodes from {undistortion_path}: {e}",
             )
             return ""
 
     @staticmethod
     def create_plate_script_with_undistortion(
-        plate_path: str, undistortion_path: Optional[str], shot_name: str
+        plate_path: str, undistortion_path: Optional[str], shot_name: str,
     ) -> Optional[str]:
         """Create a Nuke script with plate and optional undistortion.
 
@@ -434,7 +432,7 @@ Viewer {{
 
             # Detect properties
             first_frame, last_frame = NukeScriptGenerator._detect_frame_range(
-                plate_path
+                plate_path,
             )
             width, height = NukeScriptGenerator._detect_resolution(plate_path)
             colorspace, use_raw = NukeScriptGenerator._detect_colorspace(plate_path)
@@ -521,7 +519,7 @@ Read {{
             if undistortion_path and Path(undistortion_path).exists():
                 # Import the actual undistortion nodes from the .nk file
                 imported_nodes = NukeScriptGenerator._import_undistortion_nodes(
-                    undistortion_path, ypos_offset=-200
+                    undistortion_path, ypos_offset=-200,
                 )
                 if imported_nodes:
                     # Fix the first node to connect to Read_Plate (if it exists)
@@ -529,7 +527,7 @@ Read {{
                     if plate_path and nuke_plate_path:
                         # Connect first undistortion node to Read_Plate
                         imported_nodes = imported_nodes.replace(
-                            "inputs 0", "inputs 1", 1
+                            "inputs 0", "inputs 1", 1,
                         )
 
                     script_content += imported_nodes
@@ -548,7 +546,7 @@ StickyNote {{
                 else:
                     # Fallback to reference if import failed
                     escaped_undist_path = NukeScriptGenerator._escape_path(
-                        undistortion_path
+                        undistortion_path,
                     )
                     script_content += f"""
 # Undistortion available: {escaped_undist_path}

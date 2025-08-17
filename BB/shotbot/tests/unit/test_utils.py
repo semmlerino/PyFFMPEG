@@ -75,7 +75,7 @@ class TestPathUtils:
 
         # Shot directory should be named {sequence}_{shot}
         expected = Path("/shows/myshow/shots/seq01/seq01_shot01") / Path(
-            *Config.THUMBNAIL_SEGMENTS
+            *Config.THUMBNAIL_SEGMENTS,
         )
         assert result == expected
 
@@ -344,7 +344,7 @@ class TestFileUtils:
 
         # Mock permission error
         with patch.object(
-            Path, "iterdir", side_effect=PermissionError("Access denied")
+            Path, "iterdir", side_effect=PermissionError("Access denied"),
         ):
             result = FileUtils.find_files_by_extension(test_dir, "txt")
 
@@ -475,7 +475,7 @@ class TestVersionUtils:
     def test_find_version_directories_permission_error(self, tmp_path, caplog):
         """Test handling of permission errors during version scanning."""
         with patch.object(
-            Path, "iterdir", side_effect=PermissionError("Access denied")
+            Path, "iterdir", side_effect=PermissionError("Access denied"),
         ):
             result = VersionUtils.find_version_directories(tmp_path)
 
@@ -559,7 +559,7 @@ class TestValidationUtils:
     def test_validate_not_empty_with_names(self):
         """Test validation with names for better error messages."""
         result = ValidationUtils.validate_not_empty(
-            "valid", "also_valid", names=["first", "second"]
+            "valid", "also_valid", names=["first", "second"],
         )
         assert result is True
 
@@ -621,7 +621,7 @@ class TestValidationUtils:
     def test_get_excluded_users_default(self):
         """Test getting excluded users with current user only."""
         with patch.object(
-            ValidationUtils, "get_current_username", return_value="currentuser"
+            ValidationUtils, "get_current_username", return_value="currentuser",
         ):
             result = ValidationUtils.get_excluded_users()
             assert result == {"currentuser"}
@@ -630,7 +630,7 @@ class TestValidationUtils:
         """Test getting excluded users with additional users."""
         additional = {"user1", "user2"}
         with patch.object(
-            ValidationUtils, "get_current_username", return_value="currentuser"
+            ValidationUtils, "get_current_username", return_value="currentuser",
         ):
             result = ValidationUtils.get_excluded_users(additional)
             assert result == {"currentuser", "user1", "user2"}
@@ -639,7 +639,7 @@ class TestValidationUtils:
         """Test that current user isn't duplicated if in additional users."""
         additional = {"currentuser", "user1"}  # Includes current user
         with patch.object(
-            ValidationUtils, "get_current_username", return_value="currentuser"
+            ValidationUtils, "get_current_username", return_value="currentuser",
         ):
             result = ValidationUtils.get_excluded_users(additional)
             assert result == {"currentuser", "user1"}
@@ -651,14 +651,14 @@ class TestImageUtils:
     def test_validate_image_dimensions_within_limits(self):
         """Test image dimension validation within acceptable limits."""
         result = ImageUtils.validate_image_dimensions(
-            1920, 1080, max_dimension=2048, max_memory_mb=10
+            1920, 1080, max_dimension=2048, max_memory_mb=10,
         )
         assert result is True
 
     def test_validate_image_dimensions_exceeds_dimension_limit(self, caplog):
         """Test image dimension validation when dimensions exceed limits."""
         result = ImageUtils.validate_image_dimensions(
-            5000, 3000, max_dimension=4096, max_memory_mb=100
+            5000, 3000, max_dimension=4096, max_memory_mb=100,
         )
         assert result is False
         assert any(
@@ -669,7 +669,7 @@ class TestImageUtils:
         """Test image dimension validation when estimated memory exceeds limits."""
         # 4000x4000 = 16M pixels * 4 bytes = 64MB
         result = ImageUtils.validate_image_dimensions(
-            4000, 4000, max_dimension=5000, max_memory_mb=50
+            4000, 4000, max_dimension=5000, max_memory_mb=50,
         )
         assert result is False
         assert any(
@@ -779,7 +779,7 @@ class TestFindTurnoverPlateThumbnail:
         test_frame.write_text("fake exr content")
 
         result = PathUtils.find_turnover_plate_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01"
+            str(shows_root), "myshow", "seq01", "shot01",
         )
 
         assert result is not None
@@ -808,7 +808,7 @@ class TestFindTurnoverPlateThumbnail:
         fg_frame.write_text("fg content")
 
         result = PathUtils.find_turnover_plate_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01"
+            str(shows_root), "myshow", "seq01", "shot01",
         )
 
         # Should prefer FG01 over BG01
@@ -838,7 +838,7 @@ class TestFindTurnoverPlateThumbnail:
         (plate_path / "shot.1005.exr").write_text("frame 1005")
 
         result = PathUtils.find_turnover_plate_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01"
+            str(shows_root), "myshow", "seq01", "shot01",
         )
 
         assert result is not None
@@ -847,7 +847,7 @@ class TestFindTurnoverPlateThumbnail:
     def test_find_turnover_plate_thumbnail_no_base_path(self):
         """Test turnover plate discovery when base path doesn't exist."""
         result = PathUtils.find_turnover_plate_thumbnail(
-            "/nonexistent", "show", "seq", "shot"
+            "/nonexistent", "show", "seq", "shot",
         )
         assert result is None
 
@@ -859,7 +859,7 @@ class TestFindTurnoverPlateThumbnail:
         base_path.mkdir(parents=True)
 
         result = PathUtils.find_turnover_plate_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01"
+            str(shows_root), "myshow", "seq01", "shot01",
         )
         assert result is None
 
@@ -881,7 +881,7 @@ class TestFindAnyPublishThumbnail:
         exr_file.write_text("exr content")
 
         result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01"
+            str(shows_root), "myshow", "seq01", "shot01",
         )
 
         assert result is not None
@@ -904,7 +904,7 @@ class TestFindAnyPublishThumbnail:
         exr_file.write_text("deep exr")
 
         result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01", max_depth=5
+            str(shows_root), "myshow", "seq01", "shot01", max_depth=5,
         )
 
         # Should not find the deeply nested file
@@ -923,7 +923,7 @@ class TestFindAnyPublishThumbnail:
         (publish_path / "shot.exr").write_text("no frame number")
 
         result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01"
+            str(shows_root), "myshow", "seq01", "shot01",
         )
         assert result is None
 
@@ -936,10 +936,10 @@ class TestFindAnyPublishThumbnail:
 
         # Mock permission error during iterdir
         with patch.object(
-            Path, "iterdir", side_effect=PermissionError("Access denied")
+            Path, "iterdir", side_effect=PermissionError("Access denied"),
         ):
             result = PathUtils.find_any_publish_thumbnail(
-                str(shows_root), "myshow", "seq01", "shot01"
+                str(shows_root), "myshow", "seq01", "shot01",
             )
 
         assert result is None
@@ -966,13 +966,13 @@ class TestFindAnyPublishThumbnail:
 
         # Should find with max_depth=3
         result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01", max_depth=3
+            str(shows_root), "myshow", "seq01", "shot01", max_depth=3,
         )
         assert result is not None
 
         # Should not find with max_depth=2
         result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root), "myshow", "seq01", "shot01", max_depth=2
+            str(shows_root), "myshow", "seq01", "shot01", max_depth=2,
         )
         assert result is None
 

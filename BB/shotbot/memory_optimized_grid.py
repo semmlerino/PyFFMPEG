@@ -50,7 +50,7 @@ class MemoryOptimizedGrid:
         """Initialize memory optimization components."""
         # Loaded thumbnails
         self._loaded_thumbnails: Dict[
-            str, Union[ThumbnailWidget, ThreeDEThumbnailWidget]
+            str, Union[ThumbnailWidget, ThreeDEThumbnailWidget],
         ] = {}
 
         # Placeholders for all items
@@ -74,23 +74,21 @@ class MemoryOptimizedGrid:
         """Get unique key for an item."""
         if isinstance(item, Shot):
             return item.full_name
-        else:
-            return item.display_name
+        return item.display_name
 
     def _create_thumbnail(
-        self, item: Union[Shot, ThreeDEScene], size: int
+        self, item: Union[Shot, ThreeDEScene], size: int,
     ) -> Union[ThumbnailWidget, ThreeDEThumbnailWidget]:
         """Create appropriate thumbnail widget for item."""
         if isinstance(item, Shot):
             return ThumbnailWidget(item, size)
-        else:
-            return ThreeDEThumbnailWidget(item, size)
+        return ThreeDEThumbnailWidget(item, size)
 
     def _setup_viewport_tracking(self, scroll_area: QScrollArea):
         """Set up viewport change tracking."""
         # Connect to scrollbar changes
         scroll_area.horizontalScrollBar().valueChanged.connect(
-            self._on_viewport_changed
+            self._on_viewport_changed,
         )
         scroll_area.verticalScrollBar().valueChanged.connect(self._on_viewport_changed)
 
@@ -104,7 +102,7 @@ class MemoryOptimizedGrid:
         self._unload_timer.start(self.UNLOAD_DELAY_MS)
 
     def _get_visible_range(
-        self, scroll_area: QScrollArea, grid_columns: int, total_items: int
+        self, scroll_area: QScrollArea, grid_columns: int, total_items: int,
     ) -> Tuple[int, int]:
         """Calculate range of visible item indices."""
         if total_items == 0:
@@ -120,7 +118,7 @@ class MemoryOptimizedGrid:
 
         # Create visible rect in container coordinates
         visible_rect = QRect(
-            scroll_x, scroll_y, viewport_rect.width(), viewport_rect.height()
+            scroll_x, scroll_y, viewport_rect.width(), viewport_rect.height(),
         )
 
         # Calculate visible rows
@@ -138,7 +136,7 @@ class MemoryOptimizedGrid:
         """Update which thumbnails are loaded based on viewport."""
         # This method should be implemented by subclasses
         raise NotImplementedError(
-            "Subclasses must implement _update_visible_thumbnails"
+            "Subclasses must implement _update_visible_thumbnails",
         )
 
     def _load_thumbnail_at_index(self, index: int) -> None:
@@ -201,7 +199,7 @@ class MemoryOptimizedGrid:
         """Get currently visible indices."""
         # This method should be implemented by subclasses
         raise NotImplementedError(
-            "Subclasses must implement _get_current_visible_indices"
+            "Subclasses must implement _get_current_visible_indices",
         )
 
     def _create_placeholder_widget(self, row: int, col: int) -> QWidget:

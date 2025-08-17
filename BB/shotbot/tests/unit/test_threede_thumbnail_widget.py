@@ -31,7 +31,7 @@ def sample_scene():
         user="testuser",
         plate="FG01",
         scene_path=Path(
-            "/shows/test_show/seq01/seq01_shot01/user/testuser/work/3de/scenes/test.3de"
+            "/shows/test_show/seq01/seq01_shot01/user/testuser/work/3de/scenes/test.3de",
         ),
     )
 

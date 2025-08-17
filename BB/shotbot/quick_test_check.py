@@ -25,18 +25,15 @@ def check_test_file(test_path: str, timeout: int = 5):
         if result.returncode == 0:
             if "passed" in output:
                 return "✅ PASS"
-            else:
-                return "❓ UNKNOWN"
-        else:
-            if "FAILED" in output or "ERROR" in output:
-                # Extract error summary
-                lines = output.split("\n")
-                for line in lines:
-                    if "FAILED" in line or "ERROR" in line:
-                        return f"❌ {line.strip()[:50]}"
-                return "❌ FAIL"
-            else:
-                return "❌ FAIL"
+            return "❓ UNKNOWN"
+        if "FAILED" in output or "ERROR" in output:
+            # Extract error summary
+            lines = output.split("\n")
+            for line in lines:
+                if "FAILED" in line or "ERROR" in line:
+                    return f"❌ {line.strip()[:50]}"
+            return "❌ FAIL"
+        return "❌ FAIL"
     except subprocess.TimeoutExpired:
         return "⏰ TIMEOUT"
     except Exception as e:

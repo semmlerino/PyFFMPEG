@@ -44,9 +44,9 @@ class TestThreeDEGlobalLimitFix:
 
         # Mock config with the problematic settings
         with patch("config.Config.SHOWS_ROOT", str(shows_root)), patch(
-            "config.Config.THREEDE_SCAN_MAX_FILES_PER_SHOT", 1
+            "config.Config.THREEDE_SCAN_MAX_FILES_PER_SHOT", 1,
         ), patch("config.Config.THREEDE_STOP_AFTER_FIRST", True), patch(
-            "config.Config.THREEDE_MAX_SHOTS_TO_SCAN", 1000
+            "config.Config.THREEDE_MAX_SHOTS_TO_SCAN", 1000,
         ):
             # Test Python pathlib implementation
             files = ThreeDESceneFinder.find_all_3de_files_in_show_python(
@@ -106,7 +106,7 @@ class TestThreeDEGlobalLimitFix:
 
         # Test with max_shots limit of 5
         with patch("config.Config.SHOWS_ROOT", str(shows_root)), patch(
-            "config.Config.THREEDE_STOP_AFTER_FIRST", True
+            "config.Config.THREEDE_STOP_AFTER_FIRST", True,
         ), patch("config.Config.THREEDE_MAX_SHOTS_TO_SCAN", 5):
             files = ThreeDESceneFinder.find_all_3de_files_in_show_python(
                 show_root=str(shows_root),
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     import sys
 
     result = subprocess.run(
-        [sys.executable, "run_tests.py", __file__, "-v"], capture_output=True, text=True
+        [sys.executable, "run_tests.py", __file__, "-v"], capture_output=True, text=True,
     )
     print(result.stdout)
     if result.stderr:

@@ -234,7 +234,7 @@ class TestCacheManagerThreading:
 
                 # Mock image path and QImage loading (cache_manager uses QImage, not QPixmap)
                 with patch("cache_manager.Path.exists", return_value=True), patch(
-                    "cache_manager.QImage"
+                    "cache_manager.QImage",
                 ) as mock_image_class:
                     mock_image = MagicMock()
                     mock_image.isNull.return_value = False
@@ -492,7 +492,7 @@ class TestCacheManagerThreading:
                 with patch("pathlib.Path.exists", return_value=True):
                     for _ in range(5):
                         cached = manager.get_cached_thumbnail(
-                            test_shot.show, test_shot.sequence, test_shot.shot
+                            test_shot.show, test_shot.sequence, test_shot.shot,
                         )
                         retrieval_results.append((thread_id, cached is not None))
                         time.sleep(0.001)

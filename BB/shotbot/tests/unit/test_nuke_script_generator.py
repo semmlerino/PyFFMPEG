@@ -261,7 +261,7 @@ class TestNukeScriptGenerator(unittest.TestCase):
     def test_write_node_generation(self):
         """Test Write node generation."""
         write_node = self.generator._generate_write_node(
-            output_path="/output/comp_output.%04d.exr"
+            output_path="/output/comp_output.%04d.exr",
         )
 
         self.assertIn("Write {", write_node)
@@ -334,7 +334,7 @@ class MockNukeScriptGenerator:
 }}"""
 
     def generate_comp_script(
-        self, shot_name, plate_path, colorspace, first_frame, last_frame, output_dir
+        self, shot_name, plate_path, colorspace, first_frame, last_frame, output_dir,
     ):
         """Generate complete comp script."""
         # Sanitize shot name
@@ -350,7 +350,7 @@ class MockNukeScriptGenerator:
         content = "#! /usr/bin/env nuke\n"
         content += f"# Shot: {shot_name}\n\n"
         content += self._generate_read_node(
-            plate_path, colorspace, first_frame, last_frame
+            plate_path, colorspace, first_frame, last_frame,
         )
 
         # Write file

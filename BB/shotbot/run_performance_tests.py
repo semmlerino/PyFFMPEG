@@ -170,7 +170,7 @@ def generate_performance_report(results: List[Tuple[str, bool, float, str]]) -> 
                 speedup_value = float(metrics["speedup"].replace("x", ""))
                 if speedup_value > 1.5:  # Significant improvement
                     report.append(
-                        f"✓ {test_name}: {metrics['speedup']} performance improvement"
+                        f"✓ {test_name}: {metrics['speedup']} performance improvement",
                     )
                     optimization_found = True
             except Exception:
@@ -181,7 +181,7 @@ def generate_performance_report(results: List[Tuple[str, bool, float, str]]) -> 
                 improvement_value = float(metrics["improvement"].replace("%", ""))
                 if improvement_value > 50:  # Significant improvement
                     report.append(
-                        f"✓ {test_name}: {metrics['improvement']} performance improvement"
+                        f"✓ {test_name}: {metrics['improvement']} performance improvement",
                     )
                     optimization_found = True
             except Exception:
@@ -190,7 +190,7 @@ def generate_performance_report(results: List[Tuple[str, bool, float, str]]) -> 
     if not optimization_found:
         report.append("! No significant performance improvements detected")
         report.append(
-            "  This may indicate that optimizations are not working as expected"
+            "  This may indicate that optimizations are not working as expected",
         )
 
     # Test quality assessment
@@ -212,7 +212,7 @@ def generate_performance_report(results: List[Tuple[str, bool, float, str]]) -> 
     else:
         report.append("! Review failed tests and investigate performance bottlenecks")
         report.append(
-            "! Consider running tests in isolation to identify specific issues"
+            "! Consider running tests in isolation to identify specific issues",
         )
 
     report.append("\n" + "=" * 80)
@@ -300,9 +300,8 @@ def main():
     if passed_tests == total_tests:
         print(f"\n✓ ALL PERFORMANCE TESTS PASSED ({passed_tests}/{total_tests})")
         return 0
-    else:
-        print(f"\n✗ SOME PERFORMANCE TESTS FAILED ({passed_tests}/{total_tests})")
-        return 1
+    print(f"\n✗ SOME PERFORMANCE TESTS FAILED ({passed_tests}/{total_tests})")
+    return 1
 
 
 if __name__ == "__main__":

@@ -99,7 +99,7 @@ class CacheManagerProfiler:
                 with self.monitor.measure_time("cache_lookup_batch"):
                     for i in range(iterations):
                         _ = cache_manager.get_cached_thumbnail(
-                            "test_show", "seq01", f"shot_{i:03d}"
+                            "test_show", "seq01", f"shot_{i:03d}",
                         )
 
                 # Profile memory usage reporting
@@ -309,7 +309,7 @@ class OverallProfiler:
         """Configure logging for profiling."""
         level = logging.DEBUG if self.verbose else logging.INFO
         logging.basicConfig(
-            level=level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            level=level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
 
     def profile_imports(self):
@@ -350,7 +350,7 @@ class OverallProfiler:
         print(f"Platform: {sys.platform}")
         print(f"CPU count: {os.cpu_count()}")
         print(
-            f"Available memory: {psutil.virtual_memory().total / 1024 / 1024 / 1024:.1f} GB"
+            f"Available memory: {psutil.virtual_memory().total / 1024 / 1024 / 1024:.1f} GB",
         )
         print()
 
@@ -435,7 +435,7 @@ def main():
     )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument(
-        "--output", help="Output file for performance report (JSON format)"
+        "--output", help="Output file for performance report (JSON format)",
     )
 
     args = parser.parse_args()
@@ -461,7 +461,7 @@ def main():
             if config_time > 50:  # More than 50ms for 10k accesses
                 print("⚠️  Config access is slower than expected")
                 print(
-                    "   Recommendation: Consider caching frequently accessed config values"
+                    "   Recommendation: Consider caching frequently accessed config values",
                 )
 
         # Regex performance
@@ -470,7 +470,7 @@ def main():
             if regex_time > 200:  # More than 200ms for 10k iterations
                 print("⚠️  Regex matching performance could be improved")
                 print(
-                    "   Recommendation: Combine patterns or use more efficient algorithms"
+                    "   Recommendation: Combine patterns or use more efficient algorithms",
                 )
 
         # Path operations
@@ -479,7 +479,7 @@ def main():
             if path_time > 100:  # More than 100ms for 1k operations
                 print("⚠️  Path operations are expensive")
                 print(
-                    "   Recommendation: Cache Path objects or use string operations where possible"
+                    "   Recommendation: Cache Path objects or use string operations where possible",
                 )
 
         # Cache operations
@@ -488,7 +488,7 @@ def main():
             if cache_time > 500:  # More than 500ms for 1k lookups
                 print("⚠️  Cache lookups are slower than expected")
                 print(
-                    "   Recommendation: Optimize cache data structure or reduce lock contention"
+                    "   Recommendation: Optimize cache data structure or reduce lock contention",
                 )
 
         if not any("⚠️" in line for line in []):

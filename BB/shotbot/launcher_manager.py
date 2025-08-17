@@ -39,7 +39,7 @@ class LauncherWorker(ThreadSafeWorker):
     command_error = Signal(str, str)  # launcher_id, error_message
 
     def __init__(
-        self, launcher_id: str, command: str, working_dir: Optional[str] = None
+        self, launcher_id: str, command: str, working_dir: Optional[str] = None,
     ):
         """Initialize launcher worker.
 
@@ -64,7 +64,7 @@ class LauncherWorker(ThreadSafeWorker):
             # Emit start signal
             self.command_started.emit(self.launcher_id, self.command)
             logger.info(
-                f"Worker {id(self)} starting launcher '{self.launcher_id}': {self.command}"
+                f"Worker {id(self)} starting launcher '{self.launcher_id}': {self.command}",
             )
 
             # Parse command properly to avoid shell injection
@@ -81,7 +81,7 @@ class LauncherWorker(ThreadSafeWorker):
                 except ValueError:
                     # Complex shell command, use shell=True but log warning
                     logger.warning(
-                        f"Using shell=True for complex command: {self.command[:100]}"
+                        f"Using shell=True for complex command: {self.command[:100]}",
                     )
                     cmd_list = self.command
                     use_shell = True
@@ -107,7 +107,7 @@ class LauncherWorker(ThreadSafeWorker):
                     # Process finished normally
                     success = return_code == 0
                     logger.info(
-                        f"Worker {id(self)} finished launcher '{self.launcher_id}' with code {return_code}"
+                        f"Worker {id(self)} finished launcher '{self.launcher_id}' with code {return_code}",
                     )
                     self.command_finished.emit(self.launcher_id, success, return_code)
                     return
@@ -118,7 +118,7 @@ class LauncherWorker(ThreadSafeWorker):
             # Stop was requested - terminate the process
             if self._process and self._process.poll() is None:
                 logger.info(
-                    f"Worker {id(self)} stopping launcher '{self.launcher_id}' due to stop request"
+                    f"Worker {id(self)} stopping launcher '{self.launcher_id}' due to stop request",
                 )
                 self._terminate_process()
                 self.command_finished.emit(self.launcher_id, False, -2)
@@ -145,7 +145,7 @@ class LauncherWorker(ThreadSafeWorker):
             except subprocess.TimeoutExpired:
                 # Force kill if necessary
                 logger.warning(
-                    f"Force killing launcher '{self.launcher_id}' after timeout"
+                    f"Force killing launcher '{self.launcher_id}' after timeout",
                 )
                 self._process.kill()
                 self._process.wait(timeout=5)
@@ -186,7 +186,7 @@ class LauncherValidation:
             r"\|\s*rm\s",
             r"`rm\s",
             r"\$\(rm\s",
-        ]
+        ],
     )
 
 
@@ -384,7 +384,7 @@ class LauncherManager(QObject):
         self._load_launchers()
 
         logger.info(
-            f"LauncherManager initialized with cleanup interval {self.CLEANUP_INTERVAL_MS}ms"
+            f"LauncherManager initialized with cleanup interval {self.CLEANUP_INTERVAL_MS}ms",
         )
 
     def _load_launchers(self) -> None:
@@ -414,7 +414,7 @@ class LauncherManager(QObject):
         return f"{launcher_id}_{process_pid}_{timestamp}_{unique_suffix}"
 
     def _validate_launcher_data(
-        self, name: str, command: str, exclude_id: Optional[str] = None
+        self, name: str, command: str, exclude_id: Optional[str] = None,
     ) -> List[str]:
         """Validate launcher data and return list of errors."""
         errors = []
@@ -451,7 +451,7 @@ class LauncherManager(QObject):
             for pattern in security_patterns:
                 if pattern in cmd_lower:
                     errors.append(
-                        f"Command contains potentially dangerous pattern: {pattern}"
+                        f"Command contains potentially dangerous pattern: {pattern}",
                     )
                     break
 
@@ -479,7 +479,7 @@ class LauncherManager(QObject):
                     "shot": shot.shot,
                     "full_name": shot.full_name,
                     "workspace_path": shot.workspace_path,
-                }
+                },
             )
 
         # Add custom variables
@@ -492,7 +492,7 @@ class LauncherManager(QObject):
                 "HOME": os.environ.get("HOME", ""),
                 "USER": os.environ.get("USER", ""),
                 "SHOTBOT_VERSION": Config.APP_VERSION,
-            }
+            },
         )
 
         # Use string.Template for safe substitution
@@ -602,13 +602,12 @@ class LauncherManager(QObject):
             self.launcher_added.emit(launcher_id)
             self.launchers_changed.emit()
             return launcher_id
-        else:
-            # Remove from memory if save failed
-            del self._launchers[launcher_id]
-            self.validation_error.emit(
-                "general", "Failed to save launcher configuration"
-            )
-            return None
+        # Remove from memory if save failed
+        del self._launchers[launcher_id]
+        self.validation_error.emit(
+            "general", "Failed to save launcher configuration",
+        )
+        return None
 
     def update_launcher(
         self,
@@ -688,11 +687,10 @@ class LauncherManager(QObject):
             self.launcher_updated.emit(launcher_id)
             self.launchers_changed.emit()
             return True
-        else:
-            self.validation_error.emit(
-                "general", "Failed to save launcher configuration"
-            )
-            return False
+        self.validation_error.emit(
+            "general", "Failed to save launcher configuration",
+        )
+        return False
 
     def delete_launcher(self, launcher_id: str) -> bool:
         """Delete a launcher.
@@ -716,11 +714,10 @@ class LauncherManager(QObject):
             self.launcher_deleted.emit(launcher_id)
             self.launchers_changed.emit()
             return True
-        else:
-            self.validation_error.emit(
-                "general", "Failed to save launcher configuration"
-            )
-            return False
+        self.validation_error.emit(
+            "general", "Failed to save launcher configuration",
+        )
+        return False
 
     def get_launcher(self, launcher_id: str) -> Optional[CustomLauncher]:
         """Get a launcher by ID.
@@ -890,13 +887,13 @@ class LauncherManager(QObject):
             if self._use_process_pool and not launcher.terminal.required:
                 # Use ProcessPoolManager for better performance
                 success = self._execute_with_process_pool(
-                    launcher_id, launcher.name, command
+                    launcher_id, launcher.name, command,
                 )
                 if success:
                     return True
                 # Fall back to legacy method if pool execution fails
                 logger.warning(
-                    "ProcessPool execution failed, falling back to subprocess"
+                    "ProcessPool execution failed, falling back to subprocess",
                 )
 
             # Treat all apps as GUI apps - always launch in terminal window
@@ -936,10 +933,10 @@ class LauncherManager(QObject):
                 if not launched or process is None:
                     # If no terminal worked, use worker thread as fallback
                     logger.warning(
-                        "No terminal emulator found, falling back to worker thread"
+                        "No terminal emulator found, falling back to worker thread",
                     )
                     return self._execute_with_worker(
-                        launcher_id, launcher.name, command
+                        launcher_id, launcher.name, command,
                     )
 
                 # Validate process started successfully
@@ -954,7 +951,7 @@ class LauncherManager(QObject):
                         pass
                     error_msg = "Process failed to start properly"
                     logger.error(
-                        f"Failed to start launcher '{launcher.name}': {error_msg}"
+                        f"Failed to start launcher '{launcher.name}': {error_msg}",
                     )
                     self.execution_finished.emit(launcher_id, False)
                     return False
@@ -974,16 +971,15 @@ class LauncherManager(QObject):
                     self._active_processes[process_key] = process_info
 
                 logger.info(
-                    f"Started process for launcher '{launcher.name}' (PID: {process.pid}, Key: {process_key})"
+                    f"Started process for launcher '{launcher.name}' (PID: {process.pid}, Key: {process_key})",
                 )
                 self.execution_finished.emit(launcher_id, True)
 
                 # Clean up any finished processes
                 self._cleanup_finished_processes()
                 return True
-            else:
-                # Use worker thread for non-terminal apps (still with full isolation)
-                return self._execute_with_worker(launcher_id, launcher.name, command)
+            # Use worker thread for non-terminal apps (still with full isolation)
+            return self._execute_with_worker(launcher_id, launcher.name, command)
 
         except Exception as e:
             logger.error(f"Failed to execute launcher '{launcher.name}': {e}")
@@ -1030,14 +1026,14 @@ class LauncherManager(QObject):
 
             if dry_run:
                 logger.info(
-                    f"DRY RUN - Would execute in shot context {shot.full_name}: {command}"
+                    f"DRY RUN - Would execute in shot context {shot.full_name}: {command}",
                 )
                 return True
 
             # Change to shot workspace directory
             original_cwd = os.getcwd()
             workspace_exists = PathUtils.validate_path_exists(
-                shot.workspace_path, "Shot workspace"
+                shot.workspace_path, "Shot workspace",
             )
 
             if workspace_exists:
@@ -1048,7 +1044,7 @@ class LauncherManager(QObject):
                 # Execute command
                 self.execution_started.emit(launcher_id)
                 logger.info(
-                    f"Executing launcher '{launcher.name}' in shot {shot.full_name}: {command}"
+                    f"Executing launcher '{launcher.name}' in shot {shot.full_name}: {command}",
                 )
 
                 # For shot context, use ws command if available
@@ -1091,7 +1087,7 @@ class LauncherManager(QObject):
                     if not launched or process is None:
                         # If no terminal worked, use worker thread as fallback
                         logger.warning(
-                            "No terminal emulator found, falling back to worker thread"
+                            "No terminal emulator found, falling back to worker thread",
                         )
                         return self._execute_with_worker(
                             launcher_id,
@@ -1111,7 +1107,7 @@ class LauncherManager(QObject):
                             pass
                         error_msg = "Process failed to start properly in shot context"
                         logger.error(
-                            f"Failed to start launcher '{launcher.name}': {error_msg}"
+                            f"Failed to start launcher '{launcher.name}': {error_msg}",
                         )
                         self.execution_finished.emit(launcher_id, False)
                         return False
@@ -1131,18 +1127,17 @@ class LauncherManager(QObject):
                         self._active_processes[process_key] = process_info
 
                     logger.info(
-                        f"Started process for launcher '{launcher.name}' in shot context (PID: {process.pid}, Key: {process_key})"
+                        f"Started process for launcher '{launcher.name}' in shot context (PID: {process.pid}, Key: {process_key})",
                     )
                     self.execution_finished.emit(launcher_id, True)
 
                     # Clean up any finished processes
                     self._cleanup_finished_processes()
                     return True
-                else:
-                    # Use worker thread for non-terminal apps (still with full isolation)
-                    return self._execute_with_worker(
-                        launcher_id, launcher.name, full_command, shot.workspace_path
-                    )
+                # Use worker thread for non-terminal apps (still with full isolation)
+                return self._execute_with_worker(
+                    launcher_id, launcher.name, full_command, shot.workspace_path,
+                )
 
             finally:
                 # Restore original working directory
@@ -1150,13 +1145,13 @@ class LauncherManager(QObject):
 
         except Exception as e:
             logger.error(
-                f"Failed to execute launcher '{launcher.name}' in shot context: {e}"
+                f"Failed to execute launcher '{launcher.name}' in shot context: {e}",
             )
             self.execution_finished.emit(launcher_id, False)
             return False
 
     def validate_launcher_paths(
-        self, launcher_id: str, shot: Optional[Shot] = None
+        self, launcher_id: str, shot: Optional[Shot] = None,
     ) -> List[str]:
         """Validate that required files exist for a launcher.
 
@@ -1176,11 +1171,11 @@ class LauncherManager(QObject):
         # Check required files
         for file_path in launcher.validation.required_files:
             resolved_path = self._substitute_variables(
-                file_path, shot, launcher.variables
+                file_path, shot, launcher.variables,
             )
 
             if not PathUtils.validate_path_exists(
-                resolved_path, f"Required file {file_path}"
+                resolved_path, f"Required file {file_path}",
             ):
                 errors.append(f"Required file not found: {resolved_path}")
 
@@ -1192,16 +1187,16 @@ class LauncherManager(QObject):
                     executable = command_parts[0]
                     # Substitute variables in executable path
                     resolved_executable = self._substitute_variables(
-                        executable, shot, launcher.variables
+                        executable, shot, launcher.variables,
                     )
 
                     # Check if it's an absolute path
                     if os.path.isabs(resolved_executable):
                         if not PathUtils.validate_path_exists(
-                            resolved_executable, "Executable"
+                            resolved_executable, "Executable",
                         ):
                             errors.append(
-                                f"Executable not found: {resolved_executable}"
+                                f"Executable not found: {resolved_executable}",
                             )
                     else:
                         # Check if it's in PATH
@@ -1209,7 +1204,7 @@ class LauncherManager(QObject):
 
                         if not shutil.which(resolved_executable):
                             errors.append(
-                                f"Executable not found in PATH: {resolved_executable}"
+                                f"Executable not found in PATH: {resolved_executable}",
                             )
 
             except ValueError as e:
@@ -1276,7 +1271,7 @@ class LauncherManager(QObject):
                         process_info = self._active_processes[key]
                         logger.debug(
                             f"Cleaning up finished process: {process_info.launcher_name} "
-                            + f"(PID: {process_info.process.pid}, Key: {key})"
+                            + f"(PID: {process_info.process.pid}, Key: {key})",
                         )
                         del self._active_processes[key]
                 logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
@@ -1310,7 +1305,7 @@ class LauncherManager(QObject):
                             # Process is old but still running, log it
                             logger.info(
                                 f"Long-running process: {process_info.launcher_name} "
-                                + f"(PID: {process_info.process.pid}, Age: {current_time - process_info.timestamp:.0f}s)"
+                                + f"(PID: {process_info.process.pid}, Age: {current_time - process_info.timestamp:.0f}s)",
                             )
                     except (OSError, AttributeError):
                         old_keys.append(process_key)
@@ -1328,7 +1323,7 @@ class LauncherManager(QObject):
                 active_count = len(self._active_processes)
                 if active_count > 0:
                     logger.debug(
-                        f"Active processes: {active_count}/{self.MAX_CONCURRENT_PROCESSES}"
+                        f"Active processes: {active_count}/{self.MAX_CONCURRENT_PROCESSES}",
                     )
 
         except Exception as e:
@@ -1372,7 +1367,7 @@ class LauncherManager(QObject):
                             "age_seconds": time.time() - info.timestamp,
                             "validated": info.validated,
                             "running": info.process.poll() is None,
-                        }
+                        },
                     )
                 except (OSError, AttributeError) as e:
                     logger.debug(f"Error getting info for process {process_key}: {e}")
@@ -1406,12 +1401,12 @@ class LauncherManager(QObject):
                 if force:
                     process.kill()
                     logger.info(
-                        f"Forcefully killed process {process_info.launcher_name} (PID: {process.pid})"
+                        f"Forcefully killed process {process_info.launcher_name} (PID: {process.pid})",
                     )
                 else:
                     process.terminate()
                     logger.info(
-                        f"Terminated process {process_info.launcher_name} (PID: {process.pid})"
+                        f"Terminated process {process_info.launcher_name} (PID: {process.pid})",
                     )
 
                 # Wait a short time for process to exit
@@ -1451,7 +1446,7 @@ class LauncherManager(QObject):
                 self.terminate_process(process_key, force=False)
             except Exception as e:
                 logger.error(
-                    f"Error terminating process {process_key} during shutdown: {e}"
+                    f"Error terminating process {process_key} during shutdown: {e}",
                 )
 
         # Final cleanup
@@ -1459,7 +1454,7 @@ class LauncherManager(QObject):
             remaining_count = len(self._active_processes)
             if remaining_count > 0:
                 logger.warning(
-                    f"Shutdown completed with {remaining_count} processes still tracked"
+                    f"Shutdown completed with {remaining_count} processes still tracked",
                 )
             else:
                 logger.info("All processes cleaned up successfully")
@@ -1518,7 +1513,7 @@ class LauncherManager(QObject):
                     full_command,
                     cache_ttl=0,  # Don't cache application launches
                     timeout=int(
-                        ThreadingConfig.THREAD_POOL_TIMEOUT * 60
+                        ThreadingConfig.THREAD_POOL_TIMEOUT * 60,
                     ),  # 5 minutes for app launches
                 )
 
@@ -1708,21 +1703,21 @@ class LauncherManager(QObject):
                             # Inconsistent state - needs special handling
                             inconsistent_workers.append((worker_key, state))
                             logger.warning(
-                                f"Worker {worker_key} in {state} but thread still running"
+                                f"Worker {worker_key} in {state} but thread still running",
                             )
 
                     elif state == "CREATED" and not is_running:
                         # Worker never started - safe to clean up
                         finished_workers.append(worker_key)
                         logger.debug(
-                            f"Unstarted worker {worker_key} marked for cleanup"
+                            f"Unstarted worker {worker_key} marked for cleanup",
                         )
 
                     elif state == "RUNNING" and not is_running:
                         # Worker is stuck - inconsistent state
                         inconsistent_workers.append((worker_key, state))
                         logger.warning(
-                            f"Worker {worker_key} stuck in RUNNING but thread not running"
+                            f"Worker {worker_key} stuck in RUNNING but thread not running",
                         )
 
                     elif state == "STOPPING":
@@ -1744,7 +1739,7 @@ class LauncherManager(QObject):
 
             if finished_workers or inconsistent_workers:
                 logger.debug(
-                    f"Cleaned up {len(finished_workers)} finished workers, handled {len(inconsistent_workers)} inconsistent workers"
+                    f"Cleaned up {len(finished_workers)} finished workers, handled {len(inconsistent_workers)} inconsistent workers",
                 )
 
         finally:
@@ -1764,10 +1759,10 @@ class LauncherManager(QObject):
                 logger.info(f"Stopping running worker {worker_key}")
                 if hasattr(worker, "safe_stop"):
                     if not worker.safe_stop(
-                        timeout_ms=ThreadingConfig.WORKER_STOP_TIMEOUT_MS
+                        timeout_ms=ThreadingConfig.WORKER_STOP_TIMEOUT_MS,
                     ):
                         logger.warning(
-                            f"Worker {worker_key} failed to stop gracefully, terminating"
+                            f"Worker {worker_key} failed to stop gracefully, terminating",
                         )
                         worker.terminate()
                         worker.wait(ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS)
@@ -1775,7 +1770,7 @@ class LauncherManager(QObject):
                     worker.quit()
                     if not worker.wait(ThreadingConfig.WORKER_STOP_TIMEOUT_MS):
                         logger.warning(
-                            f"Worker {worker_key} failed to quit gracefully, terminating"
+                            f"Worker {worker_key} failed to quit gracefully, terminating",
                         )
                         worker.terminate()
                         worker.wait()
@@ -1801,7 +1796,7 @@ class LauncherManager(QObject):
     def _handle_inconsistent_worker(self, worker_key: str, reported_state: str):
         """Handle worker with inconsistent state."""
         logger.warning(
-            f"Handling inconsistent worker {worker_key} in state {reported_state}"
+            f"Handling inconsistent worker {worker_key} in state {reported_state}",
         )
 
         with self._process_lock:
@@ -1812,10 +1807,10 @@ class LauncherManager(QObject):
             # Try graceful stop first
             if hasattr(worker, "safe_stop"):
                 if worker.safe_stop(
-                    timeout_ms=ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS
+                    timeout_ms=ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS,
                 ):
                     logger.info(
-                        f"Successfully stopped inconsistent worker {worker_key}"
+                        f"Successfully stopped inconsistent worker {worker_key}",
                     )
                     self._remove_worker_safe(worker_key)
                     return
@@ -1827,7 +1822,7 @@ class LauncherManager(QObject):
             self._remove_worker_safe(worker_key)
 
     def _schedule_cleanup_after_delay(
-        self, delay_ms: int = ThreadingConfig.CLEANUP_INITIAL_DELAY_MS
+        self, delay_ms: int = ThreadingConfig.CLEANUP_INITIAL_DELAY_MS,
     ):
         """Schedule cleanup using managed approach to prevent cascading.
 
@@ -1867,10 +1862,10 @@ class LauncherManager(QObject):
                     logger.debug(f"Stopping worker {worker_key} (state: {state})")
                     if worker.request_stop():
                         if not worker.safe_wait(
-                            ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS
+                            ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS,
                         ):
                             logger.warning(
-                                f"Worker {worker_key} didn't stop gracefully, terminating"
+                                f"Worker {worker_key} didn't stop gracefully, terminating",
                             )
                             worker.safe_terminate()
             except Exception as e:

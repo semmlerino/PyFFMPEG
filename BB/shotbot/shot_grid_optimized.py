@@ -72,7 +72,7 @@ class ShotGridOptimized(QWidget, MemoryOptimizedGrid):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff,
         )
 
         # Container widget
@@ -137,7 +137,7 @@ class ShotGridOptimized(QWidget, MemoryOptimizedGrid):
 
         # Get visible range
         start_idx, end_idx = self._get_visible_range(
-            self.scroll_area, self._get_column_count(), len(self.shot_model.shots)
+            self.scroll_area, self._get_column_count(), len(self.shot_model.shots),
         )
 
         # Update visible indices
@@ -224,7 +224,7 @@ class ShotGridOptimized(QWidget, MemoryOptimizedGrid):
                     )
                 else:
                     placeholder_widget = self._create_placeholder_widget(
-                        self._placeholders[key].row, self._placeholders[key].col
+                        self._placeholders[key].row, self._placeholders[key].col,
                     )
                     self.grid_layout.addWidget(
                         placeholder_widget,

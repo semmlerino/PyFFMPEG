@@ -25,7 +25,7 @@ def create_test_show_structure(tmp_path):
     """
 
     def _create_structure(
-        num_shots: int, files_per_shot: int
+        num_shots: int, files_per_shot: int,
     ) -> tuple[Path, List[Path]]:
         """Create real .3de files in a test directory structure.
 
@@ -98,7 +98,7 @@ class TestStopAfterFirstWithRealFiles:
     """Test suite using real files instead of mocks."""
 
     def test_stop_after_first_enabled_real_files(
-        self, finder, create_test_show_structure, mock_shot, tmp_path
+        self, finder, create_test_show_structure, mock_shot, tmp_path,
     ):
         """Test that scanner stops after finding one file per shot using REAL files.
 
@@ -113,7 +113,7 @@ class TestStopAfterFirstWithRealFiles:
                 with patch("config.Config.THREEDE_FILE_FIRST_DISCOVERY", True):
                     # Test with REAL file discovery
                     found_files = finder.find_all_3de_files_in_show_python(
-                        str(shows_root), "test_show", sequences=None, timeout_seconds=30
+                        str(shows_root), "test_show", sequences=None, timeout_seconds=30,
                     )
 
                     # Verify behavior: should find only one file per shot
@@ -135,7 +135,7 @@ class TestStopAfterFirstWithRealFiles:
                     assert len(found_files) <= 10  # At most one per shot
 
     def test_stop_after_first_disabled_real_files(
-        self, finder, create_test_show_structure, mock_shot
+        self, finder, create_test_show_structure, mock_shot,
     ):
         """Test that scanner processes all files when disabled using REAL files."""
         # Create REAL file structure: 5 shots with 3 files each
@@ -157,7 +157,7 @@ class TestStopAfterFirstWithRealFiles:
                         assert len(found_files) == 15
 
     def test_performance_improvement_real_files(
-        self, finder, create_test_show_structure, mock_shot
+        self, finder, create_test_show_structure, mock_shot,
     ):
         """Test performance improvement with REAL files.
 
@@ -172,7 +172,7 @@ class TestStopAfterFirstWithRealFiles:
             with patch("config.Config.THREEDE_MAX_SHOTS_TO_SCAN", 1000):
                 with patch("config.Config.THREEDE_SCAN_MAX_FILES_PER_SHOT", 20):
                     files_all = finder.find_all_3de_files_in_show_python(
-                        str(shows_root), "test_show", sequences=None, timeout_seconds=30
+                        str(shows_root), "test_show", sequences=None, timeout_seconds=30,
                     )
         time_all_files = time.time() - start_time
 
@@ -182,7 +182,7 @@ class TestStopAfterFirstWithRealFiles:
             with patch("config.Config.THREEDE_MAX_SHOTS_TO_SCAN", 1000):
                 with patch("config.Config.THREEDE_SCAN_MAX_FILES_PER_SHOT", 1):
                     files_optimized = finder.find_all_3de_files_in_show_python(
-                        str(shows_root), "test_show", sequences=None, timeout_seconds=30
+                        str(shows_root), "test_show", sequences=None, timeout_seconds=30,
                     )
         time_optimized = time.time() - start_time
 
@@ -330,7 +330,7 @@ if __name__ == "__main__":
 
     # Use run_tests.py for proper Qt setup
     result = subprocess.run(
-        [sys.executable, "run_tests.py", __file__], capture_output=True, text=True
+        [sys.executable, "run_tests.py", __file__], capture_output=True, text=True,
     )
     print(result.stdout)
     if result.stderr:

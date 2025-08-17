@@ -76,7 +76,7 @@ class TimingProfiler:
         except Exception as e:
             elapsed = time.perf_counter() - start
             logger.error(
-                f"⏱️ [{self.name}] {operation_name} FAILED after {elapsed:.3f}s: {e}"
+                f"⏱️ [{self.name}] {operation_name} FAILED after {elapsed:.3f}s: {e}",
             )
             raise
         finally:
@@ -115,7 +115,7 @@ class TimingProfiler:
                 f"{operation}: "
                 f"avg={stats['average']:.3f}s, "
                 f"total={stats['total']:.3f}s, "
-                f"count={stats['count']}"
+                f"count={stats['count']}",
             )
 
 
@@ -174,13 +174,13 @@ class ProcessStateTracker:
             if DEBUG_VERBOSE:
                 logger.debug(
                     f"[{session_id}] STATE: {from_state} → {to_state} "
-                    f"(duration: {duration:.2f}s) {f'[{reason}]' if reason else ''}"
+                    f"(duration: {duration:.2f}s) {f'[{reason}]' if reason else ''}",
                 )
         else:
             if DEBUG_VERBOSE:
                 logger.debug(
                     f"[{session_id}] STATE: {from_state} → {to_state} "
-                    f"{f'[{reason}]' if reason else ''}"
+                    f"{f'[{reason}]' if reason else ''}",
                 )
 
         # Record new state start time
@@ -257,7 +257,7 @@ class SystemDiagnostics:
         if os.name == "posix":
             try:
                 result = subprocess.run(
-                    ["ulimit", "-a"], capture_output=True, text=True, timeout=1
+                    ["ulimit", "-a"], capture_output=True, text=True, timeout=1,
                 )
                 if result.returncode == 0:
                     info["ulimits"] = result.stdout.split("\n")[:5]
@@ -302,7 +302,7 @@ class IOBufferInspector:
 
         logger.debug(
             f"[{session_id}] Buffer {context}: "
-            f"{len(data)} bytes, {lines} lines, {non_printable} non-printable"
+            f"{len(data)} bytes, {lines} lines, {non_printable} non-printable",
         )
 
         # Show preview of data
@@ -394,11 +394,11 @@ class DeadlockDetector:
             wait_time = current_time - start_time
             if wait_time > 5.0:
                 logger.warning(
-                    f"⚠️ POTENTIAL DEADLOCK: [{session_id}] waiting {wait_time:.1f}s for {resource}"
+                    f"⚠️ POTENTIAL DEADLOCK: [{session_id}] waiting {wait_time:.1f}s for {resource}",
                 )
             elif wait_time > 2.0 and DEBUG_VERBOSE:
                 logger.debug(
-                    f"[{session_id}] Still waiting for {resource} ({wait_time:.1f}s)"
+                    f"[{session_id}] Still waiting for {resource} ({wait_time:.1f}s)",
                 )
 
 

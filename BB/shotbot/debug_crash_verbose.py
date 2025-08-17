@@ -30,7 +30,7 @@ logging.basicConfig(
     handlers=[
         logging.StreamHandler(sys.stdout),
         logging.FileHandler(
-            f"debug_crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            f"debug_crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
         ),
     ],
 )
@@ -44,7 +44,7 @@ logger.info(f"Platform: {sys.platform}")
 logger.info(f"PID: {os.getpid()}")
 logger.info(f"Working directory: {os.getcwd()}")
 logger.info(
-    f"Environment: SHOTBOT_DEBUG_VERBOSE={os.environ.get('SHOTBOT_DEBUG_VERBOSE')}"
+    f"Environment: SHOTBOT_DEBUG_VERBOSE={os.environ.get('SHOTBOT_DEBUG_VERBOSE')}",
 )
 logger.info("=" * 80)
 
@@ -91,7 +91,7 @@ except Exception as e:
 
 # Test 3: First command execution (triggers session creation)
 logger.info(
-    "\n[TEST 3] Testing first command execution (triggers lazy session creation)..."
+    "\n[TEST 3] Testing first command execution (triggers lazy session creation)...",
 )
 try:
     logger.info("Executing 'echo test' command...")
@@ -169,7 +169,7 @@ try:
     logger.info(f"  Cache hits: {metrics.get('cache_stats', {}).get('hits', 0)}")
     logger.info(f"  Cache misses: {metrics.get('cache_stats', {}).get('misses', 0)}")
     logger.info(
-        f"  Average response time: {metrics.get('average_response_ms', 0):.2f}ms"
+        f"  Average response time: {metrics.get('average_response_ms', 0):.2f}ms",
     )
 
     # Check session status
@@ -180,7 +180,7 @@ try:
                 logger.info(
                     f"    - {session.get('session_id')}: alive={session.get('alive')}, "
                     f"commands={session.get('commands_executed')}, "
-                    f"idle={session.get('idle_seconds', 0):.1f}s"
+                    f"idle={session.get('idle_seconds', 0):.1f}s",
                 )
 
 except Exception as e:

@@ -49,7 +49,7 @@ def test_regex_pattern_caching():
     ]
 
     print(
-        f"\nTesting with {iterations} iterations across {len(test_filenames)} filenames"
+        f"\nTesting with {iterations} iterations across {len(test_filenames)} filenames",
     )
     print(f"Shot: {shot_name}, Plate: {plate_name}, Version: {version}")
 
@@ -90,7 +90,7 @@ def test_regex_pattern_caching():
             try:
                 # Use cached patterns if available
                 patterns = RawPlateFinder._get_plate_patterns(
-                    shot_name, plate_name, version
+                    shot_name, plate_name, version,
                 )
                 if len(patterns) == 2:
                     pattern1, pattern2 = patterns
@@ -121,7 +121,7 @@ def test_regex_pattern_caching():
     # Verify results are identical
     if baseline_matches != optimized_matches:
         print(
-            f"\n✗ ERROR: Match counts differ! Baseline: {baseline_matches}, Optimized: {optimized_matches}"
+            f"\n✗ ERROR: Match counts differ! Baseline: {baseline_matches}, Optimized: {optimized_matches}",
         )
         return False
 
@@ -160,12 +160,12 @@ def test_regex_pattern_caching():
 
         if percent_improvement >= min_improvement:
             print(
-                f"✓ Improvement test PASSED: {percent_improvement:.1f}% >= {min_improvement}%"
+                f"✓ Improvement test PASSED: {percent_improvement:.1f}% >= {min_improvement}%",
             )
             improvement_passed = True
         else:
             print(
-                f"✗ Improvement test FAILED: {percent_improvement:.1f}% < {min_improvement}%"
+                f"✗ Improvement test FAILED: {percent_improvement:.1f}% < {min_improvement}%",
             )
             improvement_passed = False
 
@@ -174,15 +174,13 @@ def test_regex_pattern_caching():
             print("\n✓ REGEX PERFORMANCE TEST PASSED")
             print(f"  Regex pattern caching provides {speedup:.1f}x speedup")
             return True
-        else:
-            print("\n✗ REGEX PERFORMANCE TEST FAILED")
-            print(
-                f"  Expected at least {min_speedup}x speedup and {min_improvement}% improvement"
-            )
-            return False
-    else:
-        print("\n✗ ERROR: Optimized time is zero or negative")
+        print("\n✗ REGEX PERFORMANCE TEST FAILED")
+        print(
+            f"  Expected at least {min_speedup}x speedup and {min_improvement}% improvement",
+        )
         return False
+    print("\n✗ ERROR: Optimized time is zero or negative")
+    return False
 
 
 def test_pattern_cache_functionality():
@@ -210,14 +208,14 @@ def test_pattern_cache_functionality():
 
         try:
             patterns1 = RawPlateFinder._get_plate_patterns(
-                shot_name, plate_name, version
+                shot_name, plate_name, version,
             )
             cache_size_after_first = len(RawPlateFinder._pattern_cache)
             print(f"✓ First call completed, cache size: {cache_size_after_first}")
 
             # Second call should use cache
             patterns2 = RawPlateFinder._get_plate_patterns(
-                shot_name, plate_name, version
+                shot_name, plate_name, version,
             )
             cache_size_after_second = len(RawPlateFinder._pattern_cache)
             print(f"✓ Second call completed, cache size: {cache_size_after_second}")
@@ -231,15 +229,14 @@ def test_pattern_cache_functionality():
                     print("✓ Patterns are reused (same object references)")
                 else:
                     print(
-                        "! Patterns are different objects (but may still be functionally correct)"
+                        "! Patterns are different objects (but may still be functionally correct)",
                     )
 
                 return True
-            else:
-                print(
-                    f"! Unexpected cache sizes: {cache_size_after_first}, {cache_size_after_second}"
-                )
-                return True  # Still pass, cache behavior may vary
+            print(
+                f"! Unexpected cache sizes: {cache_size_after_first}, {cache_size_after_second}",
+            )
+            return True  # Still pass, cache behavior may vary
 
         except AttributeError as e:
             print(f"! _get_plate_patterns method not available: {e}")
@@ -295,9 +292,8 @@ def main():
     if passed == total:
         print("✓ All regex performance tests PASSED")
         return 0
-    else:
-        print("✗ Some regex performance tests FAILED")
-        return 1
+    print("✗ Some regex performance tests FAILED")
+    return 1
 
 
 if __name__ == "__main__":

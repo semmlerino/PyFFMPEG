@@ -99,7 +99,7 @@ def test_cache_memory_management():
 
     print(f"✓ Accessed {num_entries // 10} cached entries in {access_time:.3f}s")
     print(
-        f"✓ Average access time: {(access_time * 1000) / (num_entries // 10):.2f}ms per entry"
+        f"✓ Average access time: {(access_time * 1000) / (num_entries // 10):.2f}ms per entry",
     )
 
     # Test 3: Clear cache and check memory cleanup
@@ -128,12 +128,12 @@ def test_cache_memory_management():
     max_acceptable_increase = 10.0  # 10MB for 2000 entries
     if memory_increase < max_acceptable_increase:
         print(
-            f"✓ Memory increase acceptable: {memory_increase:.1f}MB < {max_acceptable_increase}MB"
+            f"✓ Memory increase acceptable: {memory_increase:.1f}MB < {max_acceptable_increase}MB",
         )
         memory_passed = True
     else:
         print(
-            f"! Memory increase high: {memory_increase:.1f}MB >= {max_acceptable_increase}MB"
+            f"! Memory increase high: {memory_increase:.1f}MB >= {max_acceptable_increase}MB",
         )
         memory_passed = False
 
@@ -141,12 +141,12 @@ def test_cache_memory_management():
     min_recovery_percentage = 50.0  # At least 50% recovery expected
     if recovery_percentage >= min_recovery_percentage:
         print(
-            f"✓ Memory recovery good: {recovery_percentage:.1f}% >= {min_recovery_percentage}%"
+            f"✓ Memory recovery good: {recovery_percentage:.1f}% >= {min_recovery_percentage}%",
         )
         recovery_passed = True
     else:
         print(
-            f"! Memory recovery low: {recovery_percentage:.1f}% < {min_recovery_percentage}%"
+            f"! Memory recovery low: {recovery_percentage:.1f}% < {min_recovery_percentage}%",
         )
         recovery_passed = False
 
@@ -162,9 +162,8 @@ def test_cache_memory_management():
     if memory_passed and recovery_passed and clear_passed:
         print("\n✓ MEMORY MANAGEMENT TEST PASSED")
         return True
-    else:
-        print("\n! MEMORY MANAGEMENT TEST had issues (may not indicate failure)")
-        return True  # Don't fail, memory behavior can vary
+    print("\n! MEMORY MANAGEMENT TEST had issues (may not indicate failure)")
+    return True  # Don't fail, memory behavior can vary
 
 
 def test_enhanced_cache_memory_management():
@@ -239,9 +238,8 @@ def test_enhanced_cache_memory_management():
         if controlled_passed and eviction_passed:
             print("\n✓ ENHANCED CACHE MEMORY TEST PASSED")
             return True
-        else:
-            print("\n! ENHANCED CACHE MEMORY TEST had issues")
-            return True  # Don't fail, behavior may vary
+        print("\n! ENHANCED CACHE MEMORY TEST had issues")
+        return True  # Don't fail, behavior may vary
 
     except Exception as e:
         print(f"! Enhanced cache test failed: {e}")
@@ -280,7 +278,7 @@ def test_garbage_collection_efficiency():
 
     print(f"✓ Objects after creation: {after_creation_objects} (+{objects_created})")
     print(
-        f"✓ Memory after creation: {after_creation_memory:.1f}MB (+{memory_used:.1f}MB)"
+        f"✓ Memory after creation: {after_creation_memory:.1f}MB (+{memory_used:.1f}MB)",
     )
 
     # Clear references and force garbage collection
@@ -318,28 +316,27 @@ def test_garbage_collection_efficiency():
 
     if object_gc_passed:
         print(
-            f"✓ Object GC efficient: {object_recovery_percentage:.1f}% >= {min_object_recovery}%"
+            f"✓ Object GC efficient: {object_recovery_percentage:.1f}% >= {min_object_recovery}%",
         )
     else:
         print(
-            f"! Object GC inefficient: {object_recovery_percentage:.1f}% < {min_object_recovery}%"
+            f"! Object GC inefficient: {object_recovery_percentage:.1f}% < {min_object_recovery}%",
         )
 
     if memory_gc_passed:
         print(
-            f"✓ Memory GC efficient: {memory_recovery_percentage:.1f}% >= {min_memory_recovery}%"
+            f"✓ Memory GC efficient: {memory_recovery_percentage:.1f}% >= {min_memory_recovery}%",
         )
     else:
         print(
-            f"! Memory GC inefficient: {memory_recovery_percentage:.1f}% < {min_memory_recovery}%"
+            f"! Memory GC inefficient: {memory_recovery_percentage:.1f}% < {min_memory_recovery}%",
         )
 
     if object_gc_passed and memory_gc_passed:
         print("\n✓ GARBAGE COLLECTION TEST PASSED")
         return True
-    else:
-        print("\n! GARBAGE COLLECTION TEST had issues")
-        return True  # Don't fail, GC behavior can vary
+    print("\n! GARBAGE COLLECTION TEST had issues")
+    return True  # Don't fail, GC behavior can vary
 
 
 def main():
@@ -403,9 +400,8 @@ def main():
     if passed == total:
         print("✓ All memory performance tests PASSED")
         return 0
-    else:
-        print("✗ Some memory performance tests FAILED")
-        return 1
+    print("✗ Some memory performance tests FAILED")
+    return 1
 
 
 if __name__ == "__main__":

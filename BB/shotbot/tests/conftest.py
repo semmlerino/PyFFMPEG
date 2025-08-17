@@ -49,7 +49,7 @@ def qt_signal_blocker():
 
         # Process events until timer expires
         QCoreApplication.instance().time if hasattr(
-            QCoreApplication.instance(), "time"
+            QCoreApplication.instance(), "time",
         ) else 0
         while timer.isActive():
             QCoreApplication.processEvents()
@@ -171,6 +171,6 @@ def test_image_file(tmp_path):
     # Create a minimal JPEG file (just write some bytes)
     # This is a minimal valid JPEG header
     image_file.write_bytes(
-        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
     )
     return image_file  # Return Path object, not string

@@ -122,7 +122,7 @@ class MainWindow(QMainWindow):
         # Set up background refresh worker thread (every 10 minutes)
         self._background_refresh_worker = BackgroundRefreshWorker()
         self._background_refresh_worker.refresh_requested.connect(
-            self._on_background_refresh_requested
+            self._on_background_refresh_requested,
         )
         self._background_refresh_worker.status_update.connect(self._update_status)
         # Delay background refresh to avoid startup conflicts
@@ -204,7 +204,7 @@ class MainWindow(QMainWindow):
         info_label = QLabel("Select a shot to enable app launching")
         info_label.setWordWrap(True)
         info_label.setStyleSheet(
-            "QLabel { color: #888; font-style: italic; padding: 5px; }"
+            "QLabel { color: #888; font-style: italic; padding: 5px; }",
         )
         launcher_layout.addWidget(info_label)
         self.launcher_info_label = info_label
@@ -251,14 +251,14 @@ class MainWindow(QMainWindow):
         # Add undistortion checkbox
         self.undistortion_checkbox = QCheckBox("Include undistortion nodes (Nuke)")
         self.undistortion_checkbox.setToolTip(
-            "When launching Nuke, automatically include the latest undistortion .nk file"
+            "When launching Nuke, automatically include the latest undistortion .nk file",
         )
         launcher_layout.addWidget(self.undistortion_checkbox)
 
         # Add raw plate checkbox
         self.raw_plate_checkbox = QCheckBox("Include raw plate (Nuke)")
         self.raw_plate_checkbox.setToolTip(
-            "When launching Nuke, automatically create a Read node for the raw plate"
+            "When launching Nuke, automatically create a Read node for the raw plate",
         )
         launcher_layout.addWidget(self.raw_plate_checkbox)
 
@@ -267,7 +267,7 @@ class MainWindow(QMainWindow):
 
         # Ensure launcher group has minimum height and doesn't get hidden
         self.launcher_group.setMinimumHeight(
-            350
+            350,
         )  # Increased to accommodate custom launchers
         right_layout.addWidget(self.launcher_group)
 
@@ -360,7 +360,7 @@ class MainWindow(QMainWindow):
         # 3DE scene selection
         self.threede_shot_grid.scene_selected.connect(self._on_scene_selected)
         self.threede_shot_grid.scene_double_clicked.connect(
-            self._on_scene_double_clicked
+            self._on_scene_double_clicked,
         )
         self.threede_shot_grid.app_launch_requested.connect(self._launch_app)
 
@@ -371,21 +371,21 @@ class MainWindow(QMainWindow):
         # Custom launcher manager
         self.launcher_manager.launchers_changed.connect(self._update_launcher_menu)
         self.launcher_manager.launchers_changed.connect(
-            self._update_custom_launcher_buttons
+            self._update_custom_launcher_buttons,
         )
         self.launcher_manager.execution_started.connect(
-            lambda launcher_id: self._update_status("Launching custom command...")
+            lambda launcher_id: self._update_status("Launching custom command..."),
         )
         self.launcher_manager.execution_finished.connect(
             lambda launcher_id, success: self._update_status(
-                f"Custom launcher {'completed' if success else 'failed'}"
-            )
+                f"Custom launcher {'completed' if success else 'failed'}",
+            ),
         )
 
         # Synchronize thumbnail sizes between tabs
         self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
         self.threede_shot_grid.size_slider.valueChanged.connect(
-            self._sync_thumbnail_sizes
+            self._sync_thumbnail_sizes,
         )
 
     def _initial_load(self):
@@ -399,7 +399,7 @@ class MainWindow(QMainWindow):
 
             # Restore last selected shot if available
             if hasattr(self, "_last_selected_shot_name") and isinstance(
-                self._last_selected_shot_name, str
+                self._last_selected_shot_name, str,
             ):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
@@ -413,19 +413,19 @@ class MainWindow(QMainWindow):
         if has_cached_shots and has_cached_scenes:
             self._update_status(
                 f"Loaded {len(self.shot_model.shots)} shots and "
-                + f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
+                + f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache",
             )
         elif has_cached_shots:
             self._update_status(f"Loaded {len(self.shot_model.shots)} shots from cache")
         elif has_cached_scenes:
             self._update_status(
-                f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache"
+                f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache",
             )
         else:
             self._update_status("Loading shots and scenes...")
             # No cache exists - the background worker will fetch in 2 seconds
             logger.info(
-                "No cached data found - background worker will fetch shots shortly"
+                "No cached data found - background worker will fetch shots shortly",
             )
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
@@ -454,7 +454,7 @@ class MainWindow(QMainWindow):
 
             # Restore last selected shot if available
             if hasattr(self, "_last_selected_shot_name") and isinstance(
-                self._last_selected_shot_name, str
+                self._last_selected_shot_name, str,
             ):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
@@ -489,7 +489,7 @@ class MainWindow(QMainWindow):
             # Check existing worker state
             if self._threede_worker and not self._threede_worker.isFinished():
                 logger.debug(
-                    "3DE worker still running, will stop before starting new one"
+                    "3DE worker still running, will stop before starting new one",
                 )
                 worker_to_stop = self._threede_worker
                 self._threede_worker = None
@@ -499,7 +499,7 @@ class MainWindow(QMainWindow):
             worker_to_stop.stop()
             if not worker_to_stop.wait(1000):  # Wait up to 1 second
                 logger.warning(
-                    "Failed to stop 3DE worker gracefully, using safe termination"
+                    "Failed to stop 3DE worker gracefully, using safe termination",
                 )
                 # Use safe_terminate which avoids dangerous terminate() call
                 worker_to_stop.safe_terminate()
@@ -580,7 +580,7 @@ class MainWindow(QMainWindow):
         self._update_status("3DE scene discovery started...")
 
     def _on_threede_discovery_progress(
-        self, current: int, total: int, percentage: float, description: str, eta: str
+        self, current: int, total: int, percentage: float, description: str, eta: str,
     ):
         """Handle enhanced 3DE discovery progress updates.
 
@@ -633,7 +633,7 @@ class MainWindow(QMainWindow):
             # ALWAYS cache results, even if empty, to avoid re-scanning
             try:
                 self.threede_scene_model.cache_manager.cache_threede_scenes(
-                    self.threede_scene_model.to_dict()
+                    self.threede_scene_model.to_dict(),
                 )
             except Exception as e:
                 logger.warning(f"Failed to cache 3DE scenes after scan: {e}")
@@ -652,7 +652,7 @@ class MainWindow(QMainWindow):
             # This ensures cache persists across restarts
             try:
                 self.threede_scene_model.cache_manager.cache_threede_scenes(
-                    self.threede_scene_model.to_dict()
+                    self.threede_scene_model.to_dict(),
                 )
             except Exception as e:
                 logger.warning(f"Failed to refresh 3DE scene cache TTL: {e}")
@@ -700,7 +700,7 @@ class MainWindow(QMainWindow):
             # and will be deduplicated when discovery finishes
 
     def _on_threede_scan_progress(
-        self, current_shot: int, total_shots: int, status: str
+        self, current_shot: int, total_shots: int, status: str,
     ):
         """Handle fine-grained scan progress updates.
 
@@ -824,12 +824,12 @@ class MainWindow(QMainWindow):
 
         # Update window title with scene info
         self.setWindowTitle(
-            f"{Config.APP_NAME} - {scene.full_name} ({scene.user} - {scene.plate})"
+            f"{Config.APP_NAME} - {scene.full_name} ({scene.user} - {scene.plate})",
         )
 
         # Update status
         self._update_status(
-            f"Selected: {scene.full_name} - {scene.user} ({scene.plate})"
+            f"Selected: {scene.full_name} - {scene.user} ({scene.plate})",
         )
 
     def _on_scene_double_clicked(self, scene: ThreeDEScene):
@@ -849,7 +849,7 @@ class MainWindow(QMainWindow):
             else:
                 # For other apps, launch in shot context with undistortion/raw plate support
                 success = self._launch_app_with_scene_context(
-                    app_name, self._current_scene
+                    app_name, self._current_scene,
                 )
         else:
             # Regular shot launch
@@ -862,7 +862,7 @@ class MainWindow(QMainWindow):
             )
 
             success = self.command_launcher.launch_app(
-                app_name, include_undistortion, include_raw_plate
+                app_name, include_undistortion, include_raw_plate,
             )
 
         if success:
@@ -875,9 +875,8 @@ class MainWindow(QMainWindow):
         if self.command_launcher.launch_app_with_scene(app_name, scene):
             self._update_status(f"Launched {app_name} with {scene.user}'s scene")
             return True
-        else:
-            self._update_status(f"Failed to launch {app_name} with scene")
-            return False
+        self._update_status(f"Failed to launch {app_name} with scene")
+        return False
 
     def _launch_app_with_scene_context(self, app_name: str, scene: ThreeDEScene):
         """Launch an application in the context of a 3DE scene (without the scene file itself)."""
@@ -888,11 +887,10 @@ class MainWindow(QMainWindow):
         include_raw_plate = app_name == "nuke" and self.raw_plate_checkbox.isChecked()
 
         if self.command_launcher.launch_app_with_scene_context(
-            app_name, scene, include_undistortion, include_raw_plate
+            app_name, scene, include_undistortion, include_raw_plate,
         ):
             return True
-        else:
-            return False
+        return False
 
     def _increase_thumbnail_size(self):
         """Increase thumbnail size."""
@@ -1031,8 +1029,8 @@ class MainWindow(QMainWindow):
                     action.setData(launcher.id)
                     action.triggered.connect(
                         lambda checked, lid=launcher.id: self._execute_custom_launcher(
-                            lid
-                        )
+                            lid,
+                        ),
                     )
                     category_menu.addAction(action)
             else:
@@ -1043,8 +1041,8 @@ class MainWindow(QMainWindow):
                     action.setData(launcher.id)
                     action.triggered.connect(
                         lambda checked, lid=launcher.id: self._execute_custom_launcher(
-                            lid
-                        )
+                            lid,
+                        ),
                     )
                     self.custom_launcher_menu.addAction(action)
 
@@ -1111,7 +1109,7 @@ class MainWindow(QMainWindow):
 
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.log_viewer.add_error(
-                timestamp, f"Failed to launch custom launcher: {launcher.name}"
+                timestamp, f"Failed to launch custom launcher: {launcher.name}",
             )
 
     def _load_settings(self):
@@ -1137,13 +1135,13 @@ class MainWindow(QMainWindow):
                 if "thumbnail_size" in settings:
                     self.shot_grid.size_slider.setValue(settings["thumbnail_size"])
                     self.threede_shot_grid.size_slider.setValue(
-                        settings["thumbnail_size"]
+                        settings["thumbnail_size"],
                     )
 
                 # Restore undistortion checkbox state
                 if "include_undistortion" in settings:
                     self.undistortion_checkbox.setChecked(
-                        settings["include_undistortion"]
+                        settings["include_undistortion"],
                     )
 
                 # Restore raw plate checkbox state
@@ -1276,7 +1274,7 @@ class MainWindow(QMainWindow):
                 button.setObjectName("customLauncherButton")
                 button.setToolTip(launcher.description or f"Launch {launcher.name}")
                 button.clicked.connect(
-                    lambda checked, lid=launcher.id: self._execute_custom_launcher(lid)
+                    lambda checked, lid=launcher.id: self._execute_custom_launcher(lid),
                 )
 
                 # Apply custom styling
@@ -1355,10 +1353,10 @@ class MainWindow(QMainWindow):
                         self._worker_mutex.unlock()
                         try:
                             if not self._threede_worker.wait(
-                                3000
+                                3000,
                             ):  # Wait up to 3 seconds
                                 logger.warning(
-                                    "3DE worker didn't stop gracefully, using safe termination"
+                                    "3DE worker didn't stop gracefully, using safe termination",
                                 )
                                 # Use safe_terminate which avoids dangerous terminate() call
                                 self._threede_worker.safe_terminate()
@@ -1394,12 +1392,12 @@ class MainWindow(QMainWindow):
         if success:
             if has_changes:
                 logger.info(
-                    f"Background refresh: detected {len(self.shot_model.shots)} shot changes"
+                    f"Background refresh: detected {len(self.shot_model.shots)} shot changes",
                 )
                 # Update UI with new shots
                 self._refresh_shot_display()
                 self._update_status(
-                    f"Updated: {len(self.shot_model.shots)} shots (background refresh)"
+                    f"Updated: {len(self.shot_model.shots)} shots (background refresh)",
                 )
 
                 # Restore selection if possible
@@ -1419,11 +1417,11 @@ class MainWindow(QMainWindow):
                     )
                     if scene_success and scene_changes:
                         logger.info(
-                            f"Background refresh: detected {len(self.threede_scene_model.scenes)} scene changes"
+                            f"Background refresh: detected {len(self.threede_scene_model.scenes)} scene changes",
                         )
                         self.threede_shot_grid.refresh_scenes()
                         self._update_status(
-                            f"Updated: {len(self.threede_scene_model.scenes)} 3DE scenes (background refresh)"
+                            f"Updated: {len(self.threede_scene_model.scenes)} 3DE scenes (background refresh)",
                         )
 
 

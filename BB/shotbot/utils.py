@@ -66,7 +66,7 @@ class PathUtils:
 
     @staticmethod
     def build_thumbnail_path(
-        shows_root: str, show: str, sequence: str, shot: str
+        shows_root: str, show: str, sequence: str, shot: str,
     ) -> Path:
         """Build thumbnail directory path.
 
@@ -82,12 +82,12 @@ class PathUtils:
         # VFX convention: shot directory is named {sequence}_{shot}
         shot_dir = f"{sequence}_{shot}"
         return PathUtils.build_path(
-            shows_root, show, "shots", sequence, shot_dir, *Config.THUMBNAIL_SEGMENTS
+            shows_root, show, "shots", sequence, shot_dir, *Config.THUMBNAIL_SEGMENTS,
         )
 
     @staticmethod
     def find_turnover_plate_thumbnail(
-        shows_root: str, show: str, sequence: str, shot: str
+        shows_root: str, show: str, sequence: str, shot: str,
     ) -> Optional[Path]:
         """Find thumbnail from turnover plate directories with preference order.
 
@@ -136,7 +136,7 @@ class PathUtils:
                 "plate",
             )
             if not PathUtils.validate_path_exists(
-                base_path, "Turnover plate directory"
+                base_path, "Turnover plate directory",
             ):
                 return None
 
@@ -167,10 +167,9 @@ class PathUtils:
             # Lower order = higher priority
             if name.startswith("FG"):
                 return (0, name)  # FG plates highest priority
-            elif name.startswith("BG"):
+            if name.startswith("BG"):
                 return (1, name)  # BG plates second priority
-            else:
-                return (2, name)  # All others lowest priority
+            return (2, name)  # All others lowest priority
 
         sorted_plates = sorted(plate_dirs, key=plate_priority)
 
@@ -217,15 +216,14 @@ class PathUtils:
                     if file_size_mb <= max_direct_size:
                         # Small enough to use directly
                         logger.debug(
-                            f"Using turnover plate EXR as fallback: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB)"
+                            f"Using turnover plate EXR as fallback: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB)",
                         )
                         return first_frame
-                    else:
-                        # Large EXR - return it anyway, cache_manager will resize with PIL
-                        logger.debug(
-                            f"Found large turnover plate EXR: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB) - will resize"
-                        )
-                        return first_frame
+                    # Large EXR - return it anyway, cache_manager will resize with PIL
+                    logger.debug(
+                        f"Found large turnover plate EXR: {plate_name} - {first_frame.name} ({file_size_mb:.1f}MB) - will resize",
+                    )
+                    return first_frame
 
         logger.debug(f"No suitable turnover plates found for {sequence}_{shot}")
         return None
@@ -405,7 +403,7 @@ class PathUtils:
 
     @staticmethod
     def find_any_publish_thumbnail(
-        shows_root: str, show: str, sequence: str, shot: str, max_depth: int = 5
+        shows_root: str, show: str, sequence: str, shot: str, max_depth: int = 5,
     ) -> Optional[Path]:
         """Find any image file containing '1001' in the publish folder as a fallback.
 
@@ -451,7 +449,7 @@ class PathUtils:
 
         # Recursive search with depth limit for efficiency
         def _search_directory(
-            directory: Path, current_depth: int = 0
+            directory: Path, current_depth: int = 0,
         ) -> Optional[Path]:
             """Recursively search directory for 1001 EXR files."""
             if current_depth > max_depth:
@@ -481,7 +479,7 @@ class PathUtils:
                 if exr_candidates:
                     file_size_mb = exr_candidates[0].stat().st_size / (1024 * 1024)
                     logger.info(
-                        f"Using EXR as fallback thumbnail: {exr_candidates[0].name} ({file_size_mb:.1f}MB)"
+                        f"Using EXR as fallback thumbnail: {exr_candidates[0].name} ({file_size_mb:.1f}MB)",
                     )
                     return exr_candidates[0]
 
@@ -500,11 +498,11 @@ class PathUtils:
         result = _search_directory(publish_path)
         if result:
             logger.info(
-                f"Found any publish thumbnail for {sequence}_{shot}: {result.name}"
+                f"Found any publish thumbnail for {sequence}_{shot}: {result.name}",
             )
         else:
             logger.debug(
-                f"No 1001.exr files found in publish folder for {sequence}_{shot}"
+                f"No 1001.exr files found in publish folder for {sequence}_{shot}",
             )
 
         return result
@@ -535,7 +533,7 @@ class PathUtils:
                 priority = Config.PLATE_PRIORITY_ORDER.get(pattern, 0)
                 found_plates.append((pattern, priority))
                 logger.debug(
-                    f"Found plate directory: {pattern} with priority {priority}"
+                    f"Found plate directory: {pattern} with priority {priority}",
                 )
 
         # Sort by priority (higher numbers first)
@@ -637,7 +635,7 @@ class VersionUtils:
             VersionUtils._version_cache[key] = value
 
         logger.debug(
-            f"Cleaned version cache, kept {len(VersionUtils._version_cache)} most recent entries"
+            f"Cleaned version cache, kept {len(VersionUtils._version_cache)} most recent entries",
         )
 
     @staticmethod
@@ -773,7 +771,7 @@ class FileUtils:
 
     @staticmethod
     def get_first_image_file(
-        directory: Union[str, Path], allow_fallback: bool = True
+        directory: Union[str, Path], allow_fallback: bool = True,
     ) -> Optional[Path]:
         """Get the first image file found in a directory.
 
@@ -800,21 +798,20 @@ class FileUtils:
                     max_size_mb = getattr(Config, "THUMBNAIL_MAX_DIRECT_SIZE_MB", 10)
                     if FileUtils.validate_file_size(file_path, max_size_mb):
                         logger.debug(
-                            f"Using fallback {ext} file as thumbnail: {file_path.name}"
+                            f"Using fallback {ext} file as thumbnail: {file_path.name}",
                         )
                         return file_path
-                    else:
-                        logger.debug(
-                            f"Fallback {ext} file too large for direct loading: {file_path.name}"
-                        )
-                        # Still return it - let cache_manager handle resizing
-                        return file_path
+                    logger.debug(
+                        f"Fallback {ext} file too large for direct loading: {file_path.name}",
+                    )
+                    # Still return it - let cache_manager handle resizing
+                    return file_path
 
         return None
 
     @staticmethod
     def validate_file_size(
-        file_path: Union[str, Path], max_size_mb: Optional[int] = None
+        file_path: Union[str, Path], max_size_mb: Optional[int] = None,
     ) -> bool:
         """Validate that a file is not too large.
 
@@ -838,7 +835,7 @@ class FileUtils:
 
             if size_mb > max_size_mb:
                 logger.warning(
-                    f"File too large ({size_mb:.1f}MB > {max_size_mb}MB): {path_obj}"
+                    f"File too large ({size_mb:.1f}MB > {max_size_mb}MB): {path_obj}",
                 )
                 return False
 
@@ -877,7 +874,7 @@ class ImageUtils:
         # Check individual dimensions
         if width > max_dimension or height > max_dimension:
             logger.warning(
-                f"Image dimensions too large ({width}x{height} > {max_dimension})"
+                f"Image dimensions too large ({width}x{height} > {max_dimension})",
             )
             return False
 
@@ -887,7 +884,7 @@ class ImageUtils:
 
         if estimated_memory_mb > max_memory_mb:
             logger.warning(
-                f"Estimated image memory usage too high ({estimated_memory_mb:.1f}MB > {max_memory_mb}MB)"
+                f"Estimated image memory usage too high ({estimated_memory_mb:.1f}MB > {max_memory_mb}MB)",
             )
             return False
 
@@ -915,7 +912,7 @@ class ValidationUtils:
 
     @staticmethod
     def validate_not_empty(
-        *values: Union[str, None], names: Optional[List[str]] = None
+        *values: Union[str, None], names: Optional[List[str]] = None,
     ) -> bool:
         """Validate that values are not None or empty strings.
 
@@ -950,7 +947,7 @@ class ValidationUtils:
             True if all components are valid, False otherwise
         """
         return ValidationUtils.validate_not_empty(
-            show, sequence, shot, names=["show", "sequence", "shot"]
+            show, sequence, shot, names=["show", "sequence", "shot"],
         )
 
     @staticmethod
@@ -969,7 +966,7 @@ class ValidationUtils:
 
         # Fallback to config default
         logger.debug(
-            f"No username found in environment, using default: {Config.DEFAULT_USERNAME}"
+            f"No username found in environment, using default: {Config.DEFAULT_USERNAME}",
         )
         return Config.DEFAULT_USERNAME
 

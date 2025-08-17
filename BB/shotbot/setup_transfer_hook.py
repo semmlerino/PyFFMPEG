@@ -456,7 +456,7 @@ To decode a release, use the Transfer.py application or transfer_cli.py script.
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Setup automated base64 transfer workflow"
+        description="Setup automated base64 transfer workflow",
     )
     parser.add_argument(
         "action",
@@ -469,7 +469,7 @@ def main():
         help="Path to git repository (default: current directory)",
     )
     parser.add_argument(
-        "--force", action="store_true", help="Force overwrite existing hooks"
+        "--force", action="store_true", help="Force overwrite existing hooks",
     )
     parser.add_argument(
         "--create-branch",
@@ -477,7 +477,7 @@ def main():
         help="Create encoded-releases branch during install",
     )
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose output"
+        "-v", "--verbose", action="store_true", help="Enable verbose output",
     )
 
     args = parser.parse_args()
@@ -511,7 +511,7 @@ def main():
                 if "encoded_releases/" not in content:
                     with open(gitignore_path, "a") as f:
                         f.write(
-                            "\n# Transfer hook output\nencoded_releases/\n.skip-transfer-hook\n"
+                            "\n# Transfer hook output\nencoded_releases/\n.skip-transfer-hook\n",
                         )
                     print("Updated .gitignore")
 

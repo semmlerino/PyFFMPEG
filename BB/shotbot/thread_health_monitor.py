@@ -205,7 +205,7 @@ class CircuitBreaker:
                 if self.failure_count >= self.failure_threshold:
                     self.state = "OPEN"
                     logger.warning(
-                        f"Circuit breaker opened due to {self.failure_count} failures"
+                        f"Circuit breaker opened due to {self.failure_count} failures",
                     )
 
                 raise e
@@ -503,7 +503,7 @@ class QtThreadMonitor:
                                 "type": "unresponsive_thread",
                                 "thread_id": thread_id,
                                 "time_since_response": time_since_response,
-                            }
+                            },
                         )
                         health_data["summary"]["unresponsive_threads"] += 1
                     else:
@@ -564,25 +564,25 @@ class WorkerThreadMonitor:
             # Connect to worker signals for state tracking
             if hasattr(worker, "worker_started"):
                 worker.worker_started.connect(
-                    lambda: self._on_worker_state_change(worker, WorkerState.RUNNING)
+                    lambda: self._on_worker_state_change(worker, WorkerState.RUNNING),
                 )
             if hasattr(worker, "worker_stopping"):
                 worker.worker_stopping.connect(
-                    lambda: self._on_worker_state_change(worker, WorkerState.STOPPING)
+                    lambda: self._on_worker_state_change(worker, WorkerState.STOPPING),
                 )
             if hasattr(worker, "worker_stopped"):
                 worker.worker_stopped.connect(
-                    lambda: self._on_worker_state_change(worker, WorkerState.STOPPED)
+                    lambda: self._on_worker_state_change(worker, WorkerState.STOPPED),
                 )
             if hasattr(worker, "worker_error"):
                 worker.worker_error.connect(
-                    lambda msg: self._on_worker_error(worker, msg)
+                    lambda msg: self._on_worker_error(worker, msg),
                 )
 
             logger.debug(f"Registered ThreadSafeWorker for monitoring: {worker}")
 
     def _on_worker_state_change(
-        self, worker: "ThreadSafeWorker", new_state: WorkerState
+        self, worker: "ThreadSafeWorker", new_state: WorkerState,
     ) -> None:
         """Handle worker state change."""
         worker_id = id(worker)
@@ -625,7 +625,7 @@ class WorkerThreadMonitor:
                     metadata={
                         "final_state": new_state.value
                         if hasattr(new_state, "value")
-                        else str(new_state)
+                        else str(new_state),
                     },
                 )
                 self.metrics_collector.add_metric(duration_metric)
@@ -719,7 +719,7 @@ class WorkerThreadMonitor:
                             "type": "zombie_worker",
                             "worker_id": worker_id,
                             "lifetime": worker_info["lifetime"],
-                        }
+                        },
                     )
 
                 # Check for long-running workers
@@ -732,7 +732,7 @@ class WorkerThreadMonitor:
                             "type": "long_running_worker",
                             "worker_id": worker_id,
                             "lifetime": worker_info["lifetime"],
-                        }
+                        },
                     )
 
         # Determine overall status
@@ -812,7 +812,7 @@ class ProcessPoolMonitor:
         self.metrics_collector.add_metric(metric)
 
     def record_process_end(
-        self, process_id: int, return_code: int, duration: float
+        self, process_id: int, return_code: int, duration: float,
     ) -> None:
         """Record the end of a process.
 
@@ -923,7 +923,7 @@ class ProcessPoolMonitor:
                 {
                     "type": "high_process_count",
                     "active_processes": health_data["summary"]["active_processes"],
-                }
+                },
             )
             health_data["status"] = "warning"
 
@@ -937,7 +937,7 @@ class ProcessPoolMonitor:
 
             if failure_rate > 0.1:  # More than 10% failure rate
                 health_data["issues"].append(
-                    {"type": "high_failure_rate", "failure_rate": failure_rate}
+                    {"type": "high_failure_rate", "failure_rate": failure_rate},
                 )
                 health_data["status"] = "warning" if failure_rate < 0.3 else "critical"
 
@@ -975,7 +975,7 @@ class ThreadHealthMonitor(QObject):
 
         if ThreadHealthMonitor._instance is not None:
             raise RuntimeError(
-                "ThreadHealthMonitor is a singleton. Use get_instance()."
+                "ThreadHealthMonitor is a singleton. Use get_instance().",
             )
 
         # Core components
@@ -1028,7 +1028,7 @@ class ThreadHealthMonitor(QObject):
         self._monitor_timer.start(int(self.monitoring_interval * 1000))
 
         logger.info(
-            f"Started thread health monitoring (interval: {self.monitoring_interval}s)"
+            f"Started thread health monitoring (interval: {self.monitoring_interval}s)",
         )
 
         # Emit initial health update
@@ -1101,7 +1101,7 @@ class ThreadHealthMonitor(QObject):
 
         # Calculate overall health score
         health_score = self._calculate_health_score(
-            qt_health, worker_health, process_health
+            qt_health, worker_health, process_health,
         )
 
         # Compile comprehensive health report
@@ -1129,11 +1129,11 @@ class ThreadHealthMonitor(QObject):
 
         if self.diagnostic_mode:
             logger.debug(
-                f"Health check completed: score={health_score}, duration={health_data['check_duration']:.3f}s"
+                f"Health check completed: score={health_score}, duration={health_data['check_duration']:.3f}s",
             )
 
     def _calculate_health_score(
-        self, qt_health: Dict, worker_health: Dict, process_health: Dict
+        self, qt_health: Dict, worker_health: Dict, process_health: Dict,
     ) -> int:
         """Calculate overall health score (0-100)."""
         scores = []
@@ -1174,14 +1174,13 @@ class ThreadHealthMonitor(QObject):
         """Convert health score to status enum."""
         if score >= 90:
             return HealthStatus.EXCELLENT
-        elif score >= 70:
+        if score >= 70:
             return HealthStatus.GOOD
-        elif score >= 50:
+        if score >= 50:
             return HealthStatus.WARNING
-        elif score >= 30:
+        if score >= 30:
             return HealthStatus.CRITICAL
-        else:
-            return HealthStatus.FAILING
+        return HealthStatus.FAILING
 
     def _check_for_alerts(self, health_data: Dict) -> None:
         """Check for conditions that should trigger alerts."""
@@ -1286,7 +1285,7 @@ class ThreadHealthMonitor(QObject):
         report["detailed_metrics"] = {
             "aggregates": self.metrics_collector.get_aggregates(),
             "recent_metrics": self.metrics_collector.get_metrics(
-                since=time.time() - 300
+                since=time.time() - 300,
             ),  # Last 5 minutes
             "monitoring_config": {
                 "monitoring_interval": self.monitoring_interval,

@@ -25,7 +25,7 @@ class RawPlateFinder:
     @staticmethod
     @timed_operation("find_latest_raw_plate", log_threshold_ms=50)
     def find_latest_raw_plate(
-        shot_workspace_path: str, shot_name: str
+        shot_workspace_path: str, shot_name: str,
     ) -> Optional[str]:
         """
         Find the latest raw plate file path for a shot.
@@ -75,7 +75,7 @@ class RawPlateFinder:
 
             # Try to find an actual plate file to determine the color space
             plate_file = RawPlateFinder._find_plate_file_pattern(
-                resolution_dir, shot_name, plate_name, latest_version
+                resolution_dir, shot_name, plate_name, latest_version,
             )
 
             if plate_file:
@@ -115,7 +115,7 @@ class RawPlateFinder:
 
     @staticmethod
     def _find_plate_file_pattern(
-        resolution_dir: Path, shot_name: str, plate_name: str, version: str
+        resolution_dir: Path, shot_name: str, plate_name: str, version: str,
     ) -> Optional[str]:
         """Find the actual plate file pattern with correct color space.
 
@@ -130,7 +130,7 @@ class RawPlateFinder:
         """
         # Get pre-compiled patterns from cache
         pattern1, pattern2 = RawPlateFinder._get_plate_patterns(
-            shot_name, plate_name, version
+            shot_name, plate_name, version,
         )
 
         try:
@@ -165,7 +165,7 @@ class RawPlateFinder:
                 if test_path.exists():
                     full_path = str(resolution_dir / plate_pattern)
                     logger.debug(
-                        f"Found plate with color space {color_space}: {plate_pattern}"
+                        f"Found plate with color space {color_space}: {plate_pattern}",
                     )
                     return full_path
 
@@ -221,7 +221,7 @@ class RawPlateFinder:
             # Use cached pattern if available
             if base_pattern not in RawPlateFinder._verify_pattern_cache:
                 RawPlateFinder._verify_pattern_cache[base_pattern] = re.compile(
-                    f"^{base_pattern}$"
+                    f"^{base_pattern}$",
                 )
             pattern = RawPlateFinder._verify_pattern_cache[base_pattern]
 
