@@ -281,7 +281,7 @@ class Config:
     # - "user_sequences": Only scan sequences where user has shots
     # - "smart": Only scan shots that actually have .3de files (most efficient)
 
-    THREEDE_MAX_SHOTS_TO_SCAN = 200  # Limit number of shots to scan for performance
+    THREEDE_MAX_SHOTS_TO_SCAN = 1000  # Increased: scan more shots
     THREEDE_SCAN_RELATED_SEQUENCES = (
         True  # Only scan user's sequences (when in user_sequences mode)
     )
@@ -291,7 +291,8 @@ class Config:
         15  # Max directory depth for find command (increased for deeply nested files)
     )
     THREEDE_SCAN_PARALLEL_SEQUENCES = 4  # Number of sequences to search in parallel
-    THREEDE_SCAN_MAX_FILES_PER_SHOT = 50  # Stop searching shot after this many files
+    THREEDE_SCAN_MAX_FILES_PER_SHOT = 1  # Stop after finding ONE .3de file per shot
+    THREEDE_STOP_AFTER_FIRST = True  # New: stop searching shot after first .3de found
     THREEDE_CACHE_DISCOVERED_SHOTS = True  # Cache which shots have .3de files
     THREEDE_INCREMENTAL_SCAN = False  # Only scan for changes (future feature)
 

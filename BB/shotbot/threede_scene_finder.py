@@ -1493,6 +1493,9 @@ class ThreeDESceneFinder:
         def find_3de_files_python(search_path: Path, start_time: float) -> List[Path]:
             """Python replacement for find command."""
             files = []
+            shot_dirs_found = set()  # Track which shot directories we've found files in
+            stop_after_first = getattr(Config, "THREEDE_STOP_AFTER_FIRST", False)
+            
             try:
                 # Manual depth-limited traversal for better control
                 def walk_limited(path: Path, current_depth: int = 0):
@@ -1507,7 +1510,23 @@ class ThreeDESceneFinder:
                     try:
                         for item in path.iterdir():
                             if item.is_file() and item.suffix.lower() == ".3de":
+                                # Extract shot directory from path
+                                shot_dir = None
+                                if "shots" in str(item):
+                                    parts = item.parts
+                                    if "shots" in parts:
+                                        shots_idx = parts.index("shots")
+                                        if shots_idx + 2 < len(parts):
+                                            shot_dir = f"{parts[shots_idx+1]}/{parts[shots_idx+2]}"
+                                
+                                # If stop_after_first is enabled and we already have a file for this shot, skip
+                                if stop_after_first and shot_dir and shot_dir in shot_dirs_found:
+                                    continue
+                                    
                                 files.append(item)
+                                if shot_dir:
+                                    shot_dirs_found.add(shot_dir)
+                                    
                                 if len(files) >= max_files:
                                     logger.info(
                                         f"Reached max files ({max_files}) in {search_path}"
@@ -1641,11 +1660,15 @@ class ThreeDESceneFinder:
             if hasattr(Config, "THREEDE_SCAN_MAX_DEPTH")
             else 8
         )
-        max_files = (
-            Config.THREEDE_SCAN_MAX_FILES_PER_SHOT * Config.THREEDE_MAX_SHOTS_TO_SCAN
-            if hasattr(Config, "THREEDE_SCAN_MAX_FILES_PER_SHOT")
-            else 10000
-        )
+        # If stop_after_first is enabled, we only need one file per shot
+        if getattr(Config, "THREEDE_STOP_AFTER_FIRST", False):
+            max_files = Config.THREEDE_MAX_SHOTS_TO_SCAN
+        else:
+            max_files = (
+                Config.THREEDE_SCAN_MAX_FILES_PER_SHOT * Config.THREEDE_MAX_SHOTS_TO_SCAN
+                if hasattr(Config, "THREEDE_SCAN_MAX_FILES_PER_SHOT")
+                else 10000
+            )
 
         # Helper function to run find command on a single path
         def find_in_path(search_path: str) -> List[Path]:
@@ -2037,10 +2060,15 @@ class ThreeDESceneFinder:
                 shots_with_files = dict(list(shots_with_files.items())[:remaining])
 
             # Step 3: Create ThreeDEScene objects for each file
+            stop_after_first = getattr(Config, "THREEDE_STOP_AFTER_FIRST", False)
+            
             for (sequence, shot_name), shot_data in shots_with_files.items():
                 workspace_path = shot_data["workspace_path"]
 
-                for username, file_path in shot_data["files"]:
+                # If stop_after_first is enabled, only process the first file per shot
+                files_to_process = shot_data["files"][:1] if stop_after_first else shot_data["files"]
+                
+                for username, file_path in files_to_process:
                     # Extract plate info
                     user_path = file_path.parent
                     while user_path.name != username and user_path.parent != user_path:
