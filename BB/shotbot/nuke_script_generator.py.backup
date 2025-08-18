@@ -340,8 +340,6 @@ Viewer {{
 
                 # Check if this line starts a node we want to import
                 node_types = [
-                    "Group",  # Group nodes for undistortion
-                    "Undistort",  # Direct undistort nodes
                     "LensDistortion",
                     "UVTile2",
                     "Crop",
@@ -350,20 +348,12 @@ Viewer {{
                     "NoOp",
                     "Dot",
                     "Reformat",
-                    "Input",  # Often part of Group nodes
-                    "Output",  # Often part of Group nodes
                 ]
                 is_node_start = False
                 for node_type in node_types:
                     if line.startswith(node_type + " {"):
                         is_node_start = True
                         break
-                
-                # Special handling for end_group which doesn't have braces
-                if line.strip() == "end_group":
-                    imported_nodes.append(line)
-                    i += 1
-                    continue
 
                 if is_node_start:
                     # Collect the entire node
@@ -603,207 +593,4 @@ Viewer {{
 
         except Exception as e:
             print(f"Error creating Nuke script with undistortion: {e}")
-            return None
-
-    @staticmethod
-    def _generate_read_node(
-        file_path: str,
-        colorspace: Optional[str],
-        first_frame: int,
-        last_frame: int,
-    ) -> str:
-        """Generate a Read node with proper colorspace quoting.
-        
-        Args:
-            file_path: Path to the input file/sequence
-            colorspace: Colorspace name (will be quoted if contains spaces)
-            first_frame: First frame number
-            last_frame: Last frame number
-            
-        Returns:
-            String containing the Read node definition
-            
-        Raises:
-            ValueError: If frame range is invalid
-        """
-        # Validate frame range
-        if first_frame > last_frame:
-            raise ValueError(f"Invalid frame range: {first_frame} to {last_frame}")
-            
-        # Escape and quote file path for Nuke
-        nuke_path = NukeScriptGenerator._escape_path(file_path)
-        
-        # Handle colorspace - always quote for consistency and safety
-        if colorspace and colorspace.strip():
-            colorspace_line = f'colorspace "{colorspace.strip()}"'
-        else:
-            colorspace_line = 'colorspace "linear"'  # Default fallback
-            
-        return f"""Read {{
- inputs 0
- file_type exr
- file "{nuke_path}"
- {colorspace_line}
- first {first_frame}
- last {last_frame}
- origfirst {first_frame}
- origlast {last_frame}
- origset true
- on_error black
- reload 0
- auto_alpha true
- premultiplied true
- name Read1
- selected true
-}}"""
-
-    @staticmethod
-    def _generate_write_node(output_path: str) -> str:
-        """Generate a Write node for output.
-        
-        Args:
-            output_path: Path for output file/sequence
-            
-        Returns:
-            String containing the Write node definition
-        """
-        # Escape path for Nuke
-        nuke_path = NukeScriptGenerator._escape_path(output_path)
-        
-        return f"""Write {{
- file_type exr
- file "{nuke_path}"
- colorspace "ACES - ACEScg"
- datatype "16 bit half"
- compression "Zip (1 scanline)"
- interleave "channels"
- autocrop false
- create_directories true
- name Write1
- selected true
-}}"""
-
-    @staticmethod
-    def _generate_undistortion_node(undisto_path: str) -> str:
-        """Generate an undistortion group node.
-        
-        Args:
-            undisto_path: Path to undistortion .nk file
-            
-        Returns:
-            String containing the undistortion Group node
-        """
-        escaped_path = NukeScriptGenerator._escape_path(undisto_path)
-        
-        return f"""Group {{
- name Undistortion
- tile_color 0xcc804eff
- note_font_size 11
- note_font_color 0xffffffff
- # Undistortion file: {escaped_path}
- addUserKnob {{26 info_line l "Undistortion Info:"}}
- addUserKnob {{26 source_file l "Source File:" T "{escaped_path}"}}
- addUserKnob {{22 reload_undisto l "Reload Undistortion" -STARTLINE T "# Placeholder for undistortion reload logic"}}
-}}"""
-
-    @staticmethod
-    def generate_comp_script(
-        shot_name: str,
-        plate_path: str,
-        colorspace: str,
-        first_frame: int,
-        last_frame: int,
-        output_dir: str,
-    ) -> Optional[str]:
-        """Generate a complete comp script with Read and Write nodes.
-        
-        Args:
-            shot_name: Name of the shot for filename and script metadata
-            plate_path: Path to input plate sequence  
-            colorspace: Colorspace for the plate
-            first_frame: First frame of the sequence
-            last_frame: Last frame of the sequence
-            output_dir: Directory to save the script
-            
-        Returns:
-            Path to the generated .nk script file, or None if failed
-        """
-        try:
-            import os
-            import re
-            
-            # Sanitize shot name to prevent path traversal
-            safe_shot_name = re.sub(r"[^\w\-_]", "_", shot_name)
-            safe_shot_name = safe_shot_name.replace("..", "_")  # Extra safety
-            
-            # Create output script path
-            script_filename = f"{safe_shot_name}_comp.nk"
-            output_path = os.path.join(output_dir, script_filename)
-            
-            # Ensure output directory exists
-            os.makedirs(output_dir, exist_ok=True)
-            
-            # Generate script content
-            width, height = NukeScriptGenerator._detect_resolution(plate_path)
-            
-            script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
-version 16.0 v4
-# Shot: {shot_name}
-# Generated by ShotBot NukeScriptGenerator
-
-Root {{
- inputs 0
- name {safe_shot_name}_comp
- frame {first_frame}
- first_frame {first_frame}
- last_frame {last_frame}
- fps 24
- format "{width} {height} 0 0 {width} {height} 1 {safe_shot_name}_format"
- proxy_type scale
- proxy_format "1920 1080 0 0 1920 1080 1 HD_1080"
- colorManagement OCIO
- OCIO_config aces_1.2
- defaultViewerLUT "OCIO LUTs"
- workingSpaceLUT "ACES - ACEScg"
- monitorLut "Rec.709 (ACES)"
- int8Lut "Rec.709 (ACES)"
- int16Lut "Rec.709 (ACES)"
- logLut "Log film emulation (ACES)"
- floatLUT linear
-}}
-
-{NukeScriptGenerator._generate_read_node(plate_path, colorspace, first_frame, last_frame)}
-
-Grade {{
- inputs 1
- name Grade_CC
- label "Color Correction"
- selected true
- xpos 0
- ypos 50
-}}
-
-{NukeScriptGenerator._generate_write_node(f"{output_dir}/comp_output.%04d.exr")}
-
-Viewer {{
- inputs 1
- frame_range {first_frame}-{last_frame}
- fps 24
- frame {first_frame}
- name Viewer1
- selected true
- xpos 0
- ypos 200
-}}
-"""
-            
-            # Write the script file
-            with open(output_path, "w", encoding="utf-8") as f:
-                f.write(script_content)
-                
-            print(f"Generated comp script: {output_path}")
-            return output_path
-            
-        except Exception as e:
-            print(f"Error generating comp script: {e}")
             return None

@@ -58,11 +58,16 @@ class UndistortionFinder:
         found_files: List[Tuple[Path, str, str]] = []
 
         # Look for scene directories (scene, sceneMasterSurvey, etc.)
-        scene_dirs = [
-            d
-            for d in exports_path.iterdir()
-            if d.is_dir() and "scene" in d.name.lower()
-        ]
+        # Add defensive error handling for FileNotFoundError
+        try:
+            scene_dirs = [
+                d
+                for d in exports_path.iterdir()
+                if d.is_dir() and "scene" in d.name.lower()
+            ]
+        except FileNotFoundError:
+            logger.debug(f"Exports path no longer exists during iteration: {exports_path}")
+            return None
 
         if not scene_dirs:
             # Fallback to direct "scene" directory if it exists
@@ -77,7 +82,14 @@ class UndistortionFinder:
             logger.debug(
                 f"Searching for undistortion in scene directory: {scene_dir.name}",
             )
-            for potential_plate in scene_dir.iterdir():
+            # Add defensive error handling for scene directory iteration
+            try:
+                potential_plates = list(scene_dir.iterdir())
+            except FileNotFoundError:
+                logger.debug(f"Scene directory no longer exists: {scene_dir}")
+                continue
+
+            for potential_plate in potential_plates:
                 if not potential_plate.is_dir():
                     continue
 
@@ -92,12 +104,17 @@ class UndistortionFinder:
                         continue
 
                     # Find all version directories (case-insensitive)
-                    version_dirs = [
-                        d
-                        for d in undist_base.iterdir()
-                        if d.is_dir()
-                        and VersionUtils.VERSION_PATTERN.match(d.name.lower())
-                    ]
+                    # Add defensive error handling for undist_base iteration
+                    try:
+                        version_dirs = [
+                            d
+                            for d in undist_base.iterdir()
+                            if d.is_dir()
+                            and VersionUtils.VERSION_PATTERN.match(d.name.lower())
+                        ]
+                    except FileNotFoundError:
+                        logger.debug(f"Undistortion base directory no longer exists: {undist_base}")
+                        continue
 
                     for version_dir in version_dirs:
                         # Search for .nk files recursively in subdirectories

@@ -1,0 +1,82 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0 -- /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/bin/python
+cachedir: .pytest_cache
+hypothesis profile 'default'
+PySide6 6.9.1 -- Qt runtime 6.9.1 -- Qt compiled 6.9.1
+rootdir: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot
+configfile: pytest.ini
+plugins: hypothesis-6.137.1, cov-6.2.1, mock-3.14.1, qt-4.5.0, timeout-2.4.0
+timeout: 60.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 67 items
+
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats0-.jpg] PASSED [  1%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats1-.png] PASSED [  2%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats2-.exr] PASSED [  4%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats3-.jpg] PASSED [  5%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats4-.png] PASSED [  7%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats5-.jpg] PASSED [  8%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats6-.jpg] PASSED [ 10%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats7-.exr] PASSED [ 11%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats8-.exr] PASSED [ 13%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_format_priority[formats9-None] PASSED [ 14%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_plate_priority_ordering[FG01-0] PASSED [ 16%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_plate_priority_ordering[FG02-0] PASSED [ 17%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_plate_priority_ordering[FG99-0] PASSED [ 19%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_plate_priority_ordering[BG01-1] PASSED [ 20%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_plate_priority_ordering[BG02-1] PASSED [ 22%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_plate_priority_ordering[EL01-2] PASSED [ 23%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_plate_priority_ordering[COMP01-2] PASSED [ 25%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPriority::test_plate_priority_ordering[random-2] PASSED [ 26%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_file_size_handling[0.1-False] PASSED [ 28%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_file_size_handling[1-False] PASSED [ 29%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_file_size_handling[5-False] PASSED [ 31%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_file_size_handling[10-True] PASSED [ 32%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_file_size_handling[50-True] PASSED [ 34%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_file_size_handling[100-True] PASSED [ 35%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.jpg] PASSED [ 37%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.JPG] PASSED [ 38%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.Jpg] PASSED [ 40%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.jPg] PASSED [ 41%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.png] PASSED [ 43%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.PNG] PASSED [ 44%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.Png] PASSED [ 46%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.exr] PASSED [ 47%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.EXR] PASSED [ 49%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.Exr] PASSED [ 50%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.tiff] PASSED [ 52%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.TIFF] PASSED [ 53%]
+tests/unit/test_exr_parametrized.py::TestParametrizedFileOperations::test_extension_case_variations[.Tiff] PASSED [ 55%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPaths::test_shot_path_construction[show1-seq01-0010] PASSED [ 56%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPaths::test_shot_path_construction[MyShow-AB01-0020] PASSED [ 58%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPaths::test_shot_path_construction[test-show-seq_01-0030a] PASSED [ 59%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPaths::test_shot_path_construction[UPPERCASE-SEQ99-9999] PASSED [ 61%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPaths::test_shot_path_construction[with_underscore-with-dash-0001] PASSED [ 62%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPaths::test_directory_depth_handling[1-True] PASSED [ 64%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPaths::test_directory_depth_handling[5-True] PASSED [ 65%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPaths::test_directory_depth_handling[10-True] PASSED [ 67%]
+tests/unit/test_exr_parametrized.py::TestParametrizedPaths::test_directory_depth_handling[20-False] PASSED [ 68%]
+tests/unit/test_exr_parametrized.py::TestParametrizedCaching::test_cache_wait_behavior[True-path_or_none] PASSED [ 70%]
+tests/unit/test_exr_parametrized.py::TestParametrizedCaching::test_cache_wait_behavior[False-always_none] PASSED [ 71%]
+tests/unit/test_exr_parametrized.py::TestParametrizedCaching::test_cache_scalability[1] PASSED [ 73%]
+tests/unit/test_exr_parametrized.py::TestParametrizedCaching::test_cache_scalability[10] PASSED [ 74%]
+tests/unit/test_exr_parametrized.py::TestParametrizedCaching::test_cache_scalability[100] PASSED [ 76%]
+tests/unit/test_exr_parametrized.py::TestParametrizedCaching::test_cache_scalability[500] PASSED [ 77%]
+tests/unit/test_exr_parametrized.py::TestParametrizedErrorHandling::test_error_resilience[PermissionError-error_instance0] PASSED [ 79%]
+tests/unit/test_exr_parametrized.py::TestParametrizedErrorHandling::test_error_resilience[FileNotFoundError-error_instance1] PASSED [ 80%]
+tests/unit/test_exr_parametrized.py::TestParametrizedErrorHandling::test_error_resilience[OSError-error_instance2] PASSED [ 82%]
+tests/unit/test_exr_parametrized.py::TestParametrizedErrorHandling::test_error_resilience[IOError-error_instance3] PASSED [ 83%]
+tests/unit/test_exr_parametrized.py::TestParametrizedErrorHandling::test_error_resilience[ValueError-error_instance4] PASSED [ 85%]
+tests/unit/test_exr_parametrized.py::TestParametrizedErrorHandling::test_missing_shot_components[show] PASSED [ 86%]
+tests/unit/test_exr_parametrized.py::TestParametrizedErrorHandling::test_missing_shot_components[sequence] PASSED [ 88%]
+tests/unit/test_exr_parametrized.py::TestParametrizedErrorHandling::test_missing_shot_components[shot] PASSED [ 89%]
+tests/unit/test_exr_parametrized.py::TestParametrizedErrorHandling::test_missing_shot_components[workspace_path] PASSED [ 91%]
+tests/unit/test_exr_parametrized.py::TestParametrizedIntegration::test_complete_discovery_scenarios[editorial_jpg] PASSED [ 92%]
+tests/unit/test_exr_parametrized.py::TestParametrizedIntegration::test_complete_discovery_scenarios[editorial_exr] PASSED [ 94%]
+tests/unit/test_exr_parametrized.py::TestParametrizedIntegration::test_complete_discovery_scenarios[turnover_fg] PASSED [ 95%]
+tests/unit/test_exr_parametrized.py::TestParametrizedIntegration::test_complete_discovery_scenarios[turnover_bg] PASSED [ 97%]
+tests/unit/test_exr_parametrized.py::TestParametrizedIntegration::test_complete_discovery_scenarios[publish_any] PASSED [ 98%]
+tests/unit/test_exr_parametrized.py::TestParametrizedIntegration::test_complete_discovery_scenarios[no_thumbnail] PASSED [100%]
+
+============================= 67 passed in 12.47s ==============================

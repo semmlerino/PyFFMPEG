@@ -8,11 +8,11 @@ from pathlib import Path
 # Add the shotbot directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Import shotbot main after path setup
+from shotbot import main  # noqa: E402
+
 print("Starting Shotbot...")
 print("Press Ctrl+C to stop")
-
-# Import shotbot main
-from shotbot import main
 
 
 # Set up a signal handler for clean shutdown

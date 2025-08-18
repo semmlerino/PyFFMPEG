@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from cache_manager import CacheManager
-from shot_model import Shot
 from utils import FileUtils, PathUtils
 
 

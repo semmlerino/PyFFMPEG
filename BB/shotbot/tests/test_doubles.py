@@ -7,7 +7,7 @@ be used in worker threads, following the guide's Qt Threading Safety section.
 from typing import Optional
 from unittest.mock import MagicMock
 
-from PySide6.QtCore import QObject, QSize
+from PySide6.QtCore import QSize
 from PySide6.QtGui import QColor, QImage
 
 

@@ -75,7 +75,6 @@ from PySide6.QtCore import (
 # Import existing components for integration
 try:
     from thread_safe_worker import ThreadSafeWorker
-    from thread_safe_worker import WorkerState as TSWorkerState
 
     HAS_THREAD_SAFE_WORKER = True
 except ImportError:

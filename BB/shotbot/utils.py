@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 # Cache for path existence checks (with TTL)
 _path_cache: Dict[str, Tuple[bool, float]] = {}
 _PATH_CACHE_TTL = 300.0  # seconds - increased from 30 to 300 for better performance
+_cache_disabled = False  # Test isolation flag
 
 
 def clear_all_caches():
@@ -27,6 +28,50 @@ def clear_all_caches():
     # Clear lru_cache decorated functions
     VersionUtils.extract_version_from_path.cache_clear()
     logger.info("Cleared all utility caches")
+
+
+def disable_caching():
+    """Disable caching completely - useful for testing."""
+    global _cache_disabled
+    _cache_disabled = True
+    clear_all_caches()
+    logger.debug("Caching disabled for testing")
+
+
+def enable_caching():
+    """Re-enable caching after testing."""
+    global _cache_disabled
+    _cache_disabled = False
+    logger.debug("Caching re-enabled after testing")
+
+
+class CacheIsolation:
+    """Context manager for cache isolation in tests."""
+    
+    def __init__(self):
+        self.original_cache_state = None
+        self.original_disabled_state = None
+    
+    def __enter__(self):
+        """Enter context with isolated cache."""
+        global _path_cache, _cache_disabled
+        # Save original state
+        self.original_cache_state = _path_cache.copy()
+        self.original_disabled_state = _cache_disabled
+        
+        # Clear and disable cache
+        clear_all_caches()
+        disable_caching()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context and restore original state."""
+        global _path_cache, _cache_disabled
+        # Restore original state
+        _path_cache.clear()
+        _path_cache.update(self.original_cache_state)
+        _cache_disabled = self.original_disabled_state
+        logger.debug("Cache isolation context exited")
 
 
 def get_cache_stats() -> Dict[str, Any]:
@@ -286,21 +331,28 @@ class PathUtils:
             logger.debug(f"{description} is empty")
             return False
 
+        # Check actual path existence
+        path_obj = Path(path) if isinstance(path, str) else path
+        exists = path_obj.exists()
+        
+        # Skip caching if disabled (for testing)
+        if _cache_disabled:
+            if not exists:
+                logger.debug(f"{description} does not exist (no cache): {path_obj}")
+            return exists
+
         # Use string representation for caching
         path_str = str(path)
         current_time = time.time()
 
         # Check cache first
         if path_str in _path_cache:
-            exists, timestamp = _path_cache[path_str]
+            cached_exists, timestamp = _path_cache[path_str]
             if current_time - timestamp < _PATH_CACHE_TTL:
-                if not exists:
+                # Return cached result if not expired
+                if not cached_exists:
                     logger.debug(f"{description} does not exist (cached): {path_str}")
-                return exists
-
-        # Check actual path existence
-        path_obj = Path(path) if isinstance(path, str) else path
-        exists = path_obj.exists()
+                return cached_exists
 
         # Cache the result
         _path_cache[path_str] = (exists, current_time)

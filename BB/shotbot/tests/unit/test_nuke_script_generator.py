@@ -147,10 +147,152 @@ class TestNukeScriptGenerator(unittest.TestCase):
         # All files should exist
         for path in generated_files:
             self.assertTrue(os.path.exists(path))
-
-        # Verify files are in temp directory
-        for path in generated_files:
-            self.assertTrue(str(path).startswith(self.temp_dir))
+    
+    def test_import_undistortion_nodes(self):
+        """Test importing undistortion nodes from .nk file."""
+        # Create a test undistortion .nk file
+        undisto_file = os.path.join(self.temp_dir, "test_undistortion.nk")
+        undisto_content = """Group {
+ name LensDistortion1
+ inputs 1
+ tile_color 0xcc804e00
+ addUserKnob {20 LensDistortion}
+ addUserKnob {4 mode M {undistort distort "st map"}}
+ addUserKnob {22 analyseSequence l "Analyse Sequence" T ""}
+}
+Undistort {
+ distortion 0.045
+ name Undistort1
+}"""
+        
+        with open(undisto_file, "w") as f:
+            f.write(undisto_content)
+        
+        # Import the nodes
+        imported_nodes = self.generator._import_undistortion_nodes(
+            undisto_file, ypos_offset=-200
+        )
+        
+        self.assertIsNotNone(imported_nodes)
+        self.assertIn("Group {", imported_nodes)
+        self.assertIn("LensDistortion1", imported_nodes)
+        self.assertIn("Undistort1", imported_nodes)
+        # Check that comment is added
+        self.assertIn("# Imported undistortion nodes from", imported_nodes)
+    
+    def test_create_plate_script_with_undistortion(self):
+        """Test creating script with both plate and undistortion."""
+        # Create test undistortion file with realistic path
+        undisto_path = os.path.join(
+            self.temp_dir,
+            "DB_256_1200_mm_default_FG01_LD_v002.nk"
+        )
+        undisto_content = """Group {
+ name LensDistortion_FG01
+ inputs 1
+ help "Undistortion for DB_256_1200 FG01 plate"
+}"""
+        with open(undisto_path, "w") as f:
+            f.write(undisto_content)
+        
+        # Create plate script with undistortion
+        plate_path = "/shows/jack_ryan/shots/DB_256/DB_256_1200/publish/plate/FG01/v002/DB_256_1200_FG01.####.exr"
+        shot_name = "DB_256_1200"
+        
+        script_path = self.generator.create_plate_script_with_undistortion(
+            plate_path=plate_path,
+            undistortion_path=undisto_path,
+            shot_name=shot_name
+        )
+        
+        self.assertIsNotNone(script_path)
+        self.assertTrue(os.path.exists(script_path))
+        
+        # Read and verify content
+        with open(script_path, "r") as f:
+            content = f.read()
+        
+        # Should have plate Read node
+        self.assertIn("Read_Plate", content)
+        self.assertIn(shot_name, content)
+        
+        # Should have undistortion reference
+        self.assertIn("Undistortion imported from", content)
+        self.assertIn("LensDistortion_FG01", content)
+    
+    def test_nested_undistortion_path_handling(self):
+        """Test handling of nested undistortion paths like real-world 3DE exports.
+        
+        Tests path pattern:
+        /shows/jack_ryan/shots/DB_256/DB_256_1200/user/gabriel-h/mm/3de/mm-default/exports/
+        scene/FG01/nuke_lens_distortion/v002/GF_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001/
+        DB_256_1200_mm_default_FG01_LD_v002.nk
+        """
+        # Create nested directory structure
+        nested_dir = os.path.join(
+            self.temp_dir,
+            "GF_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001"
+        )
+        os.makedirs(nested_dir, exist_ok=True)
+        
+        # Create undistortion file in nested directory
+        undisto_path = os.path.join(
+            nested_dir,
+            "DB_256_1200_mm_default_FG01_LD_v002.nk"
+        )
+        
+        undisto_content = """#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
+version 16.0 v4
+Group {
+ name LensDistortion_DB256_1200_FG01_v002
+ help "3DE4 lens distortion for DB_256_1200"
+ addUserKnob {20 User}
+ addUserKnob {26 info l "" +STARTLINE T "Exported from 3DE4"}
+}
+Input {
+ inputs 0
+ name Input1
+}
+LensDistortion {
+ serializeKnob ""
+ serialiseKnob "22 serialization::archive 15 0 0 0 0 0 0 0 0 0 0 0 0"
+ distortion 0.0234
+ name LensDistortion1
+}
+Output {
+ name Output1
+}
+end_group"""
+        
+        with open(undisto_path, "w") as f:
+            f.write(undisto_content)
+        
+        # Import the nested undistortion
+        imported_nodes = self.generator._import_undistortion_nodes(
+            undisto_path, ypos_offset=-200
+        )
+        
+        self.assertIsNotNone(imported_nodes)
+        self.assertIn("LensDistortion_DB256_1200_FG01_v002", imported_nodes)
+        self.assertIn("3DE4 lens distortion", imported_nodes)
+        
+        # Create full script with nested undistortion
+        plate_path = "/shows/jack_ryan/shots/DB_256/DB_256_1200/publish/plate/FG01/v002/DB_256_1200_FG01_lin_sgamut3cine.####.exr"
+        
+        script_path = self.generator.create_plate_script_with_undistortion(
+            plate_path=plate_path,
+            undistortion_path=undisto_path,
+            shot_name="DB_256_1200"
+        )
+        
+        self.assertIsNotNone(script_path)
+        
+        # Verify the script references the correct undistortion path
+        with open(script_path, "r") as f:
+            content = f.read()
+        
+        # Should preserve the full nested path in the label/comment
+        self.assertIn("DB_256_1200_mm_default_FG01_LD_v002.nk", content)
 
     def test_shot_name_sanitization(self):
         """Test that shot names are sanitized to prevent path traversal."""

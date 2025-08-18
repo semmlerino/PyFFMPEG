@@ -126,49 +126,67 @@ class TestPathUtils:
 
     def test_validate_path_exists_caching_behavior(self, tmp_path):
         """Test that path validation uses caching correctly."""
+        # Use context manager to temporarily enable caching for this test
+        from utils import clear_all_caches, disable_caching, enable_caching
+        
+        enable_caching()
         clear_all_caches()
+        
+        try:
+            test_file = tmp_path / "cached_test.txt"
+            test_file.write_text("test")
 
-        test_file = tmp_path / "cached_test.txt"
-        test_file.write_text("test")
+            # First call should check filesystem
+            result1 = PathUtils.validate_path_exists(test_file, "Cached test")
+            assert result1 is True
 
-        # First call should check filesystem
-        result1 = PathUtils.validate_path_exists(test_file, "Cached test")
-        assert result1 is True
+            # Second call should use cache (verify cache is populated)
+            path_str = str(test_file)
+            assert path_str in _path_cache
 
-        # Second call should use cache (verify cache is populated)
-        path_str = str(test_file)
-        assert path_str in _path_cache
+            # Verify cache entry structure
+            exists, timestamp = _path_cache[path_str]
+            assert exists is True
+            assert isinstance(timestamp, float)
 
-        # Verify cache entry structure
-        exists, timestamp = _path_cache[path_str]
-        assert exists is True
-        assert isinstance(timestamp, float)
-
-        # Third call should use cached result
-        result2 = PathUtils.validate_path_exists(test_file, "Cached test")
-        assert result2 is True
+            # Third call should use cached result
+            result2 = PathUtils.validate_path_exists(test_file, "Cached test")
+            assert result2 is True
+        finally:
+            # Always restore caching state
+            disable_caching()
 
     def test_validate_path_exists_cache_expiry(self, tmp_path):
         """Test that cache entries expire after TTL."""
+        # Use context manager to temporarily enable caching for this test
+        from utils import clear_all_caches, disable_caching, enable_caching
+        
+        enable_caching()
         clear_all_caches()
+        
+        try:
+            test_file = tmp_path / "expiry_test.txt"
+            test_file.write_text("test")
 
-        test_file = tmp_path / "expiry_test.txt"
-        test_file.write_text("test")
+            # First call populates cache
+            result1 = PathUtils.validate_path_exists(test_file, "Expiry test")
+            assert result1 is True
 
-        # First call populates cache
-        PathUtils.validate_path_exists(test_file, "Expiry test")
-
-        # Manually expire cache entry
-        path_str = str(test_file)
-        old_time = time.time() - _PATH_CACHE_TTL - 1
-        _path_cache[path_str] = (True, old_time)
-
-        # Delete the file to test that cache refresh detects the change
-        test_file.unlink()
-
-        # Next call should refresh cache and detect file is gone
-        result = PathUtils.validate_path_exists(test_file, "Expiry test")
-        assert result is False
+            # Manually expire the cache entry using direct manipulation
+            # (this is acceptable in this test since we're testing cache behavior)
+            path_str = str(test_file)
+            old_time = time.time() - _PATH_CACHE_TTL - 1
+            _path_cache[path_str] = (True, old_time)
+            
+            # Delete the file to test that cache refresh detects the change
+            test_file.unlink()
+            
+            # Next call should refresh cache and detect file is gone
+            result2 = PathUtils.validate_path_exists(test_file, "Expiry test")
+            assert result2 is False
+        finally:
+            # Always restore caching state
+            disable_caching()
 
     def test_batch_validate_paths(self, tmp_path):
         """Test batch path validation for performance."""
@@ -228,21 +246,29 @@ class TestPathUtils:
 
     def test_cache_cleanup_when_size_exceeded(self, tmp_path):
         """Test that cache cleanup occurs when size limit is exceeded."""
+        # Use context manager to temporarily enable caching for this test
+        from utils import clear_all_caches, disable_caching, enable_caching
+        
+        enable_caching()
         clear_all_caches()
+        
+        try:
+            # Fill cache beyond the limit (5000 entries)
+            # Create many temporary paths to force cleanup
+            for i in range(5100):
+                fake_path = f"/fake/path/{i}"
+                _path_cache[fake_path] = (False, time.time())
 
-        # Fill cache beyond the limit (5000 entries)
-        # Create many temporary paths to force cleanup
-        for i in range(5100):
-            fake_path = f"/fake/path/{i}"
-            _path_cache[fake_path] = (False, time.time())
+            # Trigger cleanup by calling validate_path_exists
+            test_file = tmp_path / "cleanup_test.txt"
+            test_file.write_text("test")
+            PathUtils.validate_path_exists(test_file, "Cleanup trigger")
 
-        # Trigger cleanup by calling validate_path_exists
-        test_file = tmp_path / "cleanup_test.txt"
-        test_file.write_text("test")
-        PathUtils.validate_path_exists(test_file, "Cleanup trigger")
-
-        # Cache should be cleaned down to reasonable size
-        assert len(_path_cache) <= 2500
+            # Cache should be cleaned down to reasonable size
+            assert len(_path_cache) <= 2500
+        finally:
+            # Always restore caching state
+            disable_caching()
 
     def test_discover_plate_directories(self, tmp_path):
         """Test plate directory discovery with priority ordering."""
@@ -701,53 +727,80 @@ class TestCacheManagement:
 
     def test_clear_all_caches(self):
         """Test that clear_all_caches clears all cache systems."""
-        # Populate some caches
-        _path_cache["test"] = (True, time.time())
-        VersionUtils._version_cache["test"] = ([], time.time())
+        # Use context manager to temporarily enable caching for this test
+        from utils import disable_caching, enable_caching
+        
+        enable_caching()
+        
+        try:
+            # Populate some caches
+            _path_cache["test"] = (True, time.time())
+            VersionUtils._version_cache["test"] = ([], time.time())
 
-        # Clear all caches
-        clear_all_caches()
+            # Clear all caches
+            clear_all_caches()
 
-        # Verify caches are empty
-        assert len(_path_cache) == 0
-        assert len(VersionUtils._version_cache) == 0
+            # Verify caches are empty
+            assert len(_path_cache) == 0
+            assert len(VersionUtils._version_cache) == 0
+        finally:
+            # Always restore caching state
+            disable_caching()
 
     def test_get_cache_stats(self):
         """Test cache statistics reporting."""
-        # Populate some caches
-        _path_cache["test1"] = (True, time.time())
-        _path_cache["test2"] = (False, time.time())
-        VersionUtils._version_cache["test"] = ([], time.time())
+        # Use context manager to temporarily enable caching for this test
+        from utils import disable_caching, enable_caching
+        
+        enable_caching()
+        
+        try:
+            # Populate some caches
+            _path_cache["test1"] = (True, time.time())
+            _path_cache["test2"] = (False, time.time())
+            VersionUtils._version_cache["test"] = ([], time.time())
 
-        stats = get_cache_stats()
+            stats = get_cache_stats()
 
-        assert "path_cache_size" in stats
-        assert "version_cache_size" in stats
-        assert "extract_version_cache_info" in stats
-        assert stats["path_cache_size"] >= 2
-        assert stats["version_cache_size"] >= 1
+            assert "path_cache_size" in stats
+            assert "version_cache_size" in stats
+            assert "extract_version_cache_info" in stats
+            assert stats["path_cache_size"] >= 2
+            assert stats["version_cache_size"] >= 1
+        finally:
+            # Always restore caching state
+            disable_caching()
 
     def test_path_cache_ttl_expiry(self, tmp_path):
         """Test that path cache entries expire correctly."""
+        # Use context manager to temporarily enable caching for this test
+        from utils import clear_all_caches, disable_caching, enable_caching
+        
+        enable_caching()
         clear_all_caches()
+        
+        try:
+            test_file = tmp_path / "ttl_test.txt"
+            test_file.write_text("test")
 
-        test_file = tmp_path / "ttl_test.txt"
-        test_file.write_text("test")
+            # Validate path to populate cache
+            PathUtils.validate_path_exists(test_file)
 
-        # Validate path to populate cache
-        PathUtils.validate_path_exists(test_file)
+            # Manually expire the cache entry using direct manipulation
+            # (this is acceptable in this test since we're testing cache behavior)
+            path_str = str(test_file)
+            old_time = time.time() - _PATH_CACHE_TTL - 10
+            _path_cache[path_str] = (True, old_time)
+            
+            # Remove file
+            test_file.unlink()
 
-        # Manually set old timestamp to simulate expiry
-        path_str = str(test_file)
-        old_time = time.time() - _PATH_CACHE_TTL - 10
-        _path_cache[path_str] = (True, old_time)
-
-        # Remove file
-        test_file.unlink()
-
-        # Next validation should detect the change (cache expired)
-        result = PathUtils.validate_path_exists(test_file)
-        assert result is False
+            # Next validation should detect the change (cache expired)
+            result = PathUtils.validate_path_exists(test_file)
+            assert result is False
+        finally:
+            # Always restore caching state
+            disable_caching()
 
 
 class TestFindTurnoverPlateThumbnail:
@@ -977,8 +1030,4 @@ class TestFindAnyPublishThumbnail:
         assert result is None
 
 
-@pytest.fixture(autouse=True)
-def clear_caches_after_test():
-    """Clear all caches after each test to ensure test isolation."""
-    yield
-    clear_all_caches()
+# Cache isolation is now handled by the global conftest.py fixture

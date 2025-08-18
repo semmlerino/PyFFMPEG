@@ -4,9 +4,6 @@ These tests verify the fix without calling internal Qt-dependent methods.
 """
 
 import logging
-from pathlib import Path
-
-import pytest
 
 from cache_manager import CacheManager
 from shot_model import Shot
@@ -42,7 +39,7 @@ class TestEXRNoSkippingBehavior:
         
         with caplog.at_level(logging.WARNING):
             # Should process without "Skipping EXR" warning
-            result = cache_manager.cache_thumbnail(
+            cache_manager.cache_thumbnail(
                 exr_file,
                 show="test",
                 sequence="seq",

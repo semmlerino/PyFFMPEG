@@ -13,7 +13,7 @@ import time
 import pytest
 from PySide6.QtCore import QCoreApplication
 
-from launcher_manager import CustomLauncher, LauncherManager
+from launcher_manager import LauncherManager
 
 
 class TestLauncherThreadSafetyBehavior:
@@ -35,18 +35,16 @@ class TestLauncherThreadSafetyBehavior:
 
         def create_launcher(thread_id):
             """Create a launcher from a thread."""
-            launcher = CustomLauncher(
-                id=f"concurrent_{thread_id}",
-                name=f"Concurrent {thread_id}",
-                description=f"Test launcher {thread_id}",
-                command="echo test",
-            )
-
-            # Try to create the launcher
+            # Try to create the launcher using correct API
             try:
-                self.manager.create_launcher(launcher)
-                with lock:
-                    created_ids.append(launcher.id)
+                launcher_id = self.manager.create_launcher(
+                    name=f"Concurrent {thread_id}",
+                    command="echo test",
+                    description=f"Test launcher {thread_id}",
+                )
+                if launcher_id:
+                    with lock:
+                        created_ids.append(launcher_id)
             except Exception as e:
                 print(f"Thread {thread_id} failed: {e}")
 
@@ -75,13 +73,15 @@ class TestLauncherThreadSafetyBehavior:
         """
         # Create initial launchers
         for i in range(3):
-            launcher = CustomLauncher(
-                id=f"initial_{i}",
+            launcher_id = self.manager.create_launcher(
                 name=f"Initial {i}",
-                description=f"Initial launcher {i}",
                 command="echo test",
+                description=f"Initial launcher {i}",
             )
-            self.manager.create_launcher(launcher)
+            # Store the ID for cleanup (may be None if creation failed)
+            if launcher_id:
+                # Track for cleanup
+                pass
 
         errors = []
 
@@ -89,7 +89,8 @@ class TestLauncherThreadSafetyBehavior:
             """Read launcher list repeatedly."""
             for _ in range(10):
                 try:
-                    launchers = self.manager.get_launchers()
+                    # Use correct method name
+                    launchers = self.manager.list_launchers()
                     assert isinstance(launchers, list)
                     time.sleep(0.01)
                 except Exception as e:
@@ -99,15 +100,14 @@ class TestLauncherThreadSafetyBehavior:
             """Modify launcher list."""
             for i in range(5):
                 try:
-                    launcher = CustomLauncher(
-                        id=f"dynamic_{i}",
+                    launcher_id = self.manager.create_launcher(
                         name=f"Dynamic {i}",
-                        description=f"Dynamic launcher {i}",
                         command="echo test",
+                        description=f"Dynamic launcher {i}",
                     )
-                    self.manager.create_launcher(launcher)
-                    time.sleep(0.02)
-                    self.manager.delete_launcher(f"dynamic_{i}")
+                    if launcher_id:
+                        time.sleep(0.02)
+                        self.manager.delete_launcher(launcher_id)
                 except Exception as e:
                     errors.append(f"Modify error: {e}")
 
@@ -124,9 +124,10 @@ class TestLauncherThreadSafetyBehavior:
         # No errors should occur
         assert len(errors) == 0, f"Errors occurred: {errors}"
 
-        # Clean up
-        for i in range(3):
-            self.manager.delete_launcher(f"initial_{i}")
+        # Clean up any remaining launchers
+        for launcher in self.manager.list_launchers():
+            if launcher.name.startswith("Initial "):
+                self.manager.delete_launcher(launcher.id)
 
     def test_launcher_execution_independence(self):
         """Test that launcher executions are independent.
@@ -136,14 +137,13 @@ class TestLauncherThreadSafetyBehavior:
         # Create test launchers
         launchers = []
         for i in range(3):
-            launcher = CustomLauncher(
-                id=f"exec_test_{i}",
+            launcher_id = self.manager.create_launcher(
                 name=f"Exec Test {i}",
-                description=f"Execution test {i}",
                 command="echo test",
+                description=f"Execution test {i}",
             )
-            self.manager.create_launcher(launcher)
-            launchers.append(launcher)
+            if launcher_id:
+                launchers.append(launcher_id)
 
         execution_results = []
         lock = threading.Lock()
@@ -164,8 +164,8 @@ class TestLauncherThreadSafetyBehavior:
 
         # Execute launchers concurrently
         threads = []
-        for launcher in launchers:
-            thread = threading.Thread(target=execute_launcher, args=(launcher.id,))
+        for launcher_id in launchers:
+            thread = threading.Thread(target=execute_launcher, args=(launcher_id,))
             threads.append(thread)
             thread.start()
 
@@ -177,8 +177,8 @@ class TestLauncherThreadSafetyBehavior:
         assert len(execution_results) == 3
 
         # Clean up
-        for launcher in launchers:
-            self.manager.delete_launcher(launcher.id)
+        for launcher_id in launchers:
+            self.manager.delete_launcher(launcher_id)
 
     def test_signal_emission_thread_safety(self):
         """Test that signals are emitted safely from any thread.
@@ -199,15 +199,14 @@ class TestLauncherThreadSafetyBehavior:
 
         def modify_from_thread(thread_id):
             """Modify launchers from a thread."""
-            launcher = CustomLauncher(
-                id=f"signal_test_{thread_id}",
+            launcher_id = self.manager.create_launcher(
                 name=f"Signal Test {thread_id}",
-                description=f"Signal test {thread_id}",
                 command="echo test",
+                description=f"Signal test {thread_id}",
             )
-            self.manager.create_launcher(launcher)
-            time.sleep(0.01)
-            self.manager.delete_launcher(launcher.id)
+            if launcher_id:
+                time.sleep(0.01)
+                self.manager.delete_launcher(launcher_id)
 
         # Start multiple threads
         threads = []

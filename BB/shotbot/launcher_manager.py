@@ -864,12 +864,16 @@ class LauncherManager(QObject):
 
         try:
             # Check process limits before execution
+            error_msg = None
             with self._process_lock:
                 if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
                     error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
-                    logger.warning(error_msg)
-                    self.validation_error.emit("general", error_msg)
-                    return False
+            
+            # Emit signal outside lock to prevent deadlock
+            if error_msg:
+                logger.warning(error_msg)
+                self.validation_error.emit("general", error_msg)
+                return False
 
             # Substitute variables in command
             merged_vars = {**launcher.variables, **(custom_vars or {})}
@@ -1013,12 +1017,16 @@ class LauncherManager(QObject):
 
         try:
             # Check process limits before execution
+            error_msg = None
             with self._process_lock:
                 if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
                     error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
-                    logger.warning(error_msg)
-                    self.validation_error.emit("general", error_msg)
-                    return False
+            
+            # Emit signal outside lock to prevent deadlock
+            if error_msg:
+                logger.warning(error_msg)
+                self.validation_error.emit("general", error_msg)
+                return False
 
             # Substitute variables in command with shot context
             merged_vars = {**launcher.variables, **(custom_vars or {})}
@@ -1581,11 +1589,13 @@ class LauncherManager(QObject):
 
             # Store worker reference
             worker_key = f"{launcher_id}_{int(time.time() * 1000)}"
+            
+            # Start the worker first (prevents race where cleanup happens before start)
+            worker.start()
+            
+            # Then add to tracking dictionary
             with self._process_lock:
                 self._active_workers[worker_key] = worker
-
-            # Start worker
-            worker.start()
 
             logger.info(f"Started worker thread for launcher '{launcher_name}'")
             return True

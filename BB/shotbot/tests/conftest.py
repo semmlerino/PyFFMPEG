@@ -4,6 +4,7 @@ This conftest provides clean, isolated fixtures for tests that need them.
 Qt components are NOT mocked to allow real signal testing.
 """
 
+import gc
 import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -14,6 +15,91 @@ from PySide6.QtWidgets import QApplication
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# =============================================================================
+# Cache Isolation Fixtures
+# =============================================================================
+
+@pytest.fixture(autouse=True)
+def isolated_test_environment():
+    """Ensure complete test isolation by clearing all caches and shared state.
+    
+    This fixture runs before and after every test to ensure:
+    1. All utility caches are cleared
+    2. CacheManager instances don't share state
+    3. No global state persists between tests
+    4. Qt objects are properly cleaned up
+    5. Garbage collection removes any lingering objects
+    6. Caching is disabled during tests to prevent contamination
+    
+    This fixes the critical test isolation issue where tests pass individually
+    but fail in suites due to shared cache state.
+    """
+    # Clear utils caches and disable caching before test
+    try:
+        from utils import clear_all_caches, disable_caching
+        clear_all_caches()
+        disable_caching()
+    except ImportError:
+        pass
+    
+    # Clear any Qt-related caches or shared objects
+    try:
+        # Process any pending Qt events to ensure cleanup
+        from PySide6.QtCore import QCoreApplication
+        app = QCoreApplication.instance()
+        if app:
+            app.processEvents()
+    except ImportError:
+        pass
+    
+    # Force garbage collection to ensure clean state
+    gc.collect()
+    
+    yield
+    
+    # Clear utils caches and re-enable caching after test
+    try:
+        from utils import clear_all_caches, enable_caching
+        clear_all_caches()
+        enable_caching()
+    except ImportError:
+        pass
+    
+    # Process Qt events after test cleanup
+    try:
+        from PySide6.QtCore import QCoreApplication
+        app = QCoreApplication.instance()
+        if app:
+            app.processEvents()
+    except ImportError:
+        pass
+    
+    # Final garbage collection to prevent memory leaks
+    gc.collect()
+
+# =============================================================================
+# Cache Testing Fixtures
+# =============================================================================
+
+@pytest.fixture
+def cache_isolation():
+    """Provide cache isolation context manager for tests that need explicit control.
+    
+    Use this fixture when a test needs to explicitly control cache isolation,
+    for example when testing cache behavior itself.
+    """
+    try:
+        from utils import CacheIsolation
+        return CacheIsolation
+    except ImportError:
+        # Fallback no-op context manager
+        from contextlib import contextmanager
+        @contextmanager
+        def no_op():
+            yield
+        return no_op
+
 
 # =============================================================================
 # Qt Application Fixtures for Threading Tests
@@ -57,6 +143,164 @@ def qt_signal_blocker():
         return True
 
     return _process_events
+
+
+# =============================================================================
+# Test Doubles Fixtures (Following UNIFIED_TESTING_GUIDE)
+# =============================================================================
+
+@pytest.fixture
+def test_signal():
+    """Create a TestSignal instance for non-Qt signal testing."""
+    from tests.unit.test_doubles import TestSignal
+    return TestSignal()
+
+
+@pytest.fixture
+def test_process_pool():
+    """Create a TestProcessPool for subprocess boundary mocking."""
+    from tests.unit.test_doubles import TestProcessPool
+    pool = TestProcessPool()
+    yield pool
+    pool.reset()  # Clean up after test
+
+
+@pytest.fixture
+def test_filesystem():
+    """Create a TestFileSystem for in-memory file operations."""
+    from tests.unit.test_doubles import TestFileSystem
+    fs = TestFileSystem()
+    yield fs
+    fs.clear()  # Clean up after test
+
+
+@pytest.fixture
+def test_cache():
+    """Create a TestCache for in-memory caching."""
+    from tests.unit.test_doubles import TestCache
+    cache = TestCache()
+    yield cache
+    cache.clear()  # Clean up after test
+
+
+# =============================================================================
+# Real Component Fixtures (Following UNIFIED_TESTING_GUIDE)
+# =============================================================================
+
+@pytest.fixture
+def real_cache_manager(tmp_path):
+    """Create a real CacheManager with temporary storage.
+    
+    This follows UNIFIED_TESTING_GUIDE: use real components with test boundaries.
+    """
+    from cache_manager import CacheManager
+    
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    instance = CacheManager(cache_dir=cache_dir)
+    
+    yield instance
+    
+    # Cleanup
+    try:
+        instance.clear_cache()
+        instance.shutdown()
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def real_shot_model(real_cache_manager, test_process_pool):
+    """Create a real ShotModel with test doubles only at boundaries.
+    
+    This follows UNIFIED_TESTING_GUIDE: real components with boundary mocks.
+    """
+    from shot_model import ShotModel
+    
+    model = ShotModel(cache_manager=real_cache_manager, load_cache=False)
+    # Only mock the subprocess boundary
+    model._process_pool = test_process_pool
+    
+    return model
+
+
+@pytest.fixture
+def make_test_shot(tmp_path):
+    """Factory for creating real Shot objects with actual files.
+    
+    This follows UNIFIED_TESTING_GUIDE: test with real files, not mocks.
+    """
+    from shot_model import Shot
+    
+    def _make_shot(show="test", seq="seq01", shot="0010", with_thumbnail=True):
+        # Create real directory structure
+        shot_name = f"{seq}_{shot}"
+        shot_path = tmp_path / "shows" / show / "shots" / seq / shot_name
+        shot_path.mkdir(parents=True, exist_ok=True)
+        
+        if with_thumbnail:
+            # Create real thumbnail file
+            thumb_dir = shot_path / "publish" / "editorial" / "cutref" / "v001" / "jpg" / "1920x1080"
+            thumb_dir.mkdir(parents=True, exist_ok=True)
+            thumb_file = thumb_dir / "frame.1001.jpg"
+            # Write minimal JPEG data
+            thumb_file.write_bytes(
+                b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+            )
+        
+        return Shot(show, seq, shot, str(shot_path))
+    
+    return _make_shot
+
+
+@pytest.fixture
+def make_real_3de_file(tmp_path):
+    """Factory for creating real 3DE scene files.
+    
+    This follows UNIFIED_TESTING_GUIDE: test with real files.
+    """
+    def _make_3de_file(show="test", seq="seq01", shot="0010", user="testuser", version="v001"):
+        shot_name = f"{seq}_{shot}"
+        scene_path = (
+            tmp_path / "shows" / show / "shots" / seq / shot_name /
+            "user" / user / "3de" / "mm-default" / f"{shot_name}_mm_{version}.3de"
+        )
+        scene_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Write real 3DE content
+        scene_path.write_text(f"# 3DE scene file for {shot_name}\n# Version: {version}")
+        
+        return scene_path
+    
+    return _make_3de_file
+
+
+@pytest.fixture
+def make_real_plate_files(tmp_path):
+    """Factory for creating real plate sequences.
+    
+    This follows UNIFIED_TESTING_GUIDE: test with real files.
+    """
+    def _make_plates(show="test", seq="seq01", shot="0010", plate_type="BG01", 
+                     colorspace="lin_sgamut3cine", frame_count=10):
+        shot_name = f"{seq}_{shot}"
+        plate_path = (
+            tmp_path / "shows" / show / "shots" / seq / shot_name /
+            "plates" / "raw" / plate_type / colorspace
+        )
+        plate_path.mkdir(parents=True, exist_ok=True)
+        
+        # Create frame sequence
+        frames = []
+        for frame in range(1001, 1001 + frame_count):
+            frame_file = plate_path / f"{shot_name}_{plate_type}.{frame:04d}.exr"
+            # Write minimal EXR header
+            frame_file.write_bytes(b"v/1\x01")  # Simplified EXR magic number
+            frames.append(frame_file)
+        
+        return frames
+    
+    return _make_plates
 
 
 # =============================================================================
@@ -108,7 +352,17 @@ def cache_manager(temp_cache_dir):
     """Create a CacheManager instance with temporary storage."""
     from cache_manager import CacheManager
 
-    return CacheManager(cache_dir=temp_cache_dir)
+    # Create instance with isolated cache directory
+    instance = CacheManager(cache_dir=temp_cache_dir)
+    
+    yield instance
+    
+    # Explicit cleanup to prevent state pollution
+    try:
+        instance.clear_cache()
+        instance.shutdown()
+    except Exception:
+        pass  # Ignore cleanup errors
 
 
 @pytest.fixture

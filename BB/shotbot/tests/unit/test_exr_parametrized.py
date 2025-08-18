@@ -174,7 +174,7 @@ class TestParametrizedPaths:
         expected_base = shows_root / show / "shots" / sequence / shot_dir
         
         # Create shot
-        shot_obj = Shot(show, sequence, shot, str(expected_base))
+        Shot(show, sequence, shot, str(expected_base))
         
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             # Test thumbnail path construction

@@ -438,3 +438,68 @@ class TestUndistortionFinder:
         assert result is not None
         assert "subdir" in str(result)
         assert "nested" in str(result)
+    
+    def test_find_latest_undistortion_plate_subdirectory(
+        self, tmp_path, mock_username,
+    ):
+        """Test finding undistortion in plate-named subdirectory (real-world pattern).
+        
+        Tests pattern like:
+        /shows/jack_ryan/shots/DB_256/DB_256_1200/user/gabriel-h/mm/3de/mm-default/exports/
+        scene/FG01/nuke_lens_distortion/v002/GF_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001/
+        DB_256_1200_mm_default_FG01_LD_v002.nk
+        """
+        # Use realistic shot names
+        shot_name = "DB_256_1200"
+        
+        base_path = (
+            tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        )
+        scene_dir = base_path / "scene"
+        
+        # Create realistic nested structure with plate info in subdirectory name
+        plate_subdir = "GF_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001"
+        fg01_nested = (
+            scene_dir / "FG01" / "nuke_lens_distortion" / "v002" / plate_subdir
+        )
+        fg01_nested.mkdir(parents=True)
+        
+        # Create .nk file with realistic naming
+        nk_file = fg01_nested / f"{shot_name}_mm_default_FG01_LD_v002.nk"
+        nk_file.write_text("# Real-world undistortion script")
+        
+        # Also create an older version for comparison
+        fg01_v001 = scene_dir / "FG01" / "nuke_lens_distortion" / "v001"
+        fg01_v001.mkdir(parents=True)
+        old_nk = fg01_v001 / f"{shot_name}_FG01_LD_v001.nk"
+        old_nk.write_text("# Older version")
+        
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path), shot_name, mock_username,
+        )
+        
+        assert result is not None
+        assert "v002" in str(result)  # Should find latest version
+        assert plate_subdir in str(result)  # Should find file in nested directory
+        assert result.name == f"{shot_name}_mm_default_FG01_LD_v002.nk"
+
+    def test_find_latest_undistortion_file_not_found_error(
+        self, tmp_path, mock_shot_name, mock_username,
+    ):
+        """Test that FileNotFoundError is handled gracefully during directory iteration."""
+        from unittest.mock import patch
+        
+        # Create a workspace path
+        workspace_path = str(tmp_path)
+        
+        # Mock iterdir to raise FileNotFoundError
+        with patch("pathlib.Path.iterdir") as mock_iterdir:
+            mock_iterdir.side_effect = FileNotFoundError("Directory was deleted")
+            
+            result = UndistortionFinder.find_latest_undistortion(
+                workspace_path, mock_shot_name, mock_username,
+            )
+            
+            # Should return None instead of crashing
+            assert result is None
+

@@ -397,6 +397,16 @@ class CacheManager(QObject):
                     # Open with PIL - it handles EXR efficiently
                     pil_image = PILImage.open(str(source_path))
                     
+                    # Validate the image is actually usable
+                    if pil_image.size[0] == 0 or pil_image.size[1] == 0:
+                        raise ValueError("Image has zero dimensions")
+                    
+                    # Force loading of image data to verify it's not corrupted
+                    try:
+                        pil_image.load()
+                    except Exception as load_error:
+                        raise ValueError(f"Image data is corrupted or unreadable: {load_error}")
+                    
                     # Convert to RGB if necessary (EXR might be in different modes)
                     if pil_image.mode not in ["RGB", "RGBA"]:
                         pil_image = pil_image.convert("RGB")
@@ -443,6 +453,23 @@ class CacheManager(QObject):
             
             # Fall back to Qt if PIL wasn't used or failed
             if not use_pil:
+                # Add dimension pre-check for large format files before loading with QImage
+                if suffix_lower in [".exr", ".tiff", ".tif"]:
+                    try:
+                        # Use PIL to get dimensions without loading pixel data
+                        from PIL import Image as PILImage
+                        with PILImage.open(str(source_path)) as pil_img:
+                            width, height = pil_img.size
+                            max_dim = 20000 if is_heavy_format else 10000
+                            if width > max_dim or height > max_dim:
+                                logger.warning(
+                                    f"Image too large ({width}x{height} > {max_dim}): {source_path}"
+                                )
+                                return None
+                    except Exception as e:
+                        logger.debug(f"Could not pre-check dimensions with PIL: {e}")
+                        # Fall through to regular QImage loading
+                
                 # Load image using QImage
                 image = QImage(str(source_path))
                 if image.isNull():
@@ -452,14 +479,15 @@ class CacheManager(QObject):
                         logger.info("Note: Install Pillow with 'pip install Pillow' for better EXR support")
                     return None
 
-            # Validate image dimensions to prevent memory issues
+            # Validate image dimensions to prevent memory issues (if not already checked)
             # Be more lenient with heavy formats as they're often high-res plates
-            max_dim = 20000 if is_heavy_format else 10000
-            if image.width() > max_dim or image.height() > max_dim:
-                logger.warning(
-                    f"Image too large ({image.width()}x{image.height()} > {max_dim}): {source_path}",
-                )
-                return None
+            if "image" in locals():
+                max_dim = 20000 if is_heavy_format else 10000
+                if image.width() > max_dim or image.height() > max_dim:
+                    logger.warning(
+                        f"Image too large ({image.width()}x{image.height()} > {max_dim}): {source_path}",
+                    )
+                    return None
 
             # Scale to cache size using QImage
             scaled = image.scaled(
@@ -527,11 +555,15 @@ class CacheManager(QObject):
             logger.exception(f"Unexpected error caching thumbnail {source_path}: {e}")
             return None
         finally:
-            # Safe cleanup with existence checks to prevent memory leaks
+            # Proper Qt resource cleanup to prevent memory leaks
             if "image" in locals() and image is not None:
-                image = None
+                # For QImage objects, explicitly delete
+                del image
             if "scaled" in locals() and scaled is not None:
-                scaled = None
+                del scaled
+            # Force garbage collection for large images
+            import gc
+            gc.collect()
 
     def get_cached_shots(self) -> Optional[List[Dict[str, Any]]]:
         """Get cached shot list if valid.
