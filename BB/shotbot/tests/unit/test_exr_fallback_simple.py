@@ -3,7 +3,6 @@
 Following the testing guide's advice to minimize mocking and test real behavior.
 """
 
-import tempfile
 from pathlib import Path
 
 import pytest
