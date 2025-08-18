@@ -391,21 +391,110 @@ class CacheManager(QObject):
             # Try PIL first for heavy formats
             if use_pil:
                 try:
-                    # Import PIL on demand to avoid dependency if not needed
-                    from PIL import Image as PILImage
-                    
-                    # Open with PIL - it handles EXR efficiently
-                    pil_image = PILImage.open(str(source_path))
+                    # For EXR files, try OpenEXR first if available
+                    if suffix_lower == ".exr":
+                        try:
+                            import OpenEXR
+                            import Imath
+                            import numpy as np
+                            from PIL import Image as PILImage
+                            
+                            # Open EXR file
+                            exr_file = OpenEXR.InputFile(str(source_path))
+                            
+                            # Get header info
+                            header = exr_file.header()
+                            dw = header['dataWindow']
+                            width = dw.max.x - dw.min.x + 1
+                            height = dw.max.y - dw.min.y + 1
+                            
+                            # Define channel types
+                            FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+                            
+                            # Read RGB channels (EXR typically stores as float)
+                            channels = []
+                            for channel in ['R', 'G', 'B']:
+                                if channel in header['channels']:
+                                    channel_str = exr_file.channel(channel, FLOAT)
+                                    channel_array = np.frombuffer(channel_str, dtype=np.float32)
+                                    channel_array = channel_array.reshape((height, width))
+                                    channels.append(channel_array)
+                                else:
+                                    # If channel missing, use zeros
+                                    channels.append(np.zeros((height, width), dtype=np.float32))
+                            
+                            # Stack channels to create RGB image
+                            img_array = np.stack(channels, axis=2)
+                            
+                            # Normalize HDR values to 0-255 range
+                            # Apply simple tone mapping for HDR content
+                            img_array = np.clip(img_array, 0, 1)  # Clamp to [0,1]
+                            img_array = (img_array * 255).astype(np.uint8)
+                            
+                            # Convert to PIL Image
+                            pil_image = PILImage.fromarray(img_array, mode='RGB')
+                            
+                            logger.debug(f"Successfully loaded EXR with OpenEXR: {source_path} ({width}x{height})")
+                            
+                        except ImportError:
+                            logger.debug("OpenEXR not available, trying imageio")
+                            # Try imageio as fallback
+                            try:
+                                import imageio.v3 as iio
+                                import numpy as np
+                                from PIL import Image as PILImage
+                                
+                                # Read with imageio
+                                img_array = iio.imread(str(source_path))
+                                
+                                # Normalize if needed
+                                if img_array.dtype == np.float32 or img_array.dtype == np.float64:
+                                    img_array = np.clip(img_array, 0, 1)
+                                    img_array = (img_array * 255).astype(np.uint8)
+                                elif img_array.dtype == np.uint16:
+                                    img_array = (img_array / 256).astype(np.uint8)
+                                
+                                # Convert to PIL
+                                if len(img_array.shape) == 2:
+                                    pil_image = PILImage.fromarray(img_array, mode='L')
+                                elif len(img_array.shape) == 3:
+                                    if img_array.shape[2] == 3:
+                                        pil_image = PILImage.fromarray(img_array, mode='RGB')
+                                    elif img_array.shape[2] == 4:
+                                        pil_image = PILImage.fromarray(img_array, mode='RGBA')
+                                    else:
+                                        raise ValueError(f"Unsupported channel count: {img_array.shape[2]}")
+                                else:
+                                    raise ValueError(f"Unsupported image shape: {img_array.shape}")
+                                
+                                logger.debug(f"Successfully loaded EXR with imageio: {source_path}")
+                                
+                            except Exception:
+                                # Final fallback to PIL
+                                from PIL import Image as PILImage
+                                pil_image = PILImage.open(str(source_path))
+                        except Exception as e:
+                            logger.debug(f"OpenEXR failed to load EXR: {e}, trying PIL")
+                            # Fall through to regular PIL loading
+                            from PIL import Image as PILImage
+                            pil_image = PILImage.open(str(source_path))
+                    else:
+                        # Import PIL on demand to avoid dependency if not needed
+                        from PIL import Image as PILImage
+                        
+                        # Open with PIL - it handles most formats efficiently
+                        pil_image = PILImage.open(str(source_path))
                     
                     # Validate the image is actually usable
                     if pil_image.size[0] == 0 or pil_image.size[1] == 0:
                         raise ValueError("Image has zero dimensions")
                     
-                    # Force loading of image data to verify it's not corrupted
-                    try:
-                        pil_image.load()
-                    except Exception as load_error:
-                        raise ValueError(f"Image data is corrupted or unreadable: {load_error}")
+                    # Force loading of image data to verify it's not corrupted (skip for imageio-loaded images)
+                    if suffix_lower != ".exr" or 'iio' not in locals():
+                        try:
+                            pil_image.load()
+                        except Exception as load_error:
+                            raise ValueError(f"Image data is corrupted or unreadable: {load_error}")
                     
                     # Convert to RGB if necessary (EXR might be in different modes)
                     if pil_image.mode not in ["RGB", "RGBA"]:
@@ -476,7 +565,7 @@ class CacheManager(QObject):
                     logger.warning(f"Failed to load image: {source_path}")
                     # For EXR files, provide helpful message
                     if suffix_lower == ".exr":
-                        logger.info("Note: Install Pillow with 'pip install Pillow' for better EXR support")
+                        logger.info("Note: Install OpenEXR with 'pip install OpenEXR' for EXR support")
                     return None
 
             # Validate image dimensions to prevent memory issues (if not already checked)
