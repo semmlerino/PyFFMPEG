@@ -399,7 +399,8 @@ class MainWindow(QMainWindow):
 
             # Restore last selected shot if available
             if hasattr(self, "_last_selected_shot_name") and isinstance(
-                self._last_selected_shot_name, str,
+                self._last_selected_shot_name,
+                str,
             ):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
@@ -454,7 +455,8 @@ class MainWindow(QMainWindow):
 
             # Restore last selected shot if available
             if hasattr(self, "_last_selected_shot_name") and isinstance(
-                self._last_selected_shot_name, str,
+                self._last_selected_shot_name,
+                str,
             ):
                 shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
                 if shot:
@@ -580,7 +582,12 @@ class MainWindow(QMainWindow):
         self._update_status("3DE scene discovery started...")
 
     def _on_threede_discovery_progress(
-        self, current: int, total: int, percentage: float, description: str, eta: str,
+        self,
+        current: int,
+        total: int,
+        percentage: float,
+        description: str,
+        eta: str,
     ):
         """Handle enhanced 3DE discovery progress updates.
 
@@ -700,7 +707,10 @@ class MainWindow(QMainWindow):
             # and will be deduplicated when discovery finishes
 
     def _on_threede_scan_progress(
-        self, current_shot: int, total_shots: int, status: str,
+        self,
+        current_shot: int,
+        total_shots: int,
+        status: str,
     ):
         """Handle fine-grained scan progress updates.
 
@@ -849,7 +859,8 @@ class MainWindow(QMainWindow):
             else:
                 # For other apps, launch in shot context with undistortion/raw plate support
                 success = self._launch_app_with_scene_context(
-                    app_name, self._current_scene,
+                    app_name,
+                    self._current_scene,
                 )
         else:
             # Regular shot launch
@@ -862,7 +873,9 @@ class MainWindow(QMainWindow):
             )
 
             success = self.command_launcher.launch_app(
-                app_name, include_undistortion, include_raw_plate,
+                app_name,
+                include_undistortion,
+                include_raw_plate,
             )
 
         if success:
@@ -887,7 +900,10 @@ class MainWindow(QMainWindow):
         include_raw_plate = app_name == "nuke" and self.raw_plate_checkbox.isChecked()
 
         if self.command_launcher.launch_app_with_scene_context(
-            app_name, scene, include_undistortion, include_raw_plate,
+            app_name,
+            scene,
+            include_undistortion,
+            include_raw_plate,
         ):
             return True
         return False
@@ -1109,7 +1125,8 @@ class MainWindow(QMainWindow):
 
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.log_viewer.add_error(
-                timestamp, f"Failed to launch custom launcher: {launcher.name}",
+                timestamp,
+                f"Failed to launch custom launcher: {launcher.name}",
             )
 
     def _load_settings(self):

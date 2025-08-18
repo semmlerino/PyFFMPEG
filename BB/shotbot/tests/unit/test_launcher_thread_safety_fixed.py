@@ -233,7 +233,9 @@ if __name__ == "__main__":
     import sys
 
     result = subprocess.run(
-        [sys.executable, "run_tests.py", __file__, "-v"], capture_output=True, text=True,
+        [sys.executable, "run_tests.py", __file__, "-v"],
+        capture_output=True,
+        text=True,
     )
     print(result.stdout)
     if result.stderr:

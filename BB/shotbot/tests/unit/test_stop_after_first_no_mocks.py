@@ -74,7 +74,8 @@ class TestStopAfterFirstNoMocks:
                     # Temporarily patch the shows root to point to our test directory
                     with patch("config.Config.SHOWS_ROOT", str(shows_root)):
                         scenes = finder.find_all_scenes_in_shows_efficient(
-                            user_shots=[mock_shot], excluded_users=set(),
+                            user_shots=[mock_shot],
+                            excluded_users=set(),
                         )
 
                     # Verify behavior: one scene per shot
@@ -105,7 +106,8 @@ class TestStopAfterFirstNoMocks:
                     with patch("config.Config.SHOWS_ROOT", str(shows_root)):
                         # Real processing - no mocking!
                         scenes = finder.find_all_scenes_in_shows_efficient(
-                            user_shots=[mock_shot], excluded_users=set(),
+                            user_shots=[mock_shot],
+                            excluded_users=set(),
                         )
 
                     # Should process more files when stop-after-first is disabled
@@ -131,7 +133,8 @@ class TestStopAfterFirstNoMocks:
             with patch("config.Config.THREEDE_SCAN_MAX_FILES_PER_SHOT", 1):
                 with patch("config.Config.SHOWS_ROOT", str(shows_root)):
                     scenes_optimized = finder.find_all_scenes_in_shows_efficient(
-                        [mock_shot], set(),
+                        [mock_shot],
+                        set(),
                     )
         time_optimized = time.time() - start
 
@@ -141,7 +144,8 @@ class TestStopAfterFirstNoMocks:
             with patch("config.Config.THREEDE_SCAN_MAX_FILES_PER_SHOT", 10):
                 with patch("config.Config.SHOWS_ROOT", str(shows_root)):
                     scenes_all = finder.find_all_scenes_in_shows_efficient(
-                        [mock_shot], set(),
+                        [mock_shot],
+                        set(),
                     )
         time_all = time.time() - start
 
@@ -186,7 +190,9 @@ if __name__ == "__main__":
     import sys
 
     result = subprocess.run(
-        [sys.executable, "run_tests.py", __file__, "-v"], capture_output=True, text=True,
+        [sys.executable, "run_tests.py", __file__, "-v"],
+        capture_output=True,
+        text=True,
     )
     print(result.stdout)
     if result.stderr:

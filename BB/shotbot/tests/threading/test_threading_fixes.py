@@ -329,7 +329,9 @@ class TestWorkerStateTransitions:
 
         for i, state in enumerate(target_states):
             thread = threading.Thread(
-                target=attempt_transition, args=(state,), name=f"transition_thread_{i}",
+                target=attempt_transition,
+                args=(state,),
+                name=f"transition_thread_{i}",
             )
             threads.append(thread)
             thread.start()
@@ -512,7 +514,9 @@ class TestExponentialBackoff:
     """
 
     def test_process_termination_during_read(
-        self, process_pool_manager, mock_subprocess,
+        self,
+        process_pool_manager,
+        mock_subprocess,
     ):
         """Test process termination during backoff read operations.
 
@@ -578,7 +582,8 @@ class TestExponentialBackoff:
         delays = [current_delay]
         for _ in range(5):
             current_delay = min(
-                current_delay * session.BACKOFF_MULTIPLIER, session.MAX_RETRY_DELAY,
+                current_delay * session.BACKOFF_MULTIPLIER,
+                session.MAX_RETRY_DELAY,
             )
             delays.append(current_delay)
 
@@ -613,7 +618,9 @@ class TestExponentialBackoff:
                 for i, session in enumerate(sessions):
                     # Use longer timeout for concurrent operations
                     future = executor.submit(
-                        session.execute, f"echo 'session_{i}'", timeout=10,
+                        session.execute,
+                        f"echo 'session_{i}'",
+                        timeout=10,
                     )
                     futures.append(future)
 
@@ -714,7 +721,9 @@ class TestFutureBasedSynchronization:
 
         for i in range(10):
             thread = threading.Thread(
-                target=cache_thumbnail_request, args=(i,), name=f"cache_thread_{i}",
+                target=cache_thumbnail_request,
+                args=(i,),
+                name=f"cache_thread_{i}",
             )
             threads.append(thread)
             thread.start()
@@ -763,7 +772,10 @@ class TestFutureBasedSynchronization:
         # For simplicity, use cache_thumbnail_direct which returns Path directly
         # This tests the core caching functionality without thread complications
         cached_path = cache_manager.cache_thumbnail_direct(
-            source_path=test_image, show="futuretest", sequence="seq01", shot="shot01",
+            source_path=test_image,
+            show="futuretest",
+            sequence="seq01",
+            shot="shot01",
         )
 
         # Verify basic caching worked
@@ -773,14 +785,20 @@ class TestFutureBasedSynchronization:
 
         # Test that subsequent calls return the same cached file
         cached_path2 = cache_manager.cache_thumbnail_direct(
-            source_path=test_image, show="futuretest", sequence="seq01", shot="shot01",
+            source_path=test_image,
+            show="futuretest",
+            sequence="seq01",
+            shot="shot01",
         )
 
         assert cached_path2 == cached_path, "Second call didn't return cached file"
 
         # Test with different shot name
         cached_path3 = cache_manager.cache_thumbnail_direct(
-            source_path=test_image, show="futuretest", sequence="seq01", shot="shot02",
+            source_path=test_image,
+            show="futuretest",
+            sequence="seq01",
+            shot="shot02",
         )
 
         assert cached_path3 != cached_path, "Different shot returned same path"
@@ -895,7 +913,8 @@ class TestComprehensiveThreadingStress:
             try:
                 for i in range(3):
                     worker = SimpleTestWorker(
-                        work_duration=0.2, fail_on_purpose=(i == 2),
+                        work_duration=0.2,
+                        fail_on_purpose=(i == 2),
                     )
                     # Note: SimpleTestWorker is QThread, not QWidget - no qtbot.addWidget needed
                     workers.append(worker)

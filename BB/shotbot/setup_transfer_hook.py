@@ -469,7 +469,9 @@ def main():
         help="Path to git repository (default: current directory)",
     )
     parser.add_argument(
-        "--force", action="store_true", help="Force overwrite existing hooks",
+        "--force",
+        action="store_true",
+        help="Force overwrite existing hooks",
     )
     parser.add_argument(
         "--create-branch",
@@ -477,7 +479,10 @@ def main():
         help="Create encoded-releases branch during install",
     )
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose output",
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output",
     )
 
     args = parser.parse_args()

@@ -391,7 +391,11 @@ class TestShotItemModel:
         assert result.has_changes is False
 
     def test_clear_thumbnail_cache(
-        self, qtbot, shot_item_model, sample_shots, sample_thumbnail_pixmap,
+        self,
+        qtbot,
+        shot_item_model,
+        sample_shots,
+        sample_thumbnail_pixmap,
     ):
         """Test clearing thumbnail cache."""
         shot_item_model.set_shots(sample_shots)
@@ -478,7 +482,10 @@ class TestShotItemModel:
             assert data_changed_spy.count() >= 2  # Loading and failed states
 
     def test_get_thumbnail_pixmap(
-        self, shot_item_model, sample_shots, sample_thumbnail_pixmap,
+        self,
+        shot_item_model,
+        sample_shots,
+        sample_thumbnail_pixmap,
     ):
         """Test getting cached thumbnail pixmap."""
         shot_item_model.set_shots(sample_shots)
@@ -495,7 +502,10 @@ class TestShotItemModel:
         assert pixmap == sample_thumbnail_pixmap
 
     def test_data_decoration_role(
-        self, shot_item_model, sample_shots, sample_thumbnail_pixmap,
+        self,
+        shot_item_model,
+        sample_shots,
+        sample_thumbnail_pixmap,
     ):
         """Test decoration role returns icon."""
         shot_item_model.set_shots(sample_shots)

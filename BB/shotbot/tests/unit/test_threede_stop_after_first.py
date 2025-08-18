@@ -72,7 +72,8 @@ class TestStopAfterFirstOptimization(unittest.TestCase):
 
                         # Process files
                         scenes = self.finder.find_all_scenes_in_shows_efficient(
-                            user_shots=[mock_shot], excluded_users=set(),
+                            user_shots=[mock_shot],
+                            excluded_users=set(),
                         )
 
                         # Should only have one scene per shot (100 total, not 500)
@@ -110,7 +111,8 @@ class TestStopAfterFirstOptimization(unittest.TestCase):
 
                             # Process files
                             scenes = self.finder.find_all_scenes_in_shows_efficient(
-                                user_shots=[mock_shot], excluded_users=set(),
+                                user_shots=[mock_shot],
+                                excluded_users=set(),
                             )
 
                             # Should have all files (30 total)
@@ -140,7 +142,8 @@ class TestStopAfterFirstOptimization(unittest.TestCase):
 
                         # Process files
                         scenes = self.finder.find_all_scenes_in_shows_efficient(
-                            user_shots=[mock_shot], excluded_users=set(),
+                            user_shots=[mock_shot],
+                            excluded_users=set(),
                         )
 
                         # Should handle all 1000 shots
@@ -234,7 +237,8 @@ class TestStopAfterFirstOptimization(unittest.TestCase):
                     return_value=mock_files,
                 ):
                     scenes_all = self.finder.find_all_scenes_in_shows_efficient(
-                        user_shots=[mock_shot], excluded_users=set(),
+                        user_shots=[mock_shot],
+                        excluded_users=set(),
                     )
         time_all_files = time.time() - start_time
 
@@ -247,7 +251,8 @@ class TestStopAfterFirstOptimization(unittest.TestCase):
                     return_value=mock_files,
                 ):
                     scenes_optimized = self.finder.find_all_scenes_in_shows_efficient(
-                        user_shots=[mock_shot], excluded_users=set(),
+                        user_shots=[mock_shot],
+                        excluded_users=set(),
                     )
         time_optimized = time.time() - start_time
 

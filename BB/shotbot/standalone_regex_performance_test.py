@@ -90,7 +90,9 @@ def test_regex_pattern_caching():
             try:
                 # Use cached patterns if available
                 patterns = RawPlateFinder._get_plate_patterns(
-                    shot_name, plate_name, version,
+                    shot_name,
+                    plate_name,
+                    version,
                 )
                 if len(patterns) == 2:
                     pattern1, pattern2 = patterns
@@ -208,14 +210,18 @@ def test_pattern_cache_functionality():
 
         try:
             patterns1 = RawPlateFinder._get_plate_patterns(
-                shot_name, plate_name, version,
+                shot_name,
+                plate_name,
+                version,
             )
             cache_size_after_first = len(RawPlateFinder._pattern_cache)
             print(f"✓ First call completed, cache size: {cache_size_after_first}")
 
             # Second call should use cache
             patterns2 = RawPlateFinder._get_plate_patterns(
-                shot_name, plate_name, version,
+                shot_name,
+                plate_name,
+                version,
             )
             cache_size_after_second = len(RawPlateFinder._pattern_cache)
             print(f"✓ Second call completed, cache size: {cache_size_after_second}")

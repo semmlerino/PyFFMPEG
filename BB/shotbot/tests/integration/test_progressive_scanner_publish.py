@@ -34,7 +34,9 @@ class TestProgressiveScannerPublish:
         # Run progressive scan
         all_scenes = []
         for batch, _, _, _ in ThreeDESceneFinder.find_all_scenes_progressive(
-            shots, excluded_users={"gabriel-h"}, batch_size=10,
+            shots,
+            excluded_users={"gabriel-h"},
+            batch_size=10,
         ):
             all_scenes.extend(batch)
 
@@ -69,7 +71,9 @@ class TestProgressiveScannerPublish:
         # Run progressive scan
         all_scenes = []
         for batch, _, _, status in ThreeDESceneFinder.find_all_scenes_progressive(
-            shots, excluded_users=set(), batch_size=10,
+            shots,
+            excluded_users=set(),
+            batch_size=10,
         ):
             all_scenes.extend(batch)
 
@@ -101,7 +105,9 @@ class TestProgressiveScannerPublish:
         # Run progressive scan with "bob" excluded
         all_scenes = []
         for batch, _, _, _ in ThreeDESceneFinder.find_all_scenes_progressive(
-            shots, excluded_users={"bob"}, batch_size=10,
+            shots,
+            excluded_users={"bob"},
+            batch_size=10,
         ):
             all_scenes.extend(batch)
 
@@ -141,7 +147,9 @@ class TestProgressiveScannerPublish:
         with patch.object(Config, "THREEDE_SCAN_MAX_DEPTH", 15):
             all_scenes = []
             for batch, _, _, _ in ThreeDESceneFinder.find_all_scenes_progressive(
-                shots, excluded_users=set(), batch_size=10,
+                shots,
+                excluded_users=set(),
+                batch_size=10,
             ):
                 all_scenes.extend(batch)
 

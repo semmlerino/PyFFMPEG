@@ -338,7 +338,8 @@ class ThreadSafeWorker(QThread):
         self.set_state(WorkerState.DELETED)
 
     def safe_wait(
-        self, timeout_ms: int = ThreadingConfig.WORKER_STOP_TIMEOUT_MS,
+        self,
+        timeout_ms: int = ThreadingConfig.WORKER_STOP_TIMEOUT_MS,
     ) -> bool:
         """Safely wait for worker to finish with timeout.
 
@@ -354,7 +355,8 @@ class ThreadSafeWorker(QThread):
         return self.wait(timeout_ms)
 
     def safe_stop(
-        self, timeout_ms: int = ThreadingConfig.WORKER_STOP_TIMEOUT_MS,
+        self,
+        timeout_ms: int = ThreadingConfig.WORKER_STOP_TIMEOUT_MS,
     ) -> bool:
         """Safely stop worker with timeout.
 

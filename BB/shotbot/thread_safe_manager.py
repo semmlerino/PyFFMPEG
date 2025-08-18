@@ -459,7 +459,9 @@ class ThreadSafeProcessManager:
         except Exception as e:
             logger.error(f"Error terminating process {process_id}: {e}")
             self.update_process_state(
-                process_id, ProcessState.FAILED, error_message=str(e),
+                process_id,
+                ProcessState.FAILED,
+                error_message=str(e),
             )
             return False
 

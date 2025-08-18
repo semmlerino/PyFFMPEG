@@ -492,7 +492,9 @@ class TestCacheManagerThreading:
                 with patch("pathlib.Path.exists", return_value=True):
                     for _ in range(5):
                         cached = manager.get_cached_thumbnail(
-                            test_shot.show, test_shot.sequence, test_shot.shot,
+                            test_shot.show,
+                            test_shot.sequence,
+                            test_shot.shot,
                         )
                         retrieval_results.append((thread_id, cached is not None))
                         time.sleep(0.001)

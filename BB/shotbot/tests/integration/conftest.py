@@ -10,7 +10,8 @@ import pytest
 def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line(
-        "markers", "performance: mark test as a performance benchmark",
+        "markers",
+        "performance: mark test as a performance benchmark",
     )
     config.addinivalue_line("markers", "stress: mark test as a stress test")
     config.addinivalue_line("markers", "integration: mark test as an integration test")
@@ -292,7 +293,10 @@ def vfx_production_environment(integration_temp_dir):
                 from shot_model import Shot
 
                 shot = Shot(
-                    show_name, seq_name, shot_name.split("_")[-1], str(shot_path),
+                    show_name,
+                    seq_name,
+                    shot_name.split("_")[-1],
+                    str(shot_path),
                 )
                 created_shots.append(shot)
 

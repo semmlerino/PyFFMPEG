@@ -83,10 +83,13 @@ class TestStopAfterFirstBehavior:
 
                     # Mock the file discovery to return our real files
                     with patch.object(
-                        finder, "find_all_3de_files_in_show", return_value=all_files,
+                        finder,
+                        "find_all_3de_files_in_show",
+                        return_value=all_files,
                     ):
                         scenes = finder.find_all_scenes_in_shows_efficient(
-                            user_shots=mock_shots, excluded_users=set(),
+                            user_shots=mock_shots,
+                            excluded_users=set(),
                         )
 
                     # Count unique shots in results
@@ -124,10 +127,13 @@ class TestStopAfterFirstBehavior:
                     all_files = list((shows_root / "test_show").rglob("*.3de"))
 
                     with patch.object(
-                        finder, "find_all_3de_files_in_show", return_value=all_files,
+                        finder,
+                        "find_all_3de_files_in_show",
+                        return_value=all_files,
                     ):
                         scenes = finder.find_all_scenes_in_shows_efficient(
-                            user_shots=[mock_shot], excluded_users=set(),
+                            user_shots=[mock_shot],
+                            excluded_users=set(),
                         )
 
                     # Should process up to THREEDE_SCAN_MAX_FILES_PER_SHOT (default 10)
@@ -219,7 +225,9 @@ if __name__ == "__main__":
     import sys
 
     result = subprocess.run(
-        [sys.executable, "run_tests.py", __file__, "-v"], capture_output=True, text=True,
+        [sys.executable, "run_tests.py", __file__, "-v"],
+        capture_output=True,
+        text=True,
     )
     print(result.stdout)
     if result.stderr:

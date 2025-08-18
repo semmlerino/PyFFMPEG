@@ -44,7 +44,10 @@ class TestShot:
     @patch("utils.PathUtils.validate_path_exists")
     @patch("utils.FileUtils.get_first_image_file")
     def test_get_thumbnail_path_editorial_success(
-        self, mock_get_first_image, mock_validate_path, sample_shot,
+        self,
+        mock_get_first_image,
+        mock_validate_path,
+        sample_shot,
     ):
         """Test get_thumbnail_path finds editorial thumbnail."""
         # Setup mocks for successful editorial thumbnail discovery
@@ -67,7 +70,11 @@ class TestShot:
     @patch("utils.FileUtils.get_first_image_file")
     @patch("utils.PathUtils.find_turnover_plate_thumbnail")
     def test_get_thumbnail_path_turnover_fallback(
-        self, mock_find_turnover, mock_get_first_image, mock_validate_path, sample_shot,
+        self,
+        mock_find_turnover,
+        mock_get_first_image,
+        mock_validate_path,
+        sample_shot,
     ):
         """Test get_thumbnail_path falls back to turnover plates."""
         # Editorial directory doesn't exist or no images found
@@ -356,7 +363,9 @@ class TestShotModel:
         ]
 
         with patch.object(
-            shot_model.cache_manager, "get_cached_shots", return_value=mock_cache_data,
+            shot_model.cache_manager,
+            "get_cached_shots",
+            return_value=mock_cache_data,
         ):
             result = shot_model._load_from_cache()
 
@@ -368,7 +377,9 @@ class TestShotModel:
     def test_load_from_cache_no_data(self, shot_model):
         """Test cache loading when no data available."""
         with patch.object(
-            shot_model.cache_manager, "get_cached_shots", return_value=None,
+            shot_model.cache_manager,
+            "get_cached_shots",
+            return_value=None,
         ):
             result = shot_model._load_from_cache()
 
@@ -408,7 +419,9 @@ class TestShotModelErrorHandling:
         mock_execute.return_value = "workspace /shows/test/shots/seq1/shot1"
 
         with patch.object(
-            shot_model, "_parse_ws_output", side_effect=ValueError("Parse failed"),
+            shot_model,
+            "_parse_ws_output",
+            side_effect=ValueError("Parse failed"),
         ):
             result = shot_model.refresh_shots()
 
@@ -423,7 +436,9 @@ class TestShotModelErrorHandling:
 
         # Mock cache_shots to raise OSError
         with patch.object(
-            shot_model.cache_manager, "cache_shots", side_effect=OSError("Disk full"),
+            shot_model.cache_manager,
+            "cache_shots",
+            side_effect=OSError("Disk full"),
         ):
             result = shot_model.refresh_shots()
 

@@ -69,7 +69,8 @@ class CommandCache:
         """
         super().__init__()
         self._cache: Dict[
-            str, Tuple[Any, float, int, str],
+            str,
+            Tuple[Any, float, int, str],
         ] = {}  # key -> (result, timestamp, ttl, original_command)
         self._lock = threading.RLock()
         self._default_ttl = default_ttl
@@ -233,7 +234,9 @@ class PersistentBashSession:
         # Track state transition
         if HAS_DEBUG_UTILS:
             state_tracker.transition(
-                self.session_id, "STARTING", "Session initialization",
+                self.session_id,
+                "STARTING",
+                "Session initialization",
             )
 
         # Ensure any existing process is cleaned up first
@@ -260,7 +263,8 @@ class PersistentBashSession:
 
                 # Update retry delay with exponential backoff
                 self._retry_delay = min(
-                    self._retry_delay * self.BACKOFF_MULTIPLIER, self.MAX_RETRY_DELAY,
+                    self._retry_delay * self.BACKOFF_MULTIPLIER,
+                    self.MAX_RETRY_DELAY,
                 )
                 self._last_retry_time = current_time
 
@@ -374,7 +378,9 @@ class PersistentBashSession:
                 # Track state
                 if HAS_DEBUG_UTILS:
                     state_tracker.transition(
-                        self.session_id, "WAITING_MARKER", "Waiting for init marker",
+                        self.session_id,
+                        "WAITING_MARKER",
+                        "Waiting for init marker",
                     )
                     deadlock_detector.waiting(self.session_id, "initialization_marker")
 
@@ -531,7 +537,9 @@ class PersistentBashSession:
             # Track successful initialization
             if HAS_DEBUG_UTILS:
                 state_tracker.transition(
-                    self.session_id, "READY", "Session initialized",
+                    self.session_id,
+                    "READY",
+                    "Session initialized",
                 )
                 deadlock_detector.done_waiting(self.session_id)
 
@@ -577,7 +585,9 @@ class PersistentBashSession:
         return text
 
     def _read_with_backoff(
-        self, timeout: float, marker: Optional[str] = None,
+        self,
+        timeout: float,
+        marker: Optional[str] = None,
     ) -> Tuple[str, bool]:
         """Read from subprocess with exponential backoff polling.
 
@@ -748,7 +758,9 @@ class PersistentBashSession:
         return "\n".join(output), found_marker
 
     def execute(
-        self, command: str, timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT),
+        self,
+        command: str,
+        timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT),
     ) -> str:
         """Execute command in persistent session.
 
@@ -1074,7 +1086,10 @@ class ProcessPoolManager(QObject):
             raise
 
     def batch_execute(
-        self, commands: List[str], cache_ttl: int = 30, session_type: str = "workspace",
+        self,
+        commands: List[str],
+        cache_ttl: int = 30,
+        session_type: str = "workspace",
     ) -> Dict[str, Optional[str]]:
         """Execute multiple commands in parallel using session pool.
 
@@ -1109,7 +1124,10 @@ class ProcessPoolManager(QObject):
         futures: Dict[concurrent.futures.Future[str], str] = {}
         for cmd in commands_to_execute:
             future = self._executor.submit(
-                self._execute_with_session_pool, cmd, cache_ttl, session_type,
+                self._execute_with_session_pool,
+                cmd,
+                cache_ttl,
+                session_type,
             )
             futures[future] = cmd
 
@@ -1128,7 +1146,10 @@ class ProcessPoolManager(QObject):
         return results
 
     def _execute_with_session_pool(
-        self, command: str, cache_ttl: int, session_type: str,
+        self,
+        command: str,
+        cache_ttl: int,
+        session_type: str,
     ) -> str:
         """Execute command using session pool for true parallelism.
 

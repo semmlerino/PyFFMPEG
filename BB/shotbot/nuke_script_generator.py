@@ -293,7 +293,8 @@ Viewer {{
 
     @staticmethod
     def _import_undistortion_nodes(
-        undistortion_path: str, ypos_offset: int = -200,
+        undistortion_path: str,
+        ypos_offset: int = -200,
     ) -> str:
         """Import nodes from an undistortion .nk file.
 
@@ -358,7 +359,7 @@ Viewer {{
                     if line.startswith(node_type + " {"):
                         is_node_start = True
                         break
-                
+
                 # Special handling for end_group which doesn't have braces
                 if line.strip() == "end_group":
                     imported_nodes.append(line)
@@ -413,7 +414,9 @@ Viewer {{
 
     @staticmethod
     def create_plate_script_with_undistortion(
-        plate_path: str, undistortion_path: Optional[str], shot_name: str,
+        plate_path: str,
+        undistortion_path: Optional[str],
+        shot_name: str,
     ) -> Optional[str]:
         """Create a Nuke script with plate and optional undistortion.
 
@@ -529,7 +532,8 @@ Read {{
             if undistortion_path and Path(undistortion_path).exists():
                 # Import the actual undistortion nodes from the .nk file
                 imported_nodes = NukeScriptGenerator._import_undistortion_nodes(
-                    undistortion_path, ypos_offset=-200,
+                    undistortion_path,
+                    ypos_offset=-200,
                 )
                 if imported_nodes:
                     # Fix the first node to connect to Read_Plate (if it exists)
@@ -537,7 +541,9 @@ Read {{
                     if plate_path and nuke_plate_path:
                         # Connect first undistortion node to Read_Plate
                         imported_nodes = imported_nodes.replace(
-                            "inputs 0", "inputs 1", 1,
+                            "inputs 0",
+                            "inputs 1",
+                            1,
                         )
 
                     script_content += imported_nodes
@@ -613,32 +619,32 @@ Viewer {{
         last_frame: int,
     ) -> str:
         """Generate a Read node with proper colorspace quoting.
-        
+
         Args:
             file_path: Path to the input file/sequence
             colorspace: Colorspace name (will be quoted if contains spaces)
             first_frame: First frame number
             last_frame: Last frame number
-            
+
         Returns:
             String containing the Read node definition
-            
+
         Raises:
             ValueError: If frame range is invalid
         """
         # Validate frame range
         if first_frame > last_frame:
             raise ValueError(f"Invalid frame range: {first_frame} to {last_frame}")
-            
+
         # Escape and quote file path for Nuke
         nuke_path = NukeScriptGenerator._escape_path(file_path)
-        
+
         # Handle colorspace - always quote for consistency and safety
         if colorspace and colorspace.strip():
             colorspace_line = f'colorspace "{colorspace.strip()}"'
         else:
             colorspace_line = 'colorspace "linear"'  # Default fallback
-            
+
         return f"""Read {{
  inputs 0
  file_type exr
@@ -660,16 +666,16 @@ Viewer {{
     @staticmethod
     def _generate_write_node(output_path: str) -> str:
         """Generate a Write node for output.
-        
+
         Args:
             output_path: Path for output file/sequence
-            
+
         Returns:
             String containing the Write node definition
         """
         # Escape path for Nuke
         nuke_path = NukeScriptGenerator._escape_path(output_path)
-        
+
         return f"""Write {{
  file_type exr
  file "{nuke_path}"
@@ -686,15 +692,15 @@ Viewer {{
     @staticmethod
     def _generate_undistortion_node(undisto_path: str) -> str:
         """Generate an undistortion group node.
-        
+
         Args:
             undisto_path: Path to undistortion .nk file
-            
+
         Returns:
             String containing the undistortion Group node
         """
         escaped_path = NukeScriptGenerator._escape_path(undisto_path)
-        
+
         return f"""Group {{
  name Undistortion
  tile_color 0xcc804eff
@@ -716,36 +722,36 @@ Viewer {{
         output_dir: str,
     ) -> Optional[str]:
         """Generate a complete comp script with Read and Write nodes.
-        
+
         Args:
             shot_name: Name of the shot for filename and script metadata
-            plate_path: Path to input plate sequence  
+            plate_path: Path to input plate sequence
             colorspace: Colorspace for the plate
             first_frame: First frame of the sequence
             last_frame: Last frame of the sequence
             output_dir: Directory to save the script
-            
+
         Returns:
             Path to the generated .nk script file, or None if failed
         """
         try:
             import os
             import re
-            
+
             # Sanitize shot name to prevent path traversal
             safe_shot_name = re.sub(r"[^\w\-_]", "_", shot_name)
             safe_shot_name = safe_shot_name.replace("..", "_")  # Extra safety
-            
+
             # Create output script path
             script_filename = f"{safe_shot_name}_comp.nk"
             output_path = os.path.join(output_dir, script_filename)
-            
+
             # Ensure output directory exists
             os.makedirs(output_dir, exist_ok=True)
-            
+
             # Generate script content
             width, height = NukeScriptGenerator._detect_resolution(plate_path)
-            
+
             script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
 version 16.0 v4
 # Shot: {shot_name}
@@ -796,14 +802,14 @@ Viewer {{
  ypos 200
 }}
 """
-            
+
             # Write the script file
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(script_content)
-                
+
             print(f"Generated comp script: {output_path}")
             return output_path
-            
+
         except Exception as e:
             print(f"Error generating comp script: {e}")
             return None

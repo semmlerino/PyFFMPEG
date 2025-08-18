@@ -394,7 +394,11 @@ class QtThreadMonitor:
 
     def _setup_heartbeat(self, thread: QThread) -> None:
         """Set up heartbeat monitoring for a thread."""
-        thread_id = int(QThread.currentThread().currentThreadId()) if thread.isRunning() else id(thread)
+        thread_id = (
+            int(QThread.currentThread().currentThreadId())
+            if thread.isRunning()
+            else id(thread)
+        )
 
         # Create heartbeat timer
         timer = QTimer()
@@ -582,7 +586,9 @@ class WorkerThreadMonitor:
             logger.debug(f"Registered ThreadSafeWorker for monitoring: {worker}")
 
     def _on_worker_state_change(
-        self, worker: "ThreadSafeWorker", new_state: WorkerState,
+        self,
+        worker: "ThreadSafeWorker",
+        new_state: WorkerState,
     ) -> None:
         """Handle worker state change."""
         worker_id = id(worker)
@@ -812,7 +818,10 @@ class ProcessPoolMonitor:
         self.metrics_collector.add_metric(metric)
 
     def record_process_end(
-        self, process_id: int, return_code: int, duration: float,
+        self,
+        process_id: int,
+        return_code: int,
+        duration: float,
     ) -> None:
         """Record the end of a process.
 
@@ -1101,7 +1110,9 @@ class ThreadHealthMonitor(QObject):
 
         # Calculate overall health score
         health_score = self._calculate_health_score(
-            qt_health, worker_health, process_health,
+            qt_health,
+            worker_health,
+            process_health,
         )
 
         # Compile comprehensive health report
@@ -1133,7 +1144,10 @@ class ThreadHealthMonitor(QObject):
             )
 
     def _calculate_health_score(
-        self, qt_health: Dict, worker_health: Dict, process_health: Dict,
+        self,
+        qt_health: Dict,
+        worker_health: Dict,
+        process_health: Dict,
     ) -> int:
         """Calculate overall health score (0-100)."""
         scores = []
@@ -1280,7 +1294,7 @@ class ThreadHealthMonitor(QObject):
         """
         # Get basic health report
         report = self.get_health_report(format="dict")
-        
+
         # Ensure report is a dict before adding to it
         if not isinstance(report, dict):
             return {"error": "Failed to get health report"}

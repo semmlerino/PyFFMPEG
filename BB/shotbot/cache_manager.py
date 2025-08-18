@@ -28,7 +28,7 @@ class ThumbnailCacheResult:
     """Result container for async thumbnail caching."""
 
     def __init__(self):
-        self.future: Future = Future()
+        self.future: Future[Optional[Path]] = Future()
         self.cache_path: Optional[Path] = None
         self.error: Optional[str] = None
         self._complete_event = threading.Event()
@@ -160,7 +160,9 @@ class CacheManager(QObject):
                 logger.debug("Ensured cache directory exists: %s", self.thumbnails_dir)
                 return
             except (OSError, PermissionError) as e:
-                logger.error("Failed to create cache dir (attempt %d): %s", attempt + 1, e)
+                logger.error(
+                    "Failed to create cache dir (attempt %d): %s", attempt + 1, e
+                )
                 if attempt == max_retries - 1:
                     # Use fallback temp directory as last resort
                     try:
@@ -196,7 +198,10 @@ class CacheManager(QObject):
             return False
 
     def get_cached_thumbnail(
-        self, show: str, sequence: str, shot: str,
+        self,
+        show: str,
+        sequence: str,
+        shot: str,
     ) -> Optional[Path]:
         """Get path to cached thumbnail if it exists (thread-safe).
 
@@ -293,7 +298,9 @@ class CacheManager(QObject):
             # Check if this is a large file that needs special handling
             file_size_mb = source_path.stat().st_size / (1024 * 1024)
             suffix_lower = source_path.suffix.lower()
-            is_heavy_format = suffix_lower in getattr(Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr", ".tiff", ".tif"])
+            is_heavy_format = suffix_lower in getattr(
+                Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr", ".tiff", ".tif"]
+            )
 
             if is_heavy_format and file_size_mb > 10:
                 logger.info(
@@ -311,7 +318,12 @@ class CacheManager(QObject):
                 )
                 # Create a loader task with result container
                 loader = ThumbnailCacheLoader(
-                    self, source_path, show, sequence, shot, result,
+                    self,
+                    source_path,
+                    show,
+                    sequence,
+                    shot,
+                    result,
                 )
                 pool = QThreadPool.globalInstance()
                 pool.start(loader)
@@ -348,7 +360,11 @@ class CacheManager(QObject):
             self._active_loaders.pop(cache_key, None)
 
     def cache_thumbnail_direct(
-        self, source_path: Path, show: str, sequence: str, shot: str,
+        self,
+        source_path: Path,
+        show: str,
+        sequence: str,
+        shot: str,
     ) -> Optional[Path]:
         """Direct thumbnail caching implementation without thread checks.
 
@@ -376,8 +392,10 @@ class CacheManager(QObject):
             # Check if this is a large file that needs special handling
             file_size_mb = source_path.stat().st_size / (1024 * 1024)
             suffix_lower = source_path.suffix.lower()
-            is_heavy_format = suffix_lower in getattr(Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr", ".tiff", ".tif"])
-            
+            is_heavy_format = suffix_lower in getattr(
+                Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr", ".tiff", ".tif"]
+            )
+
             # Decide whether to use PIL or Qt based on format and size
             use_pil = False
             if is_heavy_format:
@@ -387,55 +405,63 @@ class CacheManager(QObject):
                     logger.info(
                         f"Processing large {suffix_lower} file with PIL ({file_size_mb:.1f}MB): {source_path.name}",
                     )
-            
+
             # Try PIL first for heavy formats
             if use_pil:
                 try:
                     # For EXR files, try OpenEXR first if available
                     if suffix_lower == ".exr":
                         try:
-                            import OpenEXR
                             import Imath
                             import numpy as np
+                            import OpenEXR
                             from PIL import Image as PILImage
-                            
+
                             # Open EXR file
                             exr_file = OpenEXR.InputFile(str(source_path))
-                            
+
                             # Get header info
                             header = exr_file.header()
-                            dw = header['dataWindow']
+                            dw = header["dataWindow"]
                             width = dw.max.x - dw.min.x + 1
                             height = dw.max.y - dw.min.y + 1
-                            
+
                             # Define channel types
                             FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-                            
+
                             # Read RGB channels (EXR typically stores as float)
                             channels = []
-                            for channel in ['R', 'G', 'B']:
-                                if channel in header['channels']:
+                            for channel in ["R", "G", "B"]:
+                                if channel in header["channels"]:
                                     channel_str = exr_file.channel(channel, FLOAT)
-                                    channel_array = np.frombuffer(channel_str, dtype=np.float32)
-                                    channel_array = channel_array.reshape((height, width))
+                                    channel_array = np.frombuffer(
+                                        channel_str, dtype=np.float32
+                                    )
+                                    channel_array = channel_array.reshape(
+                                        (height, width)
+                                    )
                                     channels.append(channel_array)
                                 else:
                                     # If channel missing, use zeros
-                                    channels.append(np.zeros((height, width), dtype=np.float32))
-                            
+                                    channels.append(
+                                        np.zeros((height, width), dtype=np.float32)
+                                    )
+
                             # Stack channels to create RGB image
                             img_array = np.stack(channels, axis=2)
-                            
+
                             # Normalize HDR values to 0-255 range
                             # Apply simple tone mapping for HDR content
                             img_array = np.clip(img_array, 0, 1)  # Clamp to [0,1]
                             img_array = (img_array * 255).astype(np.uint8)
-                            
+
                             # Convert to PIL Image
-                            pil_image = PILImage.fromarray(img_array, mode='RGB')
-                            
-                            logger.debug(f"Successfully loaded EXR with OpenEXR: {source_path} ({width}x{height})")
-                            
+                            pil_image = PILImage.fromarray(img_array, mode="RGB")
+
+                            logger.debug(
+                                f"Successfully loaded EXR with OpenEXR: {source_path} ({width}x{height})"
+                            )
+
                         except ImportError:
                             logger.debug("OpenEXR not available, trying imageio")
                             # Try imageio as fallback
@@ -443,103 +469,129 @@ class CacheManager(QObject):
                                 import imageio.v3 as iio
                                 import numpy as np
                                 from PIL import Image as PILImage
-                                
+
                                 # Read with imageio
                                 img_array = iio.imread(str(source_path))
-                                
+
                                 # Normalize if needed
-                                if img_array.dtype == np.float32 or img_array.dtype == np.float64:
+                                if (
+                                    img_array.dtype == np.float32
+                                    or img_array.dtype == np.float64
+                                ):
                                     img_array = np.clip(img_array, 0, 1)
                                     img_array = (img_array * 255).astype(np.uint8)
                                 elif img_array.dtype == np.uint16:
                                     img_array = (img_array / 256).astype(np.uint8)
-                                
+
                                 # Convert to PIL
                                 if len(img_array.shape) == 2:
-                                    pil_image = PILImage.fromarray(img_array, mode='L')
+                                    pil_image = PILImage.fromarray(img_array, mode="L")
                                 elif len(img_array.shape) == 3:
                                     if img_array.shape[2] == 3:
-                                        pil_image = PILImage.fromarray(img_array, mode='RGB')
+                                        pil_image = PILImage.fromarray(
+                                            img_array, mode="RGB"
+                                        )
                                     elif img_array.shape[2] == 4:
-                                        pil_image = PILImage.fromarray(img_array, mode='RGBA')
+                                        pil_image = PILImage.fromarray(
+                                            img_array, mode="RGBA"
+                                        )
                                     else:
-                                        raise ValueError(f"Unsupported channel count: {img_array.shape[2]}")
+                                        raise ValueError(
+                                            f"Unsupported channel count: {img_array.shape[2]}"
+                                        )
                                 else:
-                                    raise ValueError(f"Unsupported image shape: {img_array.shape}")
-                                
-                                logger.debug(f"Successfully loaded EXR with imageio: {source_path}")
-                                
+                                    raise ValueError(
+                                        f"Unsupported image shape: {img_array.shape}"
+                                    )
+
+                                logger.debug(
+                                    f"Successfully loaded EXR with imageio: {source_path}"
+                                )
+
                             except Exception:
                                 # Final fallback to PIL
                                 from PIL import Image as PILImage
+
                                 pil_image = PILImage.open(str(source_path))
                         except Exception as e:
                             logger.debug(f"OpenEXR failed to load EXR: {e}, trying PIL")
                             # Fall through to regular PIL loading
                             from PIL import Image as PILImage
+
                             pil_image = PILImage.open(str(source_path))
                     else:
                         # Import PIL on demand to avoid dependency if not needed
                         from PIL import Image as PILImage
-                        
+
                         # Open with PIL - it handles most formats efficiently
                         pil_image = PILImage.open(str(source_path))
-                    
+
                     # Validate the image is actually usable
                     if pil_image.size[0] == 0 or pil_image.size[1] == 0:
                         raise ValueError("Image has zero dimensions")
-                    
+
                     # Force loading of image data to verify it's not corrupted (skip for imageio-loaded images)
-                    if suffix_lower != ".exr" or 'iio' not in locals():
+                    if suffix_lower != ".exr" or "iio" not in locals():
                         try:
                             pil_image.load()
                         except Exception as load_error:
-                            raise ValueError(f"Image data is corrupted or unreadable: {load_error}")
-                    
+                            raise ValueError(
+                                f"Image data is corrupted or unreadable: {load_error}"
+                            )
+
                     # Convert to RGB if necessary (EXR might be in different modes)
                     if pil_image.mode not in ["RGB", "RGBA"]:
                         pil_image = pil_image.convert("RGB")
-                    
+
                     # Calculate thumbnail size maintaining aspect ratio
                     thumb_size = (self.CACHE_THUMBNAIL_SIZE, self.CACHE_THUMBNAIL_SIZE)
                     pil_image.thumbnail(thumb_size, PILImage.Resampling.LANCZOS)
-                    
+
                     # Save directly as JPEG
                     cache_dir.mkdir(parents=True, exist_ok=True)
                     temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
-                    
+
                     # Higher quality for EXR-derived thumbnails
                     quality = 95 if suffix_lower == ".exr" else 90
-                    pil_image.save(str(temp_path), "JPEG", quality=quality, optimize=True)
-                    
+                    pil_image.save(
+                        str(temp_path), "JPEG", quality=quality, optimize=True
+                    )
+
                     # Atomic move
                     temp_path.replace(cache_path)
-                    
+
                     # Track memory usage
                     with self._lock:
                         try:
                             file_size = cache_path.stat().st_size
                             self._cached_thumbnails[str(cache_path)] = file_size
                             self._memory_usage_bytes += file_size
-                            
+
                             if self._memory_usage_bytes > self._max_memory_bytes:
                                 self._evict_old_thumbnails()
                         except (OSError, IOError):
                             pass
-                    
+
                     logger.debug(
                         "Cached %s thumbnail with PIL: %s (%0.1fMB -> %0.1fKB)",
-                        suffix_lower, cache_path, file_size_mb, cache_path.stat().st_size / 1024,
+                        suffix_lower,
+                        cache_path,
+                        file_size_mb,
+                        cache_path.stat().st_size / 1024,
                     )
                     return cache_path
-                    
+
                 except ImportError:
-                    logger.warning("PIL not available, falling back to Qt for image loading")
+                    logger.warning(
+                        "PIL not available, falling back to Qt for image loading"
+                    )
                     use_pil = False
                 except Exception as e:
-                    logger.warning(f"PIL failed to process {suffix_lower}: {e}, trying Qt")
+                    logger.warning(
+                        f"PIL failed to process {suffix_lower}: {e}, trying Qt"
+                    )
                     use_pil = False
-            
+
             # Fall back to Qt if PIL wasn't used or failed
             if not use_pil:
                 # Add dimension pre-check for large format files before loading with QImage
@@ -547,6 +599,7 @@ class CacheManager(QObject):
                     try:
                         # Use PIL to get dimensions without loading pixel data
                         from PIL import Image as PILImage
+
                         with PILImage.open(str(source_path)) as pil_img:
                             width, height = pil_img.size
                             max_dim = 20000 if is_heavy_format else 10000
@@ -558,14 +611,16 @@ class CacheManager(QObject):
                     except Exception as e:
                         logger.debug(f"Could not pre-check dimensions with PIL: {e}")
                         # Fall through to regular QImage loading
-                
+
                 # Load image using QImage
                 image = QImage(str(source_path))
                 if image.isNull():
                     logger.warning(f"Failed to load image: {source_path}")
                     # For EXR files, provide helpful message
                     if suffix_lower == ".exr":
-                        logger.info("Note: Install OpenEXR with 'pip install OpenEXR' for EXR support")
+                        logger.info(
+                            "Note: Install OpenEXR with 'pip install OpenEXR' for EXR support"
+                        )
                     return None
 
             # Validate image dimensions to prevent memory issues (if not already checked)
@@ -652,6 +707,7 @@ class CacheManager(QObject):
                 del scaled
             # Force garbage collection for large images
             import gc
+
             gc.collect()
 
     def get_cached_shots(self) -> Optional[List[Dict[str, Any]]]:
@@ -870,7 +926,9 @@ class CacheManager(QObject):
             return False
 
     def cache_threede_scenes(
-        self, scenes: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None,
+        self,
+        scenes: List[Dict[str, Any]],
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         """Cache 3DE scene list to file with optional metadata.
 
@@ -1070,7 +1128,8 @@ class CacheManager(QObject):
                         size = self._cached_thumbnails[path_str]
                         del self._cached_thumbnails[path_str]
                         self._memory_usage_bytes = max(
-                            0, self._memory_usage_bytes - size,
+                            0,
+                            self._memory_usage_bytes - size,
                         )
                         issues_fixed += 1
 
@@ -1186,7 +1245,10 @@ class ThumbnailCacheLoader(QRunnable):
             # This is already running on a background thread, so we don't need
             # to check for thread context again
             cache_path = self.cache_manager.cache_thumbnail_direct(
-                self.source_path, self.show, self.sequence, self.shot,
+                self.source_path,
+                self.show,
+                self.sequence,
+                self.shot,
             )
 
             if cache_path:
@@ -1197,7 +1259,10 @@ class ThumbnailCacheLoader(QRunnable):
                 if hasattr(self, "signals") and self.signals:
                     try:
                         self.signals.loaded.emit(
-                            self.show, self.sequence, self.shot, cache_path,
+                            self.show,
+                            self.sequence,
+                            self.shot,
+                            cache_path,
                         )
                     except RuntimeError:
                         pass  # Signals deleted
@@ -1211,7 +1276,10 @@ class ThumbnailCacheLoader(QRunnable):
                 if hasattr(self, "signals") and self.signals:
                     try:
                         self.signals.failed.emit(
-                            self.show, self.sequence, self.shot, error_msg,
+                            self.show,
+                            self.sequence,
+                            self.shot,
+                            error_msg,
                         )
                     except RuntimeError:
                         # Signals object was deleted, safe to ignore
@@ -1227,7 +1295,10 @@ class ThumbnailCacheLoader(QRunnable):
             if hasattr(self, "signals") and self.signals:
                 try:
                     self.signals.failed.emit(
-                        self.show, self.sequence, self.shot, str(e),
+                        self.show,
+                        self.sequence,
+                        self.shot,
+                        str(e),
                     )
                 except RuntimeError:
                     # Signals object was deleted, safe to ignore

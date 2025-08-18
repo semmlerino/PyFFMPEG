@@ -225,7 +225,11 @@ class ShotInfoPanel(QWidget):
             del pixmap, scaled
 
     def _on_thumbnail_cached(
-        self, show: str, sequence: str, shot: str, cache_path: str,
+        self,
+        show: str,
+        sequence: str,
+        shot: str,
+        cache_path: str,
     ):
         """Handle thumbnail cached signal."""
         # Update display if this is still the current shot

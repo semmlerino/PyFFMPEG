@@ -222,7 +222,9 @@ class TypeAssertionHelper:
 
     @staticmethod
     def assert_optional_type(
-        value: Any, expected_type: type, allow_none: bool = True,
+        value: Any,
+        expected_type: type,
+        allow_none: bool = True,
     ) -> None:
         """Assert Optional type handling."""
         if value is None:

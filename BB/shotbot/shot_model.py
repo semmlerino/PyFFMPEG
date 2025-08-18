@@ -93,7 +93,10 @@ class Shot:
     shot: str
     workspace_path: str
     _cached_thumbnail_path: Any = field(
-        default=_NOT_SEARCHED, init=False, repr=False, compare=False,
+        default=_NOT_SEARCHED,
+        init=False,
+        repr=False,
+        compare=False,
     )
 
     @property
@@ -105,7 +108,10 @@ class Shot:
     def thumbnail_dir(self) -> Path:
         """Get thumbnail directory path."""
         return PathUtils.build_thumbnail_path(
-            Config.SHOWS_ROOT, self.show, self.sequence, self.shot,
+            Config.SHOWS_ROOT,
+            self.show,
+            self.sequence,
+            self.shot,
         )
 
     def get_thumbnail_path(self) -> Optional[Path]:
@@ -136,7 +142,10 @@ class Shot:
 
         # Fall back to turnover plate thumbnails
         thumbnail = PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
-            Config.SHOWS_ROOT, self.show, self.sequence, self.shot,
+            Config.SHOWS_ROOT,
+            self.show,
+            self.sequence,
+            self.shot,
         )
         if thumbnail:
             self._cached_thumbnail_path = thumbnail
@@ -144,7 +153,10 @@ class Shot:
 
         # Third fallback: any EXR with 1001 in publish folder
         thumbnail = PathUtils.find_any_publish_thumbnail(  # type: ignore[attr-defined]
-            Config.SHOWS_ROOT, self.show, self.sequence, self.shot,
+            Config.SHOWS_ROOT,
+            self.show,
+            self.sequence,
+            self.shot,
         )
 
         # Cache the result (even if None) to avoid repeated searches
@@ -178,7 +190,9 @@ class ShotModel:
     """Manages shot data and parsing."""
 
     def __init__(
-        self, cache_manager: Optional["CacheManager"] = None, load_cache: bool = True,
+        self,
+        cache_manager: Optional["CacheManager"] = None,
+        load_cache: bool = True,
     ):
         super().__init__()
         from cache_manager import (

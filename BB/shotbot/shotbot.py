@@ -160,7 +160,9 @@ def main():
         QColor(127, 127, 127),
     )
     palette.setColor(
-        QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(127, 127, 127),
+        QPalette.ColorGroup.Disabled,
+        QPalette.ColorRole.Text,
+        QColor(127, 127, 127),
     )
     palette.setColor(
         QPalette.ColorGroup.Disabled,

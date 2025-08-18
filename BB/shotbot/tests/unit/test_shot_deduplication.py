@@ -202,7 +202,12 @@ class TestShotDeduplication(unittest.TestCase):
         scenes = [
             # Same sequence/shot numbers but different shows
             self.create_test_scene(
-                "jack_ryan", "SEQ_01", "0010", "artist1", "SEQ_01_0010.3de", base_time,
+                "jack_ryan",
+                "SEQ_01",
+                "0010",
+                "artist1",
+                "SEQ_01_0010.3de",
+                base_time,
             ),
             self.create_test_scene(
                 "other_show",
@@ -238,7 +243,12 @@ class TestShotDeduplication(unittest.TestCase):
         scenes = [
             # Same shot, different plate names
             self.create_test_scene(
-                "jack_ryan", "GF_256", "1400", "artist1", "BG01_comp.3de", base_time,
+                "jack_ryan",
+                "GF_256",
+                "1400",
+                "artist1",
+                "BG01_comp.3de",
+                base_time,
             ),
             self.create_test_scene(
                 "jack_ryan",

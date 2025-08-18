@@ -39,7 +39,10 @@ class LauncherWorker(ThreadSafeWorker):
     command_error = Signal(str, str)  # launcher_id, error_message
 
     def __init__(
-        self, launcher_id: str, command: str, working_dir: Optional[str] = None,
+        self,
+        launcher_id: str,
+        command: str,
+        working_dir: Optional[str] = None,
     ):
         """Initialize launcher worker.
 
@@ -414,7 +417,10 @@ class LauncherManager(QObject):
         return f"{launcher_id}_{process_pid}_{timestamp}_{unique_suffix}"
 
     def _validate_launcher_data(
-        self, name: str, command: str, exclude_id: Optional[str] = None,
+        self,
+        name: str,
+        command: str,
+        exclude_id: Optional[str] = None,
     ) -> List[str]:
         """Validate launcher data and return list of errors."""
         errors = []
@@ -605,7 +611,8 @@ class LauncherManager(QObject):
         # Remove from memory if save failed
         del self._launchers[launcher_id]
         self.validation_error.emit(
-            "general", "Failed to save launcher configuration",
+            "general",
+            "Failed to save launcher configuration",
         )
         return None
 
@@ -688,7 +695,8 @@ class LauncherManager(QObject):
             self.launchers_changed.emit()
             return True
         self.validation_error.emit(
-            "general", "Failed to save launcher configuration",
+            "general",
+            "Failed to save launcher configuration",
         )
         return False
 
@@ -715,7 +723,8 @@ class LauncherManager(QObject):
             self.launchers_changed.emit()
             return True
         self.validation_error.emit(
-            "general", "Failed to save launcher configuration",
+            "general",
+            "Failed to save launcher configuration",
         )
         return False
 
@@ -868,7 +877,7 @@ class LauncherManager(QObject):
             with self._process_lock:
                 if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
                     error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
-            
+
             # Emit signal outside lock to prevent deadlock
             if error_msg:
                 logger.warning(error_msg)
@@ -891,7 +900,9 @@ class LauncherManager(QObject):
             if self._use_process_pool and not launcher.terminal.required:
                 # Use ProcessPoolManager for better performance
                 success = self._execute_with_process_pool(
-                    launcher_id, launcher.name, command,
+                    launcher_id,
+                    launcher.name,
+                    command,
                 )
                 if success:
                     return True
@@ -940,7 +951,9 @@ class LauncherManager(QObject):
                         "No terminal emulator found, falling back to worker thread",
                     )
                     return self._execute_with_worker(
-                        launcher_id, launcher.name, command,
+                        launcher_id,
+                        launcher.name,
+                        command,
                     )
 
                 # Validate process started successfully
@@ -1021,7 +1034,7 @@ class LauncherManager(QObject):
             with self._process_lock:
                 if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
                     error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
-            
+
             # Emit signal outside lock to prevent deadlock
             if error_msg:
                 logger.warning(error_msg)
@@ -1041,7 +1054,8 @@ class LauncherManager(QObject):
             # Change to shot workspace directory
             original_cwd = os.getcwd()
             workspace_exists = PathUtils.validate_path_exists(
-                shot.workspace_path, "Shot workspace",
+                shot.workspace_path,
+                "Shot workspace",
             )
 
             if workspace_exists:
@@ -1144,7 +1158,10 @@ class LauncherManager(QObject):
                     return True
                 # Use worker thread for non-terminal apps (still with full isolation)
                 return self._execute_with_worker(
-                    launcher_id, launcher.name, full_command, shot.workspace_path,
+                    launcher_id,
+                    launcher.name,
+                    full_command,
+                    shot.workspace_path,
                 )
 
             finally:
@@ -1159,7 +1176,9 @@ class LauncherManager(QObject):
             return False
 
     def validate_launcher_paths(
-        self, launcher_id: str, shot: Optional[Shot] = None,
+        self,
+        launcher_id: str,
+        shot: Optional[Shot] = None,
     ) -> List[str]:
         """Validate that required files exist for a launcher.
 
@@ -1179,11 +1198,14 @@ class LauncherManager(QObject):
         # Check required files
         for file_path in launcher.validation.required_files:
             resolved_path = self._substitute_variables(
-                file_path, shot, launcher.variables,
+                file_path,
+                shot,
+                launcher.variables,
             )
 
             if not PathUtils.validate_path_exists(
-                resolved_path, f"Required file {file_path}",
+                resolved_path,
+                f"Required file {file_path}",
             ):
                 errors.append(f"Required file not found: {resolved_path}")
 
@@ -1195,13 +1217,16 @@ class LauncherManager(QObject):
                     executable = command_parts[0]
                     # Substitute variables in executable path
                     resolved_executable = self._substitute_variables(
-                        executable, shot, launcher.variables,
+                        executable,
+                        shot,
+                        launcher.variables,
                     )
 
                     # Check if it's an absolute path
                     if os.path.isabs(resolved_executable):
                         if not PathUtils.validate_path_exists(
-                            resolved_executable, "Executable",
+                            resolved_executable,
+                            "Executable",
                         ):
                             errors.append(
                                 f"Executable not found: {resolved_executable}",
@@ -1589,10 +1614,10 @@ class LauncherManager(QObject):
 
             # Store worker reference
             worker_key = f"{launcher_id}_{int(time.time() * 1000)}"
-            
+
             # Start the worker first (prevents race where cleanup happens before start)
             worker.start()
-            
+
             # Then add to tracking dictionary
             with self._process_lock:
                 self._active_workers[worker_key] = worker
@@ -1832,7 +1857,8 @@ class LauncherManager(QObject):
             self._remove_worker_safe(worker_key)
 
     def _schedule_cleanup_after_delay(
-        self, delay_ms: int = ThreadingConfig.CLEANUP_INITIAL_DELAY_MS,
+        self,
+        delay_ms: int = ThreadingConfig.CLEANUP_INITIAL_DELAY_MS,
     ):
         """Schedule cleanup using managed approach to prevent cascading.
 

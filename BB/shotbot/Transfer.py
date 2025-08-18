@@ -654,7 +654,8 @@ class FolderTransferApp(QMainWindow):
 
         # Load last folder path
         self.last_folder_path = self.settings.value(
-            "last_folder_path", os.path.expanduser("~"),
+            "last_folder_path",
+            os.path.expanduser("~"),
         )
 
         self.init_ui()
@@ -887,7 +888,8 @@ class FolderTransferApp(QMainWindow):
         # Save preference when it changes
         self.auto_copy_check.stateChanged.connect(
             lambda: self.settings.setValue(
-                "auto_copy", self.auto_copy_check.isChecked(),
+                "auto_copy",
+                self.auto_copy_check.isChecked(),
             ),
         )
         other_layout.addWidget(self.auto_copy_check)
@@ -1135,7 +1137,9 @@ class FolderTransferApp(QMainWindow):
     def browse_folder(self):
         # Use last folder path as starting directory
         folder = QFileDialog.getExistingDirectory(
-            self, "Select Folder to Encode", self.last_folder_path,
+            self,
+            "Select Folder to Encode",
+            self.last_folder_path,
         )
         if folder:
             # Save the parent directory of the selected folder for next time
@@ -1345,7 +1349,9 @@ class FolderTransferApp(QMainWindow):
         self.encode_btn.setEnabled(True)
         self.encode_btn.setStyleSheet("")  # Reset to default style
         QMessageBox.critical(
-            self, "Encoding Error", f"Failed to encode folder: {error_msg}",
+            self,
+            "Encoding Error",
+            f"Failed to encode folder: {error_msg}",
         )
         self.statusBar().showMessage("Encoding failed")
 
@@ -1388,7 +1394,9 @@ class FolderTransferApp(QMainWindow):
             # Parse chunk header - find the first newline after the header
             if not chunk_text.startswith("FOLDER_TRANSFER_V1"):
                 QMessageBox.warning(
-                    self, "Invalid Chunk", "This doesn't appear to be a valid chunk.",
+                    self,
+                    "Invalid Chunk",
+                    "This doesn't appear to be a valid chunk.",
                 )
                 return
 
@@ -1396,7 +1404,9 @@ class FolderTransferApp(QMainWindow):
             header_end = chunk_text.find("\n")
             if header_end == -1:
                 QMessageBox.warning(
-                    self, "Invalid Chunk", "No data found after header.",
+                    self,
+                    "Invalid Chunk",
+                    "No data found after header.",
                 )
                 return
 
@@ -1408,7 +1418,9 @@ class FolderTransferApp(QMainWindow):
             header_parts = header_line.split("|")
             if len(header_parts) < 4:
                 QMessageBox.warning(
-                    self, "Invalid Chunk", "Invalid chunk header format.",
+                    self,
+                    "Invalid Chunk",
+                    "Invalid chunk header format.",
                 )
                 return
 
@@ -1598,7 +1610,9 @@ class FolderTransferApp(QMainWindow):
     def browse_output_dir(self):
         current_dir = self.output_dir_label.text()
         folder = QFileDialog.getExistingDirectory(
-            self, "Select Output Directory", current_dir,
+            self,
+            "Select Output Directory",
+            current_dir,
         )
         if folder:
             self.output_dir_label.setText(folder)
@@ -1672,7 +1686,9 @@ class FolderTransferApp(QMainWindow):
         self.decode_btn.setEnabled(True)
 
         QMessageBox.information(
-            self, "Success", f"Folder successfully decoded to:\n{output_path}",
+            self,
+            "Success",
+            f"Folder successfully decoded to:\n{output_path}",
         )
 
         self.statusBar().showMessage("Decoding complete!")
@@ -1690,7 +1706,9 @@ class FolderTransferApp(QMainWindow):
         self.decode_progress.setVisible(False)
         self.decode_btn.setEnabled(True)
         QMessageBox.critical(
-            self, "Decoding Error", f"Failed to decode folder: {error_msg}",
+            self,
+            "Decoding Error",
+            f"Failed to decode folder: {error_msg}",
         )
         self.statusBar().showMessage("Decoding failed")
 
@@ -1768,13 +1786,17 @@ class FolderTransferApp(QMainWindow):
                         chunk_text = f.read()
                 except Exception as e:
                     QMessageBox.critical(
-                        self, "File Error", f"Failed to read file: {str(e)}",
+                        self,
+                        "File Error",
+                        f"Failed to read file: {str(e)}",
                     )
                     return
 
                 if not chunk_text.strip():
                     QMessageBox.warning(
-                        self, "Empty File", "The selected file is empty.",
+                        self,
+                        "Empty File",
+                        "The selected file is empty.",
                     )
                     return
 

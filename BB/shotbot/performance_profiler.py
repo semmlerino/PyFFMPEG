@@ -99,7 +99,9 @@ class CacheManagerProfiler:
                 with self.monitor.measure_time("cache_lookup_batch"):
                     for i in range(iterations):
                         _ = cache_manager.get_cached_thumbnail(
-                            "test_show", "seq01", f"shot_{i:03d}",
+                            "test_show",
+                            "seq01",
+                            f"shot_{i:03d}",
                         )
 
                 # Profile memory usage reporting
@@ -309,7 +311,8 @@ class OverallProfiler:
         """Configure logging for profiling."""
         level = logging.DEBUG if self.verbose else logging.INFO
         logging.basicConfig(
-            level=level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            level=level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
 
     def profile_imports(self):
@@ -435,7 +438,8 @@ def main():
     )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument(
-        "--output", help="Output file for performance report (JSON format)",
+        "--output",
+        help="Output file for performance report (JSON format)",
     )
 
     args = parser.parse_args()

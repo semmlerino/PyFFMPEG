@@ -454,7 +454,9 @@ class MemoryAwareCache:
         if not self._running:
             self._running = True
             self._eviction_thread = threading.Thread(
-                target=self._auto_eviction_loop, daemon=True, name="MemoryAwareEviction",
+                target=self._auto_eviction_loop,
+                daemon=True,
+                name="MemoryAwareEviction",
             )
             self._eviction_thread.start()
             logger.info("Started automatic memory-aware eviction")

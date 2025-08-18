@@ -136,13 +136,16 @@ class TerminalLauncher(QObject):
         return False
 
     def execute_launcher(
-        self, launcher: Launcher, variables: Optional[Dict[str, str]] = None,
+        self,
+        launcher: Launcher,
+        variables: Optional[Dict[str, str]] = None,
     ) -> LaunchResult:
         """Execute a launcher with variable substitution."""
         try:
             # Substitute variables in command
             final_command = self._substitute_variables(
-                launcher.command, variables or {},
+                launcher.command,
+                variables or {},
             )
 
             # Validate command if requested
@@ -181,7 +184,9 @@ class TerminalLauncher(QObject):
             else:
                 timestamp = self._get_timestamp()
                 self.launcher_failed.emit(
-                    launcher.name, result.error_message, timestamp,
+                    launcher.name,
+                    result.error_message,
+                    timestamp,
                 )
                 logger.error(
                     f"Failed to execute launcher '{launcher.name}': {result.error_message}",
@@ -195,7 +200,9 @@ class TerminalLauncher(QObject):
             timestamp = self._get_timestamp()
             self.launcher_failed.emit(launcher.name, error_msg, timestamp)
             return LaunchResult(
-                success=False, command=launcher.command, error_message=error_msg,
+                success=False,
+                command=launcher.command,
+                error_message=error_msg,
             )
 
     def _substitute_variables(self, text: str, variables: Dict[str, str]) -> str:
@@ -341,39 +348,61 @@ class TerminalLauncher(QObject):
             # Build command based on terminal type
             if terminal_type == "gnome-terminal":
                 return self._build_gnome_terminal_command(
-                    final_command, working_directory, terminal_title, terminal_geometry,
+                    final_command,
+                    working_directory,
+                    terminal_title,
+                    terminal_geometry,
                 )
             if terminal_type == "konsole":
                 return self._build_konsole_command(
-                    final_command, working_directory, terminal_title, terminal_geometry,
+                    final_command,
+                    working_directory,
+                    terminal_title,
+                    terminal_geometry,
                 )
             if terminal_type == "xterm":
                 return self._build_xterm_command(
-                    final_command, working_directory, terminal_title, terminal_geometry,
+                    final_command,
+                    working_directory,
+                    terminal_title,
+                    terminal_geometry,
                 )
             if terminal_type == "x-terminal-emulator":
                 return self._build_generic_terminal_command(
-                    terminal_type, final_command, working_directory,
+                    terminal_type,
+                    final_command,
+                    working_directory,
                 )
             if terminal_type == "alacritty":
                 return self._build_alacritty_command(
-                    final_command, working_directory, terminal_title,
+                    final_command,
+                    working_directory,
+                    terminal_title,
                 )
             if terminal_type == "terminator":
                 return self._build_terminator_command(
-                    final_command, working_directory, terminal_title,
+                    final_command,
+                    working_directory,
+                    terminal_title,
                 )
             if terminal_type == "Terminal" and self._platform == "darwin":
                 return self._build_macos_terminal_command(
-                    final_command, working_directory, terminal_title,
+                    final_command,
+                    working_directory,
+                    terminal_title,
                 )
             if terminal_type == "iTerm" and self._platform == "darwin":
                 return self._build_iterm_command(
-                    final_command, working_directory, terminal_title,
+                    final_command,
+                    working_directory,
+                    terminal_title,
                 )
             if terminal_type in ["cmd.exe", "powershell.exe", "wt.exe"]:
                 return self._build_windows_terminal_command(
-                    terminal_type, final_command, working_directory, terminal_title,
+                    terminal_type,
+                    final_command,
+                    working_directory,
+                    terminal_title,
                 )
             logger.warning(f"Unsupported terminal type: {terminal_type}")
             return None
@@ -448,7 +477,10 @@ class TerminalLauncher(QObject):
         return cmd
 
     def _build_generic_terminal_command(
-        self, terminal_type: str, command: str, working_directory: Optional[str],
+        self,
+        terminal_type: str,
+        command: str,
+        working_directory: Optional[str],
     ) -> List[str]:
         """Build generic terminal command."""
         cmd = [terminal_type]
@@ -461,7 +493,10 @@ class TerminalLauncher(QObject):
         return cmd
 
     def _build_alacritty_command(
-        self, command: str, working_directory: Optional[str], title: Optional[str],
+        self,
+        command: str,
+        working_directory: Optional[str],
+        title: Optional[str],
     ) -> List[str]:
         """Build alacritty command."""
         cmd = ["alacritty"]
@@ -476,7 +511,10 @@ class TerminalLauncher(QObject):
         return cmd
 
     def _build_terminator_command(
-        self, command: str, working_directory: Optional[str], title: Optional[str],
+        self,
+        command: str,
+        working_directory: Optional[str],
+        title: Optional[str],
     ) -> List[str]:
         """Build terminator command."""
         cmd = ["terminator"]
@@ -491,7 +529,10 @@ class TerminalLauncher(QObject):
         return cmd
 
     def _build_macos_terminal_command(
-        self, command: str, working_directory: Optional[str], title: Optional[str],
+        self,
+        command: str,
+        working_directory: Optional[str],
+        title: Optional[str],
     ) -> List[str]:
         """Build macOS Terminal.app command using osascript."""
         script_parts = []
@@ -506,7 +547,10 @@ class TerminalLauncher(QObject):
         return ["osascript", "-e", " ".join(script_parts)]
 
     def _build_iterm_command(
-        self, command: str, working_directory: Optional[str], title: Optional[str],
+        self,
+        command: str,
+        working_directory: Optional[str],
+        title: Optional[str],
     ) -> List[str]:
         """Build iTerm2 command using osascript."""
 
@@ -572,7 +616,10 @@ class TerminalLauncher(QObject):
 
     @staticmethod
     def create_launcher(
-        name: str, command: str, description: str = "", **kwargs,
+        name: str,
+        command: str,
+        description: str = "",
+        **kwargs,
     ) -> Launcher:
         """Create a launcher with sensible defaults."""
         return Launcher(name=name, command=command, description=description, **kwargs)

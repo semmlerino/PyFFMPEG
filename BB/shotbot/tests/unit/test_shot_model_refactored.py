@@ -20,7 +20,7 @@ class TestShot:
     def test_shot_creation(self, make_test_shot):
         """Test Shot instance creation with real paths."""
         shot = make_test_shot("testshow", "101_ABC", "0010")
-        
+
         assert shot.show == "testshow"
         assert shot.sequence == "101_ABC"
         assert shot.shot == "0010"
@@ -32,7 +32,7 @@ class TestShot:
         """Test Shot string representation."""
         shot = make_test_shot("testshow", "101_ABC", "0010")
         shot_str = str(shot)
-        
+
         assert "testshow" in shot_str
         assert "101_ABC" in shot_str
         assert "0010" in shot_str
@@ -46,7 +46,7 @@ class TestShot:
         """Test Shot thumbnail_dir property."""
         shot = make_test_shot("testshow", "101_ABC", "0010")
         thumbnail_dir = shot.thumbnail_dir
-        
+
         assert isinstance(thumbnail_dir, Path)
         assert "testshow" in str(thumbnail_dir)
         assert "101_ABC" in str(thumbnail_dir)
@@ -58,25 +58,35 @@ class TestShot:
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "test" / "shots" / "seq01" / "seq01_0010"
         shot_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Create real editorial thumbnail following exact Config.THUMBNAIL_SEGMENTS path
-        editorial_path = shot_path / "publish" / "editorial" / "cutref" / "v001" / "jpg" / "1920x1080"
+        editorial_path = (
+            shot_path
+            / "publish"
+            / "editorial"
+            / "cutref"
+            / "v001"
+            / "jpg"
+            / "1920x1080"
+        )
         editorial_path.mkdir(parents=True, exist_ok=True)
         thumb_file = editorial_path / "frame.1001.jpg"
-        thumb_file.write_bytes(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9")  # Minimal JPEG
-        
+        thumb_file.write_bytes(
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+        )  # Minimal JPEG
+
         # Temporarily override Config.SHOWS_ROOT to use our test directory
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
-        
+
         # Create shot with real path
         shot = Shot("test", "seq01", "0010", str(shot_path))
-        
+
         # Test actual behavior - finds real thumbnail
         thumbnail_path = shot.get_thumbnail_path()
         assert thumbnail_path is not None
         assert thumbnail_path.exists()
         assert thumbnail_path.name == "frame.1001.jpg"
-        
+
         # Test caching behavior - second call returns same result
         thumbnail_path_cached = shot.get_thumbnail_path()
         assert thumbnail_path_cached == thumbnail_path
@@ -87,19 +97,29 @@ class TestShot:
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "test" / "shots" / "seq01" / "seq01_0010"
         shot_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Create turnover thumbnail following actual structure from find_turnover_plate_thumbnail
         # Path: publish/turnover/plate/input_plate/{PLATE}/v001/exr/{resolution}/
-        turnover_path = shot_path / "publish" / "turnover" / "plate" / "input_plate" / "FG01" / "v001" / "exr" / "3840x2160"
+        turnover_path = (
+            shot_path
+            / "publish"
+            / "turnover"
+            / "plate"
+            / "input_plate"
+            / "FG01"
+            / "v001"
+            / "exr"
+            / "3840x2160"
+        )
         turnover_path.mkdir(parents=True, exist_ok=True)
         turnover_file = turnover_path / "seq01_0010_FG01.1001.exr"
         turnover_file.write_bytes(b"EXR_DATA")
-        
+
         # Temporarily override Config.SHOWS_ROOT
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
-        
+
         shot = Shot("test", "seq01", "0010", str(shot_path))
-        
+
         # Test actual fallback behavior
         thumbnail_path = shot.get_thumbnail_path()
         assert thumbnail_path is not None
@@ -112,18 +132,18 @@ class TestShot:
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "test" / "shots" / "seq01" / "seq01_0010"
         shot_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Create only publish thumbnail with '1001' in the name
         publish_path = shot_path / "publish" / "comp" / "v001" / "exr"
         publish_path.mkdir(parents=True, exist_ok=True)
         publish_file = publish_path / "comp.1001.exr"
         publish_file.write_bytes(b"EXR_DATA")
-        
+
         # Temporarily override Config.SHOWS_ROOT
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
-        
+
         shot = Shot("test", "seq01", "0010", str(shot_path))
-        
+
         # Test actual fallback behavior
         thumbnail_path = shot.get_thumbnail_path()
         assert thumbnail_path is not None
@@ -136,13 +156,13 @@ class TestShot:
         # Create empty shot directory
         shot_path = tmp_path / "shows" / "test" / "shots" / "seq01" / "seq01_0010"
         shot_path.mkdir(parents=True, exist_ok=True)
-        
+
         shot = Shot("test", "seq01", "0010", str(shot_path))
-        
+
         # Test behavior with no thumbnails
         thumbnail_path = shot.get_thumbnail_path()
         assert thumbnail_path is None
-        
+
         # Test that None result is cached
         thumbnail_path_cached = shot.get_thumbnail_path()
         assert thumbnail_path_cached is None
@@ -151,7 +171,7 @@ class TestShot:
         """Test Shot to_dict serialization."""
         shot = make_test_shot("testshow", "101_ABC", "0010")
         shot_dict = shot.to_dict()
-        
+
         assert shot_dict["show"] == "testshow"
         assert shot_dict["sequence"] == "101_ABC"
         assert shot_dict["shot"] == "0010"
@@ -167,9 +187,9 @@ class TestShot:
             "shot": "0010",
             "workspace_path": "/shows/testshow/shots/101_ABC/101_ABC_0010",
         }
-        
+
         shot = Shot.from_dict(shot_data)
-        
+
         assert shot.show == "testshow"
         assert shot.sequence == "101_ABC"
         assert shot.shot == "0010"
@@ -178,13 +198,13 @@ class TestShot:
     def test_shot_serialization_roundtrip(self, make_test_shot):
         """Test Shot serialization roundtrip maintains data integrity."""
         original_shot = make_test_shot("testshow", "101_ABC", "0010")
-        
+
         # Serialize to dict
         shot_dict = original_shot.to_dict()
-        
+
         # Deserialize back to Shot
         restored_shot = Shot.from_dict(shot_dict)
-        
+
         # Verify all data is preserved
         assert restored_shot.show == original_shot.show
         assert restored_shot.sequence == original_shot.sequence
@@ -210,7 +230,7 @@ class TestShotModel:
             make_test_shot("show1", "seq1", "0020"),
             make_test_shot("show2", "seq2", "0030"),
         ]
-        
+
         shots = real_shot_model.get_shots()
         assert len(shots) == 3
         assert all(isinstance(shot, Shot) for shot in shots)
@@ -222,7 +242,7 @@ class TestShotModel:
             make_test_shot("show1", "seq1", "0010"),
             make_test_shot("show1", "seq1", "0020"),
         ]
-        
+
         shot = real_shot_model.find_shot_by_name("seq1_0010")
         assert shot is not None
         assert shot.show == "show1"
@@ -232,7 +252,7 @@ class TestShotModel:
     def test_get_shot_by_name_not_found(self, real_shot_model, make_test_shot):
         """Test getting non-existent shot."""
         real_shot_model.shots = [make_test_shot("show1", "seq1", "0010")]
-        
+
         shot = real_shot_model.find_shot_by_name("nonexistent")
         assert shot is None
 
@@ -244,10 +264,10 @@ class TestShotModel:
             "workspace /shows/test/shots/seq1/seq1_0020\n"
         )
         real_shot_model._process_pool = test_process_pool
-        
+
         # Test actual behavior
         result = real_shot_model.refresh_shots()
-        
+
         assert isinstance(result, RefreshResult)
         assert result.success is True
         assert len(real_shot_model.shots) == 2
@@ -260,9 +280,9 @@ class TestShotModel:
         # Configure test double to fail
         test_process_pool.should_fail = True
         real_shot_model._process_pool = test_process_pool
-        
+
         result = real_shot_model.refresh_shots()
-        
+
         assert isinstance(result, RefreshResult)
         assert result.success is False
 
@@ -270,7 +290,7 @@ class TestShotModel:
         """Test RefreshResult supports tuple unpacking for backwards compatibility."""
         test_process_pool.set_outputs("workspace /shows/test/shots/seq1/seq1_0010\n")
         real_shot_model._process_pool = test_process_pool
-        
+
         # Test tuple unpacking
         success, has_changes = real_shot_model.refresh_shots()
         assert isinstance(success, bool)
@@ -283,7 +303,7 @@ class TestShotModel:
             make_test_shot("show1", "seq1", "0020"),
             make_test_shot("show2", "seq2", "0030"),
         ]
-        
+
         shots = real_shot_model.get_shots()
         assert len(shots) == 3
         assert all(isinstance(shot, Shot) for shot in shots)
@@ -295,11 +315,11 @@ class TestShotModel:
             make_test_shot("show1", "seq1", "0020"),
             make_test_shot("show2", "seq2", "0030"),
         ]
-        
+
         shot = real_shot_model.get_shot_by_index(0)
         assert shot is not None
         assert shot.shot == "0010"
-        
+
         shot = real_shot_model.get_shot_by_index(2)
         assert shot is not None
         assert shot.show == "show2"
@@ -309,15 +329,15 @@ class TestShotModel:
         real_shot_model.shots = [
             make_test_shot("show1", "seq1", "0010"),
         ]
-        
+
         # Negative index
         shot = real_shot_model.get_shot_by_index(-1)
         assert shot is None
-        
+
         # Index too large
         shot = real_shot_model.get_shot_by_index(10)
         assert shot is None
-        
+
         # Boundary case - exactly at length
         shot = real_shot_model.get_shot_by_index(1)
         assert shot is None
@@ -339,13 +359,13 @@ class TestShotModel:
                 "workspace_path": "/test/path2",
             },
         ]
-        
+
         # Store data in real cache
         real_cache_manager.cache_shots(cache_data)
-        
+
         # Test actual loading behavior
         result = real_shot_model._load_from_cache()
-        
+
         assert result is True
         assert len(real_shot_model.shots) == 2
         assert real_shot_model.shots[0].show == "test"
@@ -355,7 +375,7 @@ class TestShotModel:
         """Test cache loading when no data available."""
         # Cache is empty by default in real_cache_manager
         result = real_shot_model._load_from_cache()
-        
+
         assert result is False
         assert len(real_shot_model.shots) == 0
 
@@ -369,35 +389,37 @@ class TestShotModelErrorHandling:
         test_process_pool.should_fail = True
         test_process_pool.set_errors("Command timed out")
         real_shot_model._process_pool = test_process_pool
-        
+
         result = real_shot_model.refresh_shots()
-        
+
         assert isinstance(result, RefreshResult)
         assert result.success is False
         assert result.has_changes is False
 
-    def test_refresh_shots_change_detection(self, real_shot_model, test_process_pool, make_test_shot):
+    def test_refresh_shots_change_detection(
+        self, real_shot_model, test_process_pool, make_test_shot
+    ):
         """Test change detection logic in refresh_shots."""
         # Set initial shots
         real_shot_model.shots = [
             make_test_shot("show1", "seq1", "0010"),
             make_test_shot("show1", "seq1", "0020"),
         ]
-        
+
         # Return same shots
         test_process_pool.set_outputs(
             "workspace /shows/show1/shots/seq1/seq1_0010\n"
             "workspace /shows/show1/shots/seq1/seq1_0020"
         )
         real_shot_model._process_pool = test_process_pool
-        
+
         result = real_shot_model.refresh_shots()
         assert result.success is True
         # Note: has_changes may be True due to workspace_path differences
-        
+
         # Now return different shots
         test_process_pool.set_outputs("workspace /shows/newshow/shots/seq1/seq1_0010")
-        
+
         result = real_shot_model.refresh_shots()
         assert result.success is True
         assert len(real_shot_model.shots) == 1  # Different shot count = changes
@@ -410,7 +432,7 @@ class TestShotModelParser:
         """Test parser rejects non-string input."""
         with pytest.raises(ValueError, match="Expected string output"):
             real_shot_model._parse_ws_output(123)  # type: ignore
-        
+
         with pytest.raises(ValueError, match="Expected string output"):
             real_shot_model._parse_ws_output(None)  # type: ignore
 
@@ -418,7 +440,7 @@ class TestShotModelParser:
         """Test parser handles empty output."""
         shots = real_shot_model._parse_ws_output("")
         assert shots == []
-        
+
         shots = real_shot_model._parse_ws_output("   ")  # Whitespace only
         assert shots == []
 
@@ -427,7 +449,7 @@ class TestShotModelParser:
         output = """Invalid line 1
 Another invalid line
 Not a workspace line"""
-        
+
         shots = real_shot_model._parse_ws_output(output)
         assert shots == []
 
@@ -438,7 +460,7 @@ workspace /shows/test1/shots/seq1/seq1_0010
 Another invalid line
 workspace /shows/test2/shots/seq2/seq2_0020
 Yet another invalid"""
-        
+
         shots = real_shot_model._parse_ws_output(output)
         assert len(shots) == 2
         assert shots[0].show == "test1"
@@ -451,7 +473,7 @@ Yet another invalid"""
 workspace /shows/test2/shots/seq2/seq2_0020
 
 """
-        
+
         shots = real_shot_model._parse_ws_output(output)
         assert len(shots) == 2
 
@@ -460,10 +482,10 @@ workspace /shows/test2/shots/seq2/seq2_0020
         output = """workspace /shows/test/shots/seq1/001_ABC_0010
 workspace /shows/test/shots/seq2/simple_name
 workspace /shows/test/shots/seq3/very_long_complex_shot_name_0050"""
-        
+
         shots = real_shot_model._parse_ws_output(output)
         assert len(shots) == 3
-        
+
         # Test shot name extraction logic
         assert shots[0].shot == "0010"  # Last part after split
         assert shots[1].shot == "simple_name"  # No underscore splits
@@ -476,12 +498,12 @@ class TestShotModelPerformance:
     def test_invalidate_workspace_cache(self, real_shot_model, test_process_pool):
         """Test cache invalidation with test double."""
         real_shot_model._process_pool = test_process_pool
-        
+
         # Add some commands to verify reset
         test_process_pool.commands.append("previous_command")
-        
+
         real_shot_model.invalidate_workspace_cache()
-        
+
         # Test double should handle cache invalidation
         # In a real implementation, this would clear subprocess cache
 
@@ -491,7 +513,7 @@ class TestShotModelPerformance:
         test_process_pool.call_count = 5
         test_process_pool.commands = ["cmd1", "cmd2", "cmd3", "cmd4", "cmd5"]
         real_shot_model._process_pool = test_process_pool
-        
+
         # In real implementation, this would return actual metrics
         # Here we test that the method exists and can be called
         metrics = real_shot_model.get_performance_metrics()

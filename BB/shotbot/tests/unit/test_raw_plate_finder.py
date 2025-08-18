@@ -57,7 +57,10 @@ class TestRawPlateFinder:
     """Test RawPlateFinder class."""
 
     def test_find_latest_raw_plate_success(
-        self, mock_workspace_path, mock_shot_name, mock_plate_structure,
+        self,
+        mock_workspace_path,
+        mock_shot_name,
+        mock_plate_structure,
     ):
         """Test successfully finding the latest raw plate."""
         with patch(
@@ -65,14 +68,16 @@ class TestRawPlateFinder:
             return_value=mock_plate_structure,
         ):
             with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists", return_value=True,
+                "raw_plate_finder.PathUtils.validate_path_exists",
+                return_value=True,
             ):
                 with patch(
                     "raw_plate_finder.PathUtils.discover_plate_directories",
                     return_value=[("FG01", 10), ("BG01", 7)],
                 ):
                     result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path, mock_shot_name,
+                        mock_workspace_path,
+                        mock_shot_name,
                     )
 
                     assert result is not None
@@ -82,7 +87,9 @@ class TestRawPlateFinder:
                     assert "aces" in result  # Should detect color space
 
     def test_find_latest_raw_plate_no_base_path(
-        self, mock_workspace_path, mock_shot_name,
+        self,
+        mock_workspace_path,
+        mock_shot_name,
     ):
         """Test when base path doesn't exist."""
         with patch(
@@ -90,15 +97,19 @@ class TestRawPlateFinder:
             return_value=Path("/nonexistent"),
         ):
             with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists", return_value=False,
+                "raw_plate_finder.PathUtils.validate_path_exists",
+                return_value=False,
             ):
                 result = RawPlateFinder.find_latest_raw_plate(
-                    mock_workspace_path, mock_shot_name,
+                    mock_workspace_path,
+                    mock_shot_name,
                 )
                 assert result is None
 
     def test_find_latest_raw_plate_no_plate_dirs(
-        self, mock_workspace_path, mock_shot_name,
+        self,
+        mock_workspace_path,
+        mock_shot_name,
     ):
         """Test when no plate directories are found."""
         with patch(
@@ -106,19 +117,24 @@ class TestRawPlateFinder:
             return_value=Path("/test"),
         ):
             with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists", return_value=True,
+                "raw_plate_finder.PathUtils.validate_path_exists",
+                return_value=True,
             ):
                 with patch(
                     "raw_plate_finder.PathUtils.discover_plate_directories",
                     return_value=[],
                 ):
                     result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path, mock_shot_name,
+                        mock_workspace_path,
+                        mock_shot_name,
                     )
                     assert result is None
 
     def test_find_latest_raw_plate_no_versions(
-        self, mock_workspace_path, mock_shot_name, tmp_path,
+        self,
+        mock_workspace_path,
+        mock_shot_name,
+        tmp_path,
     ):
         """Test when plate directory exists but has no version directories."""
         base_path = tmp_path / "plate"
@@ -126,22 +142,28 @@ class TestRawPlateFinder:
         fg01_path.mkdir(parents=True)
 
         with patch(
-            "raw_plate_finder.PathUtils.build_raw_plate_path", return_value=base_path,
+            "raw_plate_finder.PathUtils.build_raw_plate_path",
+            return_value=base_path,
         ):
             with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists", return_value=True,
+                "raw_plate_finder.PathUtils.validate_path_exists",
+                return_value=True,
             ):
                 with patch(
                     "raw_plate_finder.PathUtils.discover_plate_directories",
                     return_value=[("FG01", 10)],
                 ):
                     result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path, mock_shot_name,
+                        mock_workspace_path,
+                        mock_shot_name,
                     )
                     assert result is None
 
     def test_find_latest_raw_plate_no_exr_directory(
-        self, mock_workspace_path, mock_shot_name, tmp_path,
+        self,
+        mock_workspace_path,
+        mock_shot_name,
+        tmp_path,
     ):
         """Test when version exists but no exr directory."""
         base_path = tmp_path / "plate"
@@ -149,17 +171,20 @@ class TestRawPlateFinder:
         fg01_v001.mkdir(parents=True)
 
         with patch(
-            "raw_plate_finder.PathUtils.build_raw_plate_path", return_value=base_path,
+            "raw_plate_finder.PathUtils.build_raw_plate_path",
+            return_value=base_path,
         ):
             with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists", return_value=True,
+                "raw_plate_finder.PathUtils.validate_path_exists",
+                return_value=True,
             ):
                 with patch(
                     "raw_plate_finder.PathUtils.discover_plate_directories",
                     return_value=[("FG01", 10)],
                 ):
                     result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path, mock_shot_name,
+                        mock_workspace_path,
+                        mock_shot_name,
                     )
                     assert result is None
 
@@ -175,7 +200,10 @@ class TestRawPlateFinder:
         plate_file.touch()
 
         result = RawPlateFinder._find_plate_file_pattern(
-            resolution_dir, mock_shot_name, "FG01", "v002",
+            resolution_dir,
+            mock_shot_name,
+            "FG01",
+            "v002",
         )
 
         assert result is not None
@@ -196,7 +224,10 @@ class TestRawPlateFinder:
         plate_file.touch()
 
         result = RawPlateFinder._find_plate_file_pattern(
-            resolution_dir, mock_shot_name, "FG01", "v002",
+            resolution_dir,
+            mock_shot_name,
+            "FG01",
+            "v002",
         )
 
         assert result is not None
@@ -217,7 +248,10 @@ class TestRawPlateFinder:
 
         with patch("raw_plate_finder.Config.COLOR_SPACE_PATTERNS", ["aces"]):
             result = RawPlateFinder._find_plate_file_pattern(
-                resolution_dir, mock_shot_name, "FG01", "v002",
+                resolution_dir,
+                mock_shot_name,
+                "FG01",
+                "v002",
             )
 
             # Should use fallback color space
@@ -230,7 +264,10 @@ class TestRawPlateFinder:
         resolution_dir.iterdir.side_effect = PermissionError("Access denied")
 
         result = RawPlateFinder._find_plate_file_pattern(
-            resolution_dir, mock_shot_name, "FG01", "v002",
+            resolution_dir,
+            mock_shot_name,
+            "FG01",
+            "v002",
         )
 
         assert result is None
@@ -247,7 +284,8 @@ class TestRawPlateFinder:
     def test_get_version_from_path_none(self):
         """Test extracting version returns None when not found."""
         with patch(
-            "raw_plate_finder.VersionUtils.extract_version_from_path", return_value=None,
+            "raw_plate_finder.VersionUtils.extract_version_from_path",
+            return_value=None,
         ):
             result = RawPlateFinder.get_version_from_path("/path/to/plate.exr")
             assert result is None
@@ -265,7 +303,8 @@ class TestRawPlateFinder:
         plate_path = str(plate_dir / "shot_v001.####.exr")
 
         with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists", return_value=True,
+            "raw_plate_finder.PathUtils.validate_path_exists",
+            return_value=True,
         ):
             result = RawPlateFinder.verify_plate_exists(plate_path)
             assert result is True
@@ -286,7 +325,8 @@ class TestRawPlateFinder:
     def test_verify_plate_exists_directory_not_found(self):
         """Test verify when directory doesn't exist."""
         with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists", return_value=False,
+            "raw_plate_finder.PathUtils.validate_path_exists",
+            return_value=False,
         ):
             result = RawPlateFinder.verify_plate_exists("/nonexistent/plate.####.exr")
             assert result is False
@@ -303,7 +343,8 @@ class TestRawPlateFinder:
         plate_path = str(plate_dir / "shot_v001.####.exr")
 
         with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists", return_value=True,
+            "raw_plate_finder.PathUtils.validate_path_exists",
+            return_value=True,
         ):
             result = RawPlateFinder.verify_plate_exists(plate_path)
             assert result is False
@@ -314,7 +355,8 @@ class TestRawPlateFinder:
         mock_dir.iterdir.side_effect = PermissionError("Access denied")
 
         with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists", return_value=True,
+            "raw_plate_finder.PathUtils.validate_path_exists",
+            return_value=True,
         ):
             with patch("pathlib.Path", return_value=mock_dir):
                 result = RawPlateFinder.verify_plate_exists("/test/plate.####.exr")
@@ -329,10 +371,12 @@ class TestRawPlateFinder:
         plate_path = "/test/plate[invalid.####.exr"
 
         with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists", return_value=True,
+            "raw_plate_finder.PathUtils.validate_path_exists",
+            return_value=True,
         ):
             with patch(
-                "pathlib.Path.parent", new_callable=lambda: Mock(return_value=mock_dir),
+                "pathlib.Path.parent",
+                new_callable=lambda: Mock(return_value=mock_dir),
             ):
                 result = RawPlateFinder.verify_plate_exists(plate_path)
                 assert result is False
@@ -364,7 +408,9 @@ class TestRawPlateFinder:
         version = "v002"
 
         pattern1, pattern2 = RawPlateFinder._get_plate_patterns(
-            shot_name, plate_name, version,
+            shot_name,
+            plate_name,
+            version,
         )
 
         # Test pattern 1: underscore before color space
@@ -387,7 +433,10 @@ class TestRawPlateFinder:
         assert pattern2.match(filename3) is None
 
     def test_multiple_plates_priority(
-        self, mock_workspace_path, mock_shot_name, tmp_path,
+        self,
+        mock_workspace_path,
+        mock_shot_name,
+        tmp_path,
     ):
         """Test that FG plates are prioritized over BG plates."""
         base_path = tmp_path / "plate"
@@ -405,17 +454,20 @@ class TestRawPlateFinder:
         fg_file.touch()
 
         with patch(
-            "raw_plate_finder.PathUtils.build_raw_plate_path", return_value=base_path,
+            "raw_plate_finder.PathUtils.build_raw_plate_path",
+            return_value=base_path,
         ):
             with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists", return_value=True,
+                "raw_plate_finder.PathUtils.validate_path_exists",
+                return_value=True,
             ):
                 with patch(
                     "raw_plate_finder.PathUtils.discover_plate_directories",
                     return_value=[("FG01", 10), ("BG01", 7)],
                 ):  # FG01 has higher priority
                     result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path, mock_shot_name,
+                        mock_workspace_path,
+                        mock_shot_name,
                     )
 
                     # Should find FG01 even though BG01 has newer version

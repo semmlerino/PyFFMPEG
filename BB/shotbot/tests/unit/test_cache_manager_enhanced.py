@@ -91,7 +91,10 @@ class TestThumbnailCacheLoader:
     """Test the ThumbnailCacheLoader QRunnable class."""
 
     def test_thumbnail_cache_loader_initialization(
-        self, cache_manager, test_image, sample_shot,
+        self,
+        cache_manager,
+        test_image,
+        sample_shot,
     ):
         """Test ThumbnailCacheLoader initialization."""
         loader = ThumbnailCacheLoader(
@@ -110,7 +113,11 @@ class TestThumbnailCacheLoader:
         assert loader.signals is not None
 
     def test_thumbnail_cache_loader_run_success(
-        self, qtbot, cache_manager, test_image, sample_shot,
+        self,
+        qtbot,
+        cache_manager,
+        test_image,
+        sample_shot,
     ):
         """Test successful thumbnail caching in background."""
         loader = ThumbnailCacheLoader(
@@ -145,7 +152,11 @@ class TestThumbnailCacheLoader:
         assert cache_path.suffix == ".jpg"
 
     def test_thumbnail_cache_loader_run_failure(
-        self, qtbot, cache_manager, tmp_path, sample_shot,
+        self,
+        qtbot,
+        cache_manager,
+        tmp_path,
+        sample_shot,
     ):
         """Test failed thumbnail caching with non-existent file."""
         non_existent = tmp_path / "non_existent.jpg"
@@ -178,7 +189,11 @@ class TestThumbnailCacheLoader:
         assert len(signal_args[3]) > 0
 
     def test_thumbnail_cache_loader_with_thread_pool(
-        self, qtbot, cache_manager, test_image, sample_shot,
+        self,
+        qtbot,
+        cache_manager,
+        test_image,
+        sample_shot,
     ):
         """Test ThumbnailCacheLoader with QThreadPool."""
         loader = ThumbnailCacheLoader(
@@ -207,11 +222,17 @@ class TestCacheThumbnailDirect:
     """Test the cache_thumbnail_direct method."""
 
     def test_cache_thumbnail_direct_success(
-        self, cache_manager, test_image, sample_shot,
+        self,
+        cache_manager,
+        test_image,
+        sample_shot,
     ):
         """Test direct thumbnail caching."""
         result = cache_manager.cache_thumbnail_direct(
-            test_image, sample_shot.show, sample_shot.sequence, sample_shot.shot,
+            test_image,
+            sample_shot.show,
+            sample_shot.sequence,
+            sample_shot.shot,
         )
 
         assert result is not None
@@ -225,31 +246,47 @@ class TestCacheThumbnailDirect:
         assert cached_image.height() <= cache_manager.CACHE_THUMBNAIL_SIZE
 
     def test_cache_thumbnail_direct_large_image(
-        self, cache_manager, large_image, sample_shot,
+        self,
+        cache_manager,
+        large_image,
+        sample_shot,
     ):
         """Test caching large image that exceeds max dimensions."""
         result = cache_manager.cache_thumbnail_direct(
-            large_image, sample_shot.show, sample_shot.sequence, sample_shot.shot,
+            large_image,
+            sample_shot.show,
+            sample_shot.sequence,
+            sample_shot.shot,
         )
 
         # Should reject image that's too large
         assert result is None
 
     def test_cache_thumbnail_direct_exr_handling(
-        self, cache_manager, exr_image, sample_shot,
+        self,
+        cache_manager,
+        exr_image,
+        sample_shot,
     ):
         """Test EXR file handling."""
         # Since we can't load real EXR files without plugins,
         # this will test the EXR detection and error handling
         result = cache_manager.cache_thumbnail_direct(
-            exr_image, sample_shot.show, sample_shot.sequence, sample_shot.shot,
+            exr_image,
+            sample_shot.show,
+            sample_shot.sequence,
+            sample_shot.shot,
         )
 
         # Should fail to load mock EXR
         assert result is None
 
     def test_cache_thumbnail_direct_memory_error(
-        self, cache_manager, test_image, sample_shot, monkeypatch,
+        self,
+        cache_manager,
+        test_image,
+        sample_shot,
+        monkeypatch,
     ):
         """Test memory error handling."""
 
@@ -262,13 +299,20 @@ class TestCacheThumbnailDirect:
         monkeypatch.setattr("cache_manager.QImage", mock_qimage_init)
 
         result = cache_manager.cache_thumbnail_direct(
-            test_image, sample_shot.show, sample_shot.sequence, sample_shot.shot,
+            test_image,
+            sample_shot.show,
+            sample_shot.sequence,
+            sample_shot.shot,
         )
 
         assert result is None
 
     def test_cache_thumbnail_direct_io_error(
-        self, cache_manager, test_image, sample_shot, monkeypatch,
+        self,
+        cache_manager,
+        test_image,
+        sample_shot,
+        monkeypatch,
     ):
         """Test I/O error handling."""
 
@@ -280,7 +324,10 @@ class TestCacheThumbnailDirect:
         monkeypatch.setattr(QImage, "save", mock_save)
 
         result = cache_manager.cache_thumbnail_direct(
-            test_image, sample_shot.show, sample_shot.sequence, sample_shot.shot,
+            test_image,
+            sample_shot.show,
+            sample_shot.sequence,
+            sample_shot.shot,
         )
 
         assert result is None
@@ -345,7 +392,8 @@ class TestThreeDECaching:
         """Test corrupted 3DE cache handling."""
         # Create corrupted cache file
         cache_manager.threede_scenes_cache_file.parent.mkdir(
-            parents=True, exist_ok=True,
+            parents=True,
+            exist_ok=True,
         )
         cache_manager.threede_scenes_cache_file.write_text("INVALID JSON {")
 
@@ -411,7 +459,10 @@ class TestMemoryManagement:
         # Cache multiple thumbnails to exceed limit
         for i in range(5):
             cache_manager.cache_thumbnail_direct(
-                test_image, "show", "seq", f"shot{i:02d}",
+                test_image,
+                "show",
+                "seq",
+                f"shot{i:02d}",
             )
 
         # Check that old thumbnails were evicted
@@ -486,7 +537,10 @@ class TestThreadSafety:
         def cache_operation(index):
             try:
                 result = cache_manager.cache_thumbnail_direct(
-                    test_image, "show", "seq", f"shot{index:03d}",
+                    test_image,
+                    "show",
+                    "seq",
+                    f"shot{index:03d}",
                 )
                 results.append(result)
             except Exception as e:
@@ -537,7 +591,10 @@ class TestEdgeCases:
         non_existent = tmp_path / "does_not_exist.jpg"
 
         result = cache_manager.cache_thumbnail_direct(
-            non_existent, "show", "seq", "shot",
+            non_existent,
+            "show",
+            "seq",
+            "shot",
         )
 
         assert result is None
@@ -548,7 +605,10 @@ class TestEdgeCases:
         invalid_image.write_text("NOT AN IMAGE")
 
         result = cache_manager.cache_thumbnail_direct(
-            invalid_image, "show", "seq", "shot",
+            invalid_image,
+            "show",
+            "seq",
+            "shot",
         )
 
         assert result is None
@@ -556,7 +616,10 @@ class TestEdgeCases:
     def test_cache_with_special_characters(self, cache_manager, test_image):
         """Test caching with special characters in names."""
         result = cache_manager.cache_thumbnail_direct(
-            test_image, "show-with-dash", "seq_01", "shot.001",
+            test_image,
+            "show-with-dash",
+            "seq_01",
+            "shot.001",
         )
 
         assert result is not None
@@ -565,7 +628,10 @@ class TestEdgeCases:
     def test_cache_with_unicode_names(self, cache_manager, test_image):
         """Test caching with Unicode characters in names."""
         result = cache_manager.cache_thumbnail_direct(
-            test_image, "show_测试", "seq_序列", "shot_镜头",
+            test_image,
+            "show_测试",
+            "seq_序列",
+            "shot_镜头",
         )
 
         assert result is not None

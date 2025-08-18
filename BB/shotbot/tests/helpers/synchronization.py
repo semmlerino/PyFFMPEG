@@ -73,7 +73,8 @@ class SynchronizationHelpers:
             raise ValueError(f"Unknown operation: {operation}")
 
         return SynchronizationHelpers.wait_for_condition(
-            conditions[operation], timeout_ms,
+            conditions[operation],
+            timeout_ms,
         )
 
     @staticmethod
@@ -141,7 +142,8 @@ class SynchronizationHelpers:
 
         # Wait for thread count to increase
         SynchronizationHelpers.wait_for_condition(
-            lambda: threading.active_count() > initial_count, timeout_ms=max_wait_ms,
+            lambda: threading.active_count() > initial_count,
+            timeout_ms=max_wait_ms,
         )
 
     @staticmethod
@@ -175,7 +177,8 @@ class SynchronizationHelpers:
             )
         if operation == "directory_exists":
             return SynchronizationHelpers.wait_for_condition(
-                lambda: cache_manager.thumbnails_dir.exists(), timeout_ms=timeout_ms,
+                lambda: cache_manager.thumbnails_dir.exists(),
+                timeout_ms=timeout_ms,
             )
         raise ValueError(f"Unknown operation: {operation}")
 
@@ -235,7 +238,9 @@ class SynchronizationHelpers:
             return process.memory_info().rss < threshold_bytes
 
         return SynchronizationHelpers.wait_for_condition(
-            check_memory, timeout_ms=timeout_ms, poll_interval_ms=50,
+            check_memory,
+            timeout_ms=timeout_ms,
+            poll_interval_ms=50,
         )
 
     @staticmethod

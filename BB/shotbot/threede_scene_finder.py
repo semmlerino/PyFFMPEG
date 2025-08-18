@@ -91,7 +91,8 @@ class PathDiagnostics:
             try:
                 alt_path = PathUtils.build_path(str(base_path), *pattern)
                 PathDiagnostics.log_path_attempt(
-                    alt_path, f"Alternative pattern {' -> '.join(pattern)}",
+                    alt_path,
+                    f"Alternative pattern {' -> '.join(pattern)}",
                 )
 
                 if alt_path.exists():
@@ -180,7 +181,8 @@ class ThreeDESceneFinder:
 
     @staticmethod
     def quick_3de_exists_check_python(
-        base_paths: List[str], timeout_seconds: int = 15,
+        base_paths: List[str],
+        timeout_seconds: int = 15,
     ) -> bool:
         """Quick check if ANY .3de files exist using Python pathlib (no subprocess).
 
@@ -232,7 +234,8 @@ class ThreeDESceneFinder:
 
     @staticmethod
     def quick_3de_exists_check(
-        base_paths: List[str], timeout_seconds: int = 15,
+        base_paths: List[str],
+        timeout_seconds: int = 15,
     ) -> bool:
         """Quick check if ANY .3de files exist in the given paths.
 
@@ -416,7 +419,8 @@ class ThreeDESceneFinder:
         # Check if at least one directory exists
         has_user_dir = PathUtils.validate_path_exists(user_dir, "User directory")
         has_publish_dir = PathUtils.validate_path_exists(
-            publish_dir, "Publish directory",
+            publish_dir,
+            "Publish directory",
         )
 
         if not has_user_dir and not has_publish_dir:
@@ -553,7 +557,8 @@ class ThreeDESceneFinder:
 
                                 # Extract meaningful plate/grouping from path
                                 plate = ThreeDESceneFinder.extract_plate_from_path(
-                                    threede_file, user_path,
+                                    threede_file,
+                                    user_path,
                                 )
 
                                 # Create ThreeDEScene object
@@ -658,7 +663,8 @@ class ThreeDESceneFinder:
 
                         # Extract plate from path
                         plate = ThreeDESceneFinder.extract_plate_from_path(
-                            threede_file, publish_dir,
+                            threede_file,
+                            publish_dir,
                         )
 
                         # Create scene object for published file
@@ -699,7 +705,8 @@ class ThreeDESceneFinder:
     @staticmethod
     @timed_operation("discover_all_shots_in_show", log_threshold_ms=500)
     def discover_all_shots_in_show(
-        show_root: str, show: str,
+        show_root: str,
+        show: str,
     ) -> List[Tuple[str, str, str, str]]:
         """Discover all shots in a show by scanning the filesystem.
 
@@ -863,7 +870,8 @@ class ThreeDESceneFinder:
             for show in shows_to_search:
                 # Discover all shots in this show
                 all_shots = ThreeDESceneFinder.discover_all_shots_in_show(
-                    show_root, show,
+                    show_root,
+                    show,
                 )
 
                 if not all_shots:
@@ -877,7 +885,11 @@ class ThreeDESceneFinder:
                 # Search each discovered shot
                 for workspace_path, show_name, sequence, shot in all_shots:
                     scenes = ThreeDESceneFinder.find_scenes_for_shot(
-                        workspace_path, show_name, sequence, shot, excluded_users,
+                        workspace_path,
+                        show_name,
+                        sequence,
+                        shot,
+                        excluded_users,
                     )
                     all_scenes.extend(scenes)
 
@@ -909,7 +921,11 @@ class ThreeDESceneFinder:
 
         for workspace_path, show, sequence, shot in shots:
             scenes = ThreeDESceneFinder.find_scenes_for_shot(
-                workspace_path, show, sequence, shot, excluded_users,
+                workspace_path,
+                show,
+                sequence,
+                shot,
+                excluded_users,
             )
             all_scenes.extend(scenes)
 
@@ -1042,7 +1058,8 @@ class ThreeDESceneFinder:
                     # Combine both lowercase and uppercase extensions
                     threede_files = list(
                         itertools.chain(
-                            user_path.rglob("*.3de"), user_path.rglob("*.3DE"),
+                            user_path.rglob("*.3de"),
+                            user_path.rglob("*.3DE"),
                         ),
                     )
                     logger.debug(
@@ -1062,7 +1079,8 @@ class ThreeDESceneFinder:
 
                 # Extract meaningful plate/grouping from path
                 plate = ThreeDESceneFinder.extract_plate_from_path(
-                    threede_file, user_path,
+                    threede_file,
+                    user_path,
                 )
 
                 # Create scene object
@@ -1147,7 +1165,8 @@ class ThreeDESceneFinder:
             # Check if at least one directory exists
             has_user_dir = PathUtils.validate_path_exists(user_dir, "User directory")
             has_publish_dir = PathUtils.validate_path_exists(
-                publish_dir, "Publish directory",
+                publish_dir,
+                "Publish directory",
             )
 
             if not has_user_dir and not has_publish_dir:
@@ -1233,7 +1252,10 @@ class ThreeDESceneFinder:
                     ]
 
                     result = subprocess.run(
-                        find_cmd, capture_output=True, text=True, timeout=30,
+                        find_cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
                     )
 
                     if result.returncode == 0 and result.stdout.strip():
@@ -1258,7 +1280,8 @@ class ThreeDESceneFinder:
 
                                     # Extract plate info
                                     plate = ThreeDESceneFinder.extract_plate_from_path(
-                                        file_path, publish_dir,
+                                        file_path,
+                                        publish_dir,
                                     )
 
                                     # Create scene object
@@ -1653,7 +1676,10 @@ class ThreeDESceneFinder:
         if USE_PYTHON_FILE_DISCOVERY:
             try:
                 return ThreeDESceneFinder.find_all_3de_files_in_show_python(
-                    show_root, show, sequences, timeout_seconds,
+                    show_root,
+                    show,
+                    sequences,
+                    timeout_seconds,
                 )
             except Exception as e:
                 if FALLBACK_TO_SUBPROCESS:
@@ -1712,7 +1738,10 @@ class ThreeDESceneFinder:
                 ]
 
                 result = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=timeout_seconds,
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout_seconds,
                 )
 
                 if result.returncode != 0 and result.stderr:
@@ -1984,7 +2013,8 @@ class ThreeDESceneFinder:
         if not Config.THREEDE_FILE_FIRST_DISCOVERY:
             logger.info("File-first discovery disabled, using old method")
             return ThreeDESceneFinder.find_all_scenes_in_shows(
-                user_shots, excluded_users,
+                user_shots,
+                excluded_users,
             )
 
         # Extract unique shows and their roots
@@ -2097,7 +2127,8 @@ class ThreeDESceneFinder:
                         user_path = user_path.parent
 
                     plate = ThreeDESceneFinder.extract_plate_from_path(
-                        file_path, user_path,
+                        file_path,
+                        user_path,
                     )
 
                     # Create scene object
@@ -2132,13 +2163,13 @@ class ThreeDESceneFinder:
     @staticmethod
     def _discover_all_scenes_in_shows(shows_root: Path) -> List[ThreeDEScene]:
         """Discover all 3DE scenes across all shows in the given root directory.
-        
+
         This method is used by tests and provides compatibility with the expected
         interface. It uses Path.glob to find all .3de files directly for testing.
-        
+
         Args:
             shows_root: Root directory containing show directories
-            
+
         Returns:
             List of all ThreeDEScene objects found
         """
@@ -2146,24 +2177,26 @@ class ThreeDESceneFinder:
             logger.info(f"Discovering 3DE scenes in {shows_root}")
             all_scenes = []
             excluded_users = ValidationUtils.get_excluded_users()
-            
+
             # Use Path.glob to find all .3de files recursively
             # This matches what the tests expect (mocked Path.glob)
             threede_files = list(shows_root.glob("**/*.3de"))
-            
+
             logger.info(f"Found {len(threede_files)} .3de files total")
-            
+
             # Process each .3de file found
             for file_path in threede_files:
                 try:
                     # Extract shot info from path
-                    shot_info = ThreeDESceneFinder.extract_shot_info_from_path(file_path)
+                    shot_info = ThreeDESceneFinder.extract_shot_info_from_path(
+                        file_path
+                    )
                     if not shot_info:
                         logger.debug(f"Could not extract shot info from: {file_path}")
                         continue
-                        
+
                     workspace_path, sequence, shot_name, username = shot_info
-                    
+
                     # Extract show name from workspace path
                     # Pattern: /shows/{show}/shots/{sequence}/{shot}
                     path_parts = Path(workspace_path).parts
@@ -2172,24 +2205,32 @@ class ThreeDESceneFinder:
                         if shows_idx + 1 < len(path_parts):
                             show_name = path_parts[shows_idx + 1]
                         else:
-                            logger.debug(f"Could not extract show from workspace: {workspace_path}")
+                            logger.debug(
+                                f"Could not extract show from workspace: {workspace_path}"
+                            )
                             continue
                     else:
-                        logger.debug(f"Invalid workspace path structure: {workspace_path}")
+                        logger.debug(
+                            f"Invalid workspace path structure: {workspace_path}"
+                        )
                         continue
-                    
+
                     # Skip excluded users
-                    if username in excluded_users and not username.startswith('published-'):
+                    if username in excluded_users and not username.startswith(
+                        "published-"
+                    ):
                         logger.debug(f"Skipping excluded user: {username}")
                         continue
-                        
+
                     # Extract plate name from path
                     user_path = file_path.parent
                     while user_path.name != username and user_path.parent != user_path:
                         user_path = user_path.parent
-                        
-                    plate = ThreeDESceneFinder.extract_plate_from_path(file_path, user_path)
-                    
+
+                    plate = ThreeDESceneFinder.extract_plate_from_path(
+                        file_path, user_path
+                    )
+
                     # Create scene object
                     scene = ThreeDEScene(
                         show=show_name,
@@ -2201,16 +2242,18 @@ class ThreeDESceneFinder:
                         scene_path=file_path,
                     )
                     all_scenes.append(scene)
-                    
-                    logger.debug(f"Added scene: {show_name}/{sequence}/{shot_name} - {username}/{plate}")
-                    
+
+                    logger.debug(
+                        f"Added scene: {show_name}/{sequence}/{shot_name} - {username}/{plate}"
+                    )
+
                 except Exception as e:
                     logger.error(f"Error processing file {file_path}: {e}")
                     continue
-                    
+
             logger.info(f"Discovery complete: Found {len(all_scenes)} 3DE scenes")
             return all_scenes
-            
+
         except Exception as e:
             logger.error(f"Error discovering scenes in shows: {e}")
             return []

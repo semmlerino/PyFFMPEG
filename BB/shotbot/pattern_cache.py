@@ -81,13 +81,16 @@ class PatternCache:
         # Color space patterns
         cls._static_patterns["color_space_aces"] = re.compile(r"aces", re.IGNORECASE)
         cls._static_patterns["color_space_lin_sgamut3cine"] = re.compile(
-            r"lin_sgamut3cine", re.IGNORECASE,
+            r"lin_sgamut3cine",
+            re.IGNORECASE,
         )
         cls._static_patterns["color_space_lin_rec709"] = re.compile(
-            r"lin_rec709", re.IGNORECASE,
+            r"lin_rec709",
+            re.IGNORECASE,
         )
         cls._static_patterns["color_space_rec709"] = re.compile(
-            r"rec709", re.IGNORECASE,
+            r"rec709",
+            re.IGNORECASE,
         )
         cls._static_patterns["color_space_srgb"] = re.compile(r"srgb", re.IGNORECASE)
 
@@ -96,7 +99,8 @@ class PatternCache:
             for i, pattern_str in enumerate(Config.PLATE_NAME_PATTERNS):
                 try:
                     cls._static_patterns[f"plate_name_{i}"] = re.compile(
-                        pattern_str, re.IGNORECASE,
+                        pattern_str,
+                        re.IGNORECASE,
                     )
                 except re.error as e:
                     logger.warning(
@@ -105,7 +109,8 @@ class PatternCache:
 
         # BG/FG specific patterns (high priority)
         cls._static_patterns["bg_fg_pattern"] = re.compile(
-            r"^[bf]g\d{2}$", re.IGNORECASE,
+            r"^[bf]g\d{2}$",
+            re.IGNORECASE,
         )
         cls._static_patterns["bg_pattern"] = re.compile(r"^bg\d{2}$", re.IGNORECASE)
         cls._static_patterns["fg_pattern"] = re.compile(r"^fg\d{2}$", re.IGNORECASE)
@@ -128,10 +133,12 @@ class PatternCache:
         cls._static_patterns["vfx_dir_3de"] = re.compile(r"^3de$", re.IGNORECASE)
         cls._static_patterns["vfx_dir_scenes"] = re.compile(r"^scenes?$", re.IGNORECASE)
         cls._static_patterns["vfx_dir_mm"] = re.compile(
-            r"^(mm|matchmove)$", re.IGNORECASE,
+            r"^(mm|matchmove)$",
+            re.IGNORECASE,
         )
         cls._static_patterns["vfx_dir_tracking"] = re.compile(
-            r"^tracking$", re.IGNORECASE,
+            r"^tracking$",
+            re.IGNORECASE,
         )
 
         # Shot/sequence patterns
@@ -145,7 +152,8 @@ class PatternCache:
         cls._static_patterns["resolution_dir"] = re.compile(r"^\d+x\d+$")
         cls._static_patterns["exr_extension"] = re.compile(r"\.exr$", re.IGNORECASE)
         cls._static_patterns["nuke_extension"] = re.compile(
-            r"\.(nk|nknc)$", re.IGNORECASE,
+            r"\.(nk|nknc)$",
+            re.IGNORECASE,
         )
 
         # User and workspace patterns
@@ -229,7 +237,9 @@ class PatternCache:
     @classmethod
     @lru_cache(maxsize=256)
     def compile_pattern(
-        cls, pattern_str: str, flags: int = re.IGNORECASE,
+        cls,
+        pattern_str: str,
+        flags: int = re.IGNORECASE,
     ) -> Optional[Pattern]:
         """Compile and cache an arbitrary pattern string.
 
@@ -291,7 +301,11 @@ class PlatePatternMatcher:
                 break
 
     def find_plate_file(
-        self, resolution_dir: str, shot_name: str, plate_name: str, version: str,
+        self,
+        resolution_dir: str,
+        shot_name: str,
+        plate_name: str,
+        version: str,
     ) -> Optional[str]:
         """Find plate file using optimized pattern matching.
 
@@ -493,7 +507,9 @@ scene_matcher = ScenePatternMatcher()
 
 # Public API functions for backward compatibility
 def get_plate_pattern(
-    shot_name: str, plate_name: str, version: str,
+    shot_name: str,
+    plate_name: str,
+    version: str,
 ) -> Optional[Pattern]:
     """Get compiled pattern for plate file matching.
 
@@ -514,7 +530,10 @@ def get_plate_pattern(
 
 
 def match_plate_file(
-    filepath: str, shot_name: str, plate_name: str, version: str,
+    filepath: str,
+    shot_name: str,
+    plate_name: str,
+    version: str,
 ) -> bool:
     """Check if filepath matches expected plate pattern.
 

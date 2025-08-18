@@ -106,7 +106,10 @@ def test_shot():
         workspace_path="/test/workspace",
     ):
         return Shot(
-            show=show, sequence=sequence, shot=shot, workspace_path=workspace_path,
+            show=show,
+            sequence=sequence,
+            shot=shot,
+            workspace_path=workspace_path,
         )
 
     return _make_shot
@@ -177,7 +180,10 @@ class TestCustomLauncher:
     def test_custom_launcher_defaults(self):
         """Test CustomLauncher with minimal required fields."""
         launcher = CustomLauncher(
-            id="minimal", name="Minimal", description="Minimal launcher", command="test",
+            id="minimal",
+            name="Minimal",
+            description="Minimal launcher",
+            command="test",
         )
 
         assert launcher.category == "custom"
@@ -205,7 +211,10 @@ class TestLauncherManager:
         assert hasattr(launcher_manager, "validation_error")
 
     def test_load_and_persist_launchers_from_config(
-        self, launcher_manager, test_launcher, temp_config_dir,
+        self,
+        launcher_manager,
+        test_launcher,
+        temp_config_dir,
     ):
         """Test loading and persisting launchers with real file I/O."""
         # Create test launcher data file
@@ -310,7 +319,9 @@ class TestLauncherManager:
         """Test duplicate name validation with real signal emission."""
         # Create first launcher
         first_id = launcher_manager.create_launcher(
-            name="Duplicate Name", command="echo first", description="First launcher",
+            name="Duplicate Name",
+            command="echo first",
+            description="First launcher",
         )
         assert first_id is not None
 
@@ -458,7 +469,8 @@ class TestLauncherManager:
 
         # Try to update non-existent launcher
         success = launcher_manager.update_launcher(
-            launcher_id="nonexistent_id", name="New Name",
+            launcher_id="nonexistent_id",
+            name="New Name",
         )
 
         # Process Qt events
@@ -479,7 +491,9 @@ class TestLauncherManager:
         """Test deleting launcher with real persistence and signal emission."""
         # Create launcher to delete
         launcher_id = launcher_manager.create_launcher(
-            name="To Delete", command="echo delete", description="Will be deleted",
+            name="To Delete",
+            command="echo delete",
+            description="Will be deleted",
         )
         assert launcher_id is not None
         assert len(launcher_manager.list_launchers()) == 1
@@ -726,7 +740,9 @@ class TestLauncherExecution:
         shot_command = "echo $show $sequence $shot"
 
         shot_substituted = launcher_manager._substitute_variables(
-            shot_command, shot, {},
+            shot_command,
+            shot,
+            {},
         )
 
         assert "testshow" in shot_substituted
@@ -739,7 +755,10 @@ class TestLauncherExecution:
     def test_execute_in_shot_context(self, mock_qtimer, mock_config_class, mock_pool):
         """Test executing launcher with shot context."""
         test_launcher = CustomLauncher(
-            id="test", name="Test", description="Test launcher", command="echo $shot",
+            id="test",
+            name="Test",
+            description="Test launcher",
+            command="echo $shot",
         )
 
         test_shot = Shot(
@@ -762,7 +781,8 @@ class TestLauncherExecution:
         with patch.object(manager, "_substitute_variables") as mock_substitute:
             with patch.object(manager, "_execute_with_worker", return_value=True):
                 with patch(
-                    "launcher_manager.PathUtils.validate_path_exists", return_value=True,
+                    "launcher_manager.PathUtils.validate_path_exists",
+                    return_value=True,
                 ):
                     with patch("os.chdir"):
                         with patch("os.getcwd", return_value="/original"):
@@ -780,7 +800,10 @@ class TestLauncherExecution:
     def test_dry_run_execution(self, mock_qtimer, mock_config_class, mock_pool):
         """Test dry run execution logs command without executing."""
         test_launcher = CustomLauncher(
-            id="test", name="Test", description="Test launcher", command="echo test",
+            id="test",
+            name="Test",
+            description="Test launcher",
+            command="echo test",
         )
 
         mock_config = Mock()
@@ -804,7 +827,10 @@ class TestLauncherExecution:
     def test_process_limit_enforcement(self, mock_qtimer, mock_config_class, mock_pool):
         """Test that process limits are enforced."""
         test_launcher = CustomLauncher(
-            id="test", name="Test", description="Test launcher", command="echo test",
+            id="test",
+            name="Test",
+            description="Test launcher",
+            command="echo test",
         )
 
         mock_config = Mock()
@@ -871,7 +897,9 @@ class TestLauncherWorker:
             mock_worker_class.return_value = mock_worker
 
             worker = mock_worker_class(
-                launcher_id="test_id", command="echo test", working_dir="/tmp",
+                launcher_id="test_id",
+                command="echo test",
+                working_dir="/tmp",
             )
 
             assert worker.launcher_id == "test_id"
@@ -912,7 +940,10 @@ class TestThreadSafety:
     @patch("launcher_manager.LauncherConfig")
     @patch("launcher_manager.QTimer")
     def test_concurrent_launcher_creation(
-        self, mock_qtimer, mock_config_class, mock_pool,
+        self,
+        mock_qtimer,
+        mock_config_class,
+        mock_pool,
     ):
         """Test creating launchers concurrently."""
         mock_config = Mock()
@@ -1132,7 +1163,10 @@ class TestCommandValidation:
         assert all(launcher.category == "scripts" for launcher in scripts)
 
     def test_validate_launcher_paths_real_validation(
-        self, launcher_manager, test_shot, tmp_path,
+        self,
+        launcher_manager,
+        test_shot,
+        tmp_path,
     ):
         """Test launcher path validation with real file system."""
         # Create test files
@@ -1178,7 +1212,7 @@ class TestConcurrentExecution:
 
     def test_concurrent_launcher_execution_real_workers(self, temp_config_dir):
         """Test multiple launchers executing concurrently with real LauncherWorker threads.
-        
+
         Focus on core threading safety without relying on Qt signal timing.
         """
         # Create real LauncherManager
@@ -1211,7 +1245,7 @@ class TestConcurrentExecution:
                 with execution_lock:
                     execution_results[lid] = f"error: {e}"
 
-        # Start all executions simultaneously 
+        # Start all executions simultaneously
         execution_threads = []
         for launcher_id in launcher_ids:
             thread = threading.Thread(target=execute_launcher, args=(launcher_id,))
@@ -1225,11 +1259,11 @@ class TestConcurrentExecution:
 
         # Verify core functionality - all executions should return a result
         assert len(execution_results) == num_launchers, "All executions should complete"
-        
+
         # Check that executions either succeeded or failed gracefully (no crashes)
         for launcher_id, result in execution_results.items():
             assert result is not None, f"Launcher {launcher_id} should return a result"
-        
+
         # Verify thread safety - no race conditions in process tracking
         with launcher_manager._process_lock:
             # Process count should be consistent (some may have finished already)
@@ -1326,7 +1360,7 @@ class TestConcurrentExecution:
 
     def test_worker_execution_with_real_qt_signals(self, temp_config_dir):
         """Test LauncherWorker execution focusing on core functionality.
-        
+
         Tests worker execution without relying on signal timing.
         """
         launcher_manager = create_real_launcher_manager(temp_config_dir)
@@ -1361,12 +1395,12 @@ class TestConcurrentExecution:
         # Verify execution completed or handled gracefully
         assert execution_thread is not None
         assert not execution_thread.is_alive(), "Execution should complete"
-        
+
         # Either execution completed or failed gracefully with no crashes
         if not execution_completed and execution_error:
             # Execution failed, but should be a controlled failure
             assert isinstance(execution_error, str), "Error should be a string"
-        
+
         # Verify worker lifecycle - no hanging threads or processes
         with launcher_manager._process_lock:
             # Process tracking should be consistent
@@ -1558,20 +1592,28 @@ class TestThreadSafetyAdvanced:
             """Run cleanup from multiple threads."""
             # Try periodic cleanup
             log_cleanup(
-                thread_id, "START_PERIODIC", len(launcher_manager._active_processes),
+                thread_id,
+                "START_PERIODIC",
+                len(launcher_manager._active_processes),
             )
             launcher_manager._periodic_cleanup()
             log_cleanup(
-                thread_id, "END_PERIODIC", len(launcher_manager._active_processes),
+                thread_id,
+                "END_PERIODIC",
+                len(launcher_manager._active_processes),
             )
 
             # Try finished process cleanup
             log_cleanup(
-                thread_id, "START_FINISHED", len(launcher_manager._active_processes),
+                thread_id,
+                "START_FINISHED",
+                len(launcher_manager._active_processes),
             )
             launcher_manager._cleanup_finished_processes()
             log_cleanup(
-                thread_id, "END_FINISHED", len(launcher_manager._active_processes),
+                thread_id,
+                "END_FINISHED",
+                len(launcher_manager._active_processes),
             )
 
         # Run concurrent cleanup operations
@@ -1672,7 +1714,7 @@ class TestLauncherWorkerLifecycle:
 
     def test_launcher_worker_signal_emission_order(self):
         """Test LauncherWorker state transitions and lifecycle.
-        
+
         Focus on worker lifecycle without relying on signal timing.
         """
         # Test LauncherWorker state transitions without relying on signal timing
@@ -1680,6 +1722,7 @@ class TestLauncherWorkerLifecycle:
 
         # Initial state should be CREATED
         from thread_safe_worker import WorkerState
+
         assert worker.get_state() == WorkerState.CREATED
 
         # Test the worker lifecycle with controlled execution
@@ -1700,11 +1743,11 @@ class TestLauncherWorkerLifecycle:
 
                     # Start worker
                     worker.start()
-                    
+
                     # Wait for completion
                     worker.wait(2000)  # 2 second timeout
                     worker_completed = True
-                    
+
             except Exception as e:
                 worker_error = str(e)
 
@@ -1715,7 +1758,7 @@ class TestLauncherWorkerLifecycle:
 
         # Verify lifecycle completed
         assert not monitor_thread.is_alive(), "Worker monitoring should complete"
-        
+
         # Worker should have transitioned through states properly
         final_state = worker.get_state()
         assert final_state in [WorkerState.STOPPED, WorkerState.DELETED], (
@@ -1723,13 +1766,13 @@ class TestLauncherWorkerLifecycle:
         )
 
         # Clean up
-        if hasattr(worker, 'disconnect_all'):
+        if hasattr(worker, "disconnect_all"):
             worker.disconnect_all()
         worker.deleteLater()
 
     def test_multiple_workers_concurrent_execution(self, temp_config_dir):
         """Test multiple LauncherWorker instances running concurrently.
-        
+
         Focus on concurrent execution safety without signal dependencies.
         """
         launcher_manager = create_real_launcher_manager(temp_config_dir)
@@ -1771,7 +1814,9 @@ class TestLauncherWorkerLifecycle:
         start_time = time.time()
 
         for launcher_id in launcher_ids:
-            thread = threading.Thread(target=execute_launcher_with_timing, args=(launcher_id,))
+            thread = threading.Thread(
+                target=execute_launcher_with_timing, args=(launcher_id,)
+            )
             execution_threads.append(thread)
             thread.start()
 
@@ -1784,18 +1829,27 @@ class TestLauncherWorkerLifecycle:
 
         # Verify concurrent execution behavior
         assert len(execution_results) == num_launchers, "All executions should complete"
-        
+
         # Check execution overlap (concurrent execution should be measurable)
-        if all(isinstance(result, bool) or "error" in str(result) for result in execution_results.values()):
+        if all(
+            isinstance(result, bool) or "error" in str(result)
+            for result in execution_results.values()
+        ):
             # All executions completed (successfully or with controlled errors)
-            execution_durations = [end - start for start, end in execution_times.values()]
-            avg_duration = sum(execution_durations) / len(execution_durations) if execution_durations else 0
-            
+            execution_durations = [
+                end - start for start, end in execution_times.values()
+            ]
+            avg_duration = (
+                sum(execution_durations) / len(execution_durations)
+                if execution_durations
+                else 0
+            )
+
             # Verify timing is reasonable - concurrent execution should exist
             # Instead of asserting performance improvement (which is flaky), just verify no crashes
             assert total_time > 0, "Should have measurable execution time"
             assert avg_duration >= 0, "Individual execution times should be valid"
-        
+
         # Verify thread safety - process tracking should be consistent
         with launcher_manager._process_lock:
             active_count = len(launcher_manager._active_processes)
@@ -1832,7 +1886,9 @@ class TestSignalThreadSafety:
         )
         launcher_manager.execution_finished.connect(
             lambda lid, success: log_signal_with_thread(
-                "execution_finished", lid, success,
+                "execution_finished",
+                lid,
+                success,
             ),
         )
 
@@ -1887,7 +1943,7 @@ class TestSignalThreadSafety:
 
     def test_signal_emission_under_concurrent_load(self, temp_config_dir):
         """Test process management under high concurrent load.
-        
+
         Focus on process limiting and thread safety without signal dependencies.
         """
         launcher_manager = create_real_launcher_manager(temp_config_dir)
@@ -1907,7 +1963,7 @@ class TestSignalThreadSafety:
 
         # Test process limiting under concurrent load (core functionality)
         max_processes = launcher_manager.MAX_CONCURRENT_PROCESSES
-        
+
         # Fill up process slots to test limiting behavior
         mock_processes = {}
         with launcher_manager._process_lock:
@@ -1915,8 +1971,9 @@ class TestSignalThreadSafety:
                 mock_process = Mock()
                 mock_process.pid = 9100 + i
                 mock_process.poll.return_value = None  # Still running
-                
+
                 from launcher_manager import ProcessInfo
+
                 process_info = ProcessInfo(
                     process=mock_process,
                     launcher_id=f"load_test_process_{i}",
@@ -1924,7 +1981,7 @@ class TestSignalThreadSafety:
                     command=f"echo load_{i}",
                     timestamp=time.time(),
                 )
-                
+
                 key = f"load_process_{i}"
                 launcher_manager._active_processes[key] = process_info
                 mock_processes[key] = mock_process
@@ -1958,17 +2015,25 @@ class TestSignalThreadSafety:
             assert not thread.is_alive(), "Execution thread should complete"
 
         # Verify all executions were handled (rejected due to process limits)
-        assert len(execution_results) == num_launchers, "All execution attempts should complete"
-        
+        assert len(execution_results) == num_launchers, (
+            "All execution attempts should complete"
+        )
+
         # Most/all should be rejected due to process limits
-        rejected_count = sum(1 for result in execution_results.values() if result is False)
-        assert rejected_count >= num_launchers // 2, "Most executions should be rejected due to limits"
-        
+        rejected_count = sum(
+            1 for result in execution_results.values() if result is False
+        )
+        assert rejected_count >= num_launchers // 2, (
+            "Most executions should be rejected due to limits"
+        )
+
         # Verify thread safety - process tracking should remain consistent
         with launcher_manager._process_lock:
             final_count = len(launcher_manager._active_processes)
-            assert final_count >= max_processes, "Process limit enforcement should be maintained"
-            
+            assert final_count >= max_processes, (
+                "Process limit enforcement should be maintained"
+            )
+
         # Clean up mock processes
         with launcher_manager._process_lock:
             for key in list(mock_processes.keys()):

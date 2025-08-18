@@ -70,7 +70,9 @@ class TestThreeDEPathParsing(unittest.TestCase):
                 self.assertEqual(sequence, exp_seq, f"Sequence mismatch for {path_str}")
                 self.assertEqual(shot, exp_shot, f"Shot mismatch for {path_str}")
                 self.assertEqual(
-                    username, exp_user, f"Username mismatch for {path_str}",
+                    username,
+                    exp_user,
+                    f"Username mismatch for {path_str}",
                 )
 
     def test_published_file_parsing(self):

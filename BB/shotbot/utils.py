@@ -47,23 +47,23 @@ def enable_caching():
 
 class CacheIsolation:
     """Context manager for cache isolation in tests."""
-    
+
     def __init__(self):
         self.original_cache_state = None
         self.original_disabled_state = None
-    
+
     def __enter__(self):
         """Enter context with isolated cache."""
         global _path_cache, _cache_disabled
         # Save original state
         self.original_cache_state = _path_cache.copy()
         self.original_disabled_state = _cache_disabled
-        
+
         # Clear and disable cache
         clear_all_caches()
         disable_caching()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit context and restore original state."""
         global _path_cache, _cache_disabled
@@ -111,7 +111,10 @@ class PathUtils:
 
     @staticmethod
     def build_thumbnail_path(
-        shows_root: str, show: str, sequence: str, shot: str,
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
     ) -> Path:
         """Build thumbnail directory path.
 
@@ -127,12 +130,20 @@ class PathUtils:
         # VFX convention: shot directory is named {sequence}_{shot}
         shot_dir = f"{sequence}_{shot}"
         return PathUtils.build_path(
-            shows_root, show, "shots", sequence, shot_dir, *Config.THUMBNAIL_SEGMENTS,
+            shows_root,
+            show,
+            "shots",
+            sequence,
+            shot_dir,
+            *Config.THUMBNAIL_SEGMENTS,
         )
 
     @staticmethod
     def find_turnover_plate_thumbnail(
-        shows_root: str, show: str, sequence: str, shot: str,
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
     ) -> Optional[Path]:
         """Find thumbnail from turnover plate directories with preference order.
 
@@ -181,7 +192,8 @@ class PathUtils:
                 "plate",
             )
             if not PathUtils.validate_path_exists(
-                base_path, "Turnover plate directory",
+                base_path,
+                "Turnover plate directory",
             ):
                 return None
 
@@ -256,8 +268,10 @@ class PathUtils:
                     # Check if we should use EXR as fallback
                     # Only return EXR if it's reasonably sized or if we're explicitly allowing fallback
                     file_size_mb = first_frame.stat().st_size / (1024 * 1024)
-                    max_direct_size = getattr(Config, "THUMBNAIL_MAX_DIRECT_SIZE_MB", 10)
-                    
+                    max_direct_size = getattr(
+                        Config, "THUMBNAIL_MAX_DIRECT_SIZE_MB", 10
+                    )
+
                     if file_size_mb <= max_direct_size:
                         # Small enough to use directly
                         logger.debug(
@@ -334,7 +348,7 @@ class PathUtils:
         # Check actual path existence
         path_obj = Path(path) if isinstance(path, str) else path
         exists = path_obj.exists()
-        
+
         # Skip caching if disabled (for testing)
         if _cache_disabled:
             if not exists:
@@ -455,7 +469,11 @@ class PathUtils:
 
     @staticmethod
     def find_any_publish_thumbnail(
-        shows_root: str, show: str, sequence: str, shot: str, max_depth: int = 5,
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
+        max_depth: int = 5,
     ) -> Optional[Path]:
         """Find any image file containing '1001' in the publish folder as a fallback.
 
@@ -501,7 +519,8 @@ class PathUtils:
 
         # Recursive search with depth limit for efficiency
         def _search_directory(
-            directory: Path, current_depth: int = 0,
+            directory: Path,
+            current_depth: int = 0,
         ) -> Optional[Path]:
             """Recursively search directory for 1001 EXR files."""
             if current_depth > max_depth:
@@ -511,7 +530,7 @@ class PathUtils:
                 # Collect all candidate files
                 lightweight_candidates = []
                 exr_candidates = []
-                
+
                 for file_path in directory.iterdir():
                     if file_path.is_file() and "1001" in file_path.name:
                         suffix_lower = file_path.suffix.lower()
@@ -519,14 +538,18 @@ class PathUtils:
                         if suffix_lower in Config.THUMBNAIL_EXTENSIONS:
                             lightweight_candidates.append(file_path)
                         # Collect EXR as fallback
-                        elif suffix_lower in getattr(Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr"]):
+                        elif suffix_lower in getattr(
+                            Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr"]
+                        ):
                             exr_candidates.append(file_path)
-                
+
                 # Return first lightweight format if found
                 if lightweight_candidates:
-                    logger.info(f"Found publish thumbnail: {lightweight_candidates[0].name}")
+                    logger.info(
+                        f"Found publish thumbnail: {lightweight_candidates[0].name}"
+                    )
                     return lightweight_candidates[0]
-                
+
                 # Use EXR as last resort (will be resized by cache_manager)
                 if exr_candidates:
                     file_size_mb = exr_candidates[0].stat().st_size / (1024 * 1024)
@@ -823,7 +846,8 @@ class FileUtils:
 
     @staticmethod
     def get_first_image_file(
-        directory: Union[str, Path], allow_fallback: bool = True,
+        directory: Union[str, Path],
+        allow_fallback: bool = True,
     ) -> Optional[Path]:
         """Get the first image file found in a directory.
 
@@ -863,7 +887,8 @@ class FileUtils:
 
     @staticmethod
     def validate_file_size(
-        file_path: Union[str, Path], max_size_mb: Optional[int] = None,
+        file_path: Union[str, Path],
+        max_size_mb: Optional[int] = None,
     ) -> bool:
         """Validate that a file is not too large.
 
@@ -964,7 +989,8 @@ class ValidationUtils:
 
     @staticmethod
     def validate_not_empty(
-        *values: Union[str, None], names: Optional[List[str]] = None,
+        *values: Union[str, None],
+        names: Optional[List[str]] = None,
     ) -> bool:
         """Validate that values are not None or empty strings.
 
@@ -999,7 +1025,10 @@ class ValidationUtils:
             True if all components are valid, False otherwise
         """
         return ValidationUtils.validate_not_empty(
-            show, sequence, shot, names=["show", "sequence", "shot"],
+            show,
+            sequence,
+            shot,
+            names=["show", "sequence", "shot"],
         )
 
     @staticmethod

@@ -63,7 +63,8 @@ class CommandLauncher(QObject):
             # Get raw plate if requested
             if include_raw_plate:
                 raw_plate_path = RawPlateFinder.find_latest_raw_plate(
-                    self.current_shot.workspace_path, self.current_shot.full_name,
+                    self.current_shot.workspace_path,
+                    self.current_shot.full_name,
                 )
                 # Verify plate exists
                 if raw_plate_path and not RawPlateFinder.verify_plate_exists(
@@ -74,7 +75,8 @@ class CommandLauncher(QObject):
             # Get undistortion if requested
             if include_undistortion:
                 undistortion_path = UndistortionFinder.find_latest_undistortion(
-                    self.current_shot.workspace_path, self.current_shot.full_name,
+                    self.current_shot.workspace_path,
+                    self.current_shot.full_name,
                 )
 
             # Generate integrated Nuke script if we have plate or undistortion
@@ -112,19 +114,22 @@ class CommandLauncher(QObject):
                 elif raw_plate_path:
                     # Plate only
                     script_path = NukeScriptGenerator.create_plate_script(
-                        raw_plate_path, self.current_shot.full_name,
+                        raw_plate_path,
+                        self.current_shot.full_name,
                     )
                     if script_path:
                         command = f"{command} {script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
                         version = RawPlateFinder.get_version_from_path(raw_plate_path)
                         self.command_executed.emit(
-                            timestamp, f"Generated Nuke script with plate: {version}",
+                            timestamp,
+                            f"Generated Nuke script with plate: {version}",
                         )
                     else:
                         timestamp = datetime.now().strftime("%H:%M:%S")
                         self.command_executed.emit(
-                            timestamp, "Error: Failed to generate plate script",
+                            timestamp,
+                            "Error: Failed to generate plate script",
                         )
                 elif undistortion_path:
                     # Undistortion only (no plate available)
@@ -148,7 +153,8 @@ class CommandLauncher(QObject):
                     else:
                         timestamp = datetime.now().strftime("%H:%M:%S")
                         self.command_executed.emit(
-                            timestamp, "Error: Failed to generate undistortion script",
+                            timestamp,
+                            "Error: Failed to generate undistortion script",
                         )
             else:
                 # Log warnings for missing files
@@ -160,7 +166,8 @@ class CommandLauncher(QObject):
                     )
                 if include_undistortion:
                     self.command_executed.emit(
-                        timestamp, "Warning: Undistortion file not found for this shot",
+                        timestamp,
+                        "Warning: Undistortion file not found for this shot",
                     )
 
         # Build full command with ws (workspace setup)
@@ -227,7 +234,8 @@ class CommandLauncher(QObject):
         # Log the command
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.command_executed.emit(
-            timestamp, f"{full_command} (Scene by: {scene.user}, Plate: {scene.plate})",
+            timestamp,
+            f"{full_command} (Scene by: {scene.user}, Plate: {scene.plate})",
         )
 
         try:
@@ -288,7 +296,8 @@ class CommandLauncher(QObject):
         # Handle raw plate for Nuke
         if app_name == "nuke" and include_raw_plate:
             raw_plate_path = RawPlateFinder.find_latest_raw_plate(
-                scene.workspace_path, scene.full_name,
+                scene.workspace_path,
+                scene.full_name,
             )
 
             if raw_plate_path:
@@ -298,7 +307,8 @@ class CommandLauncher(QObject):
                     from nuke_script_generator import NukeScriptGenerator
 
                     script_path = NukeScriptGenerator.create_plate_script(
-                        raw_plate_path, scene.full_name,
+                        raw_plate_path,
+                        scene.full_name,
                     )
 
                     if script_path:
@@ -323,19 +333,22 @@ class CommandLauncher(QObject):
                     # Log warning if plate path found but no frames exist
                     timestamp = datetime.now().strftime("%H:%M:%S")
                     self.command_executed.emit(
-                        timestamp, "Warning: Raw plate path found but no frames exist",
+                        timestamp,
+                        "Warning: Raw plate path found but no frames exist",
                     )
             else:
                 # Log warning if raw plate requested but not found
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 self.command_executed.emit(
-                    timestamp, "Warning: Raw plate not found for this shot",
+                    timestamp,
+                    "Warning: Raw plate not found for this shot",
                 )
 
         # Handle undistortion for Nuke
         if app_name == "nuke" and include_undistortion:
             undistortion_path = UndistortionFinder.find_latest_undistortion(
-                scene.workspace_path, scene.full_name,
+                scene.workspace_path,
+                scene.full_name,
             )
 
             if undistortion_path:
@@ -351,7 +364,8 @@ class CommandLauncher(QObject):
                 # Log warning if undistortion requested but not found
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 self.command_executed.emit(
-                    timestamp, "Warning: Undistortion file not found for this shot",
+                    timestamp,
+                    "Warning: Undistortion file not found for this shot",
                 )
 
         # Build full command with ws (workspace setup)
@@ -360,7 +374,8 @@ class CommandLauncher(QObject):
         # Log the command
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.command_executed.emit(
-            timestamp, f"{full_command} (Context: {scene.user}'s {scene.plate})",
+            timestamp,
+            f"{full_command} (Context: {scene.user}'s {scene.plate})",
         )
 
         try:

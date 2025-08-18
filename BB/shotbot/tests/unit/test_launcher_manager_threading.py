@@ -19,7 +19,9 @@ class MockWorker(ThreadSafeWorker):
     """Mock worker for testing threading behavior."""
 
     def __init__(
-        self, worker_id: str = None, mock_state: WorkerState = WorkerState.RUNNING,
+        self,
+        worker_id: str = None,
+        mock_state: WorkerState = WorkerState.RUNNING,
     ):
         super().__init__()
         self.worker_id = worker_id or str(uuid.uuid4())
@@ -363,7 +365,9 @@ class TestLauncherManagerThreading:
 
         # Mock the safe_stop method to check timeout parameter
         with patch.object(
-            mock_worker, "safe_stop", return_value=True,
+            mock_worker,
+            "safe_stop",
+            return_value=True,
         ) as mock_safe_stop:
             manager._remove_worker_safe(worker_key)
 
@@ -462,7 +466,10 @@ class TestLauncherManagerThreading:
         ],
     )
     def test_worker_categorization_logic(
-        self, launcher_manager, worker_state, expected_category,
+        self,
+        launcher_manager,
+        worker_state,
+        expected_category,
     ):
         """Test worker categorization logic in cleanup."""
         manager = launcher_manager

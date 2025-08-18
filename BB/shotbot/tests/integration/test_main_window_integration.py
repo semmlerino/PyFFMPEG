@@ -74,7 +74,8 @@ def main_window(qtbot, cache_manager, tmp_path):
         ProcessPoolDouble.get_instance,
     ):
         with patch(
-            "shot_model.ProcessPoolManager.get_instance", ProcessPoolDouble.get_instance,
+            "shot_model.ProcessPoolManager.get_instance",
+            ProcessPoolDouble.get_instance,
         ):
             # Create settings with test values
             settings = QSettings("TestCompany", "TestApp")
@@ -267,7 +268,8 @@ class TestMainWindowIntegration:
 
             # Execute launcher with the actual launcher_id
             result = main_window.launcher_manager.execute_launcher(
-                launcher_id, {"shot_name": "test"},
+                launcher_id,
+                {"shot_name": "test"},
             )
             assert result is True, "execute_launcher returned False"
 
@@ -394,7 +396,8 @@ class TestMainWindowWorkflows:
             mock_popen.return_value = mock_process
 
             result = main_window.launcher_manager.execute_launcher(
-                launcher_id, {"shot_name": shots[0].full_name},
+                launcher_id,
+                {"shot_name": shots[0].full_name},
             )
             assert result is True, "execute_launcher returned False"
 
@@ -421,14 +424,19 @@ class TestMainWindowWorkflows:
 
         # Cache thumbnail
         cached = main_window.cache_manager.cache_thumbnail_direct(
-            thumb_path, "test_show", "seq01", "0010",
+            thumb_path,
+            "test_show",
+            "seq01",
+            "0010",
         )
 
         assert cached is not None
 
         # Retrieve from cache
         retrieved = main_window.cache_manager.get_cached_thumbnail(
-            "test_show", "seq01", "0010",
+            "test_show",
+            "seq01",
+            "0010",
         )
 
         assert retrieved == cached
@@ -487,7 +495,10 @@ class TestMainWindowPerformance:
             image.save(str(thumb_path))
 
             main_window.cache_manager.cache_thumbnail_direct(
-                thumb_path, "show", "seq", f"shot{i:03d}",
+                thumb_path,
+                "show",
+                "seq",
+                f"shot{i:03d}",
             )
 
         # Check memory usage

@@ -73,7 +73,9 @@ class TestScannerCoverage(unittest.TestCase):
     def test_scan_all_shots_mode(self):
         """Test that scan_all_shots=True discovers all shots, not just user's."""
         with patch.object(
-            ThreeDESceneWorker, "__init__", return_value=None,
+            ThreeDESceneWorker,
+            "__init__",
+            return_value=None,
         ) as mock_init:
             # Create worker with scan_all_shots=True
             worker = ThreeDESceneWorker(scan_all_shots=True)
@@ -266,7 +268,9 @@ class TestScannerCoverage(unittest.TestCase):
 
         # Should be reasonably fast (< 1 second for 1000 files)
         self.assertLess(
-            elapsed, 1.0, f"Processing {num_files} files took {elapsed:.2f}s",
+            elapsed,
+            1.0,
+            f"Processing {num_files} files took {elapsed:.2f}s",
         )
 
     def test_batch_processing(self):

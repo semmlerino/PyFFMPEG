@@ -333,7 +333,9 @@ class LauncherEditDialog(QDialog):
 
         try:
             self.launcher_manager.execute_launcher(
-                test_launcher.id, variables, dry_run=True,
+                test_launcher.id,
+                variables,
+                dry_run=True,
             )
             self.test_output.setText("✓ Command validated successfully")
             self.test_output.setStyleSheet("color: #4caf50; font-style: italic;")
@@ -345,7 +347,9 @@ class LauncherEditDialog(QDialog):
         """Save the launcher."""
         if not self._validate_name() or not self._validate_command():
             QMessageBox.warning(
-                self, "Validation Error", "Please fix the highlighted fields.",
+                self,
+                "Validation Error",
+                "Please fix the highlighted fields.",
             )
             return
 

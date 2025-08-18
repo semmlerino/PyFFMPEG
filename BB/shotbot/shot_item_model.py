@@ -135,7 +135,8 @@ class ShotItemModel(QAbstractListModel):
         if role == Qt.ItemDataRole.SizeHintRole:
             # Return size hint for delegates
             return QSize(
-                Config.DEFAULT_THUMBNAIL_SIZE, Config.DEFAULT_THUMBNAIL_SIZE + 40,
+                Config.DEFAULT_THUMBNAIL_SIZE,
+                Config.DEFAULT_THUMBNAIL_SIZE + 40,
             )
 
         # Handle custom roles
@@ -215,7 +216,10 @@ class ShotItemModel(QAbstractListModel):
         return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
     def setData(
-        self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole,
+        self,
+        index: QModelIndex,
+        value: Any,
+        role: int = Qt.ItemDataRole.EditRole,
     ) -> bool:
         """Set data for the given index and role.
 
@@ -338,9 +342,9 @@ class ShotItemModel(QAbstractListModel):
                     shot.show,
                     shot.sequence,
                     shot.shot,
-                    wait=True  # Wait for caching to complete
+                    wait=True,  # Wait for caching to complete
                 )
-                
+
                 if cached_path and cached_path.exists():
                     # Load the cached JPEG as QPixmap
                     pixmap = QPixmap(str(cached_path))
@@ -354,8 +358,10 @@ class ShotItemModel(QAbstractListModel):
                         )
                         self._thumbnail_cache[shot.full_name] = pixmap
                         self._loading_states[shot.full_name] = "loaded"
-                        logger.debug(f"Loaded thumbnail for {shot.full_name} from {thumbnail_path.name}")
-                        
+                        logger.debug(
+                            f"Loaded thumbnail for {shot.full_name} from {thumbnail_path.name}"
+                        )
+
                         # Notify view of update
                         self.dataChanged.emit(
                             index,
@@ -368,7 +374,9 @@ class ShotItemModel(QAbstractListModel):
                         )
                         self.thumbnail_loaded.emit(row)
                     else:
-                        logger.warning(f"Failed to load cached thumbnail pixmap from {cached_path}")
+                        logger.warning(
+                            f"Failed to load cached thumbnail pixmap from {cached_path}"
+                        )
                         self._loading_states[shot.full_name] = "failed"
                         self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
                 else:
@@ -390,7 +398,7 @@ class ShotItemModel(QAbstractListModel):
                         )
                         self._thumbnail_cache[shot.full_name] = pixmap
                         self._loading_states[shot.full_name] = "loaded"
-                        
+
                         # Notify view of update
                         self.dataChanged.emit(
                             index,
@@ -406,7 +414,9 @@ class ShotItemModel(QAbstractListModel):
                         self._loading_states[shot.full_name] = "failed"
                         self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
                 else:
-                    logger.debug(f"Cannot load {suffix_lower} file without cache manager: {thumbnail_path}")
+                    logger.debug(
+                        f"Cannot load {suffix_lower} file without cache manager: {thumbnail_path}"
+                    )
                     self._loading_states[shot.full_name] = "failed"
                     self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
         else:

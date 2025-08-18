@@ -38,7 +38,10 @@ class ModernButton(QPushButton):
     """Enhanced button with animations and proper states."""
 
     def __init__(
-        self, text: str = "", variant: str = "default", icon: Optional[QIcon] = None,
+        self,
+        text: str = "",
+        variant: str = "default",
+        icon: Optional[QIcon] = None,
     ):
         super().__init__(text)
         self.variant = variant

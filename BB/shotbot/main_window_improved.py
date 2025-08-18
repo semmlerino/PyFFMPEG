@@ -598,7 +598,8 @@ class ImprovedMainWindow(QMainWindow):
     def _update_refresh_progress(self, value: int):
         """Update refresh progress."""
         self.progress_overlay.update_progress(
-            value, f"Loading shot {value} of 100..." if value < 100 else "Complete!",
+            value,
+            f"Loading shot {value} of 100..." if value < 100 else "Complete!",
         )
 
         if value >= 100:
@@ -619,20 +620,26 @@ class ImprovedMainWindow(QMainWindow):
         self.scenes_empty_state.hide()
 
         self.notification_banner.show_message(
-            "Found 15 3DE scenes from other users", msg_type="info", duration=4000,
+            "Found 15 3DE scenes from other users",
+            msg_type="info",
+            duration=4000,
         )
 
     def _cancel_operation(self):
         """Cancel current operation."""
         self.progress_overlay.hide_progress()
         self.notification_banner.show_message(
-            "Operation canceled", msg_type="warning", duration=2000,
+            "Operation canceled",
+            msg_type="warning",
+            duration=2000,
         )
 
     def _launch_app(self, app_id: str):
         """Launch application with feedback."""
         self.notification_banner.show_message(
-            f"Launching {app_id}...", msg_type="info", duration=2000,
+            f"Launching {app_id}...",
+            msg_type="info",
+            duration=2000,
         )
 
     def _show_quick_actions(self):
@@ -649,13 +656,15 @@ class ImprovedMainWindow(QMainWindow):
     def _show_launcher_manager(self):
         """Show launcher manager dialog."""
         self.notification_banner.show_message(
-            "Launcher manager would open here", msg_type="info",
+            "Launcher manager would open here",
+            msg_type="info",
         )
 
     def _show_settings(self):
         """Show settings dialog."""
         self.notification_banner.show_message(
-            "Settings dialog would open here", msg_type="info",
+            "Settings dialog would open here",
+            msg_type="info",
         )
 
     def _show_shortcuts(self):
@@ -671,13 +680,17 @@ class ImprovedMainWindow(QMainWindow):
     def _increase_thumbnail_size(self):
         """Increase thumbnail size."""
         self.notification_banner.show_message(
-            "Thumbnail size increased", msg_type="info", duration=1000,
+            "Thumbnail size increased",
+            msg_type="info",
+            duration=1000,
         )
 
     def _decrease_thumbnail_size(self):
         """Decrease thumbnail size."""
         self.notification_banner.show_message(
-            "Thumbnail size decreased", msg_type="info", duration=1000,
+            "Thumbnail size decreased",
+            msg_type="info",
+            duration=1000,
         )
 
     def _on_shots_updated(self):

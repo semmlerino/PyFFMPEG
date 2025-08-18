@@ -41,7 +41,10 @@ class TestPathUtilsTurnoverPlate:
         with patch("utils.PathUtils.validate_path_exists", return_value=True):
             with patch("utils.PathUtils.build_path", return_value=turnover_path):
                 result = PathUtils.find_turnover_plate_thumbnail(
-                    str(tmp_path / "shows"), "testshow", "seq01", "shot01",
+                    str(tmp_path / "shows"),
+                    "testshow",
+                    "seq01",
+                    "shot01",
                 )
 
                 # Should find FG01 first due to priority
@@ -53,10 +56,14 @@ class TestPathUtilsTurnoverPlate:
         """Test find_turnover_plate_thumbnail when no plates exist."""
         with patch("utils.PathUtils.validate_path_exists", return_value=True):
             with patch(
-                "pathlib.Path.iterdir", side_effect=OSError("Permission denied"),
+                "pathlib.Path.iterdir",
+                side_effect=OSError("Permission denied"),
             ):
                 result = PathUtils.find_turnover_plate_thumbnail(
-                    "/shows", "testshow", "seq01", "shot01",
+                    "/shows",
+                    "testshow",
+                    "seq01",
+                    "shot01",
                 )
                 assert result is None
 
@@ -68,7 +75,10 @@ class TestPathUtilsTurnoverPlate:
         with patch("utils.PathUtils.validate_path_exists", return_value=True):
             with patch("utils.PathUtils.build_path", return_value=turnover_path):
                 result = PathUtils.find_turnover_plate_thumbnail(
-                    str(tmp_path), "testshow", "seq01", "shot01",
+                    str(tmp_path),
+                    "testshow",
+                    "seq01",
+                    "shot01",
                 )
                 assert result is None
 
@@ -131,7 +141,10 @@ class TestPathUtilsPublishThumbnail:
         with patch("utils.PathUtils.validate_path_exists", return_value=True):
             with patch("utils.PathUtils.build_path", return_value=publish_path):
                 result = PathUtils.find_any_publish_thumbnail(
-                    str(tmp_path / "shows"), "testshow", "seq01", "shot01",
+                    str(tmp_path / "shows"),
+                    "testshow",
+                    "seq01",
+                    "shot01",
                 )
 
                 assert result is not None
@@ -175,10 +188,15 @@ class TestPathUtilsPublishThumbnail:
         with patch("utils.PathUtils.validate_path_exists", return_value=True):
             with patch("utils.PathUtils.build_path", return_value=publish_path):
                 with patch.object(
-                    Path, "iterdir", side_effect=PermissionError("Access denied"),
+                    Path,
+                    "iterdir",
+                    side_effect=PermissionError("Access denied"),
                 ):
                     result = PathUtils.find_any_publish_thumbnail(
-                        "/shows", "testshow", "seq01", "shot01",
+                        "/shows",
+                        "testshow",
+                        "seq01",
+                        "shot01",
                     )
                     assert result is None
 
@@ -186,7 +204,10 @@ class TestPathUtilsPublishThumbnail:
         """Test when publish directory doesn't exist."""
         with patch("utils.PathUtils.validate_path_exists", return_value=False):
             result = PathUtils.find_any_publish_thumbnail(
-                "/shows", "testshow", "seq01", "shot01",
+                "/shows",
+                "testshow",
+                "seq01",
+                "shot01",
             )
             assert result is None
 
@@ -239,7 +260,8 @@ class TestValidationUtilsExtended:
     def test_get_excluded_users(self):
         """Test getting excluded users list."""
         with patch(
-            "utils.ValidationUtils.get_current_username", return_value="testuser",
+            "utils.ValidationUtils.get_current_username",
+            return_value="testuser",
         ):
             excluded = ValidationUtils.get_excluded_users()
 
@@ -249,7 +271,8 @@ class TestValidationUtilsExtended:
     def test_get_excluded_users_with_additional(self):
         """Test getting excluded users with additional users."""
         with patch(
-            "utils.ValidationUtils.get_current_username", return_value="testuser",
+            "utils.ValidationUtils.get_current_username",
+            return_value="testuser",
         ):
             additional = {"user1", "user2"}
             excluded = ValidationUtils.get_excluded_users(additional)

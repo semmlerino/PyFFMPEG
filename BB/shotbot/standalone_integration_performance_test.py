@@ -265,7 +265,8 @@ def test_3de_scene_discovery_performance():
             for workspace in shot_workspaces:
                 try:
                     scenes = ThreeDESceneFinder.find_threede_scenes(
-                        workspace, {"current_user"},
+                        workspace,
+                        {"current_user"},
                     )
                     all_scenes.extend(scenes)
                 except Exception as e:

@@ -19,7 +19,10 @@ class PathUtils:
     def build_path(base_path: Union[str, Path], *segments: str) -> Path: ...
     @staticmethod
     def build_thumbnail_path(
-        shows_root: str, show: str, sequence: str, shot: str,
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
     ) -> Path: ...
     @staticmethod
     def build_raw_plate_path(workspace_path: str) -> Path: ...
@@ -29,7 +32,8 @@ class PathUtils:
     def build_threede_scene_path(workspace_path: str, username: str) -> Path: ...
     @staticmethod
     def validate_path_exists(
-        path: Union[str, Path], description: str = ...,
+        path: Union[str, Path],
+        description: str = ...,
     ) -> bool: ...
     @staticmethod
     def _cleanup_path_cache() -> None: ...
@@ -73,7 +77,8 @@ class FileUtils:
     def get_first_image_file(directory: Union[str, Path]) -> Optional[Path]: ...
     @staticmethod
     def validate_file_size(
-        file_path: Union[str, Path], max_size_mb: Optional[int] = ...,
+        file_path: Union[str, Path],
+        max_size_mb: Optional[int] = ...,
     ) -> bool: ...
 
 class ImageUtils:
@@ -96,7 +101,8 @@ class ValidationUtils:
 
     @staticmethod
     def validate_not_empty(
-        *values: Union[str, None], names: Optional[List[str]] = ...,
+        *values: Union[str, None],
+        names: Optional[List[str]] = ...,
     ) -> bool: ...
     @staticmethod
     def validate_shot_components(show: str, sequence: str, shot: str) -> bool: ...

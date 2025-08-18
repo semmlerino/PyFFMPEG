@@ -255,7 +255,8 @@ class TestSceneDiscovery:
         show_root = str(temp_vfx_structure / "shows")
 
         shots = ThreeDESceneFinder.discover_all_shots_in_show(
-            show_root=show_root, show="test_show",
+            show_root=show_root,
+            show="test_show",
         )
 
         # Should find all the shots we created
@@ -274,7 +275,8 @@ class TestSceneDiscovery:
         show_root = str(temp_vfx_structure / "shows")
 
         shots = ThreeDESceneFinder.discover_all_shots_in_show(
-            show_root=show_root, show="nonexistent_show",
+            show_root=show_root,
+            show="nonexistent_show",
         )
 
         assert shots == []
@@ -327,7 +329,8 @@ class TestPerformance:
         # Should complete quickly
         start = time.time()
         result = ThreeDESceneFinder.quick_3de_exists_check_python(
-            [shot_path], timeout_seconds=1,
+            [shot_path],
+            timeout_seconds=1,
         )
         elapsed = time.time() - start
 

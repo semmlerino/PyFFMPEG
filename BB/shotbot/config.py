@@ -153,13 +153,13 @@ class Config:
     # Thumbnail discovery strategy
     # Primary: Lightweight formats that can be loaded directly
     THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png"]
-    
+
     # Fallback: Heavy formats that require PIL resizing before use
     THUMBNAIL_FALLBACK_EXTENSIONS = [".exr", ".tiff", ".tif"]
-    
+
     # Maximum file size (MB) for direct loading without resizing
     THUMBNAIL_MAX_DIRECT_SIZE_MB = 10
-    
+
     # Keep IMAGE_EXTENSIONS for general image handling
     IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".exr"]
     NUKE_EXTENSIONS = [".nk", ".nknc"]

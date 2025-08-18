@@ -88,7 +88,10 @@ class ShotGridDelegate(QStyledItemDelegate):
         logger.debug("ShotGridDelegate initialized with optimized painting")
 
     def paint(
-        self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex,
+        self,
+        painter: QPainter,
+        option: QStyleOptionViewItem,
+        index: QModelIndex,
     ) -> None:
         """Paint the shot thumbnail with custom rendering.
 
@@ -166,7 +169,11 @@ class ShotGridDelegate(QStyledItemDelegate):
         return QSize(width, height)
 
     def _paint_background(
-        self, painter: QPainter, rect: QRect, is_selected: bool, is_hover: bool,
+        self,
+        painter: QPainter,
+        rect: QRect,
+        is_selected: bool,
+        is_hover: bool,
     ) -> None:
         """Paint the background with state-based styling.
 
@@ -321,7 +328,9 @@ class ShotGridDelegate(QStyledItemDelegate):
         # Draw shot name with elision if needed
         metrics = QFontMetrics(self._name_font)
         elided_text = metrics.elidedText(
-            shot_name, Qt.TextElideMode.ElideRight, text_rect.width(),
+            shot_name,
+            Qt.TextElideMode.ElideRight,
+            text_rect.width(),
         )
 
         painter.drawText(
@@ -338,7 +347,9 @@ class ShotGridDelegate(QStyledItemDelegate):
             info_rect = text_rect.adjusted(0, 18, 0, 0)
             metrics = QFontMetrics(self._info_font)
             elided_info = metrics.elidedText(
-                info_text, Qt.TextElideMode.ElideRight, info_rect.width(),
+                info_text,
+                Qt.TextElideMode.ElideRight,
+                info_rect.width(),
             )
 
             painter.setPen(QColor("#999") if not is_selected else text_color)
@@ -361,7 +372,9 @@ class ShotGridDelegate(QStyledItemDelegate):
 
         focus_rect = rect.adjusted(2, 2, -2, -2)
         painter.drawRoundedRect(
-            focus_rect, self._border_radius - 2, self._border_radius - 2,
+            focus_rect,
+            self._border_radius - 2,
+            self._border_radius - 2,
         )
 
     def _calculate_thumbnail_rect(self, item_rect: QRect) -> QRect:
@@ -402,7 +415,8 @@ class ShotGridDelegate(QStyledItemDelegate):
             size: New thumbnail size in pixels
         """
         self._thumbnail_size = max(
-            Config.MIN_THUMBNAIL_SIZE, min(size, Config.MAX_THUMBNAIL_SIZE),
+            Config.MIN_THUMBNAIL_SIZE,
+            min(size, Config.MAX_THUMBNAIL_SIZE),
         )
 
         # Clear metrics cache as sizes changed

@@ -92,7 +92,9 @@ class PerformanceMonitor:
         if not self._monitoring:
             self._monitoring = True
             self._monitor_thread = threading.Thread(
-                target=self._monitoring_loop, daemon=True, name="PerformanceMonitor",
+                target=self._monitoring_loop,
+                daemon=True,
+                name="PerformanceMonitor",
             )
             self._monitor_thread.start()
             logger.info("Started performance monitoring")

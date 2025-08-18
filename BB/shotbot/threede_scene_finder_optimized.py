@@ -193,7 +193,12 @@ class ParallelSceneScanner:
         return all_scenes
 
     def _scan_user_directory(
-        self, user_path: Path, show: str, sequence: str, shot: str, workspace_path: str,
+        self,
+        user_path: Path,
+        show: str,
+        sequence: str,
+        shot: str,
+        workspace_path: str,
     ) -> List[ThreeDEScene]:
         """Scan single user directory efficiently."""
         scenes = []
@@ -210,7 +215,8 @@ class ParallelSceneScanner:
 
                 # Extract plate name efficiently
                 plate = self._pattern_matcher.extract_plate_optimized(
-                    threede_file, user_path,
+                    threede_file,
+                    user_path,
                 )
 
                 # Create scene object
@@ -237,7 +243,8 @@ class ParallelSceneScanner:
         try:
             # Use iterative approach instead of rglob for better control
             def _scan_directory(
-                directory: Path, depth: int = 0,
+                directory: Path,
+                depth: int = 0,
             ) -> Generator[Path, None, None]:
                 # Limit recursion depth to prevent excessive scanning
                 if depth > 10:
@@ -300,7 +307,11 @@ class OptimizedThreeDESceneFinder:
 
         # Use parallel scanner
         scenes = self._scanner.scan_shot_parallel(
-            shot_workspace_path, show, sequence, shot, excluded_users,
+            shot_workspace_path,
+            show,
+            sequence,
+            shot,
+            excluded_users,
         )
 
         elapsed = time.perf_counter() - start_time
@@ -367,7 +378,8 @@ class OptimizedThreeDESceneFinder:
         return all_scenes
 
     def estimate_scan_performance(
-        self, shots: List[Tuple[str, str, str, str]],
+        self,
+        shots: List[Tuple[str, str, str, str]],
     ) -> Dict[str, Any]:
         """Estimate scan performance for planning purposes."""
         if not shots:

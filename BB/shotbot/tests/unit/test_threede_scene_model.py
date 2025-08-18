@@ -205,7 +205,8 @@ class TestThreeDEScene:
                 "threede_scene_model.FileUtils.get_first_image_file",
             ) as mock_get_image:
                 with patch.object(
-                    PathUtils, "find_turnover_plate_thumbnail",
+                    PathUtils,
+                    "find_turnover_plate_thumbnail",
                 ) as mock_turnover:
                     # Editorial not found
                     mock_validate.return_value = False
@@ -224,10 +225,12 @@ class TestThreeDEScene:
                 "threede_scene_model.FileUtils.get_first_image_file",
             ) as mock_get_image:
                 with patch.object(
-                    PathUtils, "find_turnover_plate_thumbnail",
+                    PathUtils,
+                    "find_turnover_plate_thumbnail",
                 ) as mock_turnover:
                     with patch.object(
-                        PathUtils, "find_any_publish_thumbnail",
+                        PathUtils,
+                        "find_any_publish_thumbnail",
                     ) as mock_publish:
                         # Nothing found until publish
                         mock_validate.return_value = False
@@ -246,10 +249,12 @@ class TestThreeDEScene:
                 "threede_scene_model.FileUtils.get_first_image_file",
             ) as mock_get_image:
                 with patch.object(
-                    PathUtils, "find_turnover_plate_thumbnail",
+                    PathUtils,
+                    "find_turnover_plate_thumbnail",
                 ) as mock_turnover:
                     with patch.object(
-                        PathUtils, "find_any_publish_thumbnail",
+                        PathUtils,
+                        "find_any_publish_thumbnail",
                     ) as mock_publish:
                         # Nothing found
                         mock_validate.return_value = False
@@ -521,7 +526,10 @@ class TestThreeDESceneModel:
             assert best.plate == "EL01"
 
     def test_refresh_scenes_success(
-        self, mock_cache_manager, sample_shots, sample_scenes,
+        self,
+        mock_cache_manager,
+        sample_shots,
+        sample_scenes,
     ):
         """Test successful scene refresh with changes."""
         model = ThreeDESceneModel(cache_manager=mock_cache_manager, load_cache=False)
@@ -538,11 +546,15 @@ class TestThreeDESceneModel:
 
             # Verify cache was updated
             MockFinder.find_all_scenes_in_shows_efficient.assert_called_once_with(
-                sample_shots, model._excluded_users,
+                sample_shots,
+                model._excluded_users,
             )
 
     def test_refresh_scenes_no_changes(
-        self, mock_cache_manager, sample_shots, sample_scenes,
+        self,
+        mock_cache_manager,
+        sample_shots,
+        sample_scenes,
     ):
         """Test scene refresh when no changes detected."""
         model = ThreeDESceneModel(cache_manager=mock_cache_manager, load_cache=False)
@@ -559,7 +571,10 @@ class TestThreeDESceneModel:
             assert len(model.scenes) == len(sample_scenes)
 
     def test_refresh_scenes_with_deduplication(
-        self, mock_cache_manager, sample_shots, duplicate_scenes,
+        self,
+        mock_cache_manager,
+        sample_shots,
+        duplicate_scenes,
     ):
         """Test that refresh applies deduplication."""
         model = ThreeDESceneModel(cache_manager=mock_cache_manager, load_cache=False)
@@ -596,7 +611,10 @@ class TestThreeDESceneModel:
             assert model.scenes == []
 
     def test_refresh_scenes_always_caches(
-        self, mock_cache_manager, sample_shots, sample_scenes,
+        self,
+        mock_cache_manager,
+        sample_shots,
+        sample_scenes,
     ):
         """Test that refresh always updates cache to refresh TTL."""
         model = ThreeDESceneModel(cache_manager=mock_cache_manager, load_cache=False)
@@ -624,7 +642,8 @@ class TestThreeDESceneModel:
             mock_get_excluded.return_value = {"currentuser", "testuser"}
 
             model = ThreeDESceneModel(
-                cache_manager=mock_cache_manager, load_cache=False,
+                cache_manager=mock_cache_manager,
+                load_cache=False,
             )
 
             assert model._excluded_users == {"currentuser", "testuser"}

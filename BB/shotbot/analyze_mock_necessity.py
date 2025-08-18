@@ -183,7 +183,9 @@ def main():
             if files_for_category:
                 print("  Top files:")
                 for file, instances in sorted(
-                    files_for_category.items(), key=lambda x: len(x[1]), reverse=True,
+                    files_for_category.items(),
+                    key=lambda x: len(x[1]),
+                    reverse=True,
                 )[:3]:
                     print(f"    - {file}: {len(instances)} instances")
 
@@ -201,7 +203,9 @@ def main():
             excessive_by_file[file] += len(instances)
 
     for file, count in sorted(
-        excessive_by_file.items(), key=lambda x: x[1], reverse=True,
+        excessive_by_file.items(),
+        key=lambda x: x[1],
+        reverse=True,
     )[:10]:
         print(f"  {count:3d} - {file}")
 

@@ -671,7 +671,9 @@ class RaceConditionFactory:
             raise ValueError(f"State race not implemented for {target_state}")
 
         return ThreadingTestHelpers.trigger_race_condition(
-            operations, setup_barrier=True, timeout_ms=timeout_ms,
+            operations,
+            setup_barrier=True,
+            timeout_ms=timeout_ms,
         )
 
     @staticmethod
@@ -748,7 +750,9 @@ class RaceConditionFactory:
             )
         """
         return ThreadingTestHelpers.trigger_race_condition(
-            resource_operations, setup_barrier=True, timeout_ms=timeout_ms,
+            resource_operations,
+            setup_barrier=True,
+            timeout_ms=timeout_ms,
         )
 
     @staticmethod
@@ -770,7 +774,9 @@ class RaceConditionFactory:
         all_operations = cleanup_operations + active_operations
 
         return ThreadingTestHelpers.trigger_race_condition(
-            all_operations, setup_barrier=True, timeout_ms=timeout_ms,
+            all_operations,
+            setup_barrier=True,
+            timeout_ms=timeout_ms,
         )
 
 
@@ -824,7 +830,9 @@ class PerformanceMetrics:
                 worker.deleteLater()
 
         return PerformanceMetrics._calculate_statistics(
-            "thread_creation", durations, iterations,
+            "thread_creation",
+            durations,
+            iterations,
         )
 
     @staticmethod
@@ -869,7 +877,9 @@ class PerformanceMetrics:
         threads = []
         for i in range(contention_threads):
             thread = threading.Thread(
-                target=contending_operation, args=(i,), name=f"ContentionThread-{i}",
+                target=contending_operation,
+                args=(i,),
+                name=f"ContentionThread-{i}",
             )
             threads.append(thread)
             thread.start()

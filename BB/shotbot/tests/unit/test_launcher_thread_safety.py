@@ -103,7 +103,9 @@ class TestLauncherThreadSafety:
 
         # Verify execution tracking worked
         successful_executions = [
-            times["success"] for times in execution_times.values() if times.get("success")
+            times["success"]
+            for times in execution_times.values()
+            if times.get("success")
         ]
         # At least some should succeed
         assert len(successful_executions) >= 0, "Execution tracking should work"
@@ -115,7 +117,9 @@ class TestLauncherThreadSafety:
         # Rapidly generate many keys with process PIDs
         for i in range(100):
             # Simulate different process PIDs
-            key = self.manager._generate_process_key("test_launcher", process_pid=1000 + i)
+            key = self.manager._generate_process_key(
+                "test_launcher", process_pid=1000 + i
+            )
             assert key not in keys, f"Duplicate key generated: {key}"
             keys.add(key)
 
@@ -169,44 +173,51 @@ class TestLauncherThreadSafety:
 
     def test_launcher_worker_cleanup(self):
         """Test that launcher execution handles worker cleanup properly.
-        
+
         Focus on testing cleanup behavior without relying on internal methods.
         """
         # Create test launcher
         launcher = CustomLauncher(
-            id="cleanup_test", name="Cleanup Test", description="Test cleanup", command="echo cleanup",
+            id="cleanup_test",
+            name="Cleanup Test",
+            description="Test cleanup",
+            command="echo cleanup",
         )
 
         # Test that launcher execution creates and cleans up workers properly
         initial_process_count = len(self.manager._active_processes)
-        
+
         # Execute launcher (should create worker internally)
         try:
             process_key = self.manager.execute_launcher(
                 launcher, shot_name="TEST_SHOT", show="test_show"
             )
-            
+
             # Execution should either succeed or fail gracefully
-            assert process_key is not None or process_key is None, "Should return valid result"
-            
+            assert process_key is not None or process_key is None, (
+                "Should return valid result"
+            )
+
             # If execution succeeded, verify process tracking
             if process_key and process_key in self.manager._active_processes:
                 # Process should be tracked
                 assert process_key in self.manager._active_processes
-                
+
                 # Simulate process completion and cleanup
                 self.manager.terminate_process(process_key)
-                
+
                 # Process should be removed from tracking
                 assert process_key not in self.manager._active_processes
-            
+
         except Exception as e:
             # Execution might fail, but should not crash or leak resources
             assert isinstance(e, Exception), f"Should handle errors gracefully: {e}"
-        
+
         # Final process count should not exceed initial (no leaks)
         final_process_count = len(self.manager._active_processes)
-        assert final_process_count <= initial_process_count + 1, "Should not leak processes"
+        assert final_process_count <= initial_process_count + 1, (
+            "Should not leak processes"
+        )
 
     def test_rlock_recursive_locking(self):
         """Test that RLock allows recursive locking from same thread."""
@@ -227,7 +238,7 @@ class TestLauncherThreadSafety:
         """Test that processes can be safely terminated concurrently."""
         # Import ProcessInfo from launcher_manager
         from launcher_manager import ProcessInfo
-        
+
         num_processes = 5
         process_keys = []
 
@@ -240,7 +251,7 @@ class TestLauncherThreadSafety:
             mock_process = Mock()
             mock_process.poll.return_value = None  # Process is running
             mock_process.pid = 1000 + i
-            
+
             with self.manager._process_lock:
                 # Use ProcessInfo object as expected by terminate_process
                 self.manager._active_processes[key] = ProcessInfo(
@@ -368,7 +379,7 @@ class TestLauncherThreadSafety:
             command="echo 'test output'",
             description="Test output buffering",
         )
-        
+
         if launcher_id:
             # Execute should return quickly (non-blocking)
             start_time = time.time()
@@ -377,10 +388,10 @@ class TestLauncherThreadSafety:
                 dry_run=True,  # Use dry_run to avoid actual process
             )
             elapsed = time.time() - start_time
-            
+
             # Should return quickly without blocking
             assert elapsed < 1.0, "Execution should be non-blocking"
-            
+
             # Clean up
             self.manager.delete_launcher(launcher_id)
 
@@ -402,7 +413,7 @@ class TestLauncherThreadSafety:
             command=launcher.command,
             description=launcher.description,
         )
-        
+
         success = False
         if launcher_id:
             # Execute launcher with dry_run to avoid process pool timeout
@@ -446,7 +457,7 @@ class TestLauncherThreadSafety:
                 command=launcher.command,
                 description=launcher.description,
             )
-            
+
             # Execute if created successfully
             if launcher_id:
                 self.manager.execute_launcher(

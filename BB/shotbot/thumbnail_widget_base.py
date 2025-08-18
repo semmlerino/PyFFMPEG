@@ -336,7 +336,8 @@ class ThumbnailWidgetBase(QFrame):
         # Create a container for thumbnail and loading indicator
         self.thumbnail_container = QWidget()
         self.thumbnail_container.setFixedSize(
-            self._thumbnail_size, self._thumbnail_size,
+            self._thumbnail_size,
+            self._thumbnail_size,
         )
         container_layout = QVBoxLayout(self.thumbnail_container)
         container_layout.setContentsMargins(0, 0, 0, 0)
@@ -408,7 +409,9 @@ class ThumbnailWidgetBase(QFrame):
 
         # First check cache
         cache_path = self._cache_manager.get_cached_thumbnail(
-            self.data.show, self.data.sequence, self.data.shot,
+            self.data.show,
+            self.data.sequence,
+            self.data.shot,
         )
 
         if cache_path and cache_path.exists():

@@ -141,7 +141,8 @@ class CustomLauncherManager:
             from terminal_launcher import LaunchResult
 
             return LaunchResult(
-                success=False, error_message=f"Unknown custom launcher: {launcher_id}",
+                success=False,
+                error_message=f"Unknown custom launcher: {launcher_id}",
             )
 
         launcher = self.custom_launchers[launcher_id]
@@ -231,7 +232,8 @@ def demo_integration():
         )
 
         substituted_command = manager.terminal_launcher._substitute_variables(
-            launcher.command, variables,
+            launcher.command,
+            variables,
         )
         print(f"    Original: {launcher.command}")
         print(f"    Substituted: {substituted_command}")

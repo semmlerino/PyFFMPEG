@@ -7,7 +7,8 @@ import sys
 
 # Set up very verbose logging
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
 print("=== Debug Startup ===")

@@ -50,7 +50,8 @@ class MemoryOptimizedGrid:
         """Initialize memory optimization components."""
         # Loaded thumbnails
         self._loaded_thumbnails: Dict[
-            str, Union[ThumbnailWidget, ThreeDEThumbnailWidget],
+            str,
+            Union[ThumbnailWidget, ThreeDEThumbnailWidget],
         ] = {}
 
         # Placeholders for all items
@@ -77,7 +78,9 @@ class MemoryOptimizedGrid:
         return item.display_name
 
     def _create_thumbnail(
-        self, item: Union[Shot, ThreeDEScene], size: int,
+        self,
+        item: Union[Shot, ThreeDEScene],
+        size: int,
     ) -> Union[ThumbnailWidget, ThreeDEThumbnailWidget]:
         """Create appropriate thumbnail widget for item."""
         if isinstance(item, Shot):
@@ -102,7 +105,10 @@ class MemoryOptimizedGrid:
         self._unload_timer.start(self.UNLOAD_DELAY_MS)
 
     def _get_visible_range(
-        self, scroll_area: QScrollArea, grid_columns: int, total_items: int,
+        self,
+        scroll_area: QScrollArea,
+        grid_columns: int,
+        total_items: int,
     ) -> Tuple[int, int]:
         """Calculate range of visible item indices."""
         if total_items == 0:
@@ -118,7 +124,10 @@ class MemoryOptimizedGrid:
 
         # Create visible rect in container coordinates
         visible_rect = QRect(
-            scroll_x, scroll_y, viewport_rect.width(), viewport_rect.height(),
+            scroll_x,
+            scroll_y,
+            viewport_rect.width(),
+            viewport_rect.height(),
         )
 
         # Calculate visible rows

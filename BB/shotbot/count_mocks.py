@@ -69,7 +69,9 @@ def main():
 
     print("\n=== Mock Pattern Distribution ===")
     for pattern, count in sorted(
-        pattern_totals.items(), key=lambda x: x[1], reverse=True,
+        pattern_totals.items(),
+        key=lambda x: x[1],
+        reverse=True,
     ):
         print(f"{pattern:20s}: {count:4d}")
 

@@ -312,14 +312,16 @@ class TestWorkspaceIntegration:
         valid_path = tmp_path / "valid"
         valid_path.mkdir()
         result = process_pool.execute_workspace_command(
-            "pwd", workspace_path=str(valid_path),
+            "pwd",
+            workspace_path=str(valid_path),
         )
         assert str(valid_path) in result
 
         # Non-existent path should still work (command decides)
         invalid_path = tmp_path / "nonexistent"
         result = process_pool.execute_workspace_command(
-            "echo 'test'", workspace_path=str(invalid_path),
+            "echo 'test'",
+            workspace_path=str(invalid_path),
         )
         assert "test" in result
 
@@ -331,7 +333,8 @@ class TestWorkspaceIntegration:
 
         # Should handle spaces properly
         result = process_pool.execute_workspace_command(
-            "pwd", workspace_path=str(special_workspace),
+            "pwd",
+            workspace_path=str(special_workspace),
         )
         # The actual output format might vary
         assert "workspace" in result or "test" in result

@@ -19,7 +19,9 @@ class UndistortionFinder:
 
     @staticmethod
     def find_latest_undistortion(
-        shot_workspace_path: str, shot_name: str, username: Optional[str] = None,
+        shot_workspace_path: str,
+        shot_name: str,
+        username: Optional[str] = None,
     ) -> Optional[Path]:
         """
         Find the latest undistortion .nk file for a shot.
@@ -66,7 +68,9 @@ class UndistortionFinder:
                 if d.is_dir() and "scene" in d.name.lower()
             ]
         except FileNotFoundError:
-            logger.debug(f"Exports path no longer exists during iteration: {exports_path}")
+            logger.debug(
+                f"Exports path no longer exists during iteration: {exports_path}"
+            )
             return None
 
         if not scene_dirs:
@@ -113,7 +117,9 @@ class UndistortionFinder:
                             and VersionUtils.VERSION_PATTERN.match(d.name.lower())
                         ]
                     except FileNotFoundError:
-                        logger.debug(f"Undistortion base directory no longer exists: {undist_base}")
+                        logger.debug(
+                            f"Undistortion base directory no longer exists: {undist_base}"
+                        )
                         continue
 
                     for version_dir in version_dirs:

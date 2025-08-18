@@ -257,7 +257,10 @@ class SystemDiagnostics:
         if os.name == "posix":
             try:
                 result = subprocess.run(
-                    ["ulimit", "-a"], capture_output=True, text=True, timeout=1,
+                    ["ulimit", "-a"],
+                    capture_output=True,
+                    text=True,
+                    timeout=1,
                 )
                 if result.returncode == 0:
                     info["ulimits"] = result.stdout.split("\n")[:5]

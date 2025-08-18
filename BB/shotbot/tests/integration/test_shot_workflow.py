@@ -56,7 +56,10 @@ workspace /shows/show2/shots/seq2/seq2_0030""",
         self._failure_message = "Test failure"
 
     def execute_workspace_command(
-        self, command: str, cache_ttl: int = 30, timeout: int = 120,
+        self,
+        command: str,
+        cache_ttl: int = 30,
+        timeout: int = 120,
     ) -> str:
         """Execute command with predictable test behavior."""
         self.commands.append(command)
@@ -132,7 +135,9 @@ class _TestLauncherManager:
         return launcher_id
 
     def execute_launcher(
-        self, launcher_id: str, custom_vars: Optional[Dict[str, str]] = None,
+        self,
+        launcher_id: str,
+        custom_vars: Optional[Dict[str, str]] = None,
     ):
         """Execute launcher with variables."""
         if launcher_id not in self.launchers:
@@ -164,7 +169,9 @@ class TestShotDiscoveryWorkflow:
     """Test complete shot discovery workflow."""
 
     def test_shot_discovery_to_cache_workflow(
-        self, temp_cache_dir, mock_process_pool_manager,
+        self,
+        temp_cache_dir,
+        mock_process_pool_manager,
     ):
         """Test complete workflow from shot discovery to caching."""
         # Create components
@@ -190,7 +197,9 @@ class TestShotDiscoveryWorkflow:
         assert len(cached_shots) == 3
 
     def test_cache_persistence_workflow(
-        self, temp_cache_dir, mock_process_pool_manager,
+        self,
+        temp_cache_dir,
+        mock_process_pool_manager,
     ):
         """Test cache persistence across model instances."""
         # First instance - discover and cache
@@ -314,7 +323,10 @@ class TestThumbnailWorkflow:
 
         # Build thumbnail path
         thumb_path = PathUtils.build_thumbnail_path(
-            str(mock_filesystem), shot.show, shot.sequence, shot.shot,
+            str(mock_filesystem),
+            shot.show,
+            shot.sequence,
+            shot.shot,
         )
 
         # Verify path exists in mock filesystem (the path is already complete)
@@ -364,7 +376,10 @@ class TestThumbnailWorkflow:
 
             if thumbnails:
                 cached_path = cache_manager.cache_thumbnail(
-                    thumbnails[0], shot.show, shot.sequence, shot.shot,
+                    thumbnails[0],
+                    shot.show,
+                    shot.sequence,
+                    shot.shot,
                 )
                 assert cached_path is not None
                 assert cached_path.name == "0010_thumb.jpg"
@@ -382,7 +397,9 @@ class TestThumbnailWorkflow:
 
         # Retrieve cached thumbnail
         retrieved = cache_manager.get_cached_thumbnail(
-            shot.show, shot.sequence, shot.shot,
+            shot.show,
+            shot.sequence,
+            shot.shot,
         )
         assert retrieved == cached_file
         assert retrieved.exists()
@@ -407,7 +424,10 @@ class TestLauncherWorkflow:
         manager.config.config_file = tmp_path / "custom_launchers.json"
 
         shot = Shot(
-            "testshow", "101_SEQ", "0010", "/shows/testshow/shots/101_SEQ/101_SEQ_0010",
+            "testshow",
+            "101_SEQ",
+            "0010",
+            "/shows/testshow/shots/101_SEQ/101_SEQ_0010",
         )
 
         # Create launcher with placeholders and get the ID
@@ -470,7 +490,8 @@ class TestLauncherWorkflow:
         # Execute all launchers using their IDs
         for launcher_id in launcher_ids:
             result = manager.execute_launcher(
-                launcher_id, custom_vars={"shot": "TEST_0010"},
+                launcher_id,
+                custom_vars={"shot": "TEST_0010"},
             )
             assert result is True
 

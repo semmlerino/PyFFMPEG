@@ -70,10 +70,12 @@ class CommandLauncherWorker(QThread):
 
             if not self._process_id:
                 self.execution_error.emit(
-                    datetime.now().strftime("%H:%M:%S"), "Failed to start command",
+                    datetime.now().strftime("%H:%M:%S"),
+                    "Failed to start command",
                 )
                 self.execution_completed.emit(
-                    datetime.now().strftime("%H:%M:%S"), False,
+                    datetime.now().strftime("%H:%M:%S"),
+                    False,
                 )
                 return
 
@@ -88,12 +90,14 @@ class CommandLauncherWorker(QThread):
                     success = process_info.state == ProcessState.FINISHED
                     if not success and process_info.error:
                         self.execution_error.emit(
-                            datetime.now().strftime("%H:%M:%S"), process_info.error,
+                            datetime.now().strftime("%H:%M:%S"),
+                            process_info.error,
                         )
                 else:
                     success = False
                     self.execution_error.emit(
-                        datetime.now().strftime("%H:%M:%S"), "Process timeout",
+                        datetime.now().strftime("%H:%M:%S"),
+                        "Process timeout",
                     )
             else:
                 # Terminal processes are considered successful if launched
@@ -178,13 +182,15 @@ class CommandLauncherQProcess(QObject):
             # Get raw plate if requested
             if include_raw_plate:
                 raw_plate_path = self._find_raw_plate(
-                    self.current_shot.workspace_path, self.current_shot.full_name,
+                    self.current_shot.workspace_path,
+                    self.current_shot.full_name,
                 )
 
             # Get undistortion if requested
             if include_undistortion:
                 undistortion_path = self._find_undistortion(
-                    self.current_shot.workspace_path, self.current_shot.full_name,
+                    self.current_shot.workspace_path,
+                    self.current_shot.full_name,
                 )
 
             # Generate integrated Nuke script if we have plate or undistortion
@@ -210,7 +216,8 @@ class CommandLauncherQProcess(QObject):
                 elif raw_plate_path:
                     # Plate only
                     script_path = NukeScriptGenerator.create_plate_script(
-                        raw_plate_path, self.current_shot.full_name,
+                        raw_plate_path,
+                        self.current_shot.full_name,
                     )
                     if script_path:
                         command_parts.append(script_path)
@@ -218,7 +225,9 @@ class CommandLauncherQProcess(QObject):
                     # Undistortion only
                     script_path = (
                         NukeScriptGenerator.create_plate_script_with_undistortion(
-                            "", str(undistortion_path), self.current_shot.full_name,
+                            "",
+                            str(undistortion_path),
+                            self.current_shot.full_name,
                         )
                     )
                     if script_path:
@@ -248,7 +257,10 @@ class CommandLauncherQProcess(QObject):
         return True
 
     def launch_app_with_scene(
-        self, app_name: str, scene: ThreeDEScene, blocking: bool = False,
+        self,
+        app_name: str,
+        scene: ThreeDEScene,
+        blocking: bool = False,
     ) -> bool:
         """Launch an application with a specific 3DE scene file.
 
@@ -322,13 +334,15 @@ class CommandLauncherQProcess(QObject):
             # Get raw plate if requested
             if include_raw_plate:
                 raw_plate_path = self._find_raw_plate(
-                    scene.workspace_path, scene.full_name,
+                    scene.workspace_path,
+                    scene.full_name,
                 )
 
             # Get undistortion if requested
             if include_undistortion:
                 undistortion_path = self._find_undistortion(
-                    scene.workspace_path, scene.full_name,
+                    scene.workspace_path,
+                    scene.full_name,
                 )
 
             # Generate integrated Nuke script if we have plate or undistortion
@@ -339,7 +353,9 @@ class CommandLauncherQProcess(QObject):
                     # Both plate and undistortion
                     script_path = (
                         NukeScriptGenerator.create_plate_script_with_undistortion(
-                            raw_plate_path, str(undistortion_path), scene.full_name,
+                            raw_plate_path,
+                            str(undistortion_path),
+                            scene.full_name,
                         )
                     )
                     if script_path:
@@ -347,7 +363,8 @@ class CommandLauncherQProcess(QObject):
                 elif raw_plate_path:
                     # Plate only
                     script_path = NukeScriptGenerator.create_plate_script(
-                        raw_plate_path, scene.full_name,
+                        raw_plate_path,
+                        scene.full_name,
                     )
                     if script_path:
                         command_parts.append(script_path)
@@ -355,7 +372,9 @@ class CommandLauncherQProcess(QObject):
                     # Undistortion only
                     script_path = (
                         NukeScriptGenerator.create_plate_script_with_undistortion(
-                            "", str(undistortion_path), scene.full_name,
+                            "",
+                            str(undistortion_path),
+                            scene.full_name,
                         )
                     )
                     if script_path:
@@ -395,11 +414,17 @@ class CommandLauncherQProcess(QObject):
         Connect to the launch_completed signal to be notified when done.
         """
         self.launch_app(
-            app_name, include_undistortion, include_raw_plate, blocking=False,
+            app_name,
+            include_undistortion,
+            include_raw_plate,
+            blocking=False,
         )
 
     def _launch_blocking(
-        self, command: str, workspace_path: str, description: str,
+        self,
+        command: str,
+        workspace_path: str,
+        description: str,
     ) -> bool:
         """Execute a command synchronously."""
         try:
@@ -419,7 +444,11 @@ class CommandLauncherQProcess(QObject):
             return False
 
     def _launch_async(
-        self, app_name: str, command: str, workspace_path: str, description: str,
+        self,
+        app_name: str,
+        command: str,
+        workspace_path: str,
+        description: str,
     ):
         """Execute a command asynchronously using a worker thread."""
         # Clean up finished workers
@@ -484,12 +513,14 @@ class CommandLauncherQProcess(QObject):
                 return raw_plate_path
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.command_executed.emit(
-                timestamp, "Warning: Raw plate path found but no frames exist",
+                timestamp,
+                "Warning: Raw plate path found but no frames exist",
             )
         else:
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.command_executed.emit(
-                timestamp, "Warning: Raw plate not found for this shot",
+                timestamp,
+                "Warning: Raw plate not found for this shot",
             )
 
         return None
@@ -497,7 +528,8 @@ class CommandLauncherQProcess(QObject):
     def _find_undistortion(self, workspace_path: str, full_name: str) -> Optional[Path]:
         """Find undistortion file and emit appropriate messages."""
         undistortion_path = UndistortionFinder.find_latest_undistortion(
-            workspace_path, full_name,
+            workspace_path,
+            full_name,
         )
 
         if undistortion_path:
@@ -510,7 +542,8 @@ class CommandLauncherQProcess(QObject):
             return undistortion_path
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.command_executed.emit(
-            timestamp, "Warning: Undistortion file not found for this shot",
+            timestamp,
+            "Warning: Undistortion file not found for this shot",
         )
         return None
 

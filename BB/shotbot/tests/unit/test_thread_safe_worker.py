@@ -380,7 +380,10 @@ class TestThreadSafeWorker:
         ],
     )
     def test_state_transition_matrix(
-        self, initial_state, target_state, expected_result,
+        self,
+        initial_state,
+        target_state,
+        expected_result,
     ):
         """Test all valid and invalid state transitions systematically."""
         worker = WorkerTestHelper()

@@ -147,7 +147,9 @@ class LRUCache:
 
             # Add new entry
             entry = CacheEntry(
-                value=value, timestamp=time.time(), size_bytes=size_bytes,
+                value=value,
+                timestamp=time.time(),
+                size_bytes=size_bytes,
             )
             self._cache[key] = entry
             self._total_memory += size_bytes
@@ -504,7 +506,9 @@ class EnhancedCacheManager:
         return exists
 
     def list_directory(
-        self, path: Union[str, Path], pattern: Optional[str] = None,
+        self,
+        path: Union[str, Path],
+        pattern: Optional[str] = None,
     ) -> Optional[List[Path]]:
         """List directory contents with caching.
 
@@ -635,7 +639,8 @@ def validate_path(path: Union[str, Path], description: str = "") -> bool:
 
 
 def list_directory(
-    path: Union[str, Path], pattern: Optional[str] = None,
+    path: Union[str, Path],
+    pattern: Optional[str] = None,
 ) -> Optional[List[Path]]:
     """List directory with enhanced caching.
 

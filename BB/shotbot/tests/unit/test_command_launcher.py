@@ -613,7 +613,9 @@ class TestNukeIntegration:
                     mock_import.return_value = Mock(NukeScriptGenerator=mock_generator)
 
                     result = launcher.launch_app(
-                        "nuke", include_raw_plate=True, include_undistortion=True,
+                        "nuke",
+                        include_raw_plate=True,
+                        include_undistortion=True,
                     )
                     assert result is True
 
@@ -696,7 +698,10 @@ class TestEdgeCases:
 
         # Set shot with empty workspace path
         shot = Shot(
-            show="test_show", sequence="seq01", shot="shot01", workspace_path="",
+            show="test_show",
+            sequence="seq01",
+            shot="shot01",
+            workspace_path="",
         )
         launcher.set_current_shot(shot)
 

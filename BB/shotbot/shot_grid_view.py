@@ -51,7 +51,9 @@ class ShotGridView(QWidget):
     app_launch_requested = Signal(str)  # app_name
 
     def __init__(
-        self, model: Optional[ShotItemModel] = None, parent: Optional[QWidget] = None,
+        self,
+        model: Optional[ShotItemModel] = None,
+        parent: Optional[QWidget] = None,
     ):
         """Initialize the grid view.
 
@@ -237,7 +239,9 @@ class ShotGridView(QWidget):
 
     @Slot(QModelIndex, QModelIndex)
     def _on_selection_changed(
-        self, current: QModelIndex, previous: QModelIndex,
+        self,
+        current: QModelIndex,
+        previous: QModelIndex,
     ) -> None:
         """Handle selection change.
 
@@ -381,7 +385,8 @@ class ShotGridView(QWidget):
 
                 # Ensure it's visible
                 self.list_view.scrollTo(
-                    index, QAbstractItemView.ScrollHint.PositionAtCenter,
+                    index,
+                    QAbstractItemView.ScrollHint.PositionAtCenter,
                 )
 
                 # Trigger selection
