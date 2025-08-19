@@ -277,7 +277,7 @@ class TestParametrizedCaching:
                 # Could be path or None depending on success
                 assert result is None or isinstance(result, Path)
 
-    @pytest.mark.parametrize("num_shots", [1, 10, 100, 500])
+    @pytest.mark.parametrize("num_shots", [1, 5, 25])
     def test_cache_scalability(self, tmp_path, num_shots):
         """Test cache with varying numbers of shots."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")

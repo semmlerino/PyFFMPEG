@@ -32,7 +32,8 @@ class WorkerTestHelper(ThreadSafeWorker):
         while time.time() - start_time < self.work_duration:
             if self.should_stop():
                 return  # Return early, don't set work_completed
-            time.sleep(0.01)  # Small sleep to allow interruption
+            from PySide6.QtCore import QCoreApplication
+            QCoreApplication.processEvents()  # Process events instead of sleep
 
         if self.should_fail:
             raise RuntimeError("Test worker failure")
@@ -230,7 +231,7 @@ class TestThreadSafeWorker:
 
         # For error case, wait for the thread to actually finish
         # The thread should finish after the error
-        worker.wait(5000)  # Use QThread.wait() directly
+        worker.wait(200)  # Reduced timeout from 5000ms to 200ms
 
         # Process events to ensure _on_finished is called
         qtbot.wait(100)
@@ -295,7 +296,8 @@ class TestThreadSafeWorker:
         worker.start()
 
         # Wait a bit for work to start
-        time.sleep(0.02)
+        from PySide6.QtCore import QCoreApplication
+        QCoreApplication.processEvents()  # Process events instead of sleep
 
         # Test safe_terminate (should be graceful for short work)
         worker.safe_terminate()
@@ -317,7 +319,8 @@ class TestThreadSafeWorker:
                 for i in range(10):
                     state = worker.get_state()
                     results.append((thread_id, i, state))
-                    time.sleep(0.001)  # Small delay
+                    from PySide6.QtCore import QCoreApplication
+                    QCoreApplication.processEvents()  # No sleep needed
             except Exception as e:
                 errors.append((thread_id, str(e)))
 

@@ -12,16 +12,18 @@ from PySide6.QtCore import (
     QModelIndex,
     QSize,
     Qt,
+    QThreadPool,
     QTimer,
     Signal,
     Slot,
 )
-from PySide6.QtGui import QKeyEvent, QWheelEvent
+from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
     QLabel,
     QListView,
+    QMenu,
     QSlider,
     QVBoxLayout,
     QWidget,
@@ -30,6 +32,7 @@ from PySide6.QtWidgets import (
 from config import Config
 from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotItemModel, ShotRole
+from thumbnail_widget_base import FolderOpenerWorker
 
 logger = logging.getLogger(__name__)
 
@@ -404,6 +407,73 @@ class ShotGridView(QWidget):
         """Force a complete view refresh."""
         self.list_view.viewport().update()
         self._update_visible_range()
+
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        """Handle right-click context menu.
+
+        Args:
+            event: Context menu event
+        """
+        # Convert global position to list view coordinates
+        list_view_pos = self.list_view.mapFromGlobal(event.globalPos())
+
+        # Get the index at the clicked position
+        index = self.list_view.indexAt(list_view_pos)
+
+        if not index.isValid() or not self._model:
+            # No item clicked, show no menu
+            return
+
+        shot = index.data(ShotRole.ShotObjectRole)
+        if not shot:
+            return
+
+        # Create context menu
+        menu = QMenu(self)
+
+        # Add "Open Shot Folder" action
+        open_folder_action = menu.addAction("Open Shot Folder")
+        open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
+
+        # Show menu at cursor position
+        menu.exec(event.globalPos())
+
+        logger.debug(f"Context menu shown for shot: {shot.full_name}")
+
+    def _open_shot_folder(self, shot) -> None:
+        """Open the shot's workspace folder in system file manager (non-blocking).
+
+        Args:
+            shot: Shot object containing workspace path
+        """
+        folder_path = shot.workspace_path
+
+        # Create worker to open folder in background
+        worker = FolderOpenerWorker(folder_path)
+
+        # Connect signals for error handling
+        worker.signals.error.connect(self._on_folder_open_error)
+        worker.signals.success.connect(self._on_folder_open_success)
+
+        # Start the worker
+        QThreadPool.globalInstance().start(worker)
+
+        logger.info(f"Opening folder: {folder_path}")
+
+    @Slot(str)
+    def _on_folder_open_error(self, error_msg: str) -> None:
+        """Handle folder open error.
+
+        Args:
+            error_msg: Error message from worker
+        """
+        logger.error(f"Failed to open folder: {error_msg}")
+        # Could show a QMessageBox here if desired
+
+    @Slot()
+    def _on_folder_open_success(self) -> None:
+        """Handle successful folder opening."""
+        logger.debug("Folder opened successfully")
 
 
 # Example usage

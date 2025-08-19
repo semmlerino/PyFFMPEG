@@ -40,9 +40,16 @@ class TestCommandCacheSimple:
         cache.set("echo test", "output", ttl=1)
         assert cache.get("echo test") == "output"
 
-        # Wait for expiration
-        time.sleep(1.1)
-        assert cache.get("echo test") is None
+        # Wait for expiration by checking repeatedly with minimal delay
+        import time
+        start_time = time.time()
+        while time.time() - start_time < 1.2:  # Max 1.2s timeout
+            if cache.get("echo test") is None:
+                break
+            time.sleep(0.01)  # Check every 10ms
+        else:
+            # If we timed out, force check one more time
+            assert cache.get("echo test") is None
 
     def test_cache_invalidation(self):
         """Test cache invalidation."""

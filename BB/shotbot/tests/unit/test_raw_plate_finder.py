@@ -1,476 +1,452 @@
-"""Unit tests for RawPlateFinder module."""
+"""Unit tests for RawPlateFinder module following UNIFIED_TESTING_GUIDE.
 
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+This refactored version:
+- Creates real directory structures with actual files
+- Tests actual plate discovery behavior
+- No mocking of internal PathUtils/FileUtils/VersionUtils
+- Uses real file operations
+"""
 
 from raw_plate_finder import RawPlateFinder
 
 
-@pytest.fixture
-def mock_workspace_path():
-    """Mock workspace path for testing."""
-    return "/shows/testshow/shots/seq01/seq01_shot01"
-
-
-@pytest.fixture
-def mock_shot_name():
-    """Mock shot name for testing."""
-    return "seq01_shot01"
-
-
-@pytest.fixture
-def mock_plate_structure(tmp_path):
-    """Create a mock plate directory structure for testing."""
-    # Create base path
-    base_path = tmp_path / "publish" / "plate" / "turnover"
-
-    # Create FG01 plate with v002 (latest)
-    fg01_path = base_path / "FG01"
-    fg01_v001 = fg01_path / "v001" / "exr" / "1920x1080"
-    fg01_v002 = fg01_path / "v002" / "exr" / "4312x2304"
-    fg01_v001.mkdir(parents=True)
-    fg01_v002.mkdir(parents=True)
-
-    # Create sample plate files for FG01 v002
-    plate_file = fg01_v002 / "seq01_shot01_turnover-plate_FG01_aces_v002.1001.exr"
-    plate_file.touch()
-    plate_file2 = fg01_v002 / "seq01_shot01_turnover-plate_FG01_aces_v002.1002.exr"
-    plate_file2.touch()
-
-    # Create BG01 plate with v001
-    bg01_path = base_path / "BG01"
-    bg01_v001 = bg01_path / "v001" / "exr" / "1920x1080"
-    bg01_v001.mkdir(parents=True)
-
-    # Create sample plate files for BG01 v001
-    bg_file = (
-        bg01_v001 / "seq01_shot01_turnover-plate_BG01_lin_sgamut3cine_v001.1001.exr"
-    )
-    bg_file.touch()
-
-    return base_path
-
-
 class TestRawPlateFinder:
-    """Test RawPlateFinder class."""
+    """Test RawPlateFinder with real file operations."""
 
-    def test_find_latest_raw_plate_success(
-        self,
-        mock_workspace_path,
-        mock_shot_name,
-        mock_plate_structure,
-    ):
-        """Test successfully finding the latest raw plate."""
-        with patch(
-            "raw_plate_finder.PathUtils.build_raw_plate_path",
-            return_value=mock_plate_structure,
-        ):
-            with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists",
-                return_value=True,
-            ):
-                with patch(
-                    "raw_plate_finder.PathUtils.discover_plate_directories",
-                    return_value=[("FG01", 10), ("BG01", 7)],
-                ):
-                    result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path,
-                        mock_shot_name,
-                    )
+    def test_find_latest_raw_plate_success(self, tmp_path, monkeypatch):
+        """Test successfully finding the latest raw plate with real files."""
+        # Create real directory structure
+        shows_root = tmp_path / "shows"
+        workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
 
-                    assert result is not None
-                    assert "FG01" in result  # Should prioritize FG01
-                    assert "v002" in result  # Should find latest version
-                    assert "####" in result  # Should have frame pattern
-                    assert "aces" in result  # Should detect color space
+        # Create real plate structure
+        plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
 
-    def test_find_latest_raw_plate_no_base_path(
-        self,
-        mock_workspace_path,
-        mock_shot_name,
-    ):
-        """Test when base path doesn't exist."""
-        with patch(
-            "raw_plate_finder.PathUtils.build_raw_plate_path",
-            return_value=Path("/nonexistent"),
-        ):
-            with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists",
-                return_value=False,
-            ):
-                result = RawPlateFinder.find_latest_raw_plate(
-                    mock_workspace_path,
-                    mock_shot_name,
-                )
-                assert result is None
+        # Create FG01 with v001 and v002 (v002 is latest)
+        fg01_v001 = plate_base / "FG01" / "v001" / "exr" / "1920x1080"
+        fg01_v001.mkdir(parents=True, exist_ok=True)
+        (fg01_v001 / "seq01_shot01_turnover-plate_FG01_aces_v001.1001.exr").touch()
+        (fg01_v001 / "seq01_shot01_turnover-plate_FG01_aces_v001.1002.exr").touch()
 
-    def test_find_latest_raw_plate_no_plate_dirs(
-        self,
-        mock_workspace_path,
-        mock_shot_name,
-    ):
-        """Test when no plate directories are found."""
-        with patch(
-            "raw_plate_finder.PathUtils.build_raw_plate_path",
-            return_value=Path("/test"),
-        ):
-            with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists",
-                return_value=True,
-            ):
-                with patch(
-                    "raw_plate_finder.PathUtils.discover_plate_directories",
-                    return_value=[],
-                ):
-                    result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path,
-                        mock_shot_name,
-                    )
-                    assert result is None
+        fg01_v002 = plate_base / "FG01" / "v002" / "exr" / "4312x2304"
+        fg01_v002.mkdir(parents=True, exist_ok=True)
+        (fg01_v002 / "seq01_shot01_turnover-plate_FG01_aces_v002.1001.exr").touch()
+        (fg01_v002 / "seq01_shot01_turnover-plate_FG01_aces_v002.1002.exr").touch()
 
-    def test_find_latest_raw_plate_no_versions(
-        self,
-        mock_workspace_path,
-        mock_shot_name,
-        tmp_path,
-    ):
-        """Test when plate directory exists but has no version directories."""
-        base_path = tmp_path / "plate"
-        fg01_path = base_path / "FG01"
-        fg01_path.mkdir(parents=True)
+        # Create BG01 with v001
+        bg01_v001 = plate_base / "BG01" / "v001" / "exr" / "1920x1080"
+        bg01_v001.mkdir(parents=True, exist_ok=True)
+        (
+            bg01_v001 / "seq01_shot01_turnover-plate_BG01_lin_sgamut3cine_v001.1001.exr"
+        ).touch()
 
-        with patch(
-            "raw_plate_finder.PathUtils.build_raw_plate_path",
-            return_value=base_path,
-        ):
-            with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists",
-                return_value=True,
-            ):
-                with patch(
-                    "raw_plate_finder.PathUtils.discover_plate_directories",
-                    return_value=[("FG01", 10)],
-                ):
-                    result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path,
-                        mock_shot_name,
-                    )
-                    assert result is None
+        # Override Config.SHOWS_ROOT if needed
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
 
-    def test_find_latest_raw_plate_no_exr_directory(
-        self,
-        mock_workspace_path,
-        mock_shot_name,
-        tmp_path,
-    ):
-        """Test when version exists but no exr directory."""
-        base_path = tmp_path / "plate"
-        fg01_v001 = base_path / "FG01" / "v001"
-        fg01_v001.mkdir(parents=True)
-
-        with patch(
-            "raw_plate_finder.PathUtils.build_raw_plate_path",
-            return_value=base_path,
-        ):
-            with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists",
-                return_value=True,
-            ):
-                with patch(
-                    "raw_plate_finder.PathUtils.discover_plate_directories",
-                    return_value=[("FG01", 10)],
-                ):
-                    result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path,
-                        mock_shot_name,
-                    )
-                    assert result is None
-
-    def test_find_plate_file_pattern_match(self, mock_shot_name, tmp_path):
-        """Test finding plate file pattern with color space."""
-        resolution_dir = tmp_path / "resolution"
-        resolution_dir.mkdir()
-
-        # Create file that matches pattern 1
-        plate_file = (
-            resolution_dir / "seq01_shot01_turnover-plate_FG01_aces_v002.1001.exr"
-        )
-        plate_file.touch()
-
-        result = RawPlateFinder._find_plate_file_pattern(
-            resolution_dir,
-            mock_shot_name,
-            "FG01",
-            "v002",
+        # Test actual discovery
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01"
         )
 
+        # Verify behavior
         assert result is not None
-        assert "aces" in result
-        assert "####" in result
-        assert "FG01" in result
+        assert "FG01" in result  # Should prioritize FG01
+        assert "v002" in result  # Should find latest version
+        assert "####" in result  # Should have frame pattern
+        assert "aces" in result  # Should detect color space
+        assert "4312x2304" in result  # Should use highest resolution
 
-    def test_find_plate_file_pattern_alternative(self, mock_shot_name, tmp_path):
-        """Test finding plate file with alternative pattern (no underscore before color space)."""
-        resolution_dir = tmp_path / "resolution"
-        resolution_dir.mkdir()
+    def test_find_latest_raw_plate_bg_only(self, tmp_path, monkeypatch):
+        """Test finding BG plate when no FG plate exists."""
+        # Create real directory structure
+        shows_root = tmp_path / "shows"
+        workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
 
-        # Create file that matches pattern 2 (no underscore before color space)
-        # Pattern is: FG01 directly followed by color space
-        plate_file = (
-            resolution_dir / "seq01_shot01_turnover-plate_FG01aces_v002.1001.exr"
+        # Create only BG01 plate
+        plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
+        bg01_v001 = plate_base / "BG01" / "v001" / "exr" / "1920x1080"
+        bg01_v001.mkdir(parents=True, exist_ok=True)
+        (bg01_v001 / "seq01_shot01_turnover-plate_BG01_aces_v001.1001.exr").touch()
+        (bg01_v001 / "seq01_shot01_turnover-plate_BG01_aces_v001.1002.exr").touch()
+
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+
+        # Test actual discovery
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01"
         )
-        plate_file.touch()
 
-        result = RawPlateFinder._find_plate_file_pattern(
-            resolution_dir,
-            mock_shot_name,
-            "FG01",
-            "v002",
-        )
-
+        # Verify behavior
         assert result is not None
-        assert "aces" in result
+        assert "BG01" in result
+        assert "v001" in result
         assert "####" in result
-        assert "FG01aces" in result  # Pattern 2 format
+        assert "aces" in result
 
-    def test_find_plate_file_pattern_fallback(self, mock_shot_name, tmp_path):
-        """Test fallback to common color spaces when no files found."""
-        resolution_dir = tmp_path / "resolution"
-        resolution_dir.mkdir()
+    def test_find_latest_raw_plate_no_plates(self, tmp_path, monkeypatch):
+        """Test when no plate directories exist."""
+        # Create workspace but no plates
+        shows_root = tmp_path / "shows"
+        workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
 
-        # Create file with fallback color space pattern
-        fallback_file = (
-            resolution_dir / "seq01_shot01_turnover-plate_FG01_aces_v002.1001.exr"
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+
+        # Test actual discovery
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01"
         )
-        fallback_file.touch()
 
-        with patch("raw_plate_finder.Config.COLOR_SPACE_PATTERNS", ["aces"]):
-            result = RawPlateFinder._find_plate_file_pattern(
-                resolution_dir,
-                mock_shot_name,
-                "FG01",
-                "v002",
-            )
+        # Should return None when no plates found
+        assert result is None
 
-            # Should use fallback color space
-            assert result is not None
-            assert "aces" in result
+    def test_find_latest_raw_plate_no_workspace(self, tmp_path, monkeypatch):
+        """Test when workspace path doesn't exist."""
+        shows_root = tmp_path / "shows"
+        nonexistent_path = shows_root / "nonexistent" / "path"
 
-    def test_find_plate_file_pattern_permission_error(self, mock_shot_name):
-        """Test handling permission error when scanning directory."""
-        resolution_dir = MagicMock(spec=Path)
-        resolution_dir.iterdir.side_effect = PermissionError("Access denied")
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
 
-        result = RawPlateFinder._find_plate_file_pattern(
-            resolution_dir,
-            mock_shot_name,
-            "FG01",
-            "v002",
+        # Test with nonexistent path
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(nonexistent_path), "seq01_shot01"
         )
 
         assert result is None
 
-    def test_get_version_from_path(self):
-        """Test extracting version from path."""
-        with patch(
-            "raw_plate_finder.VersionUtils.extract_version_from_path",
-            return_value="v002",
-        ):
-            result = RawPlateFinder.get_version_from_path("/path/to/plate_v002.exr")
-            assert result == "v002"
+    def test_find_plate_file_pattern_standard(self, tmp_path):
+        """Test finding standard plate file pattern with underscore."""
+        resolution_dir = tmp_path / "resolution"
+        resolution_dir.mkdir()
 
-    def test_get_version_from_path_none(self):
-        """Test extracting version returns None when not found."""
-        with patch(
-            "raw_plate_finder.VersionUtils.extract_version_from_path",
-            return_value=None,
-        ):
-            result = RawPlateFinder.get_version_from_path("/path/to/plate.exr")
-            assert result is None
+        # Create standard pattern file (underscore before color space)
+        plate_file = (
+            resolution_dir / "seq01_shot01_turnover-plate_FG01_aces_v002.1001.exr"
+        )
+        plate_file.touch()
+        plate_file2 = (
+            resolution_dir / "seq01_shot01_turnover-plate_FG01_aces_v002.1002.exr"
+        )
+        plate_file2.touch()
 
-    def test_verify_plate_exists_valid(self, tmp_path):
-        """Test verifying plate exists with valid path."""
-        # Create test structure
+        # Test actual file discovery
+        result = RawPlateFinder._find_plate_file_pattern(
+            resolution_dir, "seq01_shot01", "FG01", "v002"
+        )
+
+        assert result is not None
+        assert "aces" in result
+        assert "####" in result
+        assert "FG01_aces" in result  # Standard format with underscore
+
+    def test_find_plate_file_pattern_alternative(self, tmp_path):
+        """Test finding alternative plate file pattern without underscore."""
+        resolution_dir = tmp_path / "resolution"
+        resolution_dir.mkdir()
+
+        # Create alternative pattern file (no underscore before color space)
+        plate_file = (
+            resolution_dir / "seq01_shot01_turnover-plate_FG01aces_v002.1001.exr"
+        )
+        plate_file.touch()
+        plate_file2 = (
+            resolution_dir / "seq01_shot01_turnover-plate_FG01aces_v002.1002.exr"
+        )
+        plate_file2.touch()
+
+        # Test actual file discovery
+        result = RawPlateFinder._find_plate_file_pattern(
+            resolution_dir, "seq01_shot01", "FG01", "v002"
+        )
+
+        assert result is not None
+        assert "aces" in result
+        assert "####" in result
+        assert "FG01aces" in result  # Alternative format without underscore
+
+    def test_find_plate_file_pattern_mixed_colorspaces(self, tmp_path):
+        """Test discovering actual color space from files."""
+        resolution_dir = tmp_path / "resolution"
+        resolution_dir.mkdir()
+
+        # Create files with different color spaces
+        (
+            resolution_dir
+            / "seq01_shot01_turnover-plate_FG01_lin_sgamut3cine_v002.1001.exr"
+        ).touch()
+        (
+            resolution_dir
+            / "seq01_shot01_turnover-plate_FG01_lin_sgamut3cine_v002.1002.exr"
+        ).touch()
+
+        # Test actual discovery
+        result = RawPlateFinder._find_plate_file_pattern(
+            resolution_dir, "seq01_shot01", "FG01", "v002"
+        )
+
+        assert result is not None
+        assert "lin_sgamut3cine" in result  # Should detect actual color space
+        assert "####" in result
+        assert "FG01" in result
+
+    def test_find_plate_file_pattern_no_files(self, tmp_path):
+        """Test when no matching files exist."""
+        resolution_dir = tmp_path / "resolution"
+        resolution_dir.mkdir()
+
+        # Create non-matching file
+        (resolution_dir / "different_file.exr").touch()
+
+        # Test actual discovery
+        result = RawPlateFinder._find_plate_file_pattern(
+            resolution_dir, "seq01_shot01", "FG01", "v002"
+        )
+
+        assert result is None
+
+    def test_verify_plate_exists_with_real_files(self, tmp_path):
+        """Test verifying plate exists with real matching files."""
         plate_dir = tmp_path / "plates"
         plate_dir.mkdir()
 
-        # Create matching plate file
-        plate_file = plate_dir / "shot_v001.1001.exr"
-        plate_file.touch()
+        # Create real plate sequence
+        (plate_dir / "shot_v001.1001.exr").touch()
+        (plate_dir / "shot_v001.1002.exr").touch()
+        (plate_dir / "shot_v001.1003.exr").touch()
 
+        # Test with #### pattern
         plate_path = str(plate_dir / "shot_v001.####.exr")
+        result = RawPlateFinder.verify_plate_exists(plate_path)
 
-        with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists",
-            return_value=True,
-        ):
-            result = RawPlateFinder.verify_plate_exists(plate_path)
-            assert result is True
-
-    def test_verify_plate_exists_invalid_path(self):
-        """Test verify with invalid path (no #### pattern)."""
-        result = RawPlateFinder.verify_plate_exists("/path/to/plate.exr")
-        assert result is False
-
-    def test_verify_plate_exists_empty_path(self):
-        """Test verify with empty path."""
-        result = RawPlateFinder.verify_plate_exists("")
-        assert result is False
-
-        result = RawPlateFinder.verify_plate_exists(None)
-        assert result is False
-
-    def test_verify_plate_exists_directory_not_found(self):
-        """Test verify when directory doesn't exist."""
-        with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists",
-            return_value=False,
-        ):
-            result = RawPlateFinder.verify_plate_exists("/nonexistent/plate.####.exr")
-            assert result is False
+        assert result is True
 
     def test_verify_plate_exists_no_matching_files(self, tmp_path):
         """Test verify when no matching files found."""
         plate_dir = tmp_path / "plates"
         plate_dir.mkdir()
 
-        # Create non-matching file
-        other_file = plate_dir / "other.exr"
-        other_file.touch()
+        # Create non-matching files
+        (plate_dir / "other_shot.1001.exr").touch()
 
+        # Test with different pattern
         plate_path = str(plate_dir / "shot_v001.####.exr")
+        result = RawPlateFinder.verify_plate_exists(plate_path)
 
-        with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists",
-            return_value=True,
-        ):
-            result = RawPlateFinder.verify_plate_exists(plate_path)
-            assert result is False
+        assert result is False
 
-    def test_verify_plate_exists_permission_error(self):
-        """Test verify with permission error."""
-        mock_dir = MagicMock(spec=Path)
-        mock_dir.iterdir.side_effect = PermissionError("Access denied")
+    def test_verify_plate_exists_invalid_pattern(self):
+        """Test verify with invalid path (no #### pattern)."""
+        result = RawPlateFinder.verify_plate_exists("/path/to/plate.exr")
+        assert result is False
 
-        with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists",
-            return_value=True,
-        ):
-            with patch("pathlib.Path", return_value=mock_dir):
-                result = RawPlateFinder.verify_plate_exists("/test/plate.####.exr")
-                assert result is False
+        result = RawPlateFinder.verify_plate_exists("/path/to/plate")
+        assert result is False
 
-    def test_verify_plate_exists_regex_error(self):
-        """Test verify with invalid regex pattern."""
-        mock_dir = MagicMock(spec=Path)
-        mock_dir.iterdir.return_value = []
+    def test_verify_plate_exists_empty_path(self):
+        """Test verify with empty or None path."""
+        result = RawPlateFinder.verify_plate_exists("")
+        assert result is False
 
-        # Create a path that would generate invalid regex
-        plate_path = "/test/plate[invalid.####.exr"
+        result = RawPlateFinder.verify_plate_exists(None)
+        assert result is False
 
-        with patch(
-            "raw_plate_finder.PathUtils.validate_path_exists",
-            return_value=True,
-        ):
-            with patch(
-                "pathlib.Path.parent",
-                new_callable=lambda: Mock(return_value=mock_dir),
-            ):
-                result = RawPlateFinder.verify_plate_exists(plate_path)
-                assert result is False
+    def test_multiple_plates_priority(self, tmp_path, monkeypatch):
+        """Test that FG plates are prioritized over BG plates with real files."""
+        # Create real directory structure
+        shows_root = tmp_path / "shows"
+        workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
 
-    def test_get_plate_patterns_caching(self, mock_shot_name):
-        """Test that regex patterns are cached properly."""
+        plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
+
+        # Create BG01 with newer version (v003)
+        bg01_v003 = plate_base / "BG01" / "v003" / "exr" / "1920x1080"
+        bg01_v003.mkdir(parents=True, exist_ok=True)
+        (bg01_v003 / "seq01_shot01_turnover-plate_BG01_aces_v003.1001.exr").touch()
+
+        # Create FG01 with older version (v001)
+        fg01_v001 = plate_base / "FG01" / "v001" / "exr" / "1920x1080"
+        fg01_v001.mkdir(parents=True, exist_ok=True)
+        (fg01_v001 / "seq01_shot01_turnover-plate_FG01_aces_v001.1001.exr").touch()
+
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+
+        # Test actual discovery
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01"
+        )
+
+        # Should find FG01 even though BG01 has newer version
+        assert result is not None
+        assert "FG01" in result
+        assert "v001" in result  # Older version but FG01 has priority
+
+    def test_multiple_versions_selection(self, tmp_path, monkeypatch):
+        """Test selecting the latest version from multiple versions."""
+        # Create real directory structure
+        shows_root = tmp_path / "shows"
+        workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
+        plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
+
+        # Create FG01 with multiple versions
+        for version in ["v001", "v002", "v003", "v010"]:
+            version_dir = plate_base / "FG01" / version / "exr" / "1920x1080"
+            version_dir.mkdir(parents=True, exist_ok=True)
+            (
+                version_dir
+                / f"seq01_shot01_turnover-plate_FG01_aces_{version}.1001.exr"
+            ).touch()
+
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+
+        # Test actual discovery
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01"
+        )
+
+        # Should find v010 (latest when sorted)
+        assert result is not None
+        assert "v010" in result
+
+    def test_multiple_resolutions_selection(self, tmp_path, monkeypatch):
+        """Test selecting the highest resolution from multiple options."""
+        # Create real directory structure
+        shows_root = tmp_path / "shows"
+        workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
+        plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
+
+        # Create FG01 v001 with multiple resolutions
+        resolutions = ["1920x1080", "2048x1152", "4096x2304", "3840x2160"]
+        for resolution in resolutions:
+            res_dir = plate_base / "FG01" / "v001" / "exr" / resolution
+            res_dir.mkdir(parents=True, exist_ok=True)
+            (res_dir / "seq01_shot01_turnover-plate_FG01_aces_v001.1001.exr").touch()
+
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+
+        # Test actual discovery
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01"
+        )
+
+        # Should find highest resolution (4096x2304)
+        assert result is not None
+        assert "4096x2304" in result
+
+    def test_pattern_caching(self, tmp_path):
+        """Test that regex patterns are cached for performance."""
         # Clear cache first
         RawPlateFinder._pattern_cache.clear()
 
-        # First call should create patterns
-        patterns1 = RawPlateFinder._get_plate_patterns(mock_shot_name, "FG01", "v002")
-        assert patterns1 is not None
-        assert len(RawPlateFinder._pattern_cache) == 1
-
-        # Second call with same params should return cached patterns
-        patterns2 = RawPlateFinder._get_plate_patterns(mock_shot_name, "FG01", "v002")
-        assert patterns1 is patterns2  # Same object
-        assert len(RawPlateFinder._pattern_cache) == 1  # Still only one entry
-
-        # Different params should create new cache entry
-        patterns3 = RawPlateFinder._get_plate_patterns(mock_shot_name, "BG01", "v001")
-        assert patterns3 is not patterns1
-        assert len(RawPlateFinder._pattern_cache) == 2
-
-    def test_pattern_matching_variations(self):
-        """Test regex patterns match expected filename formats."""
         shot_name = "seq01_shot01"
         plate_name = "FG01"
         version = "v002"
 
-        pattern1, pattern2 = RawPlateFinder._get_plate_patterns(
-            shot_name,
-            plate_name,
-            version,
+        # First call should create patterns
+        patterns1 = RawPlateFinder._get_plate_patterns(shot_name, plate_name, version)
+        assert patterns1 is not None
+        assert len(RawPlateFinder._pattern_cache) == 1
+
+        # Second call with same params should return cached patterns
+        patterns2 = RawPlateFinder._get_plate_patterns(shot_name, plate_name, version)
+        assert patterns1 is patterns2  # Same object reference
+        assert len(RawPlateFinder._pattern_cache) == 1  # Still only one entry
+
+        # Different params should create new cache entry
+        patterns3 = RawPlateFinder._get_plate_patterns(shot_name, "BG01", "v001")
+        assert patterns3 is not patterns1
+        assert len(RawPlateFinder._pattern_cache) == 2
+
+    def test_find_plate_with_special_characters(self, tmp_path, monkeypatch):
+        """Test finding plates with special characters in shot names."""
+        # Create workspace with special characters
+        shows_root = tmp_path / "shows"
+        workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01-fx"
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
+        plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
+        fg01_v001 = plate_base / "FG01" / "v001" / "exr" / "1920x1080"
+        fg01_v001.mkdir(parents=True, exist_ok=True)
+        (fg01_v001 / "seq01_shot01-fx_turnover-plate_FG01_aces_v001.1001.exr").touch()
+
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+
+        # Test actual discovery
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01-fx"
         )
 
-        # Test pattern 1: underscore before color space
-        filename1 = "seq01_shot01_turnover-plate_FG01_aces_v002.1001.exr"
-        match1 = pattern1.match(filename1)
-        assert match1 is not None
-        assert match1.group(1) == "aces"
+        assert result is not None
+        assert "FG01" in result
+        assert "seq01_shot01-fx" in result
 
-        # Test pattern 2: no underscore before color space
-        # Note: The actual pattern expects FG01 followed directly by color space
-        # (no underscore), then underscore before version
-        filename2 = "seq01_shot01_turnover-plate_FG01aces_v002.1001.exr"
-        match2 = pattern2.match(filename2)
-        assert match2 is not None
-        assert match2.group(1) == "aces"
+    def test_empty_version_directory(self, tmp_path, monkeypatch):
+        """Test handling version directory with no exr subdirectory."""
+        # Create real directory structure
+        shows_root = tmp_path / "shows"
+        workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
 
-        # Test non-matching filename
-        filename3 = "different_shot_turnover-plate_FG01_aces_v002.1001.exr"
-        assert pattern1.match(filename3) is None
-        assert pattern2.match(filename3) is None
+        plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
 
-    def test_multiple_plates_priority(
-        self,
-        mock_workspace_path,
-        mock_shot_name,
-        tmp_path,
-    ):
-        """Test that FG plates are prioritized over BG plates."""
-        base_path = tmp_path / "plate"
+        # Create FG01 with version but no exr directory
+        fg01_v001 = plate_base / "FG01" / "v001"
+        fg01_v001.mkdir(parents=True, exist_ok=True)
+        # No exr subdirectory created
 
-        # Create BG01 with newer version (v003)
-        bg01_v003 = base_path / "BG01" / "v003" / "exr" / "1920x1080"
-        bg01_v003.mkdir(parents=True)
-        bg_file = bg01_v003 / "seq01_shot01_turnover-plate_BG01_aces_v003.1001.exr"
-        bg_file.touch()
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
 
-        # Create FG01 with older version (v001)
-        fg01_v001 = base_path / "FG01" / "v001" / "exr" / "1920x1080"
-        fg01_v001.mkdir(parents=True)
-        fg_file = fg01_v001 / "seq01_shot01_turnover-plate_FG01_aces_v001.1001.exr"
-        fg_file.touch()
+        # Test actual discovery
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01"
+        )
 
-        with patch(
-            "raw_plate_finder.PathUtils.build_raw_plate_path",
-            return_value=base_path,
-        ):
-            with patch(
-                "raw_plate_finder.PathUtils.validate_path_exists",
-                return_value=True,
-            ):
-                with patch(
-                    "raw_plate_finder.PathUtils.discover_plate_directories",
-                    return_value=[("FG01", 10), ("BG01", 7)],
-                ):  # FG01 has higher priority
-                    result = RawPlateFinder.find_latest_raw_plate(
-                        mock_workspace_path,
-                        mock_shot_name,
-                    )
+        # Should return None when no exr directory found
+        assert result is None
 
-                    # Should find FG01 even though BG01 has newer version
-                    assert result is not None
-                    assert "FG01" in result
-                    assert "v001" in result
+    def test_empty_resolution_directory(self, tmp_path, monkeypatch):
+        """Test handling resolution directory with no plate files."""
+        # Create real directory structure
+        shows_root = tmp_path / "shows"
+        workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01"
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
+        plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
+
+        # Create FG01 with exr/resolution directory but no files
+        fg01_v001 = plate_base / "FG01" / "v001" / "exr" / "1920x1080"
+        fg01_v001.mkdir(parents=True, exist_ok=True)
+        # No plate files created
+
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+
+        # Test actual discovery
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01"
+        )
+
+        # Should return None when no plate files found
+        assert result is None
+
+    def test_get_version_from_path(self):
+        """Test extracting version from path using real paths."""
+        # Test various path formats
+        test_cases = [
+            ("/path/to/plate_v002.exr", "v002"),
+            ("/shows/test/shot_v010_final.exr", "v010"),
+            ("/data/v001/exr/plate.exr", "v001"),
+            ("/path/without/version.exr", None),
+        ]
+
+        for path, expected in test_cases:
+            result = RawPlateFinder.get_version_from_path(path)
+            if expected:
+                assert result == expected
+            else:
+                assert result is None

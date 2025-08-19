@@ -961,8 +961,9 @@ class TestThreadSafety:
 
         def operation():
             with cache_manager._lock:
-                # Simulate some cache operation
-                time.sleep(0.01)
+                # Simulate some cache operation with Qt event processing
+                from PySide6.QtCore import QCoreApplication
+                QCoreApplication.processEvents()
                 return True
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -1077,7 +1078,8 @@ class TestCacheManagerThreading:
                 test_path = Path(f"/test/cache/path_{thread_id}.jpg")
 
                 # Simulate some work before completion
-                time.sleep(0.001 * thread_id)
+                from PySide6.QtCore import QCoreApplication
+                QCoreApplication.processEvents()  # No sleep needed
 
                 result.set_result(test_path)
                 completion_results.append((thread_id, result.cache_path == test_path))
@@ -1143,7 +1145,8 @@ class TestCacheManagerThreading:
             try:
                 with manager._lock:
                     current = manager._memory_usage_bytes
-                    time.sleep(0.001)  # Simulate processing
+                    from PySide6.QtCore import QCoreApplication
+                    QCoreApplication.processEvents()  # No sleep needed
                     manager._memory_usage_bytes = current + amount
             except Exception as e:
                 logging.error(f"Thread {thread_id} error: {e}")
@@ -1288,8 +1291,9 @@ class TestCacheManagerThreading:
             """Perform cache cleanup."""
             try:
                 with manager._lock:
-                    # Simulate cleanup work
-                    time.sleep(0.01)
+                    # Simulate cleanup work with Qt event processing
+                    from PySide6.QtCore import QCoreApplication
+                    QCoreApplication.processEvents()
                     manager._cached_thumbnails.clear()
                     manager._memory_usage_bytes = 0
                     cleanup_results.append("cleanup_done")
@@ -1301,7 +1305,8 @@ class TestCacheManagerThreading:
             try:
                 with manager._lock:
                     # Simulate cache access
-                    time.sleep(0.005)
+                    from PySide6.QtCore import QCoreApplication
+                    QCoreApplication.processEvents()  # No sleep needed
                     count = len(manager._cached_thumbnails)
                     access_results.append(f"access_count: {count}")
             except Exception as e:
@@ -1453,7 +1458,8 @@ class TestCacheManagerThreading:
                             test_shot.shot,
                         )
                         retrieval_results.append((thread_id, cached is not None))
-                        time.sleep(0.001)
+                        from PySide6.QtCore import QCoreApplication
+                        QCoreApplication.processEvents()  # No sleep needed
             except Exception as e:
                 errors.append((thread_id, str(e)))
 

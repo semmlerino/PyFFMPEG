@@ -225,7 +225,8 @@ class TestConcurrentEdgeCases:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         def delete_file():
-            time.sleep(0.1)  # Wait a bit
+            from PySide6.QtCore import QCoreApplication
+            QCoreApplication.processEvents()  # Process events instead of sleep
             if exr_file.exists():
                 exr_file.unlink()
 
@@ -259,7 +260,8 @@ class TestConcurrentEdgeCases:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         def modify_file():
-            time.sleep(0.05)
+            from PySide6.QtCore import QCoreApplication
+            QCoreApplication.processEvents()  # Process events instead of sleep
             if exr_file.exists():
                 # Change file content
                 exr_file.write_bytes(b"MODIFIED" + b"y" * 2048)

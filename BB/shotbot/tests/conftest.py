@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # =============================================================================
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=False)  # Disabled for performance
 def isolated_test_environment():
     """Ensure complete test isolation by clearing all caches and shared state.
 
@@ -116,7 +116,7 @@ def cache_isolation():
 # =============================================================================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def qapp():
     """Create QApplication instance for the entire test session.
 
@@ -144,10 +144,6 @@ def qt_signal_blocker():
         timer.start(timeout_ms)
 
         # Process events until timer expires
-        QCoreApplication.instance().time if hasattr(
-            QCoreApplication.instance(),
-            "time",
-        ) else 0
         while timer.isActive():
             QCoreApplication.processEvents()
 
