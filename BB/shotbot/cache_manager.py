@@ -147,6 +147,15 @@ class CacheManager(QObject):
         # Track active async loaders for synchronization
         self._active_loaders: Dict[str, ThumbnailCacheResult] = {}
 
+        # Track failed thumbnail attempts to prevent retry loops
+        self._failed_attempts: Dict[str, Dict[str, Any]] = {}  # cache_key -> {timestamp, attempts, next_retry}
+        
+        # Failed attempt configuration
+        self._base_retry_delay_minutes = 5  # Initial delay: 5 minutes
+        self._max_retry_delay_minutes = 120  # Max delay: 2 hours
+        self._retry_multiplier = 3  # Exponential backoff multiplier
+        self._max_failed_attempts = 4  # After this many attempts, give up for max delay
+
         # Track last validation time
         self._last_validation_time = datetime.now()
         self._validation_interval_minutes = 30  # Validate every 30 minutes
@@ -277,6 +286,16 @@ class CacheManager(QObject):
                 logger.debug(f"Thumbnail already cached: {cache_path}")
                 return cache_path
 
+            # Check if this file should be skipped due to recent failures
+            should_skip, skip_reason = self._should_skip_failed_file(cache_key, source_path)
+            if should_skip:
+                logger.debug(skip_reason)
+                return None if wait else None
+
+            # Clean up old failed attempts periodically
+            if len(self._failed_attempts) > 0:
+                self._cleanup_old_failed_attempts()
+
             # Create new result container
             result = ThumbnailCacheResult()
             self._active_loaders[cache_key] = result
@@ -340,7 +359,10 @@ class CacheManager(QObject):
             if cached_path:
                 result.set_result(cached_path)
             else:
-                result.set_error("Failed to cache thumbnail")
+                error_msg = "Failed to cache thumbnail"
+                result.set_error(error_msg)
+                # Record the failed attempt for backoff (same as async path)
+                self._record_failed_attempt(cache_key, source_path, error_msg)
 
             # Cleanup loader tracking
             self._cleanup_loader(cache_key)
@@ -358,6 +380,121 @@ class CacheManager(QObject):
         """Remove completed loader from tracking."""
         with self._lock:
             self._active_loaders.pop(cache_key, None)
+
+    def _should_skip_failed_file(self, cache_key: str, source_path: Path) -> Tuple[bool, str]:
+        """Check if file should be skipped due to recent failures.
+        
+        Args:
+            cache_key: Cache key for the thumbnail
+            source_path: Source file path for logging
+            
+        Returns:
+            Tuple of (should_skip, reason_message)
+        """
+        if cache_key not in self._failed_attempts:
+            return False, ""
+            
+        failure_info = self._failed_attempts[cache_key]
+        next_retry = failure_info.get("next_retry")
+        attempts = failure_info.get("attempts", 0)
+        
+        if next_retry and datetime.now() < next_retry:
+            time_remaining = next_retry - datetime.now()
+            minutes_remaining = int(time_remaining.total_seconds() / 60)
+            
+            reason = (
+                f"Skipping recently failed thumbnail {source_path.name} "
+                f"(attempt {attempts}, retry in {minutes_remaining}min)"
+            )
+            return True, reason
+            
+        return False, ""
+
+    def _record_failed_attempt(self, cache_key: str, source_path: Path, error_msg: str):
+        """Record a failed thumbnail attempt with exponential backoff.
+        
+        Args:
+            cache_key: Cache key for the thumbnail
+            source_path: Source file path for logging
+            error_msg: Error message from the failure
+        """
+        now = datetime.now()
+        
+        if cache_key in self._failed_attempts:
+            # Increment existing failure
+            failure_info = self._failed_attempts[cache_key]
+            attempts = failure_info.get("attempts", 0) + 1
+        else:
+            # First failure
+            attempts = 1
+            
+        # Calculate next retry time with exponential backoff
+        if attempts >= self._max_failed_attempts:
+            # Max attempts reached, use maximum delay
+            delay_minutes = self._max_retry_delay_minutes
+        else:
+            # Exponential backoff: 5min, 15min, 45min, 135min...
+            delay_minutes = min(
+                self._base_retry_delay_minutes * (self._retry_multiplier ** (attempts - 1)),
+                self._max_retry_delay_minutes
+            )
+            
+        next_retry = now + timedelta(minutes=delay_minutes)
+        
+        self._failed_attempts[cache_key] = {
+            "timestamp": now,
+            "attempts": attempts,
+            "next_retry": next_retry,
+            "error": error_msg,
+            "source_path": str(source_path)
+        }
+        
+        logger.info(
+            f"Recorded failed attempt #{attempts} for {source_path.name}, "
+            f"next retry in {delay_minutes}min ({next_retry.strftime('%H:%M:%S')})"
+        )
+
+    def _cleanup_old_failed_attempts(self):
+        """Clean up old failed attempts that are past max retry time."""
+        now = datetime.now()
+        max_age = timedelta(hours=24)  # Remove failures older than 24 hours
+        
+        keys_to_remove = []
+        for cache_key, failure_info in self._failed_attempts.items():
+            timestamp = failure_info.get("timestamp", now)
+            if now - timestamp > max_age:
+                keys_to_remove.append(cache_key)
+                
+        for key in keys_to_remove:
+            del self._failed_attempts[key]
+            
+        if keys_to_remove:
+            logger.debug(f"Cleaned up {len(keys_to_remove)} old failed attempts")
+
+    def clear_failed_attempts(self, cache_key: Optional[str] = None):
+        """Clear failed attempts to allow immediate retry.
+        
+        Args:
+            cache_key: Specific cache key to clear, or None to clear all
+        """
+        if cache_key:
+            if cache_key in self._failed_attempts:
+                failure_info = self._failed_attempts.pop(cache_key)
+                source_path = failure_info.get("source_path", cache_key)
+                logger.info(f"Cleared failed attempts for {source_path}")
+        else:
+            count = len(self._failed_attempts)
+            self._failed_attempts.clear()
+            if count > 0:
+                logger.info(f"Cleared all {count} failed attempts")
+
+    def get_failed_attempts_status(self) -> Dict[str, Dict[str, Any]]:
+        """Get current status of failed attempts for debugging.
+        
+        Returns:
+            Dictionary of cache_key -> failure info
+        """
+        return dict(self._failed_attempts)
 
     def cache_thumbnail_direct(
         self,
@@ -1205,6 +1342,12 @@ class CacheManager(QObject):
                 # Clear memory tracking to prevent leaks
                 self._cached_thumbnails.clear()
                 self._memory_usage_bytes = 0
+                
+                # Clear failed attempts tracking
+                failed_count = len(self._failed_attempts)
+                self._failed_attempts.clear()
+                if failed_count > 0:
+                    logger.debug(f"Cleared {failed_count} failed attempts during shutdown")
 
                 logger.info("CacheManager shutdown complete")
 
@@ -1285,6 +1428,10 @@ class ThumbnailCacheLoader(QRunnable):
                         # Signals object was deleted, safe to ignore
                         pass
                 logger.warning(error_msg)
+                
+                # Record the failed attempt for backoff
+                cache_key = f"{self.show}_{self.sequence}_{self.shot}"
+                self.cache_manager._record_failed_attempt(cache_key, self.source_path, error_msg)
 
         except Exception as e:
             # Set exception result
@@ -1304,6 +1451,10 @@ class ThumbnailCacheLoader(QRunnable):
                     # Signals object was deleted, safe to ignore
                     pass
             logger.error(error_msg)
+            
+            # Record the failed attempt for backoff
+            cache_key = f"{self.show}_{self.sequence}_{self.shot}"
+            self.cache_manager._record_failed_attempt(cache_key, self.source_path, error_msg)
 
         finally:
             # Cleanup loader from tracking
