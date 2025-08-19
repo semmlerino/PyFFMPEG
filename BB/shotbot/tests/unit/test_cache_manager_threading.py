@@ -97,17 +97,18 @@ class TestCacheManagerThreading:
         test_path = Path("/test/cache/path.jpg")
         result.set_result(test_path)
 
-        # Verify first completion worked
+        # Verify first completion worked - test BEHAVIOR not internals
         assert result.cache_path == test_path
-        assert result._is_complete is True
+        # Check completion state (behavior: path was set successfully)
+        assert result.cache_path is not None
 
         # Attempt second completion - should be ignored
         test_path2 = Path("/test/cache/path2.jpg")
         result.set_result(test_path2)
 
-        # Verify second completion was ignored
-        assert result.cache_path == test_path  # Still first path
-        assert result._is_complete is True
+        # Verify second completion was ignored - check outcome
+        assert result.cache_path == test_path  # Still first path (behavior)
+        assert result.cache_path != test_path2  # Not changed (behavior)
 
     def test_thumbnail_cache_result_concurrent_completion(self):
         """Test ThumbnailCacheResult thread safety with concurrent completion attempts."""
@@ -378,12 +379,13 @@ class TestCacheManagerThreading:
         manager._max_memory_bytes = 1000  # 1KB limit
 
         try:
-            # Mock large image
+            # Use ThreadSafeTestImage to simulate large image
+            test_image = ThreadSafeTestImage(500, 500)  # Large image
+            
             with patch("cache_manager.QImage") as mock_image_class:
-                mock_image = MagicMock()
-                mock_image.isNull.return_value = False
-                mock_image.sizeInBytes.return_value = 2000  # Exceeds limit
-                mock_image_class.return_value = mock_image
+                # Configure test image to exceed memory limit
+                test_image._image.sizeInBytes = lambda: 2000  # Exceeds 1KB limit
+                mock_image_class.return_value = test_image._image
 
                 with patch("cache_manager.Path.exists", return_value=True):
                     shot = Shot("test", "seq", "shot", "/path")
@@ -396,7 +398,7 @@ class TestCacheManagerThreading:
                         shot.shot,
                     )
 
-                    # Verify memory tracking
+                    # Verify memory tracking behavior
                     assert (
                         manager._memory_usage_bytes <= manager._max_memory_bytes
                         or result is None
