@@ -760,7 +760,7 @@ class PersistentBashSession:
     def execute(
         self,
         command: str,
-        timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT),
+        timeout: Optional[int] = None,
     ) -> str:
         """Execute command in persistent session.
 
@@ -775,6 +775,9 @@ class PersistentBashSession:
             TimeoutError: If command times out
             RuntimeError: If session is dead
         """
+        if timeout is None:
+            timeout = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
+            
         if DEBUG_VERBOSE:
             logger.debug(
                 f"[{self.session_id}] Execute called with command: {command[:100]}...",
@@ -1031,7 +1034,7 @@ class ProcessPoolManager(QObject):
         self,
         command: str,
         cache_ttl: int = 30,
-        timeout: int = int(ThreadingConfig.SUBPROCESS_TIMEOUT),
+        timeout: Optional[int] = None,
     ) -> str:
         """Execute workspace command with caching and session reuse.
 
@@ -1043,6 +1046,9 @@ class ProcessPoolManager(QObject):
         Returns:
             Command output
         """
+        if timeout is None:
+            timeout = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
+            
         if DEBUG_VERBOSE:
             logger.debug(f"execute_workspace_command called: {command[:50]}...")
 

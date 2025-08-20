@@ -263,8 +263,34 @@ class ThumbnailProcessor:
             logger.debug(f"PIL loading failed for {source_path}: {e}")
             return None
 
+    def _get_rez_environment_info(self):
+        """Get Rez environment information for debugging.
+        
+        Returns:
+            dict: Rez environment details
+        """
+        import os
+        import sys
+        
+        rez_info = {}
+        
+        # Check for Rez environment variables
+        rez_vars = {key: value for key, value in os.environ.items() if key.startswith("REZ_")}
+        rez_info["rez_variables"] = rez_vars
+        
+        # Check for specific packages
+        rez_info["openexr_root"] = os.getenv("REZ_OPENEXR_ROOT")
+        rez_info["imageio_root"] = os.getenv("REZ_IMAGEIO_ROOT")
+        rez_info["used_resolve"] = os.getenv("REZ_USED_RESOLVE", "").split()
+        
+        # Python path info
+        rez_info["python_path"] = sys.path
+        rez_info["in_rez_env"] = bool(rez_vars)
+        
+        return rez_info
+
     def _load_exr_image(self, source_path: Path):
-        """Load EXR image with specialized backends.
+        """Load EXR image with specialized backends and Rez environment support.
 
         Args:
             source_path: Path to EXR file
@@ -272,26 +298,51 @@ class ThumbnailProcessor:
         Returns:
             PIL Image object or None if failed
         """
+        # Get Rez environment info for enhanced debugging
+        rez_info = self._get_rez_environment_info()
+        
+        if rez_info["in_rez_env"]:
+            logger.debug(f"Processing EXR in Rez environment. Resolved packages: {rez_info['used_resolve']}")
+        
         # Try OpenEXR first
         try:
             return self._load_exr_with_openexr(source_path)
-        except ImportError:
-            logger.debug("OpenEXR not available")
+        except ImportError as e:
+            if rez_info["in_rez_env"]:
+                if rez_info["openexr_root"]:
+                    logger.warning(f"OpenEXR import failed in Rez environment (package at {rez_info['openexr_root']}): {e}")
+                else:
+                    logger.warning(f"OpenEXR import failed in Rez environment (no REZ_OPENEXR_ROOT): {e}")
+            else:
+                logger.debug("OpenEXR not available")
         except Exception as e:
             logger.debug(f"OpenEXR loading failed: {e}")
 
         # Try imageio as fallback
         try:
             return self._load_exr_with_imageio(source_path)
-        except ImportError:
-            logger.debug("imageio not available")
+        except ImportError as e:
+            if rez_info["in_rez_env"]:
+                if rez_info["imageio_root"]:
+                    logger.warning(f"imageio import failed in Rez environment (package at {rez_info['imageio_root']}): {e}")
+                else:
+                    logger.warning(f"imageio import failed in Rez environment (no REZ_IMAGEIO_ROOT): {e}")
+            else:
+                logger.debug("imageio not available")
         except Exception as e:
             logger.debug(f"imageio loading failed: {e}")
 
+        # Final error summary for Rez environments
+        if rez_info["in_rez_env"]:
+            logger.error(f"All EXR backends failed in Rez environment. Check package configurations for: {[pkg for pkg in rez_info['used_resolve'] if 'openexr' in pkg.lower() or 'imageio' in pkg.lower()]}")
+        
         return None
 
     def _load_exr_with_openexr(self, source_path: Path):
-        """Load EXR using OpenEXR library.
+        """Load EXR using OpenEXR library with Rez environment support.
+
+        Handles both official OpenEXR package and alternative openexr packages
+        commonly found in VFX Rez environments.
 
         Args:
             source_path: Path to EXR file
@@ -299,13 +350,75 @@ class ThumbnailProcessor:
         Returns:
             PIL Image object
         """
-        import Imath
-        import numpy as np
-        import OpenEXR
-        from PIL import Image as PILImage
+        # Rez environment diagnostics
+        import os
 
-        # Open EXR file
-        exr_file = OpenEXR.InputFile(str(source_path))
+        import numpy as np
+        from PIL import Image as PILImage
+        rez_openexr_root = os.getenv("REZ_OPENEXR_ROOT")
+        if rez_openexr_root:
+            logger.debug(f"Rez OpenEXR package detected at: {rez_openexr_root}")
+        
+        # Try dual import strategy for Rez compatibility
+        openexr_module = None
+        imath_module = None
+        api_style = None
+        
+        # Strategy 1: Try official OpenEXR (uppercase)
+        try:
+            import Imath
+            import OpenEXR
+            openexr_module = OpenEXR
+            imath_module = Imath
+            api_style = "official"
+            logger.debug("Using official OpenEXR package (uppercase)")
+        except ImportError:
+            logger.debug("Official OpenEXR package not available, trying alternative")
+            
+        # Strategy 2: Try alternative openexr (lowercase) - common in Rez
+        if openexr_module is None:
+            try:
+                import openexr
+                # Alternative packages often have different Imath location
+                try:
+                    import Imath
+                    imath_module = Imath
+                except ImportError:
+                    # Some packages bundle Imath differently
+                    import imath as Imath
+                    imath_module = Imath
+                openexr_module = openexr
+                api_style = "alternative"
+                logger.debug("Using alternative openexr package (lowercase)")
+            except ImportError:
+                logger.debug("Alternative openexr package not available")
+        
+        if openexr_module is None or imath_module is None:
+            # Enhanced error reporting for Rez environments
+            missing_modules = []
+            if openexr_module is None:
+                missing_modules.append("OpenEXR")
+            if imath_module is None:
+                missing_modules.append("Imath")
+            
+            error_msg = f"Required modules not found: {', '.join(missing_modules)}"
+            if rez_openexr_root:
+                error_msg += f" (Rez package at {rez_openexr_root} may be misconfigured)"
+            else:
+                error_msg += " (not in Rez environment, check package installation)"
+            raise ImportError(error_msg)
+
+        # Open EXR file using detected API
+        if api_style == "official":
+            exr_file = openexr_module.InputFile(str(source_path))
+        else:
+            # Alternative packages may have different API
+            try:
+                exr_file = openexr_module.InputFile(str(source_path))
+            except AttributeError:
+                # Some alternative packages use different method names
+                exr_file = openexr_module.File(str(source_path))
+        
         header = exr_file.header()
 
         # Get dimensions
@@ -313,8 +426,8 @@ class ThumbnailProcessor:
         width = dw.max.x - dw.min.x + 1
         height = dw.max.y - dw.min.y + 1
 
-        # Read RGB channels
-        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+        # Read RGB channels using detected Imath module
+        FLOAT = imath_module.PixelType(imath_module.PixelType.FLOAT)
         channels = []
 
         for channel in ["R", "G", "B"]:
@@ -332,10 +445,11 @@ class ThumbnailProcessor:
         img_array = np.clip(img_array, 0, 1)  # Simple tone mapping
         img_array = (img_array * 255).astype(np.uint8)
 
+        logger.debug(f"Successfully loaded EXR using {api_style} OpenEXR API")
         return PILImage.fromarray(img_array, mode="RGB")
 
     def _load_exr_with_imageio(self, source_path: Path):
-        """Load EXR using imageio library.
+        """Load EXR using imageio library with Rez environment support.
 
         Args:
             source_path: Path to EXR file
@@ -343,12 +457,49 @@ class ThumbnailProcessor:
         Returns:
             PIL Image object
         """
-        import imageio.v3 as iio
+        import os
+
         import numpy as np
         from PIL import Image as PILImage
+        
+        # Rez environment diagnostics
+        rez_imageio_root = os.getenv("REZ_IMAGEIO_ROOT")
+        if rez_imageio_root:
+            logger.debug(f"Rez imageio package detected at: {rez_imageio_root}")
+        
+        # Try imageio import with version fallback
+        imageio_module = None
+        try:
+            import imageio.v3 as iio
+            imageio_module = iio
+            logger.debug("Using imageio.v3 API")
+        except ImportError:
+            try:
+                import imageio as iio
+                imageio_module = iio
+                logger.debug("Using imageio v2 API (fallback)")
+            except ImportError:
+                error_msg = "imageio not available"
+                if rez_imageio_root:
+                    error_msg += f" (Rez package at {rez_imageio_root} may be misconfigured)"
+                raise ImportError(error_msg)
 
-        # Read with imageio
-        img_array = iio.imread(str(source_path))
+        # Check for EXR backend availability
+        try:
+            # Test backend detection by trying to read the file
+            img_array = imageio_module.imread(str(source_path))
+            logger.debug("imageio successfully loaded EXR with available backend")
+        except Exception as e:
+            # Enhanced error reporting for missing backends
+            error_details = str(e)
+            if "Could not find a backend" in error_details:
+                backend_msg = "imageio missing EXR backends"
+                if rez_imageio_root:
+                    backend_msg += " (Rez imageio package needs EXR plugins - check if imageio[opencv] or imageio[pyav] components are included)"
+                else:
+                    backend_msg += " (install with: pip install imageio[opencv] or imageio[pyav])"
+                logger.warning(backend_msg)
+            raise
 
         # Normalize if needed
         if img_array.dtype in [np.float32, np.float64]:
