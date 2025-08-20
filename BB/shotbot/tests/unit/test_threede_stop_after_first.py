@@ -2,7 +2,7 @@
 """Comprehensive tests for stop-after-first optimization behavior.
 
 Following UNIFIED_TESTING_GUIDE best practices:
-- Tests behavior, not implementation  
+- Tests behavior, not implementation
 - Uses real files with tmp_path
 - Strategic boundary mocking when appropriate
 - Performance testing with real implementation
@@ -13,7 +13,7 @@ Consolidated from test_stop_after_first_behavior.py and test_stop_after_first_no
 import time
 from pathlib import Path
 from typing import List
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 

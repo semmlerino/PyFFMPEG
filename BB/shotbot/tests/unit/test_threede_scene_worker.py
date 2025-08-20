@@ -133,6 +133,7 @@ class TestProgressCalculator:
         # Simulate processing with time delays
         calc.update(10)
         from PySide6.QtCore import QCoreApplication
+
         QCoreApplication.processEvents()  # Process events instead of sleep
         calc.update(20)
         time.sleep(0.01)

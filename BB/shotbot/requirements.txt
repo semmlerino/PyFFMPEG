@@ -2,3 +2,5 @@ PySide6>=6.0.0
 psutil>=5.9.0
 pillow>=10.0.0
 Jinja2>=3.0.0
+OpenEXR>=1.3.0
+olefile>=0.46

@@ -64,13 +64,8 @@ import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
 
-from main_window import MainWindow
-
-
-def setup_logging():
+def setup_logging() -> None:
     """Configure logging for the application."""
     # Create logs directory
     log_dir = Path.home() / ".shotbot" / "logs"
@@ -104,6 +99,67 @@ def setup_logging():
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
+    # Suppress PIL/Pillow debug logging - it's too verbose
+    # PIL loads all its plugins on import and logs debug messages for each one
+    pil_logger = logging.getLogger("PIL")
+    pil_logger.setLevel(logging.INFO)  # Only show INFO and above from PIL
+
+    # Also suppress the Image module specifically
+    pil_image_logger = logging.getLogger("PIL.Image")
+    pil_image_logger.setLevel(logging.INFO)
+
+    # Suppress PngImagePlugin debug messages
+    pil_png_logger = logging.getLogger("PIL.PngImagePlugin")
+    pil_png_logger.setLevel(logging.INFO)
+
+    # Suppress all PIL plugin loggers - comprehensive list
+    for plugin_name in [
+        "PIL.BmpImagePlugin",
+        "PIL.GifImagePlugin",
+        "PIL.JpegImagePlugin",
+        "PIL.PpmImagePlugin",
+        "PIL.TiffImagePlugin",
+        "PIL.WebPImagePlugin",
+        "PIL.PcxImagePlugin",
+        "PIL.SgiImagePlugin",
+        "PIL.IcoImagePlugin",
+        "PIL.ImImagePlugin",
+        "PIL.ImtImagePlugin",
+        "PIL.MspImagePlugin",
+        "PIL.PcdImagePlugin",
+        "PIL.TgaImagePlugin",
+        "PIL.XbmImagePlugin",
+        "PIL.XpmImagePlugin",
+        "PIL.XVThumbImagePlugin",
+        "PIL.FliImagePlugin",
+        "PIL.FpxImagePlugin",
+        "PIL.GbrImagePlugin",
+        "PIL.CurImagePlugin",
+        "PIL.DcxImagePlugin",
+        "PIL.FitsImagePlugin",
+        "PIL.FtexImagePlugin",
+        "PIL.GdImageFile",
+        "PIL.IptcImagePlugin",
+        "PIL.McIdasImagePlugin",
+        "PIL.MicImagePlugin",
+        "PIL.MpegImagePlugin",
+        "PIL.PixarImagePlugin",
+        "PIL.PsdImagePlugin",
+        "PIL.SunImagePlugin",
+        "PIL.EpsImagePlugin",
+        "PIL.IcnsImagePlugin",
+        "PIL.SpiderImagePlugin",
+        "PIL.PalmImagePlugin",
+        "PIL.PdfImagePlugin",
+        "PIL.BlpImagePlugin",
+        "PIL.DdsImagePlugin",
+        "PIL.Hdf5StubImagePlugin",
+        "PIL.WmfImagePlugin",
+        "PIL.QoiImagePlugin",
+    ]:
+        plugin_logger = logging.getLogger(plugin_name)
+        plugin_logger.setLevel(logging.INFO)
+
     # Log startup
     logger = logging.getLogger(__name__)
     logger.info("ShotBot logging initialized")
@@ -113,10 +169,17 @@ def setup_logging():
         logger.debug("Debug logging is enabled in console")
 
 
-def main():
+def main() -> None:
     """Main entry point."""
-    # Initialize logging first
+    # Initialize logging first - BEFORE any imports that might trigger PIL
     setup_logging()
+
+    # Now import Qt and main window AFTER logging is configured
+    # This ensures PIL logging is suppressed before PIL is imported
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QApplication
+
+    from main_window import MainWindow
 
     # Create application
     app = QApplication(sys.argv)

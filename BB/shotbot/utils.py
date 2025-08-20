@@ -49,8 +49,9 @@ class CacheIsolation:
     """Context manager for cache isolation in tests."""
 
     def __init__(self):
-        self.original_cache_state = None
-        self.original_disabled_state = None
+        super().__init__()
+        self.original_cache_state: Optional[Dict[str, Tuple[bool, float]]] = None
+        self.original_disabled_state: Optional[bool] = None
 
     def __enter__(self):
         """Enter context with isolated cache."""
@@ -69,8 +70,10 @@ class CacheIsolation:
         global _path_cache, _cache_disabled
         # Restore original state
         _path_cache.clear()
-        _path_cache.update(self.original_cache_state)
-        _cache_disabled = self.original_disabled_state
+        if self.original_cache_state is not None:
+            _path_cache.update(self.original_cache_state)
+        if self.original_disabled_state is not None:
+            _cache_disabled = self.original_disabled_state
         logger.debug("Cache isolation context exited")
 
 

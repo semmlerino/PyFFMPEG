@@ -33,6 +33,7 @@ class WorkerTestHelper(ThreadSafeWorker):
             if self.should_stop():
                 return  # Return early, don't set work_completed
             from PySide6.QtCore import QCoreApplication
+
             QCoreApplication.processEvents()  # Process events instead of sleep
 
         if self.should_fail:
@@ -297,6 +298,7 @@ class TestThreadSafeWorker:
 
         # Wait a bit for work to start
         from PySide6.QtCore import QCoreApplication
+
         QCoreApplication.processEvents()  # Process events instead of sleep
 
         # Test safe_terminate (should be graceful for short work)
@@ -320,6 +322,7 @@ class TestThreadSafeWorker:
                     state = worker.get_state()
                     results.append((thread_id, i, state))
                     from PySide6.QtCore import QCoreApplication
+
                     QCoreApplication.processEvents()  # No sleep needed
             except Exception as e:
                 errors.append((thread_id, str(e)))

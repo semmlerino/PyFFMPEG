@@ -7,17 +7,29 @@ This refactored version:
 - Follows the principle of minimal mocking
 """
 
+# pyright: basic
+"""Unit tests for ShotModel class following UNIFIED_TESTING_GUIDE best practices.
+
+This refactored version:
+- Uses real components with test doubles only at system boundaries
+- Tests behavior, not implementation (no assert_called)
+- Uses real files with tmp_path instead of mocking PathUtils/FileUtils
+- Follows the principle of minimal mocking
+"""
+
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
 from shot_model import RefreshResult, Shot
+from tests.unit.test_protocols import TestShotFactory
 
 
 class TestShot:
     """Test cases for Shot dataclass using real files."""
 
-    def test_shot_creation(self, make_test_shot):
+    def test_shot_creation(self, make_test_shot: TestShotFactory) -> None:
         """Test Shot instance creation with real paths."""
         shot = make_test_shot("testshow", "101_ABC", "0010")
 

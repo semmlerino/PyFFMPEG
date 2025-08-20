@@ -239,6 +239,30 @@ def test_shot_model(qtbot):
 - Multiple launchers can run simultaneously
 - Worker threads for non-blocking operations
 
+### Test Performance Baseline (2025-08-19)
+Following comprehensive test suite optimization, the current performance baseline is:
+
+**Before Optimization:**
+- Test suite timing out after 2+ minutes
+- 681 tests with excessive parametrization and sleep() operations
+- Multiple duplicate test files causing confusion and maintenance overhead
+
+**After Optimization:**
+- **Target Baseline**: 111 tests passing in 24.75 seconds (95% improvement)
+- **Coverage Analysis**: 91 core tests in 9.38 seconds with 61% overall coverage
+- **Key Improvements**: Eliminated sleep() calls, reduced parametrization, consolidated duplicate files
+
+**Current Status:**
+- All critical test infrastructure issues resolved
+- Perfect 1:1 component-to-test-file mapping achieved
+- UNIFIED_TESTING_GUIDE compliance maintained
+- Note: Some variability observed in full suite timing (24-60+ seconds) depending on system load
+
+**Coverage Levels:**
+- shot_model.py: 78% coverage (core functionality well tested)
+- cache_manager.py: 57% coverage (complex threading and error paths)
+- Overall: 61% coverage across tested modules
+
 ## Recent Enhancements
 
 ### Custom Launcher System (Latest)

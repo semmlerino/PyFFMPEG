@@ -347,25 +347,32 @@ class TestShotDeduplication(unittest.TestCase):
         ]
 
         # Separate into My Shots and Other 3DE scenes
+        # Logic: "Other 3DE scenes" shows files from shots NOT assigned to user
         my_shots = []
         other_scenes = []
 
         for scene in scenes:
             shot_key = (scene["show"], scene["sequence"], scene["shot"])
             if shot_key in user_shots and scene["username"] == current_user:
+                # User's own files for assigned shots go to "My Shots"
                 my_shots.append(scene)
             elif shot_key not in user_shots:
+                # Files for non-assigned shots go to "Other 3DE scenes"
+                # regardless of who created them
                 other_scenes.append(scene)
+            # NOTE: Other users' files for user's assigned shots are ignored
+            # (they don't appear in either tab)
 
         # User should only see their own files for assigned shots
         self.assertEqual(len(my_shots), 1)
         self.assertEqual(my_shots[0]["username"], current_user)
         self.assertEqual(my_shots[0]["shot"], "1400")
 
-        # Other scenes should include non-assigned shots
-        self.assertEqual(len(other_scenes), 2)
+        # Other scenes should only include files for non-assigned shots
+        # Shot 1420 is not assigned to user, so it appears in Other 3DE scenes
+        self.assertEqual(len(other_scenes), 1)
         other_shots = {s["shot"] for s in other_scenes}
-        self.assertEqual(other_shots, {"1410", "1420"})
+        self.assertEqual(other_shots, {"1420"})
 
     def deduplicate_scenes(self, scenes: List[Dict]) -> List[Dict]:
         """Apply deduplication logic to scenes.

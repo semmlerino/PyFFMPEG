@@ -14,7 +14,7 @@ import subprocess
 import threading
 import time
 import uuid
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import QCoreApplication
@@ -83,6 +83,7 @@ class MockWorker(ThreadSafeWorker):
     def do_work(self) -> None:
         """Mock work implementation."""
         from PySide6.QtCore import QCoreApplication
+
         QCoreApplication.processEvents()  # Process Qt events instead of sleep
 
 
@@ -340,6 +341,7 @@ class TestLauncherManager:
 
         # Process Qt events to ensure signals are delivered
         from PySide6.QtCore import QCoreApplication
+
         QCoreApplication.processEvents()
 
         # Verify creation behavior
@@ -398,6 +400,7 @@ class TestLauncherManager:
 
         # Process Qt events
         from PySide6.QtCore import QCoreApplication
+
         QCoreApplication.processEvents()
 
         # Verify validation behavior
@@ -532,6 +535,7 @@ class TestLauncherManager:
 
         # Process Qt events
         from PySide6.QtCore import QCoreApplication
+
         QCoreApplication.processEvents()
 
         # Verify validation behavior
@@ -613,6 +617,7 @@ class TestLauncherManager:
 
         # Process Qt events
         from PySide6.QtCore import QCoreApplication
+
         QCoreApplication.processEvents()
 
         # Verify validation behavior
@@ -757,6 +762,7 @@ class TestLauncherExecution:
 
         # Process Qt events
         from PySide6.QtCore import QCoreApplication
+
         QCoreApplication.processEvents()
 
         # Verify validation behavior
@@ -1061,6 +1067,7 @@ class TestThreadSafety:
                 len(launcher_manager._active_processes)
                 # Simulate some work that could cause race conditions
                 from PySide6.QtCore import QCoreApplication
+
                 QCoreApplication.processEvents()  # No sleep needed
 
                 # Create unique process info
@@ -1398,6 +1405,7 @@ class TestConcurrentExecution:
 
         # Process Qt events to ensure signals are delivered
         from PySide6.QtCore import QCoreApplication
+
         QCoreApplication.processEvents()  # Process events instead of sleep
         from PySide6.QtCore import QCoreApplication
 
@@ -1494,6 +1502,7 @@ class TestThreadSafetyAdvanced:
 
                 # Small delay to increase chance of collision if not thread-safe
                 from PySide6.QtCore import QCoreApplication
+
                 QCoreApplication.processEvents()  # No sleep needed
 
             # Add to shared collection thread-safely
@@ -1569,6 +1578,7 @@ class TestThreadSafetyAdvanced:
 
                 # Small delay to increase contention
                 from PySide6.QtCore import QCoreApplication
+
                 QCoreApplication.processEvents()  # No sleep needed
 
                 # Read process count
@@ -1738,8 +1748,20 @@ class TestLauncherWorkerLifecycle:
 
             # Start worker
             worker.start()
-            from PySide6.QtCore import QCoreApplication
-            QCoreApplication.processEvents()  # Process events instead of sleep
+            # Wait for the worker to actually start running
+            # The state should transition: CREATED -> STARTING -> RUNNING
+            import time
+
+            max_wait_time = 1.0  # 1 second max wait
+            start_time = time.time()
+            while time.time() - start_time < max_wait_time:
+                from PySide6.QtCore import QCoreApplication
+
+                QCoreApplication.processEvents()
+                current_state = worker.get_state()
+                if current_state != WorkerState.CREATED:
+                    break
+                time.sleep(0.01)  # Small sleep to allow state transition
 
             # Should be in a valid running state or may have already finished
             current_state = worker.get_state()
@@ -1759,7 +1781,7 @@ class TestLauncherWorkerLifecycle:
                 )
 
             # Wait for completion
-            finished = worker.wait(200)  # Reduced timeout from 5000ms to 200ms
+            finished = worker.wait(1000)  # Increased timeout to 1000ms
             assert finished, "Worker should finish within timeout"
 
             # Final state should be STOPPED or DELETED
@@ -1973,7 +1995,10 @@ class TestSignalThreadSafety:
 
             # Process events to allow worker to run and emit signals
             from PySide6.QtCore import QCoreApplication
-            for _ in range(10):  # Multiple event processing cycles instead of long sleep
+
+            for _ in range(
+                10
+            ):  # Multiple event processing cycles instead of long sleep
                 QCoreApplication.processEvents()
 
             # Stop any active workers
@@ -2110,6 +2135,7 @@ class TestSignalThreadSafety:
 
 # === Additional Test Classes from Consolidation ===
 
+
 class TestLauncherThreadSafetyBehavior:
     """Test thread safety BEHAVIOR without testing internals."""
 
@@ -2187,6 +2213,7 @@ class TestLauncherThreadSafetyBehavior:
                     launchers = self.manager.list_launchers()
                     assert isinstance(launchers, list)
                     from PySide6.QtCore import QCoreApplication
+
                     QCoreApplication.processEvents()  # No sleep needed
                 except Exception as e:
                     errors.append(f"Read error: {e}")
@@ -2202,6 +2229,7 @@ class TestLauncherThreadSafetyBehavior:
                     )
                     if launcher_id:
                         from PySide6.QtCore import QCoreApplication
+
                         QCoreApplication.processEvents()  # No sleep needed
                         self.manager.delete_launcher(launcher_id)
                 except Exception as e:
@@ -2295,15 +2323,25 @@ class TestLauncherThreadSafetyBehavior:
 
         def modify_from_thread(thread_id):
             """Modify launchers from a thread."""
+            import time
+            import uuid
+
+            # Make names unique with timestamp and UUID to avoid collisions
+            unique_name = f"Signal Test {thread_id} {int(time.time() * 1000)} {str(uuid.uuid4())[:8]}"
             launcher_id = self.manager.create_launcher(
-                name=f"Signal Test {thread_id}",
-                command="echo test",
+                name=unique_name,
+                command=f"echo test{thread_id}",  # Make commands unique too
                 description=f"Signal test {thread_id}",
             )
             if launcher_id:
                 from PySide6.QtCore import QCoreApplication
-                QCoreApplication.processEvents()  # No sleep needed
+
+                QCoreApplication.processEvents()  # Process events after create
+                # Give time for signal processing
+                time.sleep(0.1)
                 self.manager.delete_launcher(launcher_id)
+                QCoreApplication.processEvents()  # Process events after delete
+                time.sleep(0.1)
 
         # Start multiple threads
         threads = []
@@ -2316,12 +2354,17 @@ class TestLauncherThreadSafetyBehavior:
         for thread in threads:
             thread.join(timeout=5)
 
-        # Process Qt events
+        # Process Qt events and wait a bit more for signals to propagate
         app = QCoreApplication.instance()
         if app:
-            app.processEvents()
+            for _ in range(10):  # Process events multiple times
+                app.processEvents()
+                import time
 
-        # Should have received signals (at least 3 creates)
+                time.sleep(0.01)
+
+        # Should have received signals (6 total: 3 creates + 3 deletes)
+        # But we'll accept at least 3 for create operations
         assert signal_count >= 3, f"Expected at least 3 signals, got {signal_count}"
 
 

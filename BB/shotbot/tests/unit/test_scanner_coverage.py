@@ -119,8 +119,15 @@ class TestScannerCoverage(unittest.TestCase):
         for file_path in all_discovered_files:
             shot_info = self.finder.extract_shot_info_from_path(file_path)
             if shot_info:
-                show, sequence, shot, _ = shot_info
-                discovered_shots.add((show.split("/")[-1], sequence, shot))
+                workspace_path, sequence, shot, _ = shot_info
+                # Extract show name from workspace_path
+                # Pattern: /shows/{show}/shots/{sequence}/{shot}
+                path_parts = Path(workspace_path).parts
+                if "shows" in path_parts and len(path_parts) >= 4:
+                    shows_idx = path_parts.index("shows")
+                    if shows_idx + 1 < len(path_parts):
+                        show_name = path_parts[shows_idx + 1]
+                        discovered_shots.add((show_name, sequence, shot))
 
         # User should have only 2 shots
         self.assertEqual(len(user_shots), 2)

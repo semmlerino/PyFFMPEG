@@ -4,14 +4,25 @@ This conftest provides clean, isolated fixtures for tests that need them.
 Qt components are NOT mocked to allow real signal testing.
 """
 
+# pyright: basic
+"""Shared fixtures for pytest tests following best practices.
+
+This conftest provides clean, isolated fixtures for tests that need them.
+Qt components are NOT mocked to allow real signal testing.
+"""
+
 import gc
 import sys
 from pathlib import Path
+from typing import Generator, Callable, List, Any
 from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import QCoreApplication, QTimer
 from PySide6.QtWidgets import QApplication
+
+# Import protocols for type safety
+from tests.unit.test_protocols import TestShotFactory, TestConfigDir, TestTempDir
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -357,7 +368,7 @@ def make_real_plate_files(tmp_path):
 
 
 @pytest.fixture
-def temp_cache_dir(tmp_path):
+def temp_cache_dir(tmp_path: Path) -> TestConfigDir:
     """Create a temporary cache directory for testing."""
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()

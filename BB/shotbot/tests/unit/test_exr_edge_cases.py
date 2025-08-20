@@ -217,7 +217,6 @@ class TestConcurrentEdgeCases:
     def test_file_deleted_during_processing(self, tmp_path):
         """File deleted while being processed should be handled."""
         import threading
-        import time
 
         exr_file = tmp_path / "vanishing.exr"
         exr_file.write_bytes(b"EXR" + b"x" * 1024)
@@ -226,6 +225,7 @@ class TestConcurrentEdgeCases:
 
         def delete_file():
             from PySide6.QtCore import QCoreApplication
+
             QCoreApplication.processEvents()  # Process events instead of sleep
             if exr_file.exists():
                 exr_file.unlink()
@@ -252,7 +252,6 @@ class TestConcurrentEdgeCases:
     def test_file_modified_during_processing(self, tmp_path):
         """File modified while being processed should be handled."""
         import threading
-        import time
 
         exr_file = tmp_path / "changing.exr"
         exr_file.write_bytes(b"EXR" + b"x" * 1024)
@@ -261,6 +260,7 @@ class TestConcurrentEdgeCases:
 
         def modify_file():
             from PySide6.QtCore import QCoreApplication
+
             QCoreApplication.processEvents()  # Process events instead of sleep
             if exr_file.exists():
                 # Change file content

@@ -300,11 +300,13 @@ class ShotItemModel(QAbstractListModel):
         for row in range(start, end):
             shot = self._shots[row]
 
-            # Skip if already loaded or loading
+            # Skip if already loaded
             if shot.full_name in self._thumbnail_cache:
                 continue
 
-            if self._loading_states.get(shot.full_name) == "loading":
+            # Skip if loading or previously failed
+            state = self._loading_states.get(shot.full_name)
+            if state in ("loading", "failed"):
                 continue
 
             # Start loading

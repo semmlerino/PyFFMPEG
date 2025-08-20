@@ -41,7 +41,6 @@ class TestCommandCacheSimple:
         assert cache.get("echo test") == "output"
 
         # Wait for expiration by checking repeatedly with minimal delay
-        import time
         start_time = time.time()
         while time.time() - start_time < 1.2:  # Max 1.2s timeout
             if cache.get("echo test") is None:

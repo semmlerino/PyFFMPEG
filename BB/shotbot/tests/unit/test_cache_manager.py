@@ -4,7 +4,7 @@ Tests caching operations, TTL expiration, memory management, and thread safety.
 
 Consolidated from:
 - test_cache_manager.py (basic functionality)
-- test_cache_manager_enhanced.py (advanced features)  
+- test_cache_manager_enhanced.py (advanced features)
 - test_cache_manager_threading.py (threading safety)
 
 Following UNIFIED_TESTING_GUIDE principles:
@@ -20,14 +20,14 @@ import json
 import logging
 import tempfile
 import threading
-import time
 from concurrent.futures import Future
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Generator, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtCore import Qt, QSize, QThreadPool
+from PySide6.QtCore import QSize, QThreadPool
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QSignalSpy
 
@@ -94,9 +94,9 @@ def sample_3de_scene():
         sequence="seq01",
         shot="shot01",
         user="test_user",
-        plate="bg01", 
+        plate="bg01",
         scene_path="/path/to/scene.3de",
-        workspace_path="/shows/test_show/seq01/shot01"
+        workspace_path="/shows/test_show/seq01/shot01",
     )
 
 
@@ -135,7 +135,7 @@ def exr_image(tmp_path):
 class TestCacheManager:
     """Test CacheManager core functionality."""
 
-    def test_cache_manager_initialization(self, temp_cache_dir):
+    def test_cache_manager_initialization(self, temp_cache_dir: Path) -> None:
         """Test CacheManager initialization with custom directory."""
         manager = CacheManager(cache_dir=temp_cache_dir)
 
@@ -257,14 +257,14 @@ class TestCacheManager:
 
         # Use ThreadSafeTestImage instead of patching QImage
         test_image = ThreadSafeTestImage(100, 100)
-        
+
         # Patch QImage to return our thread-safe test double
         with patch("cache_manager.QImage") as mock_qimage_class:
             # Return our thread-safe test image when QImage is created
             mock_qimage_class.return_value = test_image._image
-            
+
             # Cache thumbnail - use correct argument order
-            result = cache_manager.cache_thumbnail(
+            cache_manager.cache_thumbnail(
                 test_image_file,
                 shot.show,
                 shot.sequence,
@@ -272,7 +272,7 @@ class TestCacheManager:
             )
 
             # Verify behavior - thumbnail should be cached
-            expected_path = temp_cache_dir / "thumbnails" / "test" / "seq1" / "0010_thumb.jpg"
+            temp_cache_dir / "thumbnails" / "test" / "seq1" / "0010_thumb.jpg"
             # Note: method returns None from background thread
             # Test that the operation was attempted
             assert mock_qimage_class.called
@@ -329,7 +329,7 @@ class TestCacheManager:
         with patch("cache_manager.QThread") as mock_qthread:
             mock_current = MagicMock()
             mock_main = MagicMock()
-            mock_current.__ne__ = MagicMock(return_value=True)  # Not main thread
+            mock_current.__ne__ = MagicMock(return_value=True)  # pyright: ignore[reportUnknownMemberType]
 
             mock_qthread.currentThread.return_value = mock_current
             mock_app = MagicMock()
@@ -338,7 +338,7 @@ class TestCacheManager:
             with patch("cache_manager.QApplication.instance", return_value=mock_app):
                 # Use ThreadSafeTestImage for thread-safe operations
                 test_image = ThreadSafeTestImage(100, 100)
-                
+
                 with patch("cache_manager.QImage") as mock_qimage:
                     # Return the internal QImage from our test double
                     mock_qimage.return_value = test_image._image
@@ -476,6 +476,8 @@ class TestCacheManagerIntegration:
         # All operations should succeed
         assert all(results)
         assert len(results) == 5
+
+
 class TestThumbnailCacheLoader:
     """Test the ThumbnailCacheLoader QRunnable class."""
 
@@ -963,6 +965,7 @@ class TestThreadSafety:
             with cache_manager._lock:
                 # Simulate some cache operation with Qt event processing
                 from PySide6.QtCore import QCoreApplication
+
                 QCoreApplication.processEvents()
                 return True
 
@@ -1025,6 +1028,8 @@ class TestEdgeCases:
         )
 
         assert result is not None
+
+
 class TestCacheManagerThreading:
     """Test suite for CacheManager threading behavior."""
 
@@ -1079,6 +1084,7 @@ class TestCacheManagerThreading:
 
                 # Simulate some work before completion
                 from PySide6.QtCore import QCoreApplication
+
                 QCoreApplication.processEvents()  # No sleep needed
 
                 result.set_result(test_path)
@@ -1146,6 +1152,7 @@ class TestCacheManagerThreading:
                 with manager._lock:
                     current = manager._memory_usage_bytes
                     from PySide6.QtCore import QCoreApplication
+
                     QCoreApplication.processEvents()  # No sleep needed
                     manager._memory_usage_bytes = current + amount
             except Exception as e:
@@ -1293,6 +1300,7 @@ class TestCacheManagerThreading:
                 with manager._lock:
                     # Simulate cleanup work with Qt event processing
                     from PySide6.QtCore import QCoreApplication
+
                     QCoreApplication.processEvents()
                     manager._cached_thumbnails.clear()
                     manager._memory_usage_bytes = 0
@@ -1306,6 +1314,7 @@ class TestCacheManagerThreading:
                 with manager._lock:
                     # Simulate cache access
                     from PySide6.QtCore import QCoreApplication
+
                     QCoreApplication.processEvents()  # No sleep needed
                     count = len(manager._cached_thumbnails)
                     access_results.append(f"access_count: {count}")
@@ -1340,7 +1349,7 @@ class TestCacheManagerThreading:
         try:
             # Use ThreadSafeTestImage to simulate large image
             test_image = ThreadSafeTestImage(500, 500)  # Large image
-            
+
             with patch("cache_manager.QImage") as mock_image_class:
                 # Configure test image to exceed memory limit
                 test_image._image.sizeInBytes = lambda: 2000  # Exceeds 1KB limit
@@ -1459,6 +1468,7 @@ class TestCacheManagerThreading:
                         )
                         retrieval_results.append((thread_id, cached is not None))
                         from PySide6.QtCore import QCoreApplication
+
                         QCoreApplication.processEvents()  # No sleep needed
             except Exception as e:
                 errors.append((thread_id, str(e)))
