@@ -304,7 +304,15 @@ class ThumbnailProcessor:
         if rez_info["in_rez_env"]:
             logger.debug(f"Processing EXR in Rez environment. Resolved packages: {rez_info['used_resolve']}")
         
-        # Try OpenEXR first
+        # NEW: Try system tools first (confirmed working in Rez environment)
+        try:
+            result = self._load_exr_with_system_tools(source_path)
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.debug(f"System tools EXR loading failed: {e}")
+        
+        # Try OpenEXR Python bindings (likely to fail in Rez)
         try:
             return self._load_exr_with_openexr(source_path)
         except ImportError as e:
@@ -318,7 +326,7 @@ class ThumbnailProcessor:
         except Exception as e:
             logger.debug(f"OpenEXR loading failed: {e}")
 
-        # Try imageio as fallback
+        # Try imageio as fallback (likely to fail due to missing backends)
         try:
             return self._load_exr_with_imageio(source_path)
         except ImportError as e:
@@ -337,6 +345,102 @@ class ThumbnailProcessor:
             logger.error(f"All EXR backends failed in Rez environment. Check package configurations for: {[pkg for pkg in rez_info['used_resolve'] if 'openexr' in pkg.lower() or 'imageio' in pkg.lower()]}")
         
         return None
+
+    def _load_exr_with_system_tools(self, source_path: Path):
+        """Load EXR using system tools (ImageMagick + OpenEXR native tools).
+        
+        This method uses external system tools that we confirmed are working
+        in the Rez environment, rather than Python bindings which aren't available.
+        
+        Args:
+            source_path: Path to EXR file
+            
+        Returns:
+            PIL Image object or None if failed
+        """
+        import subprocess
+        import tempfile
+        from PIL import Image as PILImage
+        
+        logger.debug(f"Using system tools for EXR processing: {source_path.name}")
+        
+        # First, validate the EXR file using exrinfo (confirmed working)
+        try:
+            result = subprocess.run(
+                ['exrinfo', str(source_path)], 
+                capture_output=True, 
+                text=True, 
+                timeout=10
+            )
+            
+            if result.returncode != 0:
+                logger.warning(f"EXR validation failed with exrinfo: {result.stderr}")
+                return None
+                
+            # Log EXR info for debugging
+            info_lines = result.stdout.strip().split('\n')[:3]  # First 3 lines
+            logger.debug(f"EXR file validated: {', '.join(info_lines)}")
+            
+        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError) as e:
+            logger.debug(f"exrinfo validation failed: {e}")
+            # Continue anyway - maybe convert will work
+        
+        # Convert EXR to JPEG using ImageMagick (confirmed working)
+        temp_jpg = None
+        try:
+            # Create temporary JPEG file
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
+                temp_jpg = tmp.name
+            
+            # Use ImageMagick convert with appropriate settings for EXR
+            convert_cmd = [
+                'convert',
+                str(source_path),
+                '-resize', f'{self._thumbnail_size}x{self._thumbnail_size}>',  # > means only downsize
+                '-quality', '90',
+                '-colorspace', 'sRGB',  # Ensure proper colorspace conversion
+                temp_jpg
+            ]
+            
+            result = subprocess.run(
+                convert_cmd,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result.returncode != 0:
+                logger.warning(f"ImageMagick conversion failed: {result.stderr}")
+                return None
+            
+            # Check if output file was created
+            temp_path = Path(temp_jpg)
+            if not temp_path.exists() or temp_path.stat().st_size == 0:
+                logger.warning(f"ImageMagick produced no output file")
+                return None
+            
+            # Load the converted JPEG with PIL
+            pil_image = PILImage.open(temp_jpg)
+            pil_image.load()  # Force load to ensure it's valid
+            
+            logger.info(f"✅ EXR converted using ImageMagick: {source_path.name} -> {pil_image.size}")
+            return pil_image
+            
+        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError) as e:
+            logger.warning(f"ImageMagick EXR conversion failed: {e}")
+            return None
+            
+        except Exception as e:
+            logger.warning(f"PIL loading of converted EXR failed: {e}")
+            return None
+            
+        finally:
+            # Clean up temporary file
+            if temp_jpg and Path(temp_jpg).exists():
+                try:
+                    Path(temp_jpg).unlink()
+                except Exception:
+                    pass  # Best effort cleanup
 
     def _load_exr_with_openexr(self, source_path: Path):
         """Load EXR using OpenEXR library with Rez environment support.
