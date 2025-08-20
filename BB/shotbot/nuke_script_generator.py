@@ -292,6 +292,174 @@ Viewer {{
             return None
 
     @staticmethod
+    def _import_undistortion_nodes_copy_paste_format(
+        undistortion_path: str,
+        ypos_offset: int = -200,
+    ) -> str:
+        """Import nodes from a copy/paste format undistortion .nk file.
+
+        This handles files that start with 'set cut_paste_input [stack 0]'
+        which is Nuke's standard copy/paste format.
+
+        Args:
+            undistortion_path: Path to the undistortion .nk file
+            ypos_offset: Y position offset for imported nodes
+
+        Returns:
+            String containing the processed nodes to insert
+        """
+        import logging
+        import re
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            logger.debug(
+                f"Attempting copy/paste format import from: {undistortion_path}"
+            )
+
+            if not Path(undistortion_path).exists():
+                logger.error(f"Undistortion file not found: {undistortion_path}")
+                return ""
+
+            with open(undistortion_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            if not content.strip():
+                logger.error(f"Undistortion file is empty: {undistortion_path}")
+                return ""
+
+            lines = content.split("\n")
+
+            # Check if this is copy/paste format
+            is_copy_paste_format = False
+            for line in lines[:10]:  # Check first 10 lines
+                if "set cut_paste_input" in line:
+                    is_copy_paste_format = True
+                    logger.info("Detected copy/paste format undistortion file")
+                    break
+
+            if not is_copy_paste_format:
+                logger.debug("Not copy/paste format, falling back to standard parser")
+                return NukeScriptGenerator._import_undistortion_nodes(
+                    undistortion_path, ypos_offset
+                )
+
+            # Process copy/paste format
+            imported_nodes = []
+            i = 0
+            nodes_found = 0
+
+            while i < len(lines):
+                line = lines[i]
+                stripped = line.strip()
+
+                # Skip copy/paste specific lines
+                if "set cut_paste_input" in line:
+                    logger.debug(f"Skipping copy/paste init: {line}")
+                    i += 1
+                    continue
+
+                # Handle push commands - these manage the connection stack
+                if stripped.startswith("push"):
+                    if "push $cut_paste_input" in line or "push 0" in line:
+                        # Skip these as they're copy/paste specific
+                        logger.debug(f"Skipping push command: {line}")
+                        i += 1
+                        continue
+                    # Keep other push commands as they might be important
+                    logger.debug(f"Keeping push command: {line}")
+
+                # Skip version line (will be in main script already)
+                if stripped.startswith("version "):
+                    logger.debug(f"Skipping version line: {line}")
+                    i += 1
+                    continue
+
+                # Check for node definitions
+                # Nuke nodes typically look like: NodeName { ... }
+                node_match = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", stripped)
+                if node_match:
+                    node_type = node_match.group(1)
+
+                    # Skip Root node
+                    if node_type == "Root":
+                        logger.debug("Skipping Root node")
+                        brace_count = 1
+                        i += 1
+                        while i < len(lines) and brace_count > 0:
+                            if "{" in lines[i]:
+                                brace_count += lines[i].count("{")
+                            if "}" in lines[i]:
+                                brace_count -= lines[i].count("}")
+                            i += 1
+                        continue
+
+                    # Collect the complete node definition
+                    logger.debug(f"Found {node_type} node at line {i + 1}")
+                    nodes_found += 1
+
+                    node_lines = [lines[i]]
+                    brace_count = lines[i].count("{") - lines[i].count("}")
+                    i += 1
+
+                    while i < len(lines) and brace_count > 0:
+                        node_lines.append(lines[i])
+                        brace_count += lines[i].count("{") - lines[i].count("}")
+                        i += 1
+
+                    # Join the node definition
+                    node_text = "\n".join(node_lines)
+
+                    # Adjust ypos if present
+                    if "ypos" in node_text:
+                        ypos_matches = re.findall(r"ypos\s+(-?\d+)", node_text)
+                        for match in ypos_matches:
+                            old_ypos = int(match)
+                            new_ypos = old_ypos + ypos_offset
+                            node_text = node_text.replace(
+                                f"ypos {old_ypos}", f"ypos {new_ypos}", 1
+                            )
+                            logger.debug(f"Adjusted ypos from {old_ypos} to {new_ypos}")
+
+                    # For the first node, ensure it connects properly
+                    if nodes_found == 1 and "inputs 0" not in node_text:
+                        # First undistortion node should connect to plate if available
+                        node_text = re.sub(
+                            r"inputs\s+\d+", "inputs 1", node_text, count=1
+                        )
+                        logger.debug("Set first node to connect to input")
+
+                    imported_nodes.append(node_text)
+                else:
+                    i += 1
+
+            logger.info(
+                f"Successfully imported {nodes_found} nodes from copy/paste format"
+            )
+
+            if imported_nodes:
+                result = (
+                    "\n# Imported undistortion nodes from copy/paste format\n"
+                    + "# "
+                    + undistortion_path
+                    + "\n"
+                    + "\n".join(imported_nodes)
+                    + "\n"
+                )
+                return result
+
+            logger.warning("No nodes found to import")
+            return ""
+
+        except Exception as e:
+            logger.error(f"Error importing copy/paste format: {e}")
+            import traceback
+
+            logger.debug(traceback.format_exc())
+            return ""
+
+    @staticmethod
     def _import_undistortion_nodes(
         undistortion_path: str,
         ypos_offset: int = -200,
@@ -305,17 +473,42 @@ Viewer {{
         Returns:
             String containing the processed nodes to insert
         """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         try:
+            logger.debug(f"Starting undistortion import from: {undistortion_path}")
+
+            # Check if file exists
+            if not Path(undistortion_path).exists():
+                logger.error(f"Undistortion file not found: {undistortion_path}")
+                return ""
+
             with open(undistortion_path, "r", encoding="utf-8") as f:
                 content = f.read()
+
+            if not content.strip():
+                logger.error(f"Undistortion file is empty: {undistortion_path}")
+                return ""
+
+            logger.debug(f"File content length: {len(content)} characters")
 
             # Parse nodes from the file
             imported_nodes: List[str] = []
             lines = content.split("\n")
             i = 0
+            nodes_found = 0
+
+            logger.debug(f"Processing {len(lines)} lines")
 
             while i < len(lines):
-                line = lines[i]
+                line = lines[i].strip()
+
+                # Skip empty lines
+                if not line:
+                    i += 1
+                    continue
 
                 # Skip comment lines, version, and window layout
                 if (
@@ -323,11 +516,13 @@ Viewer {{
                     or line.startswith("version")
                     or line.startswith("define_window_layout")
                 ):
+                    logger.debug(f"Skipping header line: {line[:50]}...")
                     i += 1
                     continue
 
                 # Skip Root node and its contents
-                if line.startswith("Root {") or line.strip() == "Root {":
+                if line.startswith("Root {") or line == "Root {":
+                    logger.debug("Skipping Root node")
                     # Skip until we find the closing brace
                     brace_count = 1
                     i += 1
@@ -340,7 +535,7 @@ Viewer {{
                     continue
 
                 # Check if this line starts a node we want to import
-                node_types = [
+                known_node_types = [
                     "Group",  # Group nodes for undistortion
                     "Undistort",  # Direct undistort nodes
                     "LensDistortion",
@@ -353,23 +548,82 @@ Viewer {{
                     "Reformat",
                     "Input",  # Often part of Group nodes
                     "Output",  # Often part of Group nodes
+                    "StickyNote",  # Sometimes contains metadata
+                    "Bezier",  # Distortion curves
+                    "Roto",  # Distortion masks
+                    # Additional common Nuke nodes that might be in undistortion files
+                    "Transform",
+                    "CornerPin2D",
+                    "Tracker4",
+                    "GridWarp2",
+                    "SplineWarp3",
+                    "IDistort",
+                    "LensDistortion2",
+                    "VectorDistort",
+                    "Constant",
+                    "Blur",
+                    "Grade",
+                    "ColorCorrect",
+                    "Shuffle",
+                    "Copy",
+                    "Merge",
+                    "Merge2",
+                    "Read",
+                    "Write",
                 ]
+
                 is_node_start = False
-                for node_type in node_types:
+                matched_node_type = None
+
+                # First try known node types
+                for node_type in known_node_types:
                     if line.startswith(node_type + " {"):
                         is_node_start = True
+                        matched_node_type = node_type
                         break
 
+                # If no match, try a more flexible pattern for any node-like structure
+                # Pattern: Word characters followed by optional space and opening brace
+                if not is_node_start:
+                    import re
+
+                    node_pattern = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", line)
+                    if node_pattern:
+                        potential_node_type = node_pattern.group(1)
+                        # Exclude common non-node patterns
+                        excluded_patterns = [
+                            "set",
+                            "push",
+                            "if",
+                            "else",
+                            "for",
+                            "while",
+                        ]
+                        if potential_node_type not in excluded_patterns:
+                            is_node_start = True
+                            matched_node_type = potential_node_type
+                            logger.debug(
+                                f"Found unknown node type: {matched_node_type}"
+                            )
+                        else:
+                            logger.debug(
+                                f"Skipping excluded pattern: {potential_node_type}"
+                            )
+
                 # Special handling for end_group which doesn't have braces
-                if line.strip() == "end_group":
+                if line == "end_group":
+                    logger.debug("Found end_group directive")
                     imported_nodes.append(line)
                     i += 1
                     continue
 
                 if is_node_start:
+                    logger.debug(f"Found {matched_node_type} node at line {i + 1}")
+                    nodes_found += 1
+
                     # Collect the entire node
-                    node_lines = [line]
-                    brace_count = line.count("{") - line.count("}")
+                    node_lines = [lines[i]]  # Use original line with whitespace
+                    brace_count = lines[i].count("{") - lines[i].count("}")
                     i += 1
 
                     while i < len(lines) and brace_count > 0:
@@ -391,26 +645,160 @@ Viewer {{
                                 f"ypos {new_ypos}",
                                 node_text,
                             )
+                            logger.debug(f"Adjusted ypos from {old_ypos} to {new_ypos}")
 
                     imported_nodes.append(node_text)
                 else:
+                    # Log unrecognized lines for debugging
+                    if line and not line.startswith(" ") and not line.startswith("\t"):
+                        logger.debug(f"Unrecognized line: {line[:50]}...")
                     i += 1
 
+            logger.info(
+                f"Import results: found {nodes_found} nodes, imported {len(imported_nodes)} items"
+            )
+
             if imported_nodes:
-                return (
+                result = (
                     "\n# Imported undistortion nodes from "
                     + undistortion_path
                     + "\n"
                     + "\n".join(imported_nodes)
                     + "\n"
                 )
+                logger.info(
+                    f"Successfully imported undistortion nodes ({len(result)} characters)"
+                )
+                return result
+
+            logger.warning("No importable nodes found in undistortion file")
             return ""
 
-        except Exception as e:
-            print(
-                f"Warning: Could not import undistortion nodes from {undistortion_path}: {e}",
-            )
+        except FileNotFoundError:
+            logger.error(f"Undistortion file not found: {undistortion_path}")
             return ""
+        except UnicodeDecodeError as e:
+            logger.error(f"Could not decode undistortion file {undistortion_path}: {e}")
+            return ""
+        except Exception as e:
+            logger.error(
+                f"Unexpected error importing undistortion nodes from {undistortion_path}: {e}"
+            )
+            import traceback
+
+            logger.debug(f"Full traceback: {traceback.format_exc()}")
+            return ""
+
+    @staticmethod
+    def debug_undistortion_file(undistortion_path: str) -> None:
+        """Debug function to analyze undistortion .nk file structure.
+
+        This function analyzes an undistortion file and reports what it finds,
+        which is useful for troubleshooting import failures.
+
+        Args:
+            undistortion_path: Path to the undistortion .nk file to analyze
+        """
+        try:
+            if not Path(undistortion_path).exists():
+                print(f"ERROR: File does not exist: {undistortion_path}")
+                return
+
+            print(f"\n=== DEBUG ANALYSIS: {undistortion_path} ===")
+
+            with open(undistortion_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            if not content.strip():
+                print("ERROR: File is empty")
+                return
+
+            lines = content.split("\n")
+            print(f"File has {len(lines)} lines, {len(content)} characters")
+
+            # Analyze line types
+            header_lines = 0
+            root_lines = 0
+            node_lines = 0
+            empty_lines = 0
+            other_lines = 0
+
+            found_node_types = set()
+            sample_lines = []
+
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+
+                if not stripped:
+                    empty_lines += 1
+                elif (
+                    stripped.startswith("#")
+                    or stripped.startswith("version")
+                    or stripped.startswith("define_window_layout")
+                ):
+                    header_lines += 1
+                elif stripped.startswith("Root {") or stripped == "Root {":
+                    root_lines += 1
+                else:
+                    # Check for node-like patterns using the same logic as the parser
+                    import re
+
+                    node_pattern = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", stripped)
+                    if node_pattern:
+                        node_type = node_pattern.group(1)
+                        excluded_patterns = [
+                            "set",
+                            "push",
+                            "if",
+                            "else",
+                            "for",
+                            "while",
+                        ]
+                        if node_type not in excluded_patterns:
+                            node_lines += 1
+                            found_node_types.add(node_type)
+                        else:
+                            other_lines += 1
+                            if len(sample_lines) < 10:
+                                sample_lines.append(
+                                    f"  Line {i + 1}: {stripped[:100]} (excluded pattern)"
+                                )
+                    else:
+                        other_lines += 1
+                        if len(sample_lines) < 10:
+                            sample_lines.append(f"  Line {i + 1}: {stripped[:100]}")
+
+            print("\nLine Analysis:")
+            print(f"  Header lines: {header_lines}")
+            print(f"  Root node lines: {root_lines}")
+            print(f"  Recognized node lines: {node_lines}")
+            print(f"  Empty lines: {empty_lines}")
+            print(f"  Other/unrecognized lines: {other_lines}")
+
+            print(
+                f"\nFound Node Types: {', '.join(sorted(found_node_types)) if found_node_types else 'None'}"
+            )
+
+            if sample_lines:
+                print("\nSample unrecognized lines:")
+                for line in sample_lines:
+                    print(line)
+
+            # Try the actual import to see what happens
+            print("\n=== IMPORT TEST ===")
+            result = NukeScriptGenerator._import_undistortion_nodes(undistortion_path)
+            if result:
+                print(f"SUCCESS: Import returned {len(result)} characters")
+                print("First 200 characters of result:")
+                print(result[:200] + "..." if len(result) > 200 else result)
+            else:
+                print("FAILED: Import returned empty string")
+
+        except Exception as e:
+            print(f"ERROR analyzing file: {e}")
+            import traceback
+
+            print(traceback.format_exc())
 
     @staticmethod
     def create_plate_script_with_undistortion(
@@ -530,12 +918,22 @@ Read {{
 
             # Import undistortion nodes if provided
             if undistortion_path and Path(undistortion_path).exists():
-                # Import the actual undistortion nodes from the .nk file
-                imported_nodes = NukeScriptGenerator._import_undistortion_nodes(
-                    undistortion_path,
-                    ypos_offset=-200,
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.info(
+                    f"Attempting to import undistortion nodes from: {undistortion_path}"
+                )
+
+                # Try copy/paste format first (most common for undistortion files)
+                imported_nodes = (
+                    NukeScriptGenerator._import_undistortion_nodes_copy_paste_format(
+                        undistortion_path,
+                        ypos_offset=-200,
+                    )
                 )
                 if imported_nodes:
+                    logger.info("Successfully imported undistortion nodes into script")
                     # Fix the first node to connect to Read_Plate (if it exists)
                     # and ensure proper chaining
                     if plate_path and nuke_plate_path:
@@ -545,6 +943,7 @@ Read {{
                             "inputs 1",
                             1,
                         )
+                        logger.debug("Connected first undistortion node to Read_Plate")
 
                     script_content += imported_nodes
                     script_content += f"""
@@ -561,6 +960,9 @@ StickyNote {{
 """
                 else:
                     # Fallback to reference if import failed
+                    logger.warning(
+                        f"Failed to import undistortion nodes from {undistortion_path}, creating reference note instead"
+                    )
                     escaped_undist_path = NukeScriptGenerator._escape_path(
                         undistortion_path,
                     )
@@ -576,6 +978,13 @@ StickyNote {{
  ypos -300
 }}
 """
+            elif undistortion_path:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.error(
+                    f"Undistortion path provided but file does not exist: {undistortion_path}"
+                )
 
             # Add viewer and other nodes
             script_content += f"""

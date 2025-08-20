@@ -1,0 +1,483 @@
+"""Thumbnail processing with multi-format support (Qt/PIL/OpenEXR)."""
+
+import gc
+import logging
+import uuid
+from pathlib import Path
+from typing import Optional
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QImage
+
+from config import Config
+
+logger = logging.getLogger(__name__)
+
+
+class ThumbnailProcessor:
+    """Processes images into thumbnails with multi-format support.
+
+    This class handles thumbnail generation from various image formats
+    including EXR (HDR), TIFF, JPEG, and PNG. It uses multiple backends
+    (Qt, PIL, OpenEXR, imageio) with fallback mechanisms for robust
+    image processing.
+    """
+
+    def __init__(self, thumbnail_size: Optional[int] = None):
+        """Initialize thumbnail processor.
+
+        Args:
+            thumbnail_size: Size in pixels for square thumbnails. If None, uses config.
+        """
+        self._thumbnail_size = thumbnail_size or Config.CACHE_THUMBNAIL_SIZE
+
+        # Heavy format extensions that need special handling
+        self._heavy_formats = getattr(
+            Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr", ".tiff", ".tif"]
+        )
+
+        logger.debug(
+            f"ThumbnailProcessor initialized with size {self._thumbnail_size}px"
+        )
+
+    def process_thumbnail(
+        self, source_path: Path, cache_path: Path, max_dimension: int = 20000
+    ) -> bool:
+        """Process source image into a thumbnail at cache_path.
+
+        Args:
+            source_path: Path to the source image file
+            cache_path: Path where thumbnail should be saved
+            max_dimension: Maximum allowed image dimension for safety
+
+        Returns:
+            True if thumbnail was created successfully
+        """
+        if not source_path or not source_path.exists():
+            logger.warning(f"Source image does not exist: {source_path}")
+            return False
+
+        if not cache_path:
+            logger.error("Cache path not provided")
+            return False
+
+        # Create cache directory
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError) as e:
+            logger.error(f"Failed to create cache directory {cache_path.parent}: {e}")
+            return False
+
+        try:
+            # Analyze source file
+            file_info = self._analyze_source_file(source_path)
+
+            # Choose processing strategy based on format and size
+            if file_info["use_pil"]:
+                return self._process_with_pil(source_path, cache_path, file_info)
+            else:
+                return self._process_with_qt(
+                    source_path, cache_path, file_info, max_dimension
+                )
+
+        except MemoryError:
+            logger.error(f"Out of memory processing: {source_path}")
+            return False
+        except Exception as e:
+            logger.exception(f"Unexpected error processing {source_path}: {e}")
+            return False
+        finally:
+            # Force garbage collection for large images
+            gc.collect()
+
+    def _analyze_source_file(self, source_path: Path) -> dict:
+        """Analyze source file to determine processing strategy.
+
+        Args:
+            source_path: Path to source image
+
+        Returns:
+            Dictionary with file analysis results
+        """
+        try:
+            file_size_mb = source_path.stat().st_size / (1024 * 1024)
+        except (OSError, IOError):
+            file_size_mb = 0
+
+        suffix_lower = source_path.suffix.lower()
+        is_heavy_format = suffix_lower in self._heavy_formats
+
+        # Use PIL for heavy formats or large files
+        use_pil = is_heavy_format and file_size_mb > 1  # Threshold for PIL usage
+
+        return {
+            "file_size_mb": file_size_mb,
+            "suffix_lower": suffix_lower,
+            "is_heavy_format": is_heavy_format,
+            "use_pil": use_pil,
+        }
+
+    def _process_with_pil(
+        self, source_path: Path, cache_path: Path, file_info: dict
+    ) -> bool:
+        """Process image using PIL with multi-backend support.
+
+        Args:
+            source_path: Source image path
+            cache_path: Output thumbnail path
+            file_info: File analysis results
+
+        Returns:
+            True if processing succeeded
+        """
+        try:
+            pil_image = self._load_image_with_pil(source_path, file_info)
+            if pil_image is None:
+                return False
+
+            # Validate image
+            if pil_image.size[0] == 0 or pil_image.size[1] == 0:
+                logger.warning(f"Image has zero dimensions: {source_path}")
+                return False
+
+            # Convert to RGB if needed
+            if pil_image.mode not in ["RGB", "RGBA"]:
+                pil_image = pil_image.convert("RGB")
+
+            # Create thumbnail maintaining aspect ratio
+            thumb_size = (self._thumbnail_size, self._thumbnail_size)
+            pil_image.thumbnail(
+                thumb_size,
+                getattr(
+                    __import__("PIL.Image"), "Resampling", __import__("PIL.Image")
+                ).LANCZOS,
+            )
+
+            # Save with atomic write
+            return self._save_pil_thumbnail(pil_image, cache_path, file_info)
+
+        except ImportError:
+            logger.warning("PIL not available, falling back to Qt")
+            return self._process_with_qt(source_path, cache_path, file_info)
+        except Exception as e:
+            logger.warning(f"PIL processing failed for {source_path}: {e}")
+            return self._process_with_qt(source_path, cache_path, file_info)
+
+    def _process_with_qt(
+        self,
+        source_path: Path,
+        cache_path: Path,
+        file_info: dict,
+        max_dimension: int = 20000,
+    ) -> bool:
+        """Process image using Qt.
+
+        Args:
+            source_path: Source image path
+            cache_path: Output thumbnail path
+            file_info: File analysis results
+            max_dimension: Maximum allowed dimension
+
+        Returns:
+            True if processing succeeded
+        """
+        image = None
+        scaled = None
+
+        try:
+            # Pre-check dimensions for large formats if PIL is available
+            if file_info["is_heavy_format"]:
+                if not self._check_dimensions_safe(source_path, max_dimension):
+                    return False
+
+            # Load image with Qt
+            image = QImage(str(source_path))
+            if image.isNull():
+                logger.warning(f"Qt failed to load image: {source_path}")
+                if file_info["suffix_lower"] == ".exr":
+                    logger.info(
+                        "Note: Install OpenEXR with 'pip install OpenEXR' for EXR support"
+                    )
+                return False
+
+            # Validate dimensions
+            if image.width() > max_dimension or image.height() > max_dimension:
+                logger.warning(
+                    f"Image too large ({image.width()}x{image.height()} > {max_dimension}): {source_path}"
+                )
+                return False
+
+            # Scale to thumbnail size
+            scaled = image.scaled(
+                self._thumbnail_size,
+                self._thumbnail_size,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+
+            if scaled.isNull():
+                logger.warning(f"Failed to scale thumbnail: {source_path}")
+                return False
+
+            # Save with atomic write
+            return self._save_qt_thumbnail(scaled, cache_path, file_info)
+
+        finally:
+            # Clean up Qt resources
+            if image is not None:
+                del image
+            if scaled is not None:
+                del scaled
+
+    def _load_image_with_pil(self, source_path: Path, file_info: dict):
+        """Load image using PIL with format-specific handling.
+
+        Args:
+            source_path: Path to source image
+            file_info: File analysis results
+
+        Returns:
+            PIL Image object or None if failed
+        """
+        suffix_lower = file_info["suffix_lower"]
+
+        try:
+            if suffix_lower == ".exr":
+                # Try specialized EXR loaders first
+                pil_image = self._load_exr_image(source_path)
+                if pil_image is not None:
+                    return pil_image
+
+            # Standard PIL loading for other formats
+            from PIL import Image as PILImage
+
+            pil_image = PILImage.open(str(source_path))
+
+            # Force loading to verify integrity (skip for some formats)
+            if suffix_lower not in [".exr"]:  # EXR already loaded above
+                pil_image.load()
+
+            return pil_image
+
+        except Exception as e:
+            logger.debug(f"PIL loading failed for {source_path}: {e}")
+            return None
+
+    def _load_exr_image(self, source_path: Path):
+        """Load EXR image with specialized backends.
+
+        Args:
+            source_path: Path to EXR file
+
+        Returns:
+            PIL Image object or None if failed
+        """
+        # Try OpenEXR first
+        try:
+            return self._load_exr_with_openexr(source_path)
+        except ImportError:
+            logger.debug("OpenEXR not available")
+        except Exception as e:
+            logger.debug(f"OpenEXR loading failed: {e}")
+
+        # Try imageio as fallback
+        try:
+            return self._load_exr_with_imageio(source_path)
+        except ImportError:
+            logger.debug("imageio not available")
+        except Exception as e:
+            logger.debug(f"imageio loading failed: {e}")
+
+        return None
+
+    def _load_exr_with_openexr(self, source_path: Path):
+        """Load EXR using OpenEXR library.
+
+        Args:
+            source_path: Path to EXR file
+
+        Returns:
+            PIL Image object
+        """
+        import Imath
+        import numpy as np
+        import OpenEXR
+        from PIL import Image as PILImage
+
+        # Open EXR file
+        exr_file = OpenEXR.InputFile(str(source_path))
+        header = exr_file.header()
+
+        # Get dimensions
+        dw = header["dataWindow"]
+        width = dw.max.x - dw.min.x + 1
+        height = dw.max.y - dw.min.y + 1
+
+        # Read RGB channels
+        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+        channels = []
+
+        for channel in ["R", "G", "B"]:
+            if channel in header["channels"]:
+                channel_str = exr_file.channel(channel, FLOAT)
+                channel_array = np.frombuffer(channel_str, dtype=np.float32)
+                channel_array = channel_array.reshape((height, width))
+                channels.append(channel_array)
+            else:
+                # Missing channel, use zeros
+                channels.append(np.zeros((height, width), dtype=np.float32))
+
+        # Stack channels and apply tone mapping
+        img_array = np.stack(channels, axis=2)
+        img_array = np.clip(img_array, 0, 1)  # Simple tone mapping
+        img_array = (img_array * 255).astype(np.uint8)
+
+        return PILImage.fromarray(img_array, mode="RGB")
+
+    def _load_exr_with_imageio(self, source_path: Path):
+        """Load EXR using imageio library.
+
+        Args:
+            source_path: Path to EXR file
+
+        Returns:
+            PIL Image object
+        """
+        import imageio.v3 as iio
+        import numpy as np
+        from PIL import Image as PILImage
+
+        # Read with imageio
+        img_array = iio.imread(str(source_path))
+
+        # Normalize if needed
+        if img_array.dtype in [np.float32, np.float64]:
+            img_array = np.clip(img_array, 0, 1)
+            img_array = (img_array * 255).astype(np.uint8)
+        elif img_array.dtype == np.uint16:
+            img_array = (img_array / 256).astype(np.uint8)
+
+        # Convert to PIL based on channels
+        if len(img_array.shape) == 2:
+            return PILImage.fromarray(img_array, mode="L")
+        elif len(img_array.shape) == 3:
+            if img_array.shape[2] == 3:
+                return PILImage.fromarray(img_array, mode="RGB")
+            elif img_array.shape[2] == 4:
+                return PILImage.fromarray(img_array, mode="RGBA")
+
+        raise ValueError(f"Unsupported image shape: {img_array.shape}")
+
+    def _check_dimensions_safe(self, source_path: Path, max_dimension: int) -> bool:
+        """Check if image dimensions are safe to load.
+
+        Args:
+            source_path: Path to image file
+            max_dimension: Maximum allowed dimension
+
+        Returns:
+            True if dimensions are safe
+        """
+        try:
+            from PIL import Image as PILImage
+
+            with PILImage.open(str(source_path)) as pil_img:
+                width, height = pil_img.size
+                if width > max_dimension or height > max_dimension:
+                    logger.warning(
+                        f"Image too large ({width}x{height} > {max_dimension}): {source_path}"
+                    )
+                    return False
+                return True
+
+        except Exception:
+            # If we can't check, assume it's safe and let Qt handle it
+            return True
+
+    def _save_pil_thumbnail(self, pil_image, cache_path: Path, file_info: dict) -> bool:
+        """Save PIL image as thumbnail with atomic write.
+
+        Args:
+            pil_image: PIL Image object
+            cache_path: Output path for thumbnail
+            file_info: File analysis results
+
+        Returns:
+            True if save succeeded
+        """
+        temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
+
+        try:
+            # Higher quality for heavy formats
+            quality = 95 if file_info["is_heavy_format"] else 90
+            pil_image.save(str(temp_path), "JPEG", quality=quality, optimize=True)
+
+            # Atomic move to final location
+            temp_path.replace(cache_path)
+
+            file_size_kb = cache_path.stat().st_size / 1024
+            logger.debug(
+                f"Saved PIL thumbnail: {cache_path.name} "
+                + f"({file_info['file_size_mb']:.1f}MB -> {file_size_kb:.1f}KB)"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to save PIL thumbnail: {e}")
+            self._cleanup_temp_file(temp_path)
+            return False
+
+    def _save_qt_thumbnail(
+        self, qt_image: QImage, cache_path: Path, file_info: dict
+    ) -> bool:
+        """Save Qt image as thumbnail with atomic write.
+
+        Args:
+            qt_image: QImage object
+            cache_path: Output path for thumbnail
+            file_info: File analysis results
+
+        Returns:
+            True if save succeeded
+        """
+        temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
+
+        try:
+            # Higher quality for heavy formats
+            quality = 95 if file_info["is_heavy_format"] else 85
+
+            if qt_image.save(str(temp_path), "JPEG", quality):  # type: ignore[call-overload]
+                # Atomic move to final location
+                temp_path.replace(cache_path)
+
+                file_size_kb = cache_path.stat().st_size / 1024
+                logger.debug(
+                    f"Saved Qt thumbnail: {cache_path.name} "
+                    + f"({file_info['file_size_mb']:.1f}MB -> {file_size_kb:.1f}KB)"
+                )
+                return True
+            else:
+                logger.warning(f"Qt failed to save thumbnail: {temp_path}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to save Qt thumbnail: {e}")
+            return False
+        finally:
+            self._cleanup_temp_file(temp_path)
+
+    def _cleanup_temp_file(self, temp_path: Path) -> None:
+        """Clean up temporary file if it exists.
+
+        Args:
+            temp_path: Path to temporary file
+        """
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except (OSError, IOError):
+                pass  # Ignore cleanup errors
+
+    def __repr__(self) -> str:
+        """String representation of thumbnail processor."""
+        return f"ThumbnailProcessor(size={self._thumbnail_size}px)"

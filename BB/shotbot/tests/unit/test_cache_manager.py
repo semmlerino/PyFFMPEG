@@ -23,7 +23,6 @@ import threading
 from concurrent.futures import Future
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Generator, Any
 from unittest.mock import MagicMock, patch
 
 import pytest

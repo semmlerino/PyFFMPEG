@@ -1,0 +1,246 @@
+"""Async thumbnail loading with QRunnable background processing."""
+
+import logging
+import threading
+from concurrent.futures import Future
+from pathlib import Path
+from typing import Optional
+
+from PySide6.QtCore import QObject, QRunnable, Signal
+
+from .failure_tracker import FailureTracker
+from .thumbnail_processor import ThumbnailProcessor
+
+logger = logging.getLogger(__name__)
+
+
+class ThumbnailCacheResult:
+    """Result container for async thumbnail caching operations.
+
+    This class provides thread-safe result handling for background
+    thumbnail processing with synchronization support.
+    """
+
+    def __init__(self):
+        """Initialize result container."""
+        super().__init__()
+        self.future: Future[Optional[Path]] = Future()
+        self.cache_path: Optional[Path] = None
+        self.error: Optional[str] = None
+        self._complete_event = threading.Event()
+        self._completed_lock = threading.Lock()
+        self._is_complete = False
+
+    def set_result(self, cache_path: Path) -> None:
+        """Set successful result (thread-safe, prevents multiple completions).
+
+        Args:
+            cache_path: Path to the cached thumbnail
+        """
+        with self._completed_lock:
+            if self._is_complete:
+                return  # Already completed, ignore
+            self._is_complete = True
+
+        self.cache_path = cache_path
+        try:
+            self.future.set_result(cache_path)
+        except Exception:
+            pass  # Future already completed
+        self._complete_event.set()
+
+    def set_error(self, error: str) -> None:
+        """Set error result (thread-safe, prevents multiple completions).
+
+        Args:
+            error: Error message describing the failure
+        """
+        with self._completed_lock:
+            if self._is_complete:
+                return  # Already completed, ignore
+            self._is_complete = True
+
+        self.error = error
+        try:
+            self.future.set_exception(Exception(error))
+        except Exception:
+            pass  # Future already completed
+        self._complete_event.set()
+
+    def wait(self, timeout: Optional[float] = None) -> bool:
+        """Wait for completion.
+
+        Args:
+            timeout: Maximum wait time in seconds
+
+        Returns:
+            True if completed within timeout
+        """
+        return self._complete_event.wait(timeout)
+
+    def get_result(self, timeout: Optional[float] = None) -> Optional[Path]:
+        """Get result with optional timeout.
+
+        Args:
+            timeout: Maximum wait time in seconds
+
+        Returns:
+            Cached path or None if failed/timeout
+        """
+        try:
+            return self.future.result(timeout=timeout)
+        except Exception:
+            return None
+
+    def is_complete(self) -> bool:
+        """Check if the operation is complete.
+
+        Returns:
+            True if operation completed (success or failure)
+        """
+        with self._completed_lock:
+            return self._is_complete
+
+    def __repr__(self) -> str:
+        """String representation of result."""
+        status = "complete" if self.is_complete() else "pending"
+        if self.error:
+            return f"ThumbnailCacheResult(status={status}, error='{self.error}')"
+        elif self.cache_path:
+            return f"ThumbnailCacheResult(status={status}, path={self.cache_path.name})"
+        else:
+            return f"ThumbnailCacheResult(status={status})"
+
+
+class ThumbnailLoader(QRunnable):
+    """Background thumbnail loader with result synchronization.
+
+    This QRunnable worker processes thumbnails in background threads
+    using ThumbnailProcessor and integrates with FailureTracker for
+    retry management.
+    """
+
+    class Signals(QObject):
+        """Signal definitions for thumbnail loading events."""
+
+        loaded = Signal(str, str, str, Path)  # show, sequence, shot, cache_path
+        failed = Signal(str, str, str, str)  # show, sequence, shot, error_msg
+
+    def __init__(
+        self,
+        thumbnail_processor: ThumbnailProcessor,
+        failure_tracker: FailureTracker,
+        source_path: Path,
+        cache_path: Path,
+        show: str,
+        sequence: str,
+        shot: str,
+        result: Optional[ThumbnailCacheResult] = None,
+    ):
+        """Initialize thumbnail loader.
+
+        Args:
+            thumbnail_processor: Processor for image operations
+            failure_tracker: Tracker for handling failures
+            source_path: Path to source image file
+            cache_path: Path where thumbnail should be cached
+            show: Show name for organization
+            sequence: Sequence name for organization
+            shot: Shot name for identification
+            result: Optional result container for synchronization
+        """
+        super().__init__()
+        self._thumbnail_processor = thumbnail_processor
+        self._failure_tracker = failure_tracker
+        self.source_path = source_path
+        self.cache_path = cache_path
+        self.show = show
+        self.sequence = sequence
+        self.shot = shot
+        self.signals = self.Signals()
+        self.result = result or ThumbnailCacheResult()
+        self.setAutoDelete(True)
+
+    def run(self) -> None:
+        """Process the thumbnail in background with result synchronization."""
+        cache_key = f"{self.show}_{self.sequence}_{self.shot}"
+
+        try:
+            # Use the thumbnail processor to create the thumbnail
+            success = self._thumbnail_processor.process_thumbnail(
+                self.source_path, self.cache_path
+            )
+
+            if success and self.cache_path.exists():
+                # Set successful result
+                self.result.set_result(self.cache_path)
+
+                # Emit success signal if still valid
+                if hasattr(self, "signals") and self.signals:
+                    try:
+                        self.signals.loaded.emit(
+                            self.show,
+                            self.sequence,
+                            self.shot,
+                            self.cache_path,
+                        )
+                    except RuntimeError:
+                        pass  # Signals deleted
+
+                logger.debug(f"Successfully cached thumbnail for {self.shot}")
+            else:
+                # Set error result
+                error_msg = f"Thumbnail processing failed for {self.shot}"
+                self.result.set_error(error_msg)
+
+                # Record the failed attempt for backoff
+                self._failure_tracker.record_failure(
+                    cache_key, error_msg, self.source_path
+                )
+
+                if hasattr(self, "signals") and self.signals:
+                    try:
+                        self.signals.failed.emit(
+                            self.show,
+                            self.sequence,
+                            self.shot,
+                            error_msg,
+                        )
+                    except RuntimeError:
+                        pass  # Signals deleted
+
+                logger.warning(error_msg)
+
+        except Exception as e:
+            # Set exception result
+            error_msg = f"Exception while caching thumbnail for {self.shot}: {e}"
+            self.result.set_error(str(e))
+
+            # Record the failed attempt for backoff
+            self._failure_tracker.record_failure(cache_key, error_msg, self.source_path)
+
+            # Check if signals object still exists before emitting
+            if hasattr(self, "signals") and self.signals:
+                try:
+                    self.signals.failed.emit(
+                        self.show,
+                        self.sequence,
+                        self.shot,
+                        str(e),
+                    )
+                except RuntimeError:
+                    pass  # Signals deleted
+
+            logger.error(error_msg)
+
+    def get_cache_key(self) -> str:
+        """Get the cache key for this thumbnail.
+
+        Returns:
+            Unique cache key for this thumbnail
+        """
+        return f"{self.show}_{self.sequence}_{self.shot}"
+
+    def __repr__(self) -> str:
+        """String representation of thumbnail loader."""
+        return f"ThumbnailLoader(shot={self.shot}, source={self.source_path.name})"
