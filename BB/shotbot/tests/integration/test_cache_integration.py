@@ -75,7 +75,7 @@ class TestCacheIntegration:
         
         # Test memory usage tracking
         usage_stats = cache_manager.get_memory_usage()
-        assert "total_size_mb" in usage_stats
+        assert "total_mb" in usage_stats  # API uses total_mb, not total_size_mb
         assert "thumbnail_count" in usage_stats
         assert usage_stats["thumbnail_count"] > 0
 

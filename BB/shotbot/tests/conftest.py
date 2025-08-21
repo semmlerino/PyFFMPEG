@@ -476,9 +476,18 @@ workspace /shows/show2/shots/seq2/seq2_0030"""
 def test_image_file(tmp_path):
     """Create a test image file for caching tests."""
     image_file = tmp_path / "test_image.jpg"
-    # Create a minimal JPEG file (just write some bytes)
-    # This is a minimal valid JPEG header
-    image_file.write_bytes(
-        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9",
-    )
+    
+    # Create a valid image using PIL if available, else use Qt
+    try:
+        from PIL import Image
+        # Create a simple 100x100 red image
+        img = Image.new('RGB', (100, 100), color='red')
+        img.save(str(image_file), 'JPEG')
+    except ImportError:
+        # Fall back to Qt if PIL not available
+        from PySide6.QtGui import QImage, QColor
+        img = QImage(100, 100, QImage.Format.Format_RGB32)
+        img.fill(QColor(255, 0, 0))  # Red
+        img.save(str(image_file), "JPEG")
+    
     return image_file  # Return Path object, not string

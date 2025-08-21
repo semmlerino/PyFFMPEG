@@ -2,6 +2,7 @@
 
 import gc
 import logging
+import threading
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -35,6 +36,9 @@ class ThumbnailProcessor:
         self._heavy_formats = getattr(
             Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr", ".tiff", ".tif"]
         )
+        
+        # Thread lock for Qt operations
+        self._qt_lock = threading.Lock()
 
         logger.debug(
             f"ThumbnailProcessor initialized with size {self._thumbnail_size}px"
@@ -198,37 +202,39 @@ class ThumbnailProcessor:
                 if not self._check_dimensions_safe(source_path, max_dimension):
                     return False
 
-            # Load image with Qt
-            image = QImage(str(source_path))
-            if image.isNull():
-                logger.warning(f"Qt failed to load image: {source_path}")
-                if file_info["suffix_lower"] == ".exr":
-                    logger.info(
-                        "Note: Install OpenEXR with 'pip install OpenEXR' for EXR support"
+            # Use lock for all Qt operations to prevent concurrent access
+            with self._qt_lock:
+                # Load image with Qt
+                image = QImage(str(source_path))
+                if image.isNull():
+                    logger.warning(f"Qt failed to load image: {source_path}")
+                    if file_info["suffix_lower"] == ".exr":
+                        logger.info(
+                            "Note: Install OpenEXR with 'pip install OpenEXR' for EXR support"
+                        )
+                    return False
+
+                # Validate dimensions
+                if image.width() > max_dimension or image.height() > max_dimension:
+                    logger.warning(
+                        f"Image too large ({image.width()}x{image.height()} > {max_dimension}): {source_path}"
                     )
-                return False
+                    return False
 
-            # Validate dimensions
-            if image.width() > max_dimension or image.height() > max_dimension:
-                logger.warning(
-                    f"Image too large ({image.width()}x{image.height()} > {max_dimension}): {source_path}"
+                # Scale to thumbnail size
+                scaled = image.scaled(
+                    self._thumbnail_size,
+                    self._thumbnail_size,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
                 )
-                return False
 
-            # Scale to thumbnail size
-            scaled = image.scaled(
-                self._thumbnail_size,
-                self._thumbnail_size,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
+                if scaled.isNull():
+                    logger.warning(f"Failed to scale thumbnail: {source_path}")
+                    return False
 
-            if scaled.isNull():
-                logger.warning(f"Failed to scale thumbnail: {source_path}")
-                return False
-
-            # Save with atomic write
-            return self._save_qt_thumbnail(scaled, cache_path, file_info)
+                # Save with atomic write
+                return self._save_qt_thumbnail(scaled, cache_path, file_info)
 
         finally:
             # Clean up Qt resources

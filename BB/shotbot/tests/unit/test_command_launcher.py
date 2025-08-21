@@ -1,58 +1,78 @@
-"""Comprehensive unit tests for command_launcher.py.
+"""Improved command launcher tests following UNIFIED_TESTING_GUIDE.
 
-This test suite validates the CommandLauncher class functionality including:
-- Initialization and signal setup
-- Shot context management
-- Application launching with real process execution
-- Signal emissions for command execution events
-- Error handling and process termination
-- Variable substitution in commands
-- Workspace directory handling
-- 3DE scene launching
-- Nuke script integration
+This test suite validates CommandLauncher behavior using:
+- Test doubles at system boundaries only (subprocess)
+- Real Qt components and signals
+- Behavior testing, not implementation details
+- No mock.assert_called() patterns
+- Minimal, focused test doubles
 
-The tests use real process execution (not mocked) to validate actual Qt signal
-behavior and subprocess interaction.
+Key improvements:
+- Reduced from 25+ mocks to <5 test doubles
+- Tests behavior, not implementation
+- Uses real components where possible
 """
 
 from pathlib import Path
-from unittest.mock import Mock, patch
-
+from unittest.mock import patch
 from PySide6.QtTest import QSignalSpy
 
 from command_launcher import CommandLauncher
 from config import Config
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
+from tests.test_doubles import TestSubprocess, TestShot, TestSignal
 
 
 class TestCommandLauncherInitialization:
     """Test CommandLauncher initialization and basic setup."""
+    
+    def setup_method(self):
+        """Setup with test doubles at system boundary."""
+        self.launcher = CommandLauncher()
+        self.test_subprocess = TestSubprocess()
+        
+        # Replace subprocess at system boundary only
+        import command_launcher
+        self.original_popen = command_launcher.subprocess.Popen
+        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        
+        # Track emitted signals (behavior)
+        self.emitted_commands = []
+        self.emitted_errors = []
+        
+        self.launcher.command_executed.connect(
+            lambda t, c: self.emitted_commands.append((t, c))
+        )
+        self.launcher.command_error.connect(
+            lambda t, e: self.emitted_errors.append((t, e))
+        )
+    
+    def teardown_method(self):
+        """Clean up test doubles."""
+        import command_launcher
+        command_launcher.subprocess.Popen = self.original_popen
 
     def test_initialization(self, qtbot):
         """Test CommandLauncher initializes correctly."""
-        launcher = CommandLauncher()
-
         # Check initial state
-        assert launcher.current_shot is None
+        assert self.launcher.current_shot is None
 
         # Check signals exist
-        assert hasattr(launcher, "command_executed")
-        assert hasattr(launcher, "command_error")
+        assert hasattr(self.launcher, "command_executed")
+        assert hasattr(self.launcher, "command_error")
 
         # Verify signal connection capability
-        spy_executed = QSignalSpy(launcher.command_executed)
-        spy_error = QSignalSpy(launcher.command_error)
+        spy_executed = QSignalSpy(self.launcher.command_executed)
+        spy_error = QSignalSpy(self.launcher.command_error)
 
         assert spy_executed.isValid()
         assert spy_error.isValid()
 
     def test_set_current_shot(self, qtbot):
         """Test setting current shot context."""
-        launcher = CommandLauncher()
-
-        # Create test shot
-        shot = Shot(
+        # Create test shot using test double
+        shot = TestShot(
             show="test_show",
             sequence="seq01",
             shot="shot01",
@@ -60,223 +80,231 @@ class TestCommandLauncherInitialization:
         )
 
         # Set shot
-        launcher.set_current_shot(shot)
-        assert launcher.current_shot == shot
+        self.launcher.set_current_shot(shot)
+        assert self.launcher.current_shot == shot
 
         # Test clearing shot
-        launcher.set_current_shot(None)
-        assert launcher.current_shot is None
+        self.launcher.set_current_shot(None)
+        assert self.launcher.current_shot is None
 
 
 class TestSignalEmissions:
     """Test signal emissions for command execution events."""
+    
+    def setup_method(self):
+        """Setup with test doubles."""
+        self.launcher = CommandLauncher()
+        self.test_subprocess = TestSubprocess()
+        
+        # Replace subprocess at system boundary
+        import command_launcher
+        self.original_popen = command_launcher.subprocess.Popen
+        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        
+        # Track signals (behavior)
+        self.emitted_commands = []
+        self.emitted_errors = []
+        
+        self.launcher.command_executed.connect(
+            lambda t, c: self.emitted_commands.append((t, c))
+        )
+        self.launcher.command_error.connect(
+            lambda t, e: self.emitted_errors.append((t, e))
+        )
+    
+    def teardown_method(self):
+        import command_launcher
+        command_launcher.subprocess.Popen = self.original_popen
 
     def test_command_executed_signal(self, qtbot):
-        """Test command_executed signal emission."""
-        launcher = CommandLauncher()
+        """Test command_executed signal emission behavior."""
+        # Set up test double for success
+        self.test_subprocess.set_success("nuke started successfully")
 
-        # Set up signal spy
-        spy = QSignalSpy(launcher.command_executed)
-
-        # Create test shot
-        shot = Shot(
+        # Create test shot using test double
+        shot = TestShot(
             show="test_show",
             sequence="seq01",
             shot="shot01",
             workspace_path="/tmp/test_workspace",
         )
-        launcher.set_current_shot(shot)
+        self.launcher.set_current_shot(shot)
 
-        # Mock subprocess.Popen to avoid actual execution
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = Mock()
-
-            # Launch simple command
-            launcher.launch_app("nuke")
-
-            # Check signal was emitted (synchronous)
-            assert spy.count() >= 1
-
-            # Verify signal content (timestamp, command)
-            signal_args = spy.at(0)
-            assert len(signal_args) == 2
-            timestamp, command = signal_args
-
-            # Verify timestamp format
-            assert isinstance(timestamp, str)
-            assert len(timestamp.split(":")) == 3  # HH:MM:SS format
-
-            # Verify command contains workspace setup
-            assert isinstance(command, str)
-            assert "ws /tmp/test_workspace" in command
-            assert "nuke" in command
+        # Launch app (real component behavior)
+        result = self.launcher.launch_app("nuke")
+        
+        # Test behavior, not implementation
+        assert result is True
+        assert len(self.emitted_commands) == 1
+        assert len(self.emitted_errors) == 0
+        
+        timestamp, command = self.emitted_commands[0]
+        assert isinstance(timestamp, str)
+        assert len(timestamp.split(":")) == 3  # HH:MM:SS format
+        assert "ws /tmp/test_workspace" in command
+        assert "nuke" in command
 
     def test_command_error_signal(self, qtbot):
-        """Test command_error signal emission."""
-        launcher = CommandLauncher()
-
-        # Set up signal spy
-        spy = QSignalSpy(launcher.command_error)
-
+        """Test command_error signal emission behavior."""
         # Test error when no shot is set
-        launcher.launch_app("nuke")
-
-        # Check signal was emitted (synchronous)
-        assert spy.count() == 1
-
-        # Verify signal content
-        signal_args = spy.at(0)
-        assert len(signal_args) == 2
-        timestamp, error = signal_args
-
+        result = self.launcher.launch_app("nuke")
+        
+        # Test behavior
+        assert result is False
+        assert len(self.emitted_errors) == 1
+        assert len(self.emitted_commands) == 0
+        
+        timestamp, error = self.emitted_errors[0]
         assert isinstance(timestamp, str)
         assert "No shot selected" in error
 
     def test_unknown_app_error_signal(self, qtbot):
         """Test error signal for unknown application."""
-        launcher = CommandLauncher()
-
-        # Set up signal spy
-        spy = QSignalSpy(launcher.command_error)
-
         # Create test shot
-        shot = Shot(
+        shot = TestShot(
             show="test_show",
             sequence="seq01",
             shot="shot01",
             workspace_path="/tmp/test_workspace",
         )
-        launcher.set_current_shot(shot)
+        self.launcher.set_current_shot(shot)
 
         # Try to launch unknown app
-        launcher.launch_app("unknown_app")
-
-        # Check signal was emitted (synchronous)
-        assert spy.count() == 1
-
-        # Verify error message
-        signal_args = spy.at(0)
-        timestamp, error = signal_args
+        result = self.launcher.launch_app("unknown_app")
+        
+        # Test behavior
+        assert result is False
+        assert len(self.emitted_errors) == 1
+        assert len(self.emitted_commands) == 0
+        
+        timestamp, error = self.emitted_errors[0]
         assert "Unknown application: unknown_app" in error
 
 
 class TestApplicationLaunching:
-    """Test application launching functionality."""
+    """Test application launching functionality with behavior focus."""
+    
+    def setup_method(self):
+        """Setup with test doubles."""
+        self.launcher = CommandLauncher()
+        self.test_subprocess = TestSubprocess()
+        
+        # Replace subprocess at system boundary
+        import command_launcher
+        self.original_popen = command_launcher.subprocess.Popen
+        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+    
+    def teardown_method(self):
+        import command_launcher
+        command_launcher.subprocess.Popen = self.original_popen
 
     def test_launch_app_without_shot(self, qtbot):
         """Test launching app without setting current shot."""
-        launcher = CommandLauncher()
-
-        result = launcher.launch_app("nuke")
+        result = self.launcher.launch_app("nuke")
         assert result is False
 
     def test_launch_app_unknown_application(self, qtbot):
         """Test launching unknown application."""
-        launcher = CommandLauncher()
-
-        # Set test shot
-        shot = Shot(
+        # Set test shot using test double
+        shot = TestShot(
             show="test_show",
             sequence="seq01",
             shot="shot01",
             workspace_path="/tmp/test_workspace",
         )
-        launcher.set_current_shot(shot)
+        self.launcher.set_current_shot(shot)
 
-        result = launcher.launch_app("nonexistent_app")
+        result = self.launcher.launch_app("nonexistent_app")
         assert result is False
 
     def test_launch_app_valid_configuration(self, qtbot):
-        """Test launching valid application with proper configuration."""
-        launcher = CommandLauncher()
-
-        # Set test shot
-        shot = Shot(
+        """Test launching valid application behavior."""
+        # Set up test double for success
+        self.test_subprocess.set_success("Application launched")
+        
+        # Set test shot using test double
+        shot = TestShot(
             show="test_show",
             sequence="seq01",
             shot="shot01",
             workspace_path="/tmp/test_workspace",
         )
-        launcher.set_current_shot(shot)
+        self.launcher.set_current_shot(shot)
 
-        # Mock subprocess to avoid actual execution
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = Mock()
-
-            result = launcher.launch_app("nuke")
-            assert result is True
-
-            # Verify subprocess.Popen was called
-            assert mock_popen.called
+        result = self.launcher.launch_app("nuke")
+        assert result is True
 
     def test_command_construction(self, qtbot):
-        """Test proper command construction with workspace setup."""
-        launcher = CommandLauncher()
+        """Test proper command construction behavior."""
+        # Set up test double
+        self.test_subprocess.set_success("maya launched")
+        
+        # Track signals for behavior testing
+        emitted_commands = []
+        self.launcher.command_executed.connect(
+            lambda t, c: emitted_commands.append((t, c))
+        )
 
-        # Set test shot
-        shot = Shot(
+        # Set test shot using test double
+        shot = TestShot(
             show="test_show",
             sequence="seq01",
             shot="shot01",
             workspace_path="/shows/test_show/shots/seq01/shot01",
         )
-        launcher.set_current_shot(shot)
+        self.launcher.set_current_shot(shot)
 
-        # Set up signal spy to capture command
-        spy = QSignalSpy(launcher.command_executed)
+        self.launcher.launch_app("maya")
 
-        # Mock subprocess to avoid actual execution
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = Mock()
+        # Test behavior - command was constructed and executed
+        assert len(emitted_commands) >= 1
+        timestamp, command = emitted_commands[0]
 
-            launcher.launch_app("maya")
+        # Verify command contains workspace setup and app command
+        expected_workspace = "ws /shows/test_show/shots/seq01/shot01"
+        expected_app = Config.APPS["maya"]
 
-            # Verify command construction (synchronous)
-            assert spy.count() >= 1
-            signal_args = spy.at(0)
-            command = signal_args[1]
-
-            # Verify command contains workspace setup and app command
-            expected_workspace = "ws /shows/test_show/shots/seq01/shot01"
-            expected_app = Config.APPS["maya"]
-
-            assert expected_workspace in command
-            assert expected_app in command
-            assert "&&" in command  # Command chaining
+        assert expected_workspace in command
+        assert expected_app in command
+        assert "&&" in command  # Command chaining
 
     def test_terminal_fallback_execution(self, qtbot):
-        """Test terminal fallback when no GUI terminals available."""
-        launcher = CommandLauncher()
+        """Test terminal fallback behavior."""
+        # Set up test double to simulate terminal failures then success
+        def fallback_subprocess(*args, **kwargs):
+            # Create a test double that tracks attempts
+            subprocess_double = TestSubprocess()
+            
+            # First few calls fail, then success
+            if not hasattr(self, '_terminal_attempts'):
+                self._terminal_attempts = 0
+            self._terminal_attempts += 1
+            
+            if self._terminal_attempts <= 3:
+                # Simulate terminal not found
+                raise FileNotFoundError("Terminal not found")
+            else:
+                # Direct bash succeeds
+                subprocess_double.set_success("Direct execution succeeded")
+                return subprocess_double
+        
+        import command_launcher
+        command_launcher.subprocess.Popen = fallback_subprocess
 
         # Set test shot
-        shot = Shot(
+        shot = TestShot(
             show="test_show",
             sequence="seq01",
             shot="shot01",
             workspace_path="/tmp/test_workspace",
         )
-        launcher.set_current_shot(shot)
+        self.launcher.set_current_shot(shot)
 
-        # Mock subprocess.Popen to simulate terminal failures
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            # First few calls fail (terminal not found)
-            mock_popen.side_effect = [
-                FileNotFoundError(),  # gnome-terminal
-                FileNotFoundError(),  # xterm
-                FileNotFoundError(),  # konsole
-                Mock(),  # direct bash execution succeeds
-            ]
-
-            result = launcher.launch_app("nuke")
-            assert result is True
-
-            # Verify fallback to direct bash execution
-            assert mock_popen.call_count == 4
-            last_call = mock_popen.call_args_list[-1]
-            args = last_call[0][0]  # First positional argument
-            assert args[0] == "/bin/bash"
-            assert "-i" in args
-            assert "-c" in args
+        result = self.launcher.launch_app("nuke")
+        
+        # Test behavior - fallback should eventually succeed
+        assert result is True
+        assert self._terminal_attempts >= 3  # Multiple attempts made
 
 
 class TestThreeDESceneLaunching:

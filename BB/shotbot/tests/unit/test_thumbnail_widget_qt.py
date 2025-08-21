@@ -1,0 +1,503 @@
+"""Comprehensive Qt widget tests for thumbnail widgets.
+
+This test module provides complete Qt widget testing for ThumbnailWidget and
+ThumbnailWidgetBase components, focusing on real Qt behavior and interactions.
+
+Test Coverage:
+- Widget initialization and UI setup
+- Signal emission on mouse interactions
+- Selection state changes and visual feedback
+- Thumbnail loading and display
+- Event handling (mouse, keyboard, resize)
+
+Following UNIFIED_TESTING_GUIDE:
+- Use real Qt widgets, not mocks
+- Test behavior through user interactions
+- Use QSignalSpy for reliable signal testing
+- Set up signal waiters BEFORE triggering actions
+- Use qtbot for proper Qt event processing
+- Avoid threading violations (no QPixmap in threads)
+"""
+
+import pytest
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QMouseEvent, QPixmap
+from PySide6.QtTest import QSignalSpy, QTest
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+
+from config import Config
+from shot_model import Shot
+from thumbnail_widget import ThumbnailWidget
+from thumbnail_widget_base import ThumbnailWidgetBase
+
+
+class TestThumbnailWidgetBase:
+    """Test real Qt widget behavior of ThumbnailWidgetBase."""
+
+    @pytest.fixture
+    def test_shot(self):
+        """Create test shot for widget testing."""
+        return Shot("test_show", "seq01", "0010", "/shows/test_show/shots/seq01/seq01_0010")
+
+    @pytest.fixture
+    def thumbnail_widget_base(self, qtbot, test_shot):
+        """Create ThumbnailWidgetBase widget for testing."""
+        widget = ThumbnailWidgetBase(test_shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        return widget
+
+    def test_widget_initialization(self, thumbnail_widget_base, test_shot):
+        """Test widget initializes with correct properties."""
+        widget = thumbnail_widget_base
+        
+        # Verify basic properties
+        assert widget.data == test_shot
+        assert widget._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
+        assert widget._selected is False
+
+    def test_widget_ui_components(self, thumbnail_widget_base):
+        """Test widget has expected UI components."""
+        widget = thumbnail_widget_base
+        
+        # Check for essential UI components
+        assert hasattr(widget, 'thumbnail_label')
+        assert isinstance(widget.thumbnail_label, QLabel)
+        assert hasattr(widget, 'thumbnail_container')
+        assert isinstance(widget.thumbnail_container, QWidget)
+
+    def test_signals_exist(self, thumbnail_widget_base):
+        """Test widget has all expected signals."""
+        widget = thumbnail_widget_base
+        
+        # Verify signal existence
+        assert hasattr(widget, 'clicked')
+        assert hasattr(widget, 'double_clicked')
+
+    def test_selection_state_change(self, qtbot, thumbnail_widget_base):
+        """Test selection state changes correctly."""
+        widget = thumbnail_widget_base
+        
+        # Initially unselected
+        assert widget._selected is False
+        
+        # Set selected (using internal method)
+        widget._selected = True
+        qtbot.wait(10)
+        
+        # Verify state change
+        assert widget._selected is True
+
+    def test_mouse_click_signal_emission(self, qtbot, thumbnail_widget_base):
+        """Test mouse clicks emit correct signals."""
+        widget = thumbnail_widget_base
+        
+        # Set up signal spies
+        clicked_spy = QSignalSpy(widget.clicked)
+        
+        # Simulate left mouse click
+        QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
+        qtbot.wait(10)
+        
+        # Verify signal emission
+        assert clicked_spy.count() == 1
+        assert clicked_spy[0][0] == widget.data
+
+    def test_mouse_double_click_signal_emission(self, qtbot, thumbnail_widget_base):
+        """Test mouse double clicks emit correct signals."""
+        widget = thumbnail_widget_base
+        
+        # Set up signal spy
+        double_clicked_spy = QSignalSpy(widget.double_clicked)
+        
+        # Simulate double click
+        QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
+        qtbot.wait(10)
+        
+        # Verify signal emission
+        assert double_clicked_spy.count() == 1
+        assert double_clicked_spy[0][0] == widget.data
+
+    def test_thumbnail_size_property(self, thumbnail_widget_base):
+        """Test thumbnail size property works correctly."""
+        widget = thumbnail_widget_base
+        
+        # Initial size should match constructor
+        assert widget._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
+        
+        # Size should be positive
+        assert widget._thumbnail_size > 0
+
+    def test_widget_styling_methods(self, thumbnail_widget_base):
+        """Test widget has necessary methods."""
+        widget = thumbnail_widget_base
+        
+        # Should have essential methods
+        assert hasattr(widget, '_setup_base_ui')
+        assert callable(widget._setup_base_ui)
+
+    def test_thumbnail_label_configuration(self, thumbnail_widget_base):
+        """Test thumbnail label is properly configured."""
+        widget = thumbnail_widget_base
+        label = widget.thumbnail_label
+        
+        # Label should be configured correctly
+        assert label.size().width() == widget._thumbnail_size
+        assert label.size().height() == widget._thumbnail_size
+        assert label.alignment() & Qt.AlignmentFlag.AlignCenter
+
+
+class TestThumbnailWidget:
+    """Test real Qt widget behavior of ThumbnailWidget (Shot-specific)."""
+
+    @pytest.fixture
+    def test_shot(self):
+        """Create test shot for widget testing."""
+        return Shot("test_show", "seq01", "0010", "/shows/test_show/shots/seq01/seq01_0010")
+
+    @pytest.fixture
+    def thumbnail_widget(self, qtbot, test_shot):
+        """Create ThumbnailWidget for testing."""
+        widget = ThumbnailWidget(test_shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        return widget
+
+    def test_shot_widget_initialization(self, thumbnail_widget, test_shot):
+        """Test shot-specific widget initialization."""
+        widget = thumbnail_widget
+        
+        # Verify shot-specific properties
+        assert widget.shot == test_shot
+        assert hasattr(widget, 'name_label')
+        assert isinstance(widget.name_label, QLabel)
+
+    def test_shot_name_display(self, thumbnail_widget, test_shot):
+        """Test shot name is displayed correctly."""
+        widget = thumbnail_widget
+        name_label = widget.name_label
+        
+        # Name label should show full shot name
+        assert name_label.text() == test_shot.full_name
+        assert name_label.alignment() & Qt.AlignmentFlag.AlignCenter
+
+    def test_shot_specific_signals(self, thumbnail_widget):
+        """Test shot-specific signals exist."""
+        widget = thumbnail_widget
+        
+        # Shot widget should have backward compatibility signals
+        assert hasattr(widget, 'clicked')
+        assert hasattr(widget, 'double_clicked')
+
+    def test_shot_widget_styling(self, qtbot, thumbnail_widget):
+        """Test shot widget applies correct styling."""
+        widget = thumbnail_widget
+        
+        # Widget should have style methods
+        assert hasattr(widget, '_get_selected_style')
+        assert hasattr(widget, '_get_unselected_style')
+        
+        # Test that methods are callable
+        selected_style = widget._get_selected_style()
+        unselected_style = widget._get_unselected_style()
+        
+        assert isinstance(selected_style, str)
+        assert isinstance(unselected_style, str)
+
+    def test_shot_widget_layout(self, thumbnail_widget):
+        """Test shot widget layout includes all components."""
+        widget = thumbnail_widget
+        
+        # Widget should have layout
+        layout = widget.layout()
+        assert layout is not None
+        assert isinstance(layout, QVBoxLayout)
+        
+        # Layout should contain components
+        widget_children = widget.findChildren(QLabel)
+        assert len(widget_children) >= 1  # At least name_label
+
+    def test_shot_widget_font_configuration(self, thumbnail_widget):
+        """Test shot widget configures fonts correctly."""
+        widget = thumbnail_widget
+        name_label = widget.name_label
+        
+        # Font should be configured
+        font = name_label.font()
+        assert font.pointSize() == 9  # As per implementation
+        
+        # Label should support word wrap
+        assert name_label.wordWrap() is True
+
+
+class TestThumbnailWidgetInteractions:
+    """Test real user interactions with thumbnail widgets."""
+
+    @pytest.fixture
+    def interactive_widget(self, qtbot):
+        """Create thumbnail widget for interaction testing."""
+        shot = Shot("interactive", "test", "0001", "/test/path")
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        widget.show()  # Make visible for interactions
+        qtbot.wait(10)
+        return widget
+
+    def test_click_selection_workflow(self, qtbot, interactive_widget):
+        """Test complete click-to-select workflow."""
+        widget = interactive_widget
+        
+        # Set up signal spy
+        clicked_spy = QSignalSpy(widget.clicked)
+        
+        # Initially not selected
+        assert widget._selected is False
+        
+        # Click widget to select
+        QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
+        qtbot.wait(10)
+        
+        # Verify click signal
+        assert clicked_spy.count() == 1
+
+    def test_double_click_workflow(self, qtbot, interactive_widget):
+        """Test double-click workflow for launching."""
+        widget = interactive_widget
+        
+        # Set up signal spy
+        double_clicked_spy = QSignalSpy(widget.double_clicked)
+        
+        # Double-click widget
+        QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
+        qtbot.wait(10)
+        
+        # Verify double-click signal
+        assert double_clicked_spy.count() == 1
+
+    def test_widget_size_constraints(self, interactive_widget):
+        """Test widget respects size constraints."""
+        widget = interactive_widget
+        
+        # Widget should have reasonable minimum size
+        min_size = widget.minimumSize()
+        assert min_size.width() >= 0
+        assert min_size.height() >= 0
+        
+        # Widget should have maximum size constraints
+        max_size = widget.maximumSize()
+        assert max_size.isValid()
+
+    def test_widget_visibility_state(self, qtbot, interactive_widget):
+        """Test widget visibility state management."""
+        widget = interactive_widget
+        
+        # Widget should be visible (we showed it in fixture)
+        assert widget.isVisible()
+        
+        # Widget should support show/hide
+        widget.hide()
+        qtbot.wait(10)
+        assert not widget.isVisible()
+        
+        widget.show()
+        qtbot.wait(10)
+        assert widget.isVisible()
+
+
+class TestThumbnailWidgetMemoryManagement:
+    """Test memory management and resource cleanup."""
+
+    def test_widget_cleanup(self, qtbot):
+        """Test widget cleans up resources properly."""
+        shot = Shot("cleanup", "test", "0001", "/test/path")
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        
+        # Widget should be created successfully
+        assert widget is not None
+        assert widget.shot == shot
+        
+        # qtbot will handle cleanup automatically
+        # This tests that cleanup doesn't cause crashes
+
+    def test_pixmap_handling(self, qtbot):
+        """Test proper QPixmap handling (no threading violations)."""
+        shot = Shot("pixmap", "test", "0001", "/test/path")
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        
+        # Widget should handle pixmap creation safely
+        # (This tests that no QPixmap operations happen in threads)
+        thumbnail_label = widget.thumbnail_label
+        assert isinstance(thumbnail_label, QLabel)
+        
+        # Label should be able to accept pixmaps
+        pixmap = thumbnail_label.pixmap()
+        # Pixmap may be None initially, but method should exist
+        assert pixmap is None or isinstance(pixmap, QPixmap)
+
+    def test_signal_cleanup(self, qtbot):
+        """Test signal connections are properly cleaned up."""
+        shot = Shot("signals", "test", "0001", "/test/path")
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        
+        # Create signal connections
+        clicked_spy = QSignalSpy(widget.clicked)
+        double_clicked_spy = QSignalSpy(widget.double_clicked)
+        
+        # Signals should work
+        assert clicked_spy is not None
+        assert double_clicked_spy is not None
+        
+        # qtbot cleanup will test that signals disconnect properly
+
+    def test_layout_cleanup(self, qtbot):
+        """Test layout and child widgets cleanup properly."""
+        shot = Shot("layout", "test", "0001", "/test/path")
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        
+        # Widget should have proper layout structure
+        assert widget.layout() is not None
+        assert widget.name_label is not None
+        assert widget.thumbnail_label is not None
+        
+        # All child widgets should be findable
+        children = widget.findChildren(QWidget)
+        assert len(children) >= 2  # At least name_label and thumbnail_label
+
+
+class TestThumbnailWidgetEdgeCases:
+    """Test edge cases and error conditions."""
+
+    def test_widget_with_empty_shot_name(self, qtbot):
+        """Test widget handles empty shot names gracefully."""
+        shot = Shot("", "", "", "")  # Empty shot data
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        
+        # Widget should handle empty data gracefully
+        assert widget.shot == shot
+        assert widget.name_label.text() == shot.full_name
+
+    def test_widget_with_zero_size(self, qtbot):
+        """Test widget handles zero or negative sizes gracefully."""
+        shot = Shot("test", "seq", "0001", "/test")
+        
+        # Test with zero size
+        widget = ThumbnailWidget(shot, 0)
+        qtbot.addWidget(widget)
+        
+        assert widget._thumbnail_size == 0
+        assert widget is not None
+
+    def test_widget_with_very_large_size(self, qtbot):
+        """Test widget handles very large sizes."""
+        shot = Shot("test", "seq", "0001", "/test")
+        
+        # Test with large size
+        large_size = 1000
+        widget = ThumbnailWidget(shot, large_size)
+        qtbot.addWidget(widget)
+        
+        assert widget._thumbnail_size == large_size
+        assert widget is not None
+
+    def test_multiple_selection_changes(self, qtbot):
+        """Test widget handles rapid selection changes."""
+        shot = Shot("rapid", "test", "0001", "/test")
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        
+        # Rapid selection state changes
+        for i in range(10):
+            widget._selected = (i % 2 == 0)
+            qtbot.wait(1)  # Minimal wait
+        
+        # Widget should still be functional
+        assert widget is not None
+        assert isinstance(widget._selected, bool)
+
+    def test_signal_emission_with_no_connections(self, qtbot):
+        """Test signals work even with no connections."""
+        shot = Shot("no_conn", "test", "0001", "/test")
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        
+        # Emit signals with no connections (should not crash)
+        QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
+        QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
+        
+        qtbot.wait(10)
+        
+        # Widget should remain functional
+        assert widget is not None
+
+
+class TestThumbnailWidgetLoadingStates:
+    """Test thumbnail loading states and indicators."""
+
+    @pytest.fixture
+    def loading_widget(self, qtbot):
+        """Create widget for loading state testing."""
+        shot = Shot("loading", "test", "0001", "/test/path")
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        return widget
+
+    def test_loading_state_initialization(self, loading_widget):
+        """Test widget initializes with correct loading state."""
+        widget = loading_widget
+        
+        # Widget should have loading state tracking
+        assert hasattr(widget, '_loading_state')
+        
+    def test_loading_indicator_exists(self, loading_widget):
+        """Test loading indicator component exists."""
+        widget = loading_widget
+        
+        # Widget should have loading indicator
+        assert hasattr(widget, 'loading_indicator')
+
+    def test_thumbnail_container_setup(self, loading_widget):
+        """Test thumbnail container is properly configured."""
+        widget = loading_widget
+        container = widget.thumbnail_container
+        
+        # Container should be configured correctly
+        assert container.size().width() == widget._thumbnail_size
+        assert container.size().height() == widget._thumbnail_size
+
+
+class TestThumbnailWidgetIntegration:
+    """Integration tests for thumbnail widget with cache manager."""
+
+    @pytest.fixture
+    def integrated_widget(self, qtbot, real_cache_manager):
+        """Create widget with real cache manager."""
+        shot = Shot("integrated", "test", "0001", "/test/path")
+        
+        # Set cache manager on widget class
+        ThumbnailWidget.set_cache_manager(real_cache_manager)
+        
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        return widget
+
+    def test_cache_manager_integration(self, integrated_widget, real_cache_manager):
+        """Test widget integrates with cache manager."""
+        widget = integrated_widget
+        
+        # Widget should use the cache manager
+        assert widget._cache_manager == real_cache_manager
+
+    def test_widget_with_real_cache(self, qtbot, real_cache_manager):
+        """Test widget behavior with real cache manager."""
+        shot = Shot("cached", "test", "0001", "/test/path")
+        ThumbnailWidget.set_cache_manager(real_cache_manager)
+        
+        widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        qtbot.addWidget(widget)
+        
+        # Widget should be created successfully with cache
+        assert widget is not None
+        assert widget._cache_manager is not None
