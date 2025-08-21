@@ -188,7 +188,7 @@ class TestSubprocess:
 
 
 class TestProcessPool:
-    """Test double for subprocess operations.
+    """Test double for ProcessPoolManager operations.
 
     From UNIFIED_TESTING_GUIDE: Mock only at system boundaries.
     Subprocess calls are external, so this test double replaces them.
@@ -214,7 +214,33 @@ class TestProcessPool:
             Predefined test output
         """
         self.commands.append(command)
-        output = self.outputs[0] if self.outputs else "test output"
+        # Pop from outputs if available, otherwise use default
+        if self.outputs:
+            output = self.outputs.pop(0)
+        else:
+            output = "test output"
+        self.command_completed.emit(command, output)
+        return output
+
+    def execute_workspace_command(
+        self, command: str, cache_ttl: int = 30, timeout: int = None
+    ) -> str:
+        """Execute workspace command (test implementation).
+
+        Args:
+            command: Workspace command to execute
+            cache_ttl: Cache TTL (ignored in test)
+            timeout: Timeout (ignored in test)
+
+        Returns:
+            Predefined test output
+        """
+        self.commands.append(command)
+        # Pop from outputs if available, otherwise use default
+        if self.outputs:
+            output = self.outputs.pop(0)
+        else:
+            output = "test output"
         self.command_completed.emit(command, output)
         return output
 

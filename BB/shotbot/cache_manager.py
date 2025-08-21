@@ -181,7 +181,7 @@ class CacheManager(QObject):
 
     def cache_thumbnail(
         self,
-        source_path: Path,
+        source_path: Union[str, Path],
         show: str,
         sequence: str,
         shot: str,
@@ -189,8 +189,10 @@ class CacheManager(QObject):
         timeout: Optional[float] = None,
     ) -> Optional[Union[Path, ThumbnailCacheResult]]:
         """Cache a thumbnail from source path with optional synchronization."""
-        if not source_path or not source_path.exists():
-            logger.warning(f"Source thumbnail path does not exist: {source_path}")
+        # Convert source_path to Path object for consistent handling
+        source_path_obj = Path(source_path) if isinstance(source_path, str) else source_path
+        if not source_path_obj or not source_path_obj.exists():
+            logger.warning(f"Source thumbnail path does not exist: {source_path_obj}")
             return None
 
         # Validate parameters
@@ -217,7 +219,7 @@ class CacheManager(QObject):
 
             # Check failure tracker
             should_retry, reason = self._failure_tracker.should_retry(
-                cache_key, source_path
+                cache_key, source_path_obj
             )
             if not should_retry:
                 logger.debug(reason)
@@ -236,7 +238,7 @@ class CacheManager(QObject):
             loader = ThumbnailLoader(
                 self._thumbnail_processor,
                 self._failure_tracker,
-                source_path,
+                source_path_obj,
                 cache_path,
                 show,
                 sequence,
@@ -259,7 +261,7 @@ class CacheManager(QObject):
         else:
             # Main thread - process directly
             success = self._thumbnail_processor.process_thumbnail(
-                source_path, cache_path
+                source_path_obj, cache_path
             )
 
             if success and cache_path.exists():
@@ -270,7 +272,7 @@ class CacheManager(QObject):
             else:
                 error_msg = "Failed to cache thumbnail"
                 result.set_error(error_msg)
-                self._failure_tracker.record_failure(cache_key, error_msg, source_path)
+                self._failure_tracker.record_failure(cache_key, error_msg, source_path_obj)
                 self._cleanup_loader(cache_key)
                 return None if wait else result
 

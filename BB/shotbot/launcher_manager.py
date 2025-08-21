@@ -12,7 +12,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
@@ -249,8 +249,11 @@ class CustomLauncher:
 class LauncherConfig:
     """Manages persistence of custom launcher configurations."""
 
-    def __init__(self):
-        self.config_dir = Path.home() / ".shotbot"
+    def __init__(self, config_dir: Optional[Union[str, Path]] = None):
+        if config_dir is not None:
+            self.config_dir = Path(config_dir)
+        else:
+            self.config_dir = Path.home() / ".shotbot"
         self.config_file = self.config_dir / "custom_launchers.json"
         self._ensure_config_dir()
 
@@ -352,9 +355,9 @@ class LauncherManager(QObject):
         ThreadingConfig.SUBPROCESS_TIMEOUT * 1000  # Convert seconds to ms for VFX apps
     )
 
-    def __init__(self):
+    def __init__(self, config_dir: Optional[Union[str, Path]] = None):
         super().__init__()
-        self.config = LauncherConfig()
+        self.config = LauncherConfig(config_dir)
         self._launchers: Dict[str, CustomLauncher] = {}
 
         # Initialize ProcessPoolManager for optimized command execution
