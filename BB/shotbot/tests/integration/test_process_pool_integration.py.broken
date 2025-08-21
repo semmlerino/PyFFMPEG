@@ -15,6 +15,8 @@ from process_pool_manager import PersistentBashSession, ProcessPoolManager
 
 class TestSignal:
     """Lightweight signal test double."""
+    
+    __test__ = False
 
     def __init__(self):
         self.emissions = []

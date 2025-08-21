@@ -75,6 +75,8 @@ from config import Config
 from launcher_dialog import LauncherManagerDialog
 from launcher_manager import LauncherManager
 from log_viewer import LogViewer
+from previous_shots_grid import PreviousShotsGrid
+from previous_shots_model import PreviousShotsModel
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel  # Model/View data model
@@ -104,6 +106,9 @@ class MainWindow(QMainWindow):
         # Pass to models
         self.shot_model = ShotModel(self.cache_manager)
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
+        self.previous_shots_model = PreviousShotsModel(
+            self.shot_model, self.cache_manager
+        )
         self.command_launcher = CommandLauncher()
         self.launcher_manager = LauncherManager()
         self._current_scene: Optional[ThreeDEScene] = None
@@ -160,6 +165,12 @@ class MainWindow(QMainWindow):
         # Tab 2: Other 3DE scenes
         self.threede_shot_grid = ThreeDEShotGrid(self.threede_scene_model)
         self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
+
+        # Tab 3: Previous Shots (approved/completed)
+        self.previous_shots_grid = PreviousShotsGrid(
+            self.previous_shots_model, self.cache_manager
+        )
+        self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
 
         # Right side - Controls and log
         right_widget = QWidget()
@@ -364,6 +375,12 @@ class MainWindow(QMainWindow):
         )
         self.threede_shot_grid.app_launch_requested.connect(self._launch_app)
 
+        # Previous shots selection
+        self.previous_shots_grid.shot_selected.connect(self._on_shot_selected)
+        self.previous_shots_grid.shot_double_clicked.connect(
+            self._on_shot_double_clicked
+        )
+
         # Command launcher
         self.command_launcher.command_executed.connect(self.log_viewer.add_command)
         self.command_launcher.command_error.connect(self.log_viewer.add_error)
@@ -428,6 +445,11 @@ class MainWindow(QMainWindow):
             logger.info(
                 "No cached data found - background worker will fetch shots shortly",
             )
+
+        # Start auto-refresh for previous shots
+        self.previous_shots_model.start_auto_refresh()
+        # Trigger initial refresh for previous shots after a short delay
+        QTimer.singleShot(1000, self.previous_shots_model.refresh_shots)
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
         # This avoids unnecessary scans when we already know there are no scenes

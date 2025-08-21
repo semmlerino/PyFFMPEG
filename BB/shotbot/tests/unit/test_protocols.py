@@ -14,6 +14,8 @@ from shot_model import Shot
 class TestShotFactory(Protocol):
     """Protocol for shot factory fixtures."""
 
+    __test__ = False
+
     def __call__(
         self,
         show: str = "test",
@@ -25,6 +27,8 @@ class TestShotFactory(Protocol):
 
 class TestProcessPool(Protocol):
     """Protocol for process pool test doubles."""
+
+    __test__ = False
 
     should_fail: bool
     call_count: int
@@ -44,6 +48,8 @@ class TestProcessPool(Protocol):
 class TestCacheManager(Protocol):
     """Protocol for cache manager test interfaces."""
 
+    __test__ = False
+
     def cache_shots(self, shots: List[Any]) -> None: ...
 
     def get_cached_shots(self) -> Optional[List[Dict[str, Any]]]: ...
@@ -59,6 +65,8 @@ class TestCacheManager(Protocol):
 
 class TestLauncherFactory(Protocol):
     """Protocol for launcher factory fixtures."""
+
+    __test__ = False
 
     def __call__(
         self, name: str = "Test Launcher", command: str = "echo test", **kwargs: Any

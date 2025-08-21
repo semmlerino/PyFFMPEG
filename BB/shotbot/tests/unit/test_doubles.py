@@ -36,6 +36,8 @@ class TestSignal:
         assert signal.emission_count == 1
     """
 
+    __test__ = False
+
     def __init__(self):
         """Initialize the test signal."""
         self.emissions: List[Tuple[Any, ...]] = []
@@ -116,6 +118,8 @@ class TestProcessPool:
         result = pool.execute_workspace_command("ws -sg")
         assert result == "workspace /test/path"
     """
+
+    __test__ = False
 
     def __init__(self):
         """Initialize the test process pool."""
@@ -255,8 +259,9 @@ class TestFileSystem:
         fs = TestFileSystem()
         fs.write_file("/test/file.txt", "content")
         assert fs.exists("/test/file.txt")
-        assert fs.read_file("/test/file.txt") == "content"
     """
+
+    __test__ = False
 
     def __init__(self):
         """Initialize the test filesystem."""
@@ -463,9 +468,9 @@ class TestCache:
         cache = TestCache()
         cache.set("key", "value", ttl_seconds=60)
         assert cache.get("key") == "value"
-        cache.expire_all()
-        assert cache.get("key") is None
     """
+
+    __test__ = False
 
     def __init__(self):
         """Initialize the test cache."""
@@ -575,6 +580,8 @@ class TestQApplication:
     Provides just enough Qt application behavior for testing widgets
     without requiring full Qt application setup.
     """
+
+    __test__ = False
 
     def __init__(self):
         """Initialize the test application."""

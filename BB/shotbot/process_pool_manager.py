@@ -777,7 +777,7 @@ class PersistentBashSession:
         """
         if timeout is None:
             timeout = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
-            
+
         if DEBUG_VERBOSE:
             logger.debug(
                 f"[{self.session_id}] Execute called with command: {command[:100]}...",
@@ -1048,7 +1048,7 @@ class ProcessPoolManager(QObject):
         """
         if timeout is None:
             timeout = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
-            
+
         if DEBUG_VERBOSE:
             logger.debug(f"execute_workspace_command called: {command[:50]}...")
 

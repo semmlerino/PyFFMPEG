@@ -3,13 +3,7 @@
 This conftest provides clean, isolated fixtures for tests that need them.
 Qt components are NOT mocked to allow real signal testing.
 """
-
 # pyright: basic
-"""Shared fixtures for pytest tests following best practices.
-
-This conftest provides clean, isolated fixtures for tests that need them.
-Qt components are NOT mocked to allow real signal testing.
-"""
 
 import gc
 import sys
@@ -31,7 +25,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # =============================================================================
 
 
-@pytest.fixture(autouse=False)  # Disabled for performance
+@pytest.fixture(
+    autouse=False
+)  # Can be enabled per-test or per-class using pytest.mark.usefixtures
 def isolated_test_environment():
     """Ensure complete test isolation by clearing all caches and shared state.
 

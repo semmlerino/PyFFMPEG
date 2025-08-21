@@ -92,6 +92,8 @@ class TestSignal:
     QSignalSpy only works with real Qt signals.
     """
 
+    __test__ = False
+
     def __init__(self):
         """Initialize test signal."""
         self.emissions = []
@@ -138,12 +140,61 @@ class TestSignal:
         self.emissions.clear()
 
 
+class TestSubprocess:
+    """Test double for subprocess.run operations.
+
+    Replaces subprocess.run at system boundary for testing.
+    Follows UNIFIED_TESTING_GUIDE: Mock only at system boundaries.
+    """
+
+    __test__ = False
+
+    def __init__(self):
+        """Initialize test subprocess."""
+        self.commands = []
+        self.results = []
+        self.default_result = MagicMock(returncode=0, stdout="test output", stderr="")
+
+    def run(self, cmd, **kwargs):
+        """Run command (test implementation).
+
+        Args:
+            cmd: Command to run
+            **kwargs: Additional arguments
+
+        Returns:
+            Mock result object
+        """
+        self.commands.append((cmd, kwargs))
+        if self.results:
+            return self.results.pop(0)
+        return self.default_result
+
+    def set_results(self, *results):
+        """Set predefined results for testing.
+
+        Args:
+            *results: Result objects to return
+        """
+        self.results = list(results)
+
+    def set_success(self, stdout="success"):
+        """Set successful result."""
+        self.default_result = MagicMock(returncode=0, stdout=stdout, stderr="")
+
+    def set_failure(self, stderr="error"):
+        """Set failure result."""
+        self.default_result = MagicMock(returncode=1, stdout="", stderr=stderr)
+
+
 class TestProcessPool:
     """Test double for subprocess operations.
 
     From UNIFIED_TESTING_GUIDE: Mock only at system boundaries.
     Subprocess calls are external, so this test double replaces them.
     """
+
+    __test__ = False
 
     def __init__(self):
         """Initialize test process pool."""
@@ -174,6 +225,113 @@ class TestProcessPool:
             *outputs: Output strings to return
         """
         self.outputs = list(outputs)
+
+
+class TestLauncherWorker:
+    """Test double for LauncherWorker thread operations.
+
+    Replaces LauncherWorker for testing without actual thread creation.
+    Follows UNIFIED_TESTING_GUIDE: Use test doubles instead of mocks.
+    """
+
+    __test__ = False
+
+    def __init__(self, launcher_id=None, command=None, dry_run=False):
+        """Initialize test launcher worker."""
+        self.launcher_id = launcher_id
+        self.command = command
+        self.dry_run = dry_run
+        self.started = TestSignal()
+        self.finished = TestSignal()
+        self.output = TestSignal()
+        self.error = TestSignal()
+        self._running = False
+        self._result = True
+
+    def start(self):
+        """Start worker (test implementation)."""
+        self._running = True
+        self.started.emit(self.launcher_id)
+        if self.dry_run:
+            self.output.emit(
+                self.launcher_id, f"[DRY RUN] Would execute: {self.command}"
+            )
+        else:
+            self.output.emit(self.launcher_id, "Test output")
+        self.finished.emit(self.launcher_id, 0)
+        self._running = False
+
+    def isRunning(self):
+        """Check if worker is running."""
+        return self._running
+
+    def quit(self):
+        """Stop worker."""
+        self._running = False
+
+    def wait(self, timeout=1000):
+        """Wait for worker to finish."""
+        self._running = False
+        return True
+
+    def set_result(self, success=True):
+        """Set the result for testing."""
+        self._result = success
+
+
+class TestShot:
+    """Test double for Shot objects.
+
+    Provides real Shot-like behavior for testing.
+    """
+
+    __test__ = False
+
+    def __init__(
+        self, show="test_show", sequence="seq01", shot="0010", workspace_path=None
+    ):
+        """Initialize test shot."""
+        self.show = show
+        self.sequence = sequence
+        self.shot = shot
+        self.workspace_path = workspace_path or f"/shows/{show}/shots/{sequence}/{shot}"
+        self.name = f"{sequence}_{shot}"
+
+    def __str__(self):
+        """String representation."""
+        return f"{self.show}/{self.sequence}/{self.shot}"
+
+    def get_thumbnail_path(self):
+        """Get thumbnail path (test implementation)."""
+        return None  # No thumbnail in test
+
+
+class TestShotModel:
+    """Test double for ShotModel.
+
+    Provides shot list management for testing.
+    """
+
+    __test__ = False
+
+    def __init__(self):
+        """Initialize test shot model."""
+        self.shots = []
+        self.shots_updated = TestSignal()
+
+    def add_shot(self, shot):
+        """Add shot to model."""
+        self.shots.append(shot)
+        self.shots_updated.emit()
+
+    def get_shots(self):
+        """Get all shots."""
+        return self.shots
+
+    def refresh_shots(self):
+        """Refresh shots (test implementation)."""
+        self.shots_updated.emit()
+        return True, len(self.shots) > 0
 
 
 class MockCacheManager:
@@ -240,6 +398,8 @@ class TestImagePool:
 
     From UNIFIED_TESTING_GUIDE Performance Considerations section.
     """
+
+    __test__ = False
 
     def __init__(self):
         """Initialize image pool."""

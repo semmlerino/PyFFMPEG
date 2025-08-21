@@ -1662,24 +1662,25 @@ class LauncherManager(QObject):
         with self._process_lock:
             worker = self._active_workers.get(worker_key)
             if not worker:
-                return ("DELETED", False)
+                # Worker was already removed from tracking
+                return ("REMOVED", False)
 
         # Now access worker state outside of process lock to prevent nested locking deadlock
-        # Access worker's internal mutex for atomic check
-        if hasattr(worker, "_state_mutex"):
-            from PySide6.QtCore import QMutexLocker
+        try:
+            # Access worker's internal mutex for atomic check
+            if hasattr(worker, "_state_mutex"):
+                from PySide6.QtCore import QMutexLocker
 
-            with QMutexLocker(worker._state_mutex):
-                state = (
-                    worker._state.value
-                    if hasattr(worker._state, "value")
-                    else str(worker._state)
-                )
-                is_running = worker.isRunning()
-                return (state, is_running)
-        else:
-            # Fallback for workers without state mutex
-            try:
+                with QMutexLocker(worker._state_mutex):
+                    state = (
+                        worker._state.value
+                        if hasattr(worker._state, "value")
+                        else str(worker._state)
+                    )
+                    is_running = worker.isRunning()
+                    return (state, is_running)
+            else:
+                # Fallback for workers without state mutex
                 state = worker.get_state()
                 if hasattr(state, "value"):
                     state = state.value
@@ -1687,9 +1688,23 @@ class LauncherManager(QObject):
                     state = str(state)
                 is_running = worker.isRunning()
                 return (state, is_running)
-            except Exception as e:
-                logger.error(f"Failed to check worker {worker_key}: {e}")
+        except AttributeError as e:
+            # Worker object may have been deleted by Qt
+            logger.debug(f"Worker {worker_key} object no longer accessible: {e}")
+            return ("REMOVED", False)
+        except RuntimeError as e:
+            # Check if it's a Qt deletion error or a real runtime error
+            if "deleted" in str(e).lower() or "wrapped C/C++ object" in str(e):
+                # Qt object deletion
+                logger.debug(f"Worker {worker_key} Qt object deleted: {e}")
+                return ("REMOVED", False)
+            else:
+                # Real runtime error
+                logger.error(f"Runtime error checking worker {worker_key}: {e}")
                 return ("ERROR", False)
+        except Exception as e:
+            logger.error(f"Failed to check worker {worker_key}: {e}")
+            return ("ERROR", False)
 
     def _cleanup_finished_workers(self):
         """Thread-safe cleanup of finished worker threads with cascading prevention.
@@ -1730,7 +1745,7 @@ class LauncherManager(QObject):
                     # Atomic state check
                     state, is_running = self._check_worker_state_atomic(worker_key)
 
-                    if state in ["STOPPED", "DELETED", "ERROR"]:
+                    if state in ["STOPPED", "DELETED", "ERROR", "REMOVED"]:
                         if not is_running:
                             # Consistent state - safe to remove
                             finished_workers.append(worker_key)

@@ -6,16 +6,7 @@ This refactored version:
 - Uses real files with tmp_path instead of mocking PathUtils/FileUtils
 - Follows the principle of minimal mocking
 """
-
 # pyright: basic
-"""Unit tests for ShotModel class following UNIFIED_TESTING_GUIDE best practices.
-
-This refactored version:
-- Uses real components with test doubles only at system boundaries
-- Tests behavior, not implementation (no assert_called)
-- Uses real files with tmp_path instead of mocking PathUtils/FileUtils
-- Follows the principle of minimal mocking
-"""
 
 from pathlib import Path
 

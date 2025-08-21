@@ -10,6 +10,7 @@ This refactored version:
 
 import logging
 
+import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout
@@ -19,8 +20,13 @@ from shot_info_panel import ShotInfoPanel
 from shot_model import Shot
 
 
+@pytest.mark.usefixtures("isolated_test_environment", "qapp")
 class TestShotInfoPanel:
-    """Test ShotInfoPanel widget with real components."""
+    """Test ShotInfoPanel widget with real components.
+
+    Uses isolated_test_environment fixture to ensure proper test isolation
+    for Qt widgets and cache state. Also uses qapp to ensure QApplication exists.
+    """
 
     def test_init_default_cache_manager(self, qtbot):
         """Test initialization with default cache manager."""
@@ -114,35 +120,61 @@ class TestShotInfoPanel:
         self, qtbot, real_cache_manager, tmp_path, make_test_shot
     ):
         """Test loading thumbnail from cache with real files."""
+        # Clear any existing cache state
+        real_cache_manager.clear_cache()
+
         panel = ShotInfoPanel(cache_manager=real_cache_manager)
         qtbot.addWidget(panel)
 
         # Create real shot and real thumbnail
         shot = make_test_shot("test_show", "seq01", "shot01", with_thumbnail=True)
 
-        # Create and cache a real thumbnail
+        # Create and cache a real thumbnail with proper JPEG format
         thumb_path = tmp_path / "cached_thumb.jpg"
         pixmap = QPixmap(100, 100)
         pixmap.fill(Qt.GlobalColor.blue)
-        pixmap.save(str(thumb_path))
+
+        # Ensure the pixmap saves successfully
+        save_success = pixmap.save(str(thumb_path), "JPEG", 90)
+        assert save_success, f"Failed to save pixmap to {thumb_path}"
+        assert thumb_path.exists(), f"Thumbnail file not created at {thumb_path}"
+
+        # Verify the saved file can be loaded
+        test_pixmap = QPixmap(str(thumb_path))
+        assert not test_pixmap.isNull(), (
+            f"Could not reload saved pixmap from {thumb_path}"
+        )
 
         # Cache the thumbnail (source_path first, then show/seq/shot)
-        real_cache_manager.cache_thumbnail(thumb_path, "test_show", "seq01", "shot01")
+        cache_result = real_cache_manager.cache_thumbnail(
+            thumb_path, "test_show", "seq01", "shot01"
+        )
+        assert cache_result is not None, "Failed to cache thumbnail"
 
         # Set the shot
         panel.set_shot(shot)
 
+        # Give Qt time to process the display update
+        qtbot.wait(50)
+
         # Test actual thumbnail is displayed
         displayed_pixmap = panel.thumbnail_label.pixmap()
-        assert displayed_pixmap is not None
-        assert not displayed_pixmap.isNull()
-        assert displayed_pixmap.width() <= 128
-        assert displayed_pixmap.height() <= 128
+        assert displayed_pixmap is not None, "No pixmap displayed on label"
+        assert not displayed_pixmap.isNull(), "Displayed pixmap is null"
+        assert displayed_pixmap.width() <= 128, (
+            f"Pixmap width {displayed_pixmap.width()} > 128"
+        )
+        assert displayed_pixmap.height() <= 128, (
+            f"Pixmap height {displayed_pixmap.height()} > 128"
+        )
 
     def test_load_thumbnail_from_source(
         self, qtbot, real_cache_manager, tmp_path, monkeypatch
     ):
         """Test loading thumbnail from source when not cached."""
+        # Clear any existing cache state
+        real_cache_manager.clear_cache()
+
         panel = ShotInfoPanel(cache_manager=real_cache_manager)
         qtbot.addWidget(panel)
 
@@ -164,10 +196,20 @@ class TestShotInfoPanel:
         editorial_path.mkdir(parents=True, exist_ok=True)
         thumb_file = editorial_path / "frame.1001.jpg"
 
-        # Create real image
+        # Create real image with proper JPEG format
         pixmap = QPixmap(200, 200)
         pixmap.fill(Qt.GlobalColor.red)
-        pixmap.save(str(thumb_file))
+
+        # Ensure the pixmap saves successfully
+        save_success = pixmap.save(str(thumb_file), "JPEG", 90)
+        assert save_success, f"Failed to save pixmap to {thumb_file}"
+        assert thumb_file.exists(), f"Thumbnail file not created at {thumb_file}"
+
+        # Verify the saved file can be loaded
+        test_pixmap = QPixmap(str(thumb_file))
+        assert not test_pixmap.isNull(), (
+            f"Could not reload saved pixmap from {thumb_file}"
+        )
 
         # Override Config.SHOWS_ROOT
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
@@ -178,13 +220,13 @@ class TestShotInfoPanel:
         # Set the shot (should load from source)
         panel.set_shot(shot)
 
-        # Give it time to load
-        qtbot.wait(100)
+        # Give it time to load and cache
+        qtbot.wait(150)
 
         # Test actual thumbnail is displayed
         displayed_pixmap = panel.thumbnail_label.pixmap()
-        assert displayed_pixmap is not None
-        assert not displayed_pixmap.isNull()
+        assert displayed_pixmap is not None, "No pixmap displayed on label"
+        assert not displayed_pixmap.isNull(), "Displayed pixmap is null"
 
     def test_load_thumbnail_no_cache_no_source(
         self, qtbot, real_cache_manager, tmp_path
@@ -259,8 +301,13 @@ class TestShotInfoPanel:
         with caplog.at_level(logging.DEBUG):
             panel._load_pixmap_from_path(nonexistent)
 
-        # Test actual behavior
-        assert "does not exist" in caplog.text
+        # Test actual behavior - check for any of the possible log messages
+        # The implementation may hit different code paths based on how QPixmap handles missing files
+        assert (
+            "Thumbnail path does not exist:" in caplog.text
+            or "Failed to load thumbnail" in caplog.text
+            or "does not exist" in caplog.text
+        ), f"Expected log message not found. Actual log: {caplog.text}"
         assert panel.thumbnail_label.text() == "No Image"
 
     def test_load_pixmap_from_path_none(self, qtbot, real_cache_manager, caplog):

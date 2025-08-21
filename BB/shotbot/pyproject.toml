@@ -13,6 +13,7 @@ exclude = [
     "__pycache__",
     "venv",
     ".venv",
+    "test_venv",
     "archived",
     "copy",
 ]

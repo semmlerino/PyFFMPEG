@@ -348,28 +348,30 @@ class PathUtils:
             logger.debug(f"{description} is empty")
             return False
 
-        # Check actual path existence
-        path_obj = Path(path) if isinstance(path, str) else path
-        exists = path_obj.exists()
-
         # Skip caching if disabled (for testing)
         if _cache_disabled:
+            path_obj = Path(path) if isinstance(path, str) else path
+            exists = path_obj.exists()
             if not exists:
                 logger.debug(f"{description} does not exist (no cache): {path_obj}")
             return exists
 
-        # Use string representation for caching
-        path_str = str(path)
+        # Convert to Path object and string for caching
+        path_obj = Path(path) if isinstance(path, str) else path
+        path_str = str(path_obj)
         current_time = time.time()
 
         # Check cache first
         if path_str in _path_cache:
             cached_exists, timestamp = _path_cache[path_str]
             if current_time - timestamp < _PATH_CACHE_TTL:
-                # Return cached result if not expired
+                # Return cached result without verification to avoid performance issues
                 if not cached_exists:
                     logger.debug(f"{description} does not exist (cached): {path_str}")
                 return cached_exists
+
+        # Cache miss or expired - check actual path existence
+        exists = path_obj.exists()
 
         # Cache the result
         _path_cache[path_str] = (exists, current_time)
@@ -427,9 +429,10 @@ class PathUtils:
         for path in paths:
             path_str = str(path)
             if path_str in _path_cache:
-                exists, timestamp = _path_cache[path_str]
+                cached_exists, timestamp = _path_cache[path_str]
                 if current_time - timestamp < _PATH_CACHE_TTL:
-                    results[path_str] = exists
+                    # Use cached result without verification
+                    results[path_str] = cached_exists
                     continue
             paths_to_check.append((path, path_str))
 

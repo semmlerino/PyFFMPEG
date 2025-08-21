@@ -125,6 +125,30 @@ class MemoryManager:
 
             return self._evict_lru_items(target_percent)
 
+    @property
+    def memory_usage_bytes(self) -> int:
+        """Get current memory usage in bytes."""
+        with self._lock:
+            return self._memory_usage_bytes
+
+    @memory_usage_bytes.setter
+    def memory_usage_bytes(self, value: int):
+        """Set memory usage in bytes (for backward compatibility)."""
+        with self._lock:
+            self._memory_usage_bytes = value
+
+    @property
+    def max_memory_bytes(self) -> int:
+        """Get maximum memory limit in bytes."""
+        with self._lock:
+            return self._max_memory_bytes
+
+    @property
+    def cached_items(self) -> Dict[str, int]:
+        """Get dictionary of cached items and their sizes."""
+        with self._lock:
+            return self._cached_items.copy()
+
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get current memory usage statistics.
 

@@ -8,7 +8,6 @@ Following the testing guide principles:
 - Use QSignalSpy for real Qt signals
 """
 
-import time
 from collections import deque
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -136,7 +135,7 @@ class TestProgressCalculator:
 
         QCoreApplication.processEvents()  # Process events instead of sleep
         calc.update(20)
-        time.sleep(0.01)
+        QCoreApplication.processEvents()  # Process events instead of sleep
         progress_pct, eta_str = calc.update(30)
 
         assert progress_pct == 30.0

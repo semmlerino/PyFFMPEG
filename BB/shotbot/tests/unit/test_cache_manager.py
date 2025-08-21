@@ -258,7 +258,7 @@ class TestCacheManager:
         test_image = ThreadSafeTestImage(100, 100)
 
         # Patch QImage to return our thread-safe test double
-        with patch("cache_manager.QImage") as mock_qimage_class:
+        with patch("cache.thumbnail_processor.QImage") as mock_qimage_class:
             # Return our thread-safe test image when QImage is created
             mock_qimage_class.return_value = test_image._image
 
@@ -338,7 +338,7 @@ class TestCacheManager:
                 # Use ThreadSafeTestImage for thread-safe operations
                 test_image = ThreadSafeTestImage(100, 100)
 
-                with patch("cache_manager.QImage") as mock_qimage:
+                with patch("cache.thumbnail_processor.QImage") as mock_qimage:
                     # Return the internal QImage from our test double
                     mock_qimage.return_value = test_image._image
 
@@ -686,7 +686,7 @@ class TestCacheThumbnailDirect:
                 raise MemoryError("Out of memory")
             return QImage()
 
-        monkeypatch.setattr("cache_manager.QImage", mock_qimage_init)
+        monkeypatch.setattr("cache.thumbnail_processor.QImage", mock_qimage_init)
 
         result = cache_manager.cache_thumbnail_direct(
             test_image,
@@ -1185,25 +1185,25 @@ class TestCacheManagerThreading:
         cache_results = []
         errors = []
 
-        def cache_thumbnail(thread_id: int):
-            """Cache thumbnail from multiple threads."""
-            try:
-                # Use unique shot for each thread to avoid conflicts
-                shot = Shot(
-                    f"show_{thread_id}",
-                    "seq_01",
-                    f"shot_{thread_id:03d}",
-                    f"/path/{thread_id}",
-                )
+        # Apply patches globally for all threads to use consistently
+        with patch("pathlib.Path.exists", return_value=True), patch(
+            "cache.thumbnail_processor.QImage",
+        ) as mock_image_class:
+            mock_image = MagicMock()
+            mock_image.isNull.return_value = False
+            mock_image.sizeInBytes.return_value = 1000
+            mock_image_class.return_value = mock_image
 
-                # Mock image path and QImage loading (cache_manager uses QImage, not QPixmap)
-                with patch("cache_manager.Path.exists", return_value=True), patch(
-                    "cache_manager.QImage",
-                ) as mock_image_class:
-                    mock_image = MagicMock()
-                    mock_image.isNull.return_value = False
-                    mock_image.sizeInBytes.return_value = 1000
-                    mock_image_class.return_value = mock_image
+            def cache_thumbnail(thread_id: int):
+                """Cache thumbnail from multiple threads."""
+                try:
+                    # Use unique shot for each thread to avoid conflicts
+                    shot = Shot(
+                        f"show_{thread_id}",
+                        "seq_01",
+                        f"shot_{thread_id:03d}",
+                        f"/path/{thread_id}",
+                    )
 
                     result = manager.cache_thumbnail(
                         Path(f"/test/image_{thread_id}.jpg"),
@@ -1213,19 +1213,19 @@ class TestCacheManagerThreading:
                     )
                     cache_results.append((thread_id, result is not None))
 
-            except Exception as e:
-                errors.append((thread_id, str(e)))
+                except Exception as e:
+                    errors.append((thread_id, str(e)))
 
-        # Start multiple threads caching
-        threads = []
-        for i in range(5):
-            t = threading.Thread(target=cache_thumbnail, args=(i,))
-            threads.append(t)
-            t.start()
+            # Start multiple threads caching
+            threads = []
+            for i in range(5):
+                t = threading.Thread(target=cache_thumbnail, args=(i,))
+                threads.append(t)
+                t.start()
 
-        # Wait for all threads
-        for t in threads:
-            t.join(timeout=10.0)
+            # Wait for all threads
+            for t in threads:
+                t.join(timeout=10.0)
 
         # Verify no errors occurred
         assert len(errors) == 0, f"Concurrent caching errors: {errors}"
@@ -1349,7 +1349,7 @@ class TestCacheManagerThreading:
             # Use ThreadSafeTestImage to simulate large image
             test_image = ThreadSafeTestImage(500, 500)  # Large image
 
-            with patch("cache_manager.QImage") as mock_image_class:
+            with patch("cache.thumbnail_processor.QImage") as mock_image_class:
                 # Configure test image to exceed memory limit
                 test_image._image.sizeInBytes = lambda: 2000  # Exceeds 1KB limit
                 mock_image_class.return_value = test_image._image

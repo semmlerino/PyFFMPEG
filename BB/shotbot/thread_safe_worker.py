@@ -334,8 +334,39 @@ class ThreadSafeWorker(QThread):
         # Disconnect all signals when thread finishes
         self.disconnect_all()
 
-        # Transition to final state
-        self.set_state(WorkerState.DELETED)
+        # Respect state machine transitions - must go through STOPPED first
+        with QMutexLocker(self._state_mutex):
+            current = self._state
+
+            # Only transition to DELETED if we're in STOPPED state
+            if current == WorkerState.STOPPED:
+                # Valid transition: STOPPED -> DELETED
+                self._state = WorkerState.DELETED
+                logger.debug(f"Worker {id(self)}: STOPPED -> DELETED (on finished)")
+            elif current in [WorkerState.RUNNING, WorkerState.STOPPING]:
+                # Need to transition through STOPPED first
+                logger.debug(
+                    f"Worker {id(self)}: {current.value} -> STOPPED -> DELETED (on finished)"
+                )
+                self._state = WorkerState.STOPPED
+                # Don't go to DELETED yet - let normal cleanup handle it
+            elif current == WorkerState.ERROR:
+                # ERROR -> STOPPED is valid
+                logger.debug(f"Worker {id(self)}: ERROR -> STOPPED (on finished)")
+                self._state = WorkerState.STOPPED
+            elif current in [WorkerState.CREATED, WorkerState.STARTING]:
+                # Thread finished before it really started - go to STOPPED
+                logger.debug(
+                    f"Worker {id(self)}: {current.value} -> STOPPED (on finished)"
+                )
+                self._state = WorkerState.STOPPED
+            elif current == WorkerState.DELETED:
+                # Already deleted, nothing to do
+                logger.debug(f"Worker {id(self)}: Already DELETED")
+            else:
+                logger.warning(
+                    f"Worker {id(self)}: Unexpected state {current.value} in _on_finished"
+                )
 
     def safe_wait(
         self,

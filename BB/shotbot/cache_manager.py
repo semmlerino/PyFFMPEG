@@ -68,6 +68,7 @@ class CacheManager(QObject):
         self.thumbnails_dir = self.cache_dir / "thumbnails"
         self.shots_cache_file = self.cache_dir / "shots.json"
         self.threede_scenes_cache_file = self.cache_dir / "threede_scenes.json"
+        self.previous_shots_cache_file = self.cache_dir / "previous_shots.json"
 
         # Initialize modular components
         self._storage_backend = StorageBackend()
@@ -79,6 +80,9 @@ class CacheManager(QObject):
         self._shot_cache = ShotCache(self.shots_cache_file, self._storage_backend)
         self._threede_cache = ThreeDECache(
             self.threede_scenes_cache_file, self._storage_backend
+        )
+        self._previous_shots_cache = ShotCache(
+            self.previous_shots_cache_file, self._storage_backend
         )
 
         # Initialize validator (will be created after directory setup)
@@ -105,32 +109,36 @@ class CacheManager(QObject):
     @property
     def _cached_thumbnails(self) -> Dict[str, int]:
         """Backward compatibility property for memory tracking."""
+        # Return direct reference for backward compatibility with tests
+        # Note: In production code, use get_memory_usage() for read-only access
         return self._memory_manager._cached_items
 
     @property
     def _memory_usage_bytes(self) -> int:
         """Backward compatibility property for memory usage."""
-        return self._memory_manager._memory_usage_bytes
+        return self._memory_manager.memory_usage_bytes
 
     @_memory_usage_bytes.setter
     def _memory_usage_bytes(self, value: int):
         """Backward compatibility setter for memory usage."""
-        self._memory_manager._memory_usage_bytes = value
+        self._memory_manager.memory_usage_bytes = value
 
     @property
     def _max_memory_bytes(self) -> int:
         """Backward compatibility property for memory limit."""
-        return self._memory_manager._max_memory_bytes
+        return self._memory_manager.max_memory_bytes
 
     @_max_memory_bytes.setter
     def _max_memory_bytes(self, value: int):
-        """Backward compatibility setter for memory limit."""
+        """Backward compatibility setter for memory limit (test use only)."""
+        # Note: In production, memory limit should be set via constructor
+        # This setter exists only for backward compatibility with existing tests
         self._memory_manager._max_memory_bytes = value
 
     @property
     def _failed_attempts(self) -> Dict[str, Dict[str, Any]]:
         """Backward compatibility property for failure tracking."""
-        return self._failure_tracker._failed_attempts
+        return self._failure_tracker.get_failure_status()
 
     # Configuration properties - maintain backward compatibility
     @property
@@ -274,6 +282,8 @@ class CacheManager(QObject):
 
         if self._thumbnail_processor.process_thumbnail(source_path, cache_path):
             self._memory_manager.track_item(cache_path)
+            # Trigger eviction if memory limit exceeded
+            self._memory_manager.evict_if_needed()
             return cache_path
         return None
 
@@ -281,8 +291,7 @@ class CacheManager(QObject):
         """Handle successful thumbnail loading."""
         # Track in memory manager
         self._memory_manager.track_item(cache_path)
-
-        # Trigger eviction if needed
+        # Trigger eviction if memory limit exceeded
         self._memory_manager.evict_if_needed()
 
     def _cleanup_loader(self, cache_key: str):
@@ -308,6 +317,17 @@ class CacheManager(QObject):
         """Cache shot list to file."""
         self._shot_cache.cache_shots(shots)
 
+    # Previous shots caching methods - delegate to ShotCache
+    def get_cached_previous_shots(self) -> Optional[List[Dict[str, Any]]]:
+        """Get cached previous/approved shot list if valid."""
+        return self._previous_shots_cache.get_cached_shots()
+
+    def cache_previous_shots(
+        self, shots: Union[Sequence["Shot"], Sequence[Dict[str, str]]]
+    ):
+        """Cache previous/approved shot list to file."""
+        self._previous_shots_cache.cache_shots(shots)
+
     # 3DE scene caching methods - delegate to ThreeDECache
     def get_cached_threede_scenes(self) -> Optional[List[Dict[str, Any]]]:
         """Get cached 3DE scene list if valid."""
@@ -322,6 +342,53 @@ class CacheManager(QObject):
     ):
         """Cache 3DE scene list to file with optional metadata."""
         self._threede_cache.cache_scenes(scenes, metadata)
+
+    # Generic data caching methods for backward compatibility
+    def cache_data(self, key: str, data: Any) -> None:
+        """Cache generic data with a key (for backward compatibility).
+
+        Args:
+            key: Cache key identifier
+            data: Data to cache
+        """
+        if key == "previous_shots":
+            self.cache_previous_shots(data)
+        else:
+            # For other generic data, use storage backend directly
+            cache_file = self.cache_dir / f"{key}.json"
+            self._storage_backend.write_json(cache_file, data)
+
+    def get_cached_data(self, key: str) -> Optional[Any]:
+        """Get cached generic data by key (for backward compatibility).
+
+        Args:
+            key: Cache key identifier
+
+        Returns:
+            Cached data or None if not found/expired
+        """
+        if key == "previous_shots":
+            return self.get_cached_previous_shots()
+        else:
+            # For other generic data, use storage backend directly
+            cache_file = self.cache_dir / f"{key}.json"
+            return self._storage_backend.read_json(cache_file)
+
+    def clear_cached_data(self, key: str) -> None:
+        """Clear cached generic data by key (for backward compatibility).
+
+        Args:
+            key: Cache key identifier
+        """
+        if key == "previous_shots":
+            # Clear the previous shots cache file
+            if self.previous_shots_cache_file.exists():
+                self.previous_shots_cache_file.unlink()
+        else:
+            # For other generic data
+            cache_file = self.cache_dir / f"{key}.json"
+            if cache_file.exists():
+                cache_file.unlink()
 
     # Memory and validation methods - delegate to appropriate components
     def get_memory_usage(self) -> Dict[str, Any]:

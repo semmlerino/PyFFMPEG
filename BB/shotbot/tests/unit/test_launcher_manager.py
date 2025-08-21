@@ -444,7 +444,7 @@ class TestLauncherManager:
             assert launcher_id is None
 
         # Process Qt events
-        time.sleep(0.01)
+        QCoreApplication.processEvents()
 
         # Verify validation errors were emitted
         assert len(validation_errors) >= len(dangerous_commands)
@@ -495,7 +495,7 @@ class TestLauncherManager:
         assert updated_launcher.description == "Updated description"
 
         # Process Qt events
-        time.sleep(0.01)
+        QCoreApplication.processEvents()
 
         # Verify real signals were emitted
         updated_signals = [e for e in signal_emissions if e[0] == "updated"]
@@ -581,7 +581,7 @@ class TestLauncherManager:
         assert len(launcher_manager.list_launchers()) == 0
 
         # Process Qt events
-        time.sleep(0.01)
+        QCoreApplication.processEvents()
 
         # Verify real signals were emitted
         deleted_signals = [e for e in signal_emissions if e[0] == "deleted"]
@@ -732,8 +732,10 @@ class TestLauncherExecution:
             # Verify execution behavior
             assert result is True
 
-            # Give worker thread time to start
-            time.sleep(0.1)
+            # Process events to allow worker thread to start
+            for _ in range(10):  # Process events multiple times for thread to start
+                QCoreApplication.processEvents()
+                QCoreApplication.processEvents()  # Double process for thread scheduling
 
             # Verify real signals were emitted
             started_signals = [e for e in signal_emissions if e[0] == "started"]
@@ -1761,15 +1763,18 @@ class TestLauncherWorkerLifecycle:
                 current_state = worker.get_state()
                 if current_state != WorkerState.CREATED:
                     break
-                time.sleep(0.01)  # Small sleep to allow state transition
+                # Process events again to allow state transition
+                QCoreApplication.processEvents()
 
             # Should be in a valid running state or may have already finished
             current_state = worker.get_state()
+            # DELETED is now a valid state that can occur if thread finishes quickly
             assert current_state in [
                 WorkerState.STARTING,
                 WorkerState.RUNNING,
                 WorkerState.STOPPING,
                 WorkerState.STOPPED,
+                WorkerState.DELETED,  # Valid terminal state
             ], f"Expected valid state, got {current_state}"
 
             # Request stop (if not already stopped)
@@ -2337,11 +2342,14 @@ class TestLauncherThreadSafetyBehavior:
                 from PySide6.QtCore import QCoreApplication
 
                 QCoreApplication.processEvents()  # Process events after create
-                # Give time for signal processing
-                time.sleep(0.1)
+                # Process events multiple times for signal processing
+                for _ in range(10):
+                    QCoreApplication.processEvents()
                 self.manager.delete_launcher(launcher_id)
                 QCoreApplication.processEvents()  # Process events after delete
-                time.sleep(0.1)
+                # Process events multiple times for signal processing
+                for _ in range(10):
+                    QCoreApplication.processEvents()
 
         # Start multiple threads
         threads = []
@@ -2354,14 +2362,12 @@ class TestLauncherThreadSafetyBehavior:
         for thread in threads:
             thread.join(timeout=5)
 
-        # Process Qt events and wait a bit more for signals to propagate
+        # Process Qt events to allow signals to propagate
         app = QCoreApplication.instance()
         if app:
-            for _ in range(10):  # Process events multiple times
+            for _ in range(20):  # Process events multiple times
                 app.processEvents()
-                import time
-
-                time.sleep(0.01)
+                app.processEvents()  # Double process for better thread scheduling
 
         # Should have received signals (6 total: 3 creates + 3 deletes)
         # But we'll accept at least 3 for create operations
@@ -2453,7 +2459,8 @@ class TestLauncherManagerThreading:
         # Check state of non-existent worker
         state, is_running = manager._check_worker_state_atomic("nonexistent_worker")
 
-        assert state == "DELETED"
+        # Changed to REMOVED to distinguish from DELETED state (worker was removed from tracking)
+        assert state == "REMOVED"
         assert is_running is False
 
     def test_atomic_state_checking_worker_without_state_mutex(self, launcher_manager):

@@ -5,51 +5,48 @@ This addresses the OpenEXR import issues by implementing practical workarounds.
 """
 
 import os
-import sys
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 
 def check_rez_opencv_packages():
     """Check if OpenCV packages are available in Rez environment."""
     print("Checking for OpenCV/PyAV packages in Rez...")
-    
+
     # Check environment for opencv-related packages
     opencv_packages = []
     pyav_packages = []
-    
+
     for key, value in os.environ.items():
-        if key.startswith('REZ_') and ('OPENCV' in key or 'CV' in key):
+        if key.startswith("REZ_") and ("OPENCV" in key or "CV" in key):
             opencv_packages.append(f"{key}={value}")
-        elif key.startswith('REZ_') and ('PYAV' in key or 'AV' in key):
+        elif key.startswith("REZ_") and ("PYAV" in key or "AV" in key):
             pyav_packages.append(f"{key}={value}")
-    
+
     print(f"Found {len(opencv_packages)} OpenCV-related packages:")
     for pkg in opencv_packages:
         print(f"  {pkg}")
-        
-    print(f"Found {len(pyav_packages)} PyAV-related packages:")  
+
+    print(f"Found {len(pyav_packages)} PyAV-related packages:")
     for pkg in pyav_packages:
         print(f"  {pkg}")
-    
+
     return len(opencv_packages) > 0 or len(pyav_packages) > 0
 
 
 def test_exr_conversion_with_tools():
     """Test if we can use OpenEXR command-line tools for conversion."""
     print("\nTesting OpenEXR command-line tools...")
-    
+
     # Find exr tools in PATH
-    exr_tools = ['exr2aces', 'exrheader', 'exrinfo']
+    exr_tools = ["exr2aces", "exrheader", "exrinfo"]
     available_tools = []
-    
+
     for tool in exr_tools:
         try:
-            result = subprocess.run(['which', tool], 
-                                  capture_output=True, 
-                                  text=True, 
-                                  timeout=5)
+            result = subprocess.run(
+                ["which", tool], capture_output=True, text=True, timeout=5
+            )
             if result.returncode == 0:
                 available_tools.append(tool)
                 print(f"✅ {tool}: {result.stdout.strip()}")
@@ -57,14 +54,14 @@ def test_exr_conversion_with_tools():
                 print(f"❌ {tool}: not found")
         except Exception as e:
             print(f"❌ {tool}: error checking - {e}")
-    
+
     return available_tools
 
 
 def create_exr_conversion_script():
     """Create a shell script for EXR to JPEG conversion using available tools."""
-    
-    script_content = '''#!/bin/bash
+
+    script_content = """#!/bin/bash
 # EXR to JPEG conversion using OpenEXR tools + ImageMagick
 # Usage: convert_exr_to_jpeg.sh input.exr output.jpg [size]
 
@@ -113,19 +110,19 @@ fi
 
 echo "❌ All conversion methods failed"
 exit 1
-'''
+"""
 
-    script_path = Path.cwd() / 'convert_exr_to_jpeg.sh'
+    script_path = Path.cwd() / "convert_exr_to_jpeg.sh"
     script_path.write_text(script_content)
     script_path.chmod(0o755)
-    
+
     print(f"✅ Created EXR conversion script: {script_path}")
     return script_path
 
 
 def create_fixed_thumbnail_processor():
     """Create a fixed version of thumbnail_processor.py with Rez environment support."""
-    
+
     fix_content = '''
 def _process_exr_with_rez_environment(self, source_path: Path) -> Optional["PILImage.Image"]:
     """Process EXR files in Rez environment using available tools.
@@ -228,7 +225,7 @@ def _process_exr_fallback_method(self, source_path: Path) -> Optional["PILImage.
     print("   - _process_exr_with_rez_environment(): Uses external tools")
     print("   - _process_exr_fallback_method(): Enhanced fallback chain")
     print("   - Supports ImageMagick, FFmpeg, and imageio backends")
-    
+
     return fix_content
 
 
@@ -236,60 +233,59 @@ def main():
     """Main function to implement EXR fixes."""
     print("🔧 ShotBot EXR Processing Fix for Rez Environment")
     print("=" * 60)
-    
+
     # Check current environment
-    openexr_root = os.environ.get('REZ_OPENEXR_ROOT', '')
+    openexr_root = os.environ.get("REZ_OPENEXR_ROOT", "")
     if not openexr_root:
         print("⚠️  Not in Rez OpenEXR environment")
         return
-    
+
     print(f"🏠 OpenEXR Root: {openexr_root}")
-    
+
     # Check for additional packages
     has_backends = check_rez_opencv_packages()
-    
+
     # Test available tools
     available_tools = test_exr_conversion_with_tools()
-    
+
     # Create conversion script
     if available_tools:
         script_path = create_exr_conversion_script()
-        
+
         # Test the script with a dummy run
         try:
-            result = subprocess.run([str(script_path)], 
-                                  capture_output=True, 
-                                  text=True, 
-                                  timeout=5)
-            print(f"📄 Conversion script created and tested")
+            subprocess.run(
+                [str(script_path)], capture_output=True, text=True, timeout=5
+            )
+            print("📄 Conversion script created and tested")
         except Exception as e:
             print(f"⚠️  Script created but test failed: {e}")
-    
+
     # Generate fixed code
-    fixed_code = create_fixed_thumbnail_processor()
-    
+    create_fixed_thumbnail_processor()
+
     print("\n" + "=" * 60)
     print("SUMMARY & RECOMMENDATIONS")
     print("=" * 60)
-    
+
     if available_tools:
         print("✅ External EXR tools available - script-based conversion will work")
     else:
         print("❌ No external EXR tools found - may need additional packages")
-    
+
     if has_backends:
         print("✅ Backend packages found - imageio may work")
     else:
         print("⚠️  No OpenCV/PyAV packages - imageio EXR support limited")
-    
+
     print("\nNext Steps:")
-    print("1. Add the generated conversion script to the ShotBot directory")  
+    print("1. Add the generated conversion script to the ShotBot directory")
     print("2. Update thumbnail_processor.py with the fixed methods")
     print("3. Consider requesting opencv or pyav Rez packages for imageio")
     print("4. Test with actual EXR files from the VFX pipeline")
-    
-    print(f"\n🚀 Ready to implement fixes!")
+
+    print("\n🚀 Ready to implement fixes!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

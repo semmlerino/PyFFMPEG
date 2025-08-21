@@ -146,12 +146,20 @@ class ThumbnailProcessor:
 
             # Create thumbnail maintaining aspect ratio
             thumb_size = (self._thumbnail_size, self._thumbnail_size)
-            pil_image.thumbnail(
-                thumb_size,
-                getattr(
-                    __import__("PIL.Image"), "Resampling", __import__("PIL.Image")
-                ).LANCZOS,
-            )
+
+            # Handle different PIL/Pillow versions for LANCZOS constant
+            try:
+                # Modern Pillow (>= 10.0.0)
+                from PIL.Image import Resampling
+
+                resample_filter = Resampling.LANCZOS
+            except ImportError:
+                # Older Pillow (< 10.0.0)
+                from PIL import Image as PILImage
+
+                resample_filter = PILImage.LANCZOS
+
+            pil_image.thumbnail(thumb_size, resample_filter)
 
             # Save with atomic write
             return self._save_pil_thumbnail(pil_image, cache_path, file_info)
@@ -265,28 +273,30 @@ class ThumbnailProcessor:
 
     def _get_rez_environment_info(self):
         """Get Rez environment information for debugging.
-        
+
         Returns:
             dict: Rez environment details
         """
         import os
         import sys
-        
+
         rez_info = {}
-        
+
         # Check for Rez environment variables
-        rez_vars = {key: value for key, value in os.environ.items() if key.startswith("REZ_")}
+        rez_vars = {
+            key: value for key, value in os.environ.items() if key.startswith("REZ_")
+        }
         rez_info["rez_variables"] = rez_vars
-        
+
         # Check for specific packages
         rez_info["openexr_root"] = os.getenv("REZ_OPENEXR_ROOT")
         rez_info["imageio_root"] = os.getenv("REZ_IMAGEIO_ROOT")
         rez_info["used_resolve"] = os.getenv("REZ_USED_RESOLVE", "").split()
-        
+
         # Python path info
         rez_info["python_path"] = sys.path
         rez_info["in_rez_env"] = bool(rez_vars)
-        
+
         return rez_info
 
     def _load_exr_image(self, source_path: Path):
@@ -300,31 +310,27 @@ class ThumbnailProcessor:
         """
         # Get Rez environment info for enhanced debugging
         rez_info = self._get_rez_environment_info()
-        
+
         if rez_info["in_rez_env"]:
-            logger.debug(f"Processing EXR in Rez environment. Resolved packages: {rez_info['used_resolve']}")
-        
-        # NEW: Try system tools first (confirmed working in Rez environment)
+            logger.debug(
+                f"Processing EXR in Rez environment. Resolved packages: {rez_info['used_resolve']}"
+            )
+
+        # Try OpenEXR Python bindings first (most reliable when available)
+        try:
+            result = self._load_exr_with_openexr(source_path)
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.debug(f"OpenEXR loading failed: {e}")
+
+        # Try system tools (ImageMagick) as fallback
         try:
             result = self._load_exr_with_system_tools(source_path)
             if result is not None:
                 return result
         except Exception as e:
             logger.debug(f"System tools EXR loading failed: {e}")
-        
-        # Try OpenEXR Python bindings (likely to fail in Rez)
-        try:
-            return self._load_exr_with_openexr(source_path)
-        except ImportError as e:
-            if rez_info["in_rez_env"]:
-                if rez_info["openexr_root"]:
-                    logger.warning(f"OpenEXR import failed in Rez environment (package at {rez_info['openexr_root']}): {e}")
-                else:
-                    logger.warning(f"OpenEXR import failed in Rez environment (no REZ_OPENEXR_ROOT): {e}")
-            else:
-                logger.debug("OpenEXR not available")
-        except Exception as e:
-            logger.debug(f"OpenEXR loading failed: {e}")
 
         # Try imageio as fallback (likely to fail due to missing backends)
         try:
@@ -332,9 +338,13 @@ class ThumbnailProcessor:
         except ImportError as e:
             if rez_info["in_rez_env"]:
                 if rez_info["imageio_root"]:
-                    logger.warning(f"imageio import failed in Rez environment (package at {rez_info['imageio_root']}): {e}")
+                    logger.warning(
+                        f"imageio import failed in Rez environment (package at {rez_info['imageio_root']}): {e}"
+                    )
                 else:
-                    logger.warning(f"imageio import failed in Rez environment (no REZ_IMAGEIO_ROOT): {e}")
+                    logger.warning(
+                        f"imageio import failed in Rez environment (no REZ_IMAGEIO_ROOT): {e}"
+                    )
             else:
                 logger.debug("imageio not available")
         except Exception as e:
@@ -342,98 +352,122 @@ class ThumbnailProcessor:
 
         # Final error summary for Rez environments
         if rez_info["in_rez_env"]:
-            logger.error(f"All EXR backends failed in Rez environment. Check package configurations for: {[pkg for pkg in rez_info['used_resolve'] if 'openexr' in pkg.lower() or 'imageio' in pkg.lower()]}")
-        
+            logger.error(
+                f"All EXR backends failed in Rez environment. Check package configurations for: {[pkg for pkg in rez_info['used_resolve'] if 'openexr' in pkg.lower() or 'imageio' in pkg.lower()]}"
+            )
+
         return None
 
     def _load_exr_with_system_tools(self, source_path: Path):
         """Load EXR using system tools (ImageMagick + OpenEXR native tools).
-        
+
         This method uses external system tools that we confirmed are working
         in the Rez environment, rather than Python bindings which aren't available.
-        
+
         Args:
             source_path: Path to EXR file
-            
+
         Returns:
             PIL Image object or None if failed
         """
         import subprocess
         import tempfile
+
         from PIL import Image as PILImage
-        
+
         logger.debug(f"Using system tools for EXR processing: {source_path.name}")
-        
-        # First, validate the EXR file using exrinfo (confirmed working)
+
+        # First, check if ImageMagick convert is available
+        try:
+            subprocess.run(
+                ["convert", "-version"],
+                capture_output=True,
+                timeout=5,
+            )
+        except (FileNotFoundError, subprocess.SubprocessError) as e:
+            logger.debug(f"ImageMagick convert not available: {e}")
+            raise ImportError("ImageMagick convert command not found")
+
+        # Validate the EXR file using exrinfo (if available)
         try:
             result = subprocess.run(
-                ['exrinfo', str(source_path)], 
-                capture_output=True, 
-                text=True, 
-                timeout=10
+                ["exrinfo", str(source_path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
-            
+
             if result.returncode != 0:
-                logger.warning(f"EXR validation failed with exrinfo: {result.stderr}")
-                return None
-                
+                logger.debug(f"EXR validation failed with exrinfo: {result.stderr}")
+                # Continue anyway - maybe convert will work
+
             # Log EXR info for debugging
-            info_lines = result.stdout.strip().split('\n')[:3]  # First 3 lines
+            info_lines = result.stdout.strip().split("\n")[:3]  # First 3 lines
             logger.debug(f"EXR file validated: {', '.join(info_lines)}")
-            
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError) as e:
+
+        except (
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            subprocess.SubprocessError,
+        ) as e:
             logger.debug(f"exrinfo validation failed: {e}")
             # Continue anyway - maybe convert will work
-        
+
         # Convert EXR to JPEG using ImageMagick (confirmed working)
         temp_jpg = None
         try:
             # Create temporary JPEG file
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
                 temp_jpg = tmp.name
-            
+
             # Use ImageMagick convert with appropriate settings for EXR
             convert_cmd = [
-                'convert',
+                "convert",
                 str(source_path),
-                '-resize', f'{self._thumbnail_size}x{self._thumbnail_size}>',  # > means only downsize
-                '-quality', '90',
-                '-colorspace', 'sRGB',  # Ensure proper colorspace conversion
-                temp_jpg
+                "-resize",
+                f"{self._thumbnail_size}x{self._thumbnail_size}>",  # > means only downsize
+                "-quality",
+                "90",
+                "-colorspace",
+                "sRGB",  # Ensure proper colorspace conversion
+                temp_jpg,
             ]
-            
+
             result = subprocess.run(
-                convert_cmd,
-                capture_output=True,
-                text=True,
-                timeout=30
+                convert_cmd, capture_output=True, text=True, timeout=30
             )
-            
+
             if result.returncode != 0:
                 logger.warning(f"ImageMagick conversion failed: {result.stderr}")
                 return None
-            
+
             # Check if output file was created
             temp_path = Path(temp_jpg)
             if not temp_path.exists() or temp_path.stat().st_size == 0:
-                logger.warning(f"ImageMagick produced no output file")
+                logger.warning("ImageMagick produced no output file")
                 return None
-            
+
             # Load the converted JPEG with PIL
             pil_image = PILImage.open(temp_jpg)
             pil_image.load()  # Force load to ensure it's valid
-            
-            logger.info(f"✅ EXR converted using ImageMagick: {source_path.name} -> {pil_image.size}")
+
+            logger.info(
+                f"✅ EXR converted using ImageMagick: {source_path.name} -> {pil_image.size}"
+            )
             return pil_image
-            
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError) as e:
+
+        except (
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            subprocess.SubprocessError,
+        ) as e:
             logger.warning(f"ImageMagick EXR conversion failed: {e}")
             return None
-            
+
         except Exception as e:
             logger.warning(f"PIL loading of converted EXR failed: {e}")
             return None
-            
+
         finally:
             # Clean up temporary file
             if temp_jpg and Path(temp_jpg).exists():
@@ -459,44 +493,49 @@ class ThumbnailProcessor:
 
         import numpy as np
         from PIL import Image as PILImage
+
         rez_openexr_root = os.getenv("REZ_OPENEXR_ROOT")
         if rez_openexr_root:
             logger.debug(f"Rez OpenEXR package detected at: {rez_openexr_root}")
-        
+
         # Try dual import strategy for Rez compatibility
         openexr_module = None
         imath_module = None
         api_style = None
-        
+
         # Strategy 1: Try official OpenEXR (uppercase)
         try:
             import Imath
             import OpenEXR
+
             openexr_module = OpenEXR
             imath_module = Imath
             api_style = "official"
             logger.debug("Using official OpenEXR package (uppercase)")
         except ImportError:
             logger.debug("Official OpenEXR package not available, trying alternative")
-            
+
         # Strategy 2: Try alternative openexr (lowercase) - common in Rez
         if openexr_module is None:
             try:
                 import openexr
+
                 # Alternative packages often have different Imath location
                 try:
                     import Imath
+
                     imath_module = Imath
                 except ImportError:
                     # Some packages bundle Imath differently
                     import imath as Imath
+
                     imath_module = Imath
                 openexr_module = openexr
                 api_style = "alternative"
                 logger.debug("Using alternative openexr package (lowercase)")
             except ImportError:
                 logger.debug("Alternative openexr package not available")
-        
+
         if openexr_module is None or imath_module is None:
             # Enhanced error reporting for Rez environments
             missing_modules = []
@@ -504,10 +543,12 @@ class ThumbnailProcessor:
                 missing_modules.append("OpenEXR")
             if imath_module is None:
                 missing_modules.append("Imath")
-            
+
             error_msg = f"Required modules not found: {', '.join(missing_modules)}"
             if rez_openexr_root:
-                error_msg += f" (Rez package at {rez_openexr_root} may be misconfigured)"
+                error_msg += (
+                    f" (Rez package at {rez_openexr_root} may be misconfigured)"
+                )
             else:
                 error_msg += " (not in Rez environment, check package installation)"
             raise ImportError(error_msg)
@@ -522,7 +563,7 @@ class ThumbnailProcessor:
             except AttributeError:
                 # Some alternative packages use different method names
                 exr_file = openexr_module.File(str(source_path))
-        
+
         header = exr_file.header()
 
         # Get dimensions
@@ -565,27 +606,31 @@ class ThumbnailProcessor:
 
         import numpy as np
         from PIL import Image as PILImage
-        
+
         # Rez environment diagnostics
         rez_imageio_root = os.getenv("REZ_IMAGEIO_ROOT")
         if rez_imageio_root:
             logger.debug(f"Rez imageio package detected at: {rez_imageio_root}")
-        
+
         # Try imageio import with version fallback
         imageio_module = None
         try:
             import imageio.v3 as iio
+
             imageio_module = iio
             logger.debug("Using imageio.v3 API")
         except ImportError:
             try:
                 import imageio as iio
+
                 imageio_module = iio
                 logger.debug("Using imageio v2 API (fallback)")
             except ImportError:
                 error_msg = "imageio not available"
                 if rez_imageio_root:
-                    error_msg += f" (Rez package at {rez_imageio_root} may be misconfigured)"
+                    error_msg += (
+                        f" (Rez package at {rez_imageio_root} may be misconfigured)"
+                    )
                 raise ImportError(error_msg)
 
         # Check for EXR backend availability
@@ -601,7 +646,9 @@ class ThumbnailProcessor:
                 if rez_imageio_root:
                     backend_msg += " (Rez imageio package needs EXR plugins - check if imageio[opencv] or imageio[pyav] components are included)"
                 else:
-                    backend_msg += " (install with: pip install imageio[opencv] or imageio[pyav])"
+                    backend_msg += (
+                        " (install with: pip install imageio[opencv] or imageio[pyav])"
+                    )
                 logger.warning(backend_msg)
             raise
 
@@ -660,12 +707,24 @@ class ThumbnailProcessor:
         Returns:
             True if save succeeded
         """
+        # Ensure cache directory exists
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError) as e:
+            logger.error(f"Failed to create cache directory {cache_path.parent}: {e}")
+            return False
+
         temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
 
         try:
             # Higher quality for heavy formats
             quality = 95 if file_info["is_heavy_format"] else 90
             pil_image.save(str(temp_path), "JPEG", quality=quality, optimize=True)
+
+            # Verify temp file was created successfully
+            if not temp_path.exists() or temp_path.stat().st_size == 0:
+                logger.error(f"Temp file was not created or is empty: {temp_path}")
+                return False
 
             # Atomic move to final location
             temp_path.replace(cache_path)
