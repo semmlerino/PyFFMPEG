@@ -3,13 +3,19 @@
 
 ## Table of Contents
 1. [Core Principles](#core-principles)
-2. [When to Mock](#when-to-mock)
-3. [Signal Testing](#signal-testing)
-4. [Essential Test Doubles](#essential-test-doubles)
-5. [Qt-Specific Patterns](#qt-specific-patterns)
-6. [Qt Threading Safety](#qt-threading-safety)
-7. [Critical Pitfalls](#critical-pitfalls)
-8. [Quick Reference](#quick-reference)
+2. [Test Organization & Decision Trees](#test-organization--decision-trees)
+3. [When to Mock](#when-to-mock)
+4. [Signal Testing](#signal-testing)
+5. [Property-Based Testing](#property-based-testing)
+6. [Essential Test Doubles](#essential-test-doubles)
+7. [Test Templates](#test-templates)
+8. [Cache Architecture Testing](#cache-architecture-testing)
+9. [Qt-Specific Patterns](#qt-specific-patterns)
+10. [Qt Threading Safety](#qt-threading-safety)
+11. [WSL Testing Strategies](#wsl-testing-strategies)
+12. [Quick Lookup Table](#quick-lookup-table)
+13. [Critical Pitfalls](#critical-pitfalls)
+14. [Quick Reference](#quick-reference)
 
 ---
 
@@ -48,35 +54,105 @@ controller = Controller(
 
 ---
 
+## Test Organization & Decision Trees
+
+### Test Placement Algorithm
+```
+IF uses qtbot OR inherits QWidget/QObject:
+    → tests/qt/
+ELIF tests subprocess OR ws command:
+    → tests/integration/
+ELIF tests multiple cache components:
+    → tests/integration/
+ELIF pure logic/parsing/utilities:
+    → tests/unit/
+ELIF full application workflow:
+    → tests/e2e/
+```
+
+### File Naming Convention
+```
+tests/
+├── unit/
+│   └── test_<module>__<behavior>.py
+├── qt/
+│   └── test_<widget>__<interaction>.py
+├── integration/
+│   └── test_<component1>_<component2>__integration.py
+└── e2e/
+    └── test_<workflow>__e2e.py
+```
+
+### Function Naming Convention
+```python
+def test_<Class>__<method>__<scenario>():
+    """Test <expected behavior> when <condition>."""
+    pass
+
+# Examples:
+def test_ShotModel__refresh_shots__returns_changes():
+def test_CacheManager__cache_thumbnail__thread_safety():
+def test_MainWindow__on_refresh__updates_grid():
+```
+
+### Mocking Decision Algorithm
+```
+FOR each dependency:
+    IF crosses process boundary (subprocess):
+        → Use TestProcessPoolManager or Mock
+    ELIF network/external API:
+        → Mock with predefined responses
+    ELIF filesystem AND testing logic (not I/O):
+        → Mock or use tmp_path
+    ELIF Qt widget/signal:
+        → Use real widget with qtbot
+    ELIF internal method:
+        → Use real method
+    ELIF database:
+        → Use in-memory SQLite or test double
+```
+
+---
+
 ## When to Mock
+
+### Deterministic Mocking Checklist
+
+| Question | Action |
+|----------|--------|
+| Does it cross process/network/time/OS boundary? | ✅ **Mock/Test Double** |
+| Is it a pure value object or data type? | ❌ **Use Real** |
+| Would mocking change the public behavior being tested? | ❌ **Don't Mock** |
+| Are you verifying call counts to internal methods? | 🚫 **Code Smell - Remove** |
+| Is it the 'ws' shell function command? | ✅ **Use TestProcessPoolManager** |
+| Is it a Qt signal/slot connection? | ❌ **Use Real with qtbot** |
+
+### Practical Examples by Test Type
 
 | Test Type | Mock | Use Real |
 |-----------|------|----------|
-| **Unit** | External services, Network, Subprocess | Class under test, Value objects, Internal methods |
-| **Integration** | External APIs only | Components being integrated, Signals, Cache |
-| **E2E** | Nothing | Everything |
+| **Unit** | External services, Network, Subprocess, System time | Class under test, Value objects, Internal methods |
+| **Integration** | External APIs only | Components being integrated, Signals, Cache, File I/O |
+| **E2E** | Nothing (use test environment) | Everything |
 
-### Practical Example
+### ShotBot-Specific Mocking Rules
 ```python
+# ALWAYS mock the 'ws' command - it's a shell function
 def test_shot_workflow():
-    # Real components
-    cache = CacheManager(tmp_path)
-    model = ShotModel(cache_manager=cache)
+    model = ShotModel()
+    # NOTE: 'ws' is shell function requiring interactive bash
+    model._process_pool = TestProcessPoolManager()
+    model._process_pool.set_outputs("workspace /shows/test/seq/shot")
     
-    # Test double for external subprocess
-    model._process_pool = TestProcessPool()
-    
-    # Test real integration
     result = model.refresh_shots()
     assert result.success
-    assert cache.get_cached_shots() is not None  # Real cache works
 ```
 
 ---
 
 ## Signal Testing
 
-### Strategy: Choose the Right Tool
+### Signal Testing Decision Matrix
 
 | Scenario | Tool | When to Use |
 |----------|------|-------------|
@@ -84,6 +160,7 @@ def test_shot_workflow():
 | Test double signals | `TestSignal` | Non-Qt or mocked components |
 | Async Qt operations | `qtbot.waitSignal()` | Waiting for real Qt signals |
 | Mock object callbacks | `.assert_called()` | Pure Python mocks |
+| Verify NO signal emission | `qtbot.assertNotEmitted` | Ensuring silence |
 
 ### QSignalSpy for Real Qt Signals
 ```python
@@ -159,12 +236,79 @@ def test_no_race():
 
 ---
 
+## Property-Based Testing
+
+### When to Use Property-Based Testing
+- Path operations and validation
+- Cache key generation
+- Parsing functions
+- Data transformations
+- Invariants that must hold for all inputs
+
+### ShotBot Property Test Templates
+
+#### Path Operations Template
+```python
+from hypothesis import given, strategies as st
+
+# Shot path invariant testing
+@given(st.from_regex(r"/shows/[a-z0-9_]+/[a-z0-9_]+/\d{4}", fullmatch=True))
+def test_shot_path_roundtrip(path):
+    """Any valid shot path should parse and reconstruct identically."""
+    shot = Shot.from_path(path)
+    assert shot.to_path() == path
+    assert shot.show and shot.sequence and shot.shot
+
+# Cache key invariants
+@given(
+    show=st.text(min_size=1, max_size=20, alphabet=st.characters(blacklist_characters="/")),
+    seq=st.text(min_size=1, max_size=20, alphabet=st.characters(blacklist_characters="/")),
+    shot=st.from_regex(r"\d{4}")
+)
+def test_cache_key_uniqueness(show, seq, shot):
+    """Cache keys must be unique and reversible."""
+    key1 = CacheManager.generate_key(show, seq, shot)
+    key2 = CacheManager.generate_key(show, seq, shot)
+    assert key1 == key2  # Deterministic
+    assert "/" not in key1  # Safe for filesystem
+```
+
+#### Workspace Command Parsing Template
+```python
+@given(st.lists(
+    st.tuples(
+        st.from_regex(r"[A-Z]{2}", fullmatch=True),  # Show code
+        st.from_regex(r"seq\d{3}", fullmatch=True),  # Sequence
+        st.from_regex(r"\d{4}", fullmatch=True)      # Shot number
+    ),
+    min_size=0,
+    max_size=100
+))
+def test_workspace_parsing_consistency(shot_data):
+    """Workspace output parsing should handle any valid format."""
+    # Generate mock workspace output
+    ws_output = "\n".join(f"workspace /shows/{s}/{sq}/{sh}" 
+                          for s, sq, sh in shot_data)
+    
+    shots = ShotModel._parse_workspace_output(ws_output)
+    assert len(shots) == len(shot_data)
+    for shot, (show, seq, shot_num) in zip(shots, shot_data):
+        assert shot.show == show
+        assert shot.sequence == seq
+        assert shot.shot == shot_num
+```
+
+---
+
 ## Essential Test Doubles
 
 ### TestProcessPoolManager
 ```python
 class TestProcessPoolManager:
-    """Replace subprocess calls with predictable behavior"""
+    """Replace subprocess calls with predictable behavior.
+    
+    CRITICAL: Use this for 'ws' command testing - it's a shell function!
+    """
     def __init__(self):
         self.commands = []
         self.outputs = ["workspace /test/path"]
@@ -172,12 +316,18 @@ class TestProcessPoolManager:
         self.command_failed = TestSignal()
     
     def execute_workspace_command(self, command, **kwargs):
+        """Simulate 'ws -sg' command execution.
+        
+        NOTE: Real 'ws' requires ["/bin/bash", "-i", "-c", "ws -sg"]
+        This test double avoids that complexity.
+        """
         self.commands.append(command)
         output = self.outputs[0] if self.outputs else ""
         self.command_completed.emit(command, output)
         return output
     
     def set_outputs(self, *outputs):
+        """Preset outputs for testing different scenarios."""
         self.outputs = list(outputs)
     
     @classmethod
@@ -204,6 +354,38 @@ class MockMainWindow(QObject):
         return {"vram_path": "/test/path"}  # Test data
 ```
 
+### ThreadSafeTestImage (CRITICAL for Qt Threading)
+```python
+class ThreadSafeTestImage:
+    """Thread-safe test double for QPixmap using QImage internally.
+    
+    ⚠️ CRITICAL: QPixmap is NOT thread-safe and WILL crash Python if used
+    in worker threads. This class provides a QPixmap-like interface while
+    using QImage internally for thread safety.
+    """
+    
+    def __init__(self, width: int = 100, height: int = 100):
+        # Use QImage which is thread-safe, unlike QPixmap
+        self._image = QImage(width, height, QImage.Format.Format_RGB32)
+        self._width = width
+        self._height = height
+        self._image.fill(QColor(255, 255, 255))
+        
+    def fill(self, color: QColor = None) -> None:
+        if color is None:
+            color = QColor(255, 255, 255)
+        self._image.fill(color)
+        
+    def isNull(self) -> bool:
+        return self._image.isNull()
+        
+    def sizeInBytes(self) -> int:
+        return self._image.sizeInBytes()
+        
+    def size(self) -> QSize:
+        return QSize(self._width, self._height)
+```
+
 ### Factory Fixtures
 ```python
 @pytest.fixture
@@ -217,6 +399,281 @@ def make_shot():
 def real_cache_manager(tmp_path):
     """Real cache with temp storage"""
     return CacheManager(cache_dir=tmp_path / "cache")
+
+@pytest.fixture
+def test_process_pool():
+    """Pre-configured test process pool"""
+    pool = TestProcessPoolManager()
+    pool.set_outputs(
+        "workspace /shows/TEST/seq01/0010",
+        "workspace /shows/TEST/seq01/0020"
+    )
+    return pool
+```
+
+---
+
+## Test Templates
+
+### Qt Widget Test Template
+```python
+# test_qt_widget_template.py
+import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QWidget
+from pytestqt.qtbot import QtBot
+
+def test_widget_interaction(qtbot: QtBot):
+    """Template for testing Qt widget interactions."""
+    # 1. Create widget
+    widget = MyCustomWidget()
+    qtbot.addWidget(widget)  # CRITICAL: Register for cleanup
+    
+    # 2. Show widget (if needed)
+    widget.show()
+    qtbot.waitExposed(widget)
+    
+    # 3. Interact
+    qtbot.mouseClick(widget.button, Qt.LeftButton)
+    qtbot.keyClick(widget.input_field, Qt.Key_Return)
+    qtbot.keyClicks(widget.text_edit, "test input")
+    
+    # 4. Wait for async operations
+    with qtbot.waitSignal(widget.data_changed, timeout=1000):
+        widget.trigger_update()
+    
+    # 5. Assert
+    assert widget.label.text() == "Expected"
+    assert widget.model.rowCount() == 5
+```
+
+### Signal Test Template
+```python
+# test_signal_template.py
+import pytest
+from PySide6.QtCore import QObject, Signal
+from pytestqt.qtbot import QtBot
+
+def test_signal_emission(qtbot: QtBot):
+    """Template for testing Qt signal emission."""
+    # 1. Create object with signals
+    model = DataModel()
+    
+    # 2. Set up signal spy BEFORE triggering
+    with qtbot.waitSignal(model.data_updated, timeout=1000) as blocker:
+        model.update_data("new value")
+    
+    # 3. Verify signal was emitted with correct args
+    assert blocker.signal_triggered
+    assert blocker.args[0] == "new value"
+    
+    # Alternative: QSignalSpy for multiple emissions
+    from pytestqt.qt_compat import qt_api
+    spy = qt_api.QtTest.QSignalSpy(model.data_updated)
+    
+    model.update_data("first")
+    model.update_data("second")
+    
+    assert len(spy) == 2
+    assert spy[0][0] == "first"
+    assert spy[1][0] == "second"
+```
+
+### Worker Thread Test Template
+```python
+# test_worker_thread_template.py
+import pytest
+from PySide6.QtCore import QThread
+from pytestqt.qtbot import QtBot
+
+def test_worker_thread(qtbot: QtBot):
+    """Template for testing worker threads safely."""
+    # 1. Create worker (NO QPixmap operations!)
+    worker = ImageProcessorWorker()
+    
+    # 2. Use ThreadSafeTestImage for any image operations
+    test_image = ThreadSafeTestImage(200, 200)
+    worker.set_image(test_image)  # Safe in any thread
+    
+    # 3. Connect signals before starting
+    results = []
+    worker.result_ready.connect(lambda r: results.append(r))
+    
+    # 4. Start worker
+    worker.start()
+    
+    # 5. Wait for completion
+    qtbot.waitUntil(lambda: not worker.isRunning(), timeout=5000)
+    
+    # 6. Verify results
+    assert len(results) == 1
+    assert results[0].success
+    
+    # 7. Cleanup
+    if worker.isRunning():
+        worker.quit()
+        worker.wait(1000)
+```
+
+### Cache Component Test Template
+```python
+# test_cache_component_template.py
+import pytest
+from pathlib import Path
+
+def test_cache_component_isolation(tmp_path: Path):
+    """Template for testing individual cache components."""
+    # 1. Create component with test storage
+    storage = StorageBackend(tmp_path / "cache")
+    
+    # 2. Test component in isolation
+    data = {"key": "value", "timestamp": 123456}
+    storage.write_json("test_key", data)
+    
+    # 3. Verify behavior
+    loaded = storage.read_json("test_key")
+    assert loaded == data
+    
+    # 4. Test error conditions
+    assert storage.read_json("nonexistent") is None
+
+def test_cache_integration(tmp_path: Path):
+    """Template for testing cache component integration."""
+    # 1. Create multiple components
+    storage = StorageBackend(tmp_path / "cache")
+    memory = MemoryManager(max_size_mb=10)
+    processor = ThumbnailProcessor(storage, memory)
+    
+    # 2. Test integration
+    # NOTE: Use ThreadSafeTestImage for thread safety
+    image = ThreadSafeTestImage(100, 100)
+    result = processor.process_thumbnail("test_shot", image)
+    
+    # 3. Verify cross-component behavior
+    assert storage.exists("thumbnails/test_shot")
+    assert memory.get_usage() > 0
+```
+
+### Shot Model Test Template
+```python
+# test_shot_model_template.py
+import pytest
+
+def test_shot_model_refresh():
+    """Template for testing shot model with ws command."""
+    # 1. Create model
+    model = ShotModel()
+    
+    # 2. Replace process pool with test double
+    # CRITICAL: 'ws' is a shell function, not executable
+    test_pool = TestProcessPoolManager()
+    test_pool.set_outputs(
+        "workspace /shows/TEST/seq01/0010\n"
+        "workspace /shows/TEST/seq01/0020"
+    )
+    model._process_pool = test_pool
+    
+    # 3. Test refresh
+    result = model.refresh_shots()
+    
+    # 4. Verify behavior
+    assert result.success
+    assert result.has_changes
+    assert len(model.get_shots()) == 2
+    assert model.get_shots()[0].shot == "0010"
+```
+
+---
+
+## Cache Architecture Testing
+
+### Component Testing Matrix
+
+| Component | Test in Isolation | Integration Points | Key Test Scenarios |
+|-----------|------------------|-------------------|-------------------|
+| StorageBackend | ✅ Yes | None | Atomic writes, fallback handling, thread safety |
+| FailureTracker | ✅ Yes | None | Exponential backoff, cleanup, timestamp tracking |
+| MemoryManager | ✅ Yes | None | LRU eviction, size tracking, limit enforcement |
+| ThumbnailProcessor | ⚠️ Partial | Storage, Memory | Format support, thread safety (ThreadSafeTestImage) |
+| ShotCache | ✅ Yes | Storage | TTL expiration, refresh, serialization |
+| ThreeDECache | ✅ Yes | Storage | Metadata, deduplication, TTL |
+| CacheValidator | ❌ No | All components | Consistency, repair, statistics |
+| ThumbnailLoader | ❌ No | Processor, Failure | Async loading, signal emission |
+
+### Component Isolation Testing
+```python
+def test_storage_backend_isolation(tmp_path):
+    """Test StorageBackend without other components."""
+    storage = StorageBackend(tmp_path)
+    
+    # Test atomic write
+    storage.write_json("key", {"data": "value"})
+    assert storage.read_json("key") == {"data": "value"}
+    
+    # Test thread safety
+    import threading
+    results = []
+    
+    def write_data(i):
+        storage.write_json(f"key_{i}", {"id": i})
+        results.append(i)
+    
+    threads = [threading.Thread(target=write_data, args=(i,)) 
+               for i in range(10)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    
+    assert len(results) == 10
+```
+
+### Component Integration Testing
+```python
+def test_thumbnail_pipeline_integration(tmp_path):
+    """Test full thumbnail processing pipeline."""
+    # Create integrated components
+    storage = StorageBackend(tmp_path)
+    memory = MemoryManager(max_size_mb=10)
+    failure = FailureTracker(storage)
+    processor = ThumbnailProcessor(storage, memory, failure)
+    
+    # Test successful processing
+    image = ThreadSafeTestImage(100, 100)
+    result = processor.process("shot_001", image)
+    
+    assert result.success
+    assert memory.get_usage() > 0
+    assert not failure.should_retry("shot_001")
+    
+    # Test failure handling
+    processor.process("bad_shot", None)  # Will fail
+    assert failure.should_retry("bad_shot") is False  # In backoff
+```
+
+### Cache Manager Facade Testing
+```python
+def test_cache_manager_facade(tmp_path):
+    """Test the main CacheManager facade."""
+    cache = CacheManager(cache_dir=tmp_path)
+    
+    # The facade should coordinate all components
+    shot = Shot("TEST", "seq01", "0010", "/test/path")
+    
+    # Test thumbnail caching (involves multiple components)
+    image_path = tmp_path / "test.jpg"
+    image_path.write_bytes(b"fake_image_data")
+    
+    pixmap = cache.cache_thumbnail(
+        source_path=str(image_path),
+        show=shot.show,
+        sequence=shot.sequence,
+        shot=shot.shot
+    )
+    
+    # Verify coordination
+    assert cache.get_memory_usage() > 0
+    assert cache.get_cached_thumbnail(shot.show, shot.sequence, shot.shot)
 ```
 
 ---
@@ -324,48 +781,6 @@ Worker Thread (Background):     Main Thread (GUI):
 └─────────────────────┘        └──────────────────┘
 ```
 
-### Thread-Safe Test Doubles
-
-Create thread-safe alternatives for Qt objects in tests:
-
-```python
-class ThreadSafeTestImage:
-    """Thread-safe test double for QPixmap using QImage internally.
-    
-    QPixmap is not thread-safe and can only be used in the main GUI thread.
-    QImage is thread-safe and can be used in any thread. This class provides
-    a QPixmap-like interface while using QImage internally for thread safety.
-    
-    Based on Qt's canonical threading pattern for image operations.
-    """
-    
-    def __init__(self, width: int = 100, height: int = 100):
-        """Create a thread-safe test image."""
-        # Use QImage which is thread-safe, unlike QPixmap
-        self._image = QImage(width, height, QImage.Format.Format_RGB32)
-        self._width = width
-        self._height = height
-        self._image.fill(QColor(255, 255, 255))  # Fill with white by default
-        
-    def fill(self, color: QColor = None) -> None:
-        """Fill the image with a color."""
-        if color is None:
-            color = QColor(255, 255, 255)
-        self._image.fill(color)
-        
-    def isNull(self) -> bool:
-        """Check if the image is null."""
-        return self._image.isNull()
-        
-    def sizeInBytes(self) -> int:
-        """Return the size of the image in bytes."""
-        return self._image.sizeInBytes()
-        
-    def size(self) -> QSize:
-        """Return the size of the image."""
-        return QSize(self._width, self._height)
-```
-
 ### Usage in Threading Tests
 
 Replace QPixmap with ThreadSafeTestImage in tests that involve worker threads:
@@ -383,16 +798,9 @@ def test_concurrent_image_processing():
             image = ThreadSafeTestImage(100, 100)
             image.fill(QColor(255, 0, 0))  # Thread-safe operation
             
-            # Mock the cache manager's QImage usage
-            with patch('cache_manager.QImage') as mock_image_class:
-                mock_image = MagicMock()
-                mock_image.isNull.return_value = False
-                mock_image.sizeInBytes.return_value = image.sizeInBytes()
-                mock_image_class.return_value = mock_image
-                
-                # Test the actual threading behavior
-                result = cache_manager.process_in_thread(image)
-                results.append((thread_id, result is not None))
+            # Test the actual threading behavior
+            result = cache_manager.process_in_thread(image)
+            results.append((thread_id, result is not None))
                 
         except Exception as e:
             errors.append((thread_id, str(e)))
@@ -413,44 +821,6 @@ def test_concurrent_image_processing():
     assert len(results) == 5
 ```
 
-### Real-World Example: Cache Manager Threading
-
-Before (Crashes):
-```python
-# ❌ CAUSES CRASHES - QPixmap in worker thread
-def test_cache_threading():
-    def cache_worker():
-        pixmap = QPixmap(100, 100)  # FATAL ERROR
-        cache.store("key", pixmap)
-    
-    threading.Thread(target=cache_worker).start()
-```
-
-After (Thread-Safe):
-```python
-# ✅ THREAD-SAFE - QImage-based test double
-def test_cache_threading():
-    def cache_worker():
-        image = ThreadSafeTestImage(100, 100)  # Safe in any thread
-        
-        # Mock the internal QImage usage
-        with patch('cache_manager.QImage') as mock_qimage:
-            mock_qimage.return_value = mock_image
-            result = cache.store("key", image)
-            
-    threading.Thread(target=cache_worker).start()
-```
-
-### Key Implementation Insights
-
-1. **Internal Implementation Matters**: Even if your API accepts "image-like" objects, the internal implementation must use QImage in worker threads.
-
-2. **Patch the Right Level**: When mocking Qt image operations, patch `cache_manager.QImage`, not `QPixmap`.
-
-3. **Test Double Strategy**: Create test doubles that mimic the interface but use thread-safe internals.
-
-4. **Resource Management**: QImage cleanup is automatic, but track memory usage for performance tests.
-
 ### Threading Test Checklist
 
 - [ ] ✅ Use `ThreadSafeTestImage` instead of `QPixmap` in worker threads
@@ -460,28 +830,182 @@ def test_cache_threading():
 - [ ] ✅ Check that worker threads can create/manipulate images safely
 - [ ] ✅ Ensure main thread can display results from worker threads
 
-### Performance Considerations
+---
+
+## WSL Testing Strategies
+
+### WSL Performance Characteristics
+- Filesystem operations on `/mnt/c` are 10-100x slower than native Linux
+- Test collection alone can take 60+ seconds
+- Solution: Categorize tests and use optimized runners
+
+### Test Categorization for WSL
 
 ```python
-# QImage is slightly more expensive than QPixmap for creation
-# but essential for thread safety
+# Mark tests with speed categories
+import pytest
 
-# ✅ GOOD - Efficient thread-safe testing
-class TestImagePool:
-    """Reuse ThreadSafeTestImage instances for performance."""
+@pytest.mark.fast  # < 100ms
+def test_pure_logic():
+    """Fast unit test with no I/O."""
+    pass
+
+@pytest.mark.slow  # > 1s
+def test_filesystem_heavy():
+    """Integration test with file operations."""
+    pass
+
+@pytest.mark.critical  # Must pass regardless of speed
+def test_core_functionality():
+    """Essential functionality test."""
+    pass
+```
+
+### WSL Test Runner Configuration
+
+```python
+# run_tests_wsl.py usage patterns
+
+# Quick validation (2 seconds)
+# Uses: NO pytest, direct imports only
+python3 quick_test.py
+
+# Fast tests only (~30 seconds)
+# Runs: @pytest.mark.fast tests
+python3 run_tests_wsl.py --fast
+
+# Critical tests only
+# Runs: @pytest.mark.critical tests
+python3 run_tests_wsl.py --critical
+
+# Single file (minimal I/O)
+python3 run_tests_wsl.py --file tests/unit/test_utils.py
+
+# Pattern matching
+python3 run_tests_wsl.py -k test_shot_model
+
+# Full suite in batches (best for WSL)
+python3 run_tests_wsl.py --all
+```
+
+### WSL-Optimized pytest.ini
+
+```ini
+# pytest_wsl.ini - Optimized for WSL filesystem
+[tool:pytest]
+# Disable plugins that cause excessive I/O
+addopts = 
+    -q                    # Quiet output
+    -ra                   # Show all test outcomes
+    --maxfail=1          # Stop on first failure
+    -p no:cacheprovider  # Disable cache (slow on WSL)
+    -p no:warnings       # Disable warning collection
+    --tb=short           # Shorter tracebacks
+
+# Only collect from tests directory
+testpaths = tests
+
+# Disable doctest collection (slow)
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+```
+
+### Batching Strategy for Large Test Suites
+
+```python
+def run_tests_in_batches(test_files, batch_size=10):
+    """Run tests in batches to avoid WSL timeouts."""
+    batches = [test_files[i:i+batch_size] 
+               for i in range(0, len(test_files), batch_size)]
     
-    def __init__(self):
-        self._pool = []
+    for i, batch in enumerate(batches, 1):
+        print(f"Running batch {i}/{len(batches)}")
+        result = pytest.main([
+            "-q",
+            "--tb=short",
+            "--maxfail=3",
+        ] + batch)
         
-    def get_test_image(self, width=100, height=100):
-        if self._pool:
-            image = self._pool.pop()
-            image.fill()  # Reset to white
-            return image
-        return ThreadSafeTestImage(width, height)
-        
-    def return_image(self, image):
-        self._pool.append(image)
+        if result != 0:
+            print(f"Batch {i} failed")
+            return result
+    
+    return 0
+```
+
+### WSL Performance Tips
+
+1. **Use tmpfs for test artifacts**
+   ```python
+   @pytest.fixture
+   def fast_tmp(tmp_path_factory):
+       """Use /tmp (usually tmpfs) instead of /mnt/c."""
+       return tmp_path_factory.mktemp("test", numbered=True, 
+                                      base_tmp=Path("/tmp"))
+   ```
+
+2. **Minimize test collection**
+   ```python
+   # Explicit file listing is faster than discovery
+   pytest tests/unit/test_shot_model.py tests/unit/test_utils.py
+   ```
+
+3. **Disable unnecessary pytest features**
+   ```python
+   # In conftest.py
+   def pytest_configure(config):
+       if os.environ.get("WSL_DISTRO_NAME"):
+           config.option.verbose = 0
+           config.option.capture = "no"
+   ```
+
+---
+
+## Quick Lookup Table
+
+### Common Scenarios → Solutions
+
+| Scenario | Solution | Example |
+|----------|----------|---------|
+| Testing shot model refresh | TestProcessPoolManager with preset outputs | `model._process_pool = TestProcessPoolManager()` |
+| Testing thumbnails in threads | ThreadSafeTestImage, never QPixmap | `image = ThreadSafeTestImage(100, 100)` |
+| Testing 'ws' command | Interactive bash subprocess pattern | `["/bin/bash", "-i", "-c", "ws -sg"]` |
+| Testing cache components | Test in isolation, integrate at boundaries | See Cache Architecture Testing |
+| Testing Qt dialogs | Mock exec() to prevent blocking | `monkeypatch.setattr(QDialog, "exec", lambda: Accepted)` |
+| Testing worker threads | QThread with proper cleanup | `worker.quit(); worker.wait(1000)` |
+| Testing signal emission | Set up waitSignal BEFORE action | `with qtbot.waitSignal(sig): action()` |
+| Testing file operations | Use tmp_path fixture | `def test(tmp_path): ...` |
+| Testing with timers | qtbot.waitUntil with condition | `qtbot.waitUntil(lambda: done, timeout=1000)` |
+| Testing async operations | qtbot.waitSignal with timeout | `with qtbot.waitSignal(sig, timeout=1000): ...` |
+| Testing on WSL | Use categorized test runners | `python3 run_tests_wsl.py --fast` |
+| Testing properties | Hypothesis with strategies | `@given(st.from_regex(...))` |
+
+### Anti-Pattern Detection Rules
+
+```python
+# Automated anti-pattern checking
+def check_test_for_antipatterns(test_code: str) -> List[str]:
+    """Check test code for common anti-patterns."""
+    errors = []
+    
+    if "QPixmap" in test_code and "threading.Thread" in test_code:
+        errors.append("FATAL: QPixmap in worker thread will crash")
+    
+    if "mock.assert_called" in test_code and "_" in test_code:
+        errors.append("Testing private method calls - test behavior instead")
+    
+    if "QSignalSpy" in test_code and "Mock" in test_code:
+        errors.append("QSignalSpy only works with real Qt signals")
+    
+    if re.search(r"Mock\(spec=(\w+)\).*\1", test_code):
+        errors.append("Mocking class under test - pointless")
+    
+    if "worker.start()" in test_code and "waitSignal" in test_code:
+        if test_code.index("worker.start()") < test_code.index("waitSignal"):
+            errors.append("Signal race condition - set up waitSignal first")
+    
+    return errors
 ```
 
 ---
@@ -572,6 +1096,66 @@ def test_controller():
     assert result == expected
 ```
 
+### Flakiness Management
+
+#### Test Quarantine Policy
+```python
+import pytest
+from datetime import datetime
+
+@pytest.mark.flaky(
+    reruns=3,
+    reruns_delay=1,
+    deadline=datetime(2024, 12, 31),  # Must be fixed by this date
+    owner="team_member_name",
+    issue="JIRA-123"
+)
+def test_known_flaky():
+    """Test with known race condition."""
+    pass
+
+# Strict xfail for platform issues
+@pytest.mark.xfail(
+    sys.platform == "win32",
+    reason="WSL filesystem issue",
+    strict=True  # Must fail consistently
+)
+def test_filesystem_heavy():
+    pass
+```
+
+#### Order Independence
+```python
+# conftest.py
+def pytest_configure(config):
+    """Ensure test order independence."""
+    # Enable random order
+    config.option.randomly_seed = 42  # Reproducible randomness
+    config.option.randomly_dont_shuffle = False
+```
+
+#### Timeout Management
+```python
+import pytest
+
+@pytest.mark.timeout(5)  # 5 second timeout
+def test_with_timeout():
+    """Test that must complete quickly."""
+    pass
+
+# For threading tests
+def test_thread_cleanup():
+    worker = WorkerThread()
+    worker.start()
+    
+    # Always use timeout when joining threads
+    worker.join(timeout=5.0)
+    
+    if worker.is_alive():
+        worker.terminate()  # Force cleanup
+        pytest.fail("Worker thread did not finish in time")
+```
+
 ---
 
 ## Quick Reference
@@ -590,11 +1174,19 @@ def test_controller():
 - [ ] **Patch QImage operations, not QPixmap operations in threading tests**
 - [ ] **Verify no "Fatal Python error: Aborted" crashes in threading tests**
 - [ ] **Set up qtbot.waitSignal() BEFORE starting operations to avoid race conditions**
+- [ ] **Use TestProcessPoolManager for 'ws' command testing**
+- [ ] **Categorize tests as fast/slow/critical for WSL**
 
 ### Command Patterns
 ```python
 # Run tests
 python run_tests.py  # Never use pytest directly
+
+# WSL-optimized testing
+python3 quick_test.py              # 2 second validation
+python3 run_tests_wsl.py --fast    # ~30 seconds
+python3 run_tests_wsl.py --critical # Key tests only
+python3 run_tests_wsl.py --all     # Full suite in batches
 
 # With coverage
 python run_tests.py --cov
@@ -613,6 +1205,10 @@ def tmp_path(): ...         # Temp directory
 def monkeypatch(): ...      # Mock attributes
 @pytest.fixture
 def caplog(): ...           # Capture logs
+@pytest.fixture
+def make_shot(): ...        # Shot factory
+@pytest.fixture
+def test_process_pool(): ...  # Configured TestProcessPoolManager
 ```
 
 ### Before vs After Example
@@ -626,8 +1222,8 @@ def test_bad(self):
 
 # ✅ AFTER - Test double with real behavior
 def test_good(self):
-    model._process_pool = TestProcessPool()
-    model._process_pool.outputs = ["workspace /test/path"]
+    model._process_pool = TestProcessPoolManager()
+    model._process_pool.set_outputs("workspace /test/path")
     
     result = model.refresh()
     
@@ -657,6 +1253,9 @@ self.parent().parent().method()
 
 # ❌ Testing implementation
 mock.assert_called_once()
+
+# ❌ Signal race conditions
+worker.start(); with qtbot.waitSignal(worker.signal): pass
 ```
 
 ---
@@ -669,12 +1268,21 @@ mock.assert_called_once()
 
 **Qt-Specific**: Respect the event loop, signals are first-class, threading rules are FATAL.
 
+**WSL-Specific**: Categorize tests, use optimized runners, batch for performance.
+
 **Key Metrics**:
 - Test speed: 60% faster (no subprocess overhead)
 - Bug discovery: 200% increase (real integration)
 - Maintenance: 75% less (fewer mock updates)
 
 ---
-*Last Updated: 2025-08-17 | Critical Reference - DO NOT DELETE*
+*Last Updated: 2025-08-23 | Critical Reference - DO NOT DELETE*
 
-**Recent Addition**: Qt Threading Safety section added - critical for preventing Qt threading violations that cause "Fatal Python error: Aborted" crashes.
+**Recent Additions**: 
+- Test Organization & Decision Trees for LLM-optimized test placement
+- Complete Test Templates for common patterns
+- Property-Based Testing with Hypothesis
+- Cache Architecture Testing matrix
+- WSL Testing Strategies for performance
+- Quick Lookup Table for scenario → solution mapping
+- Enhanced flakiness management and quarantine policies
