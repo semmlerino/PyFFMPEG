@@ -11,7 +11,7 @@ import os
 import subprocess
 import threading
 import time
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Any, Dict, List, Optional, Tuple
 
 # Try to import fcntl for non-blocking I/O (Unix-only)
 try:
@@ -28,9 +28,7 @@ try:
     from debug_utils import (
         CommandTracer,
         deadlock_detector,
-        setup_enhanced_debugging,
         state_tracker,
-        timing_profiler,
     )
     HAS_DEBUG_UTILS = True
 except ImportError:

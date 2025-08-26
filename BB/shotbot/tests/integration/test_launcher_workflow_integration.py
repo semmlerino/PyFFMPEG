@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import shutil
-import sys
 import tempfile
 import traceback
 from pathlib import Path
@@ -28,11 +27,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.qt]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestSubprocess
+
 
 class TestLauncherWorkflowIntegration:
     """Integration tests for launcher execution and process tracking following UNIFIED_TESTING_GUIDE."""
@@ -309,7 +305,7 @@ class TestLauncherWorkflowIntegration:
 
             # We should have process information (may be tracked as workers or processes)
             # The exact number depends on whether terminal mode is used
-            initial_count = len(process_info)
+            len(process_info)
 
             # Get active process count
             active_count = launcher_manager.get_active_process_count()
@@ -318,7 +314,7 @@ class TestLauncherWorkflowIntegration:
             # Verify launchers exist
             launchers = launcher_manager.list_launchers()
             assert len(launchers) == 2
-            launcher_ids = [l.id for l in launchers]
+            launcher_ids = [launcher.id for launcher in launchers]
             assert launcher_id1 in launcher_ids
             assert launcher_id2 in launcher_ids
 

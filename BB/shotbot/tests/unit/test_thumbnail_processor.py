@@ -12,16 +12,18 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+import concurrent.futures
+from pathlib import Path
+from typing import List
+from unittest.mock import patch
+
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
+
 from cache.thumbnail_processor import ThumbnailProcessor
 from config import Config
-from pathlib import Path
 from tests.test_doubles import ThreadSafeTestImage
-from typing import List
-from unittest.mock import patch
-import concurrent.futures
 
 try:
     from PIL import Image as PILImage
@@ -31,11 +33,7 @@ except ImportError:
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
-from tests.test_doubles_library import (
-    TestSubprocess, PopenDouble, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestSubprocess, ThreadSafeTestImage
 
 
 class PILImageDouble:
@@ -239,7 +237,7 @@ class TestThumbnailProcessorMultiFormat:
         """Small TIFF should be processed with Qt backend."""
         cache_path = tmp_path / "qt_thumbnail.jpg"
 
-        with patch.object(processor, "_process_with_qt", return_value=True) as mock_qt:
+        with patch.object(processor, "_process_with_qt", return_value=True):
             with patch.object(processor, "_process_with_pil") as mock_pil:
                 result = processor.process_thumbnail(small_tiff, cache_path)
 
@@ -252,7 +250,7 @@ class TestThumbnailProcessorMultiFormat:
 
         with patch.object(
             processor, "_process_with_pil", return_value=True
-        ) as mock_pil:
+        ):
             with patch.object(processor, "_process_with_qt") as mock_qt:
                 result = processor.process_thumbnail(large_tiff, cache_path)
 
@@ -286,7 +284,7 @@ class TestThumbnailProcessorEXRProcessing:
         
         with patch.object(
             processor, "_load_exr_with_openexr", return_value=test_exr_image
-        ) as mock_openexr:
+        ):
             with patch.object(processor, "_load_exr_with_system_tools") as mock_system:
                 with patch.object(processor, "_load_exr_with_imageio") as mock_imageio:
                     # Mock PIL processing to focus on EXR loading
@@ -310,7 +308,7 @@ class TestThumbnailProcessorEXRProcessing:
             
             with patch.object(
                 processor, "_load_exr_with_system_tools", return_value=test_system_image
-            ) as mock_system:
+            ):
                 with patch.object(processor, "_load_exr_with_imageio") as mock_imageio:
                     result = processor._load_exr_image(mock_exr)
 
@@ -335,7 +333,7 @@ class TestThumbnailProcessorEXRProcessing:
                 
                 with patch.object(
                     processor, "_load_exr_with_imageio", return_value=test_imageio_image
-                ) as mock_imageio:
+                ):
                     result = processor._load_exr_image(mock_exr)
 
                     # Test behavior: Imageio fallback should succeed
@@ -421,7 +419,7 @@ class TestThumbnailProcessorFallbackMechanisms:
         ):
             with patch.object(
                 processor, "_process_with_qt", return_value=True
-            ) as mock_qt:
+            ):
                 result = processor.process_thumbnail(test_image, cache_path)
 
                 assert result is True
@@ -437,7 +435,7 @@ class TestThumbnailProcessorFallbackMechanisms:
         ):
             with patch.object(
                 processor, "_process_with_qt", return_value=True
-            ) as mock_qt:
+            ):
                 result = processor.process_thumbnail(test_image, cache_path)
 
                 assert result is True
@@ -597,7 +595,7 @@ class TestThumbnailProcessorResourceManagement:
         cache_path = tmp_path / "thumbnail.jpg"
 
         with patch("gc.collect") as mock_gc:
-            result = processor.process_thumbnail(source, cache_path)
+            processor.process_thumbnail(source, cache_path)
 
             # Verify garbage collection was called during processing
             mock_gc.assert_called()

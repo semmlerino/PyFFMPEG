@@ -35,6 +35,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import patch
@@ -49,20 +50,18 @@ pytestmark = [pytest.mark.integration, pytest.mark.qt]
 
 
 from cache_manager import CacheManager
-from shot_model import ShotModel, Shot
-from command_launcher import CommandLauncher
 from launcher_manager import LauncherManager
 from main_window import MainWindow
-from shot_grid_view import ShotGridView
-from threede_shot_grid import ThreeDEShotGrid
-from threede_scene_model import ThreeDESceneModel, ThreeDEScene
-from previous_shots_model import PreviousShotsModel
 from previous_shots_finder import PreviousShotsFinder
+from previous_shots_model import PreviousShotsModel
+from shot_model import Shot, ShotModel
 from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel, PopenDouble, TestCompletedProcess,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
+    PopenDouble,
+    TestCompletedProcess,
+    TestSubprocess,
 )
+from threede_scene_model import ThreeDESceneModel
+
 
 class ProgressOperationDouble:
     """Test double for progress operations with real behavior."""
@@ -248,7 +247,7 @@ class TestUserWorkflows:
 
         # Create real components - no mocking except at system boundaries
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        shot_model = ShotModel()
+        ShotModel()
         launcher_manager = LauncherManager(config_dir=self.config_dir)
         main_window = MainWindow(cache_manager=cache_manager)
 
@@ -328,8 +327,8 @@ class TestUserWorkflows:
 
         # Create real components
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        scene_model = ThreeDESceneModel()
-        launcher_manager = LauncherManager(config_dir=self.config_dir)
+        ThreeDESceneModel()
+        LauncherManager(config_dir=self.config_dir)
         main_window = MainWindow(cache_manager=cache_manager)
 
         qtbot.addWidget(main_window)
@@ -404,7 +403,7 @@ class TestUserWorkflows:
 
         # Create real components
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        shot_model = ShotModel()
+        ShotModel()
         main_window = MainWindow(cache_manager=cache_manager)
 
         qtbot.addWidget(main_window)
@@ -596,7 +595,7 @@ class TestUserWorkflows:
 
         # Create test shot with realistic structure
         shot_data = self.test_shots[0]
-        shot_path = self._create_realistic_shot_structure(shot_data)
+        self._create_realistic_shot_structure(shot_data)
         test_shot = Shot(
             shot_data["show"],
             shot_data["sequence"],
@@ -695,7 +694,7 @@ class TestUserWorkflows:
 
         # Shot without thumbnail
         shot_data_2 = self.test_shots[1]
-        shot_path_2 = self._create_realistic_shot_structure(shot_data_2)
+        self._create_realistic_shot_structure(shot_data_2)
         # Don't create thumbnail file for this shot
         shot_2 = Shot(
             shot_data_2["show"],
@@ -754,7 +753,7 @@ class TestUserWorkflows:
 
         # Create real components
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        shot_model = ShotModel()
+        ShotModel()
         main_window = MainWindow(cache_manager=cache_manager)
 
         qtbot.addWidget(main_window)
@@ -868,7 +867,7 @@ class TestUserWorkflows:
         # Create test shots for filtering
         test_shots = []
         for shot_data in self.test_shots:
-            shot_path = self._create_realistic_shot_structure(shot_data)
+            self._create_realistic_shot_structure(shot_data)
             shot = Shot(
                 shot_data["show"],
                 shot_data["sequence"],
@@ -881,7 +880,7 @@ class TestUserWorkflows:
         main_window.shot_item_model.set_shots(test_shots)
 
         # Initial shot count from model
-        initial_count = len(main_window.shot_model.shots)
+        len(main_window.shot_model.shots)
 
         # Note: Search functionality is not currently implemented in MainWindow
         # This test verifies the shots are properly loaded in the model
@@ -915,9 +914,9 @@ class TestUserWorkflows:
 
         # Create real components
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        previous_finder = PreviousShotsFinder()
+        PreviousShotsFinder()
         shot_model = ShotModel()  # PreviousShotsModel needs a shot_model
-        previous_model = PreviousShotsModel(shot_model, cache_manager)
+        PreviousShotsModel(shot_model, cache_manager)
         main_window = MainWindow(cache_manager=cache_manager)
 
         qtbot.addWidget(main_window)
@@ -966,7 +965,7 @@ class TestUserWorkflows:
             stderr=""
         )
 
-        with patch("subprocess.run", return_value=current_shots_result) as mock_run:
+        with patch("subprocess.run", return_value=current_shots_result):
 
             # Switch to previous shots tab to trigger scanning
             main_window.tab_widget.setCurrentIndex(
@@ -1090,9 +1089,9 @@ class TestUserWorkflows:
             stderr=""
         )
         
-        with patch("subprocess.run", return_value=concurrent_refresh_result) as mock_run, patch(
+        with patch("subprocess.run", return_value=concurrent_refresh_result), patch(
             "subprocess.Popen", return_value=self.test_processes["custom"]
-        ) as mock_popen:
+        ):
 
             # Start launcher execution and refresh simultaneously
             launcher_success = launcher_manager.execute_launcher(
@@ -1178,6 +1177,6 @@ if __name__ == "__main__":
         # Cleanup
         try:
             test_instance.teardown_method()
-        except:
-            pass
+        except Exception:
+            pass  # Ignore teardown errors in standalone test
         cleanup_test_environment(temp_dir)

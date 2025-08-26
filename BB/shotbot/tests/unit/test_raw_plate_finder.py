@@ -10,6 +10,7 @@ This refactored version:
 from __future__ import annotations
 
 import pytest
+
 from raw_plate_finder import RawPlateFinder
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
@@ -17,13 +18,7 @@ from raw_plate_finder import RawPlateFinder
 # - Use test doubles instead of mocks
 # - Real components where possible
 # - Thread-safe testing patterns
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 pytestmark = pytest.mark.unit
 class TestRawPlateFinder:

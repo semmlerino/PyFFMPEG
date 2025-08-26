@@ -13,15 +13,17 @@ Focus areas:
 
 from __future__ import annotations
 
-import pytest
-from cache_manager import CacheManager
-from pathlib import Path
-from previous_shots_model import PreviousShotsModel
-from shot_model import Shot, ShotModel
-from unittest.mock import Mock, patch
+import concurrent.futures
 import json
 import time
-import concurrent.futures
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from cache_manager import CacheManager
+from previous_shots_model import PreviousShotsModel
+from shot_model import Shot
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
@@ -34,11 +36,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestShot, TestShotModel
+
 
 class TestPreviousShootsCacheIntegration:
     """Integration tests for Previous Shots cache functionality."""

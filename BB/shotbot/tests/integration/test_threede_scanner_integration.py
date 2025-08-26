@@ -13,10 +13,12 @@ import os
 import shutil
 import sys
 import tempfile
+import traceback
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from PySide6.QtWidgets import QApplication
 
 from cache_manager import CacheManager
 from shot_model import Shot
@@ -28,11 +30,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestSubprocess
+
 
 class TestThreeDEScannerIntegration:
     """Integration tests for 3DE file discovery and cache integration following UNIFIED_TESTING_GUIDE."""

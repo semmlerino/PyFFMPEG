@@ -26,15 +26,13 @@ import command_launcher
 from command_launcher import CommandLauncher
 from config import Config
 from shot_model import Shot
-from threede_scene_model import ThreeDEScene
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles import TestShot, TestSubprocess
 from tests.test_doubles_library import (
-    TestSubprocess as TestSubprocessLib, TestShot as TestShotLib, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool, PopenDouble
+    PopenDouble,
 )
+from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 

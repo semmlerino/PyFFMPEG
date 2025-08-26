@@ -1,11 +1,13 @@
 """Reliability fixtures for consistent test execution."""
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
-from PySide6.QtCore import QTimer, QThread, QObject
-from typing import Generator, List
+from typing import List
+
+import pytest
+from PySide6.QtCore import QThread, QTimer
+
 
 @pytest.fixture
 def reliable_temp_dir():
@@ -20,7 +22,7 @@ def reliable_temp_dir():
         try:
             shutil.rmtree(temp_dir, ignore_errors=True)
             break
-        except:
+        except (OSError, PermissionError):
             QTimer.singleShot(100, lambda: None)  # Small delay
 
 @pytest.fixture

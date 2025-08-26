@@ -5,25 +5,18 @@ This module adds comprehensive tests for uncovered functionality in utils.py.
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 from unittest.mock import patch
-from utils import PathUtils, ValidationUtils
+
+import pytest
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
 # - Use test doubles instead of mocks
 # - Real components where possible
 # - Thread-safe testing patterns
-
-
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from utils import PathUtils, ValidationUtils
 
 pytestmark = pytest.mark.unit
 class TestPathUtilsTurnoverPlate:

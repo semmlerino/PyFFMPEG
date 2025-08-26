@@ -13,22 +13,18 @@ UNIFIED_TESTING_GUIDE COMPLIANCE:
 
 from __future__ import annotations
 
-import pytest
 import time
 from pathlib import Path
-from typing import List, Set, Tuple, Optional, Generator
+from typing import Generator, List, Optional, Set, Tuple
 
-from PySide6.QtCore import QCoreApplication
+import pytest
 from PySide6.QtTest import QSignalSpy
 
-from threede_scene_worker import ThreeDESceneWorker, ProgressCalculator
-from threede_scene_model import ThreeDEScene
 from shot_model import Shot
 
 # Test doubles for behavior testing
-from tests.test_doubles_library import (
-    TestProcessPool, ThreadSafeTestImage, SignalDouble
-)
+from threede_scene_model import ThreeDEScene
+from threede_scene_worker import ProgressCalculator, ThreeDESceneWorker
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
@@ -450,7 +446,7 @@ class TestThreeDESceneWorker:
             # Set up signal spies BEFORE starting (UNIFIED_TESTING_GUIDE pattern)
             spy_started = QSignalSpy(worker.started)
             spy_finished = QSignalSpy(worker.finished)
-            spy_progress = QSignalSpy(worker.progress)
+            QSignalSpy(worker.progress)
             
             # Start worker
             worker.start()

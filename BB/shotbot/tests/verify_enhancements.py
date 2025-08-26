@@ -2,7 +2,6 @@
 """Verify test suite enhancements are correctly implemented."""
 
 import sys
-import os
 from pathlib import Path
 
 # Add parent to path

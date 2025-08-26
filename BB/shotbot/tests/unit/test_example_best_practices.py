@@ -29,11 +29,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 # - Use test doubles for non-system components
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestShot, TestShotModel, TestSubprocess
+
 
 class TestBehaviorNotImplementation:
     """Demonstrates testing behavior instead of implementation."""
@@ -161,6 +158,23 @@ class SignalDoubleTestingPatterns:
         - SignalDouble for test doubles
         """
         # Create component with test signal
+        # NOTE: TestLauncherWorker not yet implemented in test doubles
+        # worker = TestLauncherWorker(launcher_id="test_123", command="echo test")
+        from tests.test_doubles_library import SignalDouble
+        
+        class TestLauncherWorker:
+            def __init__(self, launcher_id, command):
+                self.launcher_id = launcher_id
+                self.command = command
+                self.output = SignalDouble()
+                self.started = SignalDouble()
+                self.finished = SignalDouble()
+                
+            def start(self):
+                self.started.emit()
+                self.output.emit(self.launcher_id, "Test output")
+                self.finished.emit()
+        
         worker = TestLauncherWorker(launcher_id="test_123", command="echo test")
 
         # Connect to test signal

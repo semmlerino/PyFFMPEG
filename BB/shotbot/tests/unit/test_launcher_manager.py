@@ -11,12 +11,7 @@ Refactored to follow UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
-import uuid
 import pytest
-from tests.test_doubles_library import (
-    TestSubprocess, TestLauncher, TestWorker,
-    LauncherManagerDouble, ThreadSafeTestImage
-)
 from PySide6.QtCore import QCoreApplication
 
 from config import ThreadingConfig
@@ -25,7 +20,9 @@ from launcher_manager import (
     LauncherManager,
 )
 from shot_model import Shot
-from thread_safe_worker import ThreadSafeWorker, WorkerState
+from tests.test_doubles_library import (
+    TestWorker,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 

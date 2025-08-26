@@ -31,6 +31,7 @@ from __future__ import annotations
 import cProfile
 import io
 import pstats
+import re
 import subprocess
 import tempfile
 import time
@@ -40,16 +41,9 @@ from typing import Dict, Tuple
 import psutil
 import pytest
 
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from threede_scene_finder import ThreeDESceneFinder
 
-
-
-# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 class PerformanceProfiler:
     """Utility class for profiling ThreeDESceneFinder operations."""
@@ -516,7 +510,6 @@ class TestSceneFinderMethods:
         shows_root, stats = medium_project
 
         # Get some test paths
-        test_paths = []
         user_path = (
             shows_root
             / "medium_project"

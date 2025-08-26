@@ -10,21 +10,23 @@ Follows best practices:
 
 from __future__ import annotations
 
+import concurrent.futures
+import sys
+import threading
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 from PySide6.QtCore import QTimer
 from PySide6.QtTest import QSignalSpy
+
 from cache_manager import CacheManager
-from pathlib import Path
 from previous_shots_model import PreviousShotsModel
 from tests.test_doubles_previous_shots import (
     FakePreviousShotsFinder,
     FakeShotModel,
     create_test_shot,
 )
-from unittest.mock import patch
-import concurrent.futures
-import sys
-import threading
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -39,11 +41,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestCacheManager
+
 
 class TestPreviousShotsModel:
     """Test cases for PreviousShotsModel with real Qt components."""

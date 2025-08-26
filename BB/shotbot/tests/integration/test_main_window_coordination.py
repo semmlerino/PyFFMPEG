@@ -10,9 +10,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pytest
-from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QKeySequence
-from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QMessageBox
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -21,17 +20,12 @@ from cache_manager import CacheManager
 from main_window import MainWindow
 from shot_model import RefreshResult, Shot
 
+# Import qapp fixture from conftest to ensure QApplication exists
 # Import proper test doubles following UNIFIED_TESTING_GUIDE
 from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
+    TestSubprocess,
 )
 from tests.test_helpers import TestProcessPoolManager
-
-# Import qapp fixture from conftest to ensure QApplication exists
-from tests.conftest import qapp
-
 
 # =============================================================================
 # TEST DOUBLES FOR INTEGRATION TESTING
@@ -379,7 +373,7 @@ workspace /shows/test/shots/seq01/shot02""")
         # Note: The actual implementation might show an info notification instead of error
         # or might not trigger a notification at all for command errors
         if hasattr(window, '_test_notification_manager'):
-            notifications = window._test_notification_manager.notifications
+            pass
             # Just verify that the error handling pathway was triggered
             # The specific notification type may vary based on implementation
     

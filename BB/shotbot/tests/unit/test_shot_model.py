@@ -9,19 +9,14 @@ This refactored version:
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from shot_model import RefreshResult, Shot
-from tests.unit.test_protocols import TestShotFactory
 
 # pyright: basic
-
-from tests.test_helpers import (
-    ThreadSafeTestImage,
-    SignalDouble,
-    TestProcessPoolManager,
-    create_test_shot,
-)
+from tests.unit.test_protocols import TestShotFactory
 
 
 @pytest.mark.unit

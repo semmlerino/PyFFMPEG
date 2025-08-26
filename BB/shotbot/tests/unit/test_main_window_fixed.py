@@ -6,21 +6,21 @@ from starting, which were causing tests to hang.
 
 from __future__ import annotations
 
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 from PySide6.QtCore import QTimer
+
 from cache_manager import CacheManager
 from main_window import MainWindow
-from pathlib import Path
 from shot_model import Shot
 from tests.test_doubles import TestProcessPool
-from unittest.mock import patch
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool,
-    TestCompletedProcess
+    TestCompletedProcess,
+    TestProcessPool,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
@@ -182,7 +182,7 @@ class TestApplicationLaunchingNoHang:
         # Try to launch without shot - should return False
         with patch.object(
             main_window.command_launcher, "launch_app", return_value=False
-        ) as mock_launch:
+        ):
             main_window._launch_app("nuke")
             # Test behavior instead: assert result is True
 

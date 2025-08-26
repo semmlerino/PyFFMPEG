@@ -10,11 +10,12 @@ Key Properties Tested:
     - Workspace command parsing handles any valid format
 """
 
-import pytest
-from hypothesis import given, strategies as st, assume, settings, HealthCheck
-from hypothesis.strategies import composite
 from pathlib import Path
-from typing import Tuple
+
+import pytest
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
+from hypothesis.strategies import composite
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -165,14 +166,14 @@ class TestWorkspaceCommandProperties:
     ))
     def test_workspace_parsing_consistency(self, paths):
         """Workspace output parsing should handle any valid format."""
-        from shot_model import ShotModel
         import tempfile
-        from pathlib import Path
+
+        from shot_model import ShotModel
         
         # Generate mock workspace output
         ws_output = "\n".join(f"workspace {path}" for path in paths)
         
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory():
             # Don't use cache for this test
             model = ShotModel(cache_manager=None)
             
@@ -223,7 +224,6 @@ class TestPathValidationProperties:
     def test_path_validation_consistency(self, path_str: str):
         """Path validation should be consistent."""
         from utils import PathUtils
-        from pathlib import Path
         
         # Skip invalid paths
         if "\x00" in path_str or not path_str.strip():
@@ -249,7 +249,6 @@ class TestPathValidationProperties:
     def test_path_building_consistency(self, components):
         """Path building should be consistent."""
         from utils import PathUtils
-        from pathlib import Path
         
         if not components:
             assume(False)
@@ -283,9 +282,9 @@ class TestSceneFinderProperties:
     )
     def test_scene_finding_consistency(self, scene_list):
         """Scene finding should be consistent."""
-        from threede_scene_finder import ThreeDESceneFinder
         import tempfile
-        from pathlib import Path
+
+        from threede_scene_finder import ThreeDESceneFinder
         
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)

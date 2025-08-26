@@ -30,11 +30,6 @@ pytestmark = pytest.mark.unit
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 class TestCacheValidator:
     """Test cache validation and repair operations with real components."""

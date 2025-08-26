@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 import stat
 import threading
-import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -29,11 +28,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 class TestCorruptedFiles:
     """Test handling of corrupted or invalid EXR files."""

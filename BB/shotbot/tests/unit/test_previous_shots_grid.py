@@ -17,9 +17,10 @@ Follows best practices:
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
-from PySide6.QtCore import QObject, Signal, QTimer, Qt, QSize
+
+import pytest
+from PySide6.QtCore import QObject, QSize, Qt, Signal
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtTest import QSignalSpy, QTest
 
@@ -38,8 +39,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 from tests.test_doubles_library import (
     TestCacheManager,
     TestProgressManager,
-    TestProgressOperation,
 )
+
 
 def create_test_shot(show="testshow", sequence="seq01", shot="0010"):
     """Create test shot for testing."""
@@ -303,8 +304,6 @@ class TestPreviousShotsGrid:
         grid_widget._populate_grid = track_populate
 
         # Simulate multiple rapid resize events
-        from PySide6.QtCore import QSize
-        from PySide6.QtGui import QResizeEvent
         for i in range(5):
             old_size = QSize(400, 300)
             new_size = QSize(400 + i * 50, 300) 

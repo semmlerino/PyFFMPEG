@@ -10,23 +10,17 @@ Measures:
 5. Startup time improvements
 """
 
+import gc
+import importlib
 import sys
 import time
-import importlib
 import tracemalloc
-import gc
-import os
-import threading
-import cProfile
-import pstats
-import io
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
-from unittest.mock import MagicMock
+from typing import Any, Dict, Optional, Tuple
 
 # Mock PySide6 for testing if not available
 try:
-    from PySide6.QtCore import QObject, Signal, QTimer, QThread
+    from PySide6.QtCore import QObject, QThread, QTimer, Signal
     from PySide6.QtWidgets import QApplication
     PYSIDE_AVAILABLE = True
 except ImportError:
@@ -83,7 +77,7 @@ class PerformanceProfiler:
             
             start = time.perf_counter()
             try:
-                module = importlib.import_module(module_name)
+                importlib.import_module(module_name)
                 end = time.perf_counter()
                 elapsed = end - start
                 
@@ -164,7 +158,7 @@ class PerformanceProfiler:
         if Path('archive_2025_08_25/cache_manager_legacy.py').exists():
             try:
                 sys.path.insert(0, 'archive_2025_08_25')
-                legacy_module = importlib.import_module('cache_manager_legacy')
+                importlib.import_module('cache_manager_legacy')
                 sys.path.pop(0)
                 
                 legacy_snapshot = tracemalloc.take_snapshot()
@@ -182,7 +176,7 @@ class PerformanceProfiler:
         
         # Memory usage for refactored import
         try:
-            refactored_module = importlib.import_module('cache_manager')
+            importlib.import_module('cache_manager')
             
             refactored_snapshot = tracemalloc.take_snapshot()
             refactored_stats = refactored_snapshot.statistics('lineno')
@@ -244,7 +238,7 @@ class PerformanceProfiler:
         try:
             # This should trigger loading of storage backend and other components
             if hasattr(cache_manager, 'CacheManager'):
-                manager = cache_manager.CacheManager()
+                cache_manager.CacheManager()
                 first_use_time = time.perf_counter() - start
                 results['first_use_time'] = first_use_time
                 print(f"  First use (triggers lazy loading): {first_use_time:.4f}s")
@@ -295,12 +289,12 @@ class PerformanceProfiler:
             results['direct_calls_time'] = direct_time
             results['mock_analysis'] = True
             print(f"  Direct method calls ({iterations}): {direct_time:.4f}s")
-            print(f"  Estimated signal overhead: ~10-20% (typical Qt overhead)")
+            print("  Estimated signal overhead: ~10-20% (typical Qt overhead)")
             
         else:
             # Real signal-slot testing
             try:
-                app = QApplication.instance() or QApplication(sys.argv)
+                QApplication.instance() or QApplication(sys.argv)
                 
                 class TestSignalClass(QObject):
                     test_signal = Signal()
@@ -438,10 +432,10 @@ class PerformanceProfiler:
                 print(f"  Could not analyze legacy file: {e}")
         
         # Analyze call overhead
-        print(f"  Call overhead analysis:")
-        print(f"    - Facade pattern adds ~1 method call per operation")
-        print(f"    - Estimated overhead: <1% for most operations")
-        print(f"    - Benefits: Better maintainability, testability, and modularity")
+        print("  Call overhead analysis:")
+        print("    - Facade pattern adds ~1 method call per operation")
+        print("    - Estimated overhead: <1% for most operations")
+        print("    - Benefits: Better maintainability, testability, and modularity")
         
         return results
     
@@ -460,8 +454,8 @@ class PerformanceProfiler:
         complexity_results = self.analyze_complexity_metrics()
         
         # Generate summary
-        print(f"\n=== EXECUTIVE SUMMARY ===")
-        print(f"-" * 50)
+        print("\n=== EXECUTIVE SUMMARY ===")
+        print("-" * 50)
         
         if 'improvement_percent' in import_results:
             print(f"✓ Import time improvement: {import_results['improvement_percent']:.1f}%")
@@ -476,29 +470,29 @@ class PerformanceProfiler:
         if 'overhead_percent' in signal_results:
             print(f"⚠ Signal-slot overhead: {signal_results['overhead_percent']:.1f}%")
         elif signal_results.get('mock_analysis'):
-            print(f"⚠ Estimated signal-slot overhead: 10-20% (typical)")
+            print("⚠ Estimated signal-slot overhead: 10-20% (typical)")
         
         if 'code_expansion_ratio' in complexity_results:
             print(f"ℹ Code expansion ratio: {complexity_results['code_expansion_ratio']:.2f}x")
         
-        print(f"\n=== RECOMMENDATIONS ===")
-        print(f"-" * 50)
+        print("\n=== RECOMMENDATIONS ===")
+        print("-" * 50)
         
         if import_results.get('improvement_percent', 0) > 50:
-            print(f"✓ Excellent import time improvement - refactoring successful")
+            print("✓ Excellent import time improvement - refactoring successful")
         
         if lazy_results.get('lazy_effectiveness_percent', 0) > 50:
-            print(f"✓ Lazy loading is effective - good for startup time")
+            print("✓ Lazy loading is effective - good for startup time")
         
-        print(f"✓ Modular structure improves:")
-        print(f"  - Maintainability and testability")
-        print(f"  - Code organization and readability") 
-        print(f"  - Separation of concerns")
+        print("✓ Modular structure improves:")
+        print("  - Maintainability and testability")
+        print("  - Code organization and readability") 
+        print("  - Separation of concerns")
         
-        print(f"⚠ Areas to monitor:")
-        print(f"  - Signal-slot overhead in performance-critical paths")
-        print(f"  - Memory usage with multiple cache instances")
-        print(f"  - Module loading times in production")
+        print("⚠ Areas to monitor:")
+        print("  - Signal-slot overhead in performance-critical paths")
+        print("  - Memory usage with multiple cache instances")
+        print("  - Module loading times in production")
         
         return {
             'import': import_results,
@@ -513,4 +507,4 @@ if __name__ == "__main__":
     profiler = PerformanceProfiler()
     results = profiler.generate_report()
     
-    print(f"\nAnalysis complete. Results available in profiler.results")
+    print("\nAnalysis complete. Results available in profiler.results")

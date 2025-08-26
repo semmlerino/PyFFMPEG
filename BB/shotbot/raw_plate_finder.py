@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from config import Config
+
 # Performance monitoring removed - was using archived module
 from utils import PathUtils, VersionUtils
 

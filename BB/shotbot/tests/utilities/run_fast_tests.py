@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 
+
 def run_fast_tests():
     """Run only fast tests."""
     start = time.time()

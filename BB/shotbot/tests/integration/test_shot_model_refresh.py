@@ -23,14 +23,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from cache_manager import CacheManager
 from shot_model import RefreshResult, Shot, ShotModel
 
-
 # Test doubles following UNIFIED_TESTING_GUIDE patterns
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
+    TestProcessPool,
 )
 
 # Using TestProcessPool from test_doubles_library (UNIFIED_TESTING_GUIDE)
@@ -109,7 +105,7 @@ workspace /shows/project/shots/seq02/shot01"""
         
         # First refresh to establish baseline
         model._process_pool.set_outputs(same_output, same_output)
-        first_result = model.refresh_shots()
+        model.refresh_shots()
         
         # Second refresh with same data
         second_result = model.refresh_shots()
@@ -254,7 +250,7 @@ workspace /shows/different/shots/seq01/shot02"""  # Path changed
         
         # Initial refresh
         model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/shot01""")
-        result1 = model.refresh_shots()
+        model.refresh_shots()
         assert len(model.get_shots()) == 1
         
         # Invalidate cache

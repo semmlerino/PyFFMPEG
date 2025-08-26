@@ -23,17 +23,14 @@ pytestmark = pytest.mark.integration
 
 # Import real application components for integration testing
 from cache_manager import CacheManager
-from shot_model import ShotModel
-from shot_model import RefreshResult
-
-
+from shot_model import RefreshResult, ShotModel
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
+    TestProcessPool,
+    TestSubprocess,
 )
+
 
 class TestShotWorkflowIntegration:
     """Integration tests for shot refresh and caching workflow following UNIFIED_TESTING_GUIDE."""

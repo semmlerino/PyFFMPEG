@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import List
 
 import pytest
+from process_pool_manager_optimized import OptimizedProcessPoolManager
 from PySide6.QtGui import QColor, QImage
 
 from cache.thumbnail_processor import ThumbnailProcessor
@@ -27,17 +28,9 @@ from cache_manager import CacheManager
 
 # Import original and optimized versions
 from process_pool_manager import ProcessPoolManager
-from process_pool_manager_optimized import OptimizedProcessPoolManager
 from shot_model import Shot
 
-
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 # Add these mock classes after the existing imports and before BenchmarkResult class
 
@@ -265,7 +258,7 @@ class TestProcessPoolManagerPerformance:
         for cmd in commands:
             try:
                 original_manager.execute_workspace_command(cmd, cache_ttl=0)
-            except:
+            except Exception:
                 pass  # Ignore errors for benchmarking
         result.original_time = (time.perf_counter() - start) * 1000
         
@@ -276,8 +269,8 @@ class TestProcessPoolManagerPerformance:
         for cmd in commands:
             try:
                 optimized_manager.execute_workspace_command(cmd, cache_ttl=0)
-            except:
-                pass
+            except Exception:
+                pass  # Ignore errors for benchmarking
         result.optimized_time = (time.perf_counter() - start) * 1000
         
         print("\n" + result.report())

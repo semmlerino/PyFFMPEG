@@ -24,16 +24,13 @@ This module provides reusable test doubles that:
 from __future__ import annotations
 
 import subprocess
-import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from PySide6.QtCore import QObject, QSize, QThread, Signal
+from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtGui import QColor, QImage
-from PySide6.QtWidgets import QWidget
-
 
 # =============================================================================
 # SUBPROCESS TEST DOUBLES
@@ -691,7 +688,7 @@ class LauncherManagerDouble(QObject):
         if not self._launchers:
             return None
         # Return the launcher with highest ID number (most recent)
-        return max(self._launchers.values(), key=lambda l: int(l.id.split('_')[-1]))
+        return max(self._launchers.values(), key=lambda launcher: int(launcher.id.split('_')[-1]))
 
 
 # =============================================================================

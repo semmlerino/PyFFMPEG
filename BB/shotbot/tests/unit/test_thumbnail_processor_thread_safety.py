@@ -20,13 +20,6 @@ Critical Areas:
 
 from __future__ import annotations
 
-import pytest
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QImage
-from cache.thumbnail_processor import ThumbnailProcessor
-from pathlib import Path
-from typing import List
-from unittest.mock import patch
 import concurrent.futures
 import gc
 import os
@@ -37,21 +30,24 @@ import threading
 import time
 import traceback
 import uuid
+from pathlib import Path
+from typing import List
+from unittest.mock import patch
+
+import psutil
+import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QImage
+
+from cache.thumbnail_processor import ThumbnailProcessor
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
 # - Use test doubles instead of mocks
 # - Real components where possible
 # - Thread-safe testing patterns
-
-
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+
 
 class ThreadSafetyMonitor:
     """Monitor thread safety violations and resource issues."""
@@ -342,7 +338,7 @@ class TestThumbnailProcessorThreadSafety:
                 future = executor.submit(process_with_race_detection, img, i)
                 futures.append(future)
 
-            results = [f.result(timeout=10) for f in futures]
+            [f.result(timeout=10) for f in futures]
 
         # File should exist and be valid despite concurrent writes
         assert shared_cache_path.exists(), "Cache file not created"
@@ -426,7 +422,7 @@ class TestThumbnailProcessorThreadSafety:
                 future = executor.submit(process_and_monitor_memory, img, i)
                 futures.append(future)
 
-            results = [f.result(timeout=30) for f in futures]
+            [f.result(timeout=30) for f in futures]
 
         # Force final garbage collection
         gc.collect()

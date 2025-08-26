@@ -12,12 +12,12 @@ from unittest.mock import patch
 
 import pytest
 from pytestqt.qtbot import QtBot
-from tests.unit.test_protocols import TestProcessPool as TestProcessPoolType
 
 from cache_manager import CacheManager
 from config import Config
 from main_window import MainWindow
 from shot_model import Shot
+from tests.unit.test_protocols import TestProcessPool as TestProcessPoolType
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 

@@ -12,15 +12,17 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
-import pytest
-from cache.memory_manager import MemoryManager
-from config import ThreadingConfig
-from pathlib import Path
-from unittest.mock import patch
 import concurrent.futures
+import os
 import threading
 import time
-import os
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from cache.memory_manager import MemoryManager
+from config import ThreadingConfig
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
@@ -33,11 +35,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 class TestMemoryManagerInitialization:
     """Test MemoryManager initialization and configuration."""

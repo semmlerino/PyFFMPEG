@@ -3,22 +3,13 @@ from __future__ import annotations
 import logging
 import os
 import sys
-import tempfile
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPalette
-from PySide6.QtWidgets import QApplication
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 
 class _TestQApplicationDouble:
@@ -288,7 +279,6 @@ class TestShotbotMain:
         """Test that Qt imports happen after logging setup."""
         # This tests the critical requirement that logging is configured
         # before any imports that might trigger PIL
-        import importlib
         import sys
         
         # Remove shotbot from modules if it exists
@@ -315,7 +305,7 @@ class TestShotbotIntegration:
         """Test that all main components can be imported without errors."""
         # UNIFIED_TESTING_GUIDE: Test real import behavior
         try:
-            from shotbot import setup_logging, main
+            from shotbot import main, setup_logging
             assert callable(setup_logging)
             assert callable(main)
         except ImportError as e:

@@ -12,22 +12,17 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import Mock, patch
+from unittest.mock import patch
+
+import pytest
+
 from nuke_script_generator import NukeScriptGenerator
-import os
-import tempfile
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 
 class TestNukeScriptGenerator:
@@ -35,7 +30,7 @@ class TestNukeScriptGenerator:
 
     def test_initialization(self):
         """Test NukeScriptGenerator initializes correctly."""
-        generator = NukeScriptGenerator()
+        NukeScriptGenerator()
         
         # Test class variables exist
         assert hasattr(NukeScriptGenerator, '_temp_files')
@@ -50,7 +45,7 @@ class TestNukeScriptGenerator:
         NukeScriptGenerator._temp_files.clear()
         
         # Creating instance doesn't register cleanup
-        generator = NukeScriptGenerator()
+        NukeScriptGenerator()
         assert NukeScriptGenerator._cleanup_registered is False
         
         # Tracking a temp file should register cleanup
@@ -111,7 +106,7 @@ class TestNukeScriptGenerator:
 
     def test_colorspace_detection(self):
         """Test colorspace detection from file paths."""
-        generator = NukeScriptGenerator()
+        NukeScriptGenerator()
         
         # Test different colorspace patterns
         test_cases = [

@@ -8,20 +8,13 @@ import concurrent.futures
 import hashlib
 import logging
 import os
-import subprocess
 import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# Try to import fcntl for non-blocking I/O (Unix-only)
-try:
-    import fcntl
-
-    HAS_FCNTL = True
-except ImportError:
-    HAS_FCNTL = False
-    logging.warning("fcntl module not available - will use blocking I/O")
+# Note: fcntl is not currently used, setting HAS_FCNTL to False
+HAS_FCNTL = False
 
 from PySide6.QtCore import QObject, Signal
 
@@ -31,10 +24,7 @@ from persistent_bash_session import PersistentBashSession
 # Import debug utilities
 try:
     from debug_utils import (
-        CommandTracer,
-        deadlock_detector,
         setup_enhanced_debugging,
-        state_tracker,
         timing_profiler,
     )
 

@@ -8,18 +8,14 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
-import pytest
-from pathlib import Path
-from threede_scene_finder import ThreeDESceneFinder
-from unittest.mock import patch
 import time
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from threede_scene_finder import ThreeDESceneFinder
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation

@@ -26,12 +26,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestSubprocess
 from tests.test_doubles_previous_shots import create_test_shot, create_test_shots
+
 
 class TestPreviousShotsFinder:
     """Test cases for PreviousShotsFinder with real filesystem structures.

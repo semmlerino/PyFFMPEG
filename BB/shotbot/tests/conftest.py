@@ -22,11 +22,9 @@ Test doubles are used only at system boundaries.
 import gc
 import os
 import sys
-import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Generator
-from unittest.mock import Mock, patch
+from typing import Any, Dict, Generator
 
 import pytest
 from PySide6.QtCore import QCoreApplication, QTimer
@@ -39,11 +37,7 @@ from tests.unit.test_protocols import TestConfigDir
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import test doubles library for proper test double patterns
-from tests.test_doubles_library import (
-    TestShot, TestShotModel, TestCacheManager, 
-    TestProcessPool, ThreadSafeTestImage, SignalDouble,
-    TestSubprocess, TestLauncher, TestWorker
-)
+from tests.test_doubles_library import TestProcessPool
 
 # =============================================================================
 # Factory Fixtures (UNIFIED_TESTING_GUIDE Best Practice)
@@ -781,8 +775,9 @@ def benchmark_timer():
 @pytest.fixture
 def memory_tracker():
     """Track memory usage for performance tests."""
-    import psutil
     import os
+
+    import psutil
     
     class MemoryTracker:
         def __init__(self) -> None:

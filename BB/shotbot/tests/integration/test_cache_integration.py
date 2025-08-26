@@ -14,7 +14,6 @@ import shutil
 import sys
 import tempfile
 import threading
-import time
 import traceback
 from pathlib import Path
 
@@ -34,11 +33,8 @@ pytestmark = pytest.mark.integration
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestSubprocess
+
 
 class TestCacheIntegration:
     """Integration tests for cache manager modular components following UNIFIED_TESTING_GUIDE."""

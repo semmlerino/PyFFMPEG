@@ -2,26 +2,28 @@
 
 from __future__ import annotations
 
-import pytest
-from PySide6.QtCore import QSize, QThreadPool
-from PySide6.QtGui import QColor, QImage
-from PySide6.QtTest import QSignalSpy
-from typing import Optional
-from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
-from concurrent.futures import Future
-from config import ThreadingConfig
-from datetime import datetime, timedelta
-from pathlib import Path
-from shot_model import Shot
-# Import already included from test_helpers above
-from threede_scene_model import ThreeDEScene
-from unittest.mock import patch
 import concurrent.futures
 import json
 import logging
 import tempfile
 import threading
 import time
+from concurrent.futures import Future
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+from PySide6.QtCore import QThreadPool
+from PySide6.QtGui import QColor, QImage
+from PySide6.QtTest import QSignalSpy
+
+from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
+from config import ThreadingConfig
+from shot_model import Shot
+
+# Import already included from test_helpers above
+from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
@@ -51,9 +53,6 @@ Following UNIFIED_TESTING_GUIDE principles:
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_helpers import (
     ThreadSafeTestImage,
-    SignalDouble,
-    TestProcessPoolManager,
-    create_test_shot,
 )
 
 
@@ -312,8 +311,8 @@ class TestCacheManager:
         from PySide6.QtWidgets import QApplication
         
         # Test behavior with real Qt components
-        current_thread = QThread.currentThread()
-        app = QApplication.instance()
+        QThread.currentThread()
+        QApplication.instance()
         
         # Test normal operation (main thread scenario)
         # Use ThreadSafeTestImage for thread-safe operations

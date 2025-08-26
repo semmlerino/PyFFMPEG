@@ -16,15 +16,17 @@ Focus areas:
 
 from __future__ import annotations
 
+import os
+import time
+from pathlib import Path
+from unittest.mock import patch
+
+import psutil
 import pytest
 from PySide6.QtTest import QSignalSpy
-from pathlib import Path
+
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
-from unittest.mock import patch
-import time
-import os
-import psutil
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
@@ -34,16 +36,10 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 # - Real components where possible
 # - Thread-safe testing patterns
 
-from unittest.mock import patch
 
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 class TestPreviousShotsWorker:
     """Test cases for PreviousShotsWorker with real threading."""

@@ -40,9 +40,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestCacheManager,
-)
 
 @pytest.fixture
 def real_cache_manager(tmp_path):
@@ -457,7 +454,6 @@ class TestMainWindowErrorHandling:
         qtbot.addWidget(window)
 
         # Create close event
-        from PySide6.QtGui import QCloseEvent
         close_event = QCloseEvent()
 
         # Window should handle close event without crashing

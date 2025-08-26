@@ -7,14 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from undistortion_finder import UndistortionFinder
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from undistortion_finder import UndistortionFinder
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation

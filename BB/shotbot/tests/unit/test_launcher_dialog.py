@@ -22,12 +22,6 @@ from launcher_dialog import (
     LauncherManagerDialog,
     LauncherPreviewPanel,
 )
-from launcher_manager import (
-    CustomLauncher,
-    LauncherEnvironment,
-    LauncherManager,
-    LauncherTerminal,
-)
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
@@ -36,11 +30,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool,
-    LauncherManagerDouble, TestLauncherEnvironment, TestLauncherTerminal
+    LauncherManagerDouble,
+    TestLauncher,
+    TestLauncherEnvironment,
+    TestLauncherTerminal,
 )
+
 
 def create_test_launcher(
     launcher_id: str = "test_launcher",
@@ -100,11 +95,8 @@ def sample_launchers():
     return [create_test_launcher(), create_rez_launcher(), create_conda_launcher()]
 
 
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestLauncher
+
 
 class TestLauncherListWidget:
     """Test the custom launcher list widget."""
@@ -520,7 +512,7 @@ class TestLauncherEditDialog:
         dialog.command_field.setPlainText("")
 
         # Mock NotificationManager to avoid actual dialogs
-        with patch("launcher_dialog.NotificationManager.warning") as mock_warning:
+        with patch("launcher_dialog.NotificationManager.warning"):
             dialog._save()
 
         # Test behavior: no launcher should be created due to validation failure
@@ -544,7 +536,7 @@ class TestLauncherEditDialog:
         dialog.command_field.setPlainText("echo test")
 
         # Mock NotificationManager to avoid actual dialogs
-        with patch("launcher_dialog.NotificationManager.warning") as mock_warning:
+        with patch("launcher_dialog.NotificationManager.warning"):
             dialog._save()
 
         # Test behavior: no additional launcher should be created

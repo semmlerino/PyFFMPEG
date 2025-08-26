@@ -21,18 +21,17 @@ Focus areas:
 
 from __future__ import annotations
 
-import pytest
 import threading
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.test_doubles_library import TestCompletedProcess
-
+import pytest
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtTest import QSignalSpy
 
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
+from tests.test_doubles_library import TestCompletedProcess
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
@@ -225,7 +224,7 @@ class TestPreviousShotsWorkerWorkflow:
                 stdout="/shows/show1/shots/seq1/shot1/user/testuser\n"
             )
 
-        scan_finished_spy = QSignalSpy(worker.scan_finished)
+        QSignalSpy(worker.scan_finished)
 
         # FIX: Use a flag to coordinate stop timing
         with patch("subprocess.run", side_effect=slow_subprocess):

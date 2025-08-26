@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -20,11 +19,6 @@ pytestmark = pytest.mark.unit
 # - Test behavior, not implementation
 # - Use real components where possible
 
-from tests.test_doubles_library import (
-    TestSubprocess as TestSubprocessLib, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 class TestCommandLauncherImproved:
     """Improved tests using test doubles instead of mocks."""

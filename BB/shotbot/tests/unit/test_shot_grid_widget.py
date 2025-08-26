@@ -24,23 +24,23 @@ Following UNIFIED_TESTING_GUIDE:
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QKeyEvent, QMouseEvent, QResizeEvent
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QResizeEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QGridLayout, QScrollArea, QSlider, QWidget
-
-# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 from config import Config
 from shot_grid import ShotGrid  # Deprecated but still tested
 from shot_grid_view import ShotGridView  # Modern Model/View
 from shot_item_model import ShotItemModel
 from shot_model import Shot
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestCacheManager,
+    TestShot,
+    TestShotModel,
+)
 
 
 class TestShotGridWidget:

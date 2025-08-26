@@ -24,9 +24,9 @@ import pytest
 
 from process_pool_manager import (
     CommandCache,
+    PersistentBashSession,
     ProcessMetrics,
     ProcessPoolManager,
-    PersistentBashSession,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
@@ -116,6 +116,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         # Initialize directly without calling super().__init__() to avoid singleton issues
         import concurrent.futures
         import threading
+
         from PySide6.QtCore import QObject
         
         QObject.__init__(self)  # Initialize QObject directly
@@ -552,15 +553,15 @@ class TestCacheInvalidation:
         manager.invalidate_cache(pattern="ls ")
         
         # Test BEHAVIOR: ls commands need re-execution
-        result1 = manager.execute_workspace_command("ls /tmp", cache_ttl=60)
-        result2 = manager.execute_workspace_command("ls /home", cache_ttl=60)
+        manager.execute_workspace_command("ls /tmp", cache_ttl=60)
+        manager.execute_workspace_command("ls /home", cache_ttl=60)
         
         # These should have been re-executed
         assert len(session.executed_commands) > initial_count
         
         # Test BEHAVIOR: pwd still cached
         initial_count = len(session.executed_commands)
-        result3 = manager.execute_workspace_command("pwd", cache_ttl=60)
+        manager.execute_workspace_command("pwd", cache_ttl=60)
         assert len(session.executed_commands) == initial_count  # Not re-executed
         
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)

@@ -6,19 +6,13 @@ Replace TODO markers with actual implementation.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Optional
-
 import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtTest import QSignalSpy
 
 # Import test doubles instead of unittest.mock
 from tests.test_doubles_library import (
-    TestShot,
     TestSubprocess,
-    PopenDouble,
-    SignalDouble,
 )
 
 # Mark all tests in this file

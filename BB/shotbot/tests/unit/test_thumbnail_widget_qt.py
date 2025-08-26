@@ -26,6 +26,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+
 from config import Config
 from shot_model import Shot
 from thumbnail_widget import ThumbnailWidget
@@ -42,11 +43,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 class TestThumbnailWidgetBase:
     """Test real Qt widget behavior of ThumbnailWidgetBase."""

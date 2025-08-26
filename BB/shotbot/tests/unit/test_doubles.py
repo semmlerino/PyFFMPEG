@@ -17,25 +17,23 @@ Usage:
 
 from __future__ import annotations
 
-import pytest
+import subprocess
+import time
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
-import subprocess
-import time
+
+import pytest
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
 # - Use test doubles instead of mocks
 # - Real components where possible
 # - Thread-safe testing patterns
-
-
 from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
+    SignalDouble,
+    TestProcessPool,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]

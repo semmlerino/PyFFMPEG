@@ -6,13 +6,15 @@ scenarios with the same test logic, ensuring thorough coverage.
 
 from __future__ import annotations
 
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 from PySide6.QtGui import QImage
+
 from cache_manager import CacheManager
 from config import Config
-from pathlib import Path
 from shot_model import Shot
-from unittest.mock import patch
 from utils import FileUtils, PathUtils
 
 try:
@@ -25,12 +27,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    TestPILImage,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
+from tests.test_doubles_library import TestPILImage
+
 
 class TestParametrizedPriority:
     """Parametrized tests for format priority logic."""

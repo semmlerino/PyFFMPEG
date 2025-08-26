@@ -8,7 +8,6 @@ from unittest.mock import patch
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy
-from PySide6.QtWidgets import QWidget
 
 from config import Config
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
@@ -129,7 +128,7 @@ class TestThreeDEShotGridSceneDisplay:
 
     def test_refresh_scenes_with_scenes(self, threede_grid, sample_scenes):
         """Test refreshing grid with scenes."""
-        with patch.object(threede_grid, "_clear_grid") as mock_clear:
+        with patch.object(threede_grid, "_clear_grid"):
             with patch.object(threede_grid, "_get_column_count", return_value=3):
                 threede_grid.refresh_scenes()
 
@@ -147,7 +146,7 @@ class TestThreeDEShotGridSceneDisplay:
         """Test refreshing with no scenes."""
         threede_grid.scene_model.scenes = []
 
-        with patch.object(threede_grid, "_show_empty_state") as mock_empty:
+        with patch.object(threede_grid, "_show_empty_state"):
             threede_grid.refresh_scenes()
         assert len(threede_grid.thumbnails) == 0
 
@@ -229,7 +228,7 @@ class TestThreeDEShotGridSizeControl:
         threede_grid.refresh_scenes()
 
         new_size = 200
-        with patch.object(threede_grid, "_reflow_grid") as mock_reflow:
+        with patch.object(threede_grid, "_reflow_grid"):
             threede_grid._on_size_changed(new_size)
 
         assert threede_grid._thumbnail_size == new_size
@@ -372,8 +371,8 @@ class TestThreeDEShotGridKeyboardNavigation:
         threede_grid.selected_scene = sample_scenes[0]
 
         # Create real key event
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
         
         event = QKeyEvent(
             QEvent.Type.KeyPress,
@@ -392,8 +391,8 @@ class TestThreeDEShotGridKeyboardNavigation:
         threede_grid.selected_scene = sample_scenes[2]
 
         # Create real key event
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
         
         event = QKeyEvent(
             QEvent.Type.KeyPress,
@@ -412,8 +411,8 @@ class TestThreeDEShotGridKeyboardNavigation:
         threede_grid.selected_scene = sample_scenes[0]
 
         # Create real key event
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
         
         event = QKeyEvent(
             QEvent.Type.KeyPress,
@@ -433,8 +432,8 @@ class TestThreeDEShotGridKeyboardNavigation:
         threede_grid.selected_scene = sample_scenes[3]
 
         # Create real key event
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
         
         event = QKeyEvent(
             QEvent.Type.KeyPress,
@@ -453,8 +452,8 @@ class TestThreeDEShotGridKeyboardNavigation:
         threede_grid.selected_scene = sample_scenes[0]
 
         # Create real key event
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
         
         event = QKeyEvent(
             QEvent.Type.KeyPress,
@@ -473,8 +472,8 @@ class TestThreeDEShotGridKeyboardNavigation:
         threede_grid.selected_scene = sample_scenes[0]
 
         # Create real key event
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
         
         event = QKeyEvent(
             QEvent.Type.KeyPress,
@@ -490,8 +489,8 @@ class TestThreeDEShotGridKeyboardNavigation:
 
     def test_app_launch_shortcuts(self, threede_grid, qtbot, sample_scenes):
         """Test application launch keyboard shortcuts."""
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
         
         threede_grid.refresh_scenes()
         threede_grid.selected_scene = sample_scenes[0]
@@ -524,8 +523,8 @@ class TestThreeDEShotGridKeyboardNavigation:
         threede_grid.refresh_scenes()
 
         # Create real key event
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
         
         event = QKeyEvent(
             QEvent.Type.KeyPress,
@@ -547,8 +546,8 @@ class TestThreeDEShotGridKeyboardNavigation:
         threede_grid.selected_scene = sample_scenes[0]
 
         # Create real key event
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
         
         event = QKeyEvent(
             QEvent.Type.KeyPress,
@@ -594,8 +593,8 @@ class TestThreeDEShotGridReflow:
         threede_grid.refresh_scenes()
         
         # Create real resize event
-        from PySide6.QtGui import QResizeEvent
         from PySide6.QtCore import QSize
+        from PySide6.QtGui import QResizeEvent
         
         old_size = QSize(400, 300)
         new_size = QSize(800, 600)

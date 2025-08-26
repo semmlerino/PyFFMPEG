@@ -27,7 +27,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -39,11 +39,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Performance test markers
 pytestmark = [pytest.mark.performance]
 
-from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
-)
 
 class TestDirectoryCache:
     """Test the directory caching system thoroughly."""
@@ -393,7 +388,7 @@ class TestOptimizedSceneFinding:
                 ("artist1", small_user_dir / "artist1" / "3de" / "scene_1.3de")
             ]
 
-            scenes = OptimizedThreeDESceneFinder.find_scenes_for_shot(
+            OptimizedThreeDESceneFinder.find_scenes_for_shot(
                 shot_workspace_path=str(small_shot),
                 show="test_show",
                 sequence="test_seq",
@@ -418,7 +413,7 @@ class TestOptimizedSceneFinding:
         ) as mock_subprocess:
             mock_subprocess.return_value = []
 
-            scenes = OptimizedThreeDESceneFinder.find_scenes_for_shot(
+            OptimizedThreeDESceneFinder.find_scenes_for_shot(
                 shot_workspace_path=str(large_shot),
                 show="test_show",
                 sequence="test_seq",

@@ -13,16 +13,12 @@ import tempfile
 import traceback
 from pathlib import Path
 
-from utils import PathUtils
-
-
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
-    TestSubprocess, TestShot, TestShotModel,
-    TestCacheManager, TestLauncher, TestWorker,
-    ThreadSafeTestImage, SignalDouble, TestProcessPool
+    TestSubprocess,
 )
+from utils import PathUtils
+
 
 class TestThumbnailDiscoveryIntegration:
     """Integration tests for thumbnail discovery."""
