@@ -72,7 +72,12 @@
     "thread_health_monitor.py",
     "*_optimized.py",
     "*_threading_fix.py",
-    "*_integration_example.py"
+    "*_integration_example.py",
+    "accessibility_manager_complete.py",
+    "process_pool_manager_optimized.py",
+    "thumbnail_processor_optimized.py",
+    "fix_*.py",
+    "demo_*.py"
   ],
   "stubPath": ".",
   "reportMissingImports": "warning",

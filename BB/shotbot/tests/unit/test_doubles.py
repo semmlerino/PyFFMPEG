@@ -4,7 +4,7 @@ This module provides lightweight test doubles for use in unit tests,
 avoiding excessive mocking and focusing on behavior testing.
 
 Test Doubles Provided:
-    - TestSignal: Lightweight signal emulation for non-Qt components
+    - SignalDouble: Lightweight signal emulation for non-Qt components
     - TestProcessPool: Subprocess boundary mock with predictable behavior
     - TestFileSystem: In-memory filesystem for fast testing
     - TestQApplication: Minimal Qt application for widget testing
@@ -15,21 +15,38 @@ Usage:
     more realistic behavior while maintaining test isolation and speed.
 """
 
-import subprocess
+from __future__ import annotations
+
+import pytest
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+import subprocess
+import time
+
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
 
 
-class TestSignal:
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
+
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
+class SignalDouble:
     """Lightweight signal test double for non-Qt components.
 
     Provides a signal-like interface without Qt dependencies, useful for
     testing components that emit events without requiring full Qt setup.
 
     Example:
-        signal = TestSignal()
+        signal = SignalDouble()
         signal.connect(callback_function)
         signal.emit("data")
         assert signal.was_emitted
@@ -132,9 +149,9 @@ class TestProcessPool:
         self.call_count = 0
 
         # Signals for testing async behavior
-        self.command_started = TestSignal()
-        self.command_completed = TestSignal()
-        self.command_failed = TestSignal()
+        self.command_started = SignalDouble()
+        self.command_completed = SignalDouble()
+        self.command_failed = SignalDouble()
 
     def execute_workspace_command(self, command: str, **kwargs) -> str:
         """Execute a workspace command (test implementation).
@@ -155,8 +172,6 @@ class TestProcessPool:
 
         # Simulate delay if configured
         if self.delay_seconds > 0:
-            import time
-
             time.sleep(self.delay_seconds)
 
         # Check for specific command failures

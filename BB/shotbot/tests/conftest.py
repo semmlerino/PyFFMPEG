@@ -1,13 +1,31 @@
-"""Shared fixtures for pytest tests following best practices.
+"""Shared fixtures and configuration for pytest tests following UNIFIED_TESTING_GUIDE.
 
-This conftest provides clean, isolated fixtures for tests that need them.
+This conftest provides:
+    - Clean, isolated fixtures for tests
+    - Common test doubles to reduce duplication
+    - Real components with test boundaries
+    - Thread-safe testing patterns
+    - Consistent marker configuration
+
 Qt components are NOT mocked to allow real signal testing.
+Test doubles are used only at system boundaries.
 """
+
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
 # pyright: basic
 
 import gc
+import os
 import sys
+import tempfile
+import time
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Generator
 from unittest.mock import Mock, patch
 
 import pytest
@@ -20,15 +38,173 @@ from tests.unit.test_protocols import TestConfigDir
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Import test doubles library for proper test double patterns
+from tests.test_doubles_library import (
+    TestShot, TestShotModel, TestCacheManager, 
+    TestProcessPool, ThreadSafeTestImage, SignalDouble,
+    TestSubprocess, TestLauncher, TestWorker
+)
+
+# =============================================================================
+# Factory Fixtures (UNIFIED_TESTING_GUIDE Best Practice)
+# =============================================================================
+
+@pytest.fixture
+def make_shot():
+    """Factory fixture for creating Shot instances with customizable parameters.
+    
+    Following UNIFIED_TESTING_GUIDE pattern from lines 27-37.
+    Creates Shot instances with flexible, test-specific parameters.
+    """
+    from shot_model import Shot
+    
+    def _make_shot(show="test", seq="seq1", shot="0010", workspace_path=None):
+        if workspace_path is None:
+            workspace_path = f"/shows/{show}/{seq}/{seq}_{shot}"
+        return Shot(show, seq, shot, workspace_path)
+    
+    return _make_shot
+
+@pytest.fixture  
+def make_launcher():
+    """Factory fixture for creating CustomLauncher instances.
+    
+    Following UNIFIED_TESTING_GUIDE factory pattern.
+    Creates CustomLauncher instances with flexible parameters for testing.
+    """
+    from launcher_manager import CustomLauncher
+    
+    created_launchers = []
+    
+    def _make_launcher(
+        id=None,
+        name="Test Launcher", 
+        command="echo {shot_name}",
+        description="Test launcher for unit tests",
+        category="test"
+    ):
+        launcher_id = id or f"test_launcher_{len(created_launchers)}"
+        launcher = CustomLauncher(
+            id=launcher_id,
+            name=name,
+            description=description,
+            command=command,
+            category=category
+        )
+        created_launchers.append(launcher)
+        return launcher
+    
+    yield _make_launcher
+    
+    # Cleanup - clear created launchers list
+    created_launchers.clear()
+
+@pytest.fixture
+def make_cache_manager():
+    """Factory fixture for creating CacheManager instances with tmp_path.
+    
+    Following UNIFIED_TESTING_GUIDE factory pattern.
+    Creates isolated CacheManager instances with temporary directories.
+    """
+    from cache_manager import CacheManager
+    
+    created_managers = []
+    
+    def _make_cache_manager(tmp_path, cache_subdir="cache"):
+        cache_dir = tmp_path / cache_subdir
+        cache_dir.mkdir(exist_ok=True)
+        
+        manager = CacheManager(cache_dir=cache_dir)
+        created_managers.append(manager)
+        return manager
+    
+    yield _make_cache_manager
+    
+    # Cleanup all created managers
+    for manager in created_managers:
+        try:
+            manager.clear_cache()
+            manager.shutdown()
+        except Exception:
+            pass  # Ignore cleanup errors
+    created_managers.clear()
+
+@pytest.fixture
+def make_process_pool():
+    """Factory fixture for creating TestProcessPoolManager instances.
+    
+    Following UNIFIED_TESTING_GUIDE factory pattern.
+    Creates test doubles for process pool boundary mocking.
+    """
+    from tests.test_doubles_library import TestProcessPool
+    
+    created_pools = []
+    
+    def _make_process_pool(default_output="workspace /test/path"):
+        pool = TestProcessPool()
+        pool.default_output = default_output
+        created_pools.append(pool)
+        return pool
+    
+    yield _make_process_pool
+    
+    # Cleanup all created pools
+    for pool in created_pools:
+        try:
+            pool.reset()
+        except Exception:
+            pass  # Ignore cleanup errors
+    created_pools.clear()
+
+def pytest_configure(config: Any) -> None:
+    """Configure pytest with custom markers following UNIFIED_TESTING_GUIDE."""
+    # Register custom markers
+    config.addinivalue_line("markers", "unit: Unit tests for individual components")
+    config.addinivalue_line("markers", "integration: Integration tests for component interactions")
+    config.addinivalue_line("markers", "performance: Performance and benchmark tests")
+    config.addinivalue_line("markers", "threading: Threading and concurrency tests")
+    config.addinivalue_line("markers", "qt: Tests requiring Qt event loop")
+    config.addinivalue_line("markers", "fast: Tests that complete in <100ms")
+    config.addinivalue_line("markers", "slow: Tests that take >1s")
+    config.addinivalue_line("markers", "critical: Critical path tests that must pass")
+    config.addinivalue_line("markers", "wsl: Tests optimized for WSL environment")
+    config.addinivalue_line("markers", "flaky: Known flaky tests requiring attention")
+    
+    # Set Qt environment for offscreen testing
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    os.environ["QT_LOGGING_RULES"] = "*.debug=false"
+    os.environ["PYTEST_QT_API"] = "pyside6"
+
+# =============================================================================
+# Session-Level Fixtures
+# =============================================================================
+
+@pytest.fixture(scope="session")
+def test_data_dir() -> Path:
+    """Provide path to test data directory."""
+    return Path(__file__).parent / "fixtures" / "data"
+
+@pytest.fixture(scope="session")
+def performance_threshold() -> Dict[str, int]:
+    """Performance thresholds for benchmark tests."""
+    return {
+        "thumbnail_processing": 100,  # ms
+        "shot_refresh": 500,  # ms
+        "scene_discovery": 1000,  # ms
+        "cache_operation": 50,  # ms
+    }
+
 # =============================================================================
 # Cache Isolation Fixtures
 # =============================================================================
 
 
+# Removed duplicate import - already imported above
+
 @pytest.fixture(
     autouse=False
 )  # Can be enabled per-test or per-class using pytest.mark.usefixtures
-def isolated_test_environment():
+def isolated_test_environment() -> Generator[None, None, None]:
     """Ensure complete test isolation by clearing all caches and shared state.
 
     This fixture runs before and after every test to ensure:
@@ -38,9 +214,6 @@ def isolated_test_environment():
     4. Qt objects are properly cleaned up
     5. Garbage collection removes any lingering objects
     6. Caching is disabled during tests to prevent contamination
-
-    This fixes the critical test isolation issue where tests pass individually
-    but fail in suites due to shared cache state.
     """
     # Clear utils caches and disable caching before test
     try:
@@ -165,10 +338,10 @@ def qt_signal_blocker():
 
 @pytest.fixture
 def test_signal():
-    """Create a TestSignal instance for non-Qt signal testing."""
-    from tests.unit.test_doubles import TestSignal
+    """Create a SignalDouble instance for non-Qt signal testing."""
+    from tests.unit.test_doubles import SignalDouble
 
-    return TestSignal()
+    return SignalDouble()
 
 
 @pytest.fixture
@@ -358,6 +531,82 @@ def make_real_plate_files(tmp_path):
 
 
 # =============================================================================
+# Common Test Double Factories (Reduce Duplication)
+# =============================================================================
+
+@pytest.fixture
+def make_test_process():
+    """Factory for creating TestProcessDouble instances."""
+    from tests.unit.test_launcher_manager_coverage import TestProcessDouble
+    
+    def _make_process(command="test_cmd", return_code=0, should_hang=False):
+        return TestProcessDouble(command, return_code, should_hang)
+    
+    return _make_process
+
+@pytest.fixture
+def make_test_launcher():
+    """Factory for creating CustomLauncher instances."""
+    from launcher_manager import CustomLauncher
+    
+    def _make_launcher(
+        id=None,
+        name="Test Launcher",
+        command="echo {shot_name}",
+        description="Test launcher"
+    ):
+        launcher_id = id or f"test_launcher_{hash(name)}"
+        return CustomLauncher(
+            id=launcher_id,
+            name=name,
+            description=description,
+            command=command,
+            category="test"
+        )
+    
+    return _make_launcher
+
+@pytest.fixture
+def make_thread_safe_image():
+    """Factory for creating ThreadSafeTestImage instances."""
+    from tests.test_helpers import ThreadSafeTestImage
+    
+    def _make_image(width=100, height=100):
+        return ThreadSafeTestImage(width, height)
+    
+    return _make_image
+
+@pytest.fixture
+def workspace_command_outputs():
+    """Common workspace command outputs for testing."""
+    return {
+        "single_shot": "workspace /shows/test/shots/seq01/seq01_0010",
+        "multiple_shots": (
+            "workspace /shows/test/shots/seq01/seq01_0010\n"
+            "workspace /shows/test/shots/seq01/seq01_0020\n"
+            "workspace /shows/test/shots/seq02/seq02_0010"
+        ),
+        "empty": "",
+        "invalid": "invalid output without workspace prefix",
+        "mixed": (
+            "workspace /shows/test/shots/seq01/seq01_0010\n"
+            "some random line\n"
+            "workspace /shows/test/shots/seq01/seq01_0020"
+        ),
+    }
+
+@pytest.fixture
+def common_test_paths():
+    """Common test paths used across multiple tests."""
+    return {
+        "shot_path": "/shows/TEST/shots/seq01/seq01_0010",
+        "thumbnail_path": "/shows/TEST/shots/seq01/seq01_0010/publish/editorial/cutref/v001/jpg/1920x1080/frame.1001.jpg",
+        "3de_path": "/shows/TEST/shots/seq01/seq01_0010/user/testuser/3de/mm-default/seq01_0010_mm_v001.3de",
+        "plate_path": "/shows/TEST/shots/seq01/seq01_0010/plates/raw/BG01/lin_sgamut3cine/seq01_0010_BG01.1001.exr",
+    }
+
+
+# =============================================================================
 # Test Fixtures
 # =============================================================================
 
@@ -460,34 +709,175 @@ def shot_model_with_shots(cache_manager):
 
 
 @pytest.fixture
-def mock_process_pool_manager():
-    """Mock ProcessPoolManager for subprocess isolation."""
-    with patch("shot_model.ProcessPoolManager") as mock_pool_class:
-        instance = Mock()
-        instance.execute_workspace_command.return_value = """workspace /shows/show1/shots/seq1/seq1_0010
-workspace /shows/show1/shots/seq1/seq1_0020
-workspace /shows/show2/shots/seq2/seq2_0030"""
-
-        mock_pool_class.get_instance.return_value = instance
-        yield instance
+def test_process_pool_with_data():
+    """TestProcessPool with common test data (UNIFIED_TESTING_GUIDE)."""
+    pool = TestProcessPool()
+    pool.set_outputs(
+        "workspace /shows/show1/shots/seq1/seq1_0010",
+        "workspace /shows/show1/shots/seq1/seq1_0020", 
+        "workspace /shows/show2/shots/seq2/seq2_0030"
+    )
+    yield pool
+    pool.reset()
 
 
 @pytest.fixture
 def test_image_file(tmp_path):
     """Create a test image file for caching tests."""
     image_file = tmp_path / "test_image.jpg"
-    
+
     # Create a valid image using PIL if available, else use Qt
     try:
         from PIL import Image
+
         # Create a simple 100x100 red image
-        img = Image.new('RGB', (100, 100), color='red')
-        img.save(str(image_file), 'JPEG')
+        img = Image.new("RGB", (100, 100), color="red")
+        img.save(str(image_file), "JPEG")
     except ImportError:
         # Fall back to Qt if PIL not available
-        from PySide6.QtGui import QImage, QColor
+        from PySide6.QtGui import QColor, QImage
+
         img = QImage(100, 100, QImage.Format.Format_RGB32)
         img.fill(QColor(255, 0, 0))  # Red
         img.save(str(image_file), "JPEG")
-    
+
     return image_file  # Return Path object, not string
+
+
+# =============================================================================
+# Performance Testing Fixtures
+# =============================================================================
+
+@pytest.fixture
+def benchmark_timer():
+    """Simple timer for performance benchmarking."""
+    import time
+    
+    class BenchmarkTimer:
+        def __init__(self) -> None:
+            self.start_time: float | None = None
+            self.end_time: float | None = None
+            self.elapsed: float | None = None
+        
+        def __enter__(self) -> 'BenchmarkTimer':
+            self.start_time = time.perf_counter()
+            return self
+        
+        def __exit__(self, *args: Any) -> None:
+            self.end_time = time.perf_counter()
+            if self.start_time is not None:
+                self.elapsed = (self.end_time - self.start_time) * 1000  # Convert to ms
+        
+        def assert_under(self, threshold_ms: float) -> None:
+            """Assert that elapsed time is under threshold."""
+            assert self.elapsed is not None, "Timer was not used properly"
+            assert self.elapsed < threshold_ms, (
+                f"Operation took {self.elapsed:.2f}ms, "
+                f"exceeding threshold of {threshold_ms}ms"
+            )
+    
+    return BenchmarkTimer
+
+@pytest.fixture
+def memory_tracker():
+    """Track memory usage for performance tests."""
+    import psutil
+    import os
+    
+    class MemoryTracker:
+        def __init__(self) -> None:
+            self.process = psutil.Process(os.getpid())
+            self.start_memory: int | None = None
+            self.end_memory: int | None = None
+            self.delta: int | None = None
+        
+        def __enter__(self) -> 'MemoryTracker':
+            gc.collect()
+            self.start_memory = self.process.memory_info().rss
+            return self
+        
+        def __exit__(self, *args: Any) -> None:
+            gc.collect()
+            self.end_memory = self.process.memory_info().rss
+            if self.start_memory is not None:
+                self.delta = self.end_memory - self.start_memory
+        
+        def assert_under_mb(self, threshold_mb: float) -> None:
+            """Assert memory increase is under threshold."""
+            assert self.delta is not None, "Memory tracker was not used properly"
+            delta_mb = self.delta / (1024 * 1024)
+            assert delta_mb < threshold_mb, (
+                f"Memory increased by {delta_mb:.2f}MB, "
+                f"exceeding threshold of {threshold_mb}MB"
+            )
+    
+    return MemoryTracker
+
+
+# =============================================================================
+# Thread Safety Testing Fixtures
+# =============================================================================
+
+@pytest.fixture
+def concurrent_executor():
+    """Execute functions concurrently for thread safety testing."""
+    import concurrent.futures
+    
+    def _execute_concurrent(func, args_list, max_workers=10):
+        """Execute function with different args concurrently.
+        
+        Args:
+            func: Function to execute
+            args_list: List of argument tuples
+            max_workers: Maximum concurrent workers
+        
+        Returns:
+            List of results in order
+        """
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(func, *args) for args in args_list]
+            results = [f.result() for f in concurrent.futures.as_completed(futures)]
+        return results
+    
+    return _execute_concurrent
+
+@pytest.fixture
+def thread_safety_monitor():
+    """Monitor for detecting thread safety violations."""
+    import threading
+    
+    class ThreadSafetyMonitor:
+        def __init__(self):
+            self.lock = threading.Lock()
+            self.violations = []
+            self.operations = []
+        
+        def record_operation(self, op_name, thread_id=None):
+            """Record an operation for analysis."""
+            if thread_id is None:
+                thread_id = threading.current_thread().ident
+            
+            with self.lock:
+                self.operations.append((op_name, thread_id, time.time()))
+        
+        def record_violation(self, message):
+            """Record a thread safety violation."""
+            with self.lock:
+                self.violations.append(message)
+        
+        def assert_no_violations(self):
+            """Assert no violations were recorded."""
+            assert not self.violations, (
+                f"Thread safety violations detected: {self.violations}"
+            )
+        
+        def get_concurrent_operations(self):
+            """Get operations that happened concurrently."""
+            concurrent = []
+            for i, (op1, tid1, time1) in enumerate(self.operations):
+                for op2, tid2, time2 in self.operations[i+1:]:
+                    if tid1 != tid2 and abs(time1 - time2) < 0.001:  # Within 1ms
+                        concurrent.append((op1, op2))
+            return concurrent
+    
+    return ThreadSafetyMonitor()

@@ -82,6 +82,9 @@ class ShotItemModel(QAbstractListModel):
 
         self._shots: List[Shot] = []
         self._cache_manager = cache_manager or CacheManager()
+        # WARNING: QPixmap is NOT thread-safe. Currently safe as thumbnails are
+        # loaded in main thread, but if async loading is implemented (as per line 334
+        # comment), must use QImage or store paths instead of QPixmap objects
         self._thumbnail_cache: Dict[str, QPixmap] = {}
         self._loading_states: Dict[str, str] = {}
         self._selected_index = QPersistentModelIndex()

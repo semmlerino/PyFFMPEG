@@ -10,17 +10,34 @@ Following UNIFIED_TESTING_GUIDE principles:
 - Focus on edge cases and error conditions
 """
 
+from __future__ import annotations
+
+import pytest
+from cache.memory_manager import MemoryManager
+from config import ThreadingConfig
+from pathlib import Path
+from unittest.mock import patch
 import concurrent.futures
 import threading
 import time
-from pathlib import Path
-from unittest.mock import patch
+import os
 
-import pytest
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
-from cache.memory_manager import MemoryManager
-from config import ThreadingConfig
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
 
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
 
 class TestMemoryManagerInitialization:
     """Test MemoryManager initialization and configuration."""
@@ -220,7 +237,6 @@ class TestLRUEviction:
         files = []
 
         # Create files with different modification times
-        import os
 
         base_time = time.time()
 

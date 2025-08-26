@@ -8,14 +8,25 @@ This refactored version:
 - Uses real CacheManager with temporary storage
 """
 
-import os
+from __future__ import annotations
+
+import pytest
 from datetime import datetime
 from pathlib import Path
-
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+import os
 
 
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
+
+pytestmark = pytest.mark.unit
 class TestThreeDEScene:
     """Test ThreeDEScene dataclass with real files."""
 

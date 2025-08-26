@@ -10,16 +10,32 @@ Following UNIFIED_TESTING_GUIDE principles:
 - Clear, descriptive test names and docstrings
 """
 
-import concurrent.futures
+from __future__ import annotations
+
+import pytest
+from cache.failure_tracker import FailureTracker
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
+import concurrent.futures
+import gc
 
-import pytest
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
 
-from cache.failure_tracker import FailureTracker
 
 
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
+
+pytestmark = pytest.mark.unit
 class TestFailureTracker:
     """Test suite for FailureTracker class covering all public methods and edge cases."""
 
@@ -586,7 +602,6 @@ class TestFailureTracker:
 
     def test_memory_cleanup_pattern(self, failure_tracker):
         """Test that FailureTracker properly cleans up references."""
-        import gc
 
         # Create a large object to test memory management
         large_error_message = "x" * 10000  # Large string

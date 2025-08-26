@@ -1,0 +1,151 @@
+# Improved pytest configuration for ShotBot test suite
+# Addresses performance issues, timeout problems, and WSL optimization
+
+[pytest]
+# Test discovery
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+
+# Default options for all test runs
+addopts = 
+    # Output and reporting
+    --strict-markers
+    --tb=short
+    -ra
+    
+    # Performance optimization
+    --maxfail=5
+    --durations=10
+    
+    # Timeout configuration
+    # Default timeout for regular tests, slow tests can override
+    --timeout=120
+    --timeout-method=thread
+    
+    # Disable GUI plugins that aren't needed in CI/headless
+    -p no:xvfb
+    
+    # Cache provider enabled for better performance
+    # (helps with --lf, --ff, and test result caching)
+    
+    # For parallel execution (uncomment when pytest-xdist is installed):
+    # -n auto
+
+# Test markers with clear categorization
+markers =
+    # Speed categories (mutually exclusive)
+    fast: Fast tests that complete in <100ms (for quick feedback loops)
+    slow: Slow tests that take >1s (use --ignore-mark=slow to skip)
+    
+    # Test types (can overlap)
+    unit: Unit tests (should generally be fast)
+    integration: Integration tests (may interact with filesystem/network)
+    performance: Performance benchmarks and regression tests
+    
+    # Environment requirements
+    qt: Tests requiring Qt event loop and qtbot fixture
+    gui: GUI tests requiring display (skip in headless environments)
+    
+    # Test quality categories
+    critical: Critical path tests that must always pass
+    contract: Contract/API validation tests
+    mutation: Mutation testing
+    snapshot: Snapshot/golden master tests
+    quality: Code quality and style tests
+    stress: Stress tests (high resource usage, may timeout)
+    
+    # Utility markers
+    skip_in_ci: Skip these tests in CI environments
+    skip_in_wsl: Skip these tests when running in WSL
+    requires_cache: Tests that require cache to be enabled
+
+# Timeout overrides for specific test types
+# (These override the global --timeout setting)
+[pytest:timeout]
+timeout_func_only = False
+timeout_method = thread
+
+# Per-marker timeout overrides (in seconds)
+[pytest:marker_timeout]
+fast = 1
+unit = 10
+integration = 60
+slow = 300
+performance = 120
+stress = 600
+
+# Coverage configuration (when using pytest-cov)
+[coverage:run]
+source = .
+omit = 
+    */tests/*
+    */test_*
+    */__pycache__/*
+    */venv/*
+    */.pytest_cache/*
+
+[coverage:report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstract
+
+# WSL-specific optimizations
+# Use these by running: pytest -c pytest.ini --wsl-optimize
+[pytest:wsl]
+# To use WSL optimizations, add these as CLI args:
+# pytest --no-cov -p no:cacheprovider --cache-clear -q
+
+# Parallel execution configuration (requires pytest-xdist)
+[pytest:parallel]
+# Groups tests to run in the same worker to avoid conflicts
+# Add to CLI: -n auto --dist loadgroup
+group_integration = tests/integration/*
+group_performance = tests/performance/*
+group_qt = tests/unit/*qt*.py tests/unit/*widget*.py
+
+# Test collection optimization
+python_ignore = 
+    # Ignore backup and temporary files
+    *_backup.py
+    *.backup
+    *.tmp
+    
+    # Ignore broken tests (should be fixed or removed)
+    *.broken
+    
+# Doctest configuration
+doctest_optionflags = NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL
+
+# Logging configuration for tests
+log_cli = false
+log_cli_level = WARNING
+log_cli_format = %(asctime)s [%(levelname)8s] %(message)s
+log_cli_date_format = %Y-%m-%d %H:%M:%S
+
+# Pytest plugin configurations
+[pytest:qt]
+qt_api = pyside6
+qt_no_exception_capture = false
+qt_default_raising = true
+qt_wait_signal_raising = true
+qt_log_level_fail = WARNING
+
+# Hook configuration
+[pytest:hooks]
+# Automatically mark tests based on their location
+def pytest_collection_modifyitems(items):
+    for item in items:
+        # Auto-mark based on path
+        if "unit" in str(item.fspath):
+            item.add_marker(pytest.mark.unit)
+        if "integration" in str(item.fspath):
+            item.add_marker(pytest.mark.integration)
+        if "performance" in str(item.fspath):
+            item.add_marker(pytest.mark.performance)

@@ -1,18 +1,33 @@
 """Simplified unit tests for ProcessPoolManager that avoid hanging issues.
 
 Tests core functionality without creating real interactive bash sessions.
+This test file follows UNIFIED_TESTING_GUIDE best practices:
+- Test behavior, not implementation
+- Use test doubles instead of mocks
+- Real components where possible
+- Thread-safe testing patterns
 """
 
-import threading
-import time
-from unittest.mock import Mock, patch
+from __future__ import annotations
 
+import pytest
+from unittest.mock import patch
 from process_pool_manager import (
     CommandCache,
     ProcessMetrics,
     ProcessPoolManager,
 )
+# Replaced Mock/patch with test doubles from UNIFIED_TESTING_GUIDE
+import threading
+import time
 
+from tests.test_doubles_library import (
+    TestSubprocess, TestProcessPool, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestBashSession
+)
+
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 class TestCommandCacheSimple:
     """Test CommandCache without any subprocess operations."""
@@ -143,30 +158,35 @@ class TestProcessPoolManagerSimple:
         manager.shutdown()
         ProcessPoolManager._instance = None
 
-    @patch("process_pool_manager.PersistentBashSession")
-    def test_execute_workspace_command_with_cache(self, mock_session_class):
-        """Test command execution with caching (mocked session)."""
+    def test_execute_workspace_command_with_cache(self, monkeypatch):
+        """Test command execution with caching using TestProcessPool."""
         # Reset singleton
         ProcessPoolManager._instance = None
 
-        # Setup mock
-        mock_session = Mock()
-        mock_session.execute.return_value = "test output"
-        mock_session_class.return_value = mock_session
-
+        # Use TestProcessPool for subprocess boundary testing
+        test_pool = TestProcessPool()
+        test_pool.set_outputs("test output")
+        
+        # Replace the internal session creation with test double
+        def mock_create_session(*args, **kwargs):
+            return test_pool
+        
+        monkeypatch.setattr("process_pool_manager.PersistentBashSession", mock_create_session)
+        
         manager = ProcessPoolManager()
 
-        # First call - should execute
+        # First call - should execute and cache
         result1 = manager.execute_workspace_command("echo test", cache_ttl=10)
         assert result1 == "test output"
-        assert mock_session.execute.call_count == 1
+        assert len(test_pool.commands) == 1
 
-        # Second call - should use cache
+        # Second call - should use cache (behavior test)
         result2 = manager.execute_workspace_command("echo test", cache_ttl=10)
         assert result2 == "test output"
-        assert mock_session.execute.call_count == 1  # Still 1, used cache
+        # Still only 1 command executed due to cache
+        assert len(test_pool.commands) == 1
 
-        # Check metrics
+        # Check metrics (behavior verification)
         metrics = manager.get_metrics()
         assert metrics["cache_stats"]["hits"] == 1
         assert metrics["cache_stats"]["misses"] == 1
@@ -205,10 +225,10 @@ class TestProcessPoolManagerSimple:
         # Reset singleton
         ProcessPoolManager._instance = None
 
-        # Setup mock
-        mock_session = Mock()
-        mock_session.execute.side_effect = ["output1", "output2", "output3"]
-        mock_session_class.return_value = mock_session
+        # Setup test double for bash session
+        test_session = TestBashSession()
+        test_session.set_output_sequence(["output1", "output2", "output3"])
+        mock_session_class.return_value = test_session
 
         manager = ProcessPoolManager()
 
@@ -234,9 +254,10 @@ class TestEdgeCasesSimple:
         """Test handling of empty commands."""
         ProcessPoolManager._instance = None
 
-        mock_session = Mock()
-        mock_session.execute.return_value = ""
-        mock_session_class.return_value = mock_session
+        # Setup test double for bash session  
+        test_session = TestBashSession()
+        test_session.default_output = ""
+        mock_session_class.return_value = test_session
 
         manager = ProcessPoolManager()
 

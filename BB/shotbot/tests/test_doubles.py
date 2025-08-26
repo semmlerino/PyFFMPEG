@@ -4,12 +4,36 @@ This module provides thread-safe test doubles for Qt components that cannot
 be used in worker threads, following the guide's Qt Threading Safety section.
 """
 
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
+
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
+
+from __future__ import annotations
+
 from typing import Optional
 from unittest.mock import MagicMock
 
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QColor, QImage
 
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
 
 class ThreadSafeTestImage:
     """Thread-safe test double for QPixmap using QImage internally.
@@ -85,10 +109,10 @@ class ThreadSafeTestImage:
         return True
 
 
-class TestSignal:
+class SignalDouble:
     """Lightweight signal test double for non-Qt components.
 
-    From UNIFIED_TESTING_GUIDE: Use TestSignal for test doubles,
+    From UNIFIED_TESTING_GUIDE: Use SignalDouble for test doubles,
     QSignalSpy only works with real Qt signals.
     """
 
@@ -200,8 +224,8 @@ class TestProcessPool:
         """Initialize test process pool."""
         self.commands = []
         self.outputs = []
-        self.command_completed = TestSignal()
-        self.command_failed = TestSignal()
+        self.command_completed = SignalDouble()
+        self.command_failed = SignalDouble()
 
     def execute(self, command: str, **kwargs) -> str:
         """Execute command (test implementation).
@@ -267,10 +291,10 @@ class TestLauncherWorker:
         self.launcher_id = launcher_id
         self.command = command
         self.dry_run = dry_run
-        self.started = TestSignal()
-        self.finished = TestSignal()
-        self.output = TestSignal()
-        self.error = TestSignal()
+        self.started = SignalDouble()
+        self.finished = SignalDouble()
+        self.output = SignalDouble()
+        self.error = SignalDouble()
         self._running = False
         self._result = True
 
@@ -343,7 +367,7 @@ class TestShotModel:
     def __init__(self):
         """Initialize test shot model."""
         self.shots = []
-        self.shots_updated = TestSignal()
+        self.shots_updated = SignalDouble()
 
     def add_shot(self, shot):
         """Add shot to model."""
@@ -419,13 +443,11 @@ class MockCacheManager:
         self._thumbnails.clear()
 
 
-class TestImagePool:
+class ImagePoolDouble:
     """Reuse ThreadSafeTestImage instances for performance.
 
     From UNIFIED_TESTING_GUIDE Performance Considerations section.
     """
-
-    __test__ = False
 
     def __init__(self):
         """Initialize image pool."""

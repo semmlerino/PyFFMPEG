@@ -5,12 +5,15 @@
 
 from pathlib import Path
 from typing import Any, Dict, Generator, List
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from cache_manager import CacheManager
 from shot_model import Shot, ShotModel
+
+# Import test double for subprocess
+from tests.test_doubles_library import TestCompletedProcess
 
 
 @pytest.fixture
@@ -62,28 +65,30 @@ def mock_ws_output_typed() -> str:
 @pytest.fixture
 def mock_successful_subprocess():
     """Mock subprocess.run for successful ws command with type safety."""
-    mock_result = Mock()
-    mock_result.returncode = 0
-    mock_result.stdout = """
-    workspace /shows/ygsk/shots/108_BQS/108_BQS_0005
-    workspace /shows/ygsk/shots/108_CHV/108_CHV_0010
-    """
-    mock_result.stderr = ""
+    test_result = TestCompletedProcess(
+        args=["ws", "-sg"],
+        returncode=0,
+        stdout="""workspace /shows/ygsk/shots/108_BQS/108_BQS_0005
+workspace /shows/ygsk/shots/108_CHV/108_CHV_0010""",
+        stderr=""
+    )
 
-    with patch("subprocess.run", return_value=mock_result):
-        yield mock_result
+    with patch("subprocess.run", return_value=test_result):
+        yield test_result
 
 
 @pytest.fixture
 def mock_failed_subprocess():
     """Mock subprocess.run for failed ws command."""
-    mock_result = Mock()
-    mock_result.returncode = 1
-    mock_result.stdout = ""
-    mock_result.stderr = "Error: ws command failed"
+    test_result = TestCompletedProcess(
+        args=["ws", "-sg"],
+        returncode=1,
+        stdout="",
+        stderr="Error: ws command failed"
+    )
 
-    with patch("subprocess.run", return_value=mock_result):
-        yield mock_result
+    with patch("subprocess.run", return_value=test_result):
+        yield test_result
 
 
 @pytest.fixture

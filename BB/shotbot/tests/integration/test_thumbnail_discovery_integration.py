@@ -1,14 +1,35 @@
-"""Streamlined integration tests for thumbnail discovery without timeout issues."""
+"""Integration tests for thumbnail discovery with minimal pytest overhead."""
+
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
 
 import shutil
+import sys
 import tempfile
+import traceback
 from pathlib import Path
 
+from utils import PathUtils
+
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
 
 class TestThumbnailDiscoveryIntegration:
-    """Integration tests for thumbnail discovery with minimal pytest overhead."""
+    """Integration tests for thumbnail discovery."""
 
     def setup_method(self):
+        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
+        self.test_subprocess = TestSubprocess()
         """Minimal setup to avoid pytest fixture overhead."""
         self.temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_integration_"))
         self.shows_root = self.temp_dir / "shows"
@@ -25,11 +46,8 @@ class TestThumbnailDiscoveryIntegration:
     def test_turnover_plate_discovery_integration(self):
         """Integration test for turnover plate discovery across different structures."""
         # Import locally to avoid pytest environment issues
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from utils import PathUtils
 
         # Test Case 1: Structure without input_plate subdirectory
         plate_path1 = (
@@ -87,11 +105,8 @@ class TestThumbnailDiscoveryIntegration:
     def test_plate_priority_integration(self):
         """Integration test for plate priority ordering (FG > BG > others)."""
         # Import locally
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from utils import PathUtils
 
         # Create multiple plate types in same shot
         base_path = (
@@ -134,11 +149,8 @@ class TestThumbnailDiscoveryIntegration:
     def test_fallback_discovery_integration(self):
         """Integration test for fallback thumbnail discovery."""
         # Import locally
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from utils import PathUtils
 
         # Create shot structure with publish directory for fallback search
         shot_path = (
@@ -169,11 +181,8 @@ class TestThumbnailDiscoveryIntegration:
     def test_deep_nesting_integration(self):
         """Integration test for deeply nested file discovery."""
         # Import locally
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from utils import PathUtils
 
         # Create deeply nested structure in publish directory
         deep_path = (
@@ -215,11 +224,8 @@ class TestThumbnailDiscoveryIntegration:
     def test_no_files_found_integration(self):
         """Integration test for cases where no files are found."""
         # Import locally
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from utils import PathUtils
 
         # Create empty shot structure
         shot_path = (
@@ -273,7 +279,6 @@ if __name__ == "__main__":
         print("All integration tests passed!")
     except Exception as e:
         print(f"Test failed: {e}")
-        import traceback
 
         traceback.print_exc()
     finally:

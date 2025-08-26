@@ -3,16 +3,31 @@
 Following the testing guide's advice to minimize mocking and test real behavior.
 """
 
-from pathlib import Path
+from __future__ import annotations
 
 import pytest
-
 from cache_manager import CacheManager
 from config import Config
+from pathlib import Path
 from shot_model import Shot
 from utils import FileUtils, PathUtils
 
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
 
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
+
+pytestmark = pytest.mark.unit
 class TestThumbnailPriority:
     """Test that lightweight formats are preferred over EXR."""
 

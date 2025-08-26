@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from config import Config
-from performance_monitor import timed_operation
+# Performance monitoring removed - was using archived module
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -331,7 +331,6 @@ class PathUtils:
         return PathUtils.build_path(workspace_path, *segments)
 
     @staticmethod
-    @timed_operation("validate_path_exists", log_threshold_ms=10)
     def validate_path_exists(path: Union[str, Path], description: str = "Path") -> bool:
         """Validate that a path exists.
 
@@ -643,7 +642,6 @@ class VersionUtils:
         return len(cls._version_cache)
 
     @staticmethod
-    @timed_operation("find_version_directories", log_threshold_ms=20)
     def find_version_directories(base_path: Union[str, Path]) -> List[Tuple[int, str]]:
         """Find all version directories in a path.
 

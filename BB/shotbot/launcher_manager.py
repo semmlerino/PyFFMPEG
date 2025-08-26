@@ -1,5 +1,7 @@
 """Business logic layer for ShotBot's custom launcher feature."""
 
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -17,6 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
 from config import Config, ThreadingConfig
+from exceptions import SecurityError
 from process_pool_manager import ProcessPoolManager
 from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
@@ -57,6 +60,90 @@ class LauncherWorker(ThreadSafeWorker):
         self.working_dir = working_dir
         self._process: Optional[subprocess.Popen[Any]] = None
 
+    def _sanitize_command(self, command: str) -> tuple[list[str], bool]:
+        """Safely parse and validate command to prevent shell injection.
+        
+        Args:
+            command: Command string to sanitize
+            
+        Returns:
+            Tuple of (command_list, use_shell) where use_shell is always False
+            for security
+            
+        Raises:
+            SecurityError: If command contains dangerous patterns or isn't whitelisted
+        """
+        import re
+        import shlex
+        
+        # Whitelist of allowed base commands
+        ALLOWED_COMMANDS = {
+            "3de", "3de4", "3dequalizer",
+            "nuke", "nuke_i", "nukex", 
+            "maya", "mayapy",
+            "rv", "rvpkg",
+            "houdini", "hython",
+            "katana",
+            "mari",
+            "publish", "publish_standalone",
+            "python", "python3",
+            "bash", "sh",  # Only for known safe scripts
+        }
+        
+        # Dangerous patterns that indicate potential injection attempts
+        DANGEROUS_PATTERNS = [
+            r";\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
+            r"&&\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
+            r"\|\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
+            r"`[^`]*`",  # Command substitution
+            r"\$\([^)]*\)",  # Command substitution
+            r"\$\{[^}]*\}",  # Variable expansion that could be dangerous
+            r">\s*/dev/(sda|sdb|sdc|null)",  # Dangerous redirects
+            r"2>&1.*>/dev/null.*rm",  # Hidden rm commands
+        ]
+        
+        # Check for dangerous patterns
+        for pattern in DANGEROUS_PATTERNS:
+            if re.search(pattern, command, re.IGNORECASE):
+                raise SecurityError(
+                    f"Command contains dangerous pattern and was blocked: {command[:100]}"
+                )
+        
+        # Try to parse the command safely
+        try:
+            cmd_list = shlex.split(command)
+            
+            # Validate the base command is in whitelist
+            if cmd_list:
+                base_command = cmd_list[0].split('/')[-1]  # Get command name without path
+                if base_command not in ALLOWED_COMMANDS:
+                    # Check if it's a full path to an allowed command
+                    allowed = False
+                    for allowed_cmd in ALLOWED_COMMANDS:
+                        if allowed_cmd in cmd_list[0]:
+                            allowed = True
+                            break
+                    
+                    if not allowed:
+                        logger.warning(
+                            f"Command '{base_command}' not in whitelist. "
+                            f"Command: {command[:100]}"
+                        )
+                        raise SecurityError(
+                            f"Command '{base_command}' is not in the allowed command whitelist"
+                        )
+            
+            # Never use shell=True for security
+            return cmd_list, False
+            
+        except ValueError as e:
+            # If shlex.split fails, the command is malformed
+            # Do not fall back to shell=True - this is a security risk
+            logger.error(f"Failed to parse command safely: {command[:100]}")
+            raise SecurityError(
+                f"Command could not be parsed safely and was blocked: {str(e)}"
+            )
+
     def do_work(self):
         """Execute the launcher command with proper lifecycle management.
 
@@ -73,21 +160,10 @@ class LauncherWorker(ThreadSafeWorker):
             # Parse command properly to avoid shell injection
             # Use shlex to split if it's a string command
             if isinstance(self.command, str):
-                # For safety, we should avoid shell=True
-                # But some commands may require it, so we'll sanitize first
-                import shlex
-
-                try:
-                    # Try to parse as shell command
-                    cmd_list = shlex.split(self.command)
-                    use_shell = False
-                except ValueError:
-                    # Complex shell command, use shell=True but log warning
-                    logger.warning(
-                        f"Using shell=True for complex command: {self.command[:100]}",
-                    )
-                    cmd_list = self.command
-                    use_shell = True
+                # Security: Parse and validate command to prevent injection
+                
+                # Sanitize and validate the command
+                cmd_list, use_shell = self._sanitize_command(self.command)
             else:
                 cmd_list = self.command
                 use_shell = False
@@ -875,17 +951,15 @@ class LauncherManager(QObject):
         launcher = self._launchers[launcher_id]
 
         try:
-            # Check process limits before execution
-            error_msg = None
+            # Check process limits atomically
             with self._process_lock:
                 if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
                     error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
-
-            # Emit signal outside lock to prevent deadlock
-            if error_msg:
-                logger.warning(error_msg)
-                self.validation_error.emit("general", error_msg)
-                return False
+                    logger.warning(error_msg)
+                    # Emit signal inside lock to prevent TOCTOU race condition
+                    # Signal emission is safe here as it's asynchronous
+                    self.validation_error.emit("general", error_msg)
+                    return False
 
             # Substitute variables in command
             merged_vars = {**launcher.variables, **(custom_vars or {})}
@@ -1032,17 +1106,15 @@ class LauncherManager(QObject):
         launcher = self._launchers[launcher_id]
 
         try:
-            # Check process limits before execution
-            error_msg = None
+            # Check process limits atomically
             with self._process_lock:
                 if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
                     error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
-
-            # Emit signal outside lock to prevent deadlock
-            if error_msg:
-                logger.warning(error_msg)
-                self.validation_error.emit("general", error_msg)
-                return False
+                    logger.warning(error_msg)
+                    # Emit signal inside lock to prevent TOCTOU race condition
+                    # Signal emission is safe here as it's asynchronous
+                    self.validation_error.emit("general", error_msg)
+                    return False
 
             # Substitute variables in command with shot context
             merged_vars = {**launcher.variables, **(custom_vars or {})}

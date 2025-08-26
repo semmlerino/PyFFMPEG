@@ -1,0 +1,109 @@
+I’ve reviewed your **Unified Testing Guide**. It’s already strong and very detailed, especially for PyQt/PySide + pytest workflows. Below are suggestions for **clarifications, additions, and enhancements** to make it even more effective for LLM-assisted coding and best practices:
+
+---
+
+## 📌 Structural & Clarity Improvements
+
+1. **Explicit Separation of Levels**
+
+   * Currently, “Unit vs Integration vs E2E” is explained in *When to Mock*. Consider repeating this hierarchy at the start (Core Principles) so LLMs (and humans) get the testing scope immediately.
+   * Add a **decision tree** (e.g., “Am I testing logic? → Use real. Testing external calls? → Mock.”).
+
+2. **Consistency in Terminology**
+
+   * You use “test double,” “mock,” and “real component.” Add a short glossary at the top with strict definitions. This prevents LLMs from drifting into mocking internals unnecessarily.
+
+3. **Quick Anti-Pattern Warnings**
+
+   * You already list anti-patterns at the bottom. Move the *most critical ones* (QPixmap in threads, testing mocks, signal race conditions) into a boxed “🚫 Never Do This” section near the top.
+
+---
+
+## 📌 Additions to Support LLM Workflows
+
+1. **Prompt Guidance for LLMs**
+
+   * Provide a section like *“How to ask an LLM for a test”* with examples:
+
+     ```text
+     BAD PROMPT: "Write a test for this function"
+     GOOD PROMPT: "Write a pytest unit test that verifies behavior by using real components where possible. Avoid mocking internal methods. Use qtbot for Qt signals."
+     ```
+   * This keeps generated code aligned with your philosophy.
+
+2. **Template for Common Test Types**
+
+   * Add minimal, copy-pasteable templates:
+
+     * Behavior test (unit)
+     * Signal test
+     * Worker thread test
+     * Modal dialog test
+   * LLMs will use these as scaffolds rather than inventing from scratch.
+
+3. **Error Recovery Patterns**
+
+   * Include a section: *“If LLM generates a failing test, check these first”*
+
+     * Did it mock the class under test? → Remove mock.
+     * Did it use QSignalSpy on a fake signal? → Switch to TestSignal.
+     * Did it call QPixmap in a thread? → Replace with ThreadSafeTestImage.
+
+---
+
+## 📌 Best Practice Enhancements
+
+1. **Fixture Strategy**
+
+   * Emphasize **factory fixtures over global fixtures** (you already use `make_shot`). LLMs often generate too much shared state; reinforce that each test should be isolated.
+
+2. **Logging & Debugging**
+
+   * Add guidelines for `caplog`:
+
+     ```python
+     def test_logs_error(caplog):
+         with caplog.at_level("ERROR"):
+             model.refresh()
+         assert "invalid input" in caplog.text
+     ```
+   * LLMs often skip log testing, but this makes behavior checks richer.
+
+3. **Coverage with Behavior Focus**
+
+   * Clarify that coverage metrics should be **interpreted cautiously**:
+
+     * “High coverage is good, but tests must validate *observable behavior* not implementation details.”
+
+4. **Threading Tests – Timeouts**
+
+   * Add note: *Always set explicit timeouts when waiting on threads or signals.* Prevents hanging CI runs when LLM forgets.
+
+5. **Performance Tests**
+
+   * Consider adding a lightweight performance check section. LLMs often ignore performance regressions:
+
+     ```python
+     def test_process_speed(benchmark, model):
+         benchmark(model.refresh)
+     ```
+
+---
+
+## 📌 LLM Safety Nets
+
+* **Inline Warnings**: Sprinkle reminders like:
+
+  > ⚠️ LLMs often generate `.assert_called_once()`. Remove it — test behavior instead.
+* **Reference Shortcuts**: Encourage LLMs to use *Quick Reference* rather than inventing new patterns.
+
+---
+
+✅ In summary:
+
+* Add **prompting guidelines + templates** to steer LLMs.
+* Promote **early anti-pattern callouts** for safety.
+* Expand **fixtures, logging, coverage, and performance** sections.
+* Provide a **troubleshooting guide** when generated tests fail.
+
+Would you like me to **draft these as concrete sections** directly into your guide (ready to paste in), or would you prefer a structured outline you can adapt yourself?

@@ -21,11 +21,20 @@ Following UNIFIED_TESTING_GUIDE:
 - Clean up widgets properly
 """
 
+from __future__ import annotations
+
 import pytest
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QResizeEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QGridLayout, QScrollArea, QSlider, QWidget
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
 
 from config import Config
 from shot_grid import ShotGrid  # Deprecated but still tested
@@ -41,25 +50,22 @@ class TestShotGridWidget:
     def test_shots(self):
         """Create test shots for widget testing."""
         return [
-            Shot("show1", "seq1", "0010", "/shows/show1/shots/seq1/seq1_0010"),
-            Shot("show1", "seq1", "0020", "/shows/show1/shots/seq1/seq1_0020"),
-            Shot("show2", "seq2", "0030", "/shows/show2/shots/seq2/seq2_0030"),
+            TestShot("show1", "seq1", "0010", "/shows/show1/shots/seq1/seq1_0010"),
+            TestShot("show1", "seq1", "0020", "/shows/show1/shots/seq1/seq1_0020"),
+            TestShot("show2", "seq2", "0030", "/shows/show2/shots/seq2/seq2_0030"),
         ]
 
     @pytest.fixture
-    def mock_shot_model(self, test_shots):
-        """Create a mock shot model with real shots."""
-        from unittest.mock import Mock
-        
-        model = Mock()
-        model.shots = test_shots
-        model.get_shots.return_value = test_shots
+    def test_shot_model(self, test_shots):
+        """Create a test shot model with real shots and Qt signals."""
+        model = TestShotModel()
+        model.add_test_shots(test_shots)
         return model
 
     @pytest.fixture
-    def shot_grid_widget(self, qtbot, mock_shot_model):
+    def shot_grid_widget(self, qtbot, test_shot_model):
         """Create ShotGrid widget for testing."""
-        widget = ShotGrid(mock_shot_model)
+        widget = ShotGrid(test_shot_model)
         qtbot.addWidget(widget)
         return widget
 
@@ -191,16 +197,19 @@ class TestShotGridView:
     def test_shots(self):
         """Create test shots for Model/View testing."""
         return [
-            Shot("show1", "seq1", "0010", "/shows/show1/shots/seq1/seq1_0010"),
-            Shot("show1", "seq1", "0020", "/shows/show1/shots/seq1/seq1_0020"),
-            Shot("show2", "seq2", "0030", "/shows/show2/shots/seq2/seq2_0030"),
+            TestShot("show1", "seq1", "0010", "/shows/show1/shots/seq1/seq1_0010"),
+            TestShot("show1", "seq1", "0020", "/shows/show1/shots/seq1/seq1_0020"),
+            TestShot("show2", "seq2", "0030", "/shows/show2/shots/seq2/seq2_0030"),
         ]
 
     @pytest.fixture
-    def shot_item_model(self, test_shots, real_cache_manager):
-        """Create real ShotItemModel for testing."""
-        model = ShotItemModel(cache_manager=real_cache_manager)
-        model.set_shots(test_shots)
+    def shot_item_model(self, test_shots):
+        """Create real ShotItemModel with TestCacheManager for testing."""
+        test_cache_manager = TestCacheManager()
+        model = ShotItemModel(cache_manager=test_cache_manager)
+        # Convert TestShot to Shot objects for ShotItemModel
+        shot_objects = [Shot(shot.show, shot.sequence, shot.shot, shot.workspace_path) for shot in test_shots]
+        model.set_shots(shot_objects)
         return model
 
     @pytest.fixture
@@ -323,11 +332,12 @@ class TestShotGridView:
         
         # Add more shots to model
         new_shots = test_shots + [
-            Shot("show3", "seq3", "0040", "/shows/show3/shots/seq3/seq3_0040")
+            TestShot("show3", "seq3", "0040", "/shows/show3/shots/seq3/seq3_0040")
         ]
         
-        # Update model data
-        model.set_shots(new_shots)
+        # Update model data - convert TestShot to Shot objects
+        new_shot_objects = [Shot(shot.show, shot.sequence, shot.shot, shot.workspace_path) for shot in new_shots]
+        model.set_shots(new_shot_objects)
         qtbot.wait(10)
         
         # Model should reflect changes
@@ -364,10 +374,12 @@ class TestShotGridIntegration:
         ]
 
     @pytest.fixture
-    def integrated_grid_view(self, qtbot, integration_shots, real_cache_manager):
+    def integrated_grid_view(self, qtbot, integration_shots):
         """Create fully integrated ShotGridView for testing."""
-        # Create model with real cache manager and shots
-        model = ShotItemModel(cache_manager=real_cache_manager)
+        # Create model with test cache manager and shots
+        test_cache_manager = TestCacheManager()
+        model = ShotItemModel(cache_manager=test_cache_manager)
+        # integration_shots are already Shot objects from make_test_shot fixture
         model.set_shots(integration_shots)
         
         # Create view

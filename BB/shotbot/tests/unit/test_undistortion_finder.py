@@ -1,4 +1,6 @@
-"""Unit tests for UndistortionFinder module."""
+"""Tests for UndistortionFinder."""
+
+from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import patch
@@ -7,12 +9,20 @@ import pytest
 
 from undistortion_finder import UndistortionFinder
 
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
 
-@pytest.fixture
-def mock_workspace_path():
-    """Mock workspace path for testing."""
-    return "/shows/testshow/shots/seq01/seq01_shot01"
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
 
+pytestmark = pytest.mark.unit
 
 @pytest.fixture
 def mock_shot_name():
@@ -77,7 +87,6 @@ class TestUndistortionFinder:
     def test_find_latest_undistortion_success(
         self,
         undistortion_structure,
-        mock_workspace_path,
         mock_shot_name,
         mock_username,
     ):
@@ -572,7 +581,6 @@ class TestUndistortionFinder:
         mock_username,
     ):
         """Test that FileNotFoundError is handled gracefully during directory iteration."""
-        from unittest.mock import patch
 
         # Create a workspace path
         workspace_path = str(tmp_path)

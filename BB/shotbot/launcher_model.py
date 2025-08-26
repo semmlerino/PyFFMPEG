@@ -379,13 +379,13 @@ def validate_launcher_schema(data: Dict[str, Any]) -> List[str]:
 
     # Required fields
     required_fields = ["id", "name", "command"]
-    for field in required_fields:
-        if field not in data:
-            errors.append(f"Missing required field: {field}")
-        elif not isinstance(data[field], str):
-            errors.append(f"Field '{field}' must be a string")
-        elif not data[field].strip():
-            errors.append(f"Field '{field}' cannot be empty")
+    for required_field in required_fields:
+        if required_field not in data:
+            errors.append(f"Missing required field: {required_field}")
+        elif not isinstance(data[required_field], str):
+            errors.append(f"Field '{required_field}' must be a string")
+        elif not data[required_field].strip():
+            errors.append(f"Field '{required_field}' cannot be empty")
 
     # Optional fields with type validation
     optional_fields = {
@@ -403,10 +403,10 @@ def validate_launcher_schema(data: Dict[str, Any]) -> List[str]:
         "keyboard_shortcut": str,
     }
 
-    for field, expected_type in optional_fields.items():
-        if field in data:
-            if not isinstance(data[field], expected_type):
-                errors.append(f"Field '{field}' must be of type {expected_type}")
+    for field_name, expected_type in optional_fields.items():
+        if field_name in data:
+            if not isinstance(data[field_name], expected_type):
+                errors.append(f"Field '{field_name}' must be of type {expected_type}")
 
     # Validate parameters list
     if "parameters" in data:

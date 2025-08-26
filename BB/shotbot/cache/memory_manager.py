@@ -35,6 +35,15 @@ class MemoryManager:
         self._max_memory_bytes = max_mb * 1024 * 1024
 
         logger.debug(f"MemoryManager initialized with {max_mb}MB limit")
+    
+    def set_memory_limit(self, max_memory_mb: int) -> None:
+        """Set maximum memory limit in megabytes.
+        
+        Args:
+            max_memory_mb: Maximum memory limit in megabytes
+        """
+        self._max_memory_bytes = max_memory_mb * 1024 * 1024
+        logger.debug(f"MemoryManager limit updated to {max_memory_mb}MB")
 
     def track_item(self, file_path: Path, size_bytes: Optional[int] = None) -> bool:
         """Track a cached item's memory usage.

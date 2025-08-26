@@ -50,7 +50,7 @@ class ShotGrid(QWidget):
         self.shot_model = shot_model
         self.thumbnails: Dict[str, ThumbnailWidget] = {}
         self.selected_shot: Optional[Shot] = None
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE  # type: ignore[attr-defined]
         self._setup_ui()
 
     def _setup_ui(self):
@@ -65,13 +65,13 @@ class ShotGrid(QWidget):
         self.size_slider = QSlider(Qt.Orientation.Horizontal)
         self.size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
         self.size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
-        self.size_slider.setValue(self._thumbnail_size)
+        self.size_slider.setValue(self._thumbnail_size)  # type: ignore[attr-defined]
         self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.size_slider.setTickInterval(50)
         self.size_slider.valueChanged.connect(self._on_size_changed)
         size_layout.addWidget(self.size_slider)
 
-        self.size_label = QLabel(f"{self._thumbnail_size}px")
+        self.size_label = QLabel(f"{self._thumbnail_size}px")  # type: ignore[attr-defined]
         self.size_label.setMinimumWidth(50)
         size_layout.addWidget(self.size_label)
 
@@ -102,7 +102,7 @@ class ShotGrid(QWidget):
 
         # Create thumbnails for all shots
         for i, shot in enumerate(self.shot_model.shots):
-            thumbnail = ThumbnailWidget(shot, self._thumbnail_size)
+            thumbnail = ThumbnailWidget(shot, self._thumbnail_size)  # type: ignore[attr-defined]
             thumbnail.clicked.connect(self._on_thumbnail_clicked)
             thumbnail.double_clicked.connect(self._on_thumbnail_double_clicked)
 
@@ -127,7 +127,7 @@ class ShotGrid(QWidget):
             return Config.GRID_COLUMNS
 
         # Calculate based on thumbnail size and spacing
-        item_width = self._thumbnail_size + Config.THUMBNAIL_SPACING
+        item_width = self._thumbnail_size + Config.THUMBNAIL_SPACING  # type: ignore[attr-defined]
         columns = max(1, available_width // item_width)
         return columns
 
@@ -150,7 +150,7 @@ class ShotGrid(QWidget):
 
     def _on_size_changed(self, value: int):
         """Handle thumbnail size change."""
-        self._thumbnail_size = value
+        self._thumbnail_size = value  # type: ignore[attr-defined]
         self.size_label.setText(f"{value}px")
 
         # Update all thumbnails
@@ -193,9 +193,9 @@ class ShotGrid(QWidget):
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             delta = event.angleDelta().y()
             if delta > 0:
-                new_size = min(self._thumbnail_size + 10, Config.MAX_THUMBNAIL_SIZE)
+                new_size = min(self._thumbnail_size + 10, Config.MAX_THUMBNAIL_SIZE)  # type: ignore[attr-defined]
             else:
-                new_size = max(self._thumbnail_size - 10, Config.MIN_THUMBNAIL_SIZE)
+                new_size = max(self._thumbnail_size - 10, Config.MIN_THUMBNAIL_SIZE)  # type: ignore[attr-defined]
 
             self.size_slider.setValue(new_size)
             event.accept()

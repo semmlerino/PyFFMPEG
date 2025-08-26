@@ -21,8 +21,9 @@ class PreviousShotsWorker(QThread):
     """
 
     # Signals
+    started = Signal()  # Emitted when scan starts
     shot_found = Signal(dict)  # Emitted for each shot found
-    scan_progress = Signal(int, int)  # current, total
+    scan_progress = Signal(int, int, str)  # current, total, current_operation
     scan_finished = Signal(list)  # List of all shots found
     error_occurred = Signal(str)  # Error message
 
@@ -63,15 +64,23 @@ class PreviousShotsWorker(QThread):
         logger.info("Starting previous shots scan")
         start_time = time.time()
 
+        # Emit started signal
+        self.started.emit()
+
         try:
+            # Emit initial progress
+            self.scan_progress.emit(0, 100, "Initializing scan...")
+
             # PERFORMANCE FIX: Use finder's efficient find command instead of manual traversal
             # This avoids duplicate filesystem scanning
+            self.scan_progress.emit(10, 100, "Scanning filesystem...")
             all_user_shots = self._finder.find_user_shots(self._shows_root)
 
             if self._should_stop:
                 logger.info("Scan stopped by user request")
                 return
 
+            self.scan_progress.emit(50, 100, "Filtering approved shots...")
             # Filter to get only approved shots
             approved_shots = self._finder.filter_approved_shots(
                 all_user_shots, self._active_shots
@@ -79,9 +88,17 @@ class PreviousShotsWorker(QThread):
 
             # Convert to dictionaries for signal emission
             shot_dicts = []
-            for shot in approved_shots:
+            total_shots = len(approved_shots)
+
+            for i, shot in enumerate(approved_shots):
                 if self._should_stop:
                     break
+
+                # Emit progress for processing each shot
+                progress = 50 + int((i / total_shots) * 40)  # 50-90% range
+                self.scan_progress.emit(
+                    progress, 100, f"Processing shot {i + 1} of {total_shots}"
+                )
 
                 shot_dict = {
                     "show": shot.show,
@@ -91,6 +108,9 @@ class PreviousShotsWorker(QThread):
                 }
                 shot_dicts.append(shot_dict)
                 self.shot_found.emit(shot_dict)
+
+            # Final progress update
+            self.scan_progress.emit(100, 100, "Scan completed")
 
             elapsed = time.time() - start_time
             logger.info(

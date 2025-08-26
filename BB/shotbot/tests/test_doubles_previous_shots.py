@@ -2,10 +2,19 @@
 
 This module provides lightweight test doubles that follow the guide's principles:
 - Real signals where needed (Qt objects)
-- TestSignal pattern for non-Qt doubles
+- SignalDouble pattern for non-Qt doubles
 - Predictable behavior over mocks
 - Thread-safe operations
 """
+
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
+
+from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -14,6 +23,14 @@ from PySide6.QtCore import QObject, Signal
 
 from shot_model import Shot
 
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
 
 class FakeSignal:
     """Lightweight signal test double from UNIFIED_TESTING_GUIDE."""

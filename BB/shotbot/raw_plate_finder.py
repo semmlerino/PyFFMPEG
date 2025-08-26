@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from config import Config
-from performance_monitor import timed_operation
+# Performance monitoring removed - was using archived module
 from utils import PathUtils, VersionUtils
 
 # Set up logger for this module
@@ -23,7 +23,6 @@ class RawPlateFinder:
     _pattern_cache = {}  # Cache for compiled patterns keyed by (shot_name, plate_name, version)
 
     @staticmethod
-    @timed_operation("find_latest_raw_plate", log_threshold_ms=50)
     def find_latest_raw_plate(
         shot_workspace_path: str,
         shot_name: str,
@@ -201,7 +200,6 @@ class RawPlateFinder:
     _verify_pattern_cache = {}
 
     @staticmethod
-    @timed_operation("verify_plate_exists", log_threshold_ms=20)
     def verify_plate_exists(plate_path: str) -> bool:
         """
         Verify that at least one frame of the plate sequence exists.

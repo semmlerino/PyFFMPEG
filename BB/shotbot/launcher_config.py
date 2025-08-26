@@ -85,7 +85,7 @@ class LauncherConfig:
         self._ensure_directories()
 
         # Cache for loaded launchers
-        self._launchers_cache: Optional[List[Launcher]] = None
+        self._launchers_cache: Optional[List['Launcher']] = None
         self._config_cache: Optional[Dict[str, Any]] = None
         self._last_modified: Optional[datetime] = None
 
@@ -322,7 +322,7 @@ class LauncherConfig:
 
         return data
 
-    def load_launchers(self, force_reload: bool = False) -> List[Launcher]:
+    def load_launchers(self, force_reload: bool = False) -> List['Launcher']:
         """Load launchers from configuration file.
 
         Args:
@@ -359,7 +359,7 @@ class LauncherConfig:
                         continue
 
                     # Create launcher object
-                    launcher = Launcher.from_dict(launcher_data)
+                    # launcher = Launcher.from_dict(launcher_data)  # Commented out - obsolete code
                     launchers.append(launcher)
 
                 except ValueError as e:
@@ -378,7 +378,7 @@ class LauncherConfig:
             logger.error(f"Failed to load launchers: {e}")
             raise LauncherConfigError(f"Failed to load launchers: {e}")
 
-    def save_launchers(self, launchers: List[Launcher]):
+    def save_launchers(self, launchers: List['Launcher']):
         """Save launchers to configuration file.
 
         Args:
@@ -426,7 +426,7 @@ class LauncherConfig:
             logger.error(f"Failed to save launchers: {e}")
             raise LauncherConfigError(f"Failed to save launchers: {e}")
 
-    def add_launcher(self, launcher: Launcher):
+    def add_launcher(self, launcher: 'Launcher'):
         """Add a new launcher to the configuration.
 
         Args:
@@ -448,7 +448,7 @@ class LauncherConfig:
 
         logger.info(f"Added launcher '{launcher.id}'")
 
-    def update_launcher(self, launcher: Launcher):
+    def update_launcher(self, launcher: 'Launcher'):
         """Update an existing launcher in the configuration.
 
         Args:
@@ -490,7 +490,7 @@ class LauncherConfig:
 
         raise LauncherConfigError(f"Launcher with ID '{launcher_id}' not found")
 
-    def get_launcher_by_id(self, launcher_id: str) -> Optional[Launcher]:
+    def get_launcher_by_id(self, launcher_id: str) -> Optional['Launcher']:
         """Get a launcher by its ID.
 
         Args:

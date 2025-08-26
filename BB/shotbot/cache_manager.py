@@ -25,12 +25,14 @@ from cache.threede_cache import ThreeDECache
 from cache.thumbnail_loader import ThumbnailCacheResult, ThumbnailLoader
 from cache.thumbnail_processor import ThumbnailProcessor
 from config import Config
+from exceptions import CacheError, ThumbnailError
 
 if TYPE_CHECKING:
     from shot_model import Shot
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
+
 
 
 class CacheManager(QObject):
@@ -190,15 +192,21 @@ class CacheManager(QObject):
     ) -> Optional[Union[Path, ThumbnailCacheResult]]:
         """Cache a thumbnail from source path with optional synchronization."""
         # Convert source_path to Path object for consistent handling
-        source_path_obj = Path(source_path) if isinstance(source_path, str) else source_path
+        source_path_obj = (
+            Path(source_path) if isinstance(source_path, str) else source_path
+        )
         if not source_path_obj or not source_path_obj.exists():
             logger.warning(f"Source thumbnail path does not exist: {source_path_obj}")
             return None
 
         # Validate parameters
         if not all([show, sequence, shot]):
-            logger.error("Missing required parameters for thumbnail caching")
-            return None
+            error_msg = "Missing required parameters for thumbnail caching"
+            logger.error(error_msg)
+            raise ThumbnailError(
+                error_msg,
+                details={"source_path": source_path, "show": show, "sequence": sequence, "shot": shot}
+            )
 
         cache_key = f"{show}_{sequence}_{shot}"
 
@@ -272,7 +280,9 @@ class CacheManager(QObject):
             else:
                 error_msg = "Failed to cache thumbnail"
                 result.set_error(error_msg)
-                self._failure_tracker.record_failure(cache_key, error_msg, source_path_obj)
+                self._failure_tracker.record_failure(
+                    cache_key, error_msg, source_path_obj
+                )
                 self._cleanup_loader(cache_key)
                 return None if wait else result
 
@@ -400,6 +410,7 @@ class CacheManager(QObject):
         stats["thumbnail_count"] = stats["tracked_items"]
         return stats
 
+
     def validate_cache(self) -> Dict[str, Any]:
         """Validate cache consistency and fix issues (backward compatible)."""
         if self._cache_validator:
@@ -433,7 +444,8 @@ class CacheManager(QObject):
                 try:
                     shutil.rmtree(self.thumbnails_dir, ignore_errors=True)
                     logger.info("Cleared thumbnail cache directory")
-                except Exception as e:
+                except (OSError, IOError) as e:
+                    # Log but don't raise - clearing cache is not critical
                     logger.error(f"Failed to clear thumbnail directory: {e}")
 
             # Recreate directory
@@ -487,8 +499,30 @@ class CacheManager(QObject):
 
                 logger.info("CacheManager shutdown complete")
 
-            except Exception as e:
+            except (OSError, IOError, CacheError) as e:
                 logger.error(f"Error during cache manager shutdown: {e}")
+    
+    def set_memory_limit(self, max_memory_mb: int) -> None:
+        """Set maximum memory limit for cache in megabytes.
+        
+        Args:
+            max_memory_mb: Maximum memory in megabytes
+        """
+        # Use the public method to set memory limit
+        self._memory_manager.set_memory_limit(max_memory_mb)
+        logger.info(f"Cache memory limit set to {max_memory_mb} MB")
+        
+    def set_expiry_minutes(self, expiry_minutes: int) -> None:
+        """Set cache expiry time in minutes.
+        
+        Args:
+            expiry_minutes: Cache expiry time in minutes
+        """
+        # Update expiry for both shot and 3DE caches using their public methods
+        self._shot_cache.set_expiry_minutes(expiry_minutes)
+        self._threede_cache.set_expiry_minutes(expiry_minutes)
+            
+        logger.info(f"Cache expiry set to {expiry_minutes} minutes")
 
 
 # Backward compatibility wrapper for ThumbnailCacheLoader

@@ -6,13 +6,28 @@ Following UNIFIED_TESTING_GUIDE principles:
 - Use temporary directories for real I/O testing
 """
 
-import time
-from pathlib import Path
-from unittest.mock import patch
+from __future__ import annotations
 
 import pytest
-
+from pathlib import Path
 from threede_scene_finder import ThreeDESceneFinder
+from unittest.mock import patch
+import time
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
+
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 @pytest.fixture

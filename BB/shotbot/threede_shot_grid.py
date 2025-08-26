@@ -93,6 +93,15 @@ class ThreeDEShotGrid(QWidget):
         # Enable keyboard focus
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+    @property
+    def thumbnail_size(self) -> int:
+        """Get the current thumbnail size.
+
+        Returns:
+            Current thumbnail size in pixels
+        """
+        return self._thumbnail_size
+
     def set_loading(self, loading: bool, message: str = "Scanning for 3DE scenes..."):
         """Set loading state."""
         self._is_loading = loading

@@ -7,10 +7,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional
 
+from PySide6.QtCore import QObject, Signal
+
 if TYPE_CHECKING:
     from cache_manager import CacheManager
 
 from config import Config
+from exceptions import WorkspaceError
 from process_pool_manager import ProcessPoolManager
 from utils import FileUtils, PathUtils, ValidationUtils
 
@@ -186,8 +189,31 @@ class Shot:
         return shot
 
 
-class ShotModel:
-    """Manages shot data and parsing."""
+class ShotModel(QObject):
+    """Manages shot data and parsing with Qt signal support for reactive updates.
+
+    This model emits signals for all state changes, enabling reactive UI updates
+    without polling. The model maintains backward compatibility with the existing
+    API while providing comprehensive signal-based notifications.
+
+    Signals:
+        shots_loaded: Emitted when shots are initially loaded from cache or refresh
+        shots_changed: Emitted when the shot list changes (added/removed/modified)
+        refresh_started: Emitted when a refresh operation begins
+        refresh_finished: Emitted when refresh completes with (success, has_changes)
+        error_occurred: Emitted when an error occurs with error message
+        shot_selected: Emitted when a shot is selected with the Shot object
+        cache_updated: Emitted when the cache is successfully updated
+    """
+
+    # Qt signals for reactive updates
+    shots_loaded = Signal(list)  # List of Shot objects
+    shots_changed = Signal(list)  # List of Shot objects
+    refresh_started = Signal()
+    refresh_finished = Signal(bool, bool)  # success, has_changes
+    error_occurred = Signal(str)  # Error message
+    shot_selected = Signal(object)  # Shot object
+    cache_updated = Signal()
 
     def __init__(
         self,
@@ -204,6 +230,8 @@ class ShotModel:
         self._parse_pattern = re.compile(
             r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))",
         )
+        self._selected_shot: Optional[Shot] = None
+
         # Initialize ProcessPoolManager singleton
         if DEBUG_VERBOSE:
             logger.debug("Getting ProcessPoolManager singleton instance")
@@ -222,10 +250,13 @@ class ShotModel:
                 )
 
     def _load_from_cache(self) -> bool:
-        """Load shots from cache if available."""
+        """Load shots from cache if available and emit appropriate signals."""
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
             self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
+            # Emit signal to notify that shots have been loaded
+            self.shots_loaded.emit(self.shots)
+            logger.info(f"Loaded {len(self.shots)} shots from cache")
             return True
         return False
 
@@ -237,9 +268,19 @@ class ShotModel:
         - Persistent bash session reuse
         - Automatic retry on session failure
 
+        Emits signals:
+        - refresh_started: When refresh begins
+        - shots_changed: If shot list changes
+        - error_occurred: If an error occurs
+        - cache_updated: When cache is successfully updated
+        - refresh_finished: When refresh completes with status
+
         Returns:
             RefreshResult with success status and change indicator
         """
+        # Emit signal to indicate refresh is starting
+        self.refresh_started.emit()
+
         try:
             # Save current shots for comparison (include workspace path)
             old_shot_data = {
@@ -264,18 +305,24 @@ class ShotModel:
                     if output:
                         logger.debug(f"First 200 chars of output: {output[:200]}...")
             except TimeoutError as e:
-                logger.error(f"Timeout while running ws -sg command: {e}")
+                error_msg = f"Timeout while running ws -sg command: {e}"
+                logger.error(error_msg)
                 if DEBUG_VERBOSE:
                     logger.debug(f"TimeoutError details: {e}")
+                self.error_occurred.emit(error_msg)
+                self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
-            except RuntimeError as e:
+            except (RuntimeError, WorkspaceError) as e:
                 # Handle session failures and other runtime errors
-                logger.error(f"Failed to execute ws -sg command: {e}")
+                error_msg = f"Failed to execute ws -sg command: {e}"
+                logger.error(error_msg)
                 if DEBUG_VERBOSE:
-                    logger.debug(f"RuntimeError details: {e}")
+                    logger.debug(f"Error details: {e}")
                     import traceback
 
                     logger.debug(f"Traceback: {traceback.format_exc()}")
+                self.error_occurred.emit(error_msg)
+                self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
 
             # Parse output (reuse existing parser)
@@ -285,10 +332,13 @@ class ShotModel:
                 new_shots = self._parse_ws_output(output)
                 if DEBUG_VERBOSE:
                     logger.debug(f"Parsed {len(new_shots)} shots from output")
-            except ValueError as e:
-                logger.error(f"Failed to parse ws -sg output: {e}")
+            except (ValueError, WorkspaceError) as e:
+                error_msg = f"Failed to parse ws -sg output: {e}"
+                logger.error(error_msg)
                 if DEBUG_VERBOSE:
                     logger.debug(f"Parse error details: {e}")
+                self.error_occurred.emit(error_msg)
+                self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
 
             new_shot_data = {
@@ -302,19 +352,29 @@ class ShotModel:
                 self.shots = new_shots
                 logger.info(f"Shot list updated: {len(new_shots)} shots found")
 
+                # Emit signal to notify of changed shots
+                self.shots_changed.emit(self.shots)
+
                 # Cache the results - pass Shot objects directly
                 if self.shots:
                     try:
                         self.cache_manager.cache_shots(self.shots)  # type: ignore[arg-type]
+                        # Emit cache updated signal
+                        self.cache_updated.emit()
                     except (OSError, IOError) as e:
                         logger.warning(f"Failed to cache shots: {e}")
                         # Continue without caching - not critical for operation
 
+            # Emit refresh finished signal with results
+            self.refresh_finished.emit(True, has_changes)
             return RefreshResult(success=True, has_changes=has_changes)
 
         except Exception as e:
             # Catch any unexpected errors not handled by ProcessPoolManager
-            logger.exception(f"Unexpected error while fetching shots: {e}")
+            error_msg = f"Unexpected error while fetching shots: {e}"
+            logger.exception(error_msg)
+            self.error_occurred.emit(error_msg)
+            self.refresh_finished.emit(False, False)
             return RefreshResult(success=False, has_changes=False)
 
     def _parse_ws_output(self, output: str) -> List[Shot]:
@@ -327,10 +387,14 @@ class ShotModel:
             List of Shot objects parsed from the output
 
         Raises:
-            ValueError: If output is invalid or cannot be parsed
+            WorkspaceError: If output is invalid or cannot be parsed
         """
         if not isinstance(output, str):
-            raise ValueError(f"Expected string output, got {type(output)}")
+            raise WorkspaceError(
+                "Invalid workspace output type",
+                command="ws -sg",
+                details={"expected": "str", "got": str(type(output))}
+            )
 
         shots: List[Shot] = []
         lines = output.strip().split("\n")
@@ -423,6 +487,46 @@ class ShotModel:
         """
         self._process_pool.invalidate_cache("ws -sg")
         logger.info("Invalidated workspace cache for immediate refresh")
+
+    def select_shot(self, shot: Optional[Shot]) -> None:
+        """Select a shot and emit the shot_selected signal.
+
+        Args:
+            shot: The shot to select, or None to clear selection
+        """
+        self._selected_shot = shot
+        self.shot_selected.emit(shot)
+        if shot:
+            logger.debug(f"Shot selected: {shot.full_name}")
+        else:
+            logger.debug("Shot selection cleared")
+
+    def get_selected_shot(self) -> Optional[Shot]:
+        """Get the currently selected shot.
+
+        Returns:
+            The currently selected shot or None if no shot is selected
+        """
+        return self._selected_shot
+
+    def select_shot_by_name(self, full_name: str) -> bool:
+        """Select a shot by its full name.
+
+        Args:
+            full_name: The full name of the shot to select
+
+        Returns:
+            True if the shot was found and selected, False otherwise
+        """
+        shot = self.find_shot_by_name(full_name)
+        if shot:
+            self.select_shot(shot)
+            return True
+        return False
+
+    def clear_selection(self) -> None:
+        """Clear the current shot selection."""
+        self.select_shot(None)
 
     def get_performance_metrics(self) -> Dict[str, Any]:
         """Get performance metrics for subprocess operations.

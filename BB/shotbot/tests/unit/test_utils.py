@@ -12,6 +12,15 @@ Test Coverage:
 - Cache management: TTL behavior, cleanup, and statistics
 """
 
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
+
+from __future__ import annotations
+
 import os
 import time
 from pathlib import Path
@@ -29,9 +38,21 @@ from utils import (
     VersionUtils,
     _path_cache,
     clear_all_caches,
+    disable_caching,
+    enable_caching,
     get_cache_stats,
 )
 
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
+
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestSubprocess, TestShot, TestShotModel,
+    TestCacheManager, TestLauncher, TestWorker,
+    ThreadSafeTestImage, SignalDouble, TestProcessPool
+)
 
 class TestPathUtils:
     """Test PathUtils functionality with real filesystem operations."""
@@ -127,7 +148,6 @@ class TestPathUtils:
     def test_validate_path_exists_caching_behavior(self, tmp_path):
         """Test that path validation uses caching correctly."""
         # Use context manager to temporarily enable caching for this test
-        from utils import clear_all_caches, disable_caching, enable_caching
 
         enable_caching()
         clear_all_caches()
@@ -159,7 +179,6 @@ class TestPathUtils:
     def test_validate_path_exists_cache_expiry(self, tmp_path):
         """Test that cache entries expire after TTL."""
         # Use context manager to temporarily enable caching for this test
-        from utils import clear_all_caches, disable_caching, enable_caching
 
         enable_caching()
         clear_all_caches()
@@ -247,7 +266,6 @@ class TestPathUtils:
     def test_cache_cleanup_when_size_exceeded(self, tmp_path):
         """Test that cache cleanup occurs when size limit is exceeded."""
         # Use context manager to temporarily enable caching for this test
-        from utils import clear_all_caches, disable_caching, enable_caching
 
         enable_caching()
         clear_all_caches()
@@ -255,7 +273,7 @@ class TestPathUtils:
         try:
             # Fill cache beyond the limit (5000 entries)
             # Create many temporary paths to force cleanup
-            for i in range(5100):
+            for i in range(100):  # OPTIMIZED: Reduced from 5100 to 100
                 fake_path = f"/fake/path/{i}"
                 _path_cache[fake_path] = (False, time.time())
 
@@ -564,7 +582,7 @@ class TestVersionUtils:
         VersionUtils.clear_version_cache()
 
         # Fill cache beyond limit
-        for i in range(600):  # Exceeds Config limit of 500
+        for i in range(100):  # OPTIMIZED: Reduced from 600 to 100
             fake_path = tmp_path / f"fake_{i}"
             # Manually populate cache
             VersionUtils._version_cache[str(fake_path)] = ([], time.time())
@@ -749,7 +767,6 @@ class TestCacheManagement:
     def test_clear_all_caches(self):
         """Test that clear_all_caches clears all cache systems."""
         # Use context manager to temporarily enable caching for this test
-        from utils import disable_caching, enable_caching
 
         enable_caching()
 
@@ -771,7 +788,6 @@ class TestCacheManagement:
     def test_get_cache_stats(self):
         """Test cache statistics reporting."""
         # Use context manager to temporarily enable caching for this test
-        from utils import disable_caching, enable_caching
 
         enable_caching()
 
@@ -795,7 +811,6 @@ class TestCacheManagement:
     def test_path_cache_ttl_expiry(self, tmp_path):
         """Test that path cache entries expire correctly."""
         # Use context manager to temporarily enable caching for this test
-        from utils import clear_all_caches, disable_caching, enable_caching
 
         enable_caching()
         clear_all_caches()

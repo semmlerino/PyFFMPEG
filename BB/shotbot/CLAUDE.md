@@ -29,6 +29,8 @@ See **UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md** for comprehensive testing documen
 - Qt-specific testing patterns
 - Common issues and solutions
 
+**DO NOT** create scripts to automate fixes, as those tend to create more issues. Only if you are absolutely suer it won't cause issues, you can run a dry test to see what it would do exactly, and it would fix a lot of easy and simple issues at once. 
+
 Quick commands:
 ```bash
 python3 quick_test.py              # Quick validation (2 seconds)

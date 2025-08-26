@@ -67,7 +67,7 @@ class ShotGridView(QWidget):
         super().__init__(parent)
 
         self._model = model
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE  # type: ignore[attr-defined]
         self._selected_shot = None
 
         self._setup_ui()
@@ -95,13 +95,13 @@ class ShotGridView(QWidget):
         self.size_slider = QSlider(Qt.Orientation.Horizontal)
         self.size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
         self.size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
-        self.size_slider.setValue(self._thumbnail_size)
+        self.size_slider.setValue(self._thumbnail_size)  # type: ignore[attr-defined]
         self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.size_slider.setTickInterval(50)
         self.size_slider.valueChanged.connect(self._on_size_changed)
         size_layout.addWidget(self.size_slider)
 
-        self.size_label = QLabel(f"{self._thumbnail_size}px")
+        self.size_label = QLabel(f"{self._thumbnail_size}px")  # type: ignore[attr-defined]
         self.size_label.setMinimumWidth(50)
         size_layout.addWidget(self.size_label)
 
@@ -161,6 +161,15 @@ class ShotGridView(QWidget):
             The selected Shot object or None
         """
         return self._selected_shot
+
+    @property
+    def thumbnail_size(self) -> int:
+        """Get the current thumbnail size.
+
+        Returns:
+            Current thumbnail size in pixels
+        """
+        return self._thumbnail_size  # type: ignore[attr-defined]
 
     def refresh_shots(self) -> None:
         """Compatibility method for refreshing shots.
@@ -275,7 +284,7 @@ class ShotGridView(QWidget):
         Args:
             size: New thumbnail size
         """
-        self._thumbnail_size = size
+        self._thumbnail_size = size  # type: ignore[attr-defined]
         self.size_label.setText(f"{size}px")
 
         # Update delegate size
@@ -292,7 +301,7 @@ class ShotGridView(QWidget):
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""
         # Calculate item size including padding
-        item_size = self._thumbnail_size + 2 * 8 + 40  # padding + text height
+        item_size = self._thumbnail_size + 2 * 8 + 40  # padding + text height  # type: ignore[attr-defined]
 
         # Set grid size on the view
         self.list_view.setGridSize(QSize(item_size, item_size))
@@ -333,9 +342,9 @@ class ShotGridView(QWidget):
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             delta = event.angleDelta().y()
             if delta > 0:
-                new_size = min(self._thumbnail_size + 10, Config.MAX_THUMBNAIL_SIZE)
+                new_size = min(self._thumbnail_size + 10, Config.MAX_THUMBNAIL_SIZE)  # type: ignore[attr-defined]
             else:
-                new_size = max(self._thumbnail_size - 10, Config.MIN_THUMBNAIL_SIZE)
+                new_size = max(self._thumbnail_size - 10, Config.MIN_THUMBNAIL_SIZE)  # type: ignore[attr-defined]
 
             self.size_slider.setValue(new_size)
             event.accept()

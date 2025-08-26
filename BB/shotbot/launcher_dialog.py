@@ -31,6 +31,7 @@ from launcher_manager import (
     LauncherManager,
     LauncherTerminal,
 )
+from notification_manager import NotificationManager, NotificationType
 
 logger = logging.getLogger(__name__)
 
@@ -346,10 +347,8 @@ class LauncherEditDialog(QDialog):
     def _save(self):
         """Save the launcher."""
         if not self._validate_name() or not self._validate_command():
-            QMessageBox.warning(
-                self,
-                "Validation Error",
-                "Please fix the highlighted fields.",
+            NotificationManager.warning(
+                "Validation Error", "Please fix the highlighted fields before saving."
             )
             return
 
@@ -386,9 +385,14 @@ class LauncherEditDialog(QDialog):
                     terminal=terminal,
                 )
                 if success:
+                    NotificationManager.toast(
+                        "Launcher updated successfully", NotificationType.SUCCESS
+                    )
                     self.accept()
                 else:
-                    QMessageBox.critical(self, "Error", "Failed to update launcher.")
+                    NotificationManager.error(
+                        "Update Failed", "Failed to update launcher."
+                    )
             else:
                 # Create new
                 launcher_id = self.launcher_manager.create_launcher(
@@ -400,12 +404,17 @@ class LauncherEditDialog(QDialog):
                     terminal=terminal,
                 )
                 if launcher_id:
+                    NotificationManager.toast(
+                        "Launcher created successfully", NotificationType.SUCCESS
+                    )
                     self.accept()
                 else:
-                    QMessageBox.critical(self, "Error", "Failed to create launcher.")
+                    NotificationManager.error(
+                        "Creation Failed", "Failed to create launcher."
+                    )
 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error saving launcher: {str(e)}")
+            NotificationManager.error("Save Error", f"Error saving launcher: {str(e)}")
 
 
 class LauncherManagerDialog(QDialog):
@@ -700,8 +709,11 @@ class LauncherManagerDialog(QDialog):
         if reply == QMessageBox.StandardButton.Yes:
             if self.launcher_manager.delete_launcher(launcher_id):
                 self._load_launchers()
+                NotificationManager.toast(
+                    f"Launcher '{launcher.name}' deleted", NotificationType.INFO
+                )
             else:
-                QMessageBox.critical(self, "Error", "Failed to delete launcher.")
+                NotificationManager.error("Delete Failed", "Failed to delete launcher.")
 
     def _launch_launcher(self, launcher_id: str):
         """Launch the specified launcher."""
@@ -714,7 +726,7 @@ class LauncherManagerDialog(QDialog):
             # In real usage, this would get shot context from main window
             self.launcher_manager.execute_launcher(launcher_id)
         except Exception as e:
-            QMessageBox.critical(self, "Launch Error", f"Failed to launch: {str(e)}")
+            NotificationManager.error("Launch Error", f"Failed to launch: {str(e)}")
 
     def _launch_selected(self):
         """Launch the selected launcher."""
