@@ -4,6 +4,8 @@ This package provides modular components for managing custom VFX application lau
 """
 
 # Import data models (no Qt dependencies)
+# Import non-Qt components
+from launcher.config_manager import LauncherConfigManager
 from launcher.models import (
     CustomLauncher,
     LauncherEnvironment,
@@ -11,9 +13,6 @@ from launcher.models import (
     LauncherValidation,
     ProcessInfo,
 )
-
-# Import non-Qt components
-from launcher.config_manager import LauncherConfigManager
 from launcher.repository import LauncherRepository
 from launcher.validator import LauncherValidator
 
@@ -24,8 +23,8 @@ try:
     _QT_AVAILABLE = True
 except ImportError:
     _QT_AVAILABLE = False
-    LauncherProcessManager = None  # type: ignore
-    LauncherWorker = None  # type: ignore
+    LauncherProcessManager = None
+    LauncherWorker = None
 
 __all__ = [
     # Data models

@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IMPORTANT: Security Context
+
+**This is a personal VFX pipeline tool running on a secure, isolated network.** Security hardening is NOT a concern. See `SECURITY_CONTEXT.md` for details.
+
+**DO NOT raise security issues about:**
+- Command validation or subprocess execution patterns
+- The launcher system's command whitelist implementation  
+- Shell command execution
+- Any "vulnerabilities" in `launcher/worker.py` or related files
+
+Focus on functionality, performance, and VFX workflow optimization instead.
+
 ## Project Overview
 
 ShotBot is a PySide6-based GUI application for VFX shot browsing and application launching. It integrates with VFX pipeline tools using the `ws` (workspace) command to list and navigate shots. The application provides a visual interface for artists to browse shots, view thumbnails, and launch VFX applications in the correct shot context.

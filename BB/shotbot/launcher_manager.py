@@ -27,7 +27,6 @@ from launcher.repository import LauncherRepository
 from launcher.validator import LauncherValidator
 from process_pool_manager import ProcessPoolManager
 from shot_model import Shot
-from utils import PathUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -130,7 +129,7 @@ class LauncherManager(QObject):
         )
         
         # Validate configuration
-        launchers_dict = {l.id: l for l in self._repository.list_all()}
+        launchers_dict = {launcher.id: launcher for launcher in self._repository.list_all()}
         valid, errors = self._validator.validate_launcher_config(launcher, launchers_dict)
         if not valid:
             for error in errors:
@@ -202,7 +201,7 @@ class LauncherManager(QObject):
         launcher.updated_at = datetime.now().isoformat()
         
         # Validate updated configuration
-        launchers_dict = {l.id: l for l in self._repository.list_all()}
+        launchers_dict = {launcher.id: launcher for launcher in self._repository.list_all()}
         valid, errors = self._validator.validate_launcher_config(launcher, launchers_dict)
         if not valid:
             for error in errors:
@@ -307,7 +306,7 @@ class LauncherManager(QObject):
         Returns:
             Tuple of (is_valid, list_of_errors)
         """
-        launchers_dict = {l.id: l for l in self._repository.list_all()}
+        launchers_dict = {launcher.id: launcher for launcher in self._repository.list_all()}
         if exclude_id and exclude_id in launchers_dict:
             del launchers_dict[exclude_id]
         return self._validator.validate_launcher_config(launcher, launchers_dict)
@@ -418,9 +417,9 @@ class LauncherManager(QObject):
         shot_vars = {}
         if shot:
             shot_vars.update({
-                "shot_name": shot.name,
+                "shot_name": shot.full_name,
                 "shot_path": shot.workspace_path,
-                "user": shot.user,
+                "user": os.getenv("USER", "unknown"),
             })
             
             # Add path components if resolve_paths is enabled

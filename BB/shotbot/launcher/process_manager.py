@@ -13,7 +13,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from PySide6.QtCore import QObject, QTimer, Qt, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
 from config import ThreadingConfig
 from launcher.models import ProcessInfo
@@ -166,12 +166,13 @@ class LauncherProcessManager(QObject):
             # Store worker reference
             worker_key = f"{launcher_id}_{int(time.time() * 1000)}"
 
-            # Start the worker first (prevents race where cleanup happens before start)
-            worker.start()
-
-            # Then add to tracking dictionary
+            # Add to tracking dictionary BEFORE starting to prevent race condition
+            # where worker finishes before being tracked
             with self._process_lock:
                 self._active_workers[worker_key] = worker
+
+            # Now start the worker - it's already tracked
+            worker.start()
 
             self.worker_created.emit(worker_key)
             logger.info(f"Started worker thread for launcher '{launcher_name}'")

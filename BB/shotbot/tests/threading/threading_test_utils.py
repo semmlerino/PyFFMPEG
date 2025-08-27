@@ -67,7 +67,8 @@ from PySide6.QtCore import (
 
 # Import project modules
 try:
-    from launcher_manager import LauncherManager, LauncherWorker
+    from launcher_manager import LauncherManager
+    from launcher import LauncherWorker
     from thread_safe_worker import WorkerState
 except ImportError:
     # Handle relative imports for test context
@@ -78,7 +79,8 @@ except ImportError:
     project_root = Path(__file__).parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-    from launcher_manager import LauncherManager, LauncherWorker
+    from launcher_manager import LauncherManager
+    from launcher import LauncherWorker
     from thread_safe_worker import WorkerState
 
 logger = logging.getLogger(__name__)

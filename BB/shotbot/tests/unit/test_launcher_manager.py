@@ -15,10 +15,8 @@ import pytest
 from PySide6.QtCore import QCoreApplication
 
 from config import ThreadingConfig
-from launcher_manager import (
-    CustomLauncher,
-    LauncherManager,
-)
+from launcher_manager import LauncherManager
+from launcher import CustomLauncher
 from shot_model import Shot
 from tests.test_doubles_library import (
     TestWorker,

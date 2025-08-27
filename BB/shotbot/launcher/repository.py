@@ -172,10 +172,10 @@ class LauncherRepository:
         launchers = list(self._launchers.values())
         
         if category:
-            launchers = [l for l in launchers if l.category == category]
+            launchers = [launcher for launcher in launchers if launcher.category == category]
         
         # Sort by name for consistent ordering
-        launchers.sort(key=lambda l: l.name.lower())
+        launchers.sort(key=lambda launcher: launcher.name.lower())
         
         return launchers
 

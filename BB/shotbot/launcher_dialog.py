@@ -25,12 +25,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from launcher_manager import LauncherManager
 from launcher.models import (
     CustomLauncher,
     LauncherEnvironment,
     LauncherTerminal,
 )
+from launcher_manager import LauncherManager
 from notification_manager import NotificationManager, NotificationType
 
 logger = logging.getLogger(__name__)

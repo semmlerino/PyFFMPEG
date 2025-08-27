@@ -126,8 +126,7 @@ class LauncherWorker(ThreadSafeWorker):
 
                     if not allowed:
                         logger.warning(
-                            f"Command '{base_command}' not in whitelist. "
-                            f"Command: {command[:100]}"
+                            f"Command '{base_command}' not in whitelist. Command: {command[:100]}"
                         )
                         raise SecurityError(
                             f"Command '{base_command}' is not in the allowed command whitelist"
@@ -236,8 +235,30 @@ class LauncherWorker(ThreadSafeWorker):
         if self._process:
             # Ensure process is terminated
             if self._process.poll() is None:
-                self._terminate_process()
-            self._process = None
+                try:
+                    self._terminate_process()
+                    # Only set to None if termination succeeded or process is dead
+                    if self._process.poll() is not None:
+                        self._process = None
+                    else:
+                        # Process still alive after termination attempt
+                        logger.error(
+                            f"Failed to terminate process for launcher '{self.launcher_id}', "
+                            + f"process {self._process.pid} may be orphaned"
+                        )
+                        # Still set to None to avoid repeated termination attempts
+                        # but log the issue for debugging
+                        self._process = None
+                except Exception as e:
+                    logger.error(
+                        f"Exception during process cleanup for launcher '{self.launcher_id}': {e}, "
+                        + "process may be orphaned"
+                    )
+                    # Set to None to avoid repeated attempts but log the failure
+                    self._process = None
+            else:
+                # Process already terminated
+                self._process = None
 
     def request_stop(self) -> bool:
         """Override to handle process termination."""

@@ -21,7 +21,7 @@ from launcher.models import CustomLauncher, LauncherEnvironment
 try:
     from shot_model import Shot
 except ImportError:
-    Shot = None  # type: ignore
+    Shot = None
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -341,7 +341,7 @@ class LauncherValidator:
     def substitute_variables(
         self,
         text: str,
-        shot: Optional[Shot] = None,
+        shot: Optional[Any] = None,  # Shot type when Qt available
         custom_vars: Optional[Dict[str, str]] = None,
     ) -> str:
         """Perform variable substitution in text.
