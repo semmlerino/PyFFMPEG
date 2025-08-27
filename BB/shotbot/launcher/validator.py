@@ -7,6 +7,7 @@ extracted from the original launcher_manager.py for better separation of concern
 from __future__ import annotations
 
 import logging
+import os
 import re
 import shlex
 import string
@@ -14,7 +15,9 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from config import Config
 from launcher.models import CustomLauncher, LauncherEnvironment, LauncherValidation
+from shot_model import Shot
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -330,3 +333,54 @@ class LauncherValidator:
         except Exception as e:
             logger.error(f"Failed to validate process startup: {e}")
             return False
+    
+    def substitute_variables(
+        self,
+        text: str,
+        shot: Optional[Shot] = None,
+        custom_vars: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """Perform variable substitution in text.
+        
+        Args:
+            text: Text containing variables to substitute
+            shot: Optional Shot object for context
+            custom_vars: Optional custom variables
+            
+        Returns:
+            Text with variables substituted
+        """
+        if not text:
+            return text
+        
+        # Build substitution context
+        context = {}
+        
+        # Add shot context variables
+        if shot:
+            context.update({
+                "show": shot.show,
+                "sequence": shot.sequence,
+                "shot": shot.shot,
+                "full_name": shot.full_name,
+                "workspace_path": shot.workspace_path,
+            })
+        
+        # Add custom variables
+        if custom_vars:
+            context.update(custom_vars)
+        
+        # Add environment variables
+        context.update({
+            "HOME": os.environ.get("HOME", ""),
+            "USER": os.environ.get("USER", ""),
+            "SHOTBOT_VERSION": Config.APP_VERSION,
+        })
+        
+        # Use string.Template for safe substitution
+        try:
+            template = string.Template(text)
+            return template.safe_substitute(context)
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Variable substitution failed: {e}")
+            return text
