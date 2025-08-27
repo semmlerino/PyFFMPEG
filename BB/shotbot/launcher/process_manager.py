@@ -11,7 +11,7 @@ import subprocess
 import threading
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import QObject, QTimer, Qt, Signal
 

@@ -68,7 +68,7 @@ def make_launcher():
     Following UNIFIED_TESTING_GUIDE factory pattern.
     Creates CustomLauncher instances with flexible parameters for testing.
     """
-    from launcher_manager import CustomLauncher
+    from launcher.models import CustomLauncher
 
     created_launchers = []
 
@@ -555,7 +555,7 @@ def make_test_process():
 @pytest.fixture
 def make_test_launcher():
     """Factory for creating CustomLauncher instances."""
-    from launcher_manager import CustomLauncher
+    from launcher.models import CustomLauncher
 
     def _make_launcher(
         id=None,

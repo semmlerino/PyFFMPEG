@@ -9,15 +9,19 @@ from __future__ import annotations
 import logging
 import os
 import re
-import shlex
 import string
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from config import Config
-from launcher.models import CustomLauncher, LauncherEnvironment, LauncherValidation
-from shot_model import Shot
+from launcher.models import CustomLauncher, LauncherEnvironment
+
+# Import Shot conditionally since it requires Qt
+try:
+    from shot_model import Shot
+except ImportError:
+    Shot = None  # type: ignore
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)

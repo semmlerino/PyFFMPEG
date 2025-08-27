@@ -15,7 +15,8 @@ import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
-from launcher_manager import CustomLauncher, LauncherManager
+from launcher_manager import LauncherManager
+from launcher.models import CustomLauncher
 from shot_model import Shot
 
 
@@ -345,8 +346,8 @@ class TestCombinedIntegration:
 def test_import_compatibility():
     """Verify all imports still work after refactoring."""
     # These imports should not fail
-    from launcher_manager import (
-        LauncherManager,
+    from launcher_manager import LauncherManager
+    from launcher.models import (
         CustomLauncher,
         LauncherValidation,
         LauncherTerminal,

@@ -29,6 +29,8 @@ class LauncherValidation:
             r"\$\(rm\s",
         ],
     )
+    working_directory: Optional[str] = None
+    resolve_paths: bool = False
 
 
 @dataclass

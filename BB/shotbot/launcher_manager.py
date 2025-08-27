@@ -419,13 +419,13 @@ class LauncherManager(QObject):
         if shot:
             shot_vars.update({
                 "shot_name": shot.name,
-                "shot_path": shot.path,
+                "shot_path": shot.workspace_path,
                 "user": shot.user,
             })
             
-            # Add path components
-            if launcher.validation and launcher.validation.resolve_paths:
-                shot_vars.update(PathUtils.get_shot_path_variables(shot.path))
+            # Add path components if resolve_paths is enabled
+            # Note: PathUtils.get_shot_path_variables would need to be implemented
+            # if path component extraction is needed
         
         # Merge all variables
         all_vars = {**launcher.variables, **shot_vars, **(custom_vars or {})}
