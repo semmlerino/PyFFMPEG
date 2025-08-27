@@ -786,19 +786,21 @@ class ThumbnailProcessor:
         finally:
             self._cleanup_temp_file(temp_path)
 
-    def process_thumbnails_parallel(self, images: List[Path], max_workers: int = 4) -> List[Optional[Path]]:
+    def process_thumbnails_parallel(
+        self, images: List[Path], max_workers: int = 4
+    ) -> List[Optional[Path]]:
         """Process multiple thumbnails in parallel using ThreadPoolExecutor.
-        
+
         This implements the P3 performance requirement for batch thumbnail processing
         with a 50-70% speed improvement target through parallelization.
-        
+
         Args:
             images: List of image paths to process
             max_workers: Maximum number of parallel workers (default: 4)
-            
+
         Returns:
             List of thumbnail paths (or None for failed thumbnails) in the same order as input
-            
+
         Example:
             >>> processor = ThumbnailProcessor()
             >>> images = [Path("/path/to/img1.exr"), Path("/path/to/img2.jpg")]
@@ -809,10 +811,10 @@ class ThumbnailProcessor:
         """
         import time
         from concurrent.futures import ThreadPoolExecutor, as_completed
-        
+
         start_time = time.time()
         results = [None] * len(images)  # Pre-allocate results list
-        
+
         # Create a mapping of future to index for ordered results
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
@@ -820,7 +822,7 @@ class ThumbnailProcessor:
                 executor.submit(self._process_single_thumbnail, img_path): i
                 for i, img_path in enumerate(images)
             }
-            
+
             # Process completed futures
             completed = 0
             for future in as_completed(future_to_index):
@@ -829,7 +831,7 @@ class ThumbnailProcessor:
                     result = future.result(timeout=30)  # 30s timeout per image
                     results[index] = result
                     completed += 1
-                    
+
                     # Log progress for large batches
                     if len(images) > 10 and completed % 10 == 0:
                         elapsed = time.time() - start_time
@@ -838,30 +840,30 @@ class ThumbnailProcessor:
                             f"Batch thumbnail progress: {completed}/{len(images)} "
                             f"({rate:.1f} imgs/sec)"
                         )
-                        
+
                 except Exception as e:
                     logger.error(f"Failed to process thumbnail at index {index}: {e}")
                     results[index] = None
-        
+
         # Log final statistics
         elapsed = time.time() - start_time
         successful = sum(1 for r in results if r is not None)
         logger.info(
             f"Batch thumbnail processing complete: {successful}/{len(images)} successful "
-            f"in {elapsed:.2f}s ({len(images)/elapsed:.1f} imgs/sec)"
+            f"in {elapsed:.2f}s ({len(images) / elapsed:.1f} imgs/sec)"
         )
-        
+
         return results
-    
+
     def _process_single_thumbnail(self, source_path: Path) -> Optional[Path]:
         """Process a single thumbnail for use in parallel batch processing.
-        
+
         This is a wrapper around the existing process_thumbnail method that
         handles the caching and returns just the path for batch operations.
-        
+
         Args:
             source_path: Path to source image
-            
+
         Returns:
             Path to processed thumbnail or None if processing failed
         """
@@ -869,14 +871,14 @@ class ThumbnailProcessor:
             # Generate cache path based on source
             cache_key = source_path.stem + "_" + str(hash(str(source_path)))
             cache_path = Path("/tmp") / f"thumb_{cache_key}.jpg"
-            
+
             # Process the thumbnail using existing method
             result = self.process_thumbnail(source_path, cache_path)
-            
+
             if result:
                 return cache_path
             return None
-            
+
         except Exception as e:
             logger.error(f"Error processing single thumbnail {source_path}: {e}")
             return None

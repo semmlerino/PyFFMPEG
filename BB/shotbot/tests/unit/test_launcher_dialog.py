@@ -43,8 +43,8 @@ def create_test_launcher(
     description: str = "Test description",
     command: str = "echo test",
     category: str = "custom",
-    environment = None,
-    terminal = None,
+    environment=None,
+    terminal=None,
 ) -> TestLauncher:
     """Factory for creating test launchers."""
     return TestLauncher(
@@ -82,7 +82,7 @@ def create_conda_launcher() -> TestLauncher:
     )
 
 
-# Test Double LauncherManager Fixture  
+# Test Double LauncherManager Fixture
 @pytest.fixture
 def mock_launcher_manager():
     """Create a test double LauncherManager with real behavior."""
@@ -324,8 +324,7 @@ class TestLauncherEditDialog:
         """Test name validation with duplicate name."""
         # Create existing launcher using real behavior
         mock_launcher_manager.create_launcher(
-            name="Existing Launcher",
-            command="echo test"
+            name="Existing Launcher", command="echo test"
         )
 
         dialog = LauncherEditDialog(mock_launcher_manager)
@@ -342,8 +341,7 @@ class TestLauncherEditDialog:
         """Test name validation allows same name when editing same launcher."""
         # Create launcher using real behavior
         launcher_id = mock_launcher_manager.create_launcher(
-            name="Test Launcher",
-            command="echo test"
+            name="Test Launcher", command="echo test"
         )
         launcher = mock_launcher_manager.get_launcher(launcher_id)
 
@@ -383,9 +381,7 @@ class TestLauncherEditDialog:
         """Test command validation with invalid command."""
         # Set up validation to fail for this specific command
         mock_launcher_manager.set_validation_result(
-            "invalid {bad_var",
-            False,
-            "Invalid syntax"
+            "invalid {bad_var", False, "Invalid syntax"
         )
 
         dialog = LauncherEditDialog(mock_launcher_manager)
@@ -467,8 +463,11 @@ class TestLauncherEditDialog:
         dialog._save()
 
         # Test behavior: verify launcher was actually created with correct data
-        assert mock_launcher_manager.get_created_launcher_count() == initial_launcher_count + 1
-        
+        assert (
+            mock_launcher_manager.get_created_launcher_count()
+            == initial_launcher_count + 1
+        )
+
         created_launcher = mock_launcher_manager.get_last_created_launcher()
         assert created_launcher is not None
         assert created_launcher.name == "New Launcher"
@@ -480,8 +479,7 @@ class TestLauncherEditDialog:
         """Test successful launcher update."""
         # Create launcher using real behavior
         launcher_id = mock_launcher_manager.create_launcher(
-            name="Original Name",
-            command="original command"
+            name="Original Name", command="original command"
         )
         launcher = mock_launcher_manager.get_launcher(launcher_id)
 
@@ -516,14 +514,15 @@ class TestLauncherEditDialog:
             dialog._save()
 
         # Test behavior: no launcher should be created due to validation failure
-        assert mock_launcher_manager.get_created_launcher_count() == initial_launcher_count
+        assert (
+            mock_launcher_manager.get_created_launcher_count() == initial_launcher_count
+        )
 
     def test_save_create_failure(self, qtbot, mock_launcher_manager):
         """Test save when create_launcher fails."""
         # Create an existing launcher to cause name conflict
         mock_launcher_manager.create_launcher(
-            name="Test Launcher",
-            command="existing command"
+            name="Test Launcher", command="existing command"
         )
 
         dialog = LauncherEditDialog(mock_launcher_manager)
@@ -540,7 +539,9 @@ class TestLauncherEditDialog:
             dialog._save()
 
         # Test behavior: no additional launcher should be created
-        assert mock_launcher_manager.get_created_launcher_count() == initial_launcher_count
+        assert (
+            mock_launcher_manager.get_created_launcher_count() == initial_launcher_count
+        )
 
     def test_conda_environment_handling(self, qtbot, mock_launcher_manager):
         """Test conda environment configuration in save."""
@@ -554,7 +555,7 @@ class TestLauncherEditDialog:
 
         dialog._save()
 
-        # Test behavior: verify launcher was created 
+        # Test behavior: verify launcher was created
         created_launcher = mock_launcher_manager.get_last_created_launcher()
         assert created_launcher is not None
         assert created_launcher.name == "Conda Launcher"
@@ -572,7 +573,7 @@ class TestLauncherManagerDialog:
                 name=launcher.name,
                 command=launcher.command,
                 description=launcher.description,
-                category=launcher.category
+                category=launcher.category,
             )
 
         dialog = LauncherManagerDialog(mock_launcher_manager)
@@ -608,7 +609,7 @@ class TestLauncherManagerDialog:
                 name=launcher.name,
                 command=launcher.command,
                 description=launcher.description,
-                category=launcher.category
+                category=launcher.category,
             )
             launcher_ids.append(launcher_id)
 
@@ -634,7 +635,7 @@ class TestLauncherManagerDialog:
                 name=launcher.name,
                 command=launcher.command,
                 description=launcher.description,
-                category=launcher.category
+                category=launcher.category,
             )
             launcher_ids.append(launcher_id)
 
@@ -659,7 +660,7 @@ class TestLauncherManagerDialog:
                 name=launcher.name,
                 command=launcher.command,
                 description=launcher.description,
-                category=launcher.category
+                category=launcher.category,
             )
 
         dialog = LauncherManagerDialog(mock_launcher_manager)
@@ -688,7 +689,7 @@ class TestLauncherManagerDialog:
                 name=launcher.name,
                 command=launcher.command,
                 description=launcher.description,
-                category=launcher.category
+                category=launcher.category,
             )
 
         dialog = LauncherManagerDialog(mock_launcher_manager)
@@ -717,7 +718,7 @@ class TestLauncherManagerDialog:
                 name=launcher.name,
                 command=launcher.command,
                 description=launcher.description,
-                category=launcher.category
+                category=launcher.category,
             )
 
         dialog = LauncherManagerDialog(mock_launcher_manager)
@@ -734,7 +735,9 @@ class TestLauncherManagerDialog:
         qtbot.wait(10)
 
         # Test behavior: verify launcher was executed
-        assert len(mock_launcher_manager._execution_history) == initial_execution_count + 1
+        assert (
+            len(mock_launcher_manager._execution_history) == initial_execution_count + 1
+        )
 
     def test_add_launcher_button(self, qtbot, mock_launcher_manager):
         """Test add launcher button opens edit dialog."""
@@ -763,7 +766,7 @@ class TestLauncherManagerDialog:
                 name=launcher.name,
                 command=launcher.command,
                 description=launcher.description,
-                category=launcher.category
+                category=launcher.category,
             )
             launcher_ids.append(launcher_id)
 
@@ -776,7 +779,9 @@ class TestLauncherManagerDialog:
 
         # Test launch signal
         dialog._launch_launcher(launcher_id)
-        assert len(mock_launcher_manager._execution_history) == initial_execution_count + 1
+        assert (
+            len(mock_launcher_manager._execution_history) == initial_execution_count + 1
+        )
 
         # Test edit signal - would normally open dialog
         with patch("launcher_dialog.LauncherEditDialog") as mock_edit_dialog:
@@ -793,7 +798,10 @@ class TestLauncherManagerDialog:
             dialog._delete_launcher(launcher_id)
 
         # Test behavior: verify launcher was deleted
-        assert mock_launcher_manager.get_created_launcher_count() == initial_launcher_count - 1
+        assert (
+            mock_launcher_manager.get_created_launcher_count()
+            == initial_launcher_count - 1
+        )
 
     def test_keyboard_shortcuts(self, qtbot, mock_launcher_manager, sample_launchers):
         """Test keyboard shortcuts work correctly."""
@@ -804,7 +812,7 @@ class TestLauncherManagerDialog:
                 name=launcher.name,
                 command=launcher.command,
                 description=launcher.description,
-                category=launcher.category
+                category=launcher.category,
             )
             launcher_ids.append(launcher_id)
 
@@ -822,7 +830,9 @@ class TestLauncherManagerDialog:
         dialog._launch_selected()
         qtbot.wait(10)
         # Test behavior: verify launcher was executed
-        assert len(mock_launcher_manager._execution_history) == initial_execution_count + 1
+        assert (
+            len(mock_launcher_manager._execution_history) == initial_execution_count + 1
+        )
 
         # Test F2 for edit (call the shortcut method directly)
         with patch("launcher_dialog.LauncherEditDialog") as mock_edit_dialog:
@@ -841,7 +851,10 @@ class TestLauncherManagerDialog:
             qtbot.wait(10)
 
         # Test behavior: verify launcher was deleted
-        assert mock_launcher_manager.get_created_launcher_count() == initial_launcher_count - 1
+        assert (
+            mock_launcher_manager.get_created_launcher_count()
+            == initial_launcher_count - 1
+        )
 
         # Test Ctrl+N for new launcher (call the shortcut method directly)
         with patch("launcher_dialog.LauncherEditDialog") as mock_edit_dialog:
@@ -898,7 +911,7 @@ class TestLauncherManagerDialog:
                 name=launcher.name,
                 command=launcher.command,
                 description=launcher.description,
-                category=launcher.category
+                category=launcher.category,
             )
 
         dialog = LauncherManagerDialog(mock_launcher_manager)
@@ -911,7 +924,7 @@ class TestLauncherManagerDialog:
             name="New Launcher",
             command="echo new",
             description="New launcher",
-            category="test"
+            category="test",
         )
 
         # Trigger reload

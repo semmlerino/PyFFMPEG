@@ -6,7 +6,6 @@
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 from __future__ import annotations
 
 import json
@@ -29,7 +28,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from cache_manager import CacheManager
 
 pytestmark = pytest.mark.integration
-
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -294,17 +292,19 @@ class TestCacheIntegration:
         # Test TTL expiration with mocked datetime
         from datetime import datetime, timedelta
         from unittest.mock import patch
-        
+
         original_ttl = cache_manager._shot_cache._expiry_minutes
-        cache_manager._shot_cache._expiry_minutes = 0.001  # Very short TTL (0.06 seconds)
+        cache_manager._shot_cache._expiry_minutes = (
+            0.001  # Very short TTL (0.06 seconds)
+        )
 
         try:
             # Mock datetime to simulate TTL expiration
-            with patch('cache.shot_cache.datetime') as mock_datetime:
+            with patch("cache.shot_cache.datetime") as mock_datetime:
                 # Set current time to be after TTL expiration
                 mock_datetime.now.return_value = datetime.now() + timedelta(seconds=1)
                 mock_datetime.fromisoformat = datetime.fromisoformat
-                
+
                 # Should return None or empty list due to TTL expiration
                 expired_shots = cache_manager._shot_cache.get_cached_shots()
                 assert expired_shots is None or len(expired_shots) == 0

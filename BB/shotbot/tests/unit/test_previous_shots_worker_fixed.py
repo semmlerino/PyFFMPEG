@@ -37,9 +37,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 # - Thread-safe testing patterns
 
 
-
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
 
 class TestPreviousShotsWorker:
     """Test cases for PreviousShotsWorker with real threading."""

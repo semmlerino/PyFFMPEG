@@ -6,7 +6,6 @@
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,8 +27,8 @@ pytestmark = pytest.mark.unit
 # Import real components for integration testing
 
 
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
 
 class TestCacheValidator:
     """Test cache validation and repair operations with real components."""

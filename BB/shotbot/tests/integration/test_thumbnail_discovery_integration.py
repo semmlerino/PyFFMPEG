@@ -6,7 +6,6 @@
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 import shutil
 import sys
 import tempfile

@@ -20,10 +20,12 @@ from PySide6.QtTest import QSignalSpy
 
 import command_launcher
 from command_launcher import CommandLauncher
-from tests.test_doubles import TestShot, TestSubprocess
+from tests.test_doubles_library import TestShot, TestSubprocess
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
+
 class TestCommandLauncherCore:
     """Core command launcher functionality tests."""
 

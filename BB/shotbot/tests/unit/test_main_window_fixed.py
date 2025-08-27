@@ -15,7 +15,6 @@ from PySide6.QtCore import QTimer
 from cache_manager import CacheManager
 from main_window import MainWindow
 from shot_model import Shot
-from tests.test_doubles import TestProcessPool
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
@@ -25,6 +24,7 @@ from tests.test_doubles_library import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
+
 class TestMainWindowNoHang:
     """Fixed MainWindow tests that don't hang."""
 
@@ -33,7 +33,9 @@ class TestMainWindowNoHang:
         """Mock subprocess.run at system boundary."""
         with patch("subprocess.run") as mock_run:
             # Default to empty output to prevent hanging
-            mock_run.return_value = TestCompletedProcess(args=[], returncode=0, stdout="", stderr="")
+            mock_run.return_value = TestCompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
             yield mock_run
 
     @pytest.fixture
@@ -108,7 +110,10 @@ class TestMainWindowNoHang:
         """Test shot refresh with properly mocked subprocess."""
         # Configure mock response
         mock_subprocess.return_value = TestCompletedProcess(
-            args=[], returncode=0, stdout="workspace /shows/test/shots/seq01/0010\n", stderr=""
+            args=[],
+            returncode=0,
+            stdout="workspace /shows/test/shots/seq01/0010\n",
+            stderr="",
         )
 
         # Use test process pool
@@ -137,13 +142,13 @@ class TestApplicationLaunchingNoHang:
 
         # Mock subprocess before window creation
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = TestCompletedProcess(args=[], returncode=0, stdout="", stderr="")
+            mock_run.return_value = TestCompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
 
             # Prevent background workers
             with patch.object(QTimer, "singleShot"):
-                main_window = MainWindow(
-                    cache_manager=cache_manager
-                )
+                main_window = MainWindow(cache_manager=cache_manager)
                 qtbot.addWidget(main_window)
 
         # Select a shot
@@ -174,9 +179,7 @@ class TestApplicationLaunchingNoHang:
 
         with patch("subprocess.run"):
             with patch.object(QTimer, "singleShot"):
-                main_window = MainWindow(
-                    cache_manager=cache_manager
-                )
+                main_window = MainWindow(cache_manager=cache_manager)
                 qtbot.addWidget(main_window)
 
         # Try to launch without shot - should return False

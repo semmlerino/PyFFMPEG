@@ -20,7 +20,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QIcon, QImage, QPixmap
 
 from cache_manager import CacheManager
 from config import Config
@@ -82,10 +82,9 @@ class ShotItemModel(QAbstractListModel):
 
         self._shots: List[Shot] = []
         self._cache_manager = cache_manager or CacheManager()
-        # WARNING: QPixmap is NOT thread-safe. Currently safe as thumbnails are
-        # loaded in main thread, but if async loading is implemented (as per line 334
-        # comment), must use QImage or store paths instead of QPixmap objects
-        self._thumbnail_cache: Dict[str, QPixmap] = {}
+        # Use QImage for thread safety - QImage can be safely shared between threads
+        # Convert to QPixmap only when needed in the main thread for display
+        self._thumbnail_cache: Dict[str, QImage] = {}
         self._loading_states: Dict[str, str] = {}
         self._selected_index = QPersistentModelIndex()
 
@@ -361,7 +360,8 @@ class ShotItemModel(QAbstractListModel):
                             Qt.AspectRatioMode.KeepAspectRatio,
                             Qt.TransformationMode.SmoothTransformation,
                         )
-                        self._thumbnail_cache[shot.full_name] = pixmap
+                        # Convert to QImage for thread-safe storage
+                        self._thumbnail_cache[shot.full_name] = pixmap.toImage()
                         self._loading_states[shot.full_name] = "loaded"
                         logger.debug(
                             f"Loaded thumbnail for {shot.full_name} from {thumbnail_path.name}"
@@ -401,7 +401,8 @@ class ShotItemModel(QAbstractListModel):
                             Qt.AspectRatioMode.KeepAspectRatio,
                             Qt.TransformationMode.SmoothTransformation,
                         )
-                        self._thumbnail_cache[shot.full_name] = pixmap
+                        # Convert to QImage for thread-safe storage
+                        self._thumbnail_cache[shot.full_name] = pixmap.toImage()
                         self._loading_states[shot.full_name] = "loaded"
 
                         # Notify view of update
@@ -431,13 +432,19 @@ class ShotItemModel(QAbstractListModel):
     def _get_thumbnail_pixmap(self, shot: Shot) -> Optional[QPixmap]:
         """Get cached thumbnail pixmap for a shot.
 
+        Thread-safe: Converts QImage to QPixmap in main thread for display.
+
         Args:
             shot: Shot object
 
         Returns:
-            Cached QPixmap or None
+            QPixmap converted from cached QImage or None
         """
-        return self._thumbnail_cache.get(shot.full_name)
+        qimage = self._thumbnail_cache.get(shot.full_name)
+        if qimage:
+            # Convert QImage to QPixmap in main thread
+            return QPixmap.fromImage(qimage)
+        return None
 
     def get_shot_at_index(self, index: QModelIndex) -> Optional[Shot]:
         """Get shot object at the given index.

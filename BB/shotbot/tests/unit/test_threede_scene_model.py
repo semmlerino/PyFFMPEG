@@ -22,6 +22,8 @@ from shot_model import Shot
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 pytestmark = pytest.mark.unit
+
+
 class TestThreeDEScene:
     """Test ThreeDEScene dataclass with real files."""
 

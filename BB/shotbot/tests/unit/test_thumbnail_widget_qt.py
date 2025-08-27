@@ -41,8 +41,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 # - Thread-safe testing patterns
 
 
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
 
 class TestThumbnailWidgetBase:
     """Test real Qt widget behavior of ThumbnailWidgetBase."""

@@ -6,7 +6,6 @@
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 from __future__ import annotations
 
 import os
@@ -26,7 +25,6 @@ from threede_scene_finder import ThreeDESceneFinder
 from threede_scene_model import ThreeDESceneModel
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
-
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)

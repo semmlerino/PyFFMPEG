@@ -25,6 +25,7 @@ pytestmark = [pytest.mark.performance]
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
+
 class DirectoryCache:
     """Mock directory cache for testing."""
 
@@ -81,7 +82,7 @@ class TestDirectoryCachePerformance:
         assert stats["misses"] == 1
         assert stats["total_entries"] == 1
 
-    @patch('time.time')
+    @patch("time.time")
     def test_cache_ttl_expiration(self, mock_time):
         """Test cache TTL expiration - OPTIMIZED: Mock time instead of sleep."""
         cache = DirectoryCache(ttl_seconds=0.1)  # Very short TTL

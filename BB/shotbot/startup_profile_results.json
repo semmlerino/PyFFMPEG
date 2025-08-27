@@ -1,0 +1,108 @@
+{
+  "timestamp": "2025-08-26 22:49:49",
+  "baseline": {
+    "startup_time": 2.901,
+    "initial_refresh": 2.422
+  },
+  "subprocess": {
+    "raw_subprocess": 1.9543132859998877,
+    "output_size": 0,
+    "returncode": 127
+  },
+  "process_pool": {
+    "pool_creation": 0.042055691000314255,
+    "pool_first_call": 3.6631706150001264,
+    "output_size": 0,
+    "pool_second_call": 5.085500015411526e-05
+  },
+  "shot_model": {
+    "model_creation": 0.00023632100055692717,
+    "refresh_total": 0.0002545300003475859,
+    "success": true,
+    "has_changes": false,
+    "shot_count": 0,
+    "top_functions": [
+      {
+        "function": "<method 'get' of 'dict' objects>:0",
+        "file": "~",
+        "cumulative_time": 1.542e-06,
+        "total_time": 1.542e-06,
+        "calls": 5
+      },
+      {
+        "function": "<built-in method __new__ of type object at 0xa44b40>:0",
+        "file": "~",
+        "cumulative_time": 4.7000000000000005e-07,
+        "total_time": 4.7000000000000005e-07,
+        "calls": 1
+      },
+      {
+        "function": "<method 'encode' of 'str' objects>:0",
+        "file": "~",
+        "cumulative_time": 4.93e-07,
+        "total_time": 4.93e-07,
+        "calls": 1
+      },
+      {
+        "function": "<method 'split' of 'str' objects>:0",
+        "file": "~",
+        "cumulative_time": 3.5700000000000003e-07,
+        "total_time": 3.5700000000000003e-07,
+        "calls": 1
+      },
+      {
+        "function": "<method 'find' of 'str' objects>:0",
+        "file": "~",
+        "cumulative_time": 3.6700000000000004e-07,
+        "total_time": 3.6700000000000004e-07,
+        "calls": 1
+      },
+      {
+        "function": "<method 'rfind' of 'str' objects>:0",
+        "file": "~",
+        "cumulative_time": 9.030000000000001e-07,
+        "total_time": 9.030000000000001e-07,
+        "calls": 3
+      },
+      {
+        "function": "<method 'strip' of 'str' objects>:0",
+        "file": "~",
+        "cumulative_time": 9.12e-07,
+        "total_time": 9.12e-07,
+        "calls": 2
+      },
+      {
+        "function": "<built-in method builtins.hasattr>:0",
+        "file": "~",
+        "cumulative_time": 1.15e-06,
+        "total_time": 1.15e-06,
+        "calls": 3
+      },
+      {
+        "function": "<built-in method builtins.isinstance>:0",
+        "file": "~",
+        "cumulative_time": 8.240000000000001e-07,
+        "total_time": 8.240000000000001e-07,
+        "calls": 5
+      },
+      {
+        "function": "<built-in method sys._getframe>:0",
+        "file": "~",
+        "cumulative_time": 5.06e-07,
+        "total_time": 5.06e-07,
+        "calls": 2
+      }
+    ]
+  },
+  "strategies": {
+    "async_ui_display": 0.010105352000209677,
+    "cached_parse_time": 3.89300021197414e-06,
+    "cached_lines": 3,
+    "pooled_calls": [
+      0.0007820170003469684,
+      0.0008276660000774427,
+      0.0007375219993264182
+    ],
+    "pooled_average": 0.0007824016665836098
+  }
+}

@@ -8,11 +8,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional
 
 from PySide6.QtCore import QObject, Signal
+from base_shot_model import BaseShotModel
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
 
 from config import Config
+from type_definitions import ShotDict
 from exceptions import WorkspaceError
 from process_pool_manager import ProcessPoolManager
 from utils import FileUtils, PathUtils, ValidationUtils
@@ -166,7 +168,7 @@ class Shot:
         self._cached_thumbnail_path = thumbnail
         return thumbnail
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> ShotDict:
         """Convert shot to dictionary for serialization."""
         return {
             "show": self.show,
@@ -176,7 +178,7 @@ class Shot:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, str]) -> "Shot":
+    def from_dict(cls, data: ShotDict) -> "Shot":
         """Create shot from dictionary data."""
         shot = cls(
             show=data["show"],
@@ -189,78 +191,38 @@ class Shot:
         return shot
 
 
-class ShotModel(QObject):
-    """Manages shot data and parsing with Qt signal support for reactive updates.
-
-    This model emits signals for all state changes, enabling reactive UI updates
-    without polling. The model maintains backward compatibility with the existing
-    API while providing comprehensive signal-based notifications.
-
-    Signals:
-        shots_loaded: Emitted when shots are initially loaded from cache or refresh
-        shots_changed: Emitted when the shot list changes (added/removed/modified)
-        refresh_started: Emitted when a refresh operation begins
-        refresh_finished: Emitted when refresh completes with (success, has_changes)
-        error_occurred: Emitted when an error occurs with error message
-        shot_selected: Emitted when a shot is selected with the Shot object
-        cache_updated: Emitted when the cache is successfully updated
+class ShotModel(BaseShotModel):
+    """Synchronous shot model implementation.
+    
+    This model provides synchronous, blocking shot loading and refreshing.
+    It maintains full backward compatibility with the existing API while
+    inheriting common functionality from BaseShotModel.
+    
+    All signals are inherited from BaseShotModel.
     """
-
-    # Qt signals for reactive updates
-    shots_loaded = Signal(list)  # List of Shot objects
-    shots_changed = Signal(list)  # List of Shot objects
-    refresh_started = Signal()
-    refresh_finished = Signal(bool, bool)  # success, has_changes
-    error_occurred = Signal(str)  # Error message
-    shot_selected = Signal(object)  # Shot object
-    cache_updated = Signal()
 
     def __init__(
         self,
         cache_manager: Optional["CacheManager"] = None,
         load_cache: bool = True,
     ):
-        super().__init__()
-        from cache_manager import (
-            CacheManager,  # Runtime import to avoid circular dependency
-        )
+        """Initialize synchronous shot model.
+        
+        Args:
+            cache_manager: Optional cache manager instance
+            load_cache: Whether to load from cache on initialization
+        """
+        super().__init__(cache_manager, load_cache)
 
-        self.shots: List[Shot] = []
-        self.cache_manager = cache_manager or CacheManager()
-        self._parse_pattern = re.compile(
-            r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))",
-        )
-        self._selected_shot: Optional[Shot] = None
+    def load_shots(self) -> RefreshResult:
+        """Load shots synchronously (same as refresh for sync model).
+        
+        Returns:
+            RefreshResult with success and change status
+        """
+        return self.refresh_strategy()
 
-        # Initialize ProcessPoolManager singleton
-        if DEBUG_VERBOSE:
-            logger.debug("Getting ProcessPoolManager singleton instance")
-        self._process_pool = ProcessPoolManager.get_instance()
-        if DEBUG_VERBOSE:
-            logger.debug(f"ProcessPoolManager instance obtained: {self._process_pool}")
-
-        # Only load cache if requested (allows tests to start clean)
-        if load_cache:
-            if DEBUG_VERBOSE:
-                logger.debug("Loading shots from cache...")
-            loaded = self._load_from_cache()
-            if DEBUG_VERBOSE:
-                logger.debug(
-                    f"Cache load result: {loaded}, shots loaded: {len(self.shots)}",
-                )
-
-    def _load_from_cache(self) -> bool:
-        """Load shots from cache if available and emit appropriate signals."""
-        cached_data = self.cache_manager.get_cached_shots()
-        if cached_data:
-            self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
-            # Emit signal to notify that shots have been loaded
-            self.shots_loaded.emit(self.shots)
-            logger.info(f"Loaded {len(self.shots)} shots from cache")
-            return True
-        return False
-
-    def refresh_shots(self) -> RefreshResult:
+    def refresh_strategy(self) -> RefreshResult:
         """Fetch and parse shot list from ws -sg command.
 
         Uses ProcessPoolManager for optimized command execution with:
@@ -377,89 +339,8 @@ class ShotModel(QObject):
             self.refresh_finished.emit(False, False)
             return RefreshResult(success=False, has_changes=False)
 
-    def _parse_ws_output(self, output: str) -> List[Shot]:
-        """Parse ws -sg output to extract shots.
-
-        Args:
-            output: Raw output from ws -sg command
-
-        Returns:
-            List of Shot objects parsed from the output
-
-        Raises:
-            WorkspaceError: If output is invalid or cannot be parsed
-        """
-        if not isinstance(output, str):
-            raise WorkspaceError(
-                "Invalid workspace output type",
-                command="ws -sg",
-                details={"expected": "str", "got": str(type(output))}
-            )
-
-        shots: List[Shot] = []
-        lines = output.strip().split("\n")
-
-        # If output is completely empty, that might indicate an issue
-        if not output.strip():
-            logger.warning("ws -sg returned empty output")
-            return shots
-
-        for line_num, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line:
-                continue
-
-            match = self._parse_pattern.search(line)
-            if match:
-                try:
-                    workspace_path = match.group(1)
-                    show = match.group(2)
-                    sequence = match.group(3)
-                    shot_name = match.group(4)
-
-                    # Validate extracted components using utility
-                    if not ValidationUtils.validate_not_empty(
-                        workspace_path,
-                        show,
-                        sequence,
-                        shot_name,
-                        names=["workspace_path", "show", "sequence", "shot_name"],
-                    ):
-                        logger.warning(
-                            f"Line {line_num}: Missing required components in: {line}",
-                        )
-                        continue
-
-                    # Extract shot number from full name (e.g., "108_BQS_0005" -> "0005")
-                    shot_parts = shot_name.split("_")
-                    if len(shot_parts) >= 3:
-                        shot = shot_parts[-1]
-                    else:
-                        shot = shot_name
-
-                    shots.append(
-                        Shot(
-                            show=show,
-                            sequence=sequence,
-                            shot=shot,
-                            workspace_path=workspace_path,
-                        ),
-                    )
-                except (IndexError, AttributeError) as e:
-                    logger.warning(
-                        f"Line {line_num}: Failed to parse shot data from: {line} ({e})",
-                    )
-                    continue
-            else:
-                # Log unmatched lines for debugging, but don't fail
-                logger.debug(f"Line {line_num}: No match for workspace pattern: {line}")
-
-        logger.info(f"Parsed {len(shots)} shots from ws -sg output")
-        return shots
-
-    def get_shots(self) -> List[Shot]:
-        """Get list of all shots."""
-        return self.shots
+    # Note: We use the _parse_ws_output from BaseShotModel which has been
+    # enhanced with the robust validation and error handling from this implementation
 
     def get_shot_by_index(self, index: int) -> Optional[Shot]:
         """Get shot by index."""
@@ -530,14 +411,14 @@ class ShotModel(QObject):
 
     def get_performance_metrics(self) -> Dict[str, Any]:
         """Get performance metrics for subprocess operations.
+        
+        Extends base metrics with process pool statistics.
 
         Returns:
-            Dictionary containing:
-            - subprocess_calls: Total subprocess calls made
-            - cache_hits: Number of cache hits
-            - cache_misses: Number of cache misses
-            - average_response_ms: Average command execution time
-            - cache_hit_rate: Percentage of requests served from cache
-            - sessions: Status of persistent bash sessions
+            Combined metrics from base class and process pool
         """
-        return self._process_pool.get_metrics()
+        metrics = super().get_performance_metrics()
+        # Add process pool metrics
+        pool_metrics = self._process_pool.get_metrics()
+        metrics.update(pool_metrics)
+        return metrics

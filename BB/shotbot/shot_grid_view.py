@@ -301,7 +301,9 @@ class ShotGridView(QWidget):
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""
         # Calculate item size including padding
-        item_size = self._thumbnail_size + 2 * 8 + 40  # padding + text height  # type: ignore[attr-defined]
+        item_size = (
+            self._thumbnail_size + 2 * 8 + 40
+        )  # padding + text height  # type: ignore[attr-defined]
 
         # Set grid size on the view
         self.list_view.setGridSize(QSize(item_size, item_size))

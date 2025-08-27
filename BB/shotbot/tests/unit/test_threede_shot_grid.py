@@ -50,6 +50,7 @@ def threede_grid(qtbot, scene_model):
     qtbot.addWidget(grid)
     return grid
 
+
 class TestThreeDEShotGridInitialization:
     """Test ThreeDEShotGrid initialization."""
 
@@ -243,21 +244,21 @@ class TestThreeDEShotGridSizeControl:
         """Test wheel event with Ctrl for size adjustment."""
         from PySide6.QtCore import QPoint
         from PySide6.QtGui import QWheelEvent
-        
+
         initial_size = threede_grid._thumbnail_size
-        
+
         # Create real wheel event with Ctrl modifier (zoom in)
         event = QWheelEvent(
             QPoint(100, 100),  # position
             QPoint(100, 100),  # global position
-            QPoint(0, 0),      # pixelDelta
-            QPoint(0, 120),    # angleDelta (positive = zoom in)
+            QPoint(0, 0),  # pixelDelta
+            QPoint(0, 120),  # angleDelta (positive = zoom in)
             Qt.MouseButton.NoButton,
             Qt.KeyboardModifier.ControlModifier,
             Qt.ScrollPhase.NoScrollPhase,
-            False
+            False,
         )
-        
+
         threede_grid.wheelEvent(event)
 
         # Size should increase
@@ -267,21 +268,21 @@ class TestThreeDEShotGridSizeControl:
         """Test wheel event without Ctrl passes through."""
         from PySide6.QtCore import QPoint
         from PySide6.QtGui import QWheelEvent
-        
+
         initial_size = threede_grid._thumbnail_size
-        
+
         # Create real wheel event without Ctrl modifier
         event = QWheelEvent(
             QPoint(100, 100),  # position
             QPoint(100, 100),  # global position
-            QPoint(0, 0),      # pixelDelta
-            QPoint(0, 120),    # angleDelta
+            QPoint(0, 0),  # pixelDelta
+            QPoint(0, 120),  # angleDelta
             Qt.MouseButton.NoButton,
             Qt.KeyboardModifier.NoModifier,
             Qt.ScrollPhase.NoScrollPhase,
-            False
+            False,
         )
-        
+
         threede_grid.wheelEvent(event)
 
         # Size should remain unchanged (passes through to scroll area)
@@ -335,7 +336,7 @@ class TestThreeDEShotGridSelection:
 
         # Verify the scene is actually selected
         assert threede_grid.selected_scene == scene
-        
+
         # Verify the thumbnail is marked as selected
         thumbnail = threede_grid.thumbnails[scene.display_name]
         assert thumbnail._selected is True
@@ -373,11 +374,9 @@ class TestThreeDEShotGridKeyboardNavigation:
         # Create real key event
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
-        
+
         event = QKeyEvent(
-            QEvent.Type.KeyPress,
-            Qt.Key.Key_Right,
-            Qt.KeyboardModifier.NoModifier
+            QEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier
         )
 
         threede_grid.keyPressEvent(event)
@@ -393,11 +392,9 @@ class TestThreeDEShotGridKeyboardNavigation:
         # Create real key event
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
-        
+
         event = QKeyEvent(
-            QEvent.Type.KeyPress,
-            Qt.Key.Key_Left,
-            Qt.KeyboardModifier.NoModifier
+            QEvent.Type.KeyPress, Qt.Key.Key_Left, Qt.KeyboardModifier.NoModifier
         )
 
         threede_grid.keyPressEvent(event)
@@ -413,11 +410,9 @@ class TestThreeDEShotGridKeyboardNavigation:
         # Create real key event
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
-        
+
         event = QKeyEvent(
-            QEvent.Type.KeyPress,
-            Qt.Key.Key_Down,
-            Qt.KeyboardModifier.NoModifier
+            QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.NoModifier
         )
 
         with patch.object(threede_grid, "_get_column_count", return_value=3):
@@ -434,11 +429,9 @@ class TestThreeDEShotGridKeyboardNavigation:
         # Create real key event
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
-        
+
         event = QKeyEvent(
-            QEvent.Type.KeyPress,
-            Qt.Key.Key_Home,
-            Qt.KeyboardModifier.NoModifier
+            QEvent.Type.KeyPress, Qt.Key.Key_Home, Qt.KeyboardModifier.NoModifier
         )
 
         threede_grid.keyPressEvent(event)
@@ -454,11 +447,9 @@ class TestThreeDEShotGridKeyboardNavigation:
         # Create real key event
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
-        
+
         event = QKeyEvent(
-            QEvent.Type.KeyPress,
-            Qt.Key.Key_End,
-            Qt.KeyboardModifier.NoModifier
+            QEvent.Type.KeyPress, Qt.Key.Key_End, Qt.KeyboardModifier.NoModifier
         )
 
         threede_grid.keyPressEvent(event)
@@ -474,11 +465,9 @@ class TestThreeDEShotGridKeyboardNavigation:
         # Create real key event
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
-        
+
         event = QKeyEvent(
-            QEvent.Type.KeyPress,
-            Qt.Key.Key_Return,
-            Qt.KeyboardModifier.NoModifier
+            QEvent.Type.KeyPress, Qt.Key.Key_Return, Qt.KeyboardModifier.NoModifier
         )
 
         spy = QSignalSpy(threede_grid.scene_double_clicked)
@@ -491,7 +480,7 @@ class TestThreeDEShotGridKeyboardNavigation:
         """Test application launch keyboard shortcuts."""
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
-        
+
         threede_grid.refresh_scenes()
         threede_grid.selected_scene = sample_scenes[0]
 
@@ -505,11 +494,7 @@ class TestThreeDEShotGridKeyboardNavigation:
         }
 
         for key, app_name in shortcuts.items():
-            event = QKeyEvent(
-                QEvent.Type.KeyPress,
-                key,
-                Qt.KeyboardModifier.NoModifier
-            )
+            event = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier)
 
             spy = QSignalSpy(threede_grid.app_launch_requested)
             threede_grid.keyPressEvent(event)
@@ -525,16 +510,14 @@ class TestThreeDEShotGridKeyboardNavigation:
         # Create real key event
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
-        
+
         event = QKeyEvent(
-            QEvent.Type.KeyPress,
-            Qt.Key.Key_Right,
-            Qt.KeyboardModifier.NoModifier
+            QEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier
         )
 
         # Store initial state (should be None for empty grid)
         initial_selection = threede_grid.selected_scene
-        
+
         threede_grid.keyPressEvent(event)
 
         # Selection should remain unchanged since no scenes available
@@ -548,11 +531,9 @@ class TestThreeDEShotGridKeyboardNavigation:
         # Create real key event
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
-        
+
         event = QKeyEvent(
-            QEvent.Type.KeyPress,
-            Qt.Key.Key_Right,
-            Qt.KeyboardModifier.NoModifier
+            QEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier
         )
 
         threede_grid.keyPressEvent(event)
@@ -561,7 +542,7 @@ class TestThreeDEShotGridKeyboardNavigation:
         assert threede_grid.selected_scene == sample_scenes[1]
         new_thumb = threede_grid.thumbnails[sample_scenes[1].display_name]
         assert new_thumb._selected is True
-        
+
         # Verify the widget is part of the scroll area (indirect visibility test)
         assert new_thumb.parent() is not None
 
@@ -591,15 +572,15 @@ class TestThreeDEShotGridReflow:
     def test_resize_event_triggers_reflow(self, threede_grid, sample_scenes):
         """Test resize event triggers reflow."""
         threede_grid.refresh_scenes()
-        
+
         # Create real resize event
         from PySide6.QtCore import QSize
         from PySide6.QtGui import QResizeEvent
-        
+
         old_size = QSize(400, 300)
         new_size = QSize(800, 600)
         event = QResizeEvent(new_size, old_size)
-        
+
         # Store initial thumbnail positions/count
         initial_thumbnail_count = len(threede_grid.thumbnails)
 

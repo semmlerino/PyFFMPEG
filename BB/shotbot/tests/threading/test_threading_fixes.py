@@ -12,7 +12,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from launcher_manager import LauncherManager
-from tests.test_doubles import TestSubprocess
+from tests.test_doubles_library import TestSubprocess
 from thread_safe_worker import ThreadSafeWorker, WorkerState
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]

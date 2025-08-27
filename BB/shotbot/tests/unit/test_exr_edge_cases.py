@@ -26,8 +26,8 @@ from utils import FileUtils, PathUtils
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
 
 class TestCorruptedFiles:
     """Test handling of corrupted or invalid EXR files."""

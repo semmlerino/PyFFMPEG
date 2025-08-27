@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from command_launcher import CommandLauncher
-from tests.test_doubles import TestSubprocess
+from tests.test_doubles_library import TestSubprocess
 
 pytestmark = pytest.mark.unit
 

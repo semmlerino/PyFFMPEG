@@ -18,7 +18,6 @@ Test Coverage:
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 from __future__ import annotations
 
 import os
@@ -46,8 +45,8 @@ from utils import (
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
 
 class TestPathUtils:
     """Test PathUtils functionality with real filesystem operations."""

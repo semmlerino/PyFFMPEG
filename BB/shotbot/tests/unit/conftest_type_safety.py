@@ -70,7 +70,7 @@ def mock_successful_subprocess():
         returncode=0,
         stdout="""workspace /shows/ygsk/shots/108_BQS/108_BQS_0005
 workspace /shows/ygsk/shots/108_CHV/108_CHV_0010""",
-        stderr=""
+        stderr="",
     )
 
     with patch("subprocess.run", return_value=test_result):
@@ -81,10 +81,7 @@ workspace /shows/ygsk/shots/108_CHV/108_CHV_0010""",
 def mock_failed_subprocess():
     """Mock subprocess.run for failed ws command."""
     test_result = TestCompletedProcess(
-        args=["ws", "-sg"],
-        returncode=1,
-        stdout="",
-        stderr="Error: ws command failed"
+        args=["ws", "-sg"], returncode=1, stdout="", stderr="Error: ws command failed"
     )
 
     with patch("subprocess.run", return_value=test_result):

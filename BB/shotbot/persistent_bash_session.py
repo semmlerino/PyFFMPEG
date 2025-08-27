@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # Try to import fcntl for non-blocking I/O (Unix-only)
 try:
     import fcntl
+
     HAS_FCNTL = True
 except ImportError:
     HAS_FCNTL = False
@@ -30,6 +31,7 @@ try:
         deadlock_detector,
         state_tracker,
     )
+
     HAS_DEBUG_UTILS = True
 except ImportError:
     HAS_DEBUG_UTILS = False

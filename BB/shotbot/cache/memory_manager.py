@@ -35,10 +35,10 @@ class MemoryManager:
         self._max_memory_bytes = max_mb * 1024 * 1024
 
         logger.debug(f"MemoryManager initialized with {max_mb}MB limit")
-    
+
     def set_memory_limit(self, max_memory_mb: int) -> None:
         """Set maximum memory limit in megabytes.
-        
+
         Args:
             max_memory_mb: Maximum memory limit in megabytes
         """

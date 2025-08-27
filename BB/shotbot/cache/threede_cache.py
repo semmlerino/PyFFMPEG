@@ -39,10 +39,10 @@ class ThreeDECache:
         self._expiry_minutes = expiry_minutes or Config.CACHE_EXPIRY_MINUTES
 
         logger.debug(f"ThreeDECache initialized with {self._expiry_minutes}min TTL")
-    
+
     def set_expiry_minutes(self, expiry_minutes: int) -> None:
         """Set cache expiry time in minutes.
-        
+
         Args:
             expiry_minutes: Cache expiry time in minutes
         """

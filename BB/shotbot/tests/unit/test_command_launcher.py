@@ -28,7 +28,7 @@ from config import Config
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles import TestShot, TestSubprocess
+from tests.test_doubles_library import TestShot, TestSubprocess
 from tests.test_doubles_library import (
     PopenDouble,
 )
@@ -39,14 +39,15 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
 class TestNukeScriptGenerator:
     """Test double for NukeScriptGenerator."""
-    
+
     def create_plate_script(self, *args, **kwargs) -> str:
         """Mock create_plate_script method."""
         return "/tmp/script.nk"
-    
+
     def create_plate_script_with_undistortion(self, *args, **kwargs) -> str:
         """Mock create_plate_script_with_undistortion method."""
         return "/tmp/integrated_script.nk"
+
 
 class TestCommandLauncherInitialization:
     """Test CommandLauncher initialization and basic setup."""
@@ -599,19 +600,19 @@ class TestNukeIntegration:
                 # Use test double for dynamic import
                 # Store original import before patching
                 original_import = __import__
-                
+
                 with patch("builtins.__import__") as mock_import:
                     mock_generator = TestNukeScriptGenerator()
-                    
+
                     class MockModule:
                         NukeScriptGenerator = mock_generator
-                    
+
                     def selective_mock_import(name, *args, **kwargs):
                         if name == "nuke_script_generator":
                             return MockModule()
                         else:
                             return original_import(name, *args, **kwargs)
-                    
+
                     mock_import.side_effect = selective_mock_import
 
                     result = launcher.launch_app("nuke", include_raw_plate=True)
@@ -672,24 +673,26 @@ class TestNukeIntegration:
             mock_undist_finder.get_version_from_path.return_value = "v001"
 
             with patch("command_launcher.subprocess.Popen") as mock_popen:
-                mock_popen.return_value = PopenDouble(["nuke", "/tmp/integrated_script.nk"])
+                mock_popen.return_value = PopenDouble(
+                    ["nuke", "/tmp/integrated_script.nk"]
+                )
 
                 # Use test double for dynamic import
                 # Store original import before patching
                 original_import = __import__
-                
+
                 with patch("builtins.__import__") as mock_import:
                     mock_generator = TestNukeScriptGenerator()
-                    
+
                     class MockModule:
                         NukeScriptGenerator = mock_generator
-                    
+
                     def selective_mock_import(name, *args, **kwargs):
                         if name == "nuke_script_generator":
                             return MockModule()
                         else:
                             return original_import(name, *args, **kwargs)
-                    
+
                     mock_import.side_effect = selective_mock_import
 
                     result = launcher.launch_app(

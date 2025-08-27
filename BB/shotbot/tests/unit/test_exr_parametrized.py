@@ -25,7 +25,6 @@ except ImportError:
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestPILImage
 
@@ -170,7 +169,7 @@ class TestParametrizedFileOperations:
                 wait=False,  # Don't wait for async
             )
 
-        # Test behavior: all sizes should be handled without crashing
+            # Test behavior: all sizes should be handled without crashing
             assert result is not None  # Returns async result object
 
     @pytest.mark.parametrize(
@@ -296,7 +295,6 @@ class TestParametrizedCaching:
             else:
                 # Could be path or None depending on success
                 assert result is None or isinstance(result, Path)
-
 
 
 class TestParametrizedErrorHandling:

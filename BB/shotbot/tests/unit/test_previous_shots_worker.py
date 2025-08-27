@@ -42,6 +42,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 # - Thread-safe testing patterns
 # - Signal setup BEFORE triggering actions to prevent races
 
+
 class TestPreviousShotsWorkerBasics:
     """Basic tests for PreviousShotsWorker initialization and control."""
 
@@ -139,9 +140,7 @@ class TestPreviousShotsWorkerWorkflow:
         ]
 
         test_result = TestCompletedProcess(
-            args=[],
-            returncode=0,
-            stdout="\n".join(find_output) + "\n"
+            args=[], returncode=0, stdout="\n".join(find_output) + "\n"
         )
 
         # Set up signal spies
@@ -176,11 +175,7 @@ class TestPreviousShotsWorkerWorkflow:
         worker = worker_with_cleanup
 
         # Mock empty find command output
-        test_result = TestCompletedProcess(
-            args=[],
-            returncode=0,
-            stdout=""
-        )
+        test_result = TestCompletedProcess(args=[], returncode=0, stdout="")
 
         scan_finished_spy = QSignalSpy(worker.scan_finished)
         shot_found_spy = QSignalSpy(worker.shot_found)
@@ -212,16 +207,14 @@ class TestPreviousShotsWorkerWorkflow:
             if worker._should_stop:
                 # Return minimal result when stopped
                 return TestCompletedProcess(
-                    args=args[0] if args else [],
-                    returncode=0,
-                    stdout=""
+                    args=args[0] if args else [], returncode=0, stdout=""
                 )
 
             # Return normal result
             return TestCompletedProcess(
                 args=args[0] if args else [],
                 returncode=0,
-                stdout="/shows/show1/shots/seq1/shot1/user/testuser\n"
+                stdout="/shows/show1/shots/seq1/shot1/user/testuser\n",
             )
 
         QSignalSpy(worker.scan_finished)
@@ -230,13 +223,13 @@ class TestPreviousShotsWorkerWorkflow:
         with patch("subprocess.run", side_effect=slow_subprocess):
             # Start worker with proper signal handling
             worker.start()
-            
+
             # Allow worker to start processing
             qtbot.wait(100)  # Small delay to ensure worker is running
-            
+
             # Request stop
             worker.stop()
-            
+
             # Wait for thread to finish gracefully
             worker.wait(3000)
 
@@ -259,7 +252,7 @@ class TestPreviousShotsWorkerWorkflow:
             # FIX: Use waitSignal to properly wait for error signal
             with qtbot.waitSignal(worker.error_occurred, timeout=5000):
                 worker.start()
-            
+
             # Ensure thread has finished
             worker.wait(2000)
 
@@ -283,13 +276,13 @@ class TestPreviousShotsWorkerWorkflow:
         test_result = TestCompletedProcess(
             args=[],
             returncode=0,
-            stdout="/shows/different_show/shots/testseq/testshot/user/testuser\n"
+            stdout="/shows/different_show/shots/testseq/testshot/user/testuser\n",
         )
 
         shot_found_spy = QSignalSpy(worker.shot_found)
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
-        # FIX: Set up signal waiter BEFORE starting to prevent race condition  
+        # FIX: Set up signal waiter BEFORE starting to prevent race condition
         with patch("subprocess.run", return_value=test_result):
             with qtbot.waitSignal(worker.scan_finished, timeout=5000):
                 worker.start()
@@ -401,9 +394,7 @@ class TestPreviousShotsWorkerIntegration:
         ]
 
         test_result = TestCompletedProcess(
-            args=[],
-            returncode=0,
-            stdout="\n".join(find_output) + "\n"
+            args=[], returncode=0, stdout="\n".join(find_output) + "\n"
         )
 
         shot_found_spy = QSignalSpy(worker.shot_found)

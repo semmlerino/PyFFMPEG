@@ -58,7 +58,9 @@ class TestShot:
         assert "101_ABC" in str(thumbnail_dir)
         assert "0010" in str(thumbnail_dir)
 
-    def test_get_thumbnail_path_editorial_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_get_thumbnail_path_editorial_success(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test get_thumbnail_path finds editorial thumbnail with real files."""
         # Create real shot directory structure
         shows_root = tmp_path / "shows"
@@ -97,7 +99,9 @@ class TestShot:
         thumbnail_path_cached = shot.get_thumbnail_path()
         assert thumbnail_path_cached == thumbnail_path
 
-    def test_get_thumbnail_path_turnover_fallback(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_get_thumbnail_path_turnover_fallback(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test get_thumbnail_path falls back to turnover plates with real files."""
         # Create shot without editorial thumbnail
         shows_root = tmp_path / "shows"
@@ -132,7 +136,9 @@ class TestShot:
         assert thumbnail_path.exists()
         assert thumbnail_path.suffix == ".exr"
 
-    def test_get_thumbnail_path_publish_fallback(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_get_thumbnail_path_publish_fallback(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test get_thumbnail_path falls back to publish thumbnails with real files."""
         # Create shot without editorial or turnover thumbnails
         shows_root = tmp_path / "shows"
@@ -201,7 +207,9 @@ class TestShot:
         assert shot.shot == "0010"
         assert shot.workspace_path == "/shows/testshow/shots/101_ABC/101_ABC_0010"
 
-    def test_shot_serialization_roundtrip(self, make_test_shot: TestShotFactory) -> None:
+    def test_shot_serialization_roundtrip(
+        self, make_test_shot: TestShotFactory
+    ) -> None:
         """Test Shot serialization roundtrip maintains data integrity."""
         original_shot = make_test_shot("testshow", "101_ABC", "0010")
 
@@ -241,7 +249,9 @@ class TestShotModel:
         assert len(shots) == 3
         assert all(isinstance(shot, Shot) for shot in shots)
 
-    def test_get_shot_by_name(self, real_shot_model, make_test_shot: TestShotFactory) -> None:
+    def test_get_shot_by_name(
+        self, real_shot_model, make_test_shot: TestShotFactory
+    ) -> None:
         """Test getting specific shot by name."""
         # Add real shots
         real_shot_model.shots = [
@@ -255,7 +265,9 @@ class TestShotModel:
         assert shot.sequence == "seq1"
         assert shot.shot == "0010"
 
-    def test_get_shot_by_name_not_found(self, real_shot_model, make_test_shot: TestShotFactory) -> None:
+    def test_get_shot_by_name_not_found(
+        self, real_shot_model, make_test_shot: TestShotFactory
+    ) -> None:
         """Test getting non-existent shot."""
         real_shot_model.shots = [make_test_shot("show1", "seq1", "0010")]
 
@@ -292,7 +304,9 @@ class TestShotModel:
         assert isinstance(result, RefreshResult)
         assert result.success is False
 
-    def test_refresh_result_tuple_unpacking(self, real_shot_model, test_process_pool) -> None:
+    def test_refresh_result_tuple_unpacking(
+        self, real_shot_model, test_process_pool
+    ) -> None:
         """Test RefreshResult supports tuple unpacking for backwards compatibility."""
         test_process_pool.set_outputs("workspace /shows/test/shots/seq1/seq1_0010\n")
         real_shot_model._process_pool = test_process_pool
@@ -302,7 +316,9 @@ class TestShotModel:
         assert isinstance(success, bool)
         assert isinstance(has_changes, bool)
 
-    def test_get_shots_method(self, real_shot_model, make_test_shot: TestShotFactory) -> None:
+    def test_get_shots_method(
+        self, real_shot_model, make_test_shot: TestShotFactory
+    ) -> None:
         """Test get_shots method returns shot list."""
         real_shot_model.shots = [
             make_test_shot("show1", "seq1", "0010"),
@@ -314,7 +330,9 @@ class TestShotModel:
         assert len(shots) == 3
         assert all(isinstance(shot, Shot) for shot in shots)
 
-    def test_get_shot_by_index_valid(self, real_shot_model, make_test_shot: TestShotFactory) -> None:
+    def test_get_shot_by_index_valid(
+        self, real_shot_model, make_test_shot: TestShotFactory
+    ) -> None:
         """Test get_shot_by_index with valid index."""
         real_shot_model.shots = [
             make_test_shot("show1", "seq1", "0010"),
@@ -330,7 +348,9 @@ class TestShotModel:
         assert shot is not None
         assert shot.show == "show2"
 
-    def test_get_shot_by_index_invalid(self, real_shot_model, make_test_shot: TestShotFactory) -> None:
+    def test_get_shot_by_index_invalid(
+        self, real_shot_model, make_test_shot: TestShotFactory
+    ) -> None:
         """Test get_shot_by_index with invalid indices."""
         real_shot_model.shots = [
             make_test_shot("show1", "seq1", "0010"),
@@ -389,11 +409,12 @@ class TestShotModel:
 class TestShotModelErrorHandling:
     """Test error handling scenarios in ShotModel using test doubles."""
 
-    def test_refresh_shots_timeout_error(self, real_shot_model, test_process_pool) -> None:
+    def test_refresh_shots_timeout_error(
+        self, real_shot_model, test_process_pool
+    ) -> None:
         """Test refresh_shots handles TimeoutError properly."""
         # Configure test double to simulate timeout
-        test_process_pool.should_fail = True
-        test_process_pool.set_errors("Command timed out")
+        test_process_pool.fail_with_timeout = True
         real_shot_model._process_pool = test_process_pool
 
         result = real_shot_model.refresh_shots()
@@ -437,7 +458,7 @@ class TestShotModelParser:
     def test_parse_ws_output_invalid_input_type(self, real_shot_model) -> None:
         """Test parser rejects non-string input."""
         from exceptions import WorkspaceError
-        
+
         with pytest.raises(WorkspaceError, match="Invalid workspace output type"):
             real_shot_model._parse_ws_output(123)  # type: ignore
 
@@ -503,7 +524,9 @@ workspace /shows/test/shots/seq3/very_long_complex_shot_name_0050"""
 class TestShotModelPerformance:
     """Test performance-related functionality."""
 
-    def test_invalidate_workspace_cache(self, real_shot_model, test_process_pool) -> None:
+    def test_invalidate_workspace_cache(
+        self, real_shot_model, test_process_pool
+    ) -> None:
         """Test cache invalidation with test double."""
         real_shot_model._process_pool = test_process_pool
 

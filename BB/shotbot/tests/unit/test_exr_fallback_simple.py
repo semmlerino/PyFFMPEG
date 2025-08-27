@@ -22,6 +22,8 @@ from shot_model import Shot
 from utils import FileUtils, PathUtils
 
 pytestmark = pytest.mark.unit
+
+
 class TestThumbnailPriority:
     """Test that lightweight formats are preferred over EXR."""
 

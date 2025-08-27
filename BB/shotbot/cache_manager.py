@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal
+from type_definitions import ShotDict, ThreeDESceneDict
 from PySide6.QtWidgets import QApplication
 
 from cache.cache_validator import CacheValidator
@@ -28,11 +29,10 @@ from config import Config
 from exceptions import CacheError, ThumbnailError
 
 if TYPE_CHECKING:
-    from shot_model import Shot
+    from type_definitions import Shot
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
-
 
 
 class CacheManager(QObject):
@@ -205,7 +205,12 @@ class CacheManager(QObject):
             logger.error(error_msg)
             raise ThumbnailError(
                 error_msg,
-                details={"source_path": source_path, "show": show, "sequence": sequence, "shot": shot}
+                details={
+                    "source_path": source_path,
+                    "show": show,
+                    "sequence": sequence,
+                    "shot": shot,
+                },
             )
 
         cache_key = f"{show}_{sequence}_{shot}"
@@ -321,27 +326,27 @@ class CacheManager(QObject):
             self._last_validation_time = datetime.now()
 
     # Shot caching methods - delegate to ShotCache
-    def get_cached_shots(self) -> Optional[List[Dict[str, Any]]]:
+    def get_cached_shots(self) -> Optional[List[ShotDict]]:
         """Get cached shot list if valid."""
         return self._shot_cache.get_cached_shots()
 
-    def cache_shots(self, shots: Union[Sequence["Shot"], Sequence[Dict[str, str]]]):
+    def cache_shots(self, shots: Union[Sequence["Shot"], Sequence[ShotDict]]):
         """Cache shot list to file."""
         self._shot_cache.cache_shots(shots)
 
     # Previous shots caching methods - delegate to ShotCache
-    def get_cached_previous_shots(self) -> Optional[List[Dict[str, Any]]]:
+    def get_cached_previous_shots(self) -> Optional[List[ShotDict]]:
         """Get cached previous/approved shot list if valid."""
         return self._previous_shots_cache.get_cached_shots()
 
     def cache_previous_shots(
-        self, shots: Union[Sequence["Shot"], Sequence[Dict[str, str]]]
+        self, shots: Union[Sequence["Shot"], Sequence[ShotDict]]
     ):
         """Cache previous/approved shot list to file."""
         self._previous_shots_cache.cache_shots(shots)
 
     # 3DE scene caching methods - delegate to ThreeDECache
-    def get_cached_threede_scenes(self) -> Optional[List[Dict[str, Any]]]:
+    def get_cached_threede_scenes(self) -> Optional[List[ThreeDESceneDict]]:
         """Get cached 3DE scene list if valid."""
         return self._threede_cache.get_cached_scenes()
 
@@ -350,7 +355,7 @@ class CacheManager(QObject):
         return self._threede_cache.has_valid_cache()
 
     def cache_threede_scenes(
-        self, scenes: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
+        self, scenes: List[ThreeDESceneDict], metadata: Optional[Dict[str, Any]] = None
     ):
         """Cache 3DE scene list to file with optional metadata."""
         self._threede_cache.cache_scenes(scenes, metadata)
@@ -409,7 +414,6 @@ class CacheManager(QObject):
         # Add backward compatibility keys
         stats["thumbnail_count"] = stats["tracked_items"]
         return stats
-
 
     def validate_cache(self) -> Dict[str, Any]:
         """Validate cache consistency and fix issues (backward compatible)."""
@@ -501,27 +505,27 @@ class CacheManager(QObject):
 
             except (OSError, IOError, CacheError) as e:
                 logger.error(f"Error during cache manager shutdown: {e}")
-    
+
     def set_memory_limit(self, max_memory_mb: int) -> None:
         """Set maximum memory limit for cache in megabytes.
-        
+
         Args:
             max_memory_mb: Maximum memory in megabytes
         """
         # Use the public method to set memory limit
         self._memory_manager.set_memory_limit(max_memory_mb)
         logger.info(f"Cache memory limit set to {max_memory_mb} MB")
-        
+
     def set_expiry_minutes(self, expiry_minutes: int) -> None:
         """Set cache expiry time in minutes.
-        
+
         Args:
             expiry_minutes: Cache expiry time in minutes
         """
         # Update expiry for both shot and 3DE caches using their public methods
         self._shot_cache.set_expiry_minutes(expiry_minutes)
         self._threede_cache.set_expiry_minutes(expiry_minutes)
-            
+
         logger.info(f"Cache expiry set to {expiry_minutes} minutes")
 
 

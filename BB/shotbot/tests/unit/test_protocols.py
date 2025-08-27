@@ -10,7 +10,6 @@ to ensure type safety without over-specification.
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 from __future__ import annotations
 
 from pathlib import Path as PathType  # Renamed to avoid pytest collection
@@ -23,7 +22,6 @@ from shot_model import Shot
 pytestmark = pytest.mark.unit
 
 
-from tests.test_doubles_library import TestCacheManager, TestProcessPool
 
 
 class TestShotFactory(Protocol):
@@ -40,7 +38,7 @@ class TestShotFactory(Protocol):
     ) -> Shot: ...
 
 
-class TestProcessPool(Protocol):
+class ProcessPoolProtocol(Protocol):
     """Protocol for process pool test doubles."""
 
     __test__ = False
@@ -60,7 +58,7 @@ class TestProcessPool(Protocol):
     def reset(self) -> None: ...
 
 
-class TestCacheManager(Protocol):
+class CacheManagerProtocol(Protocol):
     """Protocol for cache manager test interfaces."""
 
     __test__ = False

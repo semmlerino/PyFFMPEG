@@ -13,7 +13,6 @@ This module provides lightweight test doubles that follow the guide's principles
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 from __future__ import annotations
 
 from pathlib import Path

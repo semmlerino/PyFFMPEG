@@ -27,49 +27,58 @@ class CommandLauncher(QObject):
     def set_current_shot(self, shot: Optional[Shot]):
         """Set the current shot context."""
         self.current_shot = shot
-    
+
     def _validate_path_for_shell(self, path: str) -> str:
         """Validate and escape a path for safe use in shell commands.
-        
+
         Args:
             path: Path to validate and escape
-            
+
         Returns:
             Safely escaped path string
-            
+
         Raises:
             ValueError: If path contains dangerous characters that cannot be escaped
         """
         import shlex
-        
+
         # Check for command injection attempts
         dangerous_chars = [
-            ';', '&&', '||', '|',  # Command separators
-            '>', '<', '>>', '>&',  # Redirections
-            '`', '$(',  # Command substitution
-            '\n', '\r',  # Newlines that could break out
-            '${', '$((',  # Variable/arithmetic expansion
+            ";",
+            "&&",
+            "||",
+            "|",  # Command separators
+            ">",
+            "<",
+            ">>",
+            ">&",  # Redirections
+            "`",
+            "$(",  # Command substitution
+            "\n",
+            "\r",  # Newlines that could break out
+            "${",
+            "$((",  # Variable/arithmetic expansion
         ]
-        
+
         for char in dangerous_chars:
             if char in path:
                 raise ValueError(
                     f"Path contains dangerous character '{char}' that could allow command injection: {path[:100]}"
                 )
-        
+
         # Additional validation for known dangerous patterns
         dangerous_patterns = [
-            '../',  # Path traversal
-            '/..',  # Path traversal variant
-            '~/.',  # Hidden file access attempts
+            "../",  # Path traversal
+            "/..",  # Path traversal variant
+            "~/.",  # Hidden file access attempts
         ]
-        
+
         for pattern in dangerous_patterns:
             if pattern in path:
                 raise ValueError(
                     f"Path contains dangerous pattern '{pattern}': {path[:100]}"
                 )
-        
+
         # Use shlex.quote for safe shell escaping
         # This adds single quotes around the string and escapes any single quotes within
         return shlex.quote(path)
@@ -225,7 +234,9 @@ class CommandLauncher(QObject):
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
-            safe_workspace_path = self._validate_path_for_shell(self.current_shot.workspace_path)
+            safe_workspace_path = self._validate_path_for_shell(
+                self.current_shot.workspace_path
+            )
             full_command = f"ws {safe_workspace_path} && {command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {str(e)}")
@@ -289,7 +300,7 @@ class CommandLauncher(QObject):
             return False
 
         # Build full command with ws (workspace setup)
-        # Validate and escape workspace path to prevent injection  
+        # Validate and escape workspace path to prevent injection
         try:
             safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
             full_command = f"ws {safe_workspace_path} && {command}"
@@ -416,7 +427,9 @@ class CommandLauncher(QObject):
 
             if undistortion_path:
                 # Include the undistortion file in the Nuke command (safely escaped)
-                safe_undistortion_path = self._validate_path_for_shell(str(undistortion_path))
+                safe_undistortion_path = self._validate_path_for_shell(
+                    str(undistortion_path)
+                )
                 command = f"{command} {safe_undistortion_path}"
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 version = UndistortionFinder.get_version_from_path(undistortion_path)
@@ -433,7 +446,7 @@ class CommandLauncher(QObject):
                 )
 
         # Build full command with ws (workspace setup)
-        # Validate and escape workspace path to prevent injection  
+        # Validate and escape workspace path to prevent injection
         try:
             safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
             full_command = f"ws {safe_workspace_path} && {command}"

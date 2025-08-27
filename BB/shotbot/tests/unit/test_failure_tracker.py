@@ -30,6 +30,8 @@ from cache.failure_tracker import FailureTracker
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 pytestmark = pytest.mark.unit
+
+
 class TestFailureTracker:
     """Test suite for FailureTracker class covering all public methods and edge cases."""
 

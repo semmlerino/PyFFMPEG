@@ -11,6 +11,7 @@ from .storage_backend import StorageBackend
 
 if TYPE_CHECKING:
     from shot_model import Shot
+    from type_definitions import ShotDict
 
 logger = logging.getLogger(__name__)
 
@@ -41,17 +42,17 @@ class ShotCache:
         self._expiry_minutes = expiry_minutes or Config.CACHE_EXPIRY_MINUTES
 
         logger.debug(f"ShotCache initialized with {self._expiry_minutes}min TTL")
-    
+
     def set_expiry_minutes(self, expiry_minutes: int) -> None:
         """Set cache expiry time in minutes.
-        
+
         Args:
             expiry_minutes: Cache expiry time in minutes
         """
         self._expiry_minutes = expiry_minutes
         logger.debug(f"ShotCache TTL updated to {expiry_minutes} minutes")
 
-    def get_cached_shots(self) -> Optional[List[Dict[str, Any]]]:
+    def get_cached_shots(self) -> Optional[List["ShotDict"]]:
         """Get cached shot list if valid and not expired.
 
         Returns:
@@ -83,7 +84,7 @@ class ShotCache:
         return shots_data
 
     def cache_shots(
-        self, shots: Union[Sequence["Shot"], Sequence[Dict[str, str]]]
+        self, shots: Union[Sequence["Shot"], Sequence["ShotDict"]]
     ) -> bool:
         """Cache shot list to persistent storage.
 
@@ -272,8 +273,8 @@ class ShotCache:
         return is_expired
 
     def _convert_shots_to_dicts(
-        self, shots: Union[Sequence["Shot"], Sequence[Dict[str, str]]]
-    ) -> List[Dict[str, str]]:
+        self, shots: Union[Sequence["Shot"], Sequence["ShotDict"]]
+    ) -> List["ShotDict"]:
         """Convert shots to list of dictionaries.
 
         Args:

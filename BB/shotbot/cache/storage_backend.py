@@ -128,10 +128,7 @@ class StorageBackend:
         Returns:
             Dictionary data if successful, None if failed
         """
-        if not file_path.exists():
-            logger.debug(f"JSON file does not exist: {file_path}")
-            return None
-
+        # Use EAFP pattern to avoid race condition
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -173,12 +170,14 @@ class StorageBackend:
         Returns:
             True if deleted successfully or file didn't exist
         """
-        if not file_path.exists():
-            return True
-
+        # Use EAFP pattern to avoid race condition
         try:
             file_path.unlink()
             logger.debug(f"Deleted file: {file_path}")
+            return True
+
+        except FileNotFoundError:
+            # File already gone, that's fine
             return True
 
         except (OSError, IOError, PermissionError) as e:
@@ -199,10 +198,7 @@ class StorageBackend:
         Returns:
             True if move succeeded
         """
-        if not source.exists():
-            logger.error(f"Source file does not exist: {source}")
-            return False
-
+        # Use EAFP pattern to avoid race condition
         try:
             # Ensure destination directory exists
             if not self.ensure_directory(destination.parent):
@@ -211,6 +207,10 @@ class StorageBackend:
             source.replace(destination)
             logger.debug(f"Moved file: {source} -> {destination}")
             return True
+
+        except FileNotFoundError:
+            logger.error(f"Source file does not exist: {source}")
+            return False
 
         except (OSError, IOError, PermissionError) as e:
             logger.error(f"Failed to move file {source} -> {destination}: {e}")
@@ -244,9 +244,12 @@ class StorageBackend:
         Args:
             temp_file: Temporary file path to clean up
         """
-        if temp_file.exists():
-            try:
-                temp_file.unlink()
-                logger.debug(f"Cleaned up temporary file: {temp_file}")
-            except (OSError, IOError):
-                logger.debug(f"Failed to clean up temporary file: {temp_file}")
+        # Use EAFP pattern to avoid race condition
+        try:
+            temp_file.unlink()
+            logger.debug(f"Cleaned up temporary file: {temp_file}")
+        except FileNotFoundError:
+            # Already gone, that's fine
+            pass
+        except (OSError, IOError):
+            logger.debug(f"Failed to clean up temporary file: {temp_file}")

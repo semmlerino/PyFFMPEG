@@ -1,4 +1,3 @@
-
 """Test module for data factories."""
 
 from __future__ import annotations

@@ -6,7 +6,6 @@
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 from __future__ import annotations
 
 import json
@@ -23,7 +22,6 @@ from PySide6.QtTest import QTest
 from launcher_manager import LauncherManager
 
 pytestmark = [pytest.mark.integration, pytest.mark.qt]
-
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)

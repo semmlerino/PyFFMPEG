@@ -20,6 +20,15 @@ from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
 from config import Config, ThreadingConfig
 from exceptions import SecurityError
+from launcher.config_manager import LauncherConfigManager
+from launcher.models import (
+    CustomLauncher,
+    LauncherEnvironment,
+    LauncherTerminal,
+    LauncherValidation,
+    ProcessInfo,
+)
+from launcher.validator import LauncherValidator
 from process_pool_manager import ProcessPoolManager
 from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
@@ -62,34 +71,43 @@ class LauncherWorker(ThreadSafeWorker):
 
     def _sanitize_command(self, command: str) -> tuple[list[str], bool]:
         """Safely parse and validate command to prevent shell injection.
-        
+
         Args:
             command: Command string to sanitize
-            
+
         Returns:
             Tuple of (command_list, use_shell) where use_shell is always False
             for security
-            
+
         Raises:
             SecurityError: If command contains dangerous patterns or isn't whitelisted
         """
         import re
         import shlex
-        
+
         # Whitelist of allowed base commands
         ALLOWED_COMMANDS = {
-            "3de", "3de4", "3dequalizer",
-            "nuke", "nuke_i", "nukex", 
-            "maya", "mayapy",
-            "rv", "rvpkg",
-            "houdini", "hython",
+            "3de",
+            "3de4",
+            "3dequalizer",
+            "nuke",
+            "nuke_i",
+            "nukex",
+            "maya",
+            "mayapy",
+            "rv",
+            "rvpkg",
+            "houdini",
+            "hython",
             "katana",
             "mari",
-            "publish", "publish_standalone",
-            "python", "python3",
-            "bash", "sh",  # Only for known safe scripts
+            "publish",
+            "publish_standalone",
+            "python",
+            "python3",
+            # SECURITY: bash and sh removed - use specific safe commands only
         }
-        
+
         # Dangerous patterns that indicate potential injection attempts
         DANGEROUS_PATTERNS = [
             r";\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
@@ -101,21 +119,23 @@ class LauncherWorker(ThreadSafeWorker):
             r">\s*/dev/(sda|sdb|sdc|null)",  # Dangerous redirects
             r"2>&1.*>/dev/null.*rm",  # Hidden rm commands
         ]
-        
+
         # Check for dangerous patterns
         for pattern in DANGEROUS_PATTERNS:
             if re.search(pattern, command, re.IGNORECASE):
                 raise SecurityError(
                     f"Command contains dangerous pattern and was blocked: {command[:100]}"
                 )
-        
+
         # Try to parse the command safely
         try:
             cmd_list = shlex.split(command)
-            
+
             # Validate the base command is in whitelist
             if cmd_list:
-                base_command = cmd_list[0].split('/')[-1]  # Get command name without path
+                base_command = cmd_list[0].split("/")[
+                    -1
+                ]  # Get command name without path
                 if base_command not in ALLOWED_COMMANDS:
                     # Check if it's a full path to an allowed command
                     allowed = False
@@ -123,7 +143,7 @@ class LauncherWorker(ThreadSafeWorker):
                         if allowed_cmd in cmd_list[0]:
                             allowed = True
                             break
-                    
+
                     if not allowed:
                         logger.warning(
                             f"Command '{base_command}' not in whitelist. "
@@ -132,10 +152,10 @@ class LauncherWorker(ThreadSafeWorker):
                         raise SecurityError(
                             f"Command '{base_command}' is not in the allowed command whitelist"
                         )
-            
+
             # Never use shell=True for security
             return cmd_list, False
-            
+
         except ValueError as e:
             # If shlex.split fails, the command is malformed
             # Do not fall back to shell=True - this is a security risk
@@ -161,7 +181,7 @@ class LauncherWorker(ThreadSafeWorker):
             # Use shlex to split if it's a string command
             if isinstance(self.command, str):
                 # Security: Parse and validate command to prevent injection
-                
+
                 # Sanitize and validate the command
                 cmd_list, use_shell = self._sanitize_command(self.command)
             else:
@@ -250,162 +270,9 @@ class LauncherWorker(ThreadSafeWorker):
         return False
 
 
-@dataclass
-class LauncherValidation:
-    """Validation settings for a launcher."""
-
-    check_executable: bool = True
-    required_files: List[str] = field(default_factory=list)
-    forbidden_patterns: List[str] = field(
-        default_factory=lambda: [
-            r";\s*rm\s",
-            r";\s*sudo\s",
-            r";\s*su\s",
-            r"&&\s*rm\s",
-            r"\|\s*rm\s",
-            r"`rm\s",
-            r"\$\(rm\s",
-        ],
-    )
 
 
-@dataclass
-class LauncherTerminal:
-    """Terminal settings for a launcher."""
 
-    required: bool = False
-    persist: bool = False
-    title: Optional[str] = None
-
-
-@dataclass
-class LauncherEnvironment:
-    """Environment settings for a launcher."""
-
-    type: str = "bash"  # "bash", "rez", "conda"
-    packages: List[str] = field(default_factory=list)
-    source_files: List[str] = field(default_factory=list)
-    command_prefix: Optional[str] = None
-
-
-@dataclass
-class CustomLauncher:
-    """Represents a custom application launcher."""
-
-    id: str
-    name: str
-    description: str
-    command: str
-    category: str = "custom"
-    variables: Dict[str, str] = field(default_factory=dict)
-    environment: LauncherEnvironment = field(default_factory=LauncherEnvironment)
-    terminal: LauncherTerminal = field(default_factory=LauncherTerminal)
-    validation: LauncherValidation = field(default_factory=LauncherValidation)
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert launcher to dictionary for serialization."""
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CustomLauncher":
-        """Create launcher from dictionary data."""
-        # Handle nested objects
-        if "environment" in data and isinstance(data["environment"], dict):
-            data["environment"] = LauncherEnvironment(**data["environment"])
-        if "terminal" in data and isinstance(data["terminal"], dict):
-            data["terminal"] = LauncherTerminal(**data["terminal"])
-        if "validation" in data and isinstance(data["validation"], dict):
-            data["validation"] = LauncherValidation(**data["validation"])
-
-        return cls(**data)
-
-
-class LauncherConfig:
-    """Manages persistence of custom launcher configurations."""
-
-    def __init__(self, config_dir: Optional[Union[str, Path]] = None):
-        if config_dir is not None:
-            self.config_dir = Path(config_dir)
-        else:
-            self.config_dir = Path.home() / ".shotbot"
-        self.config_file = self.config_dir / "custom_launchers.json"
-        self._ensure_config_dir()
-
-    def _ensure_config_dir(self) -> None:
-        """Ensure configuration directory exists."""
-        try:
-            self.config_dir.mkdir(parents=True, exist_ok=True)
-        except OSError as e:
-            logger.error(f"Failed to create config directory {self.config_dir}: {e}")
-            raise
-
-    def load_launchers(self) -> Dict[str, CustomLauncher]:
-        """Load launchers from configuration file."""
-        if not self.config_file.exists():
-            logger.debug(f"Config file {self.config_file} does not exist")
-            return {}
-
-        try:
-            with open(self.config_file, "r") as f:
-                data = json.load(f)
-
-            launchers = {}
-            for launcher_id, launcher_data in data.get("launchers", {}).items():
-                launcher_data["id"] = launcher_id
-                launchers[launcher_id] = CustomLauncher.from_dict(launcher_data)
-
-            logger.info(f"Loaded {len(launchers)} launchers from config")
-            return launchers
-
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
-            logger.error(f"Failed to load launcher config: {e}")
-            return {}
-
-    def save_launchers(self, launchers: Dict[str, CustomLauncher]) -> bool:
-        """Save launchers to configuration file."""
-        try:
-            config_data = {
-                "version": "1.0",
-                "launchers": {},
-                "terminal_preferences": ["gnome-terminal", "konsole", "xterm"],
-            }
-
-            for launcher_id, launcher in launchers.items():
-                launcher_dict = launcher.to_dict()
-                # Remove ID from nested dict as it's the key
-                launcher_dict.pop("id", None)
-                config_data["launchers"][launcher_id] = launcher_dict
-
-            with open(self.config_file, "w") as f:
-                json.dump(config_data, f, indent=2)
-
-            logger.info(f"Saved {len(launchers)} launchers to config")
-            return True
-
-        except (OSError, TypeError, ValueError) as e:
-            logger.error(f"Failed to save launcher config: {e}")
-            return False
-
-
-class ProcessInfo:
-    """Information about an active process."""
-
-    def __init__(
-        self,
-        process: subprocess.Popen[Any],
-        launcher_id: str,
-        launcher_name: str,
-        command: str,
-        timestamp: float,
-    ):
-        self.process = process
-        self.launcher_id = launcher_id
-        self.launcher_name = launcher_name
-        self.command = command
-        self.timestamp = timestamp
-        self.validated = False  # Whether process startup was validated
 
 
 class LauncherManager(QObject):
@@ -433,7 +300,8 @@ class LauncherManager(QObject):
 
     def __init__(self, config_dir: Optional[Union[str, Path]] = None):
         super().__init__()
-        self.config = LauncherConfig(config_dir)
+        self._config_manager = LauncherConfigManager(config_dir)
+        self._validator = LauncherValidator()
         self._launchers: Dict[str, CustomLauncher] = {}
 
         # Initialize ProcessPoolManager for optimized command execution
@@ -471,11 +339,11 @@ class LauncherManager(QObject):
 
     def _load_launchers(self) -> None:
         """Load launchers from configuration."""
-        self._launchers = self.config.load_launchers()
+        self._launchers = self._config_manager.load_launchers()
 
     def _save_launchers(self) -> bool:
         """Save current launchers to configuration."""
-        return self.config.save_launchers(self._launchers)
+        return self._config_manager.save_launchers(self._launchers)
 
     def _generate_id(self) -> str:
         """Generate unique ID for new launcher."""
@@ -502,45 +370,9 @@ class LauncherManager(QObject):
         exclude_id: Optional[str] = None,
     ) -> List[str]:
         """Validate launcher data and return list of errors."""
-        errors = []
-
-        # Validate name
-        if not name or not name.strip():
-            errors.append("Name cannot be empty")
-        elif len(name.strip()) > 100:
-            errors.append("Name cannot exceed 100 characters")
-        else:
-            # Check name uniqueness
-            for launcher_id, launcher in self._launchers.items():
-                if launcher_id != exclude_id and launcher.name == name.strip():
-                    errors.append(f"Name '{name.strip()}' already exists")
-                    break
-
-        # Validate command
-        if not command or not command.strip():
-            errors.append("Command cannot be empty")
-        else:
-            # Check for security patterns
-            cmd_lower = command.lower()
-            security_patterns = [
-                "rm -rf",
-                "sudo rm",
-                "rm /",
-                "format c:",
-                "del /s",
-                "> /dev/sda",
-                "dd if=",
-                "mkfs.",
-                "fdisk",
-            ]
-            for pattern in security_patterns:
-                if pattern in cmd_lower:
-                    errors.append(
-                        f"Command contains potentially dangerous pattern: {pattern}",
-                    )
-                    break
-
-        return errors
+        return self._validator.validate_launcher_data(
+            name, command, self._launchers, exclude_id
+        )
 
     def _substitute_variables(
         self,
@@ -845,58 +677,7 @@ class LauncherManager(QObject):
         Returns:
             Tuple of (is_valid, error_message). If valid, error_message is None.
         """
-        if not command:
-            return False, "Command cannot be empty"
-
-        # Define valid placeholder variables
-        valid_variables = {
-            # Shot context variables
-            "show",
-            "sequence",
-            "shot",
-            "full_name",
-            "workspace_path",
-            # Environment variables
-            "HOME",
-            "USER",
-            "SHOTBOT_VERSION",
-        }
-
-        try:
-            # Use string.Template to validate syntax
-            template = string.Template(command)
-
-            # Extract all placeholders from the command
-            placeholders = set()
-            import re
-
-            # Find all $identifier and ${identifier} patterns
-            for match in re.finditer(r"\$(?:(\w+)|\{(\w+)\})", command):
-                placeholder = match.group(1) or match.group(2)
-                if placeholder:
-                    placeholders.add(placeholder)
-
-            # Check for invalid variable names
-            invalid_vars = placeholders - valid_variables
-            if invalid_vars:
-                invalid_list = ", ".join(sorted(invalid_vars))
-                valid_list = ", ".join(sorted(valid_variables))
-                return (
-                    False,
-                    f"Invalid variables: {invalid_list}. Valid variables are: {valid_list}",
-                )
-
-            # Try to perform a safe substitution to catch syntax errors
-            # Use empty context to catch any malformed patterns
-            try:
-                template.safe_substitute({})
-            except ValueError as e:
-                return False, f"Invalid template syntax: {e}"
-
-            return True, None
-
-        except Exception as e:
-            return False, f"Command validation failed: {e}"
+        return self._validator.validate_command_syntax(command)
 
     def list_launchers(self, category: Optional[str] = None) -> List[CustomLauncher]:
         """Get list of all launchers, optionally filtered by category.
@@ -952,14 +733,17 @@ class LauncherManager(QObject):
 
         try:
             # Check process limits atomically
+            # Check process limit while holding lock, emit signal after releasing
+            error_msg = None
             with self._process_lock:
                 if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
                     error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
                     logger.warning(error_msg)
-                    # Emit signal inside lock to prevent TOCTOU race condition
-                    # Signal emission is safe here as it's asynchronous
-                    self.validation_error.emit("general", error_msg)
-                    return False
+
+            # Emit signal outside lock to prevent potential deadlock
+            if error_msg:
+                self.validation_error.emit("general", error_msg)
+                return False
 
             # Substitute variables in command
             merged_vars = {**launcher.variables, **(custom_vars or {})}
@@ -999,11 +783,11 @@ class LauncherManager(QObject):
 
                 terminal_commands = [
                     # Try gnome-terminal first
-                    ["gnome-terminal", "--", "bash", "-i", "-c", command],
+                    ["gnome-terminal", "--", "/bin/bash", "-i", "-c", command],
                     # Try xterm as fallback
                     ["xterm", "-e", bash_command],
                     # Try konsole
-                    ["konsole", "-e", "bash", "-i", "-c", command],
+                    ["konsole", "-e", "/bin/bash", "-i", "-c", command],
                 ]
 
                 launched = False
@@ -1107,14 +891,17 @@ class LauncherManager(QObject):
 
         try:
             # Check process limits atomically
+            # Check process limit while holding lock, emit signal after releasing
+            error_msg = None
             with self._process_lock:
                 if len(self._active_processes) >= self.MAX_CONCURRENT_PROCESSES:
                     error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
                     logger.warning(error_msg)
-                    # Emit signal inside lock to prevent TOCTOU race condition
-                    # Signal emission is safe here as it's asynchronous
-                    self.validation_error.emit("general", error_msg)
-                    return False
+
+            # Emit signal outside lock to prevent potential deadlock
+            if error_msg:
+                self.validation_error.emit("general", error_msg)
+                return False
 
             # Substitute variables in command with shot context
             merged_vars = {**launcher.variables, **(custom_vars or {})}
@@ -1158,11 +945,11 @@ class LauncherManager(QObject):
                     # Try to launch in a terminal (like command_launcher.py does)
                     terminal_commands = [
                         # Try gnome-terminal first
-                        ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
+                        ["gnome-terminal", "--", "/bin/bash", "-i", "-c", full_command],
                         # Try xterm as fallback
                         ["xterm", "-e", full_command],
                         # Try konsole
-                        ["konsole", "-e", "bash", "-i", "-c", full_command],
+                        ["konsole", "-e", "/bin/bash", "-i", "-c", full_command],
                     ]
 
                     launched = False
@@ -1268,23 +1055,26 @@ class LauncherManager(QObject):
             return [f"Launcher {launcher_id} not found"]
 
         launcher = self._launchers[launcher_id]
+        
+        # Create shot context dictionary if shot is provided
+        shot_context = None
+        if shot:
+            shot_context = {
+                "show": shot.show,
+                "sequence": shot.sequence,
+                "shot": shot.shot,
+                "full_name": shot.full_name,
+                "workspace_path": shot.workspace_path,
+            }
+        
+        # Delegate to validator
+        valid, missing_paths = self._validator.validate_launcher_paths(launcher, shot_context)
+        
+        if not valid:
+            return [f"Required file not found: {path}" for path in missing_paths]
+        
+        # Check executable if enabled (this part stays here as it's more complex)
         errors = []
-
-        # Check required files
-        for file_path in launcher.validation.required_files:
-            resolved_path = self._substitute_variables(
-                file_path,
-                shot,
-                launcher.variables,
-            )
-
-            if not PathUtils.validate_path_exists(
-                resolved_path,
-                f"Required file {file_path}",
-            ):
-                errors.append(f"Required file not found: {resolved_path}")
-
-        # Check executable if enabled
         if launcher.validation.check_executable:
             try:
                 command_parts = shlex.split(launcher.command)
@@ -1332,22 +1122,11 @@ class LauncherManager(QObject):
         if self._shutting_down:
             return False
 
-        try:
-            # Wait a short time to see if process fails immediately
-            time.sleep(0.1)
-
-            # Check if process is still running
-            return_code = process.poll()
-            if return_code is not None:
-                logger.warning(f"Process exited immediately with code {return_code}")
-                return False
-
-            # Process appears to be running successfully
-            return True
-
-        except Exception as e:
-            logger.error(f"Error validating process startup: {e}")
-            return False
+        # Add small delay for startup validation
+        time.sleep(0.1)
+        
+        # Delegate to validator
+        return self._validator.validate_process_startup(process)
 
     def _cleanup_finished_processes(self) -> None:
         """Clean up finished processes from tracking (thread-safe)."""
@@ -1733,14 +1512,23 @@ class LauncherManager(QObject):
         Returns:
             Tuple of (state, is_running)
         """
-        # Get worker reference first, then release process lock to avoid deadlock
+        import weakref
+
+        # Get weak reference to worker while holding lock
         with self._process_lock:
             worker = self._active_workers.get(worker_key)
             if not worker:
                 # Worker was already removed from tracking
                 return ("REMOVED", False)
+            # Create weak reference to prevent race condition
+            worker_ref = weakref.ref(worker)
 
-        # Now access worker state outside of process lock to prevent nested locking deadlock
+        # Access worker via weak reference outside lock
+        worker = worker_ref()
+        if not worker:
+            # Worker was deleted between lock release and access
+            return ("REMOVED", False)
+
         try:
             # Access worker's internal mutex for atomic check
             if hasattr(worker, "_state_mutex"):

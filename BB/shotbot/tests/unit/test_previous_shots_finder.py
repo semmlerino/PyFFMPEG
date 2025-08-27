@@ -392,4 +392,3 @@ class TestPreviousShotsFinderPerformance:
                     user_path.mkdir(parents=True, exist_ok=True)
 
         return shows_root
-

@@ -14,7 +14,6 @@ Follows best practices:
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -34,7 +33,6 @@ from thumbnail_widget import ThumbnailWidget
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     TestCacheManager,
@@ -45,13 +43,15 @@ from tests.test_doubles_library import (
 def create_test_shot(show="testshow", sequence="seq01", shot="0010"):
     """Create test shot for testing."""
     return Shot(show, sequence, shot, f"/shows/{show}")
-    
+
+
 def create_test_shots(count=3):
     """Create multiple test shots."""
     shots = []
     for i in range(count):
-        shots.append(create_test_shot("show1", "seq01", f"{(i+1)*10:04d}"))
+        shots.append(create_test_shot("show1", "seq01", f"{(i + 1) * 10:04d}"))
     return shots
+
 
 class FakePreviousShotsModel(QObject):
     """Test double for PreviousShotsModel with real Qt signals."""
@@ -81,7 +81,7 @@ class FakePreviousShotsModel(QObject):
 
     def refresh_shots(self):
         """Simulate refresh with signals."""
-        self.refresh_calls.append(True) 
+        self.refresh_calls.append(True)
         self._scanning = True
         self.scan_started.emit()
         # Complete synchronously in test context to avoid Qt lifecycle issues
@@ -148,10 +148,15 @@ class TestPreviousShotsGrid:
         assert grid_widget._refresh_button.text() == "Refresh"
 
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
-        with patch('progress_manager.ProgressManager.start_operation', TestProgressManager.start_operation):
-            with patch('progress_manager.ProgressManager.finish_operation', TestProgressManager.finish_operation):
-                
-                # Test button click 
+        with patch(
+            "progress_manager.ProgressManager.start_operation",
+            TestProgressManager.start_operation,
+        ):
+            with patch(
+                "progress_manager.ProgressManager.finish_operation",
+                TestProgressManager.finish_operation,
+            ):
+                # Test button click
                 QTest.mouseClick(grid_widget._refresh_button, Qt.MouseButton.LeftButton)
                 qtbot.wait(10)  # Brief wait for signal processing
 
@@ -161,9 +166,14 @@ class TestPreviousShotsGrid:
     def test_scan_state_signal_handling(self, grid_widget, test_model, qtbot):
         """Test handling of scan state signals."""
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
-        with patch('progress_manager.ProgressManager.start_operation', TestProgressManager.start_operation):
-            with patch('progress_manager.ProgressManager.finish_operation', TestProgressManager.finish_operation):
-                
+        with patch(
+            "progress_manager.ProgressManager.start_operation",
+            TestProgressManager.start_operation,
+        ):
+            with patch(
+                "progress_manager.ProgressManager.finish_operation",
+                TestProgressManager.finish_operation,
+            ):
                 # Test scan started signal
                 test_model.scan_started.emit()
                 qtbot.wait(10)
@@ -171,7 +181,7 @@ class TestPreviousShotsGrid:
                 # Test scan finished signal
                 test_model.scan_finished.emit()
                 qtbot.wait(10)
-            
+
         # The key test is that signals don't crash the widget
         assert grid_widget is not None
 
@@ -306,7 +316,7 @@ class TestPreviousShotsGrid:
         # Simulate multiple rapid resize events
         for i in range(5):
             old_size = QSize(400, 300)
-            new_size = QSize(400 + i * 50, 300) 
+            new_size = QSize(400 + i * 50, 300)
             resize_event = QResizeEvent(new_size, old_size)
             grid_widget.resizeEvent(resize_event)
             qtbot.wait(10)  # Small delay between resizes
@@ -343,11 +353,16 @@ class TestPreviousShotsGrid:
     def test_refresh_method_delegation(self, grid_widget, test_model):
         """Test that refresh method delegates to model."""
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
-        with patch('progress_manager.ProgressManager.start_operation', TestProgressManager.start_operation):
-            with patch('progress_manager.ProgressManager.finish_operation', TestProgressManager.finish_operation):
-                
+        with patch(
+            "progress_manager.ProgressManager.start_operation",
+            TestProgressManager.start_operation,
+        ):
+            with patch(
+                "progress_manager.ProgressManager.finish_operation",
+                TestProgressManager.finish_operation,
+            ):
                 grid_widget.refresh()
-        
+
         # The important thing is the refresh call was attempted
         assert len(test_model.refresh_calls) >= 1
 
@@ -385,23 +400,23 @@ class TestPreviousShotsGridIntegration:
         yield grid
 
         # Cleanup
-        if hasattr(previous_model, 'stop_auto_refresh'):
+        if hasattr(previous_model, "stop_auto_refresh"):
             previous_model.stop_auto_refresh()
         previous_model.deleteLater()
 
     def test_integration_grid_creation(self, integration_grid, qtbot):
         """Test that integration grid creates successfully."""
         grid = integration_grid
-        
+
         # Grid should be created successfully
         assert grid is not None
         assert isinstance(grid, PreviousShotsGrid)
-        
+
         # Should have UI components
-        assert hasattr(grid, '_refresh_button')
-        assert hasattr(grid, '_status_label')
-        assert hasattr(grid, '_grid_widget')
-        
+        assert hasattr(grid, "_refresh_button")
+        assert hasattr(grid, "_status_label")
+        assert hasattr(grid, "_grid_widget")
+
         # Test basic functionality without triggering ProgressManager
         # Just verify the grid works and doesn't crash
         try:
@@ -412,6 +427,6 @@ class TestPreviousShotsGridIntegration:
         except RuntimeError:
             # Qt object lifecycle issues during testing are expected
             pass
-        
+
         # Verify grid remains functional
         assert grid is not None

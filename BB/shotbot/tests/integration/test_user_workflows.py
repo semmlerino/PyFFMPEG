@@ -65,21 +65,21 @@ from threede_scene_model import ThreeDESceneModel
 
 class ProgressOperationDouble:
     """Test double for progress operations with real behavior."""
-    
+
     def __init__(self) -> None:
         self.is_indeterminate = False
         self.progress_value = 0
         self.is_finished = False
         self.operations: List[tuple] = []
-    
+
     def set_indeterminate(self, indeterminate: bool = True) -> None:
         self.is_indeterminate = indeterminate
         self.operations.append(("set_indeterminate", indeterminate))
-    
+
     def update(self, progress: int) -> None:
         self.progress_value = progress
         self.operations.append(("update", progress))
-    
+
     def finish(self) -> None:
         self.is_finished = True
         self.operations.append(("finish",))
@@ -131,14 +131,20 @@ class TestUserWorkflows:
 
         # Create test subprocess handler
         self.test_subprocess = TestSubprocess()
-        
+
         # Create test processes for launcher testing
         self.test_processes = {
-            "nuke": PopenDouble(["nuke"], returncode=0, stdout="Nuke started", stderr=""),
-            "maya": PopenDouble(["maya"], returncode=0, stdout="Maya started", stderr=""),
-            "custom": PopenDouble(["custom_tool"], returncode=0, stdout="Custom tool started", stderr=""),
+            "nuke": PopenDouble(
+                ["nuke"], returncode=0, stdout="Nuke started", stderr=""
+            ),
+            "maya": PopenDouble(
+                ["maya"], returncode=0, stdout="Maya started", stderr=""
+            ),
+            "custom": PopenDouble(
+                ["custom_tool"], returncode=0, stdout="Custom tool started", stderr=""
+            ),
         }
-        
+
         # Configure PID for each process
         self.test_processes["nuke"].pid = 11111
         self.test_processes["maya"].pid = 22222
@@ -146,10 +152,12 @@ class TestUserWorkflows:
 
         # Track signals emitted during tests
         self.signal_events: List[tuple] = []
-        
+
         # Create progress operation double to prevent Qt cleanup issues during tests
         self.progress_operation = ProgressOperationDouble()
-        self.progress_patcher = patch('progress_manager.ProgressManager.start_operation')
+        self.progress_patcher = patch(
+            "progress_manager.ProgressManager.start_operation"
+        )
         self.mock_progress = self.progress_patcher.start()
         self.mock_progress.return_value = self.progress_operation
 
@@ -161,14 +169,15 @@ class TestUserWorkflows:
                 self.progress_patcher.stop()
             except Exception:
                 pass
-                
+
             # Clear any active progress operations to avoid Qt cleanup issues
             from progress_manager import ProgressManager
+
             try:
                 ProgressManager.clear_all_operations()
             except Exception:
                 pass  # Ignore cleanup errors
-                
+
             if self.temp_dir.exists():
                 shutil.rmtree(self.temp_dir, ignore_errors=True)
         except Exception as e:
@@ -266,7 +275,7 @@ class TestUserWorkflows:
         # Set up shot context directly on the command launcher to test the launch functionality
         # This simulates the end result of the UI shot selection process
         main_window.command_launcher.set_current_shot(test_shot)
-        
+
         # Verify shot is set
         assert main_window.command_launcher.current_shot == test_shot
 
@@ -274,16 +283,13 @@ class TestUserWorkflows:
         launcher_started_spy = QSignalSpy(launcher_manager.execution_started)
 
         # Use test subprocess to prevent actual Nuke launch
-        with patch("subprocess.Popen", return_value=self.test_processes["nuke"]) as mock_popen, patch.dict(
-            "os.environ", {"SHOTBOT_TEST_MODE": "true"}
-        ):
-
+        with patch(
+            "subprocess.Popen", return_value=self.test_processes["nuke"]
+        ) as mock_popen, patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}):
             # Simulate user clicking Nuke launch button by calling the command launcher
             # This is what the UI does when _launch_app() is called
             success = main_window.command_launcher.launch_app(
-                "nuke", 
-                include_undistortion=False, 
-                include_raw_plate=False
+                "nuke", include_undistortion=False, include_raw_plate=False
             )
 
             # Verify launch was initiated successfully
@@ -355,22 +361,22 @@ class TestUserWorkflows:
             main_window.threede_shot_grid.scene_selected.connect(on_scene_selected)
 
         # Use test subprocess for Maya launch
-        with patch("subprocess.Popen", return_value=self.test_processes["maya"]) as mock_popen, patch.dict(
-            "os.environ", {"SHOTBOT_TEST_MODE": "true"}
-        ):
-
+        with patch(
+            "subprocess.Popen", return_value=self.test_processes["maya"]
+        ) as mock_popen, patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}):
             # Create a 3DE scene object for testing
             from threede_scene_model import ThreeDEScene
+
             test_scene = ThreeDEScene(
                 show=shot_data["show"],
-                sequence=shot_data["sequence"], 
+                sequence=shot_data["sequence"],
                 shot=shot_data["shot"],
                 user="alice",
                 plate="FG01",
                 scene_path=scene_file,
-                workspace_path=shot_data["workspace_path"]
+                workspace_path=shot_data["workspace_path"],
             )
-            
+
             # Launch Maya with the scene directly
             success = main_window._launch_app_with_scene("maya", test_scene)
 
@@ -427,17 +433,16 @@ class TestUserWorkflows:
         workspace_output = "\n".join(
             [f"workspace {shot['workspace_path']}" for shot in self.test_shots]
         )
-        
+
         # Create test result with real behavior
         test_result = TestCompletedProcess(
             args=["bash", "-i", "-c", "ws -sg"],
             returncode=0,
             stdout=workspace_output,
-            stderr=""
+            stderr="",
         )
 
         with patch("subprocess.run", return_value=test_result) as mock_run:
-
             # Initial shot count from model
             initial_shot_count = len(main_window.shot_model.shots)
 
@@ -452,7 +457,9 @@ class TestUserWorkflows:
             # Verify workspace command was called or data was updated
             # Note: call_args might be None if cached data is used
             call_args = mock_run.call_args
-            command_called = call_args is not None and ("ws -sg" in str(call_args) or "workspace" in str(call_args))
+            command_called = call_args is not None and (
+                "ws -sg" in str(call_args) or "workspace" in str(call_args)
+            )
             # Either command was called OR we got a successful refresh result
             assert command_called or refresh_result.success
 
@@ -505,7 +512,7 @@ class TestUserWorkflows:
         launcher_manager.execution_finished.connect(on_execution_finished)
 
         # Mock _save_launchers to always succeed (prevents hanging when file save fails in test environment)
-        with patch.object(launcher_manager, '_save_launchers', return_value=True):
+        with patch.object(launcher_manager, "_save_launchers", return_value=True):
             # Create custom launcher using the real API (using python3 which is whitelisted)
             launcher_id = launcher_manager.create_launcher(
                 name="Test Custom Tool",
@@ -516,20 +523,21 @@ class TestUserWorkflows:
 
             # Verify launcher was created
             assert launcher_id is not None, "Launcher creation failed - no ID returned"
-            
+
             # Process Qt events to ensure signal propagation
             qtbot.wait(50)
-            
+
             # Wait for launcher_added signal if not already received
             if len(launcher_added_events) == 0:
-                qtbot.waitUntil(
-                    lambda: len(launcher_added_events) > 0, 
-                    timeout=2000
-                )
-            
+                qtbot.waitUntil(lambda: len(launcher_added_events) > 0, timeout=2000)
+
             # Verify launcher_added signal was received
-            assert len(launcher_added_events) > 0, f"launcher_added signal not received. Events: {launcher_added_events}"
-            assert launcher_added_events[0] == launcher_id, f"Expected launcher_id {launcher_id}, got {launcher_added_events[0]}"
+            assert len(launcher_added_events) > 0, (
+                f"launcher_added signal not received. Events: {launcher_added_events}"
+            )
+            assert launcher_added_events[0] == launcher_id, (
+                f"Expected launcher_id {launcher_id}, got {launcher_added_events[0]}"
+            )
 
             # Verify launcher appears in manager
             launchers = launcher_manager.list_launchers()
@@ -540,8 +548,9 @@ class TestUserWorkflows:
             # Test launcher execution with shot context
             shot_data = self.test_shots[0]
 
-            with patch("subprocess.Popen", return_value=self.test_processes["custom"]) as mock_popen:
-                
+            with patch(
+                "subprocess.Popen", return_value=self.test_processes["custom"]
+            ) as mock_popen:
                 # Execute the custom launcher
                 success = launcher_manager.execute_launcher(
                     launcher_id, custom_vars={"shot_name": shot_data["name"]}
@@ -562,8 +571,10 @@ class TestUserWorkflows:
                     command_str = " ".join(call_args[0][0]) if call_args[0] else ""
                     # Check if the basic command structure is correct
                     # The command should contain python3
-                    assert "python3" in command_str, f"Expected python3 in command: {command_str}"
-                    
+                    assert "python3" in command_str, (
+                        f"Expected python3 in command: {command_str}"
+                    )
+
                     # Check for either variable substitution or placeholder
                     # (Variable substitution might happen at a different level)
                     has_substitution = shot_data["name"] in command_str
@@ -727,10 +738,13 @@ class TestUserWorkflows:
         qtbot.wait(500)
 
         # Verify shots were added to the model successfully
-        assert main_window.shot_item_model.rowCount() == len(shots_with_thumbs + shots_without_thumbs)
-        
+        assert main_window.shot_item_model.rowCount() == len(
+            shots_with_thumbs + shots_without_thumbs
+        )
+
         # Test that we can access shots from the model
         from shot_item_model import ShotRole
+
         for i in range(main_window.shot_item_model.rowCount()):
             index = main_window.shot_item_model.index(i, 0)
             shot_data = main_window.shot_item_model.data(index, ShotRole.ShotObjectRole)
@@ -800,11 +814,10 @@ class TestUserWorkflows:
             args=["bash", "-i", "-c", "ws -sg"],
             returncode=0,
             stdout=f"workspace {self.test_shots[0]['workspace_path']}",
-            stderr=""
+            stderr="",
         )
-        
-        with patch("subprocess.run", return_value=recovery_result) as mock_run:
 
+        with patch("subprocess.run", return_value=recovery_result) as mock_run:
             # Clear previous error events
             error_events.clear()
 
@@ -813,7 +826,7 @@ class TestUserWorkflows:
 
             # Should succeed this time
             qtbot.wait(100)
-            
+
             # Verify refresh succeeded
             assert result is not None
             assert result.success  # Refresh should succeed
@@ -885,15 +898,15 @@ class TestUserWorkflows:
         # Note: Search functionality is not currently implemented in MainWindow
         # This test verifies the shots are properly loaded in the model
         assert len(test_shots) > 0
-        
+
         # Verify shots are accessible through the model
         # The shots are stored in the model's internal list
         assert main_window.shot_item_model.rowCount() == len(test_shots)
-        
+
         # Verify we can filter by show programmatically
         feature_film_shots = [s for s in test_shots if s.show == "feature_film"]
         ep101_shots = [s for s in test_shots if s.sequence == "EP101"]
-        
+
         assert len(feature_film_shots) == 2
         assert len(ep101_shots) == 1
 
@@ -957,16 +970,15 @@ class TestUserWorkflows:
 
         # Create test result for current shots to filter out
         current_shots = [self.test_shots[2]]  # Third shot is "current"
-        
+
         current_shots_result = TestCompletedProcess(
             args=["bash", "-i", "-c", "ws -sg"],
             returncode=0,
             stdout=f"workspace {current_shots[0]['workspace_path']}",
-            stderr=""
+            stderr="",
         )
 
         with patch("subprocess.run", return_value=current_shots_result):
-
             # Switch to previous shots tab to trigger scanning
             main_window.tab_widget.setCurrentIndex(
                 2
@@ -974,7 +986,7 @@ class TestUserWorkflows:
 
             # Wait for scanning to complete (or timeout if no events)
             qtbot.wait(1000)  # Give time for any background operations
-            
+
             # Since we patched ProgressManager, the scan events may not be emitted
             # The test verifies that the components can be created without crashing
 
@@ -1035,7 +1047,9 @@ class TestUserWorkflows:
         # Create test processes for concurrent execution
         test_processes = []
         for i in range(len(launcher_ids)):
-            process = PopenDouble([f"launcher_{i}"], returncode=0, stdout=f"Process {i} output", stderr="")
+            process = PopenDouble(
+                [f"launcher_{i}"], returncode=0, stdout=f"Process {i} output", stderr=""
+            )
             process.pid = 10000 + i
             # Simulate running process
             process.returncode = None
@@ -1086,13 +1100,12 @@ class TestUserWorkflows:
             stdout="\n".join(
                 [f"workspace {shot['workspace_path']}" for shot in self.test_shots]
             ),
-            stderr=""
+            stderr="",
         )
-        
+
         with patch("subprocess.run", return_value=concurrent_refresh_result), patch(
             "subprocess.Popen", return_value=self.test_processes["custom"]
         ):
-
             # Start launcher execution and refresh simultaneously
             launcher_success = launcher_manager.execute_launcher(
                 launcher_ids[0], custom_vars={"shot_name": shot_data["name"]}

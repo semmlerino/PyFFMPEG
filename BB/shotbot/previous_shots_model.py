@@ -8,7 +8,8 @@ from PySide6.QtCore import QObject, QTimer, Signal
 
 from cache_manager import CacheManager
 from previous_shots_finder import PreviousShotsFinder
-from shot_model import Shot, ShotModel
+from base_shot_model import BaseShotModel
+from shot_model import Shot
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class PreviousShotsModel(QObject):
 
     def __init__(
         self,
-        shot_model: ShotModel,
+        shot_model: BaseShotModel,
         cache_manager: Optional[CacheManager] = None,
         parent: Optional[QObject] = None,
     ):

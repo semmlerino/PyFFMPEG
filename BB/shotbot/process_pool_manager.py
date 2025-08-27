@@ -19,7 +19,7 @@ HAS_FCNTL = False
 from PySide6.QtCore import QObject, Signal
 
 from config import ThreadingConfig
-from persistent_bash_session import PersistentBashSession
+from secure_command_executor import SecureCommandExecutor, get_secure_executor
 
 # Import debug utilities
 try:
@@ -193,12 +193,15 @@ class ProcessPoolManager(QObject):
     command_failed = Signal(str, str)  # command_id, error
 
     def __new__(cls, *args, **kwargs):
-        """Ensure singleton pattern."""
-        if not cls._instance:
-            with cls._lock:
-                if not cls._instance:
-                    cls._instance = super().__new__(cls)
-        return cls._instance
+        """Ensure singleton pattern with proper thread safety.
+        
+        Note: Double-checked locking is broken in Python due to GIL
+        and memory model. We use lock-first approach for safety.
+        """
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+            return cls._instance
 
     def __init__(self, max_workers: int = 4, sessions_per_type: int = 3):
         """Initialize process pool manager.
@@ -218,11 +221,16 @@ class ProcessPoolManager(QObject):
                 max_workers=max_workers,
             )
             # Session pools: type -> list of sessions
-            self._session_pools: Dict[str, List[PersistentBashSession]] = {}
+            # Replace session pools with secure executor
+            self._secure_executor = get_secure_executor()
+            self._session_pools: Dict[str, List] = {}  # Deprecated, kept for compatibility
             self._session_round_robin: Dict[str, int] = {}  # Track next session to use
+            self._session_creation_in_progress: Dict[str, bool] = {}  # Prevent double creation
             self._sessions_per_type = sessions_per_type
             self._cache = CommandCache(default_ttl=30)
             self._session_lock = threading.RLock()
+            # Add condition variable for proper thread synchronization
+            self._session_condition = threading.Condition(self._session_lock)
             self._metrics = ProcessMetrics()
             self._initialized = True
 
@@ -275,13 +283,16 @@ class ProcessPoolManager(QObject):
         self._metrics.cache_misses += 1
         self._metrics.subprocess_calls += 1
 
-        # Get or create bash session
-        session = self._get_bash_session("workspace")
-
-        # Execute command
+        # Use secure executor instead of bash session
         start_time = time.time()
         try:
-            result = session.execute(command, timeout=timeout)
+            # Execute with secure validation
+            result = self._secure_executor.execute(
+                command, 
+                timeout=timeout,
+                cache_ttl=0,  # Handle caching separately
+                allow_workspace_function=True  # Allow 'ws' commands
+            )
 
             # Cache result
             self._cache.set(command, result, ttl=cache_ttl)
@@ -378,13 +389,16 @@ class ProcessPoolManager(QObject):
         Returns:
             Command output
         """
-        # Get next available session from pool
-        session = self._get_bash_session(session_type)
-
-        # Execute command
+        # Use secure executor for shell commands
         start_time = time.time()
         try:
-            result = session.execute(command)
+            # Execute with secure validation
+            result = self._secure_executor.execute(
+                command,
+                timeout=30,  # Default timeout for shell commands
+                cache_ttl=0,  # No caching for general shell commands
+                allow_workspace_function=False  # Standard commands only
+            )
 
             # Update metrics
             elapsed = (time.time() - start_time) * 1000
@@ -423,7 +437,7 @@ class ProcessPoolManager(QObject):
             logger.error(f"File search failed: {e}")
             return []
 
-    def _get_bash_session(self, session_type: str) -> PersistentBashSession:
+    def _get_bash_session_deprecated(self, session_type: str) -> None:
         """Get next available bash session from pool using round-robin.
 
         Creates sessions lazily on first use to avoid conflicts with Qt initialization.
@@ -442,58 +456,76 @@ class ProcessPoolManager(QObject):
             if session_type not in self._session_pools:
                 self._session_pools[session_type] = []
                 self._session_round_robin[session_type] = 0
+                self._session_creation_in_progress[session_type] = False
                 logger.info(f"Initialized empty pool for session type: {session_type}")
                 if DEBUG_VERBOSE:
                     logger.debug("Pool structure created, no sessions yet (lazy init)")
+
+            # Check if another thread is already creating sessions
+            if self._session_creation_in_progress.get(session_type, False):
+                logger.debug(f"Waiting for another thread to finish creating {session_type} sessions")
+                # Wait for creation to complete using condition variable (thread-safe)
+                while self._session_creation_in_progress.get(session_type, False):
+                    # This atomically releases the lock and waits, then re-acquires when notified
+                    self._session_condition.wait(timeout=0.1)
 
             # Get or create sessions as needed
             pool = self._session_pools[session_type]
 
             # Create sessions lazily if pool is empty
-            if not pool:
-                logger.info(
-                    f"LAZY INIT: Creating {self._sessions_per_type} sessions for pool type: {session_type}",
-                )
-                if DEBUG_VERBOSE:
-                    logger.debug(
-                        f"This is the FIRST use of {session_type} pool - creating sessions now",
+            if not pool and not self._session_creation_in_progress.get(session_type, False):
+                # Mark that we're creating sessions
+                self._session_creation_in_progress[session_type] = True
+                
+                try:
+                    logger.info(
+                        f"LAZY INIT: Creating {self._sessions_per_type} sessions for pool type: {session_type}",
                     )
+                    if DEBUG_VERBOSE:
+                        logger.debug(
+                            f"This is the FIRST use of {session_type} pool - creating sessions now",
+                        )
 
-                for i in range(self._sessions_per_type):
-                    session_id = f"{session_type}_{i}"
-                    try:
-                        if DEBUG_VERBOSE:
-                            logger.debug(
-                                f"Creating session {i + 1}/{self._sessions_per_type}: {session_id}",
-                            )
-
-                        # Time session creation
-                        if HAS_DEBUG_UTILS:
-                            with timing_profiler.measure(
-                                f"create_session_{session_id}",
-                            ):
-                                session = PersistentBashSession(session_id)
-                        else:
-                            session = PersistentBashSession(session_id)
-
-                        pool.append(session)
-                        logger.info(f"Created session {session_id} in pool")
-
-                        # Delay between creating sessions to avoid resource contention
-                        if i < self._sessions_per_type - 1:
-                            time.sleep(0.3)  # Increased from 0.1 to 0.3
+                    for i in range(self._sessions_per_type):
+                        session_id = f"{session_type}_{i}"
+                        try:
                             if DEBUG_VERBOSE:
                                 logger.debug(
-                                    "Pause before creating next session (0.3s)...",
+                                    f"Creating session {i + 1}/{self._sessions_per_type}: {session_id}",
                                 )
-                    except Exception as e:
-                        logger.error(f"Failed to create session {session_id}: {e}")
-                        # Continue with fewer sessions if some fail
 
-                if not pool:
-                    raise RuntimeError(
-                        f"Failed to create any sessions for type {session_type}",
-                    )
+                            # Time session creation
+                            if HAS_DEBUG_UTILS:
+                                with timing_profiler.measure(
+                                    f"create_session_{session_id}",
+                                ):
+                                    session = PersistentBashSession(session_id)
+                            else:
+                                session = PersistentBashSession(session_id)
+
+                            pool.append(session)
+                            logger.info(f"Created session {session_id} in pool")
+
+                            # Delay between creating sessions to avoid resource contention
+                            if i < self._sessions_per_type - 1:
+                                time.sleep(0.3)  # Increased from 0.1 to 0.3
+                                if DEBUG_VERBOSE:
+                                    logger.debug(
+                                        "Pause before creating next session (0.3s)...",
+                                    )
+                        except Exception as e:
+                            logger.error(f"Failed to create session {session_id}: {e}")
+                            # Continue with fewer sessions if some fail
+
+                    if not pool:
+                        raise RuntimeError(
+                            f"Failed to create any sessions for type {session_type}",
+                        )
+                finally:
+                    # Always clear the creation flag and notify waiting threads
+                    self._session_creation_in_progress[session_type] = False
+                    # Notify all threads waiting on this condition
+                    self._session_condition.notify_all()
 
             # Get next session using round-robin
             index = self._session_round_robin[session_type]
@@ -538,33 +570,18 @@ class ProcessPoolManager(QObject):
         metrics = self._metrics.get_report()
         metrics["cache_stats"] = self._cache.get_stats()
 
-        # Add session stats for all pools
-        session_stats = {}
-        with self._session_lock:
-            for session_type, pool in self._session_pools.items():
-                pool_stats: List[Dict[str, Any]] = []
-                for session in pool:
-                    pool_stats.append(session.get_stats())
-                session_stats[session_type] = {
-                    "pool_size": len(pool),
-                    "sessions": pool_stats,
-                }
-
-        metrics["sessions"] = session_stats
+        # Add secure executor status
+        metrics["secure_executor"] = {
+            "active": True,
+            "type": "SecureCommandExecutor"
+        }
 
         return metrics
 
     def shutdown(self):
         """Shutdown the process pool manager."""
-        # Close all bash sessions in all pools
+        # Clear round-robin tracking
         with self._session_lock:
-            for session_type, pool in self._session_pools.items():
-                logger.info(
-                    f"Shutting down {len(pool)} sessions in {session_type} pool",
-                )
-                for session in pool:
-                    session.close()
-            self._session_pools.clear()
             self._session_round_robin.clear()
 
         # Shutdown executor

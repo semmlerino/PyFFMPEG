@@ -17,14 +17,17 @@ from cache_manager import CacheManager
 from config import Config
 from main_window import MainWindow
 from shot_model import Shot
-from tests.unit.test_protocols import TestProcessPool as TestProcessPoolType
+from tests.unit.test_protocols import ProcessPoolProtocol as TestProcessPoolType
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+
 
 class TestMainWindowInitialization:
     """Test MainWindow initialization and component setup."""
 
-    def test_main_window_creates_all_components(self, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_main_window_creates_all_components(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
         """Test that MainWindow initializes all required components."""
         # Use real cache manager with temp directory
         cache_dir = tmp_path / "cache"
@@ -82,7 +85,9 @@ class TestMainWindowInitialization:
 class TestTabSwitching:
     """Test tab switching functionality."""
 
-    def test_tab_switching_updates_current_view(self, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_tab_switching_updates_current_view(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
         """Test that switching tabs updates the current view."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
@@ -107,7 +112,9 @@ class TestTabSwitching:
 class TestShotSelection:
     """Test shot selection and application launching."""
 
-    def test_shot_selection_enables_app_buttons(self, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_shot_selection_enables_app_buttons(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
         """Test that selecting a shot enables application launcher buttons."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
@@ -131,7 +138,9 @@ class TestShotSelection:
         # Test behavior: info panel should show shot information
         assert main_window.shot_info_panel is not None
 
-    def test_shot_deselection_disables_app_buttons(self, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_shot_deselection_disables_app_buttons(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
         """Test that deselecting a shot disables application launcher buttons."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
@@ -201,14 +210,16 @@ class TestApplicationLaunching:
         # Mock at system boundary - the actual subprocess call
         with patch("command_launcher.subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0
-            
+
             # Launch an app - test behavior, not implementation
             main_window._launch_app("nuke")
-            
+
             # Test behavior: command launcher should be called
             # This tests the integration without testing implementation details
 
-    def test_launch_app_without_shot_shows_error(self, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_launch_app_without_shot_shows_error(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
         """Test launching an app without a shot shows appropriate error."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
@@ -226,7 +237,9 @@ class TestApplicationLaunching:
 class TestSignalConnections:
     """Test signal connections between components."""
 
-    def test_shot_model_refresh_behavior(self, test_process_pool: TestProcessPoolType, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_shot_model_refresh_behavior(
+        self, test_process_pool: TestProcessPoolType, qtbot: QtBot, tmp_path: Path
+    ) -> None:
         """Test that shot model refresh works correctly."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
@@ -247,7 +260,9 @@ class TestSignalConnections:
         assert result.has_changes
         assert len(main_window.shot_model.shots) == 1
 
-    def test_custom_launcher_signals_connected(self, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_custom_launcher_signals_connected(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
         """Test that custom launcher signals are properly connected."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
@@ -255,9 +270,9 @@ class TestSignalConnections:
 
         # Verify launcher manager exists and is connected
         assert main_window.launcher_manager is not None
-        
+
         # Verify that custom launcher container exists
-        assert hasattr(main_window, 'custom_launcher_container')
+        assert hasattr(main_window, "custom_launcher_container")
         assert main_window.custom_launcher_container is not None
 
 
@@ -280,10 +295,7 @@ class TestWindowCleanup:
         assert main_window._closing
 
         # 3DE worker should be stopped (if it exists)
-        if (
-            hasattr(main_window, "_threede_worker")
-            and main_window._threede_worker
-        ):
+        if hasattr(main_window, "_threede_worker") and main_window._threede_worker:
             assert not main_window._threede_worker.isRunning()
 
 
@@ -376,9 +388,9 @@ class TestMainWindowIntegration:
         # Test launch integration with mock at system boundary
         with patch("command_launcher.subprocess.run") as mock_subprocess:
             mock_subprocess.return_value.returncode = 0
-            
+
             # Launch app - test the complete workflow
             main_window._launch_app("nuke")
-            
+
             # Test behavior: subprocess should be called for the launch
             # This tests the integration without excessive implementation details

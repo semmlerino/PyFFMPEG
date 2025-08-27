@@ -16,7 +16,6 @@ Following UNIFIED_TESTING_GUIDE principles:
 # - Real components where possible
 # - Thread-safe testing patterns
 
-
 from __future__ import annotations
 
 import pytest
@@ -38,14 +37,16 @@ from main_window import MainWindow
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
 
 @pytest.fixture
 def real_cache_manager(tmp_path):
     """Create real CacheManager for testing."""
     from cache_manager import CacheManager
+
     return CacheManager(cache_dir=tmp_path / "test_cache")
+
 
 class TestMainWindowInitialization:
     """Test MainWindow initialization and basic properties."""
@@ -53,9 +54,7 @@ class TestMainWindowInitialization:
     @pytest.fixture
     def main_window(self, qtbot, real_cache_manager):
         """Create MainWindow for testing."""
-        window = MainWindow(
-            cache_manager=real_cache_manager
-        )
+        window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         return window
 
@@ -107,9 +106,7 @@ class TestMainWindowUIComponents:
     @pytest.fixture
     def main_window_ui(self, qtbot, real_cache_manager):
         """Create MainWindow with UI setup for testing."""
-        window = MainWindow(
-            cache_manager=real_cache_manager
-        )
+        window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         # Allow UI to initialize
         qtbot.wait(100)
@@ -174,9 +171,7 @@ class TestMainWindowTabFunctionality:
     @pytest.fixture
     def tabbed_window(self, qtbot, real_cache_manager):
         """Create MainWindow with tabs for testing."""
-        window = MainWindow(
-            cache_manager=real_cache_manager
-        )
+        window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         qtbot.wait(100)  # Allow tabs to initialize
         return window
@@ -250,9 +245,7 @@ class TestMainWindowSignalConnections:
     @pytest.fixture
     def connected_window(self, qtbot, real_cache_manager):
         """Create MainWindow with signal connections for testing."""
-        window = MainWindow(
-            cache_manager=real_cache_manager
-        )
+        window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         qtbot.wait(100)  # Allow connections to establish
         return window
@@ -301,9 +294,7 @@ class TestMainWindowKeyboardShortcuts:
     @pytest.fixture
     def shortcut_window(self, qtbot, real_cache_manager):
         """Create MainWindow for shortcut testing."""
-        window = MainWindow(
-            cache_manager=real_cache_manager
-        )
+        window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         window.show()
         qtbot.waitExposed(window)
@@ -327,9 +318,9 @@ class TestMainWindowKeyboardShortcuts:
         # The key press should be processed without crashing the window
         assert window.isVisible()
         assert not window.isMinimized()
-        
+
         # Verify keyboard handling infrastructure exists
-        assert hasattr(window, 'keyPressEvent')
+        assert hasattr(window, "keyPressEvent")
 
     def test_tab_navigation_shortcuts(self, qtbot, shortcut_window):
         """Test tab navigation shortcuts."""
@@ -372,9 +363,7 @@ class TestMainWindowStateManagement:
     @pytest.fixture
     def stateful_window(self, qtbot, real_cache_manager):
         """Create MainWindow for state testing."""
-        window = MainWindow(
-            cache_manager=real_cache_manager
-        )
+        window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         window.show()
         qtbot.waitExposed(window)
@@ -448,9 +437,7 @@ class TestMainWindowErrorHandling:
 
     def test_window_close_event_handling(self, qtbot, real_cache_manager):
         """Test window handles close events properly."""
-        window = MainWindow(
-            cache_manager=real_cache_manager
-        )
+        window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
 
         # Create close event
@@ -468,9 +455,7 @@ class TestMainWindowErrorHandling:
 
     def test_window_with_missing_components(self, qtbot, real_cache_manager):
         """Test window handles missing components gracefully."""
-        window = MainWindow(
-            cache_manager=real_cache_manager
-        )
+        window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
 
         # Window should be created even if some components fail
@@ -484,9 +469,7 @@ class TestMainWindowIntegration:
     @pytest.fixture
     def integrated_window(self, qtbot, real_cache_manager):
         """Create fully integrated MainWindow for testing."""
-        window = MainWindow(
-            cache_manager=real_cache_manager
-        )
+        window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         window.show()
         qtbot.waitExposed(window)

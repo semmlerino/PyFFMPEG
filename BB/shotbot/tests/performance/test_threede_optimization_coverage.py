@@ -64,7 +64,7 @@ class TestDirectoryCache:
         assert stats["misses"] == 1
         assert stats["total_entries"] == 1
 
-    @patch('time.time')
+    @patch("time.time")
     def test_cache_ttl_expiration(self, mock_time):
         """Test TTL expiration behavior - OPTIMIZED: Mock time instead of sleep."""
         cache = DirectoryCache(ttl_seconds=0.1)  # Very short TTL
@@ -128,13 +128,15 @@ class TestDirectoryCache:
         assert stats["total_entries"] > 0
 
     @pytest.mark.slow
-    @patch('time.time')
+    @patch("time.time")
     def test_cache_cleanup(self, mock_time):
         """Test cache cleanup when it gets large - OPTIMIZED: Reduced from 1300 to 100 entries."""
         cache = DirectoryCache(ttl_seconds=0.1)
 
         # Mock time progression for TTL
-        mock_time.side_effect = [1000.0] * 80 + [1000.2] * 20  # Later time for expiration
+        mock_time.side_effect = [1000.0] * 80 + [
+            1000.2
+        ] * 20  # Later time for expiration
 
         # OPTIMIZED: Fill cache with 80 entries instead of 1200
         for i in range(80):

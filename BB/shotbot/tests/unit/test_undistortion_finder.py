@@ -18,6 +18,7 @@ from undistortion_finder import UndistortionFinder
 
 pytestmark = pytest.mark.unit
 
+
 @pytest.fixture
 def mock_shot_name():
     """Mock shot name for testing."""

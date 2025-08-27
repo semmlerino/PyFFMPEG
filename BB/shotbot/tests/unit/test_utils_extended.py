@@ -19,6 +19,8 @@ import pytest
 from utils import PathUtils, ValidationUtils
 
 pytestmark = pytest.mark.unit
+
+
 class TestPathUtilsTurnoverPlate:
     """Test turnover plate discovery functionality."""
 

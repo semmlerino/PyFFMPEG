@@ -70,7 +70,7 @@ class TestRealComponentsOverMocks:
 
     def test_with_real_cache_manager(self, tmp_path: Path) -> None:
         """Use real CacheManager with temp directory instead of mocking.
-        
+
         ❌ BAD: Mocking everything
         cache = TestCacheManager()
         cache.cache_thumbnail.return_value = "fake_path"
@@ -113,7 +113,7 @@ class TestMockOnlyAtBoundaries:
 
     def test_subprocess_at_boundary(self) -> None:
         """Mock subprocess (system boundary) but use real components elsewhere.
-        
+
         System boundaries to mock:
         - subprocess.run (external process)
         - Network calls
@@ -152,7 +152,7 @@ class SignalDoubleTestingPatterns:
 
     def test_with_test_signal(self) -> None:
         """Use SignalDouble for test doubles.
-        
+
         From UNIFIED_TESTING_GUIDE:
         - QSignalSpy only works with real Qt signals
         - SignalDouble for test doubles
@@ -161,7 +161,7 @@ class SignalDoubleTestingPatterns:
         # NOTE: TestLauncherWorker not yet implemented in test doubles
         # worker = TestLauncherWorker(launcher_id="test_123", command="echo test")
         from tests.test_doubles_library import SignalDouble
-        
+
         class TestLauncherWorker:
             def __init__(self, launcher_id, command):
                 self.launcher_id = launcher_id
@@ -169,12 +169,12 @@ class SignalDoubleTestingPatterns:
                 self.output = SignalDouble()
                 self.started = SignalDouble()
                 self.finished = SignalDouble()
-                
+
             def start(self):
                 self.started.emit()
                 self.output.emit(self.launcher_id, "Test output")
                 self.finished.emit()
-        
+
         worker = TestLauncherWorker(launcher_id="test_123", command="echo test")
 
         # Connect to test signal
@@ -222,7 +222,7 @@ class TestNoSleepPattern:
 
     def test_qt_event_processing(self) -> None:
         """Use Qt event processing instead of sleep.
-        
+
         ❌ BAD: time.sleep(0.1)
         ✅ GOOD: QCoreApplication.processEvents()
         """
@@ -235,7 +235,7 @@ class TestNoSleepPattern:
 
     def test_with_synchronization(self) -> None:
         """Use proper synchronization instead of sleep.
-        
+
         ❌ BAD: time.sleep(0.5)  # Wait for thread
         ✅ GOOD: Use Events, Barriers, or Conditions
         """

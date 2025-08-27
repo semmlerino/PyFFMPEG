@@ -137,7 +137,9 @@ class MockCacheManager:
 
         return self._cache[cache_key]
 
-    def get_cached_thumbnail(self, show: str, sequence: str, shot: str) -> Optional[QPixmap]:
+    def get_cached_thumbnail(
+        self, show: str, sequence: str, shot: str
+    ) -> Optional[QPixmap]:
         """Get cached thumbnail.
 
         Args:

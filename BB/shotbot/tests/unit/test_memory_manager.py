@@ -33,8 +33,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 # - Thread-safe testing patterns
 
 
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
 
 class TestMemoryManagerInitialization:
     """Test MemoryManager initialization and configuration."""

@@ -79,15 +79,15 @@ class TestLauncherManager:
         launcher = make_test_launcher(
             name="Test Exec",
             command="echo 'hello'",
-            description="Test execution launcher"
+            description="Test execution launcher",
         )
-        
+
         # Test behavior, not implementation
         assert launcher.name == "Test Exec"
         assert launcher.command == "echo 'hello'"
         assert launcher.description == "Test execution launcher"
         assert launcher.category == "test"
-        
+
         # Verify factory creates consistent test data
         launcher2 = make_test_launcher()
         assert launcher2.name == "Test Launcher"  # Default name
@@ -119,12 +119,12 @@ class TestLauncherManager:
         # Use TestWorker from test_doubles_library
         worker = TestWorker()
         assert worker.was_started is False
-        
+
         # Start worker and test behavior
         worker.start()
         worker.wait(100)  # Wait briefly for thread
         assert worker.was_started is True
-        
+
         # Stop and verify
         worker.stop()
         assert worker.was_stopped is True

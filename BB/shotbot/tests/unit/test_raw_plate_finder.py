@@ -21,6 +21,8 @@ from raw_plate_finder import RawPlateFinder
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 pytestmark = pytest.mark.unit
+
+
 class TestRawPlateFinder:
     """Test RawPlateFinder with real file operations."""
 
