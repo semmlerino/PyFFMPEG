@@ -289,9 +289,9 @@ class TestShotModel:
         assert isinstance(result, RefreshResult)
         assert result.success is True
         assert len(real_shot_model.shots) == 2
-        # Note: The parser keeps the full shot name, not just the last part
-        assert real_shot_model.shots[0].shot == "seq1_0010"
-        assert real_shot_model.shots[1].shot == "seq1_0020"
+        # The parser now correctly extracts shot from shot_dir (e.g., seq1_0010 -> 0010)
+        assert real_shot_model.shots[0].shot == "0010"
+        assert real_shot_model.shots[1].shot == "0020"
 
     def test_refresh_shots_failure(self, real_shot_model, test_process_pool) -> None:
         """Test failed shot refresh with test double."""
@@ -515,10 +515,11 @@ workspace /shows/test/shots/seq3/very_long_complex_shot_name_0050"""
         shots = real_shot_model.test_parse_ws_output(output)
         assert len(shots) == 3
 
-        # Test shot name extraction logic
-        assert shots[0].shot == "0010"  # Last part after split
-        assert shots[1].shot == "simple_name"  # No underscore splits
-        assert shots[2].shot == "0050"  # Last part of complex name
+        # Test shot name extraction logic with new parsing:
+        # For shot_dir that doesn't start with sequence_, it uses the last part after underscore
+        assert shots[0].shot == "0010"  # 001_ABC_0010 -> last part after underscore
+        assert shots[1].shot == "name"  # simple_name -> last part after underscore 
+        assert shots[2].shot == "0050"  # very_long_complex_shot_name_0050 -> last part
 
 
 class TestShotModelPerformance:

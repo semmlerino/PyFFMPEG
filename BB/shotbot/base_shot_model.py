@@ -134,6 +134,14 @@ class BaseShotModel(QObject):
             logger.warning("ws -sg returned empty output")
             return shots
 
+        # Log the first few lines of output for debugging
+        logger.info(f"Parsing ws output with {len(lines)} lines")
+        if lines and len(lines) > 0:
+            logger.info(f"First line of ws output: {lines[0][:200]}")
+            # Log first 3 lines for debugging
+            for i, line in enumerate(lines[:3]):
+                logger.debug(f"ws output line {i+1}: {line}")
+
         for line_num, line in enumerate(lines, 1):
             line = line.strip()
             if not line:
@@ -146,6 +154,12 @@ class BaseShotModel(QObject):
                     show = match.group(2)
                     sequence = match.group(3)
                     shot_dir = match.group(4)  # e.g., "seq01_0010" or "012_DC"
+
+                    # Log what we extracted for debugging
+                    logger.debug(
+                        f"Parsed line {line_num}: workspace_path={workspace_path}, "
+                        f"show={show}, sequence={sequence}, shot_dir={shot_dir}"
+                    )
 
                     # Validate extracted components using utility
                     if not ValidationUtils.validate_not_empty(
@@ -174,6 +188,10 @@ class BaseShotModel(QObject):
                         else:
                             # No underscore found, use whole name as shot
                             shot = shot_dir
+
+                    logger.debug(
+                        f"Extracted shot '{shot}' from shot_dir '{shot_dir}' (sequence='{sequence}')"
+                    )
 
                     shots.append(
                         Shot(
