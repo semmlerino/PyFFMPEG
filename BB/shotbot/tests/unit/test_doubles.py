@@ -49,11 +49,11 @@ class TestFileSystem:
 
     def __init__(self):
         """Initialize the test filesystem."""
-        self.files: Dict[str, bytes] = {}
-        self.directories: Set[str] = set()
-        self.metadata: Dict[str, Dict[str, Any]] = defaultdict(dict)
-        self.access_times: Dict[str, datetime] = {}
-        self.modification_times: Dict[str, datetime] = {}
+        self.files: dict[str, bytes] = {}
+        self.directories: set[str] = set()
+        self.metadata: dict[str, dict[str, Any]] = defaultdict(dict)
+        self.access_times: dict[str, datetime] = {}
+        self.modification_times: dict[str, datetime] = {}
 
     def write_file(self, path: str, content: Any) -> None:
         """Write content to a file path.
@@ -162,14 +162,14 @@ class TestFileSystem:
         else:
             self.directories.add(path)
 
-    def listdir(self, path: str) -> List[str]:
+    def listdir(self, path: str) -> list[str]:
         """List directory contents.
 
         Args:
             path: Directory path to list
 
         Returns:
-            List[str]: Names of files and directories in path
+            list[str]: Names of files and directories in path
         """
         path = str(Path(path))
         if path not in self.directories:
@@ -258,9 +258,9 @@ class TestCache:
 
     def __init__(self):
         """Initialize the test cache."""
-        self.data: Dict[str, Any] = {}
-        self.expiry_times: Dict[str, datetime] = {}
-        self.access_counts: Dict[str, int] = defaultdict(int)
+        self.data: dict[str, Any] = {}
+        self.expiry_times: dict[str, datetime] = {}
+        self.access_counts: dict[str, int] = defaultdict(int)
         self.cache_hits = 0
         self.cache_misses = 0
 
@@ -289,7 +289,7 @@ class TestCache:
         self.cache_misses += 1
         return default
 
-    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None) -> None:
+    def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
         """Set value in cache.
 
         Args:

@@ -626,7 +626,7 @@ class TestThumbnailProcessorThreadSafety:
         return ThumbnailProcessor(thumbnail_size=100)
 
     @pytest.fixture
-    def test_images(self, tmp_path) -> List[Path]:
+    def test_images(self, tmp_path) -> list[Path]:
         """Create multiple test images for concurrent processing."""
         images = []
         for i in range(5):

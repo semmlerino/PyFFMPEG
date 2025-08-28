@@ -3,6 +3,8 @@
 # pyright: basic
 # pyright: reportPrivateUsage=false
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Dict, Generator, List
 from unittest.mock import patch
@@ -28,7 +30,7 @@ def type_safe_shot() -> Shot:
 
 
 @pytest.fixture
-def type_safe_shot_list() -> List[Shot]:
+def type_safe_shot_list() -> list[Shot]:
     """Create a list of type-safe Shot instances."""
     return [
         Shot("show1", "seq1", "shot1", "/path1"),
@@ -89,7 +91,7 @@ def mock_failed_subprocess():
 
 
 @pytest.fixture
-def sample_shot_dict() -> Dict[str, str]:
+def sample_shot_dict() -> dict[str, str]:
     """Sample shot dictionary with proper string typing."""
     return {
         "show": "sample_show",
@@ -100,7 +102,7 @@ def sample_shot_dict() -> Dict[str, str]:
 
 
 @pytest.fixture
-def sample_shot_dict_list() -> List[Dict[str, str]]:
+def sample_shot_dict_list() -> list[dict[str, str]]:
     """Sample list of shot dictionaries."""
     return [
         {
@@ -209,14 +211,14 @@ class TypeAssertionHelper:
 
     @staticmethod
     def assert_shot_list_type(shots: Any) -> None:
-        """Assert that object is a properly typed List[Shot]."""
+        """Assert that object is a properly typed list[Shot]."""
         assert isinstance(shots, list)
         for shot in shots:
             TypeAssertionHelper.assert_shot_type(shot)
 
     @staticmethod
     def assert_dict_str_str(data: Any) -> None:
-        """Assert that object is a properly typed Dict[str, str]."""
+        """Assert that object is a properly typed dict[str, str]."""
         assert isinstance(data, dict)
         for key, value in data.items():
             assert isinstance(key, str)

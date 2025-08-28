@@ -43,6 +43,8 @@ Type Safety:
     Settings values are validated before application with clear error messages.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from typing import Any, Dict, Optional
@@ -89,7 +91,7 @@ class SettingsDialog(QDialog):
     def __init__(
         self,
         settings_manager: SettingsManager,
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
         initial_tab: str = "general",
     ):
         """Initialize settings dialog.
@@ -103,7 +105,7 @@ class SettingsDialog(QDialog):
         self.settings_manager = settings_manager
 
         # Temporary settings copy for preview/cancel functionality
-        self.temp_settings: Dict[str, Any] = {}
+        self.temp_settings: dict[str, Any] = {}
 
         self.setWindowTitle("ShotBot Preferences")
         self.setWindowIcon(QIcon())  # TODO: Add proper icon
@@ -398,7 +400,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(QLabel("Application"), 0, 1)
 
         # Store association controls
-        self.association_combos: Dict[str, QComboBox] = {}
+        self.association_combos: dict[str, QComboBox] = {}
 
         # Create rows for each file type
         row = 1
@@ -764,7 +766,7 @@ class SettingsDialog(QDialog):
         self.settings_manager.set_default_app(self.default_app_combo.currentText())
 
         # File associations
-        associations = {}
+        associations: dict[str, Any] = {}
         for file_type, combo in self.association_combos.items():
             associations[file_type] = combo.currentText()
         self.settings_manager.set_file_associations(associations)
@@ -773,7 +775,7 @@ class SettingsDialog(QDialog):
         try:
             text = self.launchers_edit.toPlainText().strip()
             if text:
-                launchers = json.loads(text)
+                launchers: dict[str, Any] = json.loads(text)
                 self.settings_manager.set_custom_launchers(launchers)
         except json.JSONDecodeError:
             logger.warning("Invalid custom launchers JSON, keeping existing settings")

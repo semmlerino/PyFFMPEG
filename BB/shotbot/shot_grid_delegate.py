@@ -5,6 +5,8 @@ custom painting of shot thumbnails with selection states, loading indicators,
 and optimized rendering for large datasets.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Optional
 
@@ -47,7 +49,7 @@ class ShotGridDelegate(QStyledItemDelegate):
     thumbnail_clicked = Signal(QModelIndex)
     thumbnail_double_clicked = Signal(QModelIndex)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         """Initialize the delegate.
 
         Args:

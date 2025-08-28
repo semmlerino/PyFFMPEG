@@ -1,5 +1,7 @@
 """3DE scene grid widget for displaying scene thumbnails in a grid layout."""
 
+from __future__ import annotations
+
 from typing import Dict, Optional
 
 from PySide6.QtCore import Qt, Signal
@@ -31,8 +33,8 @@ class ThreeDEShotGrid(QWidget):
     def __init__(self, scene_model: ThreeDESceneModel):
         super().__init__()
         self.scene_model = scene_model
-        self.thumbnails: Dict[str, ThreeDEThumbnailWidget] = {}
-        self.selected_scene: Optional[ThreeDEScene] = None
+        self.thumbnails: dict[str, ThreeDEThumbnailWidget] = {}
+        self.selected_scene: ThreeDEScene | None = None
         self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
         self._is_loading = False
         self._setup_ui()

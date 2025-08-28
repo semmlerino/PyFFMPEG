@@ -158,8 +158,9 @@ class SignalDoubleTestingPatterns:
         - SignalDouble for test doubles
         """
         # Create component with test signal
-        # NOTE: TestLauncherWorker not yet implemented in test doubles
-        # worker = TestLauncherWorker(launcher_id="test_123", command="echo test")
+        # NOTE: Could use LauncherWorkerDouble from test doubles
+        # from tests.test_doubles import LauncherWorkerDouble
+        # worker = LauncherWorkerDouble(launcher_id="test_123", command="echo test")
         from tests.test_doubles_library import SignalDouble
 
         class TestLauncherWorker:

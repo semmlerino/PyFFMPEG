@@ -4,6 +4,8 @@ This module provides enhanced UI components with proper animations,
 loading states, and accessibility features.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Optional
 
@@ -41,7 +43,7 @@ class ModernButton(QPushButton):
         self,
         text: str = "",
         variant: str = "default",
-        icon: Optional[QIcon] = None,
+        icon: QIcon | None = None,
     ):
         super().__init__(text)
         self.variant = variant
@@ -102,7 +104,7 @@ class ModernButton(QPushButton):
 class LoadingSpinner(QWidget):
     """Animated loading spinner widget."""
 
-    def __init__(self, size: int = 40, parent: Optional[QWidget] = None):
+    def __init__(self, size: int = 40, parent: QWidget | None = None):
         super().__init__(parent)
         self.size = size
         self.angle = 0
@@ -145,7 +147,7 @@ class NotificationBanner(QFrame):
 
     closed = Signal()
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
         self._setup_animations()
@@ -282,7 +284,7 @@ class ProgressOverlay(QWidget):
 
     canceled = Signal()
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
         self.hide()
@@ -380,7 +382,7 @@ class EmptyStateWidget(QWidget):
         title: str = "No items",
         description: str = "",
         action_text: str = "",
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self._setup_ui(icon, title, description, action_text)
@@ -467,7 +469,7 @@ class ThumbnailPlaceholder(QLabel):
 class FloatingActionButton(QPushButton):
     """Material Design style floating action button."""
 
-    def __init__(self, icon: str = "+", parent: Optional[QWidget] = None):
+    def __init__(self, icon: str = "+", parent: QWidget | None = None):
         super().__init__(icon, parent)
         self._setup_style()
         self._setup_animations()

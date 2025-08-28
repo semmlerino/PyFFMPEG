@@ -79,16 +79,16 @@ class TestPreviousShotsWorkerBasics:
         assert worker._active_shots == mock_active_shots
         assert worker._shows_root == shows_root
         assert worker._finder.username == "testuser"
-        assert not worker._should_stop
+        assert not worker.should_stop()
         assert worker._found_shots == []
 
     def test_worker_stop_mechanism(self, worker):
         """Test worker stop request mechanism."""
-        assert not worker._should_stop
+        assert not worker.should_stop()
 
         worker.stop()
 
-        assert worker._should_stop
+        assert worker.should_stop()
 
     def test_get_found_shots_returns_copy(self, worker):
         """Test that get_found_shots returns a copy of internal list."""

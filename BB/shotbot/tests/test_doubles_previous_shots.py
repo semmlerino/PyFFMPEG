@@ -73,12 +73,12 @@ class FakeShotModel(QObject):
         self.refresh_calls = []
         self.get_shots_calls = 0
 
-    def get_shots(self) -> List[Shot]:
+    def get_shots(self) -> list[Shot]:
         """Return configured shots."""
         self.get_shots_calls += 1
         return self.shots.copy()
 
-    def set_shots(self, shots: List[Shot]):
+    def set_shots(self, shots: list[Shot]):
         """Configure shots for testing."""
         self.shots = shots
         self.shots_updated.emit()
@@ -110,14 +110,14 @@ class FakePreviousShotsFinder:
         self.approved_shots_to_return = []
         self.shot_details_to_return = {}
 
-    def find_user_shots(self, shows_root: Path = Path("/shows")) -> List[Shot]:
+    def find_user_shots(self, shows_root: Path = Path("/shows")) -> list[Shot]:
         """Record call and return configured shots."""
         self.find_user_shots_calls.append(shows_root)
         return self.user_shots_to_return.copy()
 
     def filter_approved_shots(
-        self, all_user_shots: List[Shot], active_shots: List[Shot]
-    ) -> List[Shot]:
+        self, all_user_shots: list[Shot], active_shots: list[Shot]
+    ) -> list[Shot]:
         """Record call and return configured shots."""
         self.filter_approved_shots_calls.append((all_user_shots, active_shots))
 
@@ -132,8 +132,8 @@ class FakePreviousShotsFinder:
         ]
 
     def find_approved_shots(
-        self, active_shots: List[Shot], shows_root: Path = Path("/shows")
-    ) -> List[Shot]:
+        self, active_shots: list[Shot], shows_root: Path = Path("/shows")
+    ) -> list[Shot]:
         """Record call and return configured shots."""
         self.find_approved_shots_calls.append((active_shots, shows_root))
 
@@ -144,7 +144,7 @@ class FakePreviousShotsFinder:
         user_shots = self.find_user_shots(shows_root)
         return self.filter_approved_shots(user_shots, active_shots)
 
-    def get_shot_details(self, shot: Shot) -> Dict[str, Any]:
+    def get_shot_details(self, shot: Shot) -> dict[str, Any]:
         """Record call and return configured details."""
         self.get_shot_details_calls.append(shot)
 
@@ -184,12 +184,12 @@ class FakeCacheManager(QObject):
         self.cache_previous_shots_calls = []
         self.clear_cached_data_calls = []
 
-    def get_cached_previous_shots(self) -> Optional[List[Dict[str, Any]]]:
+    def get_cached_previous_shots(self) -> list[dict[str, Any | None]]:
         """Return cached previous shots."""
         self.get_cached_previous_shots_calls += 1
         return self._previous_shots_cache
 
-    def cache_previous_shots(self, shots: List[Dict[str, Any]]) -> None:
+    def cache_previous_shots(self, shots: list[dict[str, Any]]) -> None:
         """Cache previous shots data."""
         self.cache_previous_shots_calls.append(shots)
         self._previous_shots_cache = shots
@@ -205,14 +205,14 @@ class FakeCacheManager(QObject):
 
     def get_cached_thumbnail(
         self, source_path: str, show: str = "", sequence: str = "", shot: str = ""
-    ) -> Optional[str]:
+    ) -> str | None:
         """Return cached thumbnail path (fake implementation)."""
         # Return None to simulate no cached thumbnail exists
         return None
 
     def cache_thumbnail(
         self, source_path: str, show: str = "", sequence: str = "", shot: str = ""
-    ) -> Optional[str]:
+    ) -> str | None:
         """Cache a thumbnail (fake implementation)."""
         # Return a fake cache path
         cache_key = f"{show}_{sequence}_{shot}"

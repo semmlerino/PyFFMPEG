@@ -17,8 +17,8 @@ class LauncherValidation:
     """Validation settings for a launcher."""
 
     check_executable: bool = True
-    required_files: List[str] = field(default_factory=list)
-    forbidden_patterns: List[str] = field(
+    required_files: list[str] = field(default_factory=list)
+    forbidden_patterns: list[str] = field(
         default_factory=lambda: [
             r";\s*rm\s",
             r";\s*sudo\s",
@@ -29,7 +29,7 @@ class LauncherValidation:
             r"\$\(rm\s",
         ],
     )
-    working_directory: Optional[str] = None
+    working_directory: str | None = None
     resolve_paths: bool = False
 
 
@@ -39,7 +39,7 @@ class LauncherTerminal:
 
     required: bool = False
     persist: bool = False
-    title: Optional[str] = None
+    title: str | None = None
 
 
 @dataclass
@@ -47,9 +47,9 @@ class LauncherEnvironment:
     """Environment settings for a launcher."""
 
     type: str = "bash"  # "bash", "rez", "conda"
-    packages: List[str] = field(default_factory=list)
-    source_files: List[str] = field(default_factory=list)
-    command_prefix: Optional[str] = None
+    packages: list[str] = field(default_factory=list)
+    source_files: list[str] = field(default_factory=list)
+    command_prefix: str | None = None
 
 
 @dataclass
@@ -61,19 +61,19 @@ class CustomLauncher:
     description: str
     command: str
     category: str = "custom"
-    variables: Dict[str, str] = field(default_factory=dict)
+    variables: dict[str, str] = field(default_factory=dict)
     environment: LauncherEnvironment = field(default_factory=LauncherEnvironment)
     terminal: LauncherTerminal = field(default_factory=LauncherTerminal)
     validation: LauncherValidation = field(default_factory=LauncherValidation)
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert launcher to dictionary for serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CustomLauncher":
+    def from_dict(cls, data: dict[str, Any]) -> "CustomLauncher":
         """Create launcher from dictionary data."""
         # Handle nested objects
         if "environment" in data and isinstance(data["environment"], dict):

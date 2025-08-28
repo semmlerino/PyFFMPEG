@@ -20,6 +20,7 @@ from launcher.validator import LauncherValidator
 try:
     from launcher.process_manager import LauncherProcessManager
     from launcher.worker import LauncherWorker
+
     _QT_AVAILABLE = True
 except ImportError:
     _QT_AVAILABLE = False

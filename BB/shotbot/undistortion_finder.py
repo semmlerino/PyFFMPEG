@@ -1,5 +1,7 @@
 """Utility for finding undistortion node files for shots."""
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -21,8 +23,8 @@ class UndistortionFinder:
     def find_latest_undistortion(
         shot_workspace_path: str,
         shot_name: str,
-        username: Optional[str] = None,
-    ) -> Optional[Path]:
+        username: str | None = None,
+    ) -> Path | None:
         """
         Find the latest undistortion .nk file for a shot.
 
@@ -57,7 +59,7 @@ class UndistortionFinder:
 
         # Search for undistortion files in any scene*/plate directory structure
         # Handles both exports/scene/ and exports/sceneMasterSurvey/ etc.
-        found_files: List[Tuple[Path, str, str]] = []
+        found_files: list[tuple[Path, str, str]] = []
 
         # Look for scene directories (scene, sceneMasterSurvey, etc.)
         # Add defensive error handling for FileNotFoundError
@@ -150,7 +152,7 @@ class UndistortionFinder:
             return None
 
         # Sort by version (newest first) and plate preference (FG > BG > BC)
-        def sort_key(item: Tuple[Path, str, str]) -> Tuple[int, int]:
+        def sort_key(item: tuple[Path, str, str]) -> tuple[int, int]:
             file_path, version, plate = item
             # Extract version number for sorting (v001 or V001 -> 1)
             version_lower = version.lower()
@@ -179,7 +181,7 @@ class UndistortionFinder:
         return latest_file
 
     @staticmethod
-    def get_version_from_path(undistortion_path: Path) -> Optional[str]:
+    def get_version_from_path(undistortion_path: Path) -> str | None:
         """
         Extract the version number from an undistortion file path.
 

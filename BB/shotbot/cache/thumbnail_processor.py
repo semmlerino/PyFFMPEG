@@ -1,12 +1,11 @@
 """Thumbnail processing with multi-format support (Qt/PIL/OpenEXR)."""
+from __future__ import annotations
 
 import gc
 import logging
 import threading
 import uuid
 from pathlib import Path
-from typing import List, Optional
-
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 
@@ -24,13 +23,13 @@ class ThumbnailProcessor:
     image processing.
     """
 
-    def __init__(self, thumbnail_size: Optional[int] = None):
+    def __init__(self, thumbnail_size: int | None = None):
         """Initialize thumbnail processor.
 
         Args:
             thumbnail_size: Size in pixels for square thumbnails. If None, uses config.
         """
-        self._thumbnail_size = thumbnail_size or Config.CACHE_THUMBNAIL_SIZE  # type: ignore[attr-defined]
+        self._thumbnail_size = thumbnail_size or Config.CACHE_THUMBNAIL_SIZE
 
         # Heavy format extensions that need special handling
         self._heavy_formats = getattr(
@@ -41,7 +40,7 @@ class ThumbnailProcessor:
         self._qt_lock = threading.Lock()
 
         logger.debug(
-            f"ThumbnailProcessor initialized with size {self._thumbnail_size}px"  # type: ignore[attr-defined]
+            f"ThumbnailProcessor initialized with size {self._thumbnail_size}px"
         )
 
     def process_thumbnail(
@@ -149,7 +148,7 @@ class ThumbnailProcessor:
                 pil_image = pil_image.convert("RGB")
 
             # Create thumbnail maintaining aspect ratio
-            thumb_size = (self._thumbnail_size, self._thumbnail_size)  # type: ignore[attr-defined]
+            thumb_size = (self._thumbnail_size, self._thumbnail_size)
 
             # Handle different PIL/Pillow versions for LANCZOS constant
             try:
@@ -223,8 +222,8 @@ class ThumbnailProcessor:
 
                 # Scale to thumbnail size
                 scaled = image.scaled(
-                    self._thumbnail_size,  # type: ignore[attr-defined]
-                    self._thumbnail_size,  # type: ignore[attr-defined]
+                    self._thumbnail_size,
+                    self._thumbnail_size,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
@@ -431,7 +430,7 @@ class ThumbnailProcessor:
                 "convert",
                 str(source_path),
                 "-resize",
-                f"{self._thumbnail_size}x{self._thumbnail_size}>",  # > means only downsize  # type: ignore[attr-defined]
+                f"{self._thumbnail_size}x{self._thumbnail_size}>",  # > means only downsize
                 "-quality",
                 "90",
                 "-colorspace",
@@ -787,8 +786,8 @@ class ThumbnailProcessor:
             self._cleanup_temp_file(temp_path)
 
     def process_thumbnails_parallel(
-        self, images: List[Path], max_workers: int = 4
-    ) -> List[Optional[Path]]:
+        self, images: list[Path], max_workers: int = 4
+    ) -> list[Path | None]:
         """Process multiple thumbnails in parallel using ThreadPoolExecutor.
 
         This implements the P3 performance requirement for batch thumbnail processing
@@ -855,7 +854,7 @@ class ThumbnailProcessor:
 
         return results
 
-    def _process_single_thumbnail(self, source_path: Path) -> Optional[Path]:
+    def _process_single_thumbnail(self, source_path: Path) -> Path | None:
         """Process a single thumbnail for use in parallel batch processing.
 
         This is a wrapper around the existing process_thumbnail method that
@@ -897,4 +896,4 @@ class ThumbnailProcessor:
 
     def __repr__(self) -> str:
         """String representation of thumbnail processor."""
-        return f"ThumbnailProcessor(size={self._thumbnail_size}px)"  # type: ignore[attr-defined]
+        return f"ThumbnailProcessor(size={self._thumbnail_size}px)"

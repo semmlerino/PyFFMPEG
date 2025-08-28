@@ -1,5 +1,7 @@
 """Utility for finding raw plate files for shots."""
 
+from __future__ import annotations
+
 import logging
 import re
 from pathlib import Path
@@ -27,7 +29,7 @@ class RawPlateFinder:
     def find_latest_raw_plate(
         shot_workspace_path: str,
         shot_name: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Find the latest raw plate file path for a shot.
 
@@ -123,7 +125,7 @@ class RawPlateFinder:
         shot_name: str,
         plate_name: str,
         version: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Find the actual plate file pattern with correct color space.
 
         Args:
@@ -184,7 +186,7 @@ class RawPlateFinder:
         return None
 
     @staticmethod
-    def get_version_from_path(plate_path: str) -> Optional[str]:
+    def get_version_from_path(plate_path: str) -> str | None:
         """
         Extract the version number from a raw plate file path.
 

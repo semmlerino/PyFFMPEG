@@ -27,7 +27,7 @@ from tests.test_doubles_library import (
 )
 
 
-class TestLauncherWorker:
+class LauncherWorkerDouble:
     """Test double for LauncherWorker thread.
 
     Simulates the behavior of a worker thread that executes launcher commands.
@@ -87,16 +87,16 @@ class MockCacheManager:
     is at the system boundary dealing with filesystem operations.
     """
 
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(self, cache_dir: Path | None = None):
         """Initialize mock cache manager.
 
         Args:
             cache_dir: Optional cache directory path
         """
         self.cache_dir = cache_dir or Path("/tmp/test_cache")
-        self._cache: Dict[str, QPixmap] = {}
+        self._cache: dict[str, QPixmap] = {}
         self._call_count = 0
-        self._last_cached_path: Optional[Path] = None
+        self._last_cached_path: Path | None = None
 
     def get_cache_dir(self) -> Path:
         """Get the cache directory path.
@@ -108,11 +108,11 @@ class MockCacheManager:
 
     def cache_thumbnail(
         self,
-        source_path: Union[str, Path],
+        source_path: str | Path,
         show: str,
         sequence: str,
         shot: str,
-    ) -> Optional[QPixmap]:
+    ) -> QPixmap | None:
         """Mock thumbnail caching.
 
         Args:
@@ -139,7 +139,7 @@ class MockCacheManager:
 
     def get_cached_thumbnail(
         self, show: str, sequence: str, shot: str
-    ) -> Optional[QPixmap]:
+    ) -> QPixmap | None:
         """Get cached thumbnail.
 
         Args:
@@ -170,7 +170,7 @@ class ImagePoolDouble:
             pool_size: Maximum pool size
         """
         self.pool_size = pool_size
-        self._pool: List[ThreadSafeTestImage] = []
+        self._pool: list[ThreadSafeTestImage] = []
 
     def get_image(self, width: int = 100, height: int = 100) -> ThreadSafeTestImage:
         """Get image from pool or create new one.

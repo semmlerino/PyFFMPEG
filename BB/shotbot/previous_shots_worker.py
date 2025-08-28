@@ -1,9 +1,10 @@
 """Background worker for scanning previous/approved shots."""
+from __future__ import annotations
 
 import logging
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from PySide6.QtCore import Signal
 
@@ -33,8 +34,8 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
     def __init__(
         self,
-        active_shots: List[Shot],
-        username: Optional[str] = None,
+        active_shots: list[Shot],
+        username: str | None = None,
         shows_root: Path = Path("/shows"),
         parent=None,
     ):
@@ -44,7 +45,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             active_shots: List of currently active shots to filter out.
             username: Username to search for (uses current if None).
             shows_root: Root directory to search.
-            parent: Optional parent QObject.
+            parent: parent QObject.
         """
         super().__init__(parent)
 
@@ -52,7 +53,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         self._shows_root = shows_root
         self._finder = PreviousShotsFinder(username)
         # No need for _should_stop, use base class should_stop() method
-        self._found_shots: List[Shot] = []
+        self._found_shots: list[Shot] = []
 
         logger.info(
             f"PreviousShotsWorker initialized for user: {self._finder.username}"
@@ -65,7 +66,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
     def do_work(self) -> None:
         """Perform the background scanning process.
-        
+
         This method is called by the base class after proper state transitions.
         The base class handles state management, so we don't need to manage it here.
         """
@@ -142,7 +143,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             self.set_state(WorkerState.ERROR)
             self.set_state(WorkerState.STOPPED)
 
-    def _scan_for_user_shots(self) -> List[Shot]:
+    def _scan_for_user_shots(self) -> list[Shot]:
         """DEPRECATED: Use self._finder.find_user_shots() instead.
 
         This method duplicates functionality already in PreviousShotsFinder.
@@ -166,7 +167,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
                 logger.debug(f"Scanning {total_shows} shows for user work")
 
                 for index, show_dir in enumerate(show_dirs):
-                    if self._should_stop:
+                    if self.should_stop():
                         break
 
                     # Emit progress
@@ -185,7 +186,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
         return shots
 
-    def _find_shots_in_show(self, show_dir: Path) -> List[Shot]:
+    def _find_shots_in_show(self, show_dir: Path) -> list[Shot]:
         """Find user shots within a specific show.
 
         Args:
@@ -204,14 +205,14 @@ class PreviousShotsWorker(ThreadSafeWorker):
             # Look for user directories in shot paths
 
             for sequence_dir in shots_dir.iterdir():
-                if self._should_stop:
+                if self.should_stop():
                     break
 
                 if not sequence_dir.is_dir():
                     continue
 
                 for shot_dir in sequence_dir.iterdir():
-                    if self._should_stop:
+                    if self.should_stop():
                         break
 
                     if not shot_dir.is_dir():
@@ -242,7 +243,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
         return shots
 
-    def get_found_shots(self) -> List[Shot]:
+    def get_found_shots(self) -> list[Shot]:
         """Get the list of shots found so far.
 
         Returns:

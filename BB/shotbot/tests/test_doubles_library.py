@@ -45,7 +45,7 @@ class TestCompletedProcess:
 
     def __init__(
         self,
-        args: Union[str, List[str]],
+        args: str | list[str],
         returncode: int = 0,
         stdout: str = "",
         stderr: str = "",
@@ -74,25 +74,25 @@ class TestSubprocess:
 
     def __init__(self) -> None:
         """Initialize test subprocess handler."""
-        self.executed_commands: List[Union[str, List[str]]] = []
-        self.execution_history: List[Dict[str, Any]] = []
+        self.executed_commands: list[str | list[str]] = []
+        self.execution_history: list[dict[str, Any]] = []
         self.return_code: int = 0
         self.stdout: str = ""
         self.stderr: str = ""
-        self.side_effect: Optional[Exception] = None
+        self.side_effect: Exception | None = None
         self.delay: float = 0.0  # Simulate execution time
 
         # For different commands, different outputs
-        self.command_outputs: Dict[str, Tuple[int, str, str]] = {}
+        self.command_outputs: dict[str, tuple[int, str, str]] = {}
 
     def run(
         self,
-        command: Union[str, List[str]],
+        command: str | list[str],
         shell: bool = False,
         capture_output: bool = False,
         text: bool = False,
         check: bool = False,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> TestCompletedProcess:
         """Simulate subprocess.run() with real behavior."""
@@ -138,7 +138,7 @@ class TestSubprocess:
 
     def Popen(
         self,
-        command: Union[str, List[str]],
+        command: str | list[str],
         shell: bool = False,
         stdout: Any = None,
         stderr: Any = None,
@@ -160,7 +160,7 @@ class TestSubprocess:
         self.execution_history.clear()
         self.command_outputs.clear()
 
-    def get_last_command(self) -> Optional[Union[str, List[str]]]:
+    def get_last_command(self) -> str | list[str | None]:
         """Get the last executed command."""
         return self.executed_commands[-1] if self.executed_commands else None
 
@@ -178,7 +178,7 @@ class PopenDouble:
 
     def __init__(
         self,
-        args: Union[str, List[str]],
+        args: str | list[str],
         returncode: int = 0,
         stdout: str = "",
         stderr: str = "",
@@ -192,13 +192,13 @@ class PopenDouble:
         self._terminated = False
         self._killed = False
 
-    def poll(self) -> Optional[int]:
+    def poll(self) -> int | None:
         """Check if process has terminated."""
         if self._terminated or self._killed:
             return self.returncode
         return None
 
-    def wait(self, timeout: Optional[float] = None) -> int:
+    def wait(self, timeout: float | None = None) -> int:
         """Wait for process to complete."""
         if timeout:
             time.sleep(min(timeout, 0.1))  # Simulate brief wait
@@ -214,8 +214,8 @@ class PopenDouble:
         self._killed = True
 
     def communicate(
-        self, input: Optional[bytes] = None, timeout: Optional[float] = None
-    ) -> Tuple[str, str]:
+        self, input: bytes | None = None, timeout: float | None = None
+    ) -> tuple[str, str]:
         """Communicate with process."""
         if timeout:
             time.sleep(min(timeout, 0.1))
@@ -237,8 +237,8 @@ class TestShot:
     show: str = "test_show"
     sequence: str = "seq01"
     shot: str = "0010"
-    workspace_path: Optional[str] = None
-    name: Optional[str] = None
+    workspace_path: str | None = None
+    name: str | None = None
 
     def __post_init__(self) -> None:
         """Initialize computed fields."""
@@ -257,7 +257,7 @@ class TestShot:
         """Get path to plate directory."""
         return Path(self.workspace_path) / "publish" / "plates"
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         """Convert to dictionary for serialization."""
         return {
             "show": self.show,
@@ -279,13 +279,13 @@ class TestShotModel(QObject):
     refresh_started = Signal()
     refresh_finished = Signal(bool)
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         """Initialize test shot model."""
         super().__init__(parent)
-        self._shots: List[TestShot] = []
-        self._selected_shot: Optional[TestShot] = None
+        self._shots: list[TestShot] = []
+        self._selected_shot: TestShot | None = None
         self.refresh_count = 0
-        self.signal_emissions: Dict[str, int] = {
+        self.signal_emissions: dict[str, int] = {
             "shots_updated": 0,
             "shot_selected": 0,
             "refresh_started": 0,
@@ -307,28 +307,28 @@ class TestShotModel(QObject):
         self._shots.append(shot)
         self.shots_updated.emit()
 
-    def add_test_shots(self, shots: List[TestShot]) -> None:
+    def add_test_shots(self, shots: list[TestShot]) -> None:
         """Add multiple shots at once."""
         self._shots.extend(shots)
         self.shots_updated.emit()
 
-    def get_shots(self) -> List[TestShot]:
+    def get_shots(self) -> list[TestShot]:
         """Get all shots."""
         return self._shots.copy()
 
     @property
-    def shots(self) -> List[TestShot]:
+    def shots(self) -> list[TestShot]:
         """Get all shots as property for compatibility with ShotGrid."""
         return self._shots.copy()
 
-    def get_shot_by_name(self, name: str) -> Optional[TestShot]:
+    def get_shot_by_name(self, name: str) -> TestShot | None:
         """Find shot by name."""
         for shot in self._shots:
             if shot.name == name:
                 return shot
         return None
 
-    def refresh_shots(self) -> Tuple[bool, bool]:
+    def refresh_shots(self) -> tuple[bool, bool]:
         """Simulate shot refresh with configurable behavior."""
         self.refresh_count += 1
         self.refresh_started.emit()
@@ -352,7 +352,7 @@ class TestShotModel(QObject):
         self.refresh_finished.emit(True)
         return (True, has_changes)
 
-    def select_shot(self, shot: Union[TestShot, str]) -> None:
+    def select_shot(self, shot: TestShot | str) -> None:
         """Select a shot and emit signal."""
         if isinstance(shot, str):
             shot = self.get_shot_by_name(shot)
@@ -380,23 +380,23 @@ class TestCacheManager(QObject):
     cache_updated = Signal()
     thumbnail_cached = Signal(str)
 
-    def __init__(self, cache_dir: Optional[Path] = None) -> None:
+    def __init__(self, cache_dir: Path | None = None) -> None:
         """Initialize test cache manager."""
         super().__init__()
         self.cache_dir = cache_dir or Path("/tmp/test_cache")
-        self._cached_thumbnails: Dict[str, Path] = {}
-        self._cached_shots: List[TestShot] = []
+        self._cached_thumbnails: dict[str, Path] = {}
+        self._cached_shots: list[TestShot] = []
         self._memory_usage_bytes: int = 0
-        self._cache_operations: List[Dict[str, Any]] = []
+        self._cache_operations: list[dict[str, Any]] = []
 
     def cache_thumbnail(
         self,
-        source_path: Union[str, Path],
+        source_path: str | Path,
         show: str,
         sequence: str,
         shot: str,
         wait: bool = True,
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Cache a thumbnail with real behavior."""
         source = Path(source_path)
         cache_key = f"{show}_{sequence}_{shot}"
@@ -426,12 +426,12 @@ class TestCacheManager(QObject):
 
     def get_cached_thumbnail(
         self, show: str, sequence: str, shot: str
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Get cached thumbnail path."""
         cache_key = f"{show}_{sequence}_{shot}"
         return self._cached_thumbnails.get(cache_key)
 
-    def cache_shots(self, shots: List[Union[TestShot, Dict[str, str]]]) -> bool:
+    def cache_shots(self, shots: list[TestShot | dict[str, str]]) -> bool:
         """Cache shot data."""
         self._cached_shots.clear()
         for shot in shots:
@@ -441,11 +441,11 @@ class TestCacheManager(QObject):
         self.cache_updated.emit()
         return True
 
-    def get_cached_shots(self) -> List[TestShot]:
+    def get_cached_shots(self) -> list[TestShot]:
         """Get cached shots."""
         return self._cached_shots.copy()
 
-    def get_memory_usage(self) -> Dict[str, Any]:
+    def get_memory_usage(self) -> dict[str, Any]:
         """Get memory usage statistics."""
         return {
             "total_mb": self._memory_usage_bytes / (1024 * 1024),
@@ -461,7 +461,7 @@ class TestCacheManager(QObject):
         self._cache_operations.clear()
         self.cache_updated.emit()
 
-    def validate_cache(self) -> Dict[str, Any]:
+    def validate_cache(self) -> dict[str, Any]:
         """Validate cache integrity."""
         return {
             "valid": True,
@@ -484,7 +484,7 @@ class TestLauncherEnvironment:
     __test__ = False  # Prevent pytest from collecting this as a test class
 
     def __init__(
-        self, type: str = "none", packages: List[str] = None, command_prefix: str = ""
+        self, type: str = "none", packages: list[str] = None, command_prefix: str = ""
     ):
         self.type = type
         self.packages = packages or []
@@ -526,7 +526,7 @@ class TestLauncher:
         self.environment = environment or TestLauncherEnvironment()
         self.terminal = terminal or TestLauncherTerminal()
         self.execution_count = 0
-        self.last_execution_args: Optional[Dict[str, str]] = None
+        self.last_execution_args: dict[str, str | None] = None
 
     def execute(self, **kwargs: str) -> bool:
         """Simulate launcher execution."""
@@ -548,12 +548,12 @@ class LauncherManagerDouble(QObject):
     def __init__(self) -> None:
         """Initialize test launcher manager."""
         super().__init__()
-        self._launchers: Dict[str, TestLauncher] = {}
-        self._execution_history: List[Dict[str, Any]] = []
-        self._validation_results: Dict[str, Tuple[bool, Optional[str]]] = {}
-        self._test_command: Optional[str] = None  # For temporary test launchers
+        self._launchers: dict[str, TestLauncher] = {}
+        self._execution_history: list[dict[str, Any]] = []
+        self._validation_results: dict[str, tuple[bool, str | None]] = {}
+        self._test_command: str | None = None  # For temporary test launchers
 
-    def validate_command_syntax(self, command: str) -> Tuple[bool, Optional[str]]:
+    def validate_command_syntax(self, command: str) -> tuple[bool, str | None]:
         """Validate command syntax with real behavior."""
         if not command or not command.strip():
             return (False, "Command cannot be empty")
@@ -569,7 +569,7 @@ class LauncherManagerDouble(QObject):
         return (True, None)
 
     def set_validation_result(
-        self, command: str, is_valid: bool, error: Optional[str] = None
+        self, command: str, is_valid: bool, error: str | None = None
     ) -> None:
         """Set custom validation result for testing."""
         self._validation_results[command] = (is_valid, error)
@@ -578,7 +578,7 @@ class LauncherManagerDouble(QObject):
         """Set command for temporary test launcher."""
         self._test_command = command
 
-    def get_launcher_by_name(self, name: str) -> Optional[TestLauncher]:
+    def get_launcher_by_name(self, name: str) -> TestLauncher | None:
         """Find launcher by name with real search behavior."""
         for launcher in self._launchers.values():
             if launcher.name == name:
@@ -593,7 +593,7 @@ class LauncherManagerDouble(QObject):
         category: str = "custom",
         environment=None,
         terminal=None,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Create a test launcher with real behavior."""
         # Check for duplicate names
         if self.get_launcher_by_name(name):
@@ -654,7 +654,7 @@ class LauncherManagerDouble(QObject):
     def execute_launcher(
         self,
         launcher_id_or_launcher,
-        custom_vars: Optional[Dict[str, str]] = None,
+        custom_vars: dict[str, str | None] = None,
         dry_run: bool = False,
     ) -> bool:
         """Execute a launcher with real behavior."""
@@ -714,11 +714,11 @@ class LauncherManagerDouble(QObject):
 
         return success
 
-    def list_launchers(self) -> List[TestLauncher]:
+    def list_launchers(self) -> list[TestLauncher]:
         """List all launchers."""
         return list(self._launchers.values())
 
-    def get_launcher(self, launcher_id: str) -> Optional[TestLauncher]:
+    def get_launcher(self, launcher_id: str) -> TestLauncher | None:
         """Get specific launcher."""
         return self._launchers.get(launcher_id)
 
@@ -730,7 +730,7 @@ class LauncherManagerDouble(QObject):
         """Get number of launchers created (for testing)."""
         return len(self._launchers)
 
-    def get_last_created_launcher(self) -> Optional[TestLauncher]:
+    def get_last_created_launcher(self) -> TestLauncher | None:
         """Get the most recently created launcher (for testing)."""
         if not self._launchers:
             return None
@@ -758,12 +758,12 @@ class TestWorker(QThread):
     error = Signal(str)
     result_ready = Signal(object)
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         """Initialize test worker."""
         super().__init__(parent)
         self.test_result: Any = "success"
-        self.test_error: Optional[str] = None
-        self.progress_values: List[int] = [25, 50, 75, 100]
+        self.test_error: str | None = None
+        self.progress_values: list[int] = [25, 50, 75, 100]
         self.execution_time: float = 0.01  # Fast for tests
         self.was_started = False
         self.was_stopped = False
@@ -825,7 +825,7 @@ class ThreadSafeTestImage:
         self._height = height
         self._image.fill(QColor(255, 255, 255))  # White by default
 
-    def fill(self, color: Optional[QColor] = None) -> None:
+    def fill(self, color: QColor | None = None) -> None:
         """Fill the image with a color."""
         if color is None:
             color = QColor(255, 255, 255)
@@ -837,11 +837,11 @@ class ThreadSafeTestImage:
         new_image._image = self._image.scaled(width, height)
         return new_image
 
-    def size(self) -> Tuple[int, int]:
+    def size(self) -> tuple[int, int]:
         """Get image size as tuple."""
         return (self._width, self._height)
 
-    def save(self, path: Union[str, Path]) -> bool:
+    def save(self, path: str | Path) -> bool:
         """Save image to file."""
         return self._image.save(str(path))
 
@@ -868,14 +868,14 @@ class TestPILImage:
         self._thumbnail_called = False
         self._thumbnail_size = None
 
-    def thumbnail(self, size: Tuple[int, int], resample=None) -> None:
+    def thumbnail(self, size: tuple[int, int], resample=None) -> None:
         """Simulate thumbnail operation."""
         self._thumbnail_called = True
         self._thumbnail_size = size
         # Simulate thumbnail resizing by updating size
         self.size = (min(self._width, size[0]), min(self._height, size[1]))
 
-    def save(self, path: Union[str, Path], format: Optional[str] = None) -> None:
+    def save(self, path: str | Path, format: str | None = None) -> None:
         """Simulate saving the image."""
         # Test double: just record that save was called
         pass
@@ -891,7 +891,7 @@ class TestPILImage:
         """Check if thumbnail method was called (for testing)."""
         return self._thumbnail_called
 
-    def get_thumbnail_size(self) -> Optional[Tuple[int, int]]:
+    def get_thumbnail_size(self) -> tuple[int, int | None]:
         """Get the thumbnail size that was requested (for testing)."""
         return self._thumbnail_size
 
@@ -901,11 +901,11 @@ class SignalDouble:
 
     def __init__(self) -> None:
         """Initialize test signal."""
-        self.emissions: List[Tuple[Any, ...]] = []
-        self.callbacks: List[Callable] = []
+        self.emissions: list[tuple[Any, ...]] = []
+        self.callbacks: list[Callable] = []
         self.emit_count = 0
         self.was_emitted = False
-        self.last_emission: Optional[Tuple[Any, ...]] = None
+        self.last_emission: tuple[Any, ... | None] = None
 
     def emit(self, *args: Any) -> None:
         """Emit the signal."""
@@ -922,7 +922,7 @@ class SignalDouble:
         """Connect a callback."""
         self.callbacks.append(callback)
 
-    def disconnect(self, callback: Optional[Callable] = None) -> None:
+    def disconnect(self, callback: Callable | None = None) -> None:
         """Disconnect callback(s)."""
         if callback:
             if callback in self.callbacks:
@@ -950,18 +950,18 @@ class TestProcessPool:
 
     def __init__(self) -> None:
         """Initialize test process pool."""
-        self.commands: List[str] = []
-        self.outputs: List[str] = []
+        self.commands: list[str] = []
+        self.outputs: list[str] = []
         self.current_output_index = 0
         self.default_output = "workspace /test/path"
-        self._cache: Dict[str, Any] = {}  # Cache for commands
+        self._cache: dict[str, Any] = {}  # Cache for commands
         self.should_fail = False  # Flag to simulate failures
         self.fail_with_timeout = False  # Flag to simulate timeout
 
     def execute_workspace_command(self, command: str, **kwargs: Any) -> str:
         """Execute workspace command with test output."""
         self.commands.append(command)
-        
+
         # Simulate failures if configured
         if self.should_fail:
             raise RuntimeError("Test process pool configured to fail")
@@ -994,8 +994,8 @@ class TestProcessPool:
         self.commands.append(f"invalidate_cache:{command}")
         if command in self._cache:
             del self._cache[command]
-    
-    def get_metrics(self) -> Dict[str, Any]:
+
+    def get_metrics(self) -> dict[str, Any]:
         """Get performance metrics (test double)."""
         return {
             "total_calls": len(self.commands),
@@ -1014,12 +1014,12 @@ class TestBashSession:
 
     def __init__(self) -> None:
         """Initialize test bash session."""
-        self.executed_commands: List[str] = []
-        self.command_outputs: Dict[str, str] = {}
+        self.executed_commands: list[str] = []
+        self.command_outputs: dict[str, str] = {}
         self.default_output = "test output"
-        self.side_effect: Optional[Exception] = None
+        self.side_effect: Exception | None = None
         self._current_output_index = 0
-        self._output_sequence: List[str] = []
+        self._output_sequence: list[str] = []
 
     def execute(self, command: str, timeout: float = 30.0) -> str:
         """Execute a command and return test output."""
@@ -1048,7 +1048,7 @@ class TestBashSession:
         """Set output for commands matching pattern."""
         self.command_outputs[pattern] = output
 
-    def set_output_sequence(self, outputs: List[str]) -> None:
+    def set_output_sequence(self, outputs: list[str]) -> None:
         """Set sequence of outputs for subsequent calls."""
         self._output_sequence = outputs
         self._current_output_index = 0
@@ -1065,7 +1065,7 @@ class TestBashSession:
         """Check if any command contained the pattern."""
         return any(pattern in cmd for cmd in self.executed_commands)
 
-    def get_executed_commands(self) -> List[str]:
+    def get_executed_commands(self) -> list[str]:
         """Get all executed commands."""
         return self.executed_commands.copy()
 
@@ -1142,9 +1142,9 @@ class TestProgressManager:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    _current_operation: Optional[TestProgressOperation] = None
-    _operations_started: List[TestProgressOperation] = []
-    _operations_finished: List[Dict[str, Any]] = []
+    _current_operation: TestProgressOperation | None = None
+    _operations_started: list[TestProgressOperation] = []
+    _operations_finished: list[dict[str, Any]] = []
 
     @classmethod
     def start_operation(cls, config) -> TestProgressOperation:
@@ -1176,7 +1176,7 @@ class TestProgressManager:
             cls._current_operation = None
 
     @classmethod
-    def get_current_operation(cls) -> Optional[TestProgressOperation]:
+    def get_current_operation(cls) -> TestProgressOperation | None:
         """Get the current progress operation."""
         return cls._current_operation
 

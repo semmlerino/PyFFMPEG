@@ -1,11 +1,13 @@
 """Storage backend for atomic file operations and directory management."""
 
+from __future__ import annotations
+
 import json
 import logging
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,7 @@ class StorageBackend:
 
     def __init__(self):
         """Initialize storage backend."""
-        pass
+        self._fallback_directories: dict[Path, Path] = {}  # Maps original to fallback
 
     def ensure_directory(self, directory: Path, max_retries: int = 3) -> bool:
         """Ensure directory exists, creating it if necessary with fallback.
@@ -48,8 +50,11 @@ class StorageBackend:
                     try:
                         fallback_dir = Path(tempfile.mkdtemp(prefix="shotbot_cache_"))
                         logger.warning(f"Using fallback directory: {fallback_dir}")
-                        # Update the directory reference for the caller
-                        # Note: This is a limitation - caller needs to handle fallback
+                        # Store the fallback directory mapping
+                        self._fallback_directories[directory] = fallback_dir
+                        logger.info(
+                            f"Mapped {directory} -> {fallback_dir} for fallback"
+                        )
                         return True
 
                     except Exception as fallback_error:
@@ -65,8 +70,19 @@ class StorageBackend:
 
         return False
 
+    def get_actual_directory(self, requested_directory: Path) -> Path:
+        """Get the actual directory being used (original or fallback).
+        
+        Args:
+            requested_directory: The originally requested directory
+            
+        Returns:
+            The actual directory path being used (may be a fallback)
+        """
+        return self._fallback_directories.get(requested_directory, requested_directory)
+
     def write_json(
-        self, file_path: Path, data: Dict[str, Any], indent: int = 2
+        self, file_path: Path, data: dict[str, Any], indent: int = 2
     ) -> bool:
         """Write JSON data to file using atomic operation.
 
@@ -85,10 +101,17 @@ class StorageBackend:
             logger.warning(f"Attempted to write empty data to {file_path}")
             return False
 
-        # Ensure parent directory exists
+        # Ensure parent directory exists and get actual path
         if not self.ensure_directory(file_path.parent):
             logger.error(f"Failed to create parent directory for {file_path}")
             return False
+        
+        # Use actual directory (may be fallback)
+        actual_parent = self.get_actual_directory(file_path.parent)
+        actual_file_path = actual_parent / file_path.name
+        
+        # Update file_path to use actual directory
+        file_path = actual_file_path
 
         # Create unique temporary file to avoid collisions
         temp_file = file_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
@@ -119,7 +142,7 @@ class StorageBackend:
             self._cleanup_temp_file(temp_file)
             return False
 
-    def read_json(self, file_path: Path) -> Optional[Dict[str, Any]]:
+    def read_json(self, file_path: Path) -> dict[str, Any] | None:
         """Read JSON data from file with comprehensive error handling.
 
         Args:
@@ -131,7 +154,7 @@ class StorageBackend:
         # Use EAFP pattern to avoid race condition
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+                data: dict[str, Any] = json.load(f)
 
             # Validate that we got a dictionary
             if not isinstance(data, dict):
@@ -222,7 +245,7 @@ class StorageBackend:
             )
             return False
 
-    def get_file_size(self, file_path: Path) -> Optional[int]:
+    def get_file_size(self, file_path: Path) -> int | None:
         """Get file size in bytes with error handling.
 
         Args:

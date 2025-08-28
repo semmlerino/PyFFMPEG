@@ -122,7 +122,7 @@ class TestCacheManager:
         assert manager.cache_dir == temp_cache_dir
         assert manager.shots_cache_file == temp_cache_dir / "shots.json"
         assert manager.thumbnails_dir == temp_cache_dir / "thumbnails"
-        assert manager._cached_thumbnails == {}
+        assert manager.test_cached_thumbnails == {}
 
     def test_cache_directory_creation(self, tmp_path):
         """Test cache directory is created if it doesn't exist."""
@@ -250,9 +250,12 @@ class TestCacheManager:
             )
 
             # Verify behavior - thumbnail file should be created
-            expected_thumb = temp_cache_dir / "thumbnails" / "test" / "seq1" / "0010_thumb.jpg"
+            expected_thumb = (
+                temp_cache_dir / "thumbnails" / "test" / "seq1" / "0010_thumb.jpg"
+            )
             # Give background thread time to complete
             import time
+
             time.sleep(0.1)
             # Check that thumbnail file was actually created (behavior, not mock call)
             # Note: In threaded context, file may not exist immediately
@@ -299,8 +302,8 @@ class TestCacheManager:
 
         # Verify cache is empty
         assert cache_manager.get_cached_shots() is None
-        assert cache_manager._cached_thumbnails == {}
-        assert cache_manager._memory_usage_bytes == 0
+        assert cache_manager.test_cached_thumbnails == {}
+        assert cache_manager.test_memory_usage_bytes == 0
 
     def test_thread_safety_warning(self, cache_manager, test_image_file):
         """Test thread safety check for image operations in worker threads."""
@@ -338,14 +341,14 @@ class TestCacheManager:
     def test_memory_tracking(self, cache_manager):
         """Test memory usage tracking for thumbnail cache."""
         # Memory tracking is done via _cached_thumbnails dict
-        cache_manager._cached_thumbnails["/test/path.jpg"] = 40000
-        cache_manager._memory_usage_bytes = 40000
+        cache_manager.test_cached_thumbnails["/test/path.jpg"] = 40000
+        cache_manager.test_memory_usage_bytes = 40000
 
-        assert cache_manager._memory_usage_bytes == 40000
+        assert cache_manager.test_memory_usage_bytes == 40000
 
         # Clear should reset memory tracking
         cache_manager.clear_cache()
-        assert cache_manager._memory_usage_bytes == 0
+        assert cache_manager.test_memory_usage_bytes == 0
 
     def test_cache_persistence_across_instances(self, temp_cache_dir):
         """Test cache persists across CacheManager instances."""
@@ -836,7 +839,7 @@ class TestMemoryManagement:
 
         # Check that old thumbnails were evicted
         # (memory usage should be under limit)
-        assert cache_manager._memory_usage_bytes <= cache_manager._max_memory_bytes
+        assert cache_manager.test_memory_usage_bytes <= cache_manager.test_max_memory_bytes
 
     def test_get_memory_usage(self, cache_manager, test_image):
         """Test getting memory usage information."""
@@ -883,8 +886,8 @@ class TestCacheValidation:
         cache_manager.clear_cache()
 
         # Check cache is cleared
-        assert cache_manager._memory_usage_bytes == 0
-        assert len(cache_manager._cached_thumbnails) == 0
+        assert cache_manager.test_memory_usage_bytes == 0
+        assert len(cache_manager.test_cached_thumbnails) == 0
 
     def test_shutdown(self, cache_manager):
         """Test cache manager shutdown."""
@@ -937,12 +940,12 @@ class TestThreadSafety:
         """Test that cache operations use thread lock."""
         # The lock should exist
         assert hasattr(cache_manager, "_lock")
-        assert cache_manager._lock is not None
+        assert cache_manager.test_lock is not None
 
         # Test that operations can be performed without deadlock
 
         def operation():
-            with cache_manager._lock:
+            with cache_manager.test_lock:
                 # Simulate some cache operation
                 # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
                 return True
@@ -1261,8 +1264,8 @@ class TestCacheManagerThreading:
         manager = cache_manager
 
         # Add some cached data using thread-safe test doubles
-        manager._cached_thumbnails["/test/image1.jpg"] = ThreadSafeTestImage(100, 100)
-        manager._cached_thumbnails["/test/image2.jpg"] = ThreadSafeTestImage(100, 100)
+        manager.test_cached_thumbnails["/test/image1.jpg"] = ThreadSafeTestImage(100, 100)
+        manager.test_cached_thumbnails["/test/image2.jpg"] = ThreadSafeTestImage(100, 100)
         manager._memory_usage_bytes = 2000
 
         cleanup_results = []
@@ -1274,7 +1277,7 @@ class TestCacheManagerThreading:
                 with manager._lock:
                     # Simulate cleanup work
                     # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
-                    manager._cached_thumbnails.clear()
+                    manager.test_cached_thumbnails.clear()
                     manager._memory_usage_bytes = 0
                     cleanup_results.append("cleanup_done")
             except Exception as e:
@@ -1286,7 +1289,7 @@ class TestCacheManagerThreading:
                 with manager._lock:
                     # Simulate cache access
                     # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
-                    count = len(manager._cached_thumbnails)
+                    count = len(manager.test_cached_thumbnails)
                     access_results.append(f"access_count: {count}")
             except Exception as e:
                 access_results.append(f"access_error: {e}")

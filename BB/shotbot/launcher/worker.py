@@ -37,7 +37,7 @@ class LauncherWorker(ThreadSafeWorker):
         self,
         launcher_id: str,
         command: str,
-        working_dir: Optional[str] = None,
+        working_dir: str | None = None,
     ):
         """Initialize launcher worker.
 
@@ -50,7 +50,7 @@ class LauncherWorker(ThreadSafeWorker):
         self.launcher_id = launcher_id
         self.command = command
         self.working_dir = working_dir
-        self._process: Optional[subprocess.Popen[Any]] = None
+        self._process: subprocess.Popen[Any | None] = None
 
     def _sanitize_command(self, command: str) -> tuple[list[str], bool]:
         """Safely parse and validate command to prevent shell injection.

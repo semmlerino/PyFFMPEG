@@ -38,6 +38,8 @@ Type Safety:
     notification categories to ensure type-safe usage throughout the application.
 """
 
+from __future__ import annotations
+
 import logging
 from enum import Enum, auto
 from typing import Callable, List, Optional
@@ -98,7 +100,7 @@ class ToastNotification(QFrame):
         message: str,
         notification_type: NotificationType,
         duration: int = 4000,
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self.notification_type = notification_type
@@ -262,11 +264,11 @@ class NotificationManager(QObject):
     for proper integration with the application UI.
     """
 
-    _instance: Optional["NotificationManager"] = None
-    _main_window: Optional[QMainWindow] = None
-    _status_bar: Optional[QStatusBar] = None
-    _active_toasts: List[ToastNotification] = []
-    _current_progress: Optional[QProgressDialog] = None
+    _instance: "NotificationManager" | None = None
+    _main_window: QMainWindow | None = None
+    _status_bar: QStatusBar | None = None
+    _active_toasts: list[ToastNotification] = []
+    _current_progress: QProgressDialog | None = None
 
     def __new__(cls) -> "NotificationManager":
         """Implement singleton pattern."""
@@ -394,7 +396,7 @@ class NotificationManager(QObject):
         title: str,
         message: str = "",
         cancelable: bool = False,
-        callback: Optional[Callable] = None,
+        callback: Callable | None = None,
     ) -> QProgressDialog:
         """Show a progress dialog for long operations.
 
@@ -534,7 +536,7 @@ class NotificationManager(QObject):
             toast.dismiss()
 
     @classmethod
-    def get_status_bar(cls) -> Optional[QStatusBar]:
+    def get_status_bar(cls) -> QStatusBar | None:
         """Get the current status bar reference."""
         return cls._status_bar
 

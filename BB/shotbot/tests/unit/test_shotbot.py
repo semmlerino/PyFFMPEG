@@ -15,13 +15,13 @@ from PySide6.QtGui import QColor, QPalette
 class _TestQApplicationDouble:
     """Test double for QApplication following UNIFIED_TESTING_GUIDE principles."""
 
-    def __init__(self, args: List[str]):
+    def __init__(self, args: list[str]):
         """Initialize test QApplication."""
         self.args = args
         self.application_name = ""
         self.organization_name = ""
         self.style = ""
-        self.palette: Optional[QPalette] = None
+        self.palette: QPalette | None = None
         self.executed = False
 
     def setApplicationName(self, name: str) -> None:

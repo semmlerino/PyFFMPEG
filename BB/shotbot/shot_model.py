@@ -1,23 +1,23 @@
 """Shot data model and parser for ws -sg output."""
 
+from __future__ import annotations
+
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, NamedTuple
 
-from PySide6.QtCore import QObject, Signal
 from base_shot_model import BaseShotModel
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
+    from process_pool_manager import ProcessPoolManager
 
 from config import Config
-from type_definitions import ShotDict
 from exceptions import WorkspaceError
-from process_pool_manager import ProcessPoolManager
-from utils import FileUtils, PathUtils, ValidationUtils
+from type_definitions import ShotDict
+from utils import FileUtils, PathUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ class Shot:
             self.shot,
         )
 
-    def get_thumbnail_path(self) -> Optional[Path]:
+    def get_thumbnail_path(self) -> Path | None:
         """Get first available thumbnail or None.
 
         Tries three fallback options:
@@ -193,30 +193,30 @@ class Shot:
 
 class ShotModel(BaseShotModel):
     """Synchronous shot model implementation.
-    
+
     This model provides synchronous, blocking shot loading and refreshing.
     It maintains full backward compatibility with the existing API while
     inheriting common functionality from BaseShotModel.
-    
+
     All signals are inherited from BaseShotModel.
     """
 
     def __init__(
         self,
-        cache_manager: Optional["CacheManager"] = None,
+        cache_manager: "CacheManager" | None = None,
         load_cache: bool = True,
     ):
         """Initialize synchronous shot model.
-        
+
         Args:
-            cache_manager: Optional cache manager instance
+            cache_manager: cache manager instance
             load_cache: Whether to load from cache on initialization
         """
         super().__init__(cache_manager, load_cache)
 
     def load_shots(self) -> RefreshResult:
         """Load shots synchronously (same as refresh for sync model).
-        
+
         Returns:
             RefreshResult with success and change status
         """
@@ -320,7 +320,7 @@ class ShotModel(BaseShotModel):
                 # Cache the results - pass Shot objects directly
                 if self.shots:
                     try:
-                        self.cache_manager.cache_shots(self.shots)  # type: ignore[arg-type]
+                        self.cache_manager.cache_shots(self.shots)
                         # Emit cache updated signal
                         self.cache_updated.emit()
                     except (OSError, IOError) as e:
@@ -342,20 +342,20 @@ class ShotModel(BaseShotModel):
     # Note: We use the _parse_ws_output from BaseShotModel which has been
     # enhanced with the robust validation and error handling from this implementation
 
-    def get_shot_by_index(self, index: int) -> Optional[Shot]:
+    def get_shot_by_index(self, index: int) -> Shot | None:
         """Get shot by index."""
         if 0 <= index < len(self.shots):
             return self.shots[index]
         return None
 
-    def find_shot_by_name(self, full_name: str) -> Optional[Shot]:
+    def find_shot_by_name(self, full_name: str) -> Shot | None:
         """Find shot by full name."""
         for shot in self.shots:
             if shot.full_name == full_name:
                 return shot
         return None
 
-    def get_shot_by_name(self, full_name: str) -> Optional[Shot]:
+    def get_shot_by_name(self, full_name: str) -> Shot | None:
         """Get shot by full name (alias for find_shot_by_name)."""
         return self.find_shot_by_name(full_name)
 
@@ -369,7 +369,7 @@ class ShotModel(BaseShotModel):
         self._process_pool.invalidate_cache("ws -sg")
         logger.info("Invalidated workspace cache for immediate refresh")
 
-    def select_shot(self, shot: Optional[Shot]) -> None:
+    def select_shot(self, shot: Shot | None) -> None:
         """Select a shot and emit the shot_selected signal.
 
         Args:
@@ -382,7 +382,7 @@ class ShotModel(BaseShotModel):
         else:
             logger.debug("Shot selection cleared")
 
-    def get_selected_shot(self) -> Optional[Shot]:
+    def get_selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
 
         Returns:
@@ -409,9 +409,9 @@ class ShotModel(BaseShotModel):
         """Clear the current shot selection."""
         self.select_shot(None)
 
-    def get_performance_metrics(self) -> Dict[str, Any]:
+    def get_performance_metrics(self) -> dict[str, Any]:
         """Get performance metrics for subprocess operations.
-        
+
         Extends base metrics with process pool statistics.
 
         Returns:
@@ -422,3 +422,23 @@ class ShotModel(BaseShotModel):
         pool_metrics = self._process_pool.get_metrics()
         metrics.update(pool_metrics)
         return metrics
+
+    # ================================================================
+    # Test-Specific Accessor Methods
+    # ================================================================
+    # WARNING: These methods are for testing purposes ONLY.
+    # They provide controlled access to private attributes for tests.
+    # DO NOT use these methods in production code.
+
+    @property
+    def test_process_pool(self) -> "ProcessPoolManager":
+        """Test-only access to process pool manager."""
+        return self._process_pool
+
+    def test_load_from_cache(self) -> bool:
+        """Test-only access to _load_from_cache method."""
+        return self._load_from_cache()
+
+    def test_parse_ws_output(self, output: str) -> list[Shot]:
+        """Test-only access to _parse_ws_output method."""
+        return self._parse_ws_output(output)

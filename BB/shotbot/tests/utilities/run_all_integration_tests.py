@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Master test runner for all integration tests."""
 
+from __future__ import annotations
+
 import subprocess
 import sys
 import time

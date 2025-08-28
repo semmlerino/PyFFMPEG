@@ -46,6 +46,8 @@ Type Safety:
     include full type hints for parameters and return values.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 from typing import Optional
@@ -97,7 +99,7 @@ logger = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     """Main application window."""
 
-    def __init__(self, cache_manager: Optional[CacheManager] = None):
+    def __init__(self, cache_manager: CacheManager | None = None):
         super().__init__()
         # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager()
@@ -106,7 +108,7 @@ class MainWindow(QMainWindow):
         self.settings_manager = SettingsManager()
 
         # Store reference to settings dialog
-        self._settings_dialog: Optional[SettingsDialog] = None
+        self._settings_dialog: SettingsDialog | None = None
 
         # Configure 3DE thumbnail widgets to use our cache manager
         # TODO: Convert threede_shot_grid to Model/View architecture
@@ -117,11 +119,17 @@ class MainWindow(QMainWindow):
         # Check feature flag - now defaults to True for optimized model
         # Set SHOTBOT_USE_LEGACY_MODEL=1 to use old implementation if issues arise
         try:
-            use_legacy = os.environ.get("SHOTBOT_USE_LEGACY_MODEL", "").lower() in ("1", "true", "yes")
+            use_legacy = os.environ.get("SHOTBOT_USE_LEGACY_MODEL", "").lower() in (
+                "1",
+                "true",
+                "yes",
+            )
         except Exception as e:
-            logger.warning(f"Failed to read SHOTBOT_USE_LEGACY_MODEL environment variable: {e}")
+            logger.warning(
+                f"Failed to read SHOTBOT_USE_LEGACY_MODEL environment variable: {e}"
+            )
             use_legacy = False
-        
+
         # Pass to models - OptimizedShotModel is now the default
         if use_legacy:
             logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
@@ -132,18 +140,20 @@ class MainWindow(QMainWindow):
             # Initialize async loading for immediate UI display
             init_result = self.shot_model.initialize_async()
             if init_result.success:
-                logger.debug(f"Optimized model initialized with {len(self.shot_model.shots)} cached shots")
+                logger.debug(
+                    f"Optimized model initialized with {len(self.shot_model.shots)} cached shots"
+                )
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
         self.previous_shots_model = PreviousShotsModel(
             self.shot_model, self.cache_manager
         )
         self.command_launcher = CommandLauncher()
         self.launcher_manager = LauncherManager()
-        self._current_scene: Optional[ThreeDEScene] = None
-        self._threede_worker: Optional[ThreeDESceneWorker] = None
+        self._current_scene: ThreeDEScene | None = None
+        self._threede_worker: ThreeDESceneWorker | None = None
         self._worker_mutex = QMutex()  # Protect worker access
         self._closing = False  # Track shutdown state
-        self._launcher_dialog: Optional[LauncherManagerDialog] = None
+        self._launcher_dialog: LauncherManagerDialog | None = None
         self._setup_ui()
         self._setup_menu()
         self._setup_accessibility()  # Add accessibility support
@@ -513,7 +523,7 @@ class MainWindow(QMainWindow):
             logger.info(f"Async initialization started, cache status: {result.success}")
             # Pre-warm sessions for faster subsequent loads
             QTimer.singleShot(100, self.shot_model.pre_warm_sessions)
-        
+
         has_cached_shots = bool(self.shot_model.shots)
         has_cached_scenes = bool(self.threede_scene_model.scenes)
 
@@ -924,7 +934,7 @@ class MainWindow(QMainWindow):
         logger.error(f"Shot model error: {error_msg}")
         self._update_status(f"Error: {error_msg}")
 
-    def _on_model_shot_selected(self, shot: Optional[Shot]) -> None:
+    def _on_model_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selected signal from model.
 
         Args:
@@ -939,7 +949,7 @@ class MainWindow(QMainWindow):
         """Handle cache updated signal from model."""
         logger.debug("Shot cache updated")
 
-    def _on_shot_selected(self, shot: Optional[Shot]) -> None:
+    def _on_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selection or deselection.
 
         Args:

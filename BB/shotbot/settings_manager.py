@@ -46,6 +46,8 @@ Type Safety:
     Invalid values are rejected with clear error messages and safe fallbacks.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
@@ -100,7 +102,7 @@ class SettingsManager(QObject):
                     self.settings.setValue(full_key, value)
                     logger.debug(f"Initialized default setting: {full_key} = {value}")
 
-    def _get_default_settings(self) -> Dict[str, Dict[str, Any]]:
+    def _get_default_settings(self) -> dict[str, dict[str, Any]]:
         """Get default settings organized by category."""
         return {
             "window": {
@@ -418,7 +420,7 @@ class SettingsManager(QObject):
             self.settings.setValue("applications/default_app", app)
             self.settings_changed.emit("applications/default_app", app)
 
-    def get_file_associations(self) -> Dict[str, str]:
+    def get_file_associations(self) -> dict[str, str]:
         """Get file type associations."""
         default_associations = dict(Config.APPS)
         stored_associations = self.settings.value(
@@ -426,16 +428,16 @@ class SettingsManager(QObject):
         )
         return stored_associations if stored_associations else default_associations
 
-    def set_file_associations(self, associations: Dict[str, str]) -> None:
+    def set_file_associations(self, associations: dict[str, str]) -> None:
         """Set file type associations."""
         self.settings.setValue("applications/file_associations", associations)
         self.settings_changed.emit("applications/file_associations", associations)
 
-    def get_custom_launchers(self) -> List[Dict[str, Any]]:
+    def get_custom_launchers(self) -> list[dict[str, Any]]:
         """Get custom launcher definitions."""
         return self.settings.value("applications/custom_launchers", [], type=list)
 
-    def set_custom_launchers(self, launchers: List[Dict[str, Any]]) -> None:
+    def set_custom_launchers(self, launchers: list[dict[str, Any]]) -> None:
         """Set custom launcher definitions."""
         self.settings.setValue("applications/custom_launchers", launchers)
         self.settings_changed.emit("applications/custom_launchers", launchers)
@@ -491,9 +493,9 @@ class SettingsManager(QObject):
             self.settings_changed.emit("advanced/log_level", level)
 
     # Category Access
-    def get_category(self, category: str) -> Dict[str, Any]:
+    def get_category(self, category: str) -> dict[str, Any]:
         """Get all settings for a category."""
-        category_settings = {}
+        category_settings: dict[str, Any] = {}
 
         # Start a group for the category
         self.settings.beginGroup(category)
@@ -508,7 +510,7 @@ class SettingsManager(QObject):
 
         return category_settings
 
-    def set_category(self, category: str, settings_dict: Dict[str, Any]) -> None:
+    def set_category(self, category: str, settings_dict: dict[str, Any]) -> None:
         """Set all settings for a category."""
         self.settings.beginGroup(category)
 
@@ -524,7 +526,7 @@ class SettingsManager(QObject):
     def export_settings(self, file_path: str) -> bool:
         """Export all settings to JSON file."""
         try:
-            all_settings = {}
+            all_settings: dict[str, Any] = {}
 
             # Get all categories
             categories = [
@@ -554,7 +556,7 @@ class SettingsManager(QObject):
         """Import settings from JSON file."""
         try:
             with open(file_path, "r") as f:
-                imported_settings = json.load(f)
+                imported_settings: dict[str, Any] = json.load(f)
 
             # Import each category
             for category, settings_dict in imported_settings.items():

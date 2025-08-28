@@ -58,14 +58,14 @@ class TestThreeDESceneFinder:
         self._progressive_batches = []
         self._estimate_result = (0, 0)
 
-    def set_scenes_to_return(self, scenes: List[ThreeDEScene]) -> None:
+    def set_scenes_to_return(self, scenes: list[ThreeDEScene]) -> None:
         """Configure scenes to return from find_scenes_for_shot."""
         self._scenes_to_return = scenes.copy()
         # Also set class-level for static method calls
         TestThreeDESceneFinder._class_scenes_to_return = scenes.copy()
 
     def set_progressive_batches(
-        self, batches: List[Tuple[List[ThreeDEScene], int, int, str]]
+        self, batches: list[tuple[list[ThreeDEScene], int, int, str]]
     ) -> None:
         """Configure progressive scan results."""
         self._progressive_batches = batches.copy()
@@ -92,8 +92,8 @@ class TestThreeDESceneFinder:
         show: str,
         sequence: str,
         shot: str,
-        excluded_users: Optional[Set[str]] = None,
-    ) -> List[ThreeDEScene]:
+        excluded_users: set[str | None] = None,
+    ) -> list[ThreeDEScene]:
         """Test double implementation with realistic behavior."""
         # Record the call
         self.find_scenes_calls.append(
@@ -118,10 +118,10 @@ class TestThreeDESceneFinder:
 
     def find_all_scenes_progressive(
         self,
-        shot_tuples: List[Tuple[str, str, str, str]],
-        excluded_users: Set[str],
+        shot_tuples: list[tuple[str, str, str, str]],
+        excluded_users: set[str],
         batch_size: int,
-    ) -> Generator[Tuple[List[ThreeDEScene], int, int, str], None, None]:
+    ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
         """Progressive scanning test double."""
         self.progressive_calls.append(
             {
@@ -136,8 +136,8 @@ class TestThreeDESceneFinder:
             yield batch_data
 
     def estimate_scan_size(
-        self, shot_tuples: List[Tuple[str, str, str, str]], excluded_users: Set[str]
-    ) -> Tuple[int, int]:
+        self, shot_tuples: list[tuple[str, str, str, str]], excluded_users: set[str]
+    ) -> tuple[int, int]:
         """Estimate scan size test double."""
         self.estimate_calls.append(
             {"shot_tuples": shot_tuples, "excluded_users": excluded_users}
@@ -146,15 +146,15 @@ class TestThreeDESceneFinder:
         return self._estimate_result
 
     def find_all_scenes_in_shows_efficient(
-        self, user_shots: List[Shot], excluded_users: Set[str]
-    ) -> List[ThreeDEScene]:
+        self, user_shots: list[Shot], excluded_users: set[str]
+    ) -> list[ThreeDEScene]:
         """Efficient scene finding test double."""
         # For "scan all shots" mode, return configured scenes
         return self._scenes_to_return.copy()
 
     def discover_all_shots_in_show(
         self, show_root: str, show: str
-    ) -> List[Tuple[str, str, str, str]]:
+    ) -> list[tuple[str, str, str, str]]:
         """Discover shots in a show test double."""
         # Return basic shot tuples for traditional discovery
         # Format: (workspace_path, show, sequence, shot)
@@ -166,10 +166,10 @@ class TestThreeDESceneFinder:
     @classmethod
     def find_all_scenes_progressive(  # noqa: F811
         cls,
-        shot_tuples: List[Tuple[str, str, str, str]],
-        excluded_users: Set[str],
+        shot_tuples: list[tuple[str, str, str, str]],
+        excluded_users: set[str],
         batch_size: int,
-    ) -> Generator[Tuple[List[ThreeDEScene], int, int, str], None, None]:
+    ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
         """Class method version for progressive scanning."""
         # Yield configured batches from class data
         for batch_data in cls._class_progressive_batches:
@@ -177,22 +177,22 @@ class TestThreeDESceneFinder:
 
     @classmethod
     def estimate_scan_size(  # noqa: F811
-        cls, shot_tuples: List[Tuple[str, str, str, str]], excluded_users: Set[str]
-    ) -> Tuple[int, int]:
+        cls, shot_tuples: list[tuple[str, str, str, str]], excluded_users: set[str]
+    ) -> tuple[int, int]:
         """Class method version for scan size estimation."""
         return cls._class_estimate_result
 
     @classmethod
     def find_all_scenes_in_shows_efficient(  # noqa: F811
-        cls, user_shots: List[Shot], excluded_users: Set[str]
-    ) -> List[ThreeDEScene]:
+        cls, user_shots: list[Shot], excluded_users: set[str]
+    ) -> list[ThreeDEScene]:
         """Class method version for efficient scene finding."""
         return cls._class_scenes_to_return.copy()
 
     @classmethod
     def discover_all_shots_in_show(  # noqa: F811
         cls, show_root: str, show: str
-    ) -> List[Tuple[str, str, str, str]]:
+    ) -> list[tuple[str, str, str, str]]:
         """Class method version for shot discovery."""
         return [
             (f"{show_root}/{show}/seq01/0010", show, "seq01", "0010"),
@@ -206,8 +206,8 @@ class TestThreeDESceneFinder:
         show: str,
         sequence: str,
         shot: str,
-        excluded_users: Optional[Set[str]] = None,
-    ) -> List[ThreeDEScene]:
+        excluded_users: set[str | None] = None,
+    ) -> list[ThreeDEScene]:
         """Class method version for scene finding."""
         if cls._class_should_raise_error:
             cls._class_should_raise_error = False

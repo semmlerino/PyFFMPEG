@@ -390,7 +390,7 @@ class TestShotModel:
         real_cache_manager.cache_shots(cache_data)
 
         # Test actual loading behavior
-        result = real_shot_model._load_from_cache()
+        result = real_shot_model.test_load_from_cache()
 
         assert result is True
         assert len(real_shot_model.shots) == 2
@@ -400,7 +400,7 @@ class TestShotModel:
     def test_load_from_cache_no_data(self, real_shot_model) -> None:
         """Test cache loading when no data available."""
         # Cache is empty by default in real_cache_manager
-        result = real_shot_model._load_from_cache()
+        result = real_shot_model.test_load_from_cache()
 
         assert result is False
         assert len(real_shot_model.shots) == 0
@@ -460,17 +460,17 @@ class TestShotModelParser:
         from exceptions import WorkspaceError
 
         with pytest.raises(WorkspaceError, match="Invalid workspace output type"):
-            real_shot_model._parse_ws_output(123)  # type: ignore
+            real_shot_model.test_parse_ws_output(123)  # type: ignore
 
         with pytest.raises(WorkspaceError, match="Invalid workspace output type"):
-            real_shot_model._parse_ws_output(None)  # type: ignore
+            real_shot_model.test_parse_ws_output(None)  # type: ignore
 
     def test_parse_ws_output_empty_string(self, real_shot_model) -> None:
         """Test parser handles empty output."""
-        shots = real_shot_model._parse_ws_output("")
+        shots = real_shot_model.test_parse_ws_output("")
         assert shots == []
 
-        shots = real_shot_model._parse_ws_output("   ")  # Whitespace only
+        shots = real_shot_model.test_parse_ws_output("   ")  # Whitespace only
         assert shots == []
 
     def test_parse_ws_output_no_matches(self, real_shot_model) -> None:
@@ -479,7 +479,7 @@ class TestShotModelParser:
 Another invalid line
 Not a workspace line"""
 
-        shots = real_shot_model._parse_ws_output(output)
+        shots = real_shot_model.test_parse_ws_output(output)
         assert shots == []
 
     def test_parse_ws_output_mixed_valid_invalid(self, real_shot_model) -> None:
@@ -490,7 +490,7 @@ Another invalid line
 workspace /shows/test2/shots/seq2/seq2_0020
 Yet another invalid"""
 
-        shots = real_shot_model._parse_ws_output(output)
+        shots = real_shot_model.test_parse_ws_output(output)
         assert len(shots) == 2
         assert shots[0].show == "test1"
         assert shots[1].show == "test2"
@@ -503,7 +503,7 @@ workspace /shows/test2/shots/seq2/seq2_0020
 
 """
 
-        shots = real_shot_model._parse_ws_output(output)
+        shots = real_shot_model.test_parse_ws_output(output)
         assert len(shots) == 2
 
     def test_parse_ws_output_complex_shot_names(self, real_shot_model) -> None:
@@ -512,7 +512,7 @@ workspace /shows/test2/shots/seq2/seq2_0020
 workspace /shows/test/shots/seq2/simple_name
 workspace /shows/test/shots/seq3/very_long_complex_shot_name_0050"""
 
-        shots = real_shot_model._parse_ws_output(output)
+        shots = real_shot_model.test_parse_ws_output(output)
         assert len(shots) == 3
 
         # Test shot name extraction logic

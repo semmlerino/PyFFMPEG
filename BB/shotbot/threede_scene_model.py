@@ -1,5 +1,7 @@
 """3DE scene data model for tracking scenes from other users."""
 
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -56,7 +58,7 @@ class ThreeDEScene:
             self.shot,
         )
 
-    def get_thumbnail_path(self) -> Optional[Path]:
+    def get_thumbnail_path(self) -> Path | None:
         """Get first available thumbnail or None.
 
         Tries three fallback options:
@@ -105,7 +107,7 @@ class ThreeDEScene:
         self._cached_thumbnail_path = thumbnail
         return thumbnail
 
-    def to_dict(self) -> Dict[str, Union[str, Path]]:
+    def to_dict(self) -> dict[str, str | Path]:
         """Convert scene to dictionary for caching."""
         return {
             "show": self.show,
@@ -118,7 +120,7 @@ class ThreeDEScene:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Union[str, Path]]) -> "ThreeDEScene":
+    def from_dict(cls, data: dict[str, str | Path]) -> "ThreeDEScene":
         """Create from dictionary."""
         scene = cls(
             show=str(data["show"]),
@@ -139,10 +141,10 @@ class ThreeDESceneModel:
 
     def __init__(
         self,
-        cache_manager: Optional[CacheManager] = None,
+        cache_manager: CacheManager | None = None,
         load_cache: bool = True,
     ):
-        self.scenes: List[ThreeDEScene] = []
+        self.scenes: list[ThreeDEScene] = []
         self.cache_manager = cache_manager or CacheManager()
         # Get excluded users dynamically (current user + any additional)
         self._excluded_users = ValidationUtils.get_excluded_users()
@@ -166,7 +168,7 @@ class ThreeDESceneModel:
             return len(self.scenes) > 0
         return False
 
-    def refresh_scenes(self, shots: List[Shot]) -> Tuple[bool, bool]:
+    def refresh_scenes(self, shots: list[Shot]) -> tuple[bool, bool]:
         """Refresh 3DE scenes for all shots.
 
         Args:
@@ -216,27 +218,27 @@ class ThreeDESceneModel:
             print(f"Error refreshing 3DE scenes: {e}")
             return False, False
 
-    def get_scene_by_index(self, index: int) -> Optional[ThreeDEScene]:
+    def get_scene_by_index(self, index: int) -> ThreeDEScene | None:
         """Get scene by index."""
         if 0 <= index < len(self.scenes):
             return self.scenes[index]
         return None
 
-    def find_scene_by_display_name(self, display_name: str) -> Optional[ThreeDEScene]:
+    def find_scene_by_display_name(self, display_name: str) -> ThreeDEScene | None:
         """Find scene by display name."""
         for scene in self.scenes:
             if scene.display_name == display_name:
                 return scene
         return None
 
-    def to_dict(self) -> List[Dict[str, Any]]:
+    def to_dict(self) -> list[dict[str, Any]]:
         """Convert scenes to dictionary format for caching."""
         return [scene.to_dict() for scene in self.scenes]
 
     def _deduplicate_scenes_by_shot(
         self,
-        scenes: List[ThreeDEScene],
-    ) -> List[ThreeDEScene]:
+        scenes: list[ThreeDEScene],
+    ) -> list[ThreeDEScene]:
         """Keep only the latest/best scene per shot.
 
         Priority order:
@@ -251,12 +253,12 @@ class ThreeDESceneModel:
             Deduplicated list with one scene per shot
         """
         # Group scenes by shot
-        scenes_by_shot: Dict[str, List[ThreeDEScene]] = defaultdict(list)
+        scenes_by_shot: dict[str, list[ThreeDEScene]] = defaultdict(list)
         for scene in scenes:
             shot_key = f"{scene.show}/{scene.sequence}/{scene.shot}"
             scenes_by_shot[shot_key].append(scene)
 
-        deduplicated: List[ThreeDEScene] = []
+        deduplicated: list[ThreeDEScene] = []
         for shot_scenes in scenes_by_shot.values():
             if len(shot_scenes) == 1:
                 deduplicated.append(shot_scenes[0])
@@ -270,7 +272,7 @@ class ThreeDESceneModel:
 
         return deduplicated
 
-    def _select_best_scene(self, scenes: List[ThreeDEScene]) -> ThreeDEScene:
+    def _select_best_scene(self, scenes: list[ThreeDEScene]) -> ThreeDEScene:
         """Select the best scene from multiple options.
 
         Args:

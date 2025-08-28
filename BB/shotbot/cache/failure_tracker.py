@@ -1,10 +1,11 @@
 """Failure tracking with exponential backoff for cache operations."""
+from __future__ import annotations
 
 import logging
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class FailureTracker:
             max_failed_attempts: Max attempts before using max delay (default: 4)
             cleanup_age_hours: Hours after which to clean old failures (default: 24)
         """
-        self._failed_attempts: Dict[str, Dict[str, Any]] = {}
+        self._failed_attempts: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
 
         # Configuration
@@ -46,13 +47,13 @@ class FailureTracker:
         self._cleanup_age_hours = cleanup_age_hours
 
     def should_retry(
-        self, cache_key: str, source_path: Optional[Path] = None
-    ) -> Tuple[bool, str]:
+        self, cache_key: str, source_path: Path | None = None
+    ) -> tuple[bool, str]:
         """Check if an operation should be retried for the given cache key.
 
         Args:
             cache_key: Unique identifier for the cache operation
-            source_path: Optional source path for better logging
+            source_path: source path for better logging
 
         Returns:
             Tuple of (should_retry, reason_message)
@@ -81,14 +82,14 @@ class FailureTracker:
             return True, f"Retry allowed after {attempts} previous attempts"
 
     def record_failure(
-        self, cache_key: str, error_message: str, source_path: Optional[Path] = None
+        self, cache_key: str, error_message: str, source_path: Path | None = None
     ) -> None:
         """Record a failed operation with exponential backoff calculation.
 
         Args:
             cache_key: Unique identifier for the cache operation
             error_message: Error message from the failure
-            source_path: Optional source path for better logging
+            source_path: source path for better logging
         """
         with self._lock:
             now = datetime.now()
@@ -124,7 +125,7 @@ class FailureTracker:
             if len(self._failed_attempts) > 10:  # Arbitrary threshold
                 self._cleanup_old_failures()
 
-    def clear_failures(self, cache_key: Optional[str] = None) -> None:
+    def clear_failures(self, cache_key: str | None = None) -> None:
         """Clear failure records to allow immediate retry.
 
         Args:
@@ -144,7 +145,7 @@ class FailureTracker:
                 if count > 0:
                     logger.info(f"Cleared all {count} failure records")
 
-    def get_failure_status(self) -> Dict[str, Dict[str, Any]]:
+    def get_failure_status(self) -> dict[str, dict[str, Any]]:
         """Get current status of all failed attempts for debugging.
 
         Returns:

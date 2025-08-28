@@ -12,6 +12,8 @@ Tests performance improvements from optimizations:
 # - Real components where possible
 # - Thread-safe testing patterns
 
+from __future__ import annotations
+
 import statistics
 import time
 from pathlib import Path
@@ -121,7 +123,7 @@ class BenchmarkResult:
 
     def __init__(self, name: str):
         self.name = name
-        self.timings: List[float] = []
+        self.timings: list[float] = []
         self.original_time: float = 0
         self.optimized_time: float = 0
 
@@ -162,7 +164,7 @@ class TestProcessPoolManagerPerformance:
     """Benchmark ProcessPoolManager optimizations."""
 
     @pytest.fixture
-    def test_commands(self) -> List[str]:
+    def test_commands(self) -> list[str]:
         """Test commands to benchmark."""
         return [
             "echo 'test'",
@@ -176,7 +178,7 @@ class TestProcessPoolManagerPerformance:
         ]
 
     @pytest.fixture
-    def workspace_commands(self) -> List[str]:
+    def workspace_commands(self) -> list[str]:
         """Workspace commands to benchmark."""
         return [
             "ws -sg",
@@ -294,7 +296,7 @@ class TestThumbnailProcessorPerformance:
     """Benchmark ThumbnailProcessor optimizations."""
 
     @pytest.fixture
-    def test_images(self, tmp_path) -> List[Path]:
+    def test_images(self, tmp_path) -> list[Path]:
         """Create test images of various sizes."""
         images = []
 
@@ -343,11 +345,13 @@ class TestThumbnailProcessorPerformance:
         # Note: OptimizedThumbnailProcessor removed to reduce duplication
         cache_dir = tmp_path / "cache_parallel"
         cache_dir.mkdir()
-        
+
         start = time.perf_counter()
-        results = original_processor.process_thumbnails_parallel(test_images, max_workers=4)
+        results = original_processor.process_thumbnails_parallel(
+            test_images, max_workers=4
+        )
         result.optimized_time = (time.perf_counter() - start) * 1000
-        
+
         # Verify all thumbnails were processed
         successful = sum(1 for r in results if r is not None)
         assert successful == len(test_images)
@@ -423,7 +427,9 @@ class TestThumbnailProcessorPerformance:
         initial_memory = process.memory_info().rss / 1024 / 1024
 
         # Process images in parallel
-        results = processor_parallel.process_thumbnails_parallel(test_images * 2, max_workers=4)
+        results = processor_parallel.process_thumbnails_parallel(
+            test_images * 2, max_workers=4
+        )
 
         optimized_peak_memory = process.memory_info().rss / 1024 / 1024
         optimized_memory_increase = optimized_peak_memory - initial_memory
@@ -443,7 +449,7 @@ class TestCachePerformance:
     """Benchmark cache operations and TTL improvements."""
 
     @pytest.fixture
-    def sample_shots(self) -> List[Shot]:
+    def sample_shots(self) -> list[Shot]:
         """Create sample shots for testing."""
         return [
             Shot(f"show{i}", f"seq{i:02d}", f"shot{i:03d}", f"/workspace/shot{i}")

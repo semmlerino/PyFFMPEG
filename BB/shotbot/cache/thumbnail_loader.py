@@ -1,10 +1,11 @@
 """Async thumbnail loading with QRunnable background processing."""
+from __future__ import annotations
 
 import logging
 import threading
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from PySide6.QtCore import QObject, QRunnable, Signal
 
@@ -24,9 +25,9 @@ class ThumbnailCacheResult:
     def __init__(self):
         """Initialize result container."""
         super().__init__()
-        self.future: Future[Optional[Path]] = Future()
-        self.cache_path: Optional[Path] = None
-        self.error: Optional[str] = None
+        self.future: Future[Path | None] = Future()
+        self.cache_path: Path | None = None
+        self.error: str | None = None
         self._complete_event = threading.Event()
         self._completed_lock = threading.Lock()
         self._is_complete = False
@@ -67,7 +68,7 @@ class ThumbnailCacheResult:
             pass  # Future already completed
         self._complete_event.set()
 
-    def wait(self, timeout: Optional[float] = None) -> bool:
+    def wait(self, timeout: float | None = None) -> bool:
         """Wait for completion.
 
         Args:
@@ -78,7 +79,7 @@ class ThumbnailCacheResult:
         """
         return self._complete_event.wait(timeout)
 
-    def get_result(self, timeout: Optional[float] = None) -> Optional[Path]:
+    def get_result(self, timeout: float | None = None) -> Path | None:
         """Get result with optional timeout.
 
         Args:
@@ -135,7 +136,7 @@ class ThumbnailLoader(QRunnable):
         show: str,
         sequence: str,
         shot: str,
-        result: Optional[ThumbnailCacheResult] = None,
+        result: ThumbnailCacheResult | None = None,
     ):
         """Initialize thumbnail loader.
 
@@ -147,7 +148,7 @@ class ThumbnailLoader(QRunnable):
             show: Show name for organization
             sequence: Sequence name for organization
             shot: Shot name for identification
-            result: Optional result container for synchronization
+            result: result container for synchronization
         """
         super().__init__()
         self._thumbnail_processor = thumbnail_processor

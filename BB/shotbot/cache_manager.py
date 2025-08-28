@@ -4,15 +4,15 @@ This module provides a backward-compatible interface to the new modular cache
 architecture while maintaining the exact same public API as the original
 monolithic CacheManager.
 """
+from __future__ import annotations
 
 import logging
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal
-from type_definitions import ShotDict, ThreeDESceneDict
 from PySide6.QtWidgets import QApplication
 
 from cache.cache_validator import CacheValidator
@@ -27,9 +27,10 @@ from cache.thumbnail_loader import ThumbnailCacheResult, ThumbnailLoader
 from cache.thumbnail_processor import ThumbnailProcessor
 from config import Config
 from exceptions import CacheError, ThumbnailError
+from type_definitions import MemoryStatsDict, ShotDict, ThreeDESceneDict, ValidationResultDict
 
 if TYPE_CHECKING:
-    from type_definitions import Shot
+    from shot_model import Shot
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class CacheManager(QObject):
     # Signals - maintain backward compatibility
     cache_updated = Signal()
 
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(self, cache_dir: Path | None = None):
         """Initialize cache manager facade with modular components.
 
         Args:
@@ -88,10 +89,10 @@ class CacheManager(QObject):
         )
 
         # Initialize validator (will be created after directory setup)
-        self._cache_validator: Optional[CacheValidator] = None
+        self._cache_validator: CacheValidator | None = None
 
         # Track active async loaders for synchronization
-        self._active_loaders: Dict[str, ThumbnailCacheResult] = {}
+        self._active_loaders: dict[str, ThumbnailCacheResult] = {}
 
         # Track last validation time for periodic validation
         self._last_validation_time = datetime.now()
@@ -109,7 +110,7 @@ class CacheManager(QObject):
 
     # Backward compatibility properties for internal test access
     @property
-    def _cached_thumbnails(self) -> Dict[str, int]:
+    def _cached_thumbnails(self) -> dict[str, int]:
         """Backward compatibility property for memory tracking."""
         # Return direct reference for backward compatibility with tests
         # Note: In production code, use get_memory_usage() for read-only access
@@ -138,7 +139,7 @@ class CacheManager(QObject):
         self._memory_manager._max_memory_bytes = value
 
     @property
-    def _failed_attempts(self) -> Dict[str, Dict[str, Any]]:
+    def _failed_attempts(self) -> dict[str, dict[str, Any]]:
         """Backward compatibility property for failure tracking."""
         return self._failure_tracker.get_failure_status()
 
@@ -153,7 +154,7 @@ class CacheManager(QObject):
         """Get cache expiry time in minutes from configuration."""
         return Config.CACHE_EXPIRY_MINUTES
 
-    def _ensure_cache_dirs(self):
+    def _ensure_cache_dirs(self) -> None:
         """Ensure cache directories exist using storage backend."""
         if not self._storage_backend.ensure_directory(self.thumbnails_dir):
             # If normal directory creation fails, try fallback
@@ -168,7 +169,7 @@ class CacheManager(QObject):
     # Thumbnail caching methods - backward compatible interface
     def get_cached_thumbnail(
         self, show: str, sequence: str, shot: str
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Get path to cached thumbnail if it exists (thread-safe)."""
         with self._lock:
             # Periodic validation
@@ -183,13 +184,13 @@ class CacheManager(QObject):
 
     def cache_thumbnail(
         self,
-        source_path: Union[str, Path],
+        source_path: str | Path,
         show: str,
         sequence: str,
         shot: str,
         wait: bool = True,
-        timeout: Optional[float] = None,
-    ) -> Optional[Union[Path, ThumbnailCacheResult]]:
+        timeout: float | None = None,
+    ) -> Path | ThumbnailCacheResult | None:
         """Cache a thumbnail from source path with optional synchronization."""
         # Convert source_path to Path object for consistent handling
         source_path_obj = (
@@ -293,7 +294,7 @@ class CacheManager(QObject):
 
     def cache_thumbnail_direct(
         self, source_path: Path, show: str, sequence: str, shot: str
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Direct thumbnail caching implementation (backward compatibility)."""
         cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
 
@@ -311,12 +312,12 @@ class CacheManager(QObject):
         # Trigger eviction if memory limit exceeded
         self._memory_manager.evict_if_needed()
 
-    def _cleanup_loader(self, cache_key: str):
+    def _cleanup_loader(self, cache_key: str) -> None:
         """Remove completed loader from tracking."""
         with self._lock:
             self._active_loaders.pop(cache_key, None)
 
-    def _run_periodic_validation(self):
+    def _run_periodic_validation(self) -> None:
         """Run periodic cache validation."""
         time_since_validation = datetime.now() - self._last_validation_time
         if time_since_validation > timedelta(minutes=self._validation_interval_minutes):
@@ -326,27 +327,25 @@ class CacheManager(QObject):
             self._last_validation_time = datetime.now()
 
     # Shot caching methods - delegate to ShotCache
-    def get_cached_shots(self) -> Optional[List[ShotDict]]:
+    def get_cached_shots(self) -> list[ShotDict] | None:
         """Get cached shot list if valid."""
         return self._shot_cache.get_cached_shots()
 
-    def cache_shots(self, shots: Union[Sequence["Shot"], Sequence[ShotDict]]):
+    def cache_shots(self, shots: Sequence["Shot"] | Sequence[ShotDict]):
         """Cache shot list to file."""
         self._shot_cache.cache_shots(shots)
 
     # Previous shots caching methods - delegate to ShotCache
-    def get_cached_previous_shots(self) -> Optional[List[ShotDict]]:
+    def get_cached_previous_shots(self) -> list[ShotDict] | None:
         """Get cached previous/approved shot list if valid."""
         return self._previous_shots_cache.get_cached_shots()
 
-    def cache_previous_shots(
-        self, shots: Union[Sequence["Shot"], Sequence[ShotDict]]
-    ):
+    def cache_previous_shots(self, shots: Sequence["Shot"] | Sequence[ShotDict]):
         """Cache previous/approved shot list to file."""
         self._previous_shots_cache.cache_shots(shots)
 
     # 3DE scene caching methods - delegate to ThreeDECache
-    def get_cached_threede_scenes(self) -> Optional[List[ThreeDESceneDict]]:
+    def get_cached_threede_scenes(self) -> list[ThreeDESceneDict] | None:
         """Get cached 3DE scene list if valid."""
         return self._threede_cache.get_cached_scenes()
 
@@ -355,7 +354,7 @@ class CacheManager(QObject):
         return self._threede_cache.has_valid_cache()
 
     def cache_threede_scenes(
-        self, scenes: List[ThreeDESceneDict], metadata: Optional[Dict[str, Any]] = None
+        self, scenes: list[ThreeDESceneDict], metadata: dict[str, Any] | None = None
     ):
         """Cache 3DE scene list to file with optional metadata."""
         self._threede_cache.cache_scenes(scenes, metadata)
@@ -375,7 +374,7 @@ class CacheManager(QObject):
             cache_file = self.cache_dir / f"{key}.json"
             self._storage_backend.write_json(cache_file, data)
 
-    def get_cached_data(self, key: str) -> Optional[Any]:
+    def get_cached_data(self, key: str) -> Any | None:
         """Get cached generic data by key (for backward compatibility).
 
         Args:
@@ -408,14 +407,14 @@ class CacheManager(QObject):
                 cache_file.unlink()
 
     # Memory and validation methods - delegate to appropriate components
-    def get_memory_usage(self) -> Dict[str, Any]:
+    def get_memory_usage(self) -> MemoryStatsDict:
         """Get current cache memory usage statistics (backward compatible)."""
         stats = self._memory_manager.get_usage_stats()
         # Add backward compatibility keys
         stats["thumbnail_count"] = stats["tracked_items"]
         return stats
 
-    def validate_cache(self) -> Dict[str, Any]:
+    def validate_cache(self) -> ValidationResultDict:
         """Validate cache consistency and fix issues (backward compatible)."""
         if self._cache_validator:
             result = self._cache_validator.validate_cache()
@@ -458,11 +457,11 @@ class CacheManager(QObject):
             logger.info("Cache cleared successfully")
 
     # Failure tracking methods - delegate to FailureTracker
-    def clear_failed_attempts(self, cache_key: Optional[str] = None):
+    def clear_failed_attempts(self, cache_key: str | None = None):
         """Clear failed attempts to allow immediate retry."""
         self._failure_tracker.clear_failures(cache_key)
 
-    def get_failed_attempts_status(self) -> Dict[str, Dict[str, Any]]:
+    def get_failed_attempts_status(self) -> dict[str, dict[str, Any]]:
         """Get current status of failed attempts for debugging."""
         return self._failure_tracker.get_failure_status()
 
@@ -527,6 +526,98 @@ class CacheManager(QObject):
         self._threede_cache.set_expiry_minutes(expiry_minutes)
 
         logger.info(f"Cache expiry set to {expiry_minutes} minutes")
+
+    # ================================================================
+    # Test-Specific Accessor Methods
+    # ================================================================
+    # WARNING: These methods are for testing purposes ONLY.
+    # They provide controlled access to private attributes for tests.
+    # DO NOT use these methods in production code.
+
+    @property
+    def test_storage_backend(self) -> "StorageBackend":
+        """Test-only access to storage backend."""
+        return self._storage_backend
+
+    @property
+    def test_failure_tracker(self) -> "FailureTracker":
+        """Test-only access to failure tracker."""
+        return self._failure_tracker
+
+    @property
+    def test_memory_manager(self) -> "MemoryManager":
+        """Test-only access to memory manager."""
+        return self._memory_manager
+
+    @property
+    def test_shot_cache(self) -> "ShotCache":
+        """Test-only access to shot cache."""
+        return self._shot_cache
+
+    @property
+    def test_threede_cache(self) -> "ThreeDECache":
+        """Test-only access to 3DE cache."""
+        return self._threede_cache
+
+    @property
+    def test_cached_thumbnails(self) -> dict[str, int]:
+        """Test-only access to cached thumbnails dictionary.
+        
+        Returns:
+            Dictionary mapping thumbnail path to size in bytes.
+            This is for test access only - production code should use
+            get_memory_usage() for memory statistics.
+            
+        Note:
+            The return type is dict[str, int] where:
+            - key: thumbnail file path (str)
+            - value: memory usage in bytes (int)
+        """
+        return self._cached_thumbnails
+
+    @property
+    def test_memory_usage_bytes(self) -> int:
+        """Test-only access to memory usage counter.
+        
+        Returns:
+            Current memory usage in bytes.
+        """
+        return self._memory_usage_bytes
+
+    @test_memory_usage_bytes.setter
+    def test_memory_usage_bytes(self, value: int) -> None:
+        """Test-only setter for memory usage counter.
+        
+        Args:
+            value: Memory usage value in bytes.
+            
+        Warning:
+            This setter is for testing only. Production code should
+            not directly manipulate memory usage counters.
+        """
+        self._memory_usage_bytes = value
+
+    @property
+    def test_max_memory_bytes(self) -> int:
+        """Test-only access to max memory limit.
+        
+        Returns:
+            Maximum memory limit in bytes.
+        """
+        return self._max_memory_bytes
+
+    @property
+    def test_lock(self) -> threading.RLock:
+        """Test-only access to the coordination lock.
+        
+        Returns:
+            The RLock used for thread-safe coordination.
+            
+        Warning:
+            This is for testing thread safety only. Production code
+            should not access internal locking mechanisms.
+        """
+        return self._lock
 
 
 # Backward compatibility wrapper for ThumbnailCacheLoader

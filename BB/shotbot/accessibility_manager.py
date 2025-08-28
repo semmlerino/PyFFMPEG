@@ -3,10 +3,22 @@
 Provides centralized accessibility support including screen reader compatibility,
 keyboard navigation, and tooltip management.
 """
+from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Protocol, runtime_checkable
 
-from PySide6.QtWidgets import QPushButton, QSlider, QTabWidget, QWidget
+from PySide6.QtWidgets import QListView, QPushButton, QSlider, QTabWidget, QWidget
+
+
+@runtime_checkable
+class GridWidget(Protocol):
+    """Protocol for grid widgets that may have accessibility features."""
+    
+    def setAccessibleName(self, name: str) -> None: ...
+    def setAccessibleDescription(self, description: str) -> None: ...
+    # attributes - checked with hasattr at runtime
+    size_slider: QSlider | None
+    list_view: QListView | None
 
 
 class AccessibilityManager:
@@ -21,13 +33,12 @@ class AccessibilityManager:
         """
         window.setAccessibleName("ShotBot VFX Launcher")
         window.setAccessibleDescription(
-            "Browse and launch VFX applications for shots. "
-            "Use Tab to navigate, Arrow keys to select shots, Enter to launch applications."
+            "Browse and launch VFX applications for shots. Use Tab to navigate, Arrow keys to select shots, Enter to launch applications."
         )
 
     @staticmethod
     def setup_shot_grid_accessibility(
-        grid_widget: QWidget, grid_type: str = "shots"
+        grid_widget: GridWidget, grid_type: str = "shots"
     ) -> None:
         """Set up accessibility for shot grid widgets.
 
@@ -53,14 +64,14 @@ class AccessibilityManager:
         )
 
         # Set up for child widgets if they exist
-        if hasattr(grid_widget, "size_slider"):
+        if hasattr(grid_widget, "size_slider") and grid_widget.size_slider is not None:
             AccessibilityManager.setup_slider_accessibility(
                 grid_widget.size_slider,
                 "Thumbnail Size",
                 "Adjust thumbnail size from 100 to 400 pixels. Use arrow keys or Ctrl+Mouse Wheel.",
             )
 
-        if hasattr(grid_widget, "list_view"):
+        if hasattr(grid_widget, "list_view") and grid_widget.list_view is not None:
             grid_widget.list_view.setAccessibleName(f"{grid_type.title()} List")
             grid_widget.list_view.setAccessibleDescription(
                 f"List of {grid_type} items. Use arrow keys to navigate, Enter to select."
@@ -68,7 +79,7 @@ class AccessibilityManager:
 
     @staticmethod
     def setup_button_accessibility(
-        button: QPushButton, name: str, description: str, shortcut: Optional[str] = None
+        button: QPushButton, name: str, description: str, shortcut: str | None = None
     ) -> None:
         """Set up accessibility for a button.
 
@@ -76,7 +87,7 @@ class AccessibilityManager:
             button: The button to configure
             name: Accessible name for the button
             description: Accessible description
-            shortcut: Optional keyboard shortcut
+            shortcut: keyboard shortcut
         """
         button.setAccessibleName(name)
 
@@ -91,7 +102,7 @@ class AccessibilityManager:
 
     @staticmethod
     def setup_launcher_buttons_accessibility(
-        app_buttons: Dict[str, QPushButton],
+        app_buttons: dict[str, QPushButton],
     ) -> None:
         """Set up accessibility for application launcher buttons.
 

@@ -45,8 +45,8 @@ class LauncherProcessManager(QObject):
         super().__init__()
 
         # Thread-safe process tracking with detailed information
-        self._active_processes: Dict[str, ProcessInfo] = {}
-        self._active_workers: Dict[str, LauncherWorker] = {}  # Track worker threads
+        self._active_processes: dict[str, ProcessInfo] = {}
+        self._active_workers: dict[str, LauncherWorker] = {}  # Track worker threads
         self._process_lock = threading.RLock()
         self._cleanup_lock = threading.Lock()  # Separate lock for cleanup coordination
         self._cleanup_in_progress = False  # Track cleanup state with lock protection
@@ -73,9 +73,9 @@ class LauncherProcessManager(QObject):
         self,
         launcher_id: str,
         launcher_name: str,
-        command: List[str],
-        working_dir: Optional[str] = None,
-    ) -> Optional[str]:
+        command: list[str],
+        working_dir: str | None = None,
+    ) -> str | None:
         """Execute command directly as subprocess.
 
         Args:
@@ -132,7 +132,7 @@ class LauncherProcessManager(QObject):
         launcher_id: str,
         launcher_name: str,
         command: str,
-        working_dir: Optional[str] = None,
+        working_dir: str | None = None,
     ) -> bool:
         """Execute command using a worker thread.
 
@@ -223,7 +223,7 @@ class LauncherProcessManager(QObject):
             # Include both subprocess and worker counts
             return len(self._active_processes) + len(self._active_workers)
 
-    def get_active_process_info(self) -> List[Dict[str, Any]]:
+    def get_active_process_info(self) -> list[dict[str, Any]]:
         """Get information about all active processes.
 
         Returns:
@@ -239,29 +239,33 @@ class LauncherProcessManager(QObject):
         # Add subprocess info
         for process_key, process_info in processes_snapshot:
             try:
-                info_list.append({
-                    "type": "subprocess",
-                    "key": process_key,
-                    "launcher_id": process_info.launcher_id,
-                    "launcher_name": process_info.launcher_name,
-                    "command": process_info.command,
-                    "pid": process_info.process.pid,
-                    "running": process_info.process.poll() is None,
-                    "start_time": process_info.timestamp,
-                })
+                info_list.append(
+                    {
+                        "type": "subprocess",
+                        "key": process_key,
+                        "launcher_id": process_info.launcher_id,
+                        "launcher_name": process_info.launcher_name,
+                        "command": process_info.command,
+                        "pid": process_info.process.pid,
+                        "running": process_info.process.poll() is None,
+                        "start_time": process_info.timestamp,
+                    }
+                )
             except Exception as e:
                 logger.debug(f"Error getting process info for {process_key}: {e}")
 
         # Add worker info
         for worker_key, worker in workers_snapshot:
             try:
-                info_list.append({
-                    "type": "worker",
-                    "key": worker_key,
-                    "launcher_id": worker.launcher_id,
-                    "command": worker.command,
-                    "running": worker.isRunning(),
-                })
+                info_list.append(
+                    {
+                        "type": "worker",
+                        "key": worker_key,
+                        "launcher_id": worker.launcher_id,
+                        "command": worker.command,
+                        "running": worker.isRunning(),
+                    }
+                )
             except Exception as e:
                 logger.debug(f"Error getting worker info for {worker_key}: {e}")
 

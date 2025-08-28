@@ -8,6 +8,8 @@ Provides comprehensive accessibility support including:
 - ARIA-like roles for Qt widgets
 """
 
+from __future__ import annotations
+
 from typing import Optional
 
 from PySide6.QtCore import QEvent, QObject, Qt
@@ -252,7 +254,7 @@ class HighContrastMode:
     """Manages high contrast mode for better visibility."""
 
     _enabled = False
-    _original_palette: Optional[QPalette] = None
+    _original_palette: QPalette | None = None
 
     @classmethod
     def toggle(cls, window: QWidget) -> None:
@@ -435,7 +437,7 @@ class FocusManager:
             window.setTabOrder(focus_chain[i], focus_chain[i + 1])
 
     @staticmethod
-    def save_focus(window: QWidget) -> Optional[QWidget]:
+    def save_focus(window: QWidget) -> QWidget | None:
         """Save current focus widget.
 
         Args:
@@ -447,7 +449,7 @@ class FocusManager:
         return window.focusWidget()
 
     @staticmethod
-    def restore_focus(widget: Optional[QWidget]) -> None:
+    def restore_focus(widget: QWidget | None) -> None:
         """Restore focus to saved widget.
 
         Args:

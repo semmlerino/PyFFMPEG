@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class LauncherConfigManager:
     """Manages persistence of custom launcher configurations."""
 
-    def __init__(self, config_dir: Optional[Union[str, Path]] = None):
+    def __init__(self, config_dir: str | Path | None = None):
         if config_dir is not None:
             self.config_dir = Path(config_dir)
         else:
@@ -36,7 +36,7 @@ class LauncherConfigManager:
             logger.error(f"Failed to create config directory {self.config_dir}: {e}")
             raise
 
-    def load_launchers(self) -> Dict[str, CustomLauncher]:
+    def load_launchers(self) -> dict[str, CustomLauncher]:
         """Load launchers from configuration file."""
         if not self.config_file.exists():
             logger.debug(f"Config file {self.config_file} does not exist")
@@ -44,9 +44,9 @@ class LauncherConfigManager:
 
         try:
             with open(self.config_file, "r") as f:
-                data = json.load(f)
+                data: dict[str, Any] = json.load(f)
 
-            launchers = {}
+            launchers: dict[str, Any] = {}
             for launcher_id, launcher_data in data.get("launchers", {}).items():
                 launcher_data["id"] = launcher_id
                 launchers[launcher_id] = CustomLauncher.from_dict(launcher_data)
@@ -58,7 +58,7 @@ class LauncherConfigManager:
             logger.error(f"Failed to load launcher config: {e}")
             return {}
 
-    def save_launchers(self, launchers: Dict[str, CustomLauncher]) -> bool:
+    def save_launchers(self, launchers: dict[str, CustomLauncher]) -> bool:
         """Save launchers to configuration file."""
         try:
             config_data = {

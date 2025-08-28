@@ -139,7 +139,7 @@ class VFXProjectGenerator:
     """Generate realistic VFX project structures for performance testing."""
 
     @staticmethod
-    def create_small_project(base_path: Path) -> Tuple[Path, Dict[str, int]]:
+    def create_small_project(base_path: Path) -> tuple[Path, dict[str, int]]:
         """Create small test project (10 shots, ~50 .3de files)."""
         shows_root = base_path / "shows"
         show_path = shows_root / "small_project" / "shots"
@@ -200,7 +200,7 @@ class VFXProjectGenerator:
         return shows_root, stats
 
     @staticmethod
-    def create_medium_project(base_path: Path) -> Tuple[Path, Dict[str, int]]:
+    def create_medium_project(base_path: Path) -> tuple[Path, dict[str, int]]:
         """Create medium test project (100 shots, ~500 .3de files)."""
         shows_root = base_path / "shows"
         show_path = shows_root / "medium_project" / "shots"
@@ -265,7 +265,7 @@ class VFXProjectGenerator:
         return shows_root, stats
 
     @staticmethod
-    def create_large_project(base_path: Path) -> Tuple[Path, Dict[str, int]]:
+    def create_large_project(base_path: Path) -> tuple[Path, dict[str, int]]:
         """Create large test project (1000 shots, ~5000 .3de files)."""
         shows_root = base_path / "shows"
         show_path = shows_root / "large_project" / "shots"

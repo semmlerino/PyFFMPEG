@@ -1,5 +1,7 @@
 """Thread-safe base class for Qt workers with proper lifecycle management."""
 
+from __future__ import annotations
+
 import logging
 import weakref
 from enum import Enum
@@ -78,7 +80,7 @@ class ThreadSafeWorker(QThread):
         self._state_condition = QWaitCondition()
         self._stop_requested = False
         self._force_stop = False
-        self._connections: List[Tuple[weakref.ref, weakref.ref]] = []
+        self._connections: list[tuple[weakref.ref, weakref.ref]] = []
         self._zombie = False  # Track abandoned threads
 
         # Set up cleanup on thread finished
@@ -333,7 +335,7 @@ class ThreadSafeWorker(QThread):
     @Slot()
     def _on_finished(self) -> None:
         """Handle thread finished signal for cleanup.
-        
+
         This slot is connected to the thread's finished signal.
         Properly decorated with @Slot for Qt efficiency.
         """

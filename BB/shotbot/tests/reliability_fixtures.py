@@ -1,5 +1,7 @@
 """Reliability fixtures for consistent test execution."""
 
+from __future__ import annotations
+
 import shutil
 import tempfile
 from pathlib import Path
@@ -29,7 +31,7 @@ def reliable_temp_dir():
 @pytest.fixture
 def managed_threads(qtbot):
     """Fixture to track and cleanup threads."""
-    threads: List[QThread] = []
+    threads: list[QThread] = []
 
     def create_thread():
         thread = QThread()

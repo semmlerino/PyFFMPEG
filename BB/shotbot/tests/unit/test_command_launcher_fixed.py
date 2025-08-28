@@ -91,7 +91,8 @@ class TestCommandLauncherCore:
     def test_launch_success_behavior(self, qtbot):
         """Test successful app launch behavior."""
         # Arrange: Set up for success
-        self.test_subprocess.set_success("nuke started successfully")
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "nuke started successfully"
 
         shot = TestShot(workspace_path="/test/workspace")
         self.launcher.set_current_shot(shot)
@@ -159,7 +160,8 @@ class TestCommandLauncherCore:
     def test_multiple_launches_behavior(self, qtbot):
         """Test multiple app launches behavior."""
         # Arrange: Set up shot and success
-        self.test_subprocess.set_success("App launched")
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "App launched"
         shot = TestShot(workspace_path="/test/workspace")
         self.launcher.set_current_shot(shot)
 
@@ -180,7 +182,8 @@ class TestCommandLauncherCore:
     def test_workspace_path_variations(self, qtbot):
         """Test different workspace path formats."""
         # Arrange: Success setup
-        self.test_subprocess.set_success("App launched")
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "App launched"
 
         test_paths = [
             "/shows/project/shots/seq01/shot01",
@@ -205,7 +208,8 @@ class TestCommandLauncherCore:
     def test_command_formatting_behavior(self, qtbot):
         """Test command formatting with shot variables."""
         # Arrange: Set up custom command capability
-        self.test_subprocess.set_success("Custom command executed")
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "Custom command executed"
 
         shot = TestShot(
             show="project_x",
@@ -250,7 +254,8 @@ class TestCommandLauncherAdvanced:
     def test_scene_launching_behavior(self, qtbot):
         """Test 3DE scene launching without complex mocking."""
         # Arrange: Set up success
-        self.test_subprocess.set_success("3DE launched with scene")
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "3DE launched with scene"
 
         # Create test scene using real class
         scene = ThreeDEScene(
@@ -284,7 +289,8 @@ class TestCommandLauncherAdvanced:
             else:
                 # Direct execution succeeds
                 subprocess_double = TestSubprocess()
-                subprocess_double.set_success("Direct execution")
+                subprocess_double.return_code = 0
+                subprocess_double.stdout = "Direct execution"
                 return subprocess_double
 
         command_launcher.subprocess.Popen = fallback_subprocess
@@ -368,7 +374,8 @@ class TestCommandLauncherEdgeCases:
         """Minimal setup."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
-        self.test_subprocess.set_success("Default success")
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "Default success"
 
         # Replace subprocess
 

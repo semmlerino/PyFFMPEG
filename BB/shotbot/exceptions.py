@@ -11,6 +11,8 @@ Following best practices for exception design:
 - Integration with logging system
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict, Optional
 
 
@@ -29,8 +31,8 @@ class ShotBotError(Exception):
     def __init__(
         self,
         message: str,
-        details: Optional[Dict[str, Any]] = None,
-        error_code: Optional[str] = None,
+        details: dict[str, Any | None] = None,
+        error_code: str | None = None,
     ):
         """Initialize ShotBot error.
 
@@ -62,9 +64,9 @@ class WorkspaceError(ShotBotError):
     def __init__(
         self,
         message: str,
-        workspace_path: Optional[str] = None,
-        command: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        workspace_path: str | None = None,
+        command: str | None = None,
+        details: dict[str, Any | None] = None,
     ):
         """Initialize workspace error.
 
@@ -95,10 +97,10 @@ class ThumbnailError(ShotBotError):
     def __init__(
         self,
         message: str,
-        image_path: Optional[str] = None,
-        thumbnail_path: Optional[str] = None,
-        reason: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        image_path: str | None = None,
+        thumbnail_path: str | None = None,
+        reason: str | None = None,
+        details: dict[str, Any | None] = None,
     ):
         """Initialize thumbnail error.
 
@@ -135,9 +137,9 @@ class SecurityError(ShotBotError):
     def __init__(
         self,
         message: str,
-        violation_type: Optional[str] = None,
-        attempted_command: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        violation_type: str | None = None,
+        attempted_command: str | None = None,
+        details: dict[str, Any | None] = None,
     ):
         """Initialize security error.
 
@@ -168,10 +170,10 @@ class LauncherError(ShotBotError):
     def __init__(
         self,
         message: str,
-        launcher_name: Optional[str] = None,
-        launcher_command: Optional[str] = None,
-        exit_code: Optional[int] = None,
-        details: Optional[Dict[str, Any]] = None,
+        launcher_name: str | None = None,
+        launcher_command: str | None = None,
+        exit_code: int | None = None,
+        details: dict[str, Any | None] = None,
     ):
         """Initialize launcher error.
 
@@ -205,10 +207,10 @@ class CacheError(ShotBotError):
     def __init__(
         self,
         message: str,
-        cache_key: Optional[str] = None,
-        cache_file: Optional[str] = None,
-        operation: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        cache_key: str | None = None,
+        cache_file: str | None = None,
+        operation: str | None = None,
+        details: dict[str, Any | None] = None,
     ):
         """Initialize cache error.
 
@@ -242,10 +244,10 @@ class NetworkError(ShotBotError):
     def __init__(
         self,
         message: str,
-        url: Optional[str] = None,
-        status_code: Optional[int] = None,
-        timeout: Optional[float] = None,
-        details: Optional[Dict[str, Any]] = None,
+        url: str | None = None,
+        status_code: int | None = None,
+        timeout: float | None = None,
+        details: dict[str, Any | None] = None,
     ):
         """Initialize network error.
 
@@ -279,11 +281,11 @@ class ConfigurationError(ShotBotError):
     def __init__(
         self,
         message: str,
-        config_key: Optional[str] = None,
-        config_file: Optional[str] = None,
-        expected_value: Optional[Any] = None,
-        actual_value: Optional[Any] = None,
-        details: Optional[Dict[str, Any]] = None,
+        config_key: str | None = None,
+        config_file: str | None = None,
+        expected_value: Any | None = None,
+        actual_value: Any | None = None,
+        details: dict[str, Any | None] = None,
     ):
         """Initialize configuration error.
 
@@ -320,10 +322,10 @@ class ValidationError(ShotBotError):
     def __init__(
         self,
         message: str,
-        field: Optional[str] = None,
-        value: Optional[Any] = None,
-        constraint: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        field: str | None = None,
+        value: Any | None = None,
+        constraint: str | None = None,
+        details: dict[str, Any | None] = None,
     ):
         """Initialize validation error.
 

@@ -17,6 +17,8 @@ Performance Improvements:
 - Adaptive strategy based on workload size
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -44,7 +46,7 @@ class DirectoryCache:
         self.lock = threading.RLock()
         self.stats = {"hits": 0, "misses": 0, "evictions": 0}
 
-    def get_listing(self, path: Path) -> Optional[List[Tuple[str, bool, bool]]]:
+    def get_listing(self, path: Path) -> list[tuple[str, bool, bool | None]]:
         """Get cached directory listing or None if not cached/expired."""
         path_str = str(path)
 
@@ -63,7 +65,7 @@ class DirectoryCache:
             self.stats["misses"] += 1
             return None
 
-    def set_listing(self, path: Path, listing: List[Tuple[str, bool, bool]]):
+    def set_listing(self, path: Path, listing: list[tuple[str, bool, bool]]):
         """Cache directory listing."""
         path_str = str(path)
 
@@ -84,7 +86,7 @@ class DirectoryCache:
                     self.timestamps.pop(key, None)
                 self.stats["evictions"] += len(expired_keys)
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get cache statistics."""
         with self.lock:
             total_requests = self.stats["hits"] + self.stats["misses"]
@@ -155,7 +157,7 @@ class OptimizedThreeDESceneFinder:
     CONCURRENT_THRESHOLD = 2000  # Use concurrent processing above this
 
     @classmethod
-    def get_cache_stats(cls) -> Dict[str, int]:
+    def get_cache_stats(cls) -> dict[str, int]:
         """Get directory cache statistics."""
         return cls._dir_cache.get_stats()
 
@@ -166,7 +168,7 @@ class OptimizedThreeDESceneFinder:
         cls._dir_cache.timestamps.clear()
 
     @staticmethod
-    def _get_directory_listing_cached(path: Path) -> List[Tuple[str, bool, bool]]:
+    def _get_directory_listing_cached(path: Path) -> list[tuple[str, bool, bool]]:
         """Get directory listing with caching."""
         # Try cache first
         cached = OptimizedThreeDESceneFinder._dir_cache.get_listing(path)
@@ -216,8 +218,8 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def _find_3de_files_python_optimized(
-        user_dir: Path, excluded_users: Set[str]
-    ) -> List[Tuple[str, Path]]:
+        user_dir: Path, excluded_users: set[str]
+    ) -> list[tuple[str, Path]]:
         """Optimized Python-based .3de file discovery.
 
         Returns list of (username, file_path) tuples.
@@ -252,8 +254,8 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def _find_3de_files_subprocess_optimized(
-        user_dir: Path, excluded_users: Set[str]
-    ) -> List[Tuple[str, Path]]:
+        user_dir: Path, excluded_users: set[str]
+    ) -> list[tuple[str, Path]]:
         """Optimized subprocess-based .3de file discovery for large workloads."""
         files = []
 
@@ -360,8 +362,8 @@ class OptimizedThreeDESceneFinder:
         show: str,
         sequence: str,
         shot: str,
-        excluded_users: Optional[Set[str]] = None,
-    ) -> List[ThreeDEScene]:
+        excluded_users: set[str | None] = None,
+    ) -> list[ThreeDEScene]:
         """Optimized version of find_scenes_for_shot with 5x+ performance improvement."""
 
         # Input validation
@@ -376,7 +378,7 @@ class OptimizedThreeDESceneFinder:
         if excluded_users is None:
             excluded_users = ValidationUtils.get_excluded_users()
 
-        scenes: List[ThreeDEScene] = []
+        scenes: list[ThreeDEScene] = []
         shot_path = Path(shot_workspace_path)
 
         # Check user directory
@@ -519,7 +521,7 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def quick_3de_exists_check_optimized(
-        base_paths: List[str], timeout_seconds: int = 15
+        base_paths: list[str], timeout_seconds: int = 15
     ) -> bool:
         """Optimized quick check for .3de file existence."""
 
@@ -584,8 +586,8 @@ class OptimizedThreeDESceneFinder:
     @staticmethod
     def find_all_scenes_in_shows_efficient(
         user_shots: List,  # List of Shot objects
-        excluded_users: Optional[Set[str]] = None,
-    ) -> List[ThreeDEScene]:
+        excluded_users: set[str | None] = None,
+    ) -> list[ThreeDEScene]:
         """Efficient version that finds scenes across multiple shots using optimized individual shot discovery.
 
         This method provides backward compatibility while leveraging the optimized

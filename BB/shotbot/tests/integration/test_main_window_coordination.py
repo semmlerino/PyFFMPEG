@@ -5,6 +5,9 @@ with real Qt components and minimal mocking.
 """
 
 # Add parent directory to path
+
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -41,7 +44,7 @@ class TestProgressContext:
         """Initialize test progress context."""
         self.args = args
         self.kwargs = kwargs
-        self.progress_updates: List[Dict[str, Any]] = []
+        self.progress_updates: list[dict[str, Any]] = []
 
     def __enter__(self):
         """Enter context manager."""
@@ -69,8 +72,8 @@ class TestProgressManager:
 
     def __init__(self):
         """Initialize test progress manager."""
-        self.operations: List[Dict[str, Any]] = []
-        self.active_operations: Dict[str, TestProgressContext] = {}
+        self.operations: list[dict[str, Any]] = []
+        self.active_operations: dict[str, TestProgressContext] = {}
 
     def operation(self, *args, **kwargs) -> TestProgressContext:
         """Create a test progress context."""
@@ -103,7 +106,7 @@ class TestNotificationManager:
 
     def __init__(self):
         """Initialize test notification manager."""
-        self.notifications: List[Dict[str, Any]] = []
+        self.notifications: list[dict[str, Any]] = []
 
     def _record_notification(
         self, notification_type: str, title: str, message: str = "", **kwargs
@@ -114,25 +117,25 @@ class TestNotificationManager:
         )
 
     def warning(
-        self, title: str, message: str = "", parent: Optional[QObject] = None
+        self, title: str, message: str = "", parent: QObject | None = None
     ) -> None:
         """Record warning notification."""
         self._record_notification("warning", title, message, parent=parent)
 
     def error(
-        self, title: str, message: str = "", parent: Optional[QObject] = None
+        self, title: str, message: str = "", parent: QObject | None = None
     ) -> None:
         """Record error notification."""
         self._record_notification("error", title, message, parent=parent)
 
     def info(
-        self, title: str, message: str = "", parent: Optional[QObject] = None
+        self, title: str, message: str = "", parent: QObject | None = None
     ) -> None:
         """Record info notification."""
         self._record_notification("info", title, message, parent=parent)
 
     def success(
-        self, title: str, message: str = "", parent: Optional[QObject] = None
+        self, title: str, message: str = "", parent: QObject | None = None
     ) -> None:
         """Record success notification."""
         self._record_notification("success", title, message, parent=parent)
@@ -141,7 +144,7 @@ class TestNotificationManager:
         """Record toast notification."""
         self._record_notification("toast", "", message, duration=duration)
 
-    def get_last_notification(self) -> Optional[Dict[str, Any]]:
+    def get_last_notification(self) -> dict[str, Any | None]:
         """Get the last notification."""
         return self.notifications[-1] if self.notifications else None
 
@@ -157,15 +160,15 @@ class TestMessageBox:
 
     def __init__(self):
         """Initialize test message box."""
-        self.messages: List[Dict[str, Any]] = []
+        self.messages: list[dict[str, Any]] = []
 
-    def warning(self, parent: Optional[QObject], title: str, message: str) -> None:
+    def warning(self, parent: QObject | None, title: str, message: str) -> None:
         """Capture warning dialog."""
         self.messages.append(
             {"type": "warning", "parent": parent, "title": title, "message": message}
         )
 
-    def get_last_message(self) -> Optional[Dict[str, Any]]:
+    def get_last_message(self) -> dict[str, Any | None]:
         """Get the last message."""
         return self.messages[-1] if self.messages else None
 

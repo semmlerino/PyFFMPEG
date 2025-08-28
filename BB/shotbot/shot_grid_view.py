@@ -5,6 +5,8 @@ widget management approach, providing virtualization, efficient scrolling,
 and proper Model/View integration.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Optional
 
@@ -55,8 +57,8 @@ class ShotGridView(QWidget):
 
     def __init__(
         self,
-        model: Optional[ShotItemModel] = None,
-        parent: Optional[QWidget] = None,
+        model: ShotItemModel | None = None,
+        parent: QWidget | None = None,
     ):
         """Initialize the grid view.
 
@@ -145,7 +147,7 @@ class ShotGridView(QWidget):
         self.list_view.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     @property
-    def model(self) -> Optional[ShotItemModel]:
+    def model(self) -> ShotItemModel | None:
         """Get the current data model.
 
         Returns:

@@ -7,6 +7,8 @@ This script runs comprehensive testing including:
 3. Type-safe test validation
 """
 
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
@@ -14,7 +16,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 
-def run_command(cmd: List[str], description: str) -> Tuple[bool, str]:
+def run_command(cmd: list[str], description: str) -> tuple[bool, str]:
     """Run a command and return success status and output."""
     print(f"🔍 {description}...")
     try:

@@ -54,13 +54,13 @@ class ThreadSafetyMonitor:
 
     def __init__(self):
         self.lock_acquisitions = 0
-        self.lock_wait_times: List[float] = []
+        self.lock_wait_times: list[float] = []
         self.qt_operations = 0
         self.pil_operations = 0
-        self.errors: List[str] = []
+        self.errors: list[str] = []
         self.deadlock_detected = False
-        self.race_conditions: List[str] = []
-        self.memory_peaks: List[int] = []
+        self.race_conditions: list[str] = []
+        self.memory_peaks: list[int] = []
         self._lock = threading.Lock()
 
     def record_lock_acquisition(self, wait_time: float):
@@ -121,7 +121,7 @@ class TestThumbnailProcessorThreadSafety:
         return ThreadSafetyMonitor()
 
     @pytest.fixture
-    def test_images(self, tmp_path) -> List[Path]:
+    def test_images(self, tmp_path) -> list[Path]:
         """Create diverse test images for concurrent processing."""
         images = []
 
@@ -149,7 +149,7 @@ class TestThumbnailProcessorThreadSafety:
         return images
 
     @pytest.fixture
-    def problematic_images(self, tmp_path) -> List[Path]:
+    def problematic_images(self, tmp_path) -> list[Path]:
         """Create images that may cause issues."""
         problems = []
 

@@ -5,6 +5,8 @@ This module provides comprehensive debugging tools including timing profilers,
 state tracking, and system diagnostics.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -42,8 +44,8 @@ class TimingProfiler:
             name: Name for this profiler instance
         """
         self.name = name
-        self.timings: Dict[str, List[float]] = {}
-        self.active_timers: Dict[str, float] = {}
+        self.timings: dict[str, list[float]] = {}
+        self.active_timers: dict[str, float] = {}
         self.enabled = DEBUG_TIMING or DEBUG_ALL
 
     @contextmanager
@@ -82,7 +84,7 @@ class TimingProfiler:
         finally:
             self.active_timers.pop(operation_name, None)
 
-    def get_report(self) -> Dict[str, Any]:
+    def get_report(self) -> dict[str, Any]:
         """Get timing report.
 
         Returns:
@@ -137,9 +139,9 @@ class ProcessStateTracker:
 
     def __init__(self):
         """Initialize state tracker."""
-        self.states: Dict[str, str] = {}
-        self.state_history: Dict[str, List[tuple]] = {}
-        self.state_timings: Dict[str, Dict[str, float]] = {}
+        self.states: dict[str, str] = {}
+        self.state_history: dict[str, list[tuple]] = {}
+        self.state_timings: dict[str, dict[str, float]] = {}
         self.enabled = DEBUG_STATE or DEBUG_ALL
 
     def transition(self, session_id: str, to_state: str, reason: str = ""):
@@ -197,7 +199,7 @@ class ProcessStateTracker:
         """
         return self.states.get(session_id, "UNKNOWN")
 
-    def get_history(self, session_id: str) -> List[tuple]:
+    def get_history(self, session_id: str) -> list[tuple]:
         """Get state history for session.
 
         Args:
@@ -213,7 +215,7 @@ class SystemDiagnostics:
     """Capture and log system diagnostic information."""
 
     @staticmethod
-    def get_system_info() -> Dict[str, Any]:
+    def get_system_info() -> dict[str, Any]:
         """Get comprehensive system information.
 
         Returns:
@@ -356,7 +358,7 @@ class DeadlockDetector:
 
     def __init__(self):
         """Initialize deadlock detector."""
-        self.waiting_on: Dict[str, tuple] = {}
+        self.waiting_on: dict[str, tuple] = {}
         self.enabled = DEBUG_ALL
 
     def waiting(self, session_id: str, resource: str):

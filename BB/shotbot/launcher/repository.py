@@ -22,12 +22,12 @@ class LauncherRepository:
 
     def __init__(self, config_manager: LauncherConfigManager):
         """Initialize the repository.
-        
+
         Args:
             config_manager: Configuration manager for persistence
         """
         self._config_manager = config_manager
-        self._launchers: Dict[str, CustomLauncher] = {}
+        self._launchers: dict[str, CustomLauncher] = {}
         self.reload()
 
     def reload(self) -> None:
@@ -37,7 +37,7 @@ class LauncherRepository:
 
     def save(self) -> bool:
         """Save current launchers to storage.
-        
+
         Returns:
             True if successful, False otherwise
         """
@@ -50,25 +50,25 @@ class LauncherRepository:
 
     def create(self, launcher: CustomLauncher) -> bool:
         """Create a new launcher.
-        
+
         Args:
             launcher: The launcher to create
-            
+
         Returns:
             True if successful, False otherwise
         """
         # Generate ID if not provided
         if not launcher.id:
             launcher.id = self._generate_id()
-        
+
         # Check if ID already exists
         if launcher.id in self._launchers:
             logger.warning(f"Launcher with ID {launcher.id} already exists")
             return False
-        
+
         # Add to collection
         self._launchers[launcher.id] = launcher
-        
+
         # Save to storage
         if self.save():
             logger.info(f"Created launcher '{launcher.name}' with ID {launcher.id}")
@@ -80,23 +80,23 @@ class LauncherRepository:
 
     def update(self, launcher: CustomLauncher) -> bool:
         """Update an existing launcher.
-        
+
         Args:
             launcher: The launcher with updated data
-            
+
         Returns:
             True if successful, False otherwise
         """
         if launcher.id not in self._launchers:
             logger.warning(f"Launcher with ID {launcher.id} not found for update")
             return False
-        
+
         # Keep backup for rollback
         backup = self._launchers[launcher.id]
-        
+
         # Update launcher
         self._launchers[launcher.id] = launcher
-        
+
         # Save to storage
         if self.save():
             logger.info(f"Updated launcher '{launcher.name}'")
@@ -108,24 +108,24 @@ class LauncherRepository:
 
     def delete(self, launcher_id: str) -> bool:
         """Delete a launcher.
-        
+
         Args:
             launcher_id: ID of the launcher to delete
-            
+
         Returns:
             True if successful, False otherwise
         """
         if launcher_id not in self._launchers:
             logger.warning(f"Launcher with ID {launcher_id} not found for deletion")
             return False
-        
+
         # Keep backup for rollback
         backup = self._launchers[launcher_id]
         launcher_name = backup.name
-        
+
         # Delete from collection
         del self._launchers[launcher_id]
-        
+
         # Save to storage
         if self.save():
             logger.info(f"Deleted launcher '{launcher_name}'")
@@ -135,23 +135,23 @@ class LauncherRepository:
             self._launchers[launcher_id] = backup
             return False
 
-    def get(self, launcher_id: str) -> Optional[CustomLauncher]:
+    def get(self, launcher_id: str) -> CustomLauncher | None:
         """Get a launcher by ID.
-        
+
         Args:
             launcher_id: ID of the launcher to retrieve
-            
+
         Returns:
             The launcher if found, None otherwise
         """
         return self._launchers.get(launcher_id)
 
-    def get_by_name(self, name: str) -> Optional[CustomLauncher]:
+    def get_by_name(self, name: str) -> CustomLauncher | None:
         """Get a launcher by name.
-        
+
         Args:
             name: Name of the launcher to retrieve
-            
+
         Returns:
             The first launcher with matching name, None if not found
         """
@@ -160,28 +160,30 @@ class LauncherRepository:
                 return launcher
         return None
 
-    def list_all(self, category: Optional[str] = None) -> List[CustomLauncher]:
+    def list_all(self, category: str | None = None) -> list[CustomLauncher]:
         """List all launchers, optionally filtered by category.
-        
+
         Args:
             category: Optional category filter
-            
+
         Returns:
             List of launchers
         """
         launchers = list(self._launchers.values())
-        
+
         if category:
-            launchers = [launcher for launcher in launchers if launcher.category == category]
-        
+            launchers = [
+                launcher for launcher in launchers if launcher.category == category
+            ]
+
         # Sort by name for consistent ordering
         launchers.sort(key=lambda launcher: launcher.name.lower())
-        
+
         return launchers
 
-    def get_categories(self) -> List[str]:
+    def get_categories(self) -> list[str]:
         """Get list of unique launcher categories.
-        
+
         Returns:
             Sorted list of category names
         """
@@ -189,15 +191,15 @@ class LauncherRepository:
         for launcher in self._launchers.values():
             if launcher.category:
                 categories.add(launcher.category)
-        
+
         return sorted(categories)
 
     def exists(self, launcher_id: str) -> bool:
         """Check if a launcher exists.
-        
+
         Args:
             launcher_id: ID to check
-            
+
         Returns:
             True if launcher exists, False otherwise
         """
@@ -205,7 +207,7 @@ class LauncherRepository:
 
     def count(self) -> int:
         """Get total number of launchers.
-        
+
         Returns:
             Number of launchers
         """
@@ -213,7 +215,7 @@ class LauncherRepository:
 
     def _generate_id(self) -> str:
         """Generate a unique launcher ID.
-        
+
         Returns:
             New unique ID
         """

@@ -1,5 +1,7 @@
 """Command launcher for executing applications in shot context."""
 
+from __future__ import annotations
+
 import subprocess
 from datetime import datetime
 from typing import Optional
@@ -22,9 +24,9 @@ class CommandLauncher(QObject):
 
     def __init__(self):
         super().__init__()
-        self.current_shot: Optional[Shot] = None
+        self.current_shot: Shot | None = None
 
-    def set_current_shot(self, shot: Optional[Shot]):
+    def set_current_shot(self, shot: Shot | None):
         """Set the current shot context."""
         self.current_shot = shot
 

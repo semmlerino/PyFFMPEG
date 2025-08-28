@@ -1,5 +1,7 @@
 """Loading indicator widget for thumbnails."""
 
+from __future__ import annotations
+
 from typing import Optional
 
 from PySide6.QtCore import Property, QPropertyAnimation, QRect, Qt, QTimer
@@ -10,7 +12,7 @@ from PySide6.QtWidgets import QWidget
 class ThumbnailLoadingIndicator(QWidget):
     """A simple loading spinner widget."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._angle = 0
         self._timer = QTimer()
@@ -65,7 +67,7 @@ class ThumbnailLoadingIndicator(QWidget):
 class ShimmerLoadingIndicator(QWidget):
     """A shimmer/skeleton loading effect widget."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._shimmer_position: int = 0
         self._animation = QPropertyAnimation(self, b"shimmerPosition")

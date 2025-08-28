@@ -10,6 +10,8 @@ Key Components:
     - Factory fixtures and helpers
 """
 
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -37,7 +39,7 @@ class ThreadSafeTestImage:
         self._height = height
         self._image.fill(QColor(255, 255, 255))  # Fill with white by default
 
-    def fill(self, color: Optional[QColor] = None) -> None:
+    def fill(self, color: QColor | None = None) -> None:
         """Fill the image with a color."""
         if color is None:
             color = QColor(255, 255, 255)
@@ -80,8 +82,8 @@ class SignalDouble:
 
     def __init__(self):
         """Initialize the test signal."""
-        self.emissions: List[Tuple[Any, ...]] = []
-        self.callbacks: List[Callable] = []
+        self.emissions: list[tuple[Any, ...]] = []
+        self.callbacks: list[Callable] = []
 
     def emit(self, *args) -> None:
         """Emit the signal with arguments."""
@@ -96,7 +98,7 @@ class SignalDouble:
         """Connect a callback to the signal."""
         self.callbacks.append(callback)
 
-    def disconnect(self, callback: Optional[Callable] = None) -> None:
+    def disconnect(self, callback: Callable | None = None) -> None:
         """Disconnect a callback or all callbacks."""
         if callback is None:
             self.callbacks.clear()
@@ -113,7 +115,7 @@ class SignalDouble:
         """Get the number of times the signal was emitted."""
         return len(self.emissions)
 
-    def get_last_emission(self) -> Optional[Tuple[Any, ...]]:
+    def get_last_emission(self) -> tuple[Any, ... | None]:
         """Get the arguments from the last emission."""
         if self.emissions:
             return self.emissions[-1]
@@ -135,8 +137,8 @@ class TestProcessPoolManager:
 
     def __init__(self):
         """Initialize the test process pool."""
-        self.commands: List[str] = []
-        self.outputs: List[str] = ["workspace /test/path"]
+        self.commands: list[str] = []
+        self.outputs: list[str] = ["workspace /test/path"]
         self.command_completed = SignalDouble()
         self.command_failed = SignalDouble()
         self.should_fail = False
@@ -165,7 +167,7 @@ class TestProcessPoolManager:
         self.command_completed.emit(command, output)
         return output
 
-    def execute_command(self, command: str, **kwargs) -> Tuple[bool, str]:
+    def execute_command(self, command: str, **kwargs) -> tuple[bool, str]:
         """Execute a general command (mocked)."""
         self.commands.append(command)
 
@@ -186,7 +188,7 @@ class TestProcessPoolManager:
         self.should_fail = should_fail
         self.failure_message = message
 
-    def get_executed_commands(self) -> List[str]:
+    def get_executed_commands(self) -> list[str]:
         """Get the list of executed commands."""
         return self.commands.copy()
 
@@ -223,16 +225,16 @@ class MockMainWindow(QObject):
         super().__init__(parent)
 
         # Mock attributes
-        self.status_messages: List[str] = []
-        self.current_file: Optional[str] = None
-        self.current_shot: Optional[str] = None
+        self.status_messages: list[str] = []
+        self.current_file: str | None = None
+        self.current_shot: str | None = None
         self.extraction_params = {"vram_path": "/test/path"}
 
-    def get_extraction_params(self) -> Dict[str, Any]:
+    def get_extraction_params(self) -> dict[str, Any]:
         """Get extraction parameters (mocked)."""
         return self.extraction_params.copy()
 
-    def set_extraction_params(self, params: Dict[str, Any]) -> None:
+    def set_extraction_params(self, params: dict[str, Any]) -> None:
         """Set extraction parameters for testing."""
         self.extraction_params = params
 
@@ -260,7 +262,7 @@ class ImagePool:
 
     def __init__(self):
         """Initialize the image pool."""
-        self._pool: List[ThreadSafeTestImage] = []
+        self._pool: list[ThreadSafeTestImage] = []
         self._created_count = 0
         self._reused_count = 0
 
@@ -285,7 +287,7 @@ class ImagePool:
         if len(self._pool) < 10:  # Limit pool size
             self._pool.append(image)
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get pool statistics."""
         return {
             "created": self._created_count,
@@ -302,7 +304,7 @@ class TestCacheData:
     """Test data generator for cache-related tests."""
 
     @staticmethod
-    def create_shot_data(count: int = 3) -> List[Dict[str, Any]]:
+    def create_shot_data(count: int = 3) -> list[dict[str, Any]]:
         """Create test shot data."""
         shots = []
         for i in range(count):
@@ -318,7 +320,7 @@ class TestCacheData:
         return shots
 
     @staticmethod
-    def create_scene_data(count: int = 2) -> List[Dict[str, Any]]:
+    def create_scene_data(count: int = 2) -> list[dict[str, Any]]:
         """Create test 3DE scene data."""
         scenes = []
         for i in range(count):
@@ -361,7 +363,7 @@ class TestCacheData:
 
 def create_test_shot(
     show: str = "test", seq: str = "seq001", shot: str = "shot0010"
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Factory function for creating test shot dictionaries."""
     return {
         "show": show,
@@ -373,7 +375,7 @@ def create_test_shot(
 
 def create_test_process_result(
     success: bool = True, output: str = "Test output"
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """Factory function for process result tuples."""
     return success, output
 

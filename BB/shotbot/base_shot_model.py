@@ -1,10 +1,14 @@
 """Base class for shot models with shared functionality."""
 
+from __future__ import annotations
+
 import logging
 import os
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
+from type_definitions import PerformanceMetricsDict
 
 from PySide6.QtCore import QObject, Signal
 
@@ -12,8 +16,8 @@ if TYPE_CHECKING:
     from cache_manager import CacheManager
     from shot_model import Shot
 
-from process_pool_manager import ProcessPoolManager
 from exceptions import WorkspaceError
+from process_pool_manager import ProcessPoolManager
 from utils import ValidationUtils
 
 logger = logging.getLogger(__name__)
@@ -28,16 +32,16 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
 
 class BaseShotModel(QObject):
     """Abstract base class for shot models with shared functionality.
-    
+
     This base class provides common signals, shot parsing logic, caching,
     and performance metrics collection that is shared between ShotModel
     and OptimizedShotModel implementations.
-    
+
     Subclasses must implement:
         - load_shots(): Method to load shots (sync or async)
         - refresh_strategy(): How to refresh the shot list
     """
-    
+
     # Common Qt signals
     shots_loaded = Signal(list)  # List of Shot objects
     shots_changed = Signal(list)  # List of Shot objects
@@ -46,52 +50,53 @@ class BaseShotModel(QObject):
     error_occurred = Signal(str)  # Error message
     shot_selected = Signal(object)  # Shot object
     cache_updated = Signal()
-    
+
     def __init__(
         self,
-        cache_manager: Optional["CacheManager"] = None,
+        cache_manager: "CacheManager" | None = None,
         load_cache: bool = True,
     ):
         """Initialize base shot model.
-        
+
         Args:
-            cache_manager: Optional cache manager instance
+            cache_manager: cache manager instance
             load_cache: Whether to load from cache on init
         """
         super().__init__()
         from cache_manager import CacheManager
-        
-        self.shots: List[Any] = []
+
+        self.shots: list[Any] = []
         self.cache_manager = cache_manager or CacheManager()
         self._parse_pattern = re.compile(
             r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))",
         )
-        self._selected_shot: Optional["Shot"] = None
-        
+        self._selected_shot: "Shot" | None = None
+
         # Initialize ProcessPoolManager singleton
         if DEBUG_VERBOSE:
             logger.debug("Getting ProcessPoolManager singleton instance")
         self._process_pool = ProcessPoolManager.get_instance()
-        
+
         # Performance metrics
         self._last_refresh_time = 0.0
         self._total_refreshes = 0
         self._cache_hits = 0
         self._cache_misses = 0
-        
+
         # Load cache if requested
         if load_cache:
             self._load_from_cache()
-    
+
     def _load_from_cache(self) -> bool:
         """Load shots from cache if available.
-        
+
         Returns:
             True if cache was loaded, False otherwise
         """
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
             from shot_model import Shot
+
             self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
             self.shots_loaded.emit(self.shots)
             self._cache_hits += 1
@@ -99,8 +104,8 @@ class BaseShotModel(QObject):
             return True
         self._cache_misses += 1
         return False
-    
-    def _parse_ws_output(self, output: str) -> List[Any]:
+
+    def _parse_ws_output(self, output: str) -> list[Any]:
         """Parse ws -sg output to extract shots.
 
         Args:
@@ -120,7 +125,8 @@ class BaseShotModel(QObject):
             )
 
         from shot_model import Shot
-        shots: List[Any] = []
+
+        shots: list[Any] = []
         lines = output.strip().split("\n")
 
         # If output is completely empty, that might indicate an issue
@@ -180,64 +186,60 @@ class BaseShotModel(QObject):
 
         logger.info(f"Parsed {len(shots)} shots from ws -sg output")
         return shots
-    
-    def _check_for_changes(self, new_shots: List[Any]) -> bool:
+
+    def _check_for_changes(self, new_shots: list[Any]) -> bool:
         """Check if the shot list has changed.
-        
+
         Args:
             new_shots: New list of shots to compare
-            
+
         Returns:
             True if shots changed, False otherwise
         """
         # Compare shot data including workspace paths
-        old_shot_data = {
-            (shot.full_name, shot.workspace_path) for shot in self.shots
-        }
-        new_shot_data = {
-            (shot.full_name, shot.workspace_path) for shot in new_shots
-        }
+        old_shot_data = {(shot.full_name, shot.workspace_path) for shot in self.shots}
+        new_shot_data = {(shot.full_name, shot.workspace_path) for shot in new_shots}
         return old_shot_data != new_shot_data
-    
-    def get_shots(self) -> List[Any]:
+
+    def get_shots(self) -> list[Any]:
         """Get current list of shots.
-        
+
         Returns:
             List of Shot objects
         """
         return self.shots
-    
+
     def get_shot_count(self) -> int:
         """Get number of shots.
-        
+
         Returns:
             Number of shots
         """
         return len(self.shots)
-    
-    def select_shot(self, shot: Optional[Any]) -> None:
+
+    def select_shot(self, shot: Any | None) -> None:
         """Select a shot and emit signal.
-        
+
         Args:
             shot: Shot to select or None to clear selection
         """
         self._selected_shot = shot
         self.shot_selected.emit(shot)
-    
-    def get_selected_shot(self) -> Optional[Any]:
+
+    def get_selected_shot(self) -> Any | None:
         """Get currently selected shot.
-        
+
         Returns:
             Selected shot or None
         """
         return self._selected_shot
-    
-    def find_shot_by_name(self, full_name: str) -> Optional[Any]:
+
+    def find_shot_by_name(self, full_name: str) -> Any | None:
         """Find a shot by its full name.
-        
+
         Args:
             full_name: Full shot name (SHOW.SEQ.SHOT)
-            
+
         Returns:
             Shot object if found, None otherwise
         """
@@ -245,12 +247,12 @@ class BaseShotModel(QObject):
             if shot.full_name == full_name:
                 return shot
         return None
-    
-    def get_performance_metrics(self) -> Dict[str, Any]:
+
+    def get_performance_metrics(self) -> PerformanceMetricsDict:
         """Get performance metrics.
-        
+
         Returns:
-            Dictionary of performance metrics
+            Performance metrics dictionary
         """
         cache_total = self._cache_hits + self._cache_misses
         return {
@@ -261,36 +263,36 @@ class BaseShotModel(QObject):
             "cache_misses": self._cache_misses,
             "cache_hit_rate": self._cache_hits / max(1, cache_total),
         }
-    
+
     @abstractmethod
     def load_shots(self) -> Any:
         """Load shots using implementation-specific strategy.
-        
+
         Subclasses must implement this to provide either synchronous
         or asynchronous loading behavior.
-        
+
         Returns:
             RefreshResult with success and change status
         """
         pass
-    
+
     @abstractmethod
     def refresh_strategy(self) -> Any:
         """Refresh shot list using implementation-specific strategy.
-        
+
         Subclasses must implement this to define how refreshing works
         (e.g., synchronous blocking vs asynchronous background).
-        
+
         Returns:
             RefreshResult with success and change status
         """
         pass
-    
+
     def refresh_shots(self) -> Any:
         """Public API to refresh shots.
-        
+
         Delegates to implementation-specific refresh_strategy.
-        
+
         Returns:
             RefreshResult with success and change status
         """

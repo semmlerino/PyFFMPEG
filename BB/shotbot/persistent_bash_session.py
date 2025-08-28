@@ -6,6 +6,8 @@ with exponential backoff, non-blocking I/O, and robust error recovery.
 Extracted from process_pool_manager.py to reduce complexity.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import subprocess
@@ -71,7 +73,7 @@ class PersistentBashSession:
         """
         super().__init__()
         self.session_id = session_id
-        self._process: Optional[subprocess.Popen[str]] = None
+        self._process: subprocess.Popen[str | None] = None
         self._lock = threading.Lock()
         self._command_count = 0
         self._start_time = time.time()
@@ -450,8 +452,8 @@ class PersistentBashSession:
     def _read_with_backoff(
         self,
         timeout: float,
-        marker: Optional[str] = None,
-    ) -> Tuple[str, bool]:
+        marker: str | None = None,
+    ) -> tuple[str, bool]:
         """Read from subprocess with exponential backoff polling.
 
         Args:
@@ -464,7 +466,7 @@ class PersistentBashSession:
         if self._process is None or self._process.stdout is None:
             raise RuntimeError("Process not available for reading")
 
-        output: List[str] = []
+        output: list[str] = []
         buffer = ""
         start_time = time.time()
         poll_interval = self.INITIAL_POLL_INTERVAL
@@ -623,7 +625,7 @@ class PersistentBashSession:
     def execute(
         self,
         command: str,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
     ) -> str:
         """Execute command in persistent session.
 
@@ -808,7 +810,7 @@ class PersistentBashSession:
             finally:
                 self._process = None
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get session statistics.
 
         Returns:

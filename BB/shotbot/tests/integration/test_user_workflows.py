@@ -70,7 +70,7 @@ class ProgressOperationDouble:
         self.is_indeterminate = False
         self.progress_value = 0
         self.is_finished = False
-        self.operations: List[tuple] = []
+        self.operations: list[tuple] = []
 
     def set_indeterminate(self, indeterminate: bool = True) -> None:
         self.is_indeterminate = indeterminate
@@ -151,7 +151,7 @@ class TestUserWorkflows:
         self.test_processes["custom"].pid = 33333
 
         # Track signals emitted during tests
-        self.signal_events: List[tuple] = []
+        self.signal_events: list[tuple] = []
 
         # Create progress operation double to prevent Qt cleanup issues during tests
         self.progress_operation = ProgressOperationDouble()
@@ -198,7 +198,7 @@ class TestUserWorkflows:
 
         return handler
 
-    def _create_realistic_shot_structure(self, shot_data: Dict[str, str]) -> Path:
+    def _create_realistic_shot_structure(self, shot_data: dict[str, str]) -> Path:
         """Create realistic filesystem structure for a shot."""
         shot_path = (
             self.shows_dir

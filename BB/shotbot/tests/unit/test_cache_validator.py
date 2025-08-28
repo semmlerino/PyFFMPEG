@@ -70,7 +70,7 @@ class TestCacheValidator:
         )
 
     @pytest.fixture
-    def sample_thumbnail_files(self, thumbnails_dir: Path) -> List[Path]:
+    def sample_thumbnail_files(self, thumbnails_dir: Path) -> list[Path]:
         """Create sample thumbnail files in the cache directory."""
         files = []
 
@@ -127,7 +127,7 @@ class TestCacheValidator:
         assert "memory_stats" in stats
 
     def test_get_cache_statistics_with_files(
-        self, validator: CacheValidator, sample_thumbnail_files: List[Path]
+        self, validator: CacheValidator, sample_thumbnail_files: list[Path]
     ):
         """Test statistics calculation with actual thumbnail files."""
         stats = validator.get_cache_statistics()
@@ -155,7 +155,7 @@ class TestCacheValidator:
         assert isinstance(results["details"], list)
 
     def test_validate_cache_with_orphaned_files(
-        self, validator: CacheValidator, sample_thumbnail_files: List[Path]
+        self, validator: CacheValidator, sample_thumbnail_files: list[Path]
     ):
         """Test detection of orphaned files not tracked by memory manager."""
         # Files exist but are not tracked by memory manager (orphaned)
@@ -167,7 +167,7 @@ class TestCacheValidator:
         # Note: details may not be preserved due to results.update() behavior
 
     def test_validate_cache_fix_orphaned_files(
-        self, validator: CacheValidator, sample_thumbnail_files: List[Path]
+        self, validator: CacheValidator, sample_thumbnail_files: list[Path]
     ):
         """Test automatic repair of orphaned files by adding to tracking."""
         # Validate and fix orphaned files
@@ -228,7 +228,7 @@ class TestCacheValidator:
         assert "Thumbnails directory does not exist" in str(results["details"])
 
     def test_validate_memory_tracking_integration(
-        self, validator: CacheValidator, sample_thumbnail_files: List[Path]
+        self, validator: CacheValidator, sample_thumbnail_files: list[Path]
     ):
         """Test integration with MemoryManager validate_tracking method."""
         # Add some files to tracking with incorrect sizes to create mismatches
@@ -246,7 +246,7 @@ class TestCacheValidator:
         assert results["memory_usage_corrected"] is True or results["issues_fixed"] > 0
 
     def test_repair_cache_comprehensive(
-        self, validator: CacheValidator, sample_thumbnail_files: List[Path]
+        self, validator: CacheValidator, sample_thumbnail_files: list[Path]
     ):
         """Test comprehensive cache repair operation."""
         # This is an alias for validate_cache with fix_issues=True
@@ -309,7 +309,7 @@ class TestCacheValidator:
         assert removed_count == 0
 
     def test_analyze_cache_efficiency_high_usage(
-        self, validator: CacheValidator, sample_thumbnail_files: List[Path]
+        self, validator: CacheValidator, sample_thumbnail_files: list[Path]
     ):
         """Test cache efficiency analysis with high memory usage."""
         # Track all files to create high memory usage
@@ -403,7 +403,7 @@ class TestCacheValidator:
         memory_manager.validate_tracking = original_validate
 
     def test_validate_cache_integration_with_real_tracking(
-        self, validator: CacheValidator, sample_thumbnail_files: List[Path]
+        self, validator: CacheValidator, sample_thumbnail_files: list[Path]
     ):
         """Test full integration with real MemoryManager tracking validation."""
         memory_manager = validator._memory_manager
@@ -507,7 +507,7 @@ class TestCacheValidator:
             assert validator._memory_manager.is_item_tracked(nested_file)
 
     def test_comprehensive_cache_health_check(
-        self, validator: CacheValidator, sample_thumbnail_files: List[Path]
+        self, validator: CacheValidator, sample_thumbnail_files: list[Path]
     ):
         """Test comprehensive cache health check scenario."""
         memory_manager = validator._memory_manager

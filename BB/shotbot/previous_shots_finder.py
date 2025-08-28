@@ -1,5 +1,7 @@
 """Finder for previous/approved shots that user has worked on."""
 
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -19,7 +21,7 @@ class PreviousShotsFinder:
     and filters out currently active shots to show only approved/completed ones.
     """
 
-    def __init__(self, username: Optional[str] = None):
+    def __init__(self, username: str | None = None):
         """Initialize the previous shots finder.
 
         Args:
@@ -44,7 +46,7 @@ class PreviousShotsFinder:
         self._shot_pattern = re.compile(r"/shows/([^/]+)/shots/([^/]+)/([^/]+)/")
         logger.info(f"PreviousShotsFinder initialized for user: {self.username}")
 
-    def find_user_shots(self, shows_root: Path = Path("/shows")) -> List[Shot]:
+    def find_user_shots(self, shows_root: Path = Path("/shows")) -> list[Shot]:
         """Find all shots that contain user work directories.
 
         Args:
@@ -109,7 +111,7 @@ class PreviousShotsFinder:
 
         return shots
 
-    def _parse_shot_from_path(self, path: str) -> Optional[Shot]:
+    def _parse_shot_from_path(self, path: str) -> Shot | None:
         """Parse shot information from a filesystem path.
 
         Args:
@@ -138,8 +140,8 @@ class PreviousShotsFinder:
         return None
 
     def filter_approved_shots(
-        self, all_user_shots: List[Shot], active_shots: List[Shot]
-    ) -> List[Shot]:
+        self, all_user_shots: list[Shot], active_shots: list[Shot]
+    ) -> list[Shot]:
         """Filter out active shots to get only approved/completed ones.
 
         Args:
@@ -167,8 +169,8 @@ class PreviousShotsFinder:
         return approved_shots
 
     def find_approved_shots(
-        self, active_shots: List[Shot], shows_root: Path = Path("/shows")
-    ) -> List[Shot]:
+        self, active_shots: list[Shot], shows_root: Path = Path("/shows")
+    ) -> list[Shot]:
         """Find all approved shots for the user.
 
         This is a convenience method that combines finding user shots
@@ -184,7 +186,7 @@ class PreviousShotsFinder:
         all_user_shots = self.find_user_shots(shows_root)
         return self.filter_approved_shots(all_user_shots, active_shots)
 
-    def get_shot_details(self, shot: Shot) -> Dict[str, Any]:
+    def get_shot_details(self, shot: Shot) -> dict[str, Any]:
         """Get additional details about an approved shot.
 
         Args:

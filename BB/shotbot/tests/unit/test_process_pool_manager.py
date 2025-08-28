@@ -45,14 +45,14 @@ class BashSessionDouble:
 
     def __init__(self):
         """Initialize with predictable behavior."""
-        self.executed_commands: List[str] = []
-        self.responses: Dict[str, str] = {}
+        self.executed_commands: list[str] = []
+        self.responses: dict[str, str] = {}
         self.should_fail = False
         self.failure_message = "Command failed"
         self.execution_delay = 0.0  # Simulate execution time
         self.is_closed = False
 
-    def execute(self, command: str, timeout: Optional[float] = None) -> str:
+    def execute(self, command: str, timeout: float | None = None) -> str:
         """Execute command with realistic behavior."""
         if self.is_closed:
             raise RuntimeError("Session is closed")
@@ -123,14 +123,14 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         QObject.__init__(self)  # Initialize QObject directly
 
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-        self._session_pools: Dict[str, List[BashSessionDouble]] = {}
-        self._session_round_robin: Dict[str, int] = {}
+        self._session_pools: dict[str, list[BashSessionDouble]] = {}
+        self._session_round_robin: dict[str, int] = {}
         self._sessions_per_type = 3
         self._cache = CommandCache(default_ttl=30)
         self._session_lock = threading.RLock()
         self._metrics = ProcessMetrics()
         self._initialized = True
-        self._test_session: Optional[BashSessionDouble] = None
+        self._test_session: BashSessionDouble | None = None
 
     def set_test_session(self, session: BashSessionDouble):
         """Inject test session for testing."""

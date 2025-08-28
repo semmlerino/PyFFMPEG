@@ -28,9 +28,10 @@ from config import Config
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestShot, TestSubprocess
 from tests.test_doubles_library import (
     PopenDouble,
+    TestShot,
+    TestSubprocess,
 )
 from threede_scene_model import ThreeDEScene
 
@@ -147,7 +148,8 @@ class SignalDoubleEmissions:
     def test_command_executed_signal(self, qtbot):
         """Test command_executed signal emission behavior."""
         # Set up test double for success
-        self.test_subprocess.set_success("nuke started successfully")
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "nuke started successfully"
 
         # Create test shot using test double
         shot = TestShot(
@@ -249,7 +251,8 @@ class TestApplicationLaunching:
     def test_launch_app_valid_configuration(self, qtbot):
         """Test launching valid application behavior."""
         # Set up test double for success
-        self.test_subprocess.set_success("Application launched")
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "Application launched"
 
         # Set test shot using test double
         shot = TestShot(
@@ -266,7 +269,8 @@ class TestApplicationLaunching:
     def test_command_construction(self, qtbot):
         """Test proper command construction behavior."""
         # Set up test double
-        self.test_subprocess.set_success("maya launched")
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "maya launched"
 
         # Track signals for behavior testing
         emitted_commands = []
@@ -315,7 +319,8 @@ class TestApplicationLaunching:
                 raise FileNotFoundError("Terminal not found")
             else:
                 # Direct bash succeeds
-                subprocess_double.set_success("Direct execution succeeded")
+                subprocess_double.return_code = 0
+                subprocess_double.stdout = "Direct execution succeeded"
                 return subprocess_double
 
         command_launcher.subprocess.Popen = fallback_subprocess

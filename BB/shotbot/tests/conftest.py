@@ -19,6 +19,8 @@ Test doubles are used only at system boundaries.
 
 # pyright: basic
 
+from __future__ import annotations
+
 import gc
 import os
 import sys
@@ -189,7 +191,7 @@ def test_data_dir() -> Path:
 
 
 @pytest.fixture(scope="session")
-def performance_threshold() -> Dict[str, int]:
+def performance_threshold() -> dict[str, int]:
     """Performance thresholds for benchmark tests."""
     return {
         "thumbnail_processing": 100,  # ms

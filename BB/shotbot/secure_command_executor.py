@@ -4,6 +4,8 @@ This module provides safe command execution replacing the vulnerable
 PersistentBashSession implementation.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -21,7 +23,7 @@ class SecureCommandExecutor:
     """Secure command executor with whitelisting and validation."""
 
     # Strictly allowed executables (no bash/sh allowed)
-    ALLOWED_EXECUTABLES: Set[str] = {
+    ALLOWED_EXECUTABLES: set[str] = {
         "ws",  # Workspace command
         "echo",  # For testing/warming
         "pwd",  # Current directory
@@ -30,14 +32,14 @@ class SecureCommandExecutor:
     }
 
     # Allowed arguments for specific commands
-    ALLOWED_ARGUMENTS: Dict[str, Set[str]] = {
+    ALLOWED_ARGUMENTS: dict[str, set[str]] = {
         "ws": {"-sg", "-list", "-info", "-path"},
         "ls": {"-l", "-la", "-1"},
         "find": {"-name", "-type", "-maxdepth", "-mindepth"},
     }
 
     # Strictly allowed base paths for file operations
-    ALLOWED_PATHS: List[str] = [
+    ALLOWED_PATHS: list[str] = [
         "/shows",
         "/mnt/shows",
         "/mnt/projects",
@@ -46,7 +48,7 @@ class SecureCommandExecutor:
     ]
 
     # Dangerous patterns that should never appear in commands
-    DANGEROUS_PATTERNS: List[re.Pattern] = [
+    DANGEROUS_PATTERNS: list[re.Pattern] = [
         re.compile(r"[;&|`$]"),  # Shell metacharacters
         re.compile(r"\$\(.*\)"),  # Command substitution
         re.compile(r">\s*/dev/"),  # Device file redirection
@@ -57,7 +59,7 @@ class SecureCommandExecutor:
 
     def __init__(self):
         """Initialize secure command executor."""
-        self._cache: Dict[str, Tuple[str, float]] = {}
+        self._cache: dict[str, tuple[str, float]] = {}
         self._cache_lock = threading.Lock()
         self._process_lock = threading.Lock()
 
@@ -212,9 +214,7 @@ class SecureCommandExecutor:
         if "~" in path:
             raise ValueError("Home directory expansion not allowed")
 
-    def _execute_subprocess(
-        self, parts: List[str], timeout: int
-    ) -> str:
+    def _execute_subprocess(self, parts: list[str], timeout: int) -> str:
         """Execute command using subprocess.
 
         Args:
@@ -241,16 +241,14 @@ class SecureCommandExecutor:
                     env=self._get_safe_environment(),
                 )
                 return result.stdout
-            except subprocess.TimeoutExpired as e:
+            except subprocess.TimeoutExpired:
                 logger.error(f"Command timed out after {timeout}s: {parts[0]}")
                 raise
             except subprocess.CalledProcessError as e:
                 logger.error(f"Command failed: {e.cmd}, stderr: {e.stderr}")
                 raise
 
-    def _execute_workspace_function(
-        self, command: str, timeout: int
-    ) -> str:
+    def _execute_workspace_function(self, command: str, timeout: int) -> str:
         """Execute workspace function using bash -i.
 
         This is a special case for the 'ws' shell function which
@@ -286,14 +284,14 @@ class SecureCommandExecutor:
                     env=self._get_safe_environment(),
                 )
                 return result.stdout
-            except subprocess.TimeoutExpired as e:
+            except subprocess.TimeoutExpired:
                 logger.error(f"Workspace command timed out after {timeout}s")
                 raise
             except subprocess.CalledProcessError as e:
                 logger.error(f"Workspace command failed: {e.stderr}")
                 raise
 
-    def _get_safe_environment(self) -> Dict[str, str]:
+    def _get_safe_environment(self) -> dict[str, str]:
         """Get sanitized environment variables.
 
         Returns:
@@ -322,7 +320,7 @@ class SecureCommandExecutor:
 
         return safe_env
 
-    def _get_cached(self, command: str) -> Optional[str]:
+    def _get_cached(self, command: str) -> str | None:
         """Get cached result if available and not expired.
 
         Args:
@@ -341,9 +339,7 @@ class SecureCommandExecutor:
                     del self._cache[command]
         return None
 
-    def _cache_result(
-        self, command: str, output: str, ttl: int
-    ) -> None:
+    def _cache_result(self, command: str, output: str, ttl: int) -> None:
         """Cache command result.
 
         Args:
@@ -363,9 +359,7 @@ class SecureCommandExecutor:
         """Remove expired entries from cache."""
         current_time = time.time()
         expired = [
-            cmd
-            for cmd, (_, expiry) in self._cache.items()
-            if current_time >= expiry
+            cmd for cmd, (_, expiry) in self._cache.items() if current_time >= expiry
         ]
         for cmd in expired:
             del self._cache[cmd]
@@ -377,7 +371,7 @@ class SecureCommandExecutor:
 
 
 # Singleton instance for easy replacement of ProcessPoolManager usage
-_executor_instance: Optional[SecureCommandExecutor] = None
+_executor_instance: SecureCommandExecutor | None = None
 
 
 def get_secure_executor() -> SecureCommandExecutor:

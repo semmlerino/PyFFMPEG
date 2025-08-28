@@ -1,5 +1,7 @@
 """Grid widget for displaying previous/approved shots."""
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, Optional
 
@@ -38,8 +40,8 @@ class PreviousShotsGrid(QWidget):
     def __init__(
         self,
         previous_shots_model: PreviousShotsModel,
-        cache_manager: Optional[CacheManager] = None,
-        parent: Optional[QWidget] = None,
+        cache_manager: CacheManager | None = None,
+        parent: QWidget | None = None,
     ):
         """Initialize the previous shots grid.
 
@@ -52,8 +54,8 @@ class PreviousShotsGrid(QWidget):
 
         self._model = previous_shots_model
         self._cache_manager = cache_manager or CacheManager()
-        self._thumbnail_widgets: Dict[str, ThumbnailWidget] = {}
-        self._selected_shot: Optional[Shot] = None
+        self._thumbnail_widgets: dict[str, ThumbnailWidget] = {}
+        self._selected_shot: Shot | None = None
         self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE  # type: ignore[attr-defined]
 
         # PERFORMANCE: Resize debouncing timer
@@ -61,7 +63,7 @@ class PreviousShotsGrid(QWidget):
         self._resize_timer.setSingleShot(True)
         self._resize_timer.timeout.connect(self._do_resize)
         self._resize_timer.setInterval(100)  # 100ms debounce
-        self._pending_size: Optional[QSize] = None
+        self._pending_size: QSize | None = None
 
         self._setup_ui()
         self._connect_signals()
@@ -306,7 +308,7 @@ class PreviousShotsGrid(QWidget):
         self.shot_double_clicked.emit(shot)
         logger.debug(f"Double-clicked approved shot: {shot.shot}")
 
-    def get_selected_shot(self) -> Optional[Shot]:
+    def get_selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
 
         Returns:

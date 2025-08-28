@@ -4,6 +4,8 @@ This module provides a unified design system with consistent colors, typography,
 spacing, and component styles following modern UI/UX best practices.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Dict
 
@@ -463,7 +465,7 @@ class DesignSystem:
         self,
         component: str,
         variant: str = "default",
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Get style dictionary for specific component variants."""
         styles = {
             "card": {

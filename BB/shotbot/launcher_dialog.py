@@ -1,5 +1,7 @@
 """Custom launcher management dialog for ShotBot."""
 
+from __future__ import annotations
+
 import logging
 from typing import Optional
 
@@ -58,7 +60,7 @@ class LauncherPreviewPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.setObjectName("previewPanel")
-        self._current_launcher_id: Optional[str] = None
+        self._current_launcher_id: str | None = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -111,7 +113,7 @@ class LauncherPreviewPanel(QWidget):
         layout.addLayout(button_layout)
         layout.addStretch()
 
-    def set_launcher(self, launcher: Optional[CustomLauncher]):
+    def set_launcher(self, launcher: CustomLauncher | None):
         """Update the preview with launcher details."""
         if not launcher:
             self._current_launcher_id = None
@@ -153,7 +155,7 @@ class LauncherEditDialog(QDialog):
     def __init__(
         self,
         launcher_manager: LauncherManager,
-        launcher: Optional[CustomLauncher] = None,
+        launcher: CustomLauncher | None = None,
         parent=None,
     ):
         super().__init__(parent)

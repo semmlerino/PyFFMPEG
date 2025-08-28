@@ -1,27 +1,33 @@
 """Type definitions for ShotBot application.
 
-This module defines TypedDict classes and other type definitions
-to improve type safety across the application.
+This module provides additional type definitions that extend those in
+type_definitions.py. Duplicate definitions have been removed and imported
+from the primary type_definitions module.
 """
 
-from pathlib import Path
-from typing import Any, Dict, List, Optional, TypedDict, Union
+from __future__ import annotations
 
-# Common type aliases
-PathType = Union[str, Path]
+from typing import Any, TypedDict
 
+# Import common types from primary definitions to avoid duplication
+from type_definitions import (
+    LauncherDict as LauncherData,  # Alias for backward compatibility
+    ProcessInfoDict as ProcessInfo,  # Alias for backward compatibility
+    ShotDict as ShotData,  # Alias for backward compatibility
+    PathLike as PathType,  # Modernized alias
+)
 
-class ShotData(TypedDict):
-    """Type definition for shot data dictionary."""
-
-    show: str
-    sequence: str
-    shot: str
-    workspace_path: str
+# ==============================================================================
+# Additional TypedDict Definitions
+# ==============================================================================
 
 
 class ThreeDESceneData(TypedDict):
-    """Type definition for 3DE scene data dictionary."""
+    """Type definition for 3DE scene data dictionary.
+    
+    Note: This differs from ThreeDESceneDict in type_definitions.py
+    by having different fields (plate, scene_path instead of filepath, etc.)
+    """
 
     show: str
     sequence: str
@@ -38,28 +44,7 @@ class CacheEntry(TypedDict):
     value: Any
     timestamp: float
     access_count: int
-    size_bytes: Optional[int]
-
-
-class LauncherData(TypedDict):
-    """Type definition for launcher configuration data."""
-
-    id: str
-    name: str
-    command: str
-    description: Optional[str]
-    icon: Optional[str]
-    parameters: List[Dict[str, Any]]
-
-
-class ProcessInfo(TypedDict):
-    """Type definition for process information."""
-
-    pid: int
-    command: List[str]
-    started_at: float
-    status: str
-    output: List[str]
+    size_bytes: int | None
 
 
 # RefreshResult is defined as NamedTuple in shot_model.py

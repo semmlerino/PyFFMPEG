@@ -5,6 +5,8 @@ This script collects all relevant application files (respecting .gitignore),
 copies them to a temporary directory, and optionally encodes them using transfer_cli.py.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -21,7 +23,7 @@ from typing import List, Optional, Tuple
 class GitIgnoreParser:
     """Parse and apply .gitignore patterns."""
 
-    def __init__(self, gitignore_path: Optional[str] = None):
+    def __init__(self, gitignore_path: str | None = None):
         """Initialize with optional .gitignore file path."""
         self.patterns = []
         self.always_exclude = {
@@ -99,7 +101,7 @@ class GitIgnoreParser:
 class ApplicationBundler:
     """Bundle application files for transfer."""
 
-    def __init__(self, config_path: Optional[str] = None, verbose: bool = False):
+    def __init__(self, config_path: str | None = None, verbose: bool = False):
         """Initialize the bundler.
 
         Args:
@@ -110,7 +112,7 @@ class ApplicationBundler:
         self.config = self._load_config(config_path)
         self.gitignore_parser = GitIgnoreParser(".gitignore")
 
-    def _load_config(self, config_path: Optional[str]) -> dict:
+    def _load_config(self, config_path: str | None) -> dict:
         """Load configuration from file or use defaults.
 
         Args:
@@ -168,7 +170,7 @@ class ApplicationBundler:
         if config_path and os.path.exists(config_path):
             try:
                 with open(config_path, "r") as f:
-                    user_config = json.load(f)
+                    user_config: dict[str, Any] = json.load(f)
                     default_config.update(user_config)
                     if self.verbose:
                         print(f"Loaded config from {config_path}", file=sys.stderr)
@@ -221,7 +223,7 @@ class ApplicationBundler:
 
         return False
 
-    def collect_files(self, source_dir: str = ".") -> List[Tuple[str, str]]:
+    def collect_files(self, source_dir: str = ".") -> list[tuple[str, str]]:
         """Collect all files to be bundled.
 
         Args:
@@ -230,7 +232,7 @@ class ApplicationBundler:
         Returns:
             List of (source_path, relative_path) tuples
         """
-        files_to_bundle = []
+        files_to_bundle: list[Path] = []
         source_dir = os.path.abspath(source_dir)
         max_size_bytes = self.config["max_file_size_mb"] * 1024 * 1024
 
@@ -265,7 +267,7 @@ class ApplicationBundler:
 
         return files_to_bundle
 
-    def create_bundle(self, output_dir: Optional[str] = None) -> str:
+    def create_bundle(self, output_dir: str | None = None) -> str:
         """Create a bundle of application files.
 
         Args:
@@ -321,7 +323,7 @@ class ApplicationBundler:
 
         return bundle_dir
 
-    def encode_bundle(self, bundle_dir: str, output_file: Optional[str] = None) -> str:
+    def encode_bundle(self, bundle_dir: str, output_file: str | None = None) -> str:
         """Encode the bundle using transfer_cli.py.
 
         Args:

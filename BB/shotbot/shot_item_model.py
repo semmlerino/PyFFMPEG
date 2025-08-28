@@ -5,6 +5,8 @@ the current plain Python class approach, enabling efficient data handling,
 virtualization, and proper update notifications.
 """
 
+from __future__ import annotations
+
 import logging
 from enum import IntEnum
 from typing import Any, Dict, List, Optional
@@ -69,8 +71,8 @@ class ShotItemModel(QAbstractListModel):
 
     def __init__(
         self,
-        cache_manager: Optional[CacheManager] = None,
-        parent: Optional[QObject] = None,
+        cache_manager: CacheManager | None = None,
+        parent: QObject | None = None,
     ):
         """Initialize the shot item model.
 
@@ -80,12 +82,12 @@ class ShotItemModel(QAbstractListModel):
         """
         super().__init__(parent)
 
-        self._shots: List[Shot] = []
+        self._shots: list[Shot] = []
         self._cache_manager = cache_manager or CacheManager()
         # Use QImage for thread safety - QImage can be safely shared between threads
         # Convert to QPixmap only when needed in the main thread for display
-        self._thumbnail_cache: Dict[str, QImage] = {}
-        self._loading_states: Dict[str, str] = {}
+        self._thumbnail_cache: dict[str, QImage] = {}
+        self._loading_states: dict[str, str] = {}
         self._selected_index = QPersistentModelIndex()
 
         # Lazy loading timer for thumbnails
@@ -180,7 +182,7 @@ class ShotItemModel(QAbstractListModel):
 
         return None
 
-    def roleNames(self) -> Dict[int, bytes]:
+    def roleNames(self) -> dict[int, bytes]:
         """Get role names for QML compatibility.
 
         Returns:
@@ -259,7 +261,7 @@ class ShotItemModel(QAbstractListModel):
         return False
 
     @Slot(list)
-    def set_shots(self, shots: List[Shot]) -> None:
+    def set_shots(self, shots: list[Shot]) -> None:
         """Set the shot list with proper model reset.
 
         Args:
@@ -429,7 +431,7 @@ class ShotItemModel(QAbstractListModel):
             self._loading_states[shot.full_name] = "failed"
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
 
-    def _get_thumbnail_pixmap(self, shot: Shot) -> Optional[QPixmap]:
+    def _get_thumbnail_pixmap(self, shot: Shot) -> QPixmap | None:
         """Get cached thumbnail pixmap for a shot.
 
         Thread-safe: Converts QImage to QPixmap in main thread for display.
@@ -446,7 +448,7 @@ class ShotItemModel(QAbstractListModel):
             return QPixmap.fromImage(qimage)
         return None
 
-    def get_shot_at_index(self, index: QModelIndex) -> Optional[Shot]:
+    def get_shot_at_index(self, index: QModelIndex) -> Shot | None:
         """Get shot object at the given index.
 
         Args:
@@ -459,7 +461,7 @@ class ShotItemModel(QAbstractListModel):
             return self._shots[index.row()]
         return None
 
-    def refresh_shots(self, shots: List[Shot]) -> RefreshResult:
+    def refresh_shots(self, shots: list[Shot]) -> RefreshResult:
         """Refresh shots with intelligent updates.
 
         Args:

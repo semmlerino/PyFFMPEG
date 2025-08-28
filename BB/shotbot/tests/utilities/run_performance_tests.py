@@ -6,6 +6,8 @@ performance validation report. It doesn't rely on pytest and focuses on
 validating real performance characteristics.
 """
 
+from __future__ import annotations
+
 import subprocess
 import sys
 import time
@@ -13,7 +15,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 
-def run_test_script(script_path: Path) -> Tuple[bool, float, str]:
+def run_test_script(script_path: Path) -> tuple[bool, float, str]:
     """Run a test script and return results.
 
     Args:
@@ -60,7 +62,7 @@ def run_test_script(script_path: Path) -> Tuple[bool, float, str]:
         return False, runtime, error_msg
 
 
-def extract_performance_metrics(output: str) -> Dict[str, str]:
+def extract_performance_metrics(output: str) -> dict[str, str]:
     """Extract performance metrics from test output."""
     metrics = {}
 
@@ -119,7 +121,7 @@ def extract_performance_metrics(output: str) -> Dict[str, str]:
     return metrics
 
 
-def generate_performance_report(results: List[Tuple[str, bool, float, str]]) -> str:
+def generate_performance_report(results: list[tuple[str, bool, float, str]]) -> str:
     """Generate a comprehensive performance report."""
     report = []
     report.append("=" * 80)

@@ -1,14 +1,16 @@
 """Model for managing previous/approved shots data."""
 
+from __future__ import annotations
+
 import logging
 import threading
 from typing import Dict, List, Optional
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from base_shot_model import BaseShotModel
 from cache_manager import CacheManager
 from previous_shots_finder import PreviousShotsFinder
-from base_shot_model import BaseShotModel
 from shot_model import Shot
 
 logger = logging.getLogger(__name__)
@@ -30,8 +32,8 @@ class PreviousShotsModel(QObject):
     def __init__(
         self,
         shot_model: BaseShotModel,
-        cache_manager: Optional[CacheManager] = None,
-        parent: Optional[QObject] = None,
+        cache_manager: CacheManager | None = None,
+        parent: QObject | None = None,
     ):
         """Initialize the previous shots model.
 
@@ -45,7 +47,7 @@ class PreviousShotsModel(QObject):
         self._shot_model = shot_model
         self._cache_manager = cache_manager or CacheManager()
         self._finder = PreviousShotsFinder()
-        self._previous_shots: List[Shot] = []
+        self._previous_shots: list[Shot] = []
         self._is_scanning = False
 
         # THREAD SAFETY: Lock for protecting _is_scanning flag
@@ -118,7 +120,7 @@ class PreviousShotsModel(QObject):
                 self._is_scanning = False
             self.scan_finished.emit()
 
-    def _has_changes(self, new_shots: List[Shot]) -> bool:
+    def _has_changes(self, new_shots: list[Shot]) -> bool:
         """Check if the shot list has changed.
 
         Args:
@@ -136,7 +138,7 @@ class PreviousShotsModel(QObject):
 
         return current_ids != new_ids
 
-    def get_shots(self) -> List[Shot]:
+    def get_shots(self) -> list[Shot]:
         """Get the list of previous/approved shots.
 
         Returns:
@@ -152,7 +154,7 @@ class PreviousShotsModel(QObject):
         """
         return len(self._previous_shots)
 
-    def get_shot_by_name(self, shot_name: str) -> Optional[Shot]:
+    def get_shot_by_name(self, shot_name: str) -> Shot | None:
         """Get a shot by its name.
 
         Args:

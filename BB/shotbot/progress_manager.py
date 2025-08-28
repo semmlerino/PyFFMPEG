@@ -50,12 +50,14 @@ Type Safety:
     optional parameters for flexible progress operation management.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable, Iterator, List, Optional, Union
+from typing import Callable, Iterator
 
 from PySide6.QtWidgets import (
     QProgressBar,
@@ -87,7 +89,7 @@ class ProgressConfig:
     progress_type: ProgressType = ProgressType.AUTO
     update_interval: int = 100  # Minimum ms between UI updates
     show_eta: bool = True
-    cancel_callback: Optional[Callable[[], None]] = None
+    cancel_callback: Callable[[], None] | None = None
 
 
 class ProgressOperation:
@@ -113,13 +115,13 @@ class ProgressOperation:
         self.current_message = config.title
 
         # UI elements (will be set by ProgressManager)
-        self.progress_dialog: Optional[QProgressDialog] = None
-        self.status_bar: Optional[QStatusBar] = None
-        self.progress_bar: Optional[QProgressBar] = None
-        self.cancel_button: Optional[QPushButton] = None
+        self.progress_dialog: QProgressDialog | None = None
+        self.status_bar: QStatusBar | None = None
+        self.progress_bar: QProgressBar | None = None
+        self.cancel_button: QPushButton | None = None
 
         # ETA calculation
-        self.processing_times: List[float] = []
+        self.processing_times: list[float] = []
         self.max_eta_samples = 10
 
     def set_total(self, total: int) -> None:
@@ -272,9 +274,9 @@ class ProgressManager:
     NotificationManager for consistent user experience.
     """
 
-    _instance: Optional["ProgressManager"] = None
-    _operation_stack: List[ProgressOperation] = []
-    _status_bar: Optional[QStatusBar] = None
+    _instance: ProgressManager | None = None
+    _operation_stack: list[ProgressOperation] = []
+    _status_bar: QStatusBar | None = None
 
     def __new__(cls) -> "ProgressManager":
         """Implement singleton pattern."""
@@ -315,7 +317,7 @@ class ProgressManager:
         progress_type: ProgressType = ProgressType.AUTO,
         update_interval: int = 100,
         show_eta: bool = True,
-        cancel_callback: Optional[Callable[[], None]] = None,
+        cancel_callback: Callable[[], None] | None = None,
     ) -> Iterator[ProgressOperation]:
         """Context manager for progress operations.
 
@@ -360,7 +362,7 @@ class ProgressManager:
             raise
 
     @classmethod
-    def start_operation(cls, config: Union[ProgressConfig, str]) -> ProgressOperation:
+    def start_operation(cls, config: ProgressConfig | str) -> ProgressOperation:
         """Start a new progress operation.
 
         Args:
@@ -449,11 +451,11 @@ class ProgressManager:
         )
 
     @classmethod
-    def get_current_operation(cls) -> Optional[ProgressOperation]:
+    def get_current_operation(cls) -> ProgressOperation | None:
         """Get the current (top-level) progress operation.
 
         Returns:
-            Optional[ProgressOperation]: Current operation or None if stack is empty
+            ProgressOperation | None: Current operation or None if stack is empty
         """
         instance = cls()
         return instance._operation_stack[-1] if instance._operation_stack else None

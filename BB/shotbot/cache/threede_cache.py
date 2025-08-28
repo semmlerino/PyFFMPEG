@@ -1,13 +1,19 @@
 """3DE scene data caching with metadata support."""
+from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from config import Config
 
 from .storage_backend import StorageBackend
+
+if TYPE_CHECKING:
+    pass
+    
+from type_definitions import CacheDataDict, CacheInfoDict, ThreeDESceneDict
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +30,8 @@ class ThreeDECache:
     def __init__(
         self,
         cache_file: Path,
-        storage_backend: Optional[StorageBackend] = None,
-        expiry_minutes: Optional[int] = None,
+        storage_backend: StorageBackend | None = None,
+        expiry_minutes: int | None = None,
     ):
         """Initialize 3DE scene cache.
 
@@ -49,7 +55,7 @@ class ThreeDECache:
         self._expiry_minutes = expiry_minutes
         logger.debug(f"ThreeDECache TTL updated to {expiry_minutes} minutes")
 
-    def get_cached_scenes(self) -> Optional[List[Dict[str, Any]]]:
+    def get_cached_scenes(self) -> list["ThreeDESceneDict"] | None:
         """Get cached 3DE scene list if valid and not expired.
 
         Returns:
@@ -77,13 +83,15 @@ class ThreeDECache:
         return scenes
 
     def cache_scenes(
-        self, scenes: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
+        self,
+        scenes: list["ThreeDESceneDict"],
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Cache 3DE scene list with optional scan metadata.
 
         Args:
             scenes: List of scene dictionaries to cache
-            metadata: Optional metadata about the scan operation
+            metadata: metadata about the scan operation
 
         Returns:
             True if caching succeeded, False otherwise
@@ -98,7 +106,7 @@ class ThreeDECache:
                 }
 
             # Create cache data structure
-            cache_data: Dict[str, Any] = {
+            cache_data: CacheDataDict = {
                 "timestamp": datetime.now().isoformat(),
                 "scenes": scenes,
                 "metadata": metadata,
@@ -163,7 +171,7 @@ class ThreeDECache:
 
         return self._is_expired(cache_data)
 
-    def get_cache_age(self) -> Optional[timedelta]:
+    def get_cache_age(self) -> timedelta | None:
         """Get the age of the cached data.
 
         Returns:
@@ -200,7 +208,7 @@ class ThreeDECache:
         scenes = cache_data.get("scenes", [])
         return len(scenes) if isinstance(scenes, list) else 0
 
-    def get_cache_metadata(self) -> Optional[Dict[str, Any]]:
+    def get_cache_metadata(self) -> dict[str, Any] | None:
         """Get cache metadata without loading scene data.
 
         Returns:
@@ -223,7 +231,7 @@ class ThreeDECache:
         """
         return self._storage.delete_file(self._cache_file)
 
-    def get_cache_info(self) -> Dict[str, Any]:
+    def get_cache_info(self) -> CacheInfoDict:
         """Get detailed cache information for debugging.
 
         Returns:
@@ -264,7 +272,7 @@ class ThreeDECache:
             "metadata": cache_data.get("metadata", {}),
         }
 
-    def force_refresh_needed(self, max_age_minutes: Optional[int] = None) -> bool:
+    def force_refresh_needed(self, max_age_minutes: int | None = None) -> bool:
         """Check if cache should be force refreshed based on age.
 
         Args:
@@ -280,7 +288,7 @@ class ThreeDECache:
         max_age = max_age_minutes or (self._expiry_minutes // 2)
         return age > timedelta(minutes=max_age)
 
-    def _is_expired(self, cache_data: Dict[str, Any]) -> bool:
+    def _is_expired(self, cache_data: CacheDataDict) -> bool:
         """Check if cached data is expired.
 
         Args:

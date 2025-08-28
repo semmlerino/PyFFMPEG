@@ -18,6 +18,8 @@ Migration guide:
         grid = ShotGridView(model=item_model)
 """
 
+from __future__ import annotations
+
 from typing import Dict, Optional
 
 from PySide6.QtCore import Qt, Signal
@@ -48,8 +50,8 @@ class ShotGrid(QWidget):
     def __init__(self, shot_model: ShotModel):
         super().__init__()
         self.shot_model = shot_model
-        self.thumbnails: Dict[str, ThumbnailWidget] = {}
-        self.selected_shot: Optional[Shot] = None
+        self.thumbnails: dict[str, ThumbnailWidget] = {}
+        self.selected_shot: Shot | None = None
         self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE  # type: ignore[attr-defined]
         self._setup_ui()
 
