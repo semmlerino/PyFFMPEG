@@ -42,9 +42,10 @@ class AsyncShotLoader(QThread):
     shots_loaded = Signal(list)  # List of Shot objects
     load_failed = Signal(str)  # Error message string
 
-    def __init__(self, process_pool: ProcessPoolManager) -> None:
+    def __init__(self, process_pool: ProcessPoolManager, parse_function=None) -> None:
         super().__init__()
         self.process_pool = process_pool
+        self.parse_function = parse_function  # Use base class's parse method
         self._stop_event = threading.Event()  # Thread-safe stop mechanism
 
     def run(self) -> None:
@@ -69,24 +70,27 @@ class AsyncShotLoader(QThread):
             if self.isInterruptionRequested() or self._stop_event.is_set():
                 return
 
-            # Parse output
-            shots = []
-            for line in output.strip().split("\n"):
-                # Check for interruption in loop for faster response
-                if self.isInterruptionRequested() or self._stop_event.is_set():
-                    return
+            # Parse output using provided parse function or fallback
+            if self.parse_function:
+                # Use the base class's proper parsing method
+                shots = self.parse_function(output)
+            else:
+                # Fallback to simple parsing (should not be used in practice)
+                logger.warning("Using fallback parsing - this may produce incorrect results")
+                shots = []
+                for line in output.strip().split("\n"):
+                    # Check for interruption in loop for faster response
+                    if self.isInterruptionRequested() or self._stop_event.is_set():
+                        return
 
-                if line.startswith("workspace "):
-                    parts = line.split()
-                    if len(parts) >= 2:
-                        path = parts[1]
-                        # Extract show/seq/shot from path
-                        path_parts = path.split("/")
-                        if len(path_parts) >= 5:
-                            show = path_parts[2]
-                            sequence = path_parts[3]
-                            shot = path_parts[4]
-                            shots.append(Shot(show, sequence, shot, path))
+                    if line.startswith("workspace "):
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            path = parts[1]
+                            # This simple parsing is incorrect and kept only as fallback
+                            # The proper parsing is in BaseShotModel._parse_ws_output
+                            logger.error(f"Fallback parsing used for: {line}")
+                            # Don't create shots with wrong data
 
             # Thread-safe check before emitting signal
             if not (self.isInterruptionRequested() or self._stop_event.is_set()):
@@ -199,8 +203,11 @@ class OptimizedShotModel(BaseShotModel):
             self._loading_in_progress = True
             self.background_load_started.emit()
 
-            # Create and configure loader
-            self._async_loader = AsyncShotLoader(self._process_pool)
+            # Create and configure loader with proper parse function
+            self._async_loader = AsyncShotLoader(
+                self._process_pool, 
+                parse_function=self._parse_ws_output  # Use base class's correct parsing
+            )
             self._async_loader.shots_loaded.connect(self._on_shots_loaded)
             self._async_loader.load_failed.connect(self._on_load_failed)
             self._async_loader.finished.connect(self._on_loader_finished)
