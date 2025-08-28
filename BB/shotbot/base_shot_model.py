@@ -68,7 +68,7 @@ class BaseShotModel(QObject):
         self.shots: list[Any] = []
         self.cache_manager = cache_manager or CacheManager()
         self._parse_pattern = re.compile(
-            r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))",
+            r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+_\w+))",
         )
         self._selected_shot: "Shot | None" = None
 
@@ -145,27 +145,35 @@ class BaseShotModel(QObject):
                     workspace_path = match.group(1)
                     show = match.group(2)
                     sequence = match.group(3)
-                    shot_name = match.group(4)
+                    shot_dir = match.group(4)  # e.g., "seq01_0010" or "012_DC"
 
                     # Validate extracted components using utility
                     if not ValidationUtils.validate_not_empty(
                         workspace_path,
                         show,
                         sequence,
-                        shot_name,
-                        names=["workspace_path", "show", "sequence", "shot_name"],
+                        shot_dir,
+                        names=["workspace_path", "show", "sequence", "shot_dir"],
                     ):
                         logger.warning(
                             f"Line {line_num}: Missing required components in: {line}",
                         )
                         continue
 
-                    # Extract shot number from full name (e.g., "108_BQS_0005" -> "0005")
-                    shot_parts = shot_name.split("_")
-                    if len(shot_parts) >= 3:
-                        shot = shot_parts[-1]
+                    # Extract shot from shot_dir (e.g., "012_DC_1000" -> "1000", "BRX_166_0010" -> "0010")
+                    # The shot directory format is {sequence}_{shot}
+                    # Check if shot_dir starts with sequence_
+                    if shot_dir.startswith(f"{sequence}_"):
+                        # Remove the sequence prefix to get the shot number
+                        shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
                     else:
-                        shot = shot_name
+                        # Fallback: use the last part after underscore
+                        shot_parts = shot_dir.rsplit("_", 1)
+                        if len(shot_parts) == 2:
+                            shot = shot_parts[1]
+                        else:
+                            # No underscore found, use whole name as shot
+                            shot = shot_dir
 
                     shots.append(
                         Shot(
