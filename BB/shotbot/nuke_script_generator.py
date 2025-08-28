@@ -1,5 +1,7 @@
 """Generate Nuke scripts with proper Read nodes for plates and undistortion."""
 
+from __future__ import annotations
+
 import atexit
 import os
 import re
@@ -16,7 +18,7 @@ class NukeScriptGenerator:
     """
 
     # Track all temporary files created for cleanup
-    _temp_files: Set[str] = set()
+    _temp_files: set[str] = set()
     _cleanup_registered: bool = False
 
     @classmethod
@@ -57,7 +59,7 @@ class NukeScriptGenerator:
         return path.replace("\\", "/")
 
     @staticmethod
-    def _detect_frame_range(plate_path: str) -> Tuple[int, int]:
+    def _detect_frame_range(plate_path: str) -> tuple[int, int]:
         """Detect actual frame range from plate files.
 
         Returns:
@@ -77,7 +79,7 @@ class NukeScriptGenerator:
             pattern = base_name.replace("####", r"(\d{4})").replace("%04d", r"(\d{4})")
             frame_regex = re.compile(pattern)
 
-            frame_numbers: List[int] = []
+            frame_numbers: list[int] = []
             for file in plate_dir.iterdir():
                 match = frame_regex.match(file.name)
                 if match:
@@ -92,7 +94,7 @@ class NukeScriptGenerator:
         return 1001, 1100
 
     @staticmethod
-    def _detect_colorspace(plate_path: str) -> Tuple[str, bool]:
+    def _detect_colorspace(plate_path: str) -> tuple[str, bool]:
         """Detect colorspace and raw flag from filename or path.
 
         Returns:
@@ -125,7 +127,7 @@ class NukeScriptGenerator:
         return "linear", True
 
     @staticmethod
-    def _detect_resolution(plate_path: str) -> Tuple[int, int]:
+    def _detect_resolution(plate_path: str) -> tuple[int, int]:
         """Detect resolution from path.
 
         Returns:
@@ -151,7 +153,7 @@ class NukeScriptGenerator:
         return 4312, 2304
 
     @staticmethod
-    def create_plate_script(plate_path: str, shot_name: str) -> Optional[str]:
+    def create_plate_script(plate_path: str, shot_name: str) -> str | None:
         """Create a Nuke script with a proper Read node for the plate.
 
         Args:
@@ -495,7 +497,7 @@ Viewer {{
             logger.debug(f"File content length: {len(content)} characters")
 
             # Parse nodes from the file
-            imported_nodes: List[str] = []
+            imported_nodes: list[str] = []
             lines = content.split("\n")
             i = 0
             nodes_found = 0
@@ -803,9 +805,9 @@ Viewer {{
     @staticmethod
     def create_plate_script_with_undistortion(
         plate_path: str,
-        undistortion_path: Optional[str],
+        undistortion_path: str | None,
         shot_name: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Create a Nuke script with plate and optional undistortion.
 
         This version properly imports the undistortion nodes from the .nk file
@@ -1023,7 +1025,7 @@ Viewer {{
     @staticmethod
     def _generate_read_node(
         file_path: str,
-        colorspace: Optional[str],
+        colorspace: str | None,
         first_frame: int,
         last_frame: int,
     ) -> str:
@@ -1129,7 +1131,7 @@ Viewer {{
         first_frame: int,
         last_frame: int,
         output_dir: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Generate a complete comp script with Read and Write nodes.
 
         Args:

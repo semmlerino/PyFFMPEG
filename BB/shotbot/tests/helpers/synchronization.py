@@ -1,5 +1,7 @@
 """Synchronization helpers to replace time.sleep() in tests for better performance."""
 
+from __future__ import annotations
+
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -82,7 +84,7 @@ class SynchronizationHelpers:
         qtbot: Any,
         signal: Signal,
         timeout_ms: int = 1000,
-        trigger: Optional[Callable] = None,
+        trigger: Callable | None = None,
     ) -> Any:
         """Wait for a Qt signal to be emitted.
 

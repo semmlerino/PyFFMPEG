@@ -31,6 +31,8 @@ Example:
     command_args = launcher.build_command({"input_file": "test.txt"})
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import asdict, dataclass, field
 from enum import Enum
@@ -61,11 +63,11 @@ class LauncherParameter:
     param_type: ParameterType
     label: str
     description: str = ""
-    default_value: Optional[Union[str, int, float, bool]] = None
+    default_value: str | int | float | bool | None = None
     required: bool = False
-    choices: List[str] = field(default_factory=list)
-    min_value: Optional[Union[int, float]] = None
-    max_value: Optional[Union[int, float]] = None
+    choices: list[str] = field(default_factory=list)
+    min_value: int | float | None = None
+    max_value: int | float | None = None
     file_filter: str = ""  # For file/directory parameters
     placeholder: str = ""
 
@@ -159,7 +161,7 @@ class LauncherParameter:
             logger.warning(f"Error validating parameter value: {e}")
             return False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert parameter to dictionary for serialization."""
         data = asdict(self)
         # Convert enum to string
@@ -167,7 +169,7 @@ class LauncherParameter:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "LauncherParameter":
+    def from_dict(cls, data: dict[str, Any]) -> "LauncherParameter":
         """Create parameter from dictionary.
 
         Args:
@@ -206,13 +208,13 @@ class Launcher:
     enabled: bool = True
     show_in_context_menu: bool = True
     working_directory: str = ""
-    environment_vars: Dict[str, str] = field(default_factory=dict)
-    parameters: List[LauncherParameter] = field(default_factory=list)
+    environment_vars: dict[str, str] = field(default_factory=dict)
+    parameters: list[LauncherParameter] = field(default_factory=list)
 
     # Execution settings
     use_shell: bool = False
     capture_output: bool = False
-    timeout_seconds: Optional[int] = None
+    timeout_seconds: int | None = None
 
     # UI settings
     sort_order: int = 0
@@ -243,7 +245,7 @@ class Launcher:
         if self.timeout_seconds is not None and self.timeout_seconds <= 0:
             raise ValueError("Timeout must be positive")
 
-    def validate_parameters(self, param_values: Dict[str, Any]) -> Dict[str, str]:
+    def validate_parameters(self, param_values: dict[str, Any]) -> dict[str, str]:
         """Validate parameter values against parameter definitions.
 
         Args:
@@ -269,7 +271,7 @@ class Launcher:
 
         return errors
 
-    def build_command(self, param_values: Dict[str, Any] = None) -> List[str]:
+    def build_command(self, param_values: dict[str, Any] = None) -> list[str]:
         """Build command line arguments from template and parameters.
 
         Args:
@@ -312,7 +314,7 @@ class Launcher:
         except Exception as e:
             raise ValueError(f"Error building command: {e}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert launcher to dictionary for serialization."""
         data = asdict(self)
         # Convert parameters to dictionaries
@@ -320,7 +322,7 @@ class Launcher:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Launcher":
+    def from_dict(cls, data: dict[str, Any]) -> "Launcher":
         """Create launcher from dictionary.
 
         Args:
@@ -366,7 +368,7 @@ class Launcher:
         return self.from_dict(data)
 
 
-def validate_launcher_schema(data: Dict[str, Any]) -> List[str]:
+def validate_launcher_schema(data: dict[str, Any]) -> list[str]:
     """Validate launcher data against expected schema.
 
     Args:
@@ -379,13 +381,13 @@ def validate_launcher_schema(data: Dict[str, Any]) -> List[str]:
 
     # Required fields
     required_fields = ["id", "name", "command"]
-    for field in required_fields:
-        if field not in data:
-            errors.append(f"Missing required field: {field}")
-        elif not isinstance(data[field], str):
-            errors.append(f"Field '{field}' must be a string")
-        elif not data[field].strip():
-            errors.append(f"Field '{field}' cannot be empty")
+    for required_field in required_fields:
+        if required_field not in data:
+            errors.append(f"Missing required field: {required_field}")
+        elif not isinstance(data[required_field], str):
+            errors.append(f"Field '{required_field}' must be a string")
+        elif not data[required_field].strip():
+            errors.append(f"Field '{required_field}' cannot be empty")
 
     # Optional fields with type validation
     optional_fields = {
@@ -403,10 +405,10 @@ def validate_launcher_schema(data: Dict[str, Any]) -> List[str]:
         "keyboard_shortcut": str,
     }
 
-    for field, expected_type in optional_fields.items():
-        if field in data:
-            if not isinstance(data[field], expected_type):
-                errors.append(f"Field '{field}' must be of type {expected_type}")
+    for field_name, expected_type in optional_fields.items():
+        if field_name in data:
+            if not isinstance(data[field_name], expected_type):
+                errors.append(f"Field '{field_name}' must be of type {expected_type}")
 
     # Validate parameters list
     if "parameters" in data:

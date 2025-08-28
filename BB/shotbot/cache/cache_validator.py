@@ -1,11 +1,18 @@
 """Cache validation and repair operations."""
+from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from .memory_manager import MemoryManager
 from .storage_backend import StorageBackend
+
+if TYPE_CHECKING:
+    from type_definitions import (
+        CacheEfficiencyDict,
+        ValidationResultDict,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +30,7 @@ class CacheValidator:
         self,
         thumbnails_directory: Path,
         memory_manager: MemoryManager,
-        storage_backend: Optional[StorageBackend] = None,
+        storage_backend: StorageBackend | None = None,
     ):
         """Initialize cache validator.
 
@@ -38,7 +45,7 @@ class CacheValidator:
 
         logger.debug(f"CacheValidator initialized for {thumbnails_directory}")
 
-    def validate_cache(self, fix_issues: bool = True) -> Dict[str, Any]:
+    def validate_cache(self, fix_issues: bool = True) -> "ValidationResultDict":
         """Validate cache consistency and optionally fix issues.
 
         Args:
@@ -49,7 +56,7 @@ class CacheValidator:
         """
         logger.info("Starting cache validation...")
 
-        results = {
+        results: ValidationResultDict = {
             "valid": True,
             "issues_found": 0,
             "issues_fixed": 0,
@@ -102,7 +109,7 @@ class CacheValidator:
                 "issues_fixed": 0,
             }
 
-    def repair_cache(self) -> Dict[str, Any]:
+    def repair_cache(self) -> "ValidationResultDict":
         """Perform comprehensive cache repair operations.
 
         Returns:
@@ -111,7 +118,7 @@ class CacheValidator:
         logger.info("Starting comprehensive cache repair...")
         return self.validate_cache(fix_issues=True)
 
-    def get_cache_statistics(self) -> Dict[str, Any]:
+    def get_cache_statistics(self) -> "ValidationResultDict":
         """Get detailed cache statistics without making changes.
 
         Returns:
@@ -142,7 +149,9 @@ class CacheValidator:
 
         return stats
 
-    def _validate_memory_tracking(self, fix_issues: bool) -> Dict[str, Any]:
+    def _validate_memory_tracking(
+        self, fix_issues: bool
+    ) -> "ValidationResultDict":
         """Validate memory manager tracking accuracy.
 
         Args:
@@ -173,7 +182,7 @@ class CacheValidator:
 
         return results
 
-    def _find_orphaned_files(self, fix_issues: bool) -> Dict[str, Any]:
+    def _find_orphaned_files(self, fix_issues: bool) -> "ValidationResultDict":
         """Find thumbnail files not being tracked by memory manager.
 
         Args:
@@ -223,7 +232,9 @@ class CacheValidator:
 
         return results
 
-    def _validate_directory_structure(self, fix_issues: bool) -> Dict[str, Any]:
+    def _validate_directory_structure(
+        self, fix_issues: bool
+    ) -> "ValidationResultDict":
         """Validate the cache directory structure.
 
         Args:
@@ -290,7 +301,7 @@ class CacheValidator:
 
         return removed_count
 
-    def analyze_cache_efficiency(self) -> Dict[str, Any]:
+    def analyze_cache_efficiency(self) -> dict[str, Any]:
         """Analyze cache usage patterns and efficiency.
 
         Returns:

@@ -1,0 +1,108 @@
+{
+  "timestamp": "2025-08-28 09:35:45",
+  "baseline": {
+    "startup_time": 2.901,
+    "initial_refresh": 2.422
+  },
+  "subprocess": {
+    "raw_subprocess": 1.6314030129997263,
+    "output_size": 0,
+    "returncode": 127
+  },
+  "process_pool": {
+    "pool_creation": 0.034738860000288696,
+    "pool_first_call": 0.2689904029994068,
+    "error": "Command '['/bin/bash', '-i', '-c', 'ws -sg']' returned non-zero exit status 127.",
+    "pool_second_call": 0.2445359120010835
+  },
+  "shot_model": {
+    "model_creation": 0.00014815800022915937,
+    "refresh_total": 0.2143658980003238,
+    "success": false,
+    "has_changes": false,
+    "shot_count": 0,
+    "top_functions": [
+      {
+        "function": "<method 'decode' of 'bytes' objects>:0",
+        "file": "~",
+        "cumulative_time": 5.162000000000001e-06,
+        "total_time": 5.162000000000001e-06,
+        "calls": 18
+      },
+      {
+        "function": "<method 'join' of 'bytes' objects>:0",
+        "file": "~",
+        "cumulative_time": 1.729e-06,
+        "total_time": 1.729e-06,
+        "calls": 2
+      },
+      {
+        "function": "<method 'rfind' of 'bytes' objects>:0",
+        "file": "~",
+        "cumulative_time": 3.87e-07,
+        "total_time": 3.87e-07,
+        "calls": 1
+      },
+      {
+        "function": "<method 'rstrip' of 'bytes' objects>:0",
+        "file": "~",
+        "cumulative_time": 5.000000000000001e-07,
+        "total_time": 5.000000000000001e-07,
+        "calls": 1
+      },
+      {
+        "function": "<method 'startswith' of 'bytes' objects>:0",
+        "file": "~",
+        "cumulative_time": 2.228e-06,
+        "total_time": 2.228e-06,
+        "calls": 3
+      },
+      {
+        "function": "<method 'co_positions' of 'code' objects>:0",
+        "file": "~",
+        "cumulative_time": 1.233e-06,
+        "total_time": 1.233e-06,
+        "calls": 5
+      },
+      {
+        "function": "<method 'append' of 'list' objects>:0",
+        "file": "~",
+        "cumulative_time": 7.167e-06,
+        "total_time": 7.167e-06,
+        "calls": 52
+      },
+      {
+        "function": "<method 'extend' of 'list' objects>:0",
+        "file": "~",
+        "cumulative_time": 5.420000000000001e-07,
+        "total_time": 5.420000000000001e-07,
+        "calls": 2
+      },
+      {
+        "function": "<method 'pop' of 'list' objects>:0",
+        "file": "~",
+        "cumulative_time": 3.0900000000000003e-07,
+        "total_time": 3.0900000000000003e-07,
+        "calls": 1
+      },
+      {
+        "function": "<method 'get' of 'dict' objects>:0",
+        "file": "~",
+        "cumulative_time": 4.204e-06,
+        "total_time": 4.204e-06,
+        "calls": 17
+      }
+    ]
+  },
+  "strategies": {
+    "async_ui_display": 0.010059821999675478,
+    "cached_parse_time": 3.1950003176461905e-06,
+    "cached_lines": 3,
+    "pooled_calls": [
+      0.00048708800022723153,
+      0.0005332299988367595,
+      0.0004700250010500895
+    ],
+    "pooled_average": 0.0004967810000380268
+  }
+}

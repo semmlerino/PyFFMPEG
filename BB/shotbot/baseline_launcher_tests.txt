@@ -1,0 +1,26 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0 -- /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/bin/python3
+cachedir: .pytest_cache
+hypothesis profile 'default'
+PySide6 6.9.1 -- Qt runtime 6.9.1 -- Qt compiled 6.9.1
+rootdir: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot
+configfile: pytest.ini
+plugins: hypothesis-6.137.1, cov-6.2.1, mock-3.14.1, qt-4.5.0, timeout-2.4.0, xdist-3.8.0
+timeout: 120.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 6 items
+
+tests/unit/test_launcher_manager.py::TestLauncherManager::test_launcher_creation PASSED [ 16%]
+tests/unit/test_launcher_manager.py::TestLauncherManager::test_launcher_manager_initialization PASSED [ 33%]
+tests/unit/test_launcher_manager.py::TestLauncherManager::test_launcher_creation_with_factory PASSED [ 50%]
+tests/unit/test_launcher_manager.py::TestLauncherManager::test_threading_config PASSED [ 66%]
+tests/unit/test_launcher_manager.py::TestLauncherManager::test_shot_model_integration PASSED [ 83%]
+tests/unit/test_launcher_manager.py::TestLauncherManager::test_worker_state_management PASSED [100%]
+
+============================= slowest 20 durations =============================
+0.09s setup    tests/unit/test_launcher_manager.py::TestLauncherManager::test_launcher_creation
+0.01s call     tests/unit/test_launcher_manager.py::TestLauncherManager::test_worker_state_management
+
+(16 durations < 0.005s hidden.  Use -vv to show these durations.)
+============================== 6 passed in 3.97s ===============================

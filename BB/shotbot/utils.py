@@ -1,5 +1,7 @@
 """Common utilities for ShotBot application."""
 
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -9,13 +11,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from config import Config
-from performance_monitor import timed_operation
+
+# Performance monitoring removed - was using archived module
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 
 # Cache for path existence checks (with TTL)
-_path_cache: Dict[str, Tuple[bool, float]] = {}
+_path_cache: dict[str, tuple[bool, float]] = {}
 _PATH_CACHE_TTL = 300.0  # seconds - increased from 30 to 300 for better performance
 _cache_disabled = False  # Test isolation flag
 
@@ -30,7 +33,7 @@ def clear_all_caches():
     logger.info("Cleared all utility caches")
 
 
-def disable_caching():
+def disable_caching() -> None:
     """Disable caching completely - useful for testing."""
     global _cache_disabled
     _cache_disabled = True
@@ -38,7 +41,7 @@ def disable_caching():
     logger.debug("Caching disabled for testing")
 
 
-def enable_caching():
+def enable_caching() -> None:
     """Re-enable caching after testing."""
     global _cache_disabled
     _cache_disabled = False
@@ -50,8 +53,8 @@ class CacheIsolation:
 
     def __init__(self):
         super().__init__()
-        self.original_cache_state: Optional[Dict[str, Tuple[bool, float]]] = None
-        self.original_disabled_state: Optional[bool] = None
+        self.original_cache_state: dict[str, tuple[bool, float | None]] = None
+        self.original_disabled_state: bool | None = None
 
     def __enter__(self):
         """Enter context with isolated cache."""
@@ -77,9 +80,9 @@ class CacheIsolation:
         logger.debug("Cache isolation context exited")
 
 
-def get_cache_stats() -> Dict[str, Any]:
+def get_cache_stats() -> dict[str, Any]:
     """Get statistics about current cache usage."""
-    stats: Dict[str, Any] = {
+    stats: dict[str, Any] = {
         "path_cache_size": len(_path_cache),
         "version_cache_size": VersionUtils.get_version_cache_size(),
         "extract_version_cache_info": VersionUtils.extract_version_from_path.cache_info(),
@@ -91,7 +94,7 @@ class PathUtils:
     """Utilities for path construction and validation."""
 
     @staticmethod
-    def build_path(base_path: Union[str, Path], *segments: str) -> Path:
+    def build_path(base_path: str | Path, *segments: str) -> Path:
         """Build a path from base path and segments.
 
         Args:
@@ -147,7 +150,7 @@ class PathUtils:
         show: str,
         sequence: str,
         shot: str,
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Find thumbnail from turnover plate directories with preference order.
 
         Searches for plate files in:
@@ -220,7 +223,7 @@ class PathUtils:
             return None
 
         # Sort plates by preference
-        def plate_priority(plate_dir: Path) -> Tuple[int, str]:
+        def plate_priority(plate_dir: Path) -> tuple[int, str]:
             """Return priority tuple for sorting plates."""
             name = plate_dir.name.upper()
             # Priority: (order, name)
@@ -331,8 +334,7 @@ class PathUtils:
         return PathUtils.build_path(workspace_path, *segments)
 
     @staticmethod
-    @timed_operation("validate_path_exists", log_threshold_ms=10)
-    def validate_path_exists(path: Union[str, Path], description: str = "Path") -> bool:
+    def validate_path_exists(path: str | Path, description: str = "Path") -> bool:
         """Validate that a path exists.
 
         Uses caching for frequently checked paths to improve performance.
@@ -412,7 +414,7 @@ class PathUtils:
         logger.debug(f"Cleaned path cache, kept {len(_path_cache)} most recent entries")
 
     @staticmethod
-    def batch_validate_paths(paths: List[Union[str, Path]]) -> Dict[str, bool]:
+    def batch_validate_paths(paths: list[str | Path]) -> dict[str, bool]:
         """Validate multiple paths at once for better performance.
 
         Args:
@@ -421,9 +423,9 @@ class PathUtils:
         Returns:
             Dictionary mapping path strings to existence status
         """
-        results: Dict[str, bool] = {}
+        results: dict[str, bool] = {}
         current_time = time.time()
-        paths_to_check: List[Tuple[Union[str, Path], str]] = []
+        paths_to_check: list[tuple[str | Path, str]] = []
 
         # First pass - check cache
         for path in paths:
@@ -451,7 +453,7 @@ class PathUtils:
         return results
 
     @staticmethod
-    def safe_mkdir(path: Union[str, Path], description: str = "Directory") -> bool:
+    def safe_mkdir(path: str | Path, description: str = "Directory") -> bool:
         """Safely create directory with error handling.
 
         Args:
@@ -480,7 +482,7 @@ class PathUtils:
         sequence: str,
         shot: str,
         max_depth: int = 5,
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Find any image file containing '1001' in the publish folder as a fallback.
 
         Searches recursively in the publish folder for thumbnail files, with preference
@@ -527,7 +529,7 @@ class PathUtils:
         def _search_directory(
             directory: Path,
             current_depth: int = 0,
-        ) -> Optional[Path]:
+        ) -> Path | None:
             """Recursively search directory for 1001 EXR files."""
             if current_depth > max_depth:
                 return None
@@ -590,8 +592,8 @@ class PathUtils:
 
     @staticmethod
     def discover_plate_directories(
-        base_path: Union[str, Path],
-    ) -> List[Tuple[str, int]]:
+        base_path: str | Path,
+    ) -> list[tuple[str, int]]:
         """Discover available plate directories and return them in priority order.
 
         Args:
@@ -604,7 +606,7 @@ class PathUtils:
             return []
 
         path_obj = Path(base_path) if isinstance(base_path, str) else base_path
-        found_plates: List[Tuple[str, int]] = []
+        found_plates: list[tuple[str, int]] = []
 
         # Check for each possible plate pattern
         for pattern in Config.PLATE_DISCOVERY_PATTERNS:
@@ -630,7 +632,7 @@ class VersionUtils:
     VERSION_PATTERN = re.compile(r"^v(\d{3})$")
 
     # Cache for version directory listings
-    _version_cache: Dict[str, Tuple[List[Tuple[int, str]], float]] = {}
+    _version_cache: dict[str, tuple[list[tuple[int, str]], float]] = {}
 
     @classmethod
     def clear_version_cache(cls) -> None:
@@ -643,8 +645,7 @@ class VersionUtils:
         return len(cls._version_cache)
 
     @staticmethod
-    @timed_operation("find_version_directories", log_threshold_ms=20)
-    def find_version_directories(base_path: Union[str, Path]) -> List[Tuple[int, str]]:
+    def find_version_directories(base_path: str | Path) -> list[tuple[int, str]]:
         """Find all version directories in a path.
 
         Uses caching to avoid repeated directory scans for the same path.
@@ -668,7 +669,7 @@ class VersionUtils:
                 return version_dirs.copy()  # Return a copy to prevent modification
 
         path_obj = Path(base_path) if isinstance(base_path, str) else base_path
-        version_dirs: List[Tuple[int, str]] = []
+        version_dirs: list[tuple[int, str]] = []
 
         try:
             for item in path_obj.iterdir():
@@ -720,7 +721,7 @@ class VersionUtils:
         )
 
     @staticmethod
-    def get_latest_version(base_path: Union[str, Path]) -> Optional[str]:
+    def get_latest_version(base_path: str | Path) -> str | None:
         """Get the latest version directory name.
 
         Args:
@@ -742,7 +743,7 @@ class VersionUtils:
 
     @staticmethod
     @lru_cache(maxsize=256)
-    def extract_version_from_path(path: Union[str, Path]) -> Optional[str]:
+    def extract_version_from_path(path: str | Path) -> str | None:
         """Extract version from a file or directory path.
 
         Uses LRU cache since this operation is pure and frequently called.
@@ -765,10 +766,10 @@ class FileUtils:
 
     @staticmethod
     def find_files_by_extension(
-        directory: Union[str, Path],
-        extensions: Union[str, List[str]],
-        limit: Optional[int] = None,
-    ) -> List[Path]:
+        directory: str | Path,
+        extensions: str | list[str],
+        limit: int | None = None,
+    ) -> list[Path]:
         """Find files with specific extensions in a directory.
 
         This method performs optimized file discovery with early termination
@@ -786,7 +787,7 @@ class FileUtils:
                 in large directories.
 
         Returns:
-            List[Path]: List of pathlib.Path objects for all matching files.
+            list[Path]: List of pathlib.Path objects for all matching files.
                 Returns empty list if directory doesn't exist or no matches found.
                 Results are ordered by directory iteration order (not sorted).
 
@@ -809,7 +810,7 @@ class FileUtils:
                 >>> from pathlib import Path
                 >>> path_obj = Path("/some/directory")
                 >>> string_path = "/some/directory"
-                >>> # Both work identically due to Union[str, Path] type
+                >>> # Both work identically due to str | Path type
                 >>> files1 = FileUtils.find_files_by_extension(path_obj, "py")
                 >>> files2 = FileUtils.find_files_by_extension(string_path, "py")
 
@@ -826,14 +827,14 @@ class FileUtils:
         if isinstance(extensions, str):
             extensions = [extensions]
 
-        normalized_extensions: Set[str] = set()
+        normalized_extensions: set[str] = set()
         for ext in extensions:
             if not ext.startswith("."):
                 ext = "." + ext
             normalized_extensions.add(ext.lower())
 
         dir_path = Path(directory) if isinstance(directory, str) else directory
-        matching_files: List[Path] = []
+        matching_files: list[Path] = []
 
         try:
             # Use iterdir() but with early termination optimization
@@ -852,9 +853,9 @@ class FileUtils:
 
     @staticmethod
     def get_first_image_file(
-        directory: Union[str, Path],
+        directory: str | Path,
         allow_fallback: bool = True,
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Get the first image file found in a directory.
 
         Args:
@@ -893,8 +894,8 @@ class FileUtils:
 
     @staticmethod
     def validate_file_size(
-        file_path: Union[str, Path],
-        max_size_mb: Optional[int] = None,
+        file_path: str | Path,
+        max_size_mb: int | None = None,
     ) -> bool:
         """Validate that a file is not too large.
 
@@ -935,8 +936,8 @@ class ImageUtils:
     def validate_image_dimensions(
         width: int,
         height: int,
-        max_dimension: Optional[int] = None,
-        max_memory_mb: Optional[int] = None,
+        max_dimension: int | None = None,
+        max_memory_mb: int | None = None,
     ) -> bool:
         """Validate image dimensions and estimated memory usage.
 
@@ -975,8 +976,8 @@ class ImageUtils:
 
     @staticmethod
     def get_safe_dimensions_for_thumbnail(
-        max_size: Optional[int] = None,
-    ) -> Tuple[int, int]:
+        max_size: int | None = None,
+    ) -> tuple[int, int]:
         """Get safe dimensions for thumbnail generation.
 
         Args:
@@ -995,8 +996,8 @@ class ValidationUtils:
 
     @staticmethod
     def validate_not_empty(
-        *values: Union[str, None],
-        names: Optional[List[str]] = None,
+        *values: str | None,
+        names: list[str | None] = None,
     ) -> bool:
         """Validate that values are not None or empty strings.
 
@@ -1058,7 +1059,7 @@ class ValidationUtils:
         return Config.DEFAULT_USERNAME
 
     @staticmethod
-    def get_excluded_users(additional_users: Optional[Set[str]] = None) -> Set[str]:
+    def get_excluded_users(additional_users: set[str | None] = None) -> set[str]:
         """Get set of users to exclude from searches.
 
         Automatically excludes the current user and any additional specified users.

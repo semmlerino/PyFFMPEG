@@ -3,14 +3,19 @@
 # pyright: basic
 # pyright: reportPrivateUsage=false
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Dict, Generator, List
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from cache_manager import CacheManager
 from shot_model import Shot, ShotModel
+
+# Import test double for subprocess
+from tests.test_doubles_library import TestCompletedProcess
 
 
 @pytest.fixture
@@ -25,7 +30,7 @@ def type_safe_shot() -> Shot:
 
 
 @pytest.fixture
-def type_safe_shot_list() -> List[Shot]:
+def type_safe_shot_list() -> list[Shot]:
     """Create a list of type-safe Shot instances."""
     return [
         Shot("show1", "seq1", "shot1", "/path1"),
@@ -62,32 +67,31 @@ def mock_ws_output_typed() -> str:
 @pytest.fixture
 def mock_successful_subprocess():
     """Mock subprocess.run for successful ws command with type safety."""
-    mock_result = Mock()
-    mock_result.returncode = 0
-    mock_result.stdout = """
-    workspace /shows/ygsk/shots/108_BQS/108_BQS_0005
-    workspace /shows/ygsk/shots/108_CHV/108_CHV_0010
-    """
-    mock_result.stderr = ""
+    test_result = TestCompletedProcess(
+        args=["ws", "-sg"],
+        returncode=0,
+        stdout="""workspace /shows/ygsk/shots/108_BQS/108_BQS_0005
+workspace /shows/ygsk/shots/108_CHV/108_CHV_0010""",
+        stderr="",
+    )
 
-    with patch("subprocess.run", return_value=mock_result):
-        yield mock_result
+    with patch("subprocess.run", return_value=test_result):
+        yield test_result
 
 
 @pytest.fixture
 def mock_failed_subprocess():
     """Mock subprocess.run for failed ws command."""
-    mock_result = Mock()
-    mock_result.returncode = 1
-    mock_result.stdout = ""
-    mock_result.stderr = "Error: ws command failed"
+    test_result = TestCompletedProcess(
+        args=["ws", "-sg"], returncode=1, stdout="", stderr="Error: ws command failed"
+    )
 
-    with patch("subprocess.run", return_value=mock_result):
-        yield mock_result
+    with patch("subprocess.run", return_value=test_result):
+        yield test_result
 
 
 @pytest.fixture
-def sample_shot_dict() -> Dict[str, str]:
+def sample_shot_dict() -> dict[str, str]:
     """Sample shot dictionary with proper string typing."""
     return {
         "show": "sample_show",
@@ -98,7 +102,7 @@ def sample_shot_dict() -> Dict[str, str]:
 
 
 @pytest.fixture
-def sample_shot_dict_list() -> List[Dict[str, str]]:
+def sample_shot_dict_list() -> list[dict[str, str]]:
     """Sample list of shot dictionaries."""
     return [
         {
@@ -207,14 +211,14 @@ class TypeAssertionHelper:
 
     @staticmethod
     def assert_shot_list_type(shots: Any) -> None:
-        """Assert that object is a properly typed List[Shot]."""
+        """Assert that object is a properly typed list[Shot]."""
         assert isinstance(shots, list)
         for shot in shots:
             TypeAssertionHelper.assert_shot_type(shot)
 
     @staticmethod
     def assert_dict_str_str(data: Any) -> None:
-        """Assert that object is a properly typed Dict[str, str]."""
+        """Assert that object is a properly typed dict[str, str]."""
         assert isinstance(data, dict)
         for key, value in data.items():
             assert isinstance(key, str)

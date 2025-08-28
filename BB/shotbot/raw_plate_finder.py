@@ -1,12 +1,15 @@
 """Utility for finding raw plate files for shots."""
 
+from __future__ import annotations
+
 import logging
 import re
 from pathlib import Path
 from typing import Optional
 
 from config import Config
-from performance_monitor import timed_operation
+
+# Performance monitoring removed - was using archived module
 from utils import PathUtils, VersionUtils
 
 # Set up logger for this module
@@ -23,11 +26,10 @@ class RawPlateFinder:
     _pattern_cache = {}  # Cache for compiled patterns keyed by (shot_name, plate_name, version)
 
     @staticmethod
-    @timed_operation("find_latest_raw_plate", log_threshold_ms=50)
     def find_latest_raw_plate(
         shot_workspace_path: str,
         shot_name: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Find the latest raw plate file path for a shot.
 
@@ -123,7 +125,7 @@ class RawPlateFinder:
         shot_name: str,
         plate_name: str,
         version: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Find the actual plate file pattern with correct color space.
 
         Args:
@@ -184,7 +186,7 @@ class RawPlateFinder:
         return None
 
     @staticmethod
-    def get_version_from_path(plate_path: str) -> Optional[str]:
+    def get_version_from_path(plate_path: str) -> str | None:
         """
         Extract the version number from a raw plate file path.
 
@@ -201,7 +203,6 @@ class RawPlateFinder:
     _verify_pattern_cache = {}
 
     @staticmethod
-    @timed_operation("verify_plate_exists", log_threshold_ms=20)
     def verify_plate_exists(plate_path: str) -> bool:
         """
         Verify that at least one frame of the plate sequence exists.

@@ -4,6 +4,8 @@ This module defines Protocol classes for better type safety and
 interface design throughout the application.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 # Import RefreshResult from shot_model where it's properly defined as NamedTuple
@@ -44,7 +46,7 @@ class RefreshableProtocol(Protocol):
 class ThumbnailProviderProtocol(Protocol):
     """Protocol for objects that can provide thumbnail paths."""
 
-    def get_thumbnail_path(self) -> Optional[Path]:
+    def get_thumbnail_path(self) -> Path | None:
         """Get thumbnail path for the object."""
         ...
 
@@ -72,7 +74,7 @@ class LaunchableProtocol(Protocol):
 class ValidatableProtocol(Protocol):
     """Protocol for objects that can be validated."""
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validate object and return list of errors."""
         ...
 
@@ -86,7 +88,7 @@ class ValidatableProtocol(Protocol):
 class DataModelProtocol(Protocol):
     """Protocol for data model classes."""
 
-    def get_data(self) -> List[dict]:
+    def get_data(self) -> list[dict]:
         """Get all data items."""
         ...
 
@@ -94,7 +96,7 @@ class DataModelProtocol(Protocol):
         """Refresh data from source."""
         ...
 
-    def find_item_by_name(self, name: str) -> Optional[dict]:
+    def find_item_by_name(self, name: str) -> dict | None:
         """Find item by name."""
         ...
 

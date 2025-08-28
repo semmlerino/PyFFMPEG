@@ -1,9 +1,10 @@
 """Shot data caching with TTL expiration."""
+from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, List, Sequence
 
 from config import Config
 
@@ -11,6 +12,8 @@ from .storage_backend import StorageBackend
 
 if TYPE_CHECKING:
     from shot_model import Shot
+    
+from type_definitions import CacheDataDict, CacheInfoDict, ShotDict
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +29,8 @@ class ShotCache:
     def __init__(
         self,
         cache_file: Path,
-        storage_backend: Optional[StorageBackend] = None,
-        expiry_minutes: Optional[int] = None,
+        storage_backend: StorageBackend | None = None,
+        expiry_minutes: int | None = None,
     ):
         """Initialize shot cache.
 
@@ -42,7 +45,16 @@ class ShotCache:
 
         logger.debug(f"ShotCache initialized with {self._expiry_minutes}min TTL")
 
-    def get_cached_shots(self) -> Optional[List[Dict[str, Any]]]:
+    def set_expiry_minutes(self, expiry_minutes: int) -> None:
+        """Set cache expiry time in minutes.
+
+        Args:
+            expiry_minutes: Cache expiry time in minutes
+        """
+        self._expiry_minutes = expiry_minutes
+        logger.debug(f"ShotCache TTL updated to {expiry_minutes} minutes")
+
+    def get_cached_shots(self) -> list["ShotDict"] | None:
         """Get cached shot list if valid and not expired.
 
         Returns:
@@ -73,9 +85,7 @@ class ShotCache:
         logger.debug(f"Loaded {len(shots_data)} shots from cache")
         return shots_data
 
-    def cache_shots(
-        self, shots: Union[Sequence["Shot"], Sequence[Dict[str, str]]]
-    ) -> bool:
+    def cache_shots(self, shots: Sequence["Shot"] | Sequence["ShotDict"]) -> bool:
         """Cache shot list to persistent storage.
 
         Args:
@@ -93,7 +103,7 @@ class ShotCache:
             shot_dicts = self._convert_shots_to_dicts(shots)
 
             # Create cache data structure
-            cache_data: Dict[str, Any] = {
+            cache_data: CacheDataDict = {
                 "timestamp": datetime.now().isoformat(),
                 "shots": shot_dicts,
                 "metadata": {
@@ -130,7 +140,7 @@ class ShotCache:
 
         return self._is_expired(cache_data)
 
-    def get_cache_age(self) -> Optional[timedelta]:
+    def get_cache_age(self) -> timedelta | None:
         """Get the age of the cached data.
 
         Returns:
@@ -175,7 +185,7 @@ class ShotCache:
         """
         return self._storage.delete_file(self._cache_file)
 
-    def get_cache_info(self) -> Dict[str, Any]:
+    def get_cache_info(self) -> CacheInfoDict:
         """Get detailed cache information for debugging.
 
         Returns:
@@ -215,7 +225,7 @@ class ShotCache:
             "metadata": cache_data.get("metadata", {}),
         }
 
-    def _validate_cache_structure(self, cache_data: Dict[str, Any]) -> bool:
+    def _validate_cache_structure(self, cache_data: CacheDataDict) -> bool:
         """Validate the structure of cached data.
 
         Args:
@@ -238,7 +248,7 @@ class ShotCache:
 
         return True
 
-    def _is_expired(self, cache_data: Dict[str, Any]) -> bool:
+    def _is_expired(self, cache_data: CacheDataDict) -> bool:
         """Check if cached data is expired.
 
         Args:
@@ -263,8 +273,8 @@ class ShotCache:
         return is_expired
 
     def _convert_shots_to_dicts(
-        self, shots: Union[Sequence["Shot"], Sequence[Dict[str, str]]]
-    ) -> List[Dict[str, str]]:
+        self, shots: Sequence["Shot"] | Sequence["ShotDict"]
+    ) -> list["ShotDict"]:
         """Convert shots to list of dictionaries.
 
         Args:

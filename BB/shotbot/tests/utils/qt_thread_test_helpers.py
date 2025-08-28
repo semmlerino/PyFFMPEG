@@ -4,6 +4,8 @@ This module provides utilities for testing Qt threaded workers with proper
 signal handling and event loop management.
 """
 
+from __future__ import annotations
+
 import time
 from contextlib import contextmanager
 from typing import Any, Callable, List
@@ -17,7 +19,7 @@ class ThreadSignalTester:
 
     def __init__(self, qtbot: QtBot):
         self.qtbot = qtbot
-        self.captured_signals: List[Any] = []
+        self.captured_signals: list[Any] = []
 
     def capture_signal(self, signal: Signal, capture_args: bool = True) -> Callable:
         """Create a signal handler that captures emitted data.
@@ -67,7 +69,7 @@ class ThreadSignalTester:
         return True
 
     @contextmanager
-    def signal_sequence(self, signals: List[Signal], timeout_ms: int = 5000):
+    def signal_sequence(self, signals: list[Signal], timeout_ms: int = 5000):
         """Context manager for waiting on multiple signals in sequence.
 
         Args:

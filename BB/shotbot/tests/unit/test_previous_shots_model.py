@@ -8,9 +8,9 @@ Follows best practices:
 - Tests thread safety
 """
 
-import concurrent.futures
+from __future__ import annotations
 
-# Import our proper test doubles
+import concurrent.futures
 import sys
 import threading
 from pathlib import Path
@@ -22,14 +22,25 @@ from PySide6.QtTest import QSignalSpy
 
 from cache_manager import CacheManager
 from previous_shots_model import PreviousShotsModel
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from test_doubles_previous_shots import (
-    FakeCacheManager,
+from tests.test_doubles_previous_shots import (
     FakePreviousShotsFinder,
     FakeShotModel,
     create_test_shot,
 )
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import TestCacheManager
 
 
 class TestPreviousShotsModel:
@@ -48,9 +59,9 @@ class TestPreviousShotsModel:
         return CacheManager(cache_dir=temp_cache_dir)
 
     @pytest.fixture
-    def test_cache_manager(self) -> FakeCacheManager:
+    def test_cache_manager(self) -> TestCacheManager:
         """Create test double CacheManager."""
-        return FakeCacheManager()
+        return TestCacheManager()
 
     @pytest.fixture
     def test_shot_model(self) -> FakeShotModel:

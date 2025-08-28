@@ -1,5 +1,7 @@
 """Shot info panel widget for displaying current shot details."""
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import Optional, Union
@@ -23,9 +25,9 @@ logger = logging.getLogger(__name__)
 class ShotInfoPanel(QWidget):
     """Panel displaying current shot information."""
 
-    def __init__(self, cache_manager: Optional[CacheManager] = None):
+    def __init__(self, cache_manager: CacheManager | None = None):
         super().__init__()
-        self._current_shot: Optional[Shot] = None
+        self._current_shot: Shot | None = None
         self.cache_manager = cache_manager or CacheManager()  # Make public
         self._setup_ui()
 
@@ -95,7 +97,7 @@ class ShotInfoPanel(QWidget):
         # Set minimum height
         self.setMinimumHeight(150)
 
-    def set_shot(self, shot: Optional[Shot]):
+    def set_shot(self, shot: Shot | None):
         """Set the current shot to display."""
         self._current_shot = shot
         self._update_display()
@@ -154,7 +156,7 @@ class ShotInfoPanel(QWidget):
                 # Fall back to placeholder
                 self._set_placeholder_thumbnail()
 
-    def _load_pixmap_from_path(self, path: Union[str, Path]):
+    def _load_pixmap_from_path(self, path: str | Path):
         """Load and display pixmap from path with bounds checking and error handling."""
         if not path:
             logger.debug("No path provided for thumbnail loading")

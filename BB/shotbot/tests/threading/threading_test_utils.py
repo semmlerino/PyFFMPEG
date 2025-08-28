@@ -33,6 +33,8 @@ Example Usage:
     assert not analysis.deadlock_detected
 """
 
+from __future__ import annotations
+
 import logging
 import sys
 import threading
@@ -67,7 +69,8 @@ from PySide6.QtCore import (
 
 # Import project modules
 try:
-    from launcher_manager import LauncherManager, LauncherWorker
+    from launcher import LauncherWorker
+    from launcher_manager import LauncherManager
     from thread_safe_worker import WorkerState
 except ImportError:
     # Handle relative imports for test context
@@ -78,7 +81,8 @@ except ImportError:
     project_root = Path(__file__).parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-    from launcher_manager import LauncherManager, LauncherWorker
+    from launcher import LauncherWorker
+    from launcher_manager import LauncherManager
     from thread_safe_worker import WorkerState
 
 logger = logging.getLogger(__name__)
@@ -140,29 +144,29 @@ class StateTransitionResult(NamedTuple):
     final_state: WorkerState
     transition_time_ms: float
     timeout_occurred: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class RaceConditionResult(NamedTuple):
     """Result of race condition test."""
 
     race_occurred: bool
-    winner_thread: Optional[threading.Thread]
+    winner_thread: threading.Thread | None
     participants: int
     setup_time_ms: float
     race_duration_ms: float
-    violations_detected: List[str] = field(default_factory=list)
+    violations_detected: list[str] = field(default_factory=list)
 
 
 class DeadlockAnalysisResult(NamedTuple):
     """Result of deadlock analysis."""
 
     deadlock_detected: bool
-    involved_threads: List[threading.Thread]
-    lock_graph: Dict[str, List[str]]
-    cycles: List[List[str]]
+    involved_threads: list[threading.Thread]
+    lock_graph: dict[str, list[str]]
+    cycles: list[list[str]]
     analysis_time_ms: float
-    stack_traces: Dict[int, List[str]] = field(default_factory=dict)
+    stack_traces: dict[int, list[str]] = field(default_factory=dict)
 
 
 class PerformanceResult(NamedTuple):
@@ -175,7 +179,7 @@ class PerformanceResult(NamedTuple):
     min_duration_ms: float
     max_duration_ms: float
     std_deviation_ms: float
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ThreadInfo(NamedTuple):
@@ -184,9 +188,9 @@ class ThreadInfo(NamedTuple):
     thread_id: int
     name: str
     state: str
-    stack_trace: List[str]
-    locks_held: List[str]
-    locks_waiting: List[str]
+    stack_trace: list[str]
+    locks_held: list[str]
+    locks_waiting: list[str]
 
 
 @dataclass
@@ -197,7 +201,7 @@ class ThreadSafetyViolation:
     thread_id: int
     resource_name: str
     timestamp: float
-    stack_trace: List[str]
+    stack_trace: list[str]
     description: str
 
 
@@ -260,7 +264,7 @@ class ThreadingTestHelpers:
 
     @staticmethod
     def trigger_race_condition(
-        participants: List[Callable[[], Any]],
+        participants: list[Callable[[], Any]],
         setup_barrier: bool = True,
         timeout_ms: int = 5000,
     ) -> RaceConditionResult:
@@ -294,8 +298,8 @@ class ThreadingTestHelpers:
 
         # Setup synchronization
         barrier = threading.Barrier(num_participants) if setup_barrier else None
-        results: List[Tuple[threading.Thread, Any, Exception]] = []
-        winner_thread: Optional[threading.Thread] = None
+        results: list[tuple[threading.Thread, Any, Exception]] = []
+        winner_thread: threading.Thread | None = None
         race_start_event = threading.Event()
 
         def participant_wrapper(func: Callable[[], Any], index: int):
@@ -371,9 +375,9 @@ class ThreadingTestHelpers:
     @staticmethod
     def monitor_thread_safety(
         operation: Callable[[], T],
-        monitored_resources: List[str],
+        monitored_resources: list[str],
         duration_ms: int = 1000,
-    ) -> Tuple[T, List[ThreadSafetyViolation]]:
+    ) -> tuple[T, list[ThreadSafetyViolation]]:
         """Monitor operation for thread safety violations.
 
         Args:
@@ -392,7 +396,7 @@ class ThreadingTestHelpers:
             )
             assert len(violations) == 0  # No thread safety violations
         """
-        violations: List[ThreadSafetyViolation] = []
+        violations: list[ThreadSafetyViolation] = []
         time.perf_counter()
 
         # TODO: Implement resource access monitoring
@@ -415,7 +419,7 @@ class ThreadingTestHelpers:
         count: int,
         start_delay_ms: int = 10,
         cleanup_timeout_ms: int = 5000,
-    ) -> List[WorkerT]:
+    ) -> list[WorkerT]:
         """Create multiple workers with staggered startup for testing.
 
         Args:
@@ -435,7 +439,7 @@ class ThreadingTestHelpers:
             )
             # All workers will be started with 50ms delays
         """
-        workers: List[WorkerT] = []
+        workers: list[WorkerT] = []
         delay_sec = start_delay_ms / 1000.0
 
         try:
@@ -460,7 +464,7 @@ class ThreadingTestHelpers:
             raise ThreadingTestError(f"Failed to create concurrent workers: {e}")
 
     @staticmethod
-    def _cleanup_workers(workers: List[WorkerT], timeout_ms: int) -> None:
+    def _cleanup_workers(workers: list[WorkerT], timeout_ms: int) -> None:
         """Clean up worker threads safely."""
         for worker in workers:
             try:
@@ -481,7 +485,7 @@ class DeadlockDetector:
 
     @staticmethod
     def detect_deadlock(
-        threads: Optional[List[threading.Thread]] = None,
+        threads: list[threading.Thread | None] = None,
         timeout_ms: int = 5000,
         include_stack_traces: bool = True,
     ) -> DeadlockAnalysisResult:
@@ -541,7 +545,7 @@ class DeadlockDetector:
         )
 
     @staticmethod
-    def get_lock_graph(threads: List[threading.Thread]) -> Dict[str, List[str]]:
+    def get_lock_graph(threads: list[threading.Thread]) -> dict[str, list[str]]:
         """Build wait-for graph of lock dependencies.
 
         Args:
@@ -554,7 +558,7 @@ class DeadlockDetector:
             This is a simplified implementation. Real deadlock detection would
             require instrumentation of lock acquisition and waiting.
         """
-        graph: Dict[str, List[str]] = defaultdict(list)
+        graph: dict[str, list[str]] = defaultdict(list)
 
         # TODO: Implement actual lock dependency tracking
         # This would require:
@@ -566,7 +570,7 @@ class DeadlockDetector:
         return dict(graph)
 
     @staticmethod
-    def find_cycles(graph: Dict[str, List[str]]) -> List[List[str]]:
+    def find_cycles(graph: dict[str, list[str]]) -> list[list[str]]:
         """Find cycles in directed graph using DFS.
 
         Args:
@@ -575,7 +579,7 @@ class DeadlockDetector:
         Returns:
             List of cycles found (each cycle is a list of node names)
         """
-        cycles: List[List[str]] = []
+        cycles: list[list[str]] = []
         visited = set()
         rec_stack = set()
         path = []
@@ -612,7 +616,7 @@ class DeadlockDetector:
         return cycles
 
     @staticmethod
-    def get_thread_stacks(threads: List[threading.Thread]) -> Dict[int, List[str]]:
+    def get_thread_stacks(threads: list[threading.Thread]) -> dict[int, list[str]]:
         """Capture stack traces for specified threads.
 
         Args:
@@ -641,7 +645,7 @@ class RaceConditionFactory:
 
     @staticmethod
     def create_state_race(
-        workers: List[WorkerProtocol],
+        workers: list[WorkerProtocol],
         target_state: WorkerState,
         timeout_ms: int = 2000,
     ) -> RaceConditionResult:
@@ -726,7 +730,7 @@ class RaceConditionFactory:
 
     @staticmethod
     def create_resource_race(
-        resource_operations: List[Callable[[], Any]],
+        resource_operations: list[Callable[[], Any]],
         resource_name: str = "shared_resource",
         timeout_ms: int = 1000,
     ) -> RaceConditionResult:
@@ -757,8 +761,8 @@ class RaceConditionFactory:
 
     @staticmethod
     def create_cleanup_race(
-        cleanup_operations: List[Callable[[], Any]],
-        active_operations: List[Callable[[], Any]],
+        cleanup_operations: list[Callable[[], Any]],
+        active_operations: list[Callable[[], Any]],
         timeout_ms: int = 2000,
     ) -> RaceConditionResult:
         """Create race between cleanup and active operations.
@@ -954,7 +958,7 @@ class PerformanceMetrics:
         before_operation: Callable[[], PerformanceResult],
         after_operation: Callable[[], PerformanceResult],
         improvement_threshold: float = 5.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Compare performance before and after an optimization.
 
         Args:
@@ -996,9 +1000,9 @@ class PerformanceMetrics:
     @staticmethod
     def _calculate_statistics(
         operation_name: str,
-        durations: List[float],
+        durations: list[float],
         iterations: int,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any | None] = None,
     ) -> PerformanceResult:
         """Calculate performance statistics from duration measurements."""
         if not durations:
@@ -1150,13 +1154,13 @@ def deadlock_timeout() -> Iterator[None]:
 
 
 @pytest.fixture
-def thread_pool() -> Iterator[List[threading.Thread]]:
+def thread_pool() -> Iterator[list[threading.Thread]]:
     """Provide managed pool of test threads with cleanup.
 
     Yields:
-        List[threading.Thread]: Empty list to populate with test threads
+        list[threading.Thread]: Empty list to populate with test threads
     """
-    threads: List[threading.Thread] = []
+    threads: list[threading.Thread] = []
 
     try:
         yield threads
@@ -1208,9 +1212,9 @@ def temporary_worker(worker_class: type, *args, **kwargs) -> Iterator[WorkerT]:
 
 @contextmanager
 def thread_safety_monitor(
-    resources: List[str],
-    violation_handler: Optional[Callable[[ThreadSafetyViolation], None]] = None,
-) -> Iterator[List[ThreadSafetyViolation]]:
+    resources: list[str],
+    violation_handler: Callable[[ThreadSafetyViolation | None, None]] = None,
+) -> Iterator[list[ThreadSafetyViolation]]:
     """Context manager for monitoring thread safety violations.
 
     Args:
@@ -1227,7 +1231,7 @@ def thread_safety_monitor(
 
         assert len(violations) == 0  # No violations detected
     """
-    violations: List[ThreadSafetyViolation] = []
+    violations: list[ThreadSafetyViolation] = []
 
     # TODO: Implement actual monitoring
     # This would require instrumentation of resource access
@@ -1244,7 +1248,7 @@ def thread_safety_monitor(
 # Utility functions for common threading test patterns
 def assert_worker_state_transition(
     worker: WorkerProtocol,
-    expected_transitions: List[WorkerState],
+    expected_transitions: list[WorkerState],
     timeout_ms: int = 5000,
 ) -> None:
     """Assert that worker transitions through expected states.
@@ -1293,7 +1297,7 @@ def create_test_deadlock(
     lock1: LockProtocol,
     lock2: LockProtocol,
     timeout_ms: int = 1000,
-) -> Tuple[threading.Thread, threading.Thread]:
+) -> tuple[threading.Thread, threading.Thread]:
     """Create a test deadlock scenario for verification.
 
     Args:

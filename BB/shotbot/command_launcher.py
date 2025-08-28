@@ -1,5 +1,7 @@
 """Command launcher for executing applications in shot context."""
 
+from __future__ import annotations
+
 import subprocess
 from datetime import datetime
 from typing import Optional
@@ -22,11 +24,66 @@ class CommandLauncher(QObject):
 
     def __init__(self):
         super().__init__()
-        self.current_shot: Optional[Shot] = None
+        self.current_shot: Shot | None = None
 
-    def set_current_shot(self, shot: Optional[Shot]):
+    def set_current_shot(self, shot: Shot | None):
         """Set the current shot context."""
         self.current_shot = shot
+
+    def _validate_path_for_shell(self, path: str) -> str:
+        """Validate and escape a path for safe use in shell commands.
+
+        Args:
+            path: Path to validate and escape
+
+        Returns:
+            Safely escaped path string
+
+        Raises:
+            ValueError: If path contains dangerous characters that cannot be escaped
+        """
+        import shlex
+
+        # Check for command injection attempts
+        dangerous_chars = [
+            ";",
+            "&&",
+            "||",
+            "|",  # Command separators
+            ">",
+            "<",
+            ">>",
+            ">&",  # Redirections
+            "`",
+            "$(",  # Command substitution
+            "\n",
+            "\r",  # Newlines that could break out
+            "${",
+            "$((",  # Variable/arithmetic expansion
+        ]
+
+        for char in dangerous_chars:
+            if char in path:
+                raise ValueError(
+                    f"Path contains dangerous character '{char}' that could allow command injection: {path[:100]}"
+                )
+
+        # Additional validation for known dangerous patterns
+        dangerous_patterns = [
+            "../",  # Path traversal
+            "/..",  # Path traversal variant
+            "~/.",  # Hidden file access attempts
+        ]
+
+        for pattern in dangerous_patterns:
+            if pattern in path:
+                raise ValueError(
+                    f"Path contains dangerous pattern '{pattern}': {path[:100]}"
+                )
+
+        # Use shlex.quote for safe shell escaping
+        # This adds single quotes around the string and escapes any single quotes within
+        return shlex.quote(path)
 
     def launch_app(
         self,
@@ -93,7 +150,9 @@ class CommandLauncher(QObject):
                         )
                     )
                     if script_path:
-                        command = f"{command} {script_path}"
+                        # Escape script path to prevent command injection
+                        safe_script_path = self._validate_path_for_shell(script_path)
+                        command = f"{command} {safe_script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
                         plate_version = RawPlateFinder.get_version_from_path(
                             raw_plate_path,
@@ -118,7 +177,9 @@ class CommandLauncher(QObject):
                         self.current_shot.full_name,
                     )
                     if script_path:
-                        command = f"{command} {script_path}"
+                        # Escape script path to prevent command injection
+                        safe_script_path = self._validate_path_for_shell(script_path)
+                        command = f"{command} {safe_script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
                         version = RawPlateFinder.get_version_from_path(raw_plate_path)
                         self.command_executed.emit(
@@ -141,7 +202,9 @@ class CommandLauncher(QObject):
                         )
                     )
                     if script_path:
-                        command = f"{command} {script_path}"
+                        # Escape script path to prevent command injection
+                        safe_script_path = self._validate_path_for_shell(script_path)
+                        command = f"{command} {safe_script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
                         version = UndistortionFinder.get_version_from_path(
                             undistortion_path,
@@ -171,7 +234,15 @@ class CommandLauncher(QObject):
                     )
 
         # Build full command with ws (workspace setup)
-        full_command = f"ws {self.current_shot.workspace_path} && {command}"
+        # Validate and escape workspace path to prevent injection
+        try:
+            safe_workspace_path = self._validate_path_for_shell(
+                self.current_shot.workspace_path
+            )
+            full_command = f"ws {safe_workspace_path} && {command}"
+        except ValueError as e:
+            self._emit_error(f"Invalid workspace path: {str(e)}")
+            return False
 
         # Log the command
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -183,12 +254,8 @@ class CommandLauncher(QObject):
             terminal_commands = [
                 # Try gnome-terminal first with interactive bash
                 ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
-                # Try xterm as fallback with interactive bash
-                [
-                    "xterm",
-                    "-e",
-                    f"bash -i -c '{full_command}; read -p \"Press Enter to close...\"'",
-                ],
+                # Try xterm as fallback with interactive bash (using list for safety)
+                ["xterm", "-e", "bash", "-i", "-c", full_command],
                 # Try konsole with interactive bash
                 ["konsole", "-e", "bash", "-i", "-c", full_command],
             ]
@@ -226,10 +293,22 @@ class CommandLauncher(QObject):
         command = Config.APPS[app_name]
 
         # Include the scene file in the command
-        command = f"{command} {scene.scene_path}"
+        # Validate and escape scene path to prevent injection
+        try:
+            safe_scene_path = self._validate_path_for_shell(str(scene.scene_path))
+            command = f"{command} {safe_scene_path}"
+        except ValueError as e:
+            self._emit_error(f"Invalid scene path: {str(e)}")
+            return False
 
         # Build full command with ws (workspace setup)
-        full_command = f"ws {scene.workspace_path} && {command}"
+        # Validate and escape workspace path to prevent injection
+        try:
+            safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
+            full_command = f"ws {safe_workspace_path} && {command}"
+        except ValueError as e:
+            self._emit_error(f"Invalid workspace path: {str(e)}")
+            return False
 
         # Log the command
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -243,12 +322,8 @@ class CommandLauncher(QObject):
             terminal_commands = [
                 # Try gnome-terminal first with interactive bash
                 ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
-                # Try xterm as fallback with interactive bash
-                [
-                    "xterm",
-                    "-e",
-                    f"bash -i -c '{full_command}; read -p \"Press Enter to close...\"'",
-                ],
+                # Try xterm as fallback with interactive bash (using list for safety)
+                ["xterm", "-e", "bash", "-i", "-c", full_command],
                 # Try konsole with interactive bash
                 ["konsole", "-e", "bash", "-i", "-c", full_command],
             ]
@@ -321,8 +396,9 @@ class CommandLauncher(QObject):
                             f"Created Nuke script with plate: {version}/{raw_plate_path.split('/')[-1]}",
                         )
                     else:
-                        # Fallback to just passing the path
-                        command = f"{command} {raw_plate_path}"
+                        # Fallback to just passing the path (safely escaped)
+                        safe_plate_path = self._validate_path_for_shell(raw_plate_path)
+                        command = f"{command} {safe_plate_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
                         version = RawPlateFinder.get_version_from_path(raw_plate_path)
                         self.command_executed.emit(
@@ -352,8 +428,11 @@ class CommandLauncher(QObject):
             )
 
             if undistortion_path:
-                # Include the undistortion file in the Nuke command
-                command = f"{command} {undistortion_path}"
+                # Include the undistortion file in the Nuke command (safely escaped)
+                safe_undistortion_path = self._validate_path_for_shell(
+                    str(undistortion_path)
+                )
+                command = f"{command} {safe_undistortion_path}"
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 version = UndistortionFinder.get_version_from_path(undistortion_path)
                 self.command_executed.emit(
@@ -369,7 +448,13 @@ class CommandLauncher(QObject):
                 )
 
         # Build full command with ws (workspace setup)
-        full_command = f"ws {scene.workspace_path} && {command}"
+        # Validate and escape workspace path to prevent injection
+        try:
+            safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
+            full_command = f"ws {safe_workspace_path} && {command}"
+        except ValueError as e:
+            self._emit_error(f"Invalid workspace path: {str(e)}")
+            return False
 
         # Log the command
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -383,12 +468,8 @@ class CommandLauncher(QObject):
             terminal_commands = [
                 # Try gnome-terminal first with interactive bash
                 ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
-                # Try xterm as fallback with interactive bash
-                [
-                    "xterm",
-                    "-e",
-                    f"bash -i -c '{full_command}; read -p \"Press Enter to close...\"'",
-                ],
+                # Try xterm as fallback with interactive bash (using list for safety)
+                ["xterm", "-e", "bash", "-i", "-c", full_command],
                 # Try konsole with interactive bash
                 ["konsole", "-e", "bash", "-i", "-c", full_command],
             ]

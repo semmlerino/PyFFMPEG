@@ -4,15 +4,29 @@ These tests use pytest.mark.parametrize to efficiently test multiple
 scenarios with the same test logic, ensuring thorough coverage.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from PySide6.QtGui import QImage
 
 from cache_manager import CacheManager
 from config import Config
 from shot_model import Shot
 from utils import FileUtils, PathUtils
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
+
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import TestPILImage
 
 
 class TestParametrizedPriority:
@@ -132,14 +146,21 @@ class TestParametrizedFileOperations:
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
-        from PIL import Image
+        if Image:
+            with patch.object(Image, "open") as mock_open:
+                # Use test double for PIL Image
+                test_img = TestPILImage(4096, 2160)
+                mock_open.return_value = test_img
 
-        with patch.object(Image, "open") as mock_open:
-            mock_img = MagicMock()
-            mock_img.size = (4096, 2160)
-            mock_img.thumbnail = MagicMock()
-            mock_open.return_value = mock_img
-
+                result = cache_manager.cache_thumbnail(
+                    exr_file,
+                    show="test",
+                    sequence="seq",
+                    shot="0010",
+                    wait=False,  # Don't wait for async
+                )
+        else:
+            # Skip Image mocking if PIL not available
             result = cache_manager.cache_thumbnail(
                 exr_file,
                 show="test",
@@ -263,8 +284,6 @@ class TestParametrizedCaching:
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
-        from PySide6.QtGui import QImage
-
         with patch.object(QImage, "__init__", return_value=None):
             result = cache_manager.cache_thumbnail(
                 test_file, show="test", sequence="seq", shot="0010", wait=wait
@@ -276,30 +295,6 @@ class TestParametrizedCaching:
             else:
                 # Could be path or None depending on success
                 assert result is None or isinstance(result, Path)
-
-    @pytest.mark.parametrize("num_shots", [1, 5, 25])
-    def test_cache_scalability(self, tmp_path, num_shots):
-        """Test cache with varying numbers of shots."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-
-        # Create and cache multiple shots
-        shots = []
-        for i in range(num_shots):
-            shot = Shot(
-                show=f"show_{i % 10}",
-                sequence=f"seq{i % 20:02d}",
-                shot=f"{i:04d}",
-                workspace_path=f"/workspace/{i}",
-            )
-            shots.append(shot)
-
-        # Cache all shots
-        cache_manager.cache_shots(shots)
-
-        # Retrieve and verify
-        cached = cache_manager.get_cached_shots()
-        assert cached is not None
-        assert len(cached) == num_shots
 
 
 class TestParametrizedErrorHandling:

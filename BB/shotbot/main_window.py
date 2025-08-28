@@ -46,11 +46,13 @@ Type Safety:
     include full type hints for parameters and return values.
 """
 
-import json
-import logging
-from typing import Any, Optional
+from __future__ import annotations
 
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, QThread, QTimer, Signal
+import logging
+import os
+from typing import Optional
+
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -75,12 +77,17 @@ from config import Config
 from launcher_dialog import LauncherManagerDialog
 from launcher_manager import LauncherManager
 from log_viewer import LogViewer
+from notification_manager import NotificationManager, NotificationType
 from previous_shots_grid import PreviousShotsGrid
 from previous_shots_model import PreviousShotsModel
+from progress_manager import ProgressManager
+from settings_dialog import SettingsDialog
+from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel  # Model/View data model
 from shot_model import Shot, ShotModel
+from shot_model_optimized import OptimizedShotModel  # Performance-optimized model
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 from threede_scene_worker import ThreeDESceneWorker
 from threede_shot_grid import ThreeDEShotGrid
@@ -92,10 +99,16 @@ logger = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     """Main application window."""
 
-    def __init__(self, cache_manager: Optional[CacheManager] = None):
+    def __init__(self, cache_manager: CacheManager | None = None):
         super().__init__()
         # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager()
+
+        # Initialize settings manager
+        self.settings_manager = SettingsManager()
+
+        # Store reference to settings dialog
+        self._settings_dialog: SettingsDialog | None = None
 
         # Configure 3DE thumbnail widgets to use our cache manager
         # TODO: Convert threede_shot_grid to Model/View architecture
@@ -103,38 +116,60 @@ class MainWindow(QMainWindow):
 
         ThreeDEThumbnailWidget.set_cache_manager(self.cache_manager)
 
-        # Pass to models
-        self.shot_model = ShotModel(self.cache_manager)
+        # Check feature flag - now defaults to True for optimized model
+        # Set SHOTBOT_USE_LEGACY_MODEL=1 to use old implementation if issues arise
+        try:
+            use_legacy = os.environ.get("SHOTBOT_USE_LEGACY_MODEL", "").lower() in (
+                "1",
+                "true",
+                "yes",
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to read SHOTBOT_USE_LEGACY_MODEL environment variable: {e}"
+            )
+            use_legacy = False
+
+        # Pass to models - OptimizedShotModel is now the default
+        if use_legacy:
+            logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
+            self.shot_model = ShotModel(self.cache_manager)
+        else:
+            logger.info("Using OptimizedShotModel with 366x faster startup")
+            self.shot_model = OptimizedShotModel(self.cache_manager)
+            # Initialize async loading for immediate UI display
+            init_result = self.shot_model.initialize_async()
+            if init_result.success:
+                logger.debug(
+                    f"Optimized model initialized with {len(self.shot_model.shots)} cached shots"
+                )
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
         self.previous_shots_model = PreviousShotsModel(
             self.shot_model, self.cache_manager
         )
         self.command_launcher = CommandLauncher()
         self.launcher_manager = LauncherManager()
-        self._current_scene: Optional[ThreeDEScene] = None
-        self._threede_worker: Optional[ThreeDESceneWorker] = None
+        self._current_scene: ThreeDEScene | None = None
+        self._threede_worker: ThreeDESceneWorker | None = None
         self._worker_mutex = QMutex()  # Protect worker access
         self._closing = False  # Track shutdown state
-        self._launcher_dialog: Optional[LauncherManagerDialog] = None
+        self._launcher_dialog: LauncherManagerDialog | None = None
         self._setup_ui()
         self._setup_menu()
+        self._setup_accessibility()  # Add accessibility support
         self._connect_signals()
         self._load_settings()
 
         # Initial shot load - immediately, no delay
         self._initial_load()
 
-        # Set up background refresh worker thread (every 10 minutes)
-        self._background_refresh_worker = BackgroundRefreshWorker()
-        self._background_refresh_worker.refresh_requested.connect(
-            self._on_background_refresh_requested,
+        # No longer need background refresh for shots - they use signals now
+        # Only keep background refresh for 3DE scenes if needed
+        logger.info(
+            "Shot model now uses reactive signals - background polling disabled for shots"
         )
-        self._background_refresh_worker.status_update.connect(self._update_status)
-        # Delay background refresh to avoid startup conflicts
-        # Start after 5 seconds to let UI fully initialize
-        QTimer.singleShot(5000, self._background_refresh_worker.start)
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Set up the main UI."""
         self.setWindowTitle(f"{Config.APP_NAME} v{Config.APP_VERSION}")
         self.resize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
@@ -223,7 +258,9 @@ class MainWindow(QMainWindow):
         for app_name, command in Config.APPS.items():
             button = QPushButton(app_name.upper())
             button.setObjectName("builtInLauncherButton")
-            button.clicked.connect(lambda checked, app=app_name: self._launch_app(app))
+            button.clicked.connect(
+                lambda checked=False, app=app_name: self._launch_app(app)
+            )
             button.setEnabled(False)  # Disabled until shot selected
 
             # Add tooltip with keyboard shortcut
@@ -298,19 +335,37 @@ class MainWindow(QMainWindow):
         # Status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
+
+        # Initialize notification manager
+        NotificationManager.initialize(self, self.status_bar)
+
+        # Initialize progress manager
+        ProgressManager.initialize(self.status_bar)
+
         self._update_status("Ready")
 
-    def _setup_menu(self):
+    def _setup_menu(self) -> None:
         """Set up menu bar."""
         menubar = self.menuBar()
 
         # File menu
         file_menu = menubar.addMenu("&File")
 
-        refresh_action = QAction("&Refresh Shots", self)
-        refresh_action.setShortcut(QKeySequence.StandardKey.Refresh)
-        refresh_action.triggered.connect(self._refresh_shots)
-        file_menu.addAction(refresh_action)
+        self.refresh_action = QAction("&Refresh Shots", self)
+        self.refresh_action.setShortcut(QKeySequence.StandardKey.Refresh)
+        self.refresh_action.triggered.connect(self._refresh_shots)
+        file_menu.addAction(self.refresh_action)
+
+        file_menu.addSeparator()
+
+        # Settings import/export
+        import_settings_action = QAction("&Import Settings...", self)
+        import_settings_action.triggered.connect(self._import_settings)
+        file_menu.addAction(import_settings_action)
+
+        export_settings_action = QAction("&Export Settings...", self)
+        export_settings_action.triggered.connect(self._export_settings)
+        file_menu.addAction(export_settings_action)
 
         file_menu.addSeparator()
 
@@ -331,6 +386,21 @@ class MainWindow(QMainWindow):
         decrease_size_action.setShortcut(QKeySequence.StandardKey.ZoomOut)
         decrease_size_action.triggered.connect(self._decrease_thumbnail_size)
         view_menu.addAction(decrease_size_action)
+
+        view_menu.addSeparator()
+
+        # Reset layout action
+        reset_layout_action = QAction("&Reset Layout", self)
+        reset_layout_action.triggered.connect(self._reset_layout)
+        view_menu.addAction(reset_layout_action)
+
+        # Edit menu
+        edit_menu = menubar.addMenu("&Edit")
+
+        preferences_action = QAction("&Preferences...", self)
+        preferences_action.setShortcut("Ctrl+,")  # Standard preferences shortcut
+        preferences_action.triggered.connect(self._show_preferences)
+        edit_menu.addAction(preferences_action)
 
         # Tools menu
         tools_menu = menubar.addMenu("&Tools")
@@ -361,8 +431,50 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
 
-    def _connect_signals(self):
+    def _setup_accessibility(self) -> None:
+        """Set up accessibility features for screen readers and keyboard navigation."""
+        from accessibility_manager import AccessibilityManager
+
+        # Set up main window accessibility
+        AccessibilityManager.setup_main_window_accessibility(self)
+
+        # Set up shot grid accessibility
+        AccessibilityManager.setup_shot_grid_accessibility(self.shot_grid, "shots")
+        AccessibilityManager.setup_shot_grid_accessibility(
+            self.threede_shot_grid, "3de"
+        )
+        AccessibilityManager.setup_shot_grid_accessibility(
+            self.previous_shots_grid, "previous"
+        )
+
+        # Set up launcher buttons
+        AccessibilityManager.setup_launcher_buttons_accessibility(self.app_buttons)
+
+        # Set up tab widget
+        AccessibilityManager.setup_tab_widget_accessibility(self.tab_widget)
+
+        # Add comprehensive tooltips
+        AccessibilityManager.setup_comprehensive_tooltips(self)
+
+        # Set up keyboard navigation tab order
+        AccessibilityManager.setup_keyboard_navigation(self)
+
+        # Apply focus indicator stylesheet
+        existing_style = self.styleSheet() or ""
+        focus_style = AccessibilityManager.add_focus_indicators_stylesheet()
+        self.setStyleSheet(existing_style + focus_style)
+
+    def _connect_signals(self) -> None:
         """Connect signals."""
+        # Connect to shot model signals for reactive updates
+        self.shot_model.shots_loaded.connect(self._on_shots_loaded)  # type: ignore[attr-defined]
+        self.shot_model.shots_changed.connect(self._on_shots_changed)  # type: ignore[attr-defined]
+        self.shot_model.refresh_started.connect(self._on_refresh_started)  # type: ignore[attr-defined]
+        self.shot_model.refresh_finished.connect(self._on_refresh_finished)  # type: ignore[attr-defined]
+        self.shot_model.error_occurred.connect(self._on_shot_error)  # type: ignore[attr-defined]
+        self.shot_model.shot_selected.connect(self._on_model_shot_selected)  # type: ignore[attr-defined]
+        self.shot_model.cache_updated.connect(self._on_cache_updated)  # type: ignore[attr-defined]
+
         # Shot selection
         self.shot_grid.shot_selected.connect(self._on_shot_selected)
         self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
@@ -384,6 +496,7 @@ class MainWindow(QMainWindow):
         # Command launcher
         self.command_launcher.command_executed.connect(self.log_viewer.add_command)
         self.command_launcher.command_error.connect(self.log_viewer.add_error)
+        self.command_launcher.command_error.connect(self._on_command_error)
 
         # Custom launcher manager
         self.launcher_manager.launchers_changed.connect(self._update_launcher_menu)
@@ -391,13 +504,9 @@ class MainWindow(QMainWindow):
             self._update_custom_launcher_buttons,
         )
         self.launcher_manager.execution_started.connect(
-            lambda launcher_id: self._update_status("Launching custom command..."),
+            lambda launcher_id: self._on_launcher_started(launcher_id),
         )
-        self.launcher_manager.execution_finished.connect(
-            lambda launcher_id, success: self._update_status(
-                f"Custom launcher {'completed' if success else 'failed'}",
-            ),
-        )
+        self.launcher_manager.execution_finished.connect(self._on_launcher_finished)
 
         # Synchronize thumbnail sizes between tabs
         self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
@@ -405,8 +514,16 @@ class MainWindow(QMainWindow):
             self._sync_thumbnail_sizes,
         )
 
-    def _initial_load(self):
-        """Initial shot loading - instant from cache."""
+    def _initial_load(self) -> None:
+        """Initial shot loading - instant from cache or async."""
+        # Check if we're using OptimizedShotModel
+        if isinstance(self.shot_model, OptimizedShotModel):
+            # Use async initialization for instant UI
+            result = self.shot_model.initialize_async()
+            logger.info(f"Async initialization started, cache status: {result.success}")
+            # Pre-warm sessions for faster subsequent loads
+            QTimer.singleShot(100, self.shot_model.pre_warm_sessions)
+
         has_cached_shots = bool(self.shot_model.shots)
         has_cached_scenes = bool(self.threede_scene_model.scenes)
 
@@ -462,39 +579,20 @@ class MainWindow(QMainWindow):
                 logger.info("3DE cache is valid - skipping initial scan")
                 # Cache is valid but might be empty - that's OK, we cached the "no scenes" state
 
-    def _refresh_shots(self):
-        """Refresh shot list."""
-        self._update_status("Refreshing shots...")
+    def _refresh_shots(self) -> None:
+        """Refresh shot list with progress indication."""
+        # Start progress operation for shot refresh
+        with ProgressManager.operation(
+            "Refreshing shots", cancelable=False
+        ) as progress:
+            progress.set_indeterminate()
 
-        success, has_changes = self.shot_model.refresh_shots()
+            # Simply call refresh_shots on the model
+            # The model will emit signals that trigger the appropriate handlers
+            # which will handle UI updates, notifications, and 3DE refresh
+            self.shot_model.refresh_shots()
 
-        if success:
-            if has_changes:
-                self._refresh_shot_display()
-                self._update_status(f"Loaded {len(self.shot_model.shots)} shots")
-            else:
-                self._update_status(f"{len(self.shot_model.shots)} shots (no changes)")
-
-            # Restore last selected shot if available
-            if hasattr(self, "_last_selected_shot_name") and isinstance(
-                self._last_selected_shot_name,
-                str,
-            ):
-                shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
-                if shot:
-                    self.shot_grid.select_shot_by_name(shot.full_name)
-
-            # Also refresh 3DE scenes
-            self._refresh_threede_scenes()
-        else:
-            self._update_status("Failed to load shots")
-            QMessageBox.warning(
-                self,
-                "Error",
-                "Failed to load shots. Make sure 'ws -sg' command is available.",
-            )
-
-    def _refresh_threede_scenes(self):
+    def _refresh_threede_scenes(self) -> None:
         """Thread-safe refresh of 3DE scene list using background worker."""
         # First check if we're closing without holding mutex
         if self._closing:
@@ -599,9 +697,10 @@ class MainWindow(QMainWindow):
         # Start the worker
         self._threede_worker.start()
 
-    def _on_threede_discovery_started(self):
+    def _on_threede_discovery_started(self) -> None:
         """Handle 3DE discovery worker started signal."""
-        self._update_status("3DE scene discovery started...")
+        # Start progress for 3DE discovery
+        ProgressManager.start_operation("Scanning for 3DE scenes")
 
     def _on_threede_discovery_progress(
         self,
@@ -620,21 +719,21 @@ class MainWindow(QMainWindow):
             description: Progress description
             eta: Estimated time to completion
         """
-        # Format progress message with percentage and ETA
-        progress_msg = f"3DE discovery: {description} ({current}/{total})"
-        if percentage > 0:
-            progress_msg += f" - {percentage:.1f}%"
-        if eta:
-            progress_msg += f" {eta}"
+        # Update progress operation if active
+        operation = ProgressManager.get_current_operation()
+        if operation:
+            operation.set_total(total)
+            operation.update(current, description)
 
-        self._update_status(progress_msg)
-
-    def _on_threede_discovery_finished(self, scenes: list):
+    def _on_threede_discovery_finished(self, scenes: list) -> None:
         """Handle 3DE discovery worker completion.
 
         Args:
             scenes: List of discovered ThreeDEScene objects
         """
+        # Finish progress operation
+        ProgressManager.finish_operation(success=True)
+
         # Hide loading state
         self.threede_shot_grid.set_loading(False)
 
@@ -695,26 +794,26 @@ class MainWindow(QMainWindow):
                 self.threede_shot_grid.refresh_scenes()
             self._update_status("3DE scene discovery complete (no changes)")
 
-    def _on_threede_discovery_error(self, error_message: str):
+    def _on_threede_discovery_error(self, error_message: str) -> None:
         """Handle 3DE discovery worker error.
 
         Args:
             error_message: Error message from worker
         """
+        # Finish progress operation with error
+        ProgressManager.finish_operation(success=False, error_message=error_message)
+
         # Hide loading state
         self.threede_shot_grid.set_loading(False)
 
-        # Update status with error
-        self._update_status(f"3DE discovery error: {error_message}")
-
-        # Show error dialog for serious issues
-        QMessageBox.warning(
-            self,
+        # Show error notification for serious issues
+        NotificationManager.warning(
             "3DE Discovery Error",
-            f"Failed to discover 3DE scenes:\n{error_message}",
+            f"Failed to discover 3DE scenes: {error_message}",
+            "Check that you have read permissions for the scan directories.",
         )
 
-    def _on_threede_batch_ready(self, scene_batch: list):
+    def _on_threede_batch_ready(self, scene_batch: list) -> None:
         """Handle batch of scenes ready from progressive scanning.
 
         Args:
@@ -745,23 +844,112 @@ class MainWindow(QMainWindow):
         # Useful for showing which specific shot/user is being scanned
         self._update_status(f"Scanning ({current_shot}/{total_shots}): {status}")
 
-    def _on_threede_discovery_paused(self):
+    def _on_threede_discovery_paused(self) -> None:
         """Handle worker pause signal."""
         self._update_status("3DE scene discovery paused")
 
-    def _on_threede_discovery_resumed(self):
+    def _on_threede_discovery_resumed(self) -> None:
         """Handle worker resume signal."""
         self._update_status("3DE scene discovery resumed")
 
-    # Note: _background_refresh method removed - now handled by BackgroundRefreshWorker thread
+    # Note: Background refresh methods removed - now handled by reactive signals
 
-    def _refresh_shot_display(self):
+    def _refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
         # Always use Model/View implementation
         if hasattr(self, "shot_item_model"):
             self.shot_item_model.set_shots(self.shot_model.shots)
 
-    def _on_shot_selected(self, shot: Optional[Shot]):
+    def _on_shots_loaded(self, shots: list) -> None:
+        """Handle shots loaded signal from model.
+
+        Args:
+            shots: List of loaded Shot objects
+        """
+        logger.info(f"Shots loaded signal received: {len(shots)} shots")
+        self._refresh_shot_display()
+        self._update_status(f"Loaded {len(shots)} shots")
+        NotificationManager.info(f"{len(shots)} shots loaded from cache")
+
+    def _on_shots_changed(self, shots: list) -> None:
+        """Handle shots changed signal from model.
+
+        Args:
+            shots: List of updated Shot objects
+        """
+        logger.info(f"Shots changed signal received: {len(shots)} shots")
+        self._refresh_shot_display()
+        self._update_status(f"Shot list updated: {len(shots)} shots")
+        NotificationManager.success(f"Refreshed {len(shots)} shots")
+
+    def _on_refresh_started(self) -> None:
+        """Handle refresh started signal from model."""
+        # Progress is already shown by _refresh_shots context manager
+        pass
+
+    def _on_refresh_finished(self, success: bool, has_changes: bool) -> None:
+        """Handle refresh finished signal from model.
+
+        Args:
+            success: Whether the refresh was successful
+            has_changes: Whether the shot list changed
+        """
+        if success:
+            if has_changes:
+                # UI update already handled by shots_changed signal
+                logger.debug("Refresh completed with changes")
+            else:
+                self._update_status(f"{len(self.shot_model.shots)} shots (no changes)")
+                NotificationManager.info(
+                    f"{len(self.shot_model.shots)} shots (no changes)"
+                )
+                logger.debug("Refresh completed without changes")
+
+            # Restore last selected shot if available
+            if hasattr(self, "_last_selected_shot_name") and isinstance(
+                self._last_selected_shot_name,
+                str,
+            ):
+                shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
+                if shot:
+                    self.shot_grid.select_shot_by_name(shot.full_name)
+
+            # Also refresh 3DE scenes when shots are refreshed
+            if self.shot_model.shots:
+                self._refresh_threede_scenes()
+        else:
+            self._update_status("Failed to refresh shots")
+            NotificationManager.error(
+                "Failed to Load Shots",
+                "Unable to retrieve shot data from the workspace.",
+                "Make sure the 'ws -sg' command is available and you're in a valid workspace.",
+            )
+
+    def _on_shot_error(self, error_msg: str) -> None:
+        """Handle error signal from model.
+
+        Args:
+            error_msg: The error message
+        """
+        logger.error(f"Shot model error: {error_msg}")
+        self._update_status(f"Error: {error_msg}")
+
+    def _on_model_shot_selected(self, shot: Shot | None) -> None:
+        """Handle shot selected signal from model.
+
+        Args:
+            shot: The selected Shot object or None
+        """
+        if shot:
+            logger.debug(f"Model shot selected: {shot.full_name}")
+        else:
+            logger.debug("Model shot selection cleared")
+
+    def _on_cache_updated(self) -> None:
+        """Handle cache updated signal from model."""
+        logger.debug("Shot cache updated")
+
+    def _on_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selection or deselection.
 
         Args:
@@ -823,11 +1011,11 @@ class MainWindow(QMainWindow):
             self._last_selected_shot_name = shot.full_name
             self._save_settings()
 
-    def _on_shot_double_clicked(self, shot: Shot):
+    def _on_shot_double_clicked(self, shot: Shot) -> None:
         """Handle shot double click - launch default app."""
         self._launch_app(Config.DEFAULT_APP)
 
-    def _on_scene_selected(self, scene: ThreeDEScene):
+    def _on_scene_selected(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene selection."""
         self._current_scene = scene
         self.command_launcher.set_current_shot(None)  # Clear regular shot
@@ -864,13 +1052,13 @@ class MainWindow(QMainWindow):
             f"Selected: {scene.full_name} - {scene.user} ({scene.plate})",
         )
 
-    def _on_scene_double_clicked(self, scene: ThreeDEScene):
+    def _on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene double click - launch 3de with the scene."""
         # Set the current scene first, then launch
         self._current_scene = scene
         self._launch_app("3de")
 
-    def _launch_app(self, app_name: str):
+    def _launch_app(self, app_name: str) -> None:
         """Launch an application."""
         # Check if we have a current 3DE scene selected
         if self._current_scene:
@@ -902,10 +1090,14 @@ class MainWindow(QMainWindow):
 
         if success:
             self._update_status(f"Launched {app_name}")
+            NotificationManager.toast(
+                f"Launched {app_name} successfully", NotificationType.SUCCESS
+            )
         else:
             self._update_status(f"Failed to launch {app_name}")
+            # Error details are handled by _on_command_error
 
-    def _launch_app_with_scene(self, app_name: str, scene: ThreeDEScene):
+    def _launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:
         """Launch an application with a specific 3DE scene."""
         if self.command_launcher.launch_app_with_scene(app_name, scene):
             self._update_status(f"Launched {app_name} with {scene.user}'s scene")
@@ -913,7 +1105,9 @@ class MainWindow(QMainWindow):
         self._update_status(f"Failed to launch {app_name} with scene")
         return False
 
-    def _launch_app_with_scene_context(self, app_name: str, scene: ThreeDEScene):
+    def _launch_app_with_scene_context(
+        self, app_name: str, scene: ThreeDEScene
+    ) -> bool:
         """Launch an application in the context of a 3DE scene (without the scene file itself)."""
         # Check if we should include undistortion and/or raw plate for Nuke
         include_undistortion = (
@@ -930,7 +1124,7 @@ class MainWindow(QMainWindow):
             return True
         return False
 
-    def _increase_thumbnail_size(self):
+    def _increase_thumbnail_size(self) -> None:
         """Increase thumbnail size."""
         # Get current size from active tab
         if self.tab_widget.currentIndex() == 0:
@@ -945,7 +1139,7 @@ class MainWindow(QMainWindow):
         else:
             self.threede_shot_grid.size_slider.setValue(new_size)
 
-    def _decrease_thumbnail_size(self):
+    def _decrease_thumbnail_size(self) -> None:
         """Decrease thumbnail size."""
         # Get current size from active tab
         if self.tab_widget.currentIndex() == 0:
@@ -960,7 +1154,7 @@ class MainWindow(QMainWindow):
         else:
             self.threede_shot_grid.size_slider.setValue(new_size)
 
-    def _sync_thumbnail_sizes(self, value: int):
+    def _sync_thumbnail_sizes(self, value: int) -> None:
         """Synchronize thumbnail sizes between both tabs."""
         # Use signal blocking instead of disconnection to prevent race conditions
         # This is thread-safe and guaranteed to work
@@ -973,17 +1167,71 @@ class MainWindow(QMainWindow):
             # Update both sliders without triggering signals
             self.shot_grid.size_slider.setValue(value)
             self.threede_shot_grid.size_slider.setValue(value)
+
+            # Update internal thumbnail sizes directly since signals are blocked
+            self.shot_grid._thumbnail_size = value  # type: ignore[attr-defined]
+            self.threede_shot_grid._thumbnail_size = value  # type: ignore[attr-defined]
+            self.previous_shots_grid._thumbnail_size = value  # type: ignore[attr-defined]
+
+            # Update size labels
+            self.shot_grid.size_label.setText(f"{value}px")
+            self.threede_shot_grid.size_label.setText(f"{value}px")
         finally:
             # Always restore signal state, even if an exception occurs
             # This prevents leaving signals permanently blocked
             self.shot_grid.size_slider.blockSignals(shot_grid_was_blocked)
             self.threede_shot_grid.size_slider.blockSignals(threede_grid_was_blocked)
 
-    def _update_status(self, message: str):
+    def _update_status(self, message: str) -> None:
         """Update status bar."""
         self.status_bar.showMessage(message)
 
-    def _show_shortcuts(self):
+    def _on_command_error(self, timestamp: str, error: str) -> None:
+        """Handle command launcher errors with notifications."""
+        # Extract error details for better user feedback
+        if "not found" in error.lower() or "no such file" in error.lower():
+            NotificationManager.error(
+                "Application Not Found",
+                "The requested application could not be found.",
+                f"Details: {error}",
+            )
+        elif "permission" in error.lower():
+            NotificationManager.error(
+                "Permission Denied",
+                "You don't have permission to run this application.",
+                f"Details: {error}",
+            )
+        elif "no shot selected" in error.lower():
+            NotificationManager.warning(
+                "No Shot Selected",
+                "Please select a shot before launching an application.",
+            )
+        else:
+            NotificationManager.error(
+                "Launch Failed", "Failed to launch application.", f"Details: {error}"
+            )
+
+        # Also show in status bar briefly
+        NotificationManager.info(f"Error: {error}", 5000)
+
+    def _on_launcher_started(self, launcher_id: str) -> None:
+        """Handle custom launcher start with progress indication."""
+        launcher = self.launcher_manager.get_launcher(launcher_id)
+        launcher_name = launcher.name if launcher else "Custom command"
+        ProgressManager.start_operation(f"Launching {launcher_name}")
+
+    def _on_launcher_finished(self, launcher_id: str, success: bool) -> None:
+        """Handle custom launcher completion with notifications."""
+        ProgressManager.finish_operation(success=success)
+
+        if success:
+            NotificationManager.toast(
+                "Custom command completed successfully", NotificationType.SUCCESS
+            )
+        else:
+            NotificationManager.toast("Custom command failed", NotificationType.ERROR)
+
+    def _show_shortcuts(self) -> None:
         """Show keyboard shortcuts dialog."""
         shortcuts_text = """<h3>Keyboard Shortcuts</h3>
         <table cellpadding="5">
@@ -1012,7 +1260,7 @@ class MainWindow(QMainWindow):
 
         QMessageBox.information(self, "Keyboard Shortcuts", shortcuts_text)
 
-    def _show_about(self):
+    def _show_about(self) -> None:
         """Show about dialog."""
         QMessageBox.about(
             self,
@@ -1022,7 +1270,7 @@ class MainWindow(QMainWindow):
             + "A tool for browsing and launching applications in shot context.",
         )
 
-    def _show_launcher_manager(self):
+    def _show_launcher_manager(self) -> None:
         """Show the launcher manager dialog."""
         if self._launcher_dialog is None:
             self._launcher_dialog = LauncherManagerDialog(self.launcher_manager, self)
@@ -1031,7 +1279,7 @@ class MainWindow(QMainWindow):
         self._launcher_dialog.raise_()
         self._launcher_dialog.activateWindow()
 
-    def _update_launcher_menu(self):
+    def _update_launcher_menu(self) -> None:
         """Update the custom launcher menu with available launchers."""
         # Clear existing menu items
         self.custom_launcher_menu.clear()
@@ -1090,7 +1338,7 @@ class MainWindow(QMainWindow):
         )
         self._update_launcher_menu_availability(has_shot_or_scene)
 
-    def _update_launcher_menu_availability(self, has_context: bool):
+    def _update_launcher_menu_availability(self, has_context: bool) -> None:
         """Update custom launcher menu item availability based on context."""
         for action in self.custom_launcher_menu.actions():
             menu = action.menu()
@@ -1102,7 +1350,7 @@ class MainWindow(QMainWindow):
                 # Regular action
                 action.setEnabled(has_context)
 
-    def _execute_custom_launcher(self, launcher_id: str):
+    def _execute_custom_launcher(self, launcher_id: str) -> None:
         """Execute a custom launcher."""
         launcher = self.launcher_manager.get_launcher(launcher_id)
         if not launcher:
@@ -1123,9 +1371,8 @@ class MainWindow(QMainWindow):
             current_shot = self.command_launcher.current_shot
             if not current_shot:
                 self._update_status("No shot or scene selected")
-                QMessageBox.warning(
-                    self,
-                    "No Context",
+                NotificationManager.warning(
+                    "No Context Selected",
                     "Please select a shot or 3DE scene before launching custom commands.",
                 )
                 return
@@ -1151,78 +1398,77 @@ class MainWindow(QMainWindow):
                 f"Failed to launch custom launcher: {launcher.name}",
             )
 
-    def _load_settings(self):
-        """Load settings from file."""
-        if Config.SETTINGS_FILE.exists():
-            try:
-                with open(Config.SETTINGS_FILE, "r") as f:
-                    settings = json.load(f)
-
-                # Restore window geometry
-                if "geometry" in settings:
-                    self.restoreGeometry(bytes.fromhex(settings["geometry"]))
-
-                # Restore splitter state
-                if "splitter" in settings:
-                    self.splitter.restoreState(bytes.fromhex(settings["splitter"]))
-
-                # Restore last selected shot
-                if "last_shot" in settings and isinstance(settings["last_shot"], str):
-                    self._last_selected_shot_name = settings["last_shot"]
-
-                # Restore thumbnail size
-                if "thumbnail_size" in settings:
-                    self.shot_grid.size_slider.setValue(settings["thumbnail_size"])
-                    self.threede_shot_grid.size_slider.setValue(
-                        settings["thumbnail_size"],
-                    )
-
-                # Restore undistortion checkbox state
-                if "include_undistortion" in settings:
-                    self.undistortion_checkbox.setChecked(
-                        settings["include_undistortion"],
-                    )
-
-                # Restore raw plate checkbox state
-                if "include_raw_plate" in settings:
-                    self.raw_plate_checkbox.setChecked(settings["include_raw_plate"])
-
-                # Restore active tab
-                if "active_tab" in settings:
-                    self.tab_widget.setCurrentIndex(settings["active_tab"])
-
-            except Exception as e:
-                print(f"Error loading settings: {e}")
-
-    def _save_settings(self):
-        """Save settings to file."""
-        # Convert QByteArray to string for JSON serialization
-        geometry_hex = self.saveGeometry().toHex()
-        splitter_hex = self.splitter.saveState().toHex()
-
-        # Convert QByteArray to string
-        settings: dict[str, Any] = {
-            "geometry": str(geometry_hex.data(), "ascii"),
-            "splitter": str(splitter_hex.data(), "ascii"),
-            "thumbnail_size": self.shot_grid.size_slider.value(),
-            "include_undistortion": self.undistortion_checkbox.isChecked(),
-            "include_raw_plate": self.raw_plate_checkbox.isChecked(),
-            "active_tab": self.tab_widget.currentIndex(),
-        }
-
-        # Save last selected shot
-        if hasattr(self, "_last_selected_shot_name"):
-            settings["last_shot"] = self._last_selected_shot_name
-
-        # Create settings directory
-        Config.SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-        # Save to file
+    def _load_settings(self) -> None:
+        """Load settings from settings manager."""
         try:
-            with open(Config.SETTINGS_FILE, "w") as f:
-                json.dump(settings, f, indent=2)
+            # Restore window geometry and state
+            geometry = self.settings_manager.get_window_geometry()
+            if not geometry.isEmpty():
+                self.restoreGeometry(geometry)
+
+            state = self.settings_manager.get_window_state()
+            if not state.isEmpty():
+                self.restoreState(state)
+
+            # Restore splitter states
+            main_splitter_state = self.settings_manager.get_splitter_state("main")
+            if not main_splitter_state.isEmpty():
+                self.splitter.restoreState(main_splitter_state)
+
+            # Apply window maximized state
+            if self.settings_manager.is_window_maximized():
+                self.showMaximized()
+
+            # Restore current tab
+            self.tab_widget.setCurrentIndex(self.settings_manager.get_current_tab())
+
+            # Apply thumbnail size
+            thumbnail_size = self.settings_manager.get_thumbnail_size()
+            if hasattr(self.shot_grid, "size_slider"):
+                self.shot_grid.size_slider.setValue(thumbnail_size)
+            if hasattr(self.threede_shot_grid, "size_slider"):
+                self.threede_shot_grid.size_slider.setValue(thumbnail_size)
+
+            # Apply UI preferences
+            self._apply_ui_settings()
+
+            # Apply cache settings
+            self._apply_cache_settings()
+
+            logger.info("Settings loaded successfully")
+
         except Exception as e:
-            print(f"Error saving settings: {e}")
+            logger.error(f"Error loading settings: {e}")
+            # Fallback to default window size
+            self.resize(self.settings_manager.get_window_size())
+
+    def _save_settings(self) -> None:
+        """Save settings to settings manager."""
+        try:
+            # Save window geometry and state
+            self.settings_manager.set_window_geometry(self.saveGeometry())
+            self.settings_manager.set_window_state(self.saveState())
+            self.settings_manager.set_window_maximized(self.isMaximized())
+
+            # Save splitter states
+            self.settings_manager.set_splitter_state("main", self.splitter.saveState())
+
+            # Save current tab
+            self.settings_manager.set_current_tab(self.tab_widget.currentIndex())
+
+            # Save thumbnail size
+            if hasattr(self.shot_grid, "size_slider"):
+                self.settings_manager.set_thumbnail_size(
+                    self.shot_grid.size_slider.value()
+                )
+
+            # Sync to disk
+            self.settings_manager.sync()
+
+            logger.info("Settings saved successfully")
+
+        except Exception as e:
+            logger.error(f"Error saving settings: {e}")
 
     def _add_custom_launchers_section(self, parent_layout: QVBoxLayout) -> None:
         """Add custom launchers section to the launcher panel."""
@@ -1364,13 +1610,7 @@ class MainWindow(QMainWindow):
 
         Ensures proper cleanup without double termination of workers.
         """
-        # Stop the background refresh worker thread
-        if (
-            hasattr(self, "_background_refresh_worker")
-            and self._background_refresh_worker
-        ):
-            self._background_refresh_worker.stop()
-            self._background_refresh_worker.wait(3000)  # Wait up to 3 seconds
+        # No background refresh worker needed anymore - using signals
 
         # Mark that we're closing to prevent new operations
         with QMutexLocker(self._worker_mutex):
@@ -1410,107 +1650,156 @@ class MainWindow(QMainWindow):
         if hasattr(self.launcher_manager, "shutdown"):
             self.launcher_manager.shutdown()
 
+        # Clean up OptimizedShotModel if using it
+        if isinstance(self.shot_model, OptimizedShotModel):
+            logger.debug("Cleaning up OptimizedShotModel background threads")
+            self.shot_model.cleanup()
+
         # Shutdown cache manager
         self.cache_manager.shutdown()  # type: ignore[attr-defined]
 
         self._save_settings()
         event.accept()
 
-    def _on_background_refresh_requested(self):
-        """Handle background refresh request - run refresh on main thread."""
-        logger.debug("Processing background refresh request")
+    # Settings Management Methods
+    def _apply_ui_settings(self) -> None:
+        """Apply UI settings from settings manager."""
+        try:
+            # Apply grid settings
+            # grid_columns = self.settings_manager.get_grid_columns()
+            # TODO: Apply grid columns to grids when they support it
 
-        # Save current selection
-        current_shot_name = None
-        if hasattr(self, "_last_selected_shot_name"):
-            current_shot_name = self._last_selected_shot_name
+            # Apply tooltip settings
+            # show_tooltips = self.settings_manager.get_show_tooltips()
+            # TODO: Apply tooltip settings
 
-        # Check for shot updates
-        success, has_changes = self.shot_model.refresh_shots()
+            # Apply theme settings
+            dark_theme = self.settings_manager.get_dark_theme()
+            if dark_theme:
+                self._apply_dark_theme()
 
-        if success:
-            if has_changes:
-                logger.info(
-                    f"Background refresh: detected {len(self.shot_model.shots)} shot changes",
+            logger.debug("UI settings applied")
+
+        except Exception as e:
+            logger.error(f"Error applying UI settings: {e}")
+
+    def _apply_cache_settings(self) -> None:
+        """Apply cache settings from settings manager."""
+        try:
+            # Apply cache memory limit
+            max_memory = self.settings_manager.get_max_cache_memory_mb()
+            if hasattr(self.cache_manager, "set_memory_limit"):
+                self.cache_manager.set_memory_limit(max_memory)
+
+            # Apply cache expiry
+            expiry_minutes = self.settings_manager.get_cache_expiry_minutes()
+            if hasattr(self.cache_manager, "set_expiry_minutes"):
+                self.cache_manager.set_expiry_minutes(expiry_minutes)
+
+            logger.debug("Cache settings applied")
+
+        except Exception as e:
+            logger.error(f"Error applying cache settings: {e}")
+
+    def _apply_dark_theme(self) -> None:
+        """Apply dark theme to the application."""
+        # TODO: Implement dark theme application
+        # This would involve setting stylesheets or using a dark palette
+        pass
+
+    def _show_preferences(self) -> None:
+        """Show the preferences dialog."""
+        if self._settings_dialog is None:
+            self._settings_dialog = SettingsDialog(self.settings_manager, self)
+            self._settings_dialog.settings_applied.connect(self._on_settings_applied)
+
+        self._settings_dialog.load_current_settings()
+        self._settings_dialog.show()
+        self._settings_dialog.raise_()
+        self._settings_dialog.activateWindow()
+
+    def _on_settings_applied(self) -> None:
+        """Handle settings being applied from preferences dialog."""
+        # Reload and apply all settings
+        self._apply_ui_settings()
+        self._apply_cache_settings()
+
+        # Update thumbnail sizes in grids
+        thumbnail_size = self.settings_manager.get_thumbnail_size()
+        if hasattr(self.shot_grid, "size_slider"):
+            self.shot_grid.size_slider.setValue(thumbnail_size)
+        if hasattr(self.threede_shot_grid, "size_slider"):
+            self.threede_shot_grid.size_slider.setValue(thumbnail_size)
+
+        logger.info("Settings applied successfully")
+
+    def _import_settings(self):
+        """Import settings from file."""
+        from PySide6.QtWidgets import QFileDialog
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Import Settings", "", "JSON Files (*.json);;All Files (*)"
+        )
+
+        if file_path:
+            if self.settings_manager.import_settings(file_path):
+                # Reload settings
+                self._apply_ui_settings()
+                self._apply_cache_settings()
+                QMessageBox.information(
+                    self, "Import Success", "Settings imported successfully."
                 )
-                # Update UI with new shots
-                self._refresh_shot_display()
-                self._update_status(
-                    f"Updated: {len(self.shot_model.shots)} shots (background refresh)",
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Import Error",
+                    "Failed to import settings. Check the file format.",
                 )
 
-                # Restore selection if possible
-                if current_shot_name:
-                    shot = self.shot_model.find_shot_by_name(current_shot_name)
-                    if shot:
-                        self.shot_grid.select_shot_by_name(shot.full_name)
+    def _export_settings(self):
+        """Export settings to file."""
+        from PySide6.QtWidgets import QFileDialog
 
-                # Also trigger 3DE refresh since shots changed
-                QTimer.singleShot(100, self._refresh_threede_scenes)
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Settings",
+            "shotbot_settings.json",
+            "JSON Files (*.json);;All Files (*)",
+        )
 
+        if file_path:
+            if self.settings_manager.export_settings(file_path):
+                QMessageBox.information(
+                    self, "Export Success", f"Settings exported to:\n{file_path}"
+                )
             else:
-                # No shot changes, but still check scenes periodically
-                if self.shot_model.shots:
-                    scene_success, scene_changes = (
-                        self.threede_scene_model.refresh_scenes(self.shot_model.shots)
-                    )
-                    if scene_success and scene_changes:
-                        logger.info(
-                            f"Background refresh: detected {len(self.threede_scene_model.scenes)} scene changes",
-                        )
-                        self.threede_shot_grid.refresh_scenes()
-                        self._update_status(
-                            f"Updated: {len(self.threede_scene_model.scenes)} 3DE scenes (background refresh)",
-                        )
+                QMessageBox.warning(self, "Export Error", "Failed to export settings.")
+
+    def _reset_layout(self):
+        """Reset window layout to defaults."""
+        reply = QMessageBox.question(
+            self,
+            "Reset Layout",
+            "Reset window layout to defaults?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            # Reset window size
+            self.resize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
+
+            # Reset splitter
+            self.splitter.setSizes([840, 360])  # 70/30 split
+
+            # Reset to first tab
+            self.tab_widget.setCurrentIndex(0)
+
+            # Reset window state
+            self.settings_manager.set_window_maximized(False)
+            self.showNormal()
+
+            logger.info("Layout reset to defaults")
 
 
-class BackgroundRefreshWorker(QThread):
-    """Background worker thread for discrete cache refresh.
-
-    This worker runs on a separate thread and periodically checks for updates
-    to shots and 3DE scenes. It only emits signals when actual changes are detected,
-    minimizing UI disruption.
-
-    IMPORTANT: This worker should not directly access Qt objects. It only emits
-    signals to request actions on the main thread.
-    """
-
-    refresh_requested = Signal()  # Request refresh on main thread
-    status_update = Signal(str)  # Status messages
-
-    def __init__(self, parent: Optional[QObject] = None):
-        super().__init__(parent)
-        self._stop_requested = False
-        self._refresh_interval_ms = Config.CACHE_REFRESH_INTERVAL_MINUTES * 60 * 1000
-
-    def stop(self) -> None:
-        """Request the worker to stop."""
-        self._stop_requested = True
-
-    def run(self) -> None:
-        """Main worker thread execution."""
-        logger.info("Background refresh worker started")
-
-        # Do an immediate check on startup (after a short delay to let UI settle)
-        self.msleep(2000)  # 2 second delay to let initial load complete
-
-        first_run = True
-        while not self._stop_requested:
-            # Only wait for interval after first run
-            if not first_run:
-                self.msleep(self._refresh_interval_ms)
-            else:
-                first_run = False
-
-            if self._stop_requested:
-                break
-
-            # Request refresh on main thread
-            try:
-                logger.debug("Background refresh: requesting update check")
-                self.refresh_requested.emit()
-
-            except Exception as e:
-                logger.error(f"Background refresh error: {e}")
-
-        logger.info("Background refresh worker stopped")
+# Background refresh methods and BackgroundRefreshWorker removed - ShotModel now uses reactive signals instead of polling

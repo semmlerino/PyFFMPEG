@@ -4,6 +4,7 @@
 pytest>=8.0.0
 pytest-cov>=4.0.0
 pytest-qt>=4.0.0
+pytest-timeout>=2.0.0  # Test timeout management
 hypothesis>=6.0.0  # Property-based testing
 psutil>=5.0.0  # Performance testing
 

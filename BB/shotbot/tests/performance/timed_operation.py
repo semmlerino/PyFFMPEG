@@ -1,5 +1,7 @@
 """Timing decorator for performance testing operations."""
 
+from __future__ import annotations
+
 import functools
 import logging
 import time
@@ -53,7 +55,7 @@ def timed_operation(
 class TimingRegistry:
     """Global registry for storing and analyzing timing results."""
 
-    _timings: Dict[str, List[float]] = {}
+    _timings: dict[str, list[float]] = {}
 
     @classmethod
     def add_timing(cls, operation: str, duration_ms: float) -> None:
@@ -68,7 +70,7 @@ class TimingRegistry:
         cls._timings[operation].append(duration_ms)
 
     @classmethod
-    def get_stats(cls, operation: str) -> Optional[Dict[str, float]]:
+    def get_stats(cls, operation: str) -> dict[str, float | None]:
         """Get statistics for an operation.
 
         Args:
@@ -91,7 +93,7 @@ class TimingRegistry:
         }
 
     @classmethod
-    def get_all_stats(cls) -> Dict[str, Dict[str, float]]:
+    def get_all_stats(cls) -> dict[str, dict[str, float]]:
         """Get statistics for all operations.
 
         Returns:
@@ -105,7 +107,7 @@ class TimingRegistry:
         cls._timings.clear()
 
     @classmethod
-    def get_operation_names(cls) -> List[str]:
+    def get_operation_names(cls) -> list[str]:
         """Get list of all tracked operation names.
 
         Returns:
@@ -114,7 +116,7 @@ class TimingRegistry:
         return list(cls._timings.keys())
 
     @classmethod
-    def compare_operations(cls, baseline: str, optimized: str) -> Optional[float]:
+    def compare_operations(cls, baseline: str, optimized: str) -> float | None:
         """Compare two operations and calculate speedup factor.
 
         Args:

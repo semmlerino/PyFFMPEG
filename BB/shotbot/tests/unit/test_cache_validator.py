@@ -1,19 +1,33 @@
-"""Comprehensive tests for CacheValidator following UNIFIED_TESTING_GUIDE principles.
+"""Comprehensive tests for CacheValidator following UNIFIED_TESTING_GUIDE principles."""
 
-Tests the cache validation and repair operations using real MemoryManager
-and StorageBackend components, with real file operations in temporary directories.
-This is an integration test that validates the high-level coordination
-between cache components.
-"""
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
+from __future__ import annotations
 
 from pathlib import Path
+from typing import List
 
 import pytest
 
-# Import real components for integration testing
 from cache.cache_validator import CacheValidator
 from cache.memory_manager import MemoryManager
 from cache.storage_backend import StorageBackend
+
+pytestmark = pytest.mark.unit
+
+# Tests the cache validation and repair operations using real MemoryManager
+# and StorageBackend components, with real file operations in temporary directories.
+# This is an integration test that validates the high-level coordination
+# between cache components.
+
+# Import real components for integration testing
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 
 class TestCacheValidator:
@@ -183,7 +197,7 @@ class TestCacheValidator:
             storage_backend=storage_backend,
         )
 
-        # Directory doesn't exist initially
+        # Directory does not exist initially
         assert not missing_dir.exists()
 
         # Validation should create the directory
@@ -216,7 +230,7 @@ class TestCacheValidator:
     def test_validate_memory_tracking_integration(
         self, validator: CacheValidator, sample_thumbnail_files: list[Path]
     ):
-        """Test integration with MemoryManager's validate_tracking method."""
+        """Test integration with MemoryManager validate_tracking method."""
         # Add some files to tracking with incorrect sizes to create mismatches
         memory_manager = validator._memory_manager
 
@@ -280,7 +294,7 @@ class TestCacheValidator:
         assert non_empty.exists()  # Non-empty should remain
 
     def test_clean_empty_directories_nonexistent_cache(self, tmp_path: Path):
-        """Test clean_empty_directories when cache directory doesn't exist."""
+        """Test clean_empty_directories when cache directory does not exist."""
         missing_dir = tmp_path / "missing"
         memory_manager = MemoryManager()
         storage_backend = StorageBackend()
@@ -444,7 +458,7 @@ class TestCacheValidator:
         assert "Created missing thumbnails directory" in str(results["details"])
 
     def test_statistics_with_nonexistent_directory(self, tmp_path: Path):
-        """Test statistics when thumbnails directory doesn't exist."""
+        """Test statistics when thumbnails directory does not exist."""
         missing_dir = tmp_path / "nonexistent"
         memory_manager = MemoryManager()
         storage_backend = StorageBackend()

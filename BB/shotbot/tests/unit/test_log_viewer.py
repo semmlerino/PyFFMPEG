@@ -8,6 +8,8 @@ This test suite:
 - Follows behavior-focused testing principles
 """
 
+from __future__ import annotations
+
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -16,6 +18,16 @@ from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout
 
 from config import Config
 from log_viewer import LogViewer
+
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 
 @pytest.mark.usefixtures("isolated_test_environment", "qapp")

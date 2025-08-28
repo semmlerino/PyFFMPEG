@@ -1,18 +1,23 @@
 """Shot data model and parser for ws -sg output."""
 
+from __future__ import annotations
+
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, NamedTuple
+
+from base_shot_model import BaseShotModel
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
+    from process_pool_manager import ProcessPoolManager
 
 from config import Config
-from process_pool_manager import ProcessPoolManager
-from utils import FileUtils, PathUtils, ValidationUtils
+from exceptions import WorkspaceError
+from type_definitions import ShotDict
+from utils import FileUtils, PathUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -114,7 +119,7 @@ class Shot:
             self.shot,
         )
 
-    def get_thumbnail_path(self) -> Optional[Path]:
+    def get_thumbnail_path(self) -> Path | None:
         """Get first available thumbnail or None.
 
         Tries three fallback options:
@@ -163,7 +168,7 @@ class Shot:
         self._cached_thumbnail_path = thumbnail
         return thumbnail
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> ShotDict:
         """Convert shot to dictionary for serialization."""
         return {
             "show": self.show,
@@ -173,7 +178,7 @@ class Shot:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, str]) -> "Shot":
+    def from_dict(cls, data: ShotDict) -> "Shot":
         """Create shot from dictionary data."""
         shot = cls(
             show=data["show"],
@@ -186,50 +191,38 @@ class Shot:
         return shot
 
 
-class ShotModel:
-    """Manages shot data and parsing."""
+class ShotModel(BaseShotModel):
+    """Synchronous shot model implementation.
+
+    This model provides synchronous, blocking shot loading and refreshing.
+    It maintains full backward compatibility with the existing API while
+    inheriting common functionality from BaseShotModel.
+
+    All signals are inherited from BaseShotModel.
+    """
 
     def __init__(
         self,
-        cache_manager: Optional["CacheManager"] = None,
+        cache_manager: "CacheManager" | None = None,
         load_cache: bool = True,
     ):
-        super().__init__()
-        from cache_manager import (
-            CacheManager,  # Runtime import to avoid circular dependency
-        )
+        """Initialize synchronous shot model.
 
-        self.shots: List[Shot] = []
-        self.cache_manager = cache_manager or CacheManager()
-        self._parse_pattern = re.compile(
-            r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))",
-        )
-        # Initialize ProcessPoolManager singleton
-        if DEBUG_VERBOSE:
-            logger.debug("Getting ProcessPoolManager singleton instance")
-        self._process_pool = ProcessPoolManager.get_instance()
-        if DEBUG_VERBOSE:
-            logger.debug(f"ProcessPoolManager instance obtained: {self._process_pool}")
+        Args:
+            cache_manager: cache manager instance
+            load_cache: Whether to load from cache on initialization
+        """
+        super().__init__(cache_manager, load_cache)
 
-        # Only load cache if requested (allows tests to start clean)
-        if load_cache:
-            if DEBUG_VERBOSE:
-                logger.debug("Loading shots from cache...")
-            loaded = self._load_from_cache()
-            if DEBUG_VERBOSE:
-                logger.debug(
-                    f"Cache load result: {loaded}, shots loaded: {len(self.shots)}",
-                )
+    def load_shots(self) -> RefreshResult:
+        """Load shots synchronously (same as refresh for sync model).
 
-    def _load_from_cache(self) -> bool:
-        """Load shots from cache if available."""
-        cached_data = self.cache_manager.get_cached_shots()
-        if cached_data:
-            self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
-            return True
-        return False
+        Returns:
+            RefreshResult with success and change status
+        """
+        return self.refresh_strategy()
 
-    def refresh_shots(self) -> RefreshResult:
+    def refresh_strategy(self) -> RefreshResult:
         """Fetch and parse shot list from ws -sg command.
 
         Uses ProcessPoolManager for optimized command execution with:
@@ -237,9 +230,19 @@ class ShotModel:
         - Persistent bash session reuse
         - Automatic retry on session failure
 
+        Emits signals:
+        - refresh_started: When refresh begins
+        - shots_changed: If shot list changes
+        - error_occurred: If an error occurs
+        - cache_updated: When cache is successfully updated
+        - refresh_finished: When refresh completes with status
+
         Returns:
             RefreshResult with success status and change indicator
         """
+        # Emit signal to indicate refresh is starting
+        self.refresh_started.emit()
+
         try:
             # Save current shots for comparison (include workspace path)
             old_shot_data = {
@@ -264,18 +267,24 @@ class ShotModel:
                     if output:
                         logger.debug(f"First 200 chars of output: {output[:200]}...")
             except TimeoutError as e:
-                logger.error(f"Timeout while running ws -sg command: {e}")
+                error_msg = f"Timeout while running ws -sg command: {e}"
+                logger.error(error_msg)
                 if DEBUG_VERBOSE:
                     logger.debug(f"TimeoutError details: {e}")
+                self.error_occurred.emit(error_msg)
+                self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
-            except RuntimeError as e:
+            except (RuntimeError, WorkspaceError) as e:
                 # Handle session failures and other runtime errors
-                logger.error(f"Failed to execute ws -sg command: {e}")
+                error_msg = f"Failed to execute ws -sg command: {e}"
+                logger.error(error_msg)
                 if DEBUG_VERBOSE:
-                    logger.debug(f"RuntimeError details: {e}")
+                    logger.debug(f"Error details: {e}")
                     import traceback
 
                     logger.debug(f"Traceback: {traceback.format_exc()}")
+                self.error_occurred.emit(error_msg)
+                self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
 
             # Parse output (reuse existing parser)
@@ -285,10 +294,13 @@ class ShotModel:
                 new_shots = self._parse_ws_output(output)
                 if DEBUG_VERBOSE:
                     logger.debug(f"Parsed {len(new_shots)} shots from output")
-            except ValueError as e:
-                logger.error(f"Failed to parse ws -sg output: {e}")
+            except (ValueError, WorkspaceError) as e:
+                error_msg = f"Failed to parse ws -sg output: {e}"
+                logger.error(error_msg)
                 if DEBUG_VERBOSE:
                     logger.debug(f"Parse error details: {e}")
+                self.error_occurred.emit(error_msg)
+                self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
 
             new_shot_data = {
@@ -302,115 +314,48 @@ class ShotModel:
                 self.shots = new_shots
                 logger.info(f"Shot list updated: {len(new_shots)} shots found")
 
+                # Emit signal to notify of changed shots
+                self.shots_changed.emit(self.shots)
+
                 # Cache the results - pass Shot objects directly
                 if self.shots:
                     try:
-                        self.cache_manager.cache_shots(self.shots)  # type: ignore[arg-type]
+                        self.cache_manager.cache_shots(self.shots)
+                        # Emit cache updated signal
+                        self.cache_updated.emit()
                     except (OSError, IOError) as e:
                         logger.warning(f"Failed to cache shots: {e}")
                         # Continue without caching - not critical for operation
 
+            # Emit refresh finished signal with results
+            self.refresh_finished.emit(True, has_changes)
             return RefreshResult(success=True, has_changes=has_changes)
 
         except Exception as e:
             # Catch any unexpected errors not handled by ProcessPoolManager
-            logger.exception(f"Unexpected error while fetching shots: {e}")
+            error_msg = f"Unexpected error while fetching shots: {e}"
+            logger.exception(error_msg)
+            self.error_occurred.emit(error_msg)
+            self.refresh_finished.emit(False, False)
             return RefreshResult(success=False, has_changes=False)
 
-    def _parse_ws_output(self, output: str) -> List[Shot]:
-        """Parse ws -sg output to extract shots.
+    # Note: We use the _parse_ws_output from BaseShotModel which has been
+    # enhanced with the robust validation and error handling from this implementation
 
-        Args:
-            output: Raw output from ws -sg command
-
-        Returns:
-            List of Shot objects parsed from the output
-
-        Raises:
-            ValueError: If output is invalid or cannot be parsed
-        """
-        if not isinstance(output, str):
-            raise ValueError(f"Expected string output, got {type(output)}")
-
-        shots: List[Shot] = []
-        lines = output.strip().split("\n")
-
-        # If output is completely empty, that might indicate an issue
-        if not output.strip():
-            logger.warning("ws -sg returned empty output")
-            return shots
-
-        for line_num, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line:
-                continue
-
-            match = self._parse_pattern.search(line)
-            if match:
-                try:
-                    workspace_path = match.group(1)
-                    show = match.group(2)
-                    sequence = match.group(3)
-                    shot_name = match.group(4)
-
-                    # Validate extracted components using utility
-                    if not ValidationUtils.validate_not_empty(
-                        workspace_path,
-                        show,
-                        sequence,
-                        shot_name,
-                        names=["workspace_path", "show", "sequence", "shot_name"],
-                    ):
-                        logger.warning(
-                            f"Line {line_num}: Missing required components in: {line}",
-                        )
-                        continue
-
-                    # Extract shot number from full name (e.g., "108_BQS_0005" -> "0005")
-                    shot_parts = shot_name.split("_")
-                    if len(shot_parts) >= 3:
-                        shot = shot_parts[-1]
-                    else:
-                        shot = shot_name
-
-                    shots.append(
-                        Shot(
-                            show=show,
-                            sequence=sequence,
-                            shot=shot,
-                            workspace_path=workspace_path,
-                        ),
-                    )
-                except (IndexError, AttributeError) as e:
-                    logger.warning(
-                        f"Line {line_num}: Failed to parse shot data from: {line} ({e})",
-                    )
-                    continue
-            else:
-                # Log unmatched lines for debugging, but don't fail
-                logger.debug(f"Line {line_num}: No match for workspace pattern: {line}")
-
-        logger.info(f"Parsed {len(shots)} shots from ws -sg output")
-        return shots
-
-    def get_shots(self) -> List[Shot]:
-        """Get list of all shots."""
-        return self.shots
-
-    def get_shot_by_index(self, index: int) -> Optional[Shot]:
+    def get_shot_by_index(self, index: int) -> Shot | None:
         """Get shot by index."""
         if 0 <= index < len(self.shots):
             return self.shots[index]
         return None
 
-    def find_shot_by_name(self, full_name: str) -> Optional[Shot]:
+    def find_shot_by_name(self, full_name: str) -> Shot | None:
         """Find shot by full name."""
         for shot in self.shots:
             if shot.full_name == full_name:
                 return shot
         return None
 
-    def get_shot_by_name(self, full_name: str) -> Optional[Shot]:
+    def get_shot_by_name(self, full_name: str) -> Shot | None:
         """Get shot by full name (alias for find_shot_by_name)."""
         return self.find_shot_by_name(full_name)
 
@@ -424,16 +369,76 @@ class ShotModel:
         self._process_pool.invalidate_cache("ws -sg")
         logger.info("Invalidated workspace cache for immediate refresh")
 
-    def get_performance_metrics(self) -> Dict[str, Any]:
-        """Get performance metrics for subprocess operations.
+    def select_shot(self, shot: Shot | None) -> None:
+        """Select a shot and emit the shot_selected signal.
+
+        Args:
+            shot: The shot to select, or None to clear selection
+        """
+        self._selected_shot = shot
+        self.shot_selected.emit(shot)
+        if shot:
+            logger.debug(f"Shot selected: {shot.full_name}")
+        else:
+            logger.debug("Shot selection cleared")
+
+    def get_selected_shot(self) -> Shot | None:
+        """Get the currently selected shot.
 
         Returns:
-            Dictionary containing:
-            - subprocess_calls: Total subprocess calls made
-            - cache_hits: Number of cache hits
-            - cache_misses: Number of cache misses
-            - average_response_ms: Average command execution time
-            - cache_hit_rate: Percentage of requests served from cache
-            - sessions: Status of persistent bash sessions
+            The currently selected shot or None if no shot is selected
         """
-        return self._process_pool.get_metrics()
+        return self._selected_shot
+
+    def select_shot_by_name(self, full_name: str) -> bool:
+        """Select a shot by its full name.
+
+        Args:
+            full_name: The full name of the shot to select
+
+        Returns:
+            True if the shot was found and selected, False otherwise
+        """
+        shot = self.find_shot_by_name(full_name)
+        if shot:
+            self.select_shot(shot)
+            return True
+        return False
+
+    def clear_selection(self) -> None:
+        """Clear the current shot selection."""
+        self.select_shot(None)
+
+    def get_performance_metrics(self) -> dict[str, Any]:
+        """Get performance metrics for subprocess operations.
+
+        Extends base metrics with process pool statistics.
+
+        Returns:
+            Combined metrics from base class and process pool
+        """
+        metrics = super().get_performance_metrics()
+        # Add process pool metrics
+        pool_metrics = self._process_pool.get_metrics()
+        metrics.update(pool_metrics)
+        return metrics
+
+    # ================================================================
+    # Test-Specific Accessor Methods
+    # ================================================================
+    # WARNING: These methods are for testing purposes ONLY.
+    # They provide controlled access to private attributes for tests.
+    # DO NOT use these methods in production code.
+
+    @property
+    def test_process_pool(self) -> "ProcessPoolManager":
+        """Test-only access to process pool manager."""
+        return self._process_pool
+
+    def test_load_from_cache(self) -> bool:
+        """Test-only access to _load_from_cache method."""
+        return self._load_from_cache()
+
+    def test_parse_ws_output(self, output: str) -> list[Shot]:
+        """Test-only access to _parse_ws_output method."""
+        return self._parse_ws_output(output)

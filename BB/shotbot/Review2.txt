@@ -1,0 +1,209 @@
+Awesome foundation — this is already opinionated, practical, and very Qt-savvy. Below are focused upgrades to make it even sharper for LLM-assisted coding and day-to-day best practices. I’ve referenced the parts of your guide I’m building on.
+
+# High-impact improvements (actionable)
+
+1. Add a “Test Taxonomy & Folder Layout” (so LLMs know where code belongs)
+
+* **Why:** Your guide distinguishes unit/integration/E2E in prose and a table, but doesn’t pin down structure. LLMs do better with explicit paths and naming.
+* **Add:**
+
+  * `tests/unit/` → pure logic, no Qt event loop
+  * `tests/qt/` → widgets, signals, `qtbot` cases
+  * `tests/integration/` → multiple components + filesystem/cache/subprocess test doubles
+  * `tests/e2e/` → full app happy-paths with the runner
+  * Naming: `test_<module>__<behavior>.py` and `test_<Class>__<method>__<case>()`
+* Tie this to your “Mock only at system boundaries” table so contributors can map test intent to folder automatically.&#x20;
+
+2. Make “When to Mock” deterministic with a rules checklist
+
+* **Why:** You already say “Test behavior, not implementation” and “Mock only at boundaries,” but LLMs/teammates benefit from a yes/no flow.&#x20;
+* **Add a decision checklist (copy/paste-able):**
+
+  * Does it cross process/network/time/OS boundary? → **Mock/double**
+  * Is it a pure value/type? → **Real**
+  * Does mocking change public behavior? → **Don’t mock**
+  * Is the mock verifying call counts to internals? → **Smell: remove**
+    This concretizes the anti-pattern you already call out (testing implementation).&#x20;
+
+3. Introduce **property-based tests** for critical invariants
+
+* **Why:** Great for caching, parsing, path manipulation — areas you reference (CacheManager, Shot paths).&#x20;
+* **Add:** Hypothesis pattern:
+
+  ```python
+  from hypothesis import given, strategies as st
+
+  @given(st.from_regex(r"/shows/[a-z0-9_]+/[a-z0-9_]+/\d{4}", fullmatch=True))
+  def test_shot_roundtrip(path):
+      shot = Shot.from_path(path)
+      assert shot.path == path
+  ```
+* Add a brief “When to use Hypothesis” box under **Core Principles**.
+
+4. Lock down **time, randomness, and environment**
+
+* **Why:** You advise mocking system time and subprocess but not the tools to do it.&#x20;
+* **Add:** Standardize on:
+
+  * `freezegun` for time
+  * `random.seed(0)` in a `conftest.py`
+  * `monkeypatch.setenv(...)` patterns
+  * `pyfakefs` for file-heavy logic (non-Qt)
+  * Rule: *No test depends on real time, TZ, locale, or the clock.*
+
+5. Strengthen **Qt headless & flake control** (CI-ready)
+
+* You already stress **QPixmap vs QImage** and race conditions — great. Add CI knobs:&#x20;
+
+  * `QT_QPA_PLATFORM=offscreen`
+  * Disable HiDPI / animations in a `conftest.py`:
+
+    ```python
+    import os, pytest
+    from PySide6.QtCore import Qt, QCoreApplication
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    @pytest.fixture(autouse=True, scope="session")
+    def _qt_globals():
+        QCoreApplication.setAttribute(Qt.AA_DisableHighDpiScaling, True)
+        QCoreApplication.setAttribute(Qt.AA_Use96Dpi, True)
+    ```
+  * Guidance for `xvfb-run` on Linux
+  * “No GUI creation in worker threads” is already clear — keep the emphatic warning box.&#x20;
+
+6. Promote **ThreadSafeTestImage** into a shared test util
+
+* **Why:** It’s gold. Turn it into `tests/_utils/images.py` and reference it everywhere you mention QPixmap/QImage threading. Add a one-liner import example in the guide’s **Qt Threading Safety** section.&#x20;
+
+7. Add **flakiness governance**
+
+* **Why:** You already show races with `qtbot.waitSignal()` sequencing. Give the team a policy:
+
+  * Use `pytest-timeout`, `pytest-randomly` (order independence).
+  * `xfail(strict=True)` for known platform issues; open a ticket before marking.
+  * A `@pytest.mark.flaky` quarantines tests with an owner + expiry date.
+  * For async Qt ops: prefer `qtbot.waitSignal()`/`waitUntil()` and forbid bare `sleep()`. You already model correct `waitSignal()` usage — formalize it as a linter rule in prose.&#x20;
+
+8. Add **coverage & mutation gates**
+
+* **Why:** The guide mentions coverage via your runner; define thresholds & criticals.&#x20;
+
+  * Project: `--cov-fail-under=80`
+  * Critical modules (parsers, cache): `>=90%`
+  * Introduce mutation testing for 1–2 core modules (`mutmut`/`cosmic-ray`) with a light policy (“run weekly on cache + model parsers”).
+
+9. Tighten **pytest config** (so LLMs scaffold correctly)
+
+* Provide `pytest.ini` snippet:
+
+  ```ini
+  [pytest]
+  addopts = -q -ra --maxfail=1
+  testpaths = tests
+  markers =
+      qt: Qt/GUI tests
+      e2e: end-to-end scenarios
+      slow: long-running
+  filterwarnings =
+      error
+      ignore:.*QVariant.*:DeprecationWarning
+  ```
+* Document your custom markers under **Quick Reference**.&#x20;
+
+10. Upgrade **run\_tests.py** guidance
+
+* Your Quick Reference says “Never use pytest directly.” Add:
+
+  * Forward all unknown args to pytest
+  * Stable output & CI exit codes
+  * `--ci` preset (offscreen, timeout, random order)
+  * Examples for unit/qt/e2e subsets
+    This makes the “single entrypoint” rule easy to follow.&#x20;
+
+# Qt-specific enhancements
+
+* **Signal testing matrix:** You already differentiate `QSignalSpy`, `qtbot.waitSignal`, and test doubles — excellent. Add explicit **“don’t mix Spy with mocks”** (you already warn it crashes) and a sample asserting **no emission** with `qtbot.assertNotEmitted` (you list it; include a 3-line example).&#x20;
+* **Timers:** Add a snippet for `QTimer.singleShot` tests using `qtbot.waitUntil` to avoid sleeps.
+* **Threads lifecycle:** You do cleanup in examples; add a short “Every QThread must: `quit()`, `wait(ms)`, assert not running” checklist.&#x20;
+
+# LLM-assisted testing upgrades
+
+Add a short, reusable section: **“How to use an LLM to write tests here”**
+
+* **Test Plan Prompt (paste-in):**
+  “Given `ShotModel` public API, enumerate behaviors, edge cases, and invariants. Produce: (1) unit cases (no Qt), (2) Qt signal cases with `qtbot.waitSignal`, (3) integration cases with `TestProcessPoolManager`, (4) property-based invariants for paths. Output as a checklist + parametrized pytest skeletons only; avoid mocking internals.”
+
+  * This aligns with your “behavior over implementation,” real components, and your ProcessPool test doubles.&#x20;
+* **Parametrization template:** Encourage `@pytest.mark.parametrize` over copy-paste.
+* **Golden file policy:** For UI text or generated command strings, allow **approval tests** (human-read golden files) with strict review gates.
+* **LLM diff-review:** Ask the LLM to critique each test against your anti-patterns (e.g., “Are we asserting on mocks?” “Any races?” “Qt class constructed in worker thread?”). This codifies your anti-patterns list.&#x20;
+
+# Tiny clarifications (tighten what’s already great)
+
+* In **Core Principles**, after “Test Behavior, Not Implementation,” explicitly ban `.assert_called*()` on private methods (you imply this; make it a rule).&#x20;
+* In **Quick Reference**, add “Prefer `assert` over `unittest.TestCase` assertions.”&#x20;
+* In **Critical Pitfalls → Qt container truthiness**, add the list is non-exhaustive and link to a helper: `def is_qt_object_set(x): return x is not None` — mandate explicit `is not None`.&#x20;
+* In **Qt Threading Safety**, add a one-liner reminder: “Background threads may *produce* `QImage` data; main thread *owns* widget/pixmap creation & display.” (You show the diagram — add the mantra line for skimmers.)&#x20;
+
+# Drop-in text you can paste into the guide
+
+## New: Test Layout & Conventions
+
+* **Folders:** `tests/unit`, `tests/qt`, `tests/integration`, `tests/e2e`
+* **Names:** `test_<module>__<behavior>.py`, test funcs `test_<Class>__<method>__<case>`
+* **Rule of thumb:** If it needs `qtbot`, it goes in `tests/qt`.
+
+## New: Flakiness & Order Independence
+
+* Enable `pytest-randomly`, `pytest-timeout`.
+* For races, use `qtbot.waitSignal`/`waitUntil` — no bare sleeps.
+* `xfail(strict=True)` with an issue # and expiry date.
+
+## New: Hypothesis Invariants
+
+* Use on parsers, path builders, and cache keys.
+* Fail a build if any Hypothesis test is flaky across seeds.
+
+## New: CI Environment for Qt
+
+* `QT_QPA_PLATFORM=offscreen`, disable HiDPI, ensure single `QApplication`.
+* Never create GUI objects in worker threads (fatal).&#x20;
+
+# Config snippets
+
+**pytest.ini**
+
+```ini
+[pytest]
+addopts = -q -ra --maxfail=1 --cov=shotbot --cov-report=term-missing
+testpaths = tests
+markers =
+    qt: Qt/GUI tests
+    e2e: end-to-end scenarios
+    slow: long-running
+filterwarnings =
+    error
+    ignore:.*QVariant.*:DeprecationWarning
+```
+
+**conftest.py (session init)**
+
+```python
+import os, pytest
+from PySide6.QtCore import Qt, QCoreApplication
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+@pytest.fixture(scope="session", autouse=True)
+def _qt_session_setup():
+    QCoreApplication.setAttribute(Qt.AA_DisableHighDpiScaling, True)
+    QCoreApplication.setAttribute(Qt.AA_Use96Dpi, True)
+```
+
+**run\_tests.py** (behavioral contract)
+
+* Accept `--ci` to add `--maxfail=1 --strict-markers --random-order --timeout=10`.
+* Forward unknown args to pytest.
+* Exit non-zero on test failures or coverage below threshold.
+
+---
+
+If you want, I can turn the bolded additions above into a PR-ready patch against your guide (sections + snippets slotted under the headings you already have).

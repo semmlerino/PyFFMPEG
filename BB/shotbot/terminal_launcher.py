@@ -1,5 +1,7 @@
 """Terminal launcher for executing commands in new terminal windows."""
 
+from __future__ import annotations
+
 import logging
 import os
 import platform
@@ -22,7 +24,7 @@ class LaunchResult:
 
     success: bool
     command: str = ""
-    process_id: Optional[int] = None
+    process_id: int | None = None
     error_message: str = ""
     terminal_type: str = ""
 
@@ -35,10 +37,10 @@ class Launcher:
     command: str
     description: str = ""
     category: str = "custom"
-    working_directory: Optional[str] = None
-    environment_vars: Optional[Dict[str, str]] = None
-    terminal_title: Optional[str] = None
-    terminal_geometry: Optional[str] = None
+    working_directory: str | None = None
+    environment_vars: dict[str, str | None] = None
+    terminal_title: str | None = None
+    terminal_geometry: str | None = None
     persist_terminal: bool = False
     timeout_seconds: int = 30
     validate_command: bool = True
@@ -75,8 +77,8 @@ class TerminalLauncher(QObject):
 
     def __init__(self):
         super().__init__()
-        self._detected_terminals: List[str] = []
-        self._preferred_terminal: Optional[str] = None
+        self._detected_terminals: list[str] = []
+        self._preferred_terminal: str | None = None
         self._platform = platform.system().lower()
         self._detect_available_terminals()
 
@@ -122,7 +124,7 @@ class TerminalLauncher(QObject):
             logger.debug(f"Error checking terminal {terminal}: {e}")
             return False
 
-    def get_available_terminals(self) -> List[str]:
+    def get_available_terminals(self) -> list[str]:
         """Get list of available terminal emulators."""
         return self._detected_terminals.copy()
 
@@ -138,7 +140,7 @@ class TerminalLauncher(QObject):
     def execute_launcher(
         self,
         launcher: Launcher,
-        variables: Optional[Dict[str, str]] = None,
+        variables: dict[str, str | None] = None,
     ) -> LaunchResult:
         """Execute a launcher with variable substitution."""
         try:
@@ -205,7 +207,7 @@ class TerminalLauncher(QObject):
                 error_message=error_msg,
             )
 
-    def _substitute_variables(self, text: str, variables: Dict[str, str]) -> str:
+    def _substitute_variables(self, text: str, variables: dict[str, str]) -> str:
         """Substitute variables in text using {variable_name} syntax."""
         try:
             # Built-in variables
@@ -231,7 +233,7 @@ class TerminalLauncher(QObject):
             logger.error(f"Error substituting variables in '{text}': {e}")
             return text
 
-    def _validate_command(self, command: str) -> Optional[str]:
+    def _validate_command(self, command: str) -> str | None:
         """Validate a command for basic security and availability."""
         try:
             # Split command to get the executable
@@ -266,10 +268,10 @@ class TerminalLauncher(QObject):
     def _execute_in_terminal(
         self,
         command: str,
-        working_directory: Optional[str] = None,
-        environment: Optional[Dict[str, str]] = None,
-        terminal_title: Optional[str] = None,
-        terminal_geometry: Optional[str] = None,
+        working_directory: str | None = None,
+        environment: dict[str, str | None] = None,
+        terminal_title: str | None = None,
+        terminal_geometry: str | None = None,
         persist: bool = False,
         timeout: int = 30,
     ) -> LaunchResult:
@@ -333,11 +335,11 @@ class TerminalLauncher(QObject):
         self,
         terminal_type: str,
         command: str,
-        working_directory: Optional[str] = None,
-        terminal_title: Optional[str] = None,
-        terminal_geometry: Optional[str] = None,
+        working_directory: str | None = None,
+        terminal_title: str | None = None,
+        terminal_geometry: str | None = None,
         persist: bool = False,
-    ) -> Optional[List[str]]:
+    ) -> list[str | None]:
         """Build terminal-specific command."""
         try:
             # Prepare command with persistence if requested
@@ -414,10 +416,10 @@ class TerminalLauncher(QObject):
     def _build_gnome_terminal_command(
         self,
         command: str,
-        working_directory: Optional[str],
-        title: Optional[str],
-        geometry: Optional[str],
-    ) -> List[str]:
+        working_directory: str | None,
+        title: str | None,
+        geometry: str | None,
+    ) -> list[str]:
         """Build gnome-terminal command."""
         cmd = ["gnome-terminal"]
 
@@ -436,10 +438,10 @@ class TerminalLauncher(QObject):
     def _build_konsole_command(
         self,
         command: str,
-        working_directory: Optional[str],
-        title: Optional[str],
-        geometry: Optional[str],
-    ) -> List[str]:
+        working_directory: str | None,
+        title: str | None,
+        geometry: str | None,
+    ) -> list[str]:
         """Build konsole command."""
         cmd = ["konsole"]
 
@@ -455,10 +457,10 @@ class TerminalLauncher(QObject):
     def _build_xterm_command(
         self,
         command: str,
-        working_directory: Optional[str],
-        title: Optional[str],
-        geometry: Optional[str],
-    ) -> List[str]:
+        working_directory: str | None,
+        title: str | None,
+        geometry: str | None,
+    ) -> list[str]:
         """Build xterm command."""
         cmd = ["xterm"]
 
@@ -480,8 +482,8 @@ class TerminalLauncher(QObject):
         self,
         terminal_type: str,
         command: str,
-        working_directory: Optional[str],
-    ) -> List[str]:
+        working_directory: str | None,
+    ) -> list[str]:
         """Build generic terminal command."""
         cmd = [terminal_type]
 
@@ -495,9 +497,9 @@ class TerminalLauncher(QObject):
     def _build_alacritty_command(
         self,
         command: str,
-        working_directory: Optional[str],
-        title: Optional[str],
-    ) -> List[str]:
+        working_directory: str | None,
+        title: str | None,
+    ) -> list[str]:
         """Build alacritty command."""
         cmd = ["alacritty"]
 
@@ -513,9 +515,9 @@ class TerminalLauncher(QObject):
     def _build_terminator_command(
         self,
         command: str,
-        working_directory: Optional[str],
-        title: Optional[str],
-    ) -> List[str]:
+        working_directory: str | None,
+        title: str | None,
+    ) -> list[str]:
         """Build terminator command."""
         cmd = ["terminator"]
 
@@ -531,9 +533,9 @@ class TerminalLauncher(QObject):
     def _build_macos_terminal_command(
         self,
         command: str,
-        working_directory: Optional[str],
-        title: Optional[str],
-    ) -> List[str]:
+        working_directory: str | None,
+        title: str | None,
+    ) -> list[str]:
         """Build macOS Terminal.app command using osascript."""
         script_parts = []
 
@@ -549,9 +551,9 @@ class TerminalLauncher(QObject):
     def _build_iterm_command(
         self,
         command: str,
-        working_directory: Optional[str],
-        title: Optional[str],
-    ) -> List[str]:
+        working_directory: str | None,
+        title: str | None,
+    ) -> list[str]:
         """Build iTerm2 command using osascript."""
 
         full_command = command
@@ -573,9 +575,9 @@ class TerminalLauncher(QObject):
         self,
         terminal_type: str,
         command: str,
-        working_directory: Optional[str],
-        title: Optional[str],
-    ) -> List[str]:
+        working_directory: str | None,
+        title: str | None,
+    ) -> list[str]:
         """Build Windows terminal command."""
         if terminal_type == "wt.exe":
             # Windows Terminal

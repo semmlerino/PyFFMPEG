@@ -1,5 +1,7 @@
 """Thread-safe base class for Qt workers with proper lifecycle management."""
 
+from __future__ import annotations
+
 import logging
 import weakref
 from enum import Enum
@@ -12,6 +14,7 @@ from PySide6.QtCore import (
     QThread,
     QWaitCondition,
     Signal,
+    Slot,
 )
 
 from config import ThreadingConfig
@@ -77,7 +80,7 @@ class ThreadSafeWorker(QThread):
         self._state_condition = QWaitCondition()
         self._stop_requested = False
         self._force_stop = False
-        self._connections: List[Tuple[weakref.ref, weakref.ref]] = []
+        self._connections: list[tuple[weakref.ref, weakref.ref]] = []
         self._zombie = False  # Track abandoned threads
 
         # Set up cleanup on thread finished
@@ -128,19 +131,19 @@ class ThreadSafeWorker(QThread):
             if new_state == WorkerState.STOPPED:
                 signal_to_emit = self.worker_stopped
             elif new_state == WorkerState.ERROR:
-
-                def emit_error():
-                    self.worker_error.emit("State error")
-
-                signal_to_emit = emit_error
+                # Store error message for emission outside mutex
+                signal_to_emit = (self.worker_error, "State error")
 
         # Emit signals outside the mutex to prevent deadlock
-        # Direct emission is safe here since we're outside the mutex
+        # This prevents any possibility of deadlock if a slot tries to acquire the same mutex
         if signal_to_emit:
-            if hasattr(signal_to_emit, "emit"):
-                signal_to_emit.emit()
+            if isinstance(signal_to_emit, tuple):
+                # Signal with arguments
+                signal, *args = signal_to_emit
+                signal.emit(*args)
             else:
-                signal_to_emit()
+                # Signal without arguments
+                signal_to_emit.emit()
 
         return True
 
@@ -329,8 +332,13 @@ class ThreadSafeWorker(QThread):
         """
         raise NotImplementedError("Subclasses must implement do_work()")
 
+    @Slot()
     def _on_finished(self) -> None:
-        """Handle thread finished signal for cleanup."""
+        """Handle thread finished signal for cleanup.
+
+        This slot is connected to the thread's finished signal.
+        Properly decorated with @Slot for Qt efficiency.
+        """
         # Disconnect all signals when thread finishes
         self.disconnect_all()
 

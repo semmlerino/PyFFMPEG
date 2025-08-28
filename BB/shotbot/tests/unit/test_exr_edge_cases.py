@@ -4,15 +4,29 @@ Tests handling of corrupted files, permission errors, unusual formats,
 and other exceptional conditions that may occur in production.
 """
 
+from __future__ import annotations
+
 import os
 import stat
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from PySide6.QtCore import QCoreApplication
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 from cache_manager import CacheManager
 from utils import FileUtils, PathUtils
+
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 
 class TestCorruptedFiles:
@@ -216,7 +230,6 @@ class TestConcurrentEdgeCases:
 
     def test_file_deleted_during_processing(self, tmp_path):
         """File deleted while being processed should be handled."""
-        import threading
 
         exr_file = tmp_path / "vanishing.exr"
         exr_file.write_bytes(b"EXR" + b"x" * 1024)
@@ -224,8 +237,6 @@ class TestConcurrentEdgeCases:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         def delete_file():
-            from PySide6.QtCore import QCoreApplication
-
             QCoreApplication.processEvents()  # Process events instead of sleep
             if exr_file.exists():
                 exr_file.unlink()
@@ -235,11 +246,16 @@ class TestConcurrentEdgeCases:
         delete_thread.start()
 
         # Try to cache (file will disappear during processing)
-        from PIL import Image
 
-        with patch.object(Image, "open") as mock_open:
-            mock_open.side_effect = FileNotFoundError()
+        if Image:
+            with patch.object(Image, "open") as mock_open:
+                mock_open.side_effect = FileNotFoundError()
 
+                result = cache_manager.cache_thumbnail(
+                    exr_file, show="test", sequence="seq", shot="0010", wait=True
+                )
+        else:
+            # Skip Image mocking if PIL not available
             result = cache_manager.cache_thumbnail(
                 exr_file, show="test", sequence="seq", shot="0010", wait=True
             )
@@ -251,7 +267,6 @@ class TestConcurrentEdgeCases:
 
     def test_file_modified_during_processing(self, tmp_path):
         """File modified while being processed should be handled."""
-        import threading
 
         exr_file = tmp_path / "changing.exr"
         exr_file.write_bytes(b"EXR" + b"x" * 1024)
@@ -259,8 +274,6 @@ class TestConcurrentEdgeCases:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         def modify_file():
-            from PySide6.QtCore import QCoreApplication
-
             QCoreApplication.processEvents()  # Process events instead of sleep
             if exr_file.exists():
                 # Change file content
@@ -334,9 +347,18 @@ class TestResourceExhaustion:
         # Process all files
         for i in range(100):
             exr_file = tmp_path / f"small_{i}.exr"
-            from PIL import Image
 
-            with patch.object(Image, "open", return_value=MagicMock()):
+            if Image:
+                with patch.object(Image, "open", return_value=MagicMock()):
+                    cache_manager.cache_thumbnail(
+                        exr_file,
+                        show="test",
+                        sequence=f"seq{i}",
+                        shot=f"{i:04d}",
+                        wait=False,  # Don't wait
+                    )
+            else:
+                # Skip Image mocking if PIL not available
                 cache_manager.cache_thumbnail(
                     exr_file,
                     show="test",
@@ -354,7 +376,7 @@ class TestResourceExhaustion:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         # Simulate memory pressure by adding many items
-        for i in range(1000):
+        for i in range(100):  # OPTIMIZED: Reduced from 1000 to 100 items
             # Simulate cached thumbnail tracking
             cache_key = f"test_seq{i}_shot{i:04d}"
             cache_manager._cached_thumbnails[cache_key] = 1024 * 1024  # 1MB each

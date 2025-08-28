@@ -1,5 +1,7 @@
 """Base class for thumbnail widgets to eliminate code duplication."""
 
+from __future__ import annotations
+
 import logging
 import subprocess
 import sys
@@ -164,7 +166,7 @@ class ThumbnailDataProtocol(Protocol):
         """Get full display name."""
         ...
 
-    def get_thumbnail_path(self) -> Optional[Path]:
+    def get_thumbnail_path(self) -> Path | None:
         """Get thumbnail path or None."""
         ...
 
@@ -305,7 +307,7 @@ class ThumbnailWidgetBase(QFrame):
         self.data = data
         self._thumbnail_size = size
         self._selected = False
-        self._pixmap: Optional[QPixmap] = None
+        self._pixmap: QPixmap | None = None
         self._loading_state = LoadingState.IDLE
 
         # Set up UI - template method pattern

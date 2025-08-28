@@ -1,35 +1,41 @@
 """Background worker for scanning previous/approved shots."""
+from __future__ import annotations
 
 import logging
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import Signal
 
 from previous_shots_finder import PreviousShotsFinder
 from shot_model import Shot
+from thread_safe_worker import ThreadSafeWorker, WorkerState
 
 logger = logging.getLogger(__name__)
 
 
-class PreviousShotsWorker(QThread):
+class PreviousShotsWorker(ThreadSafeWorker):
     """Background worker thread for finding approved shots.
 
     This worker runs in a separate thread to avoid blocking the UI
     while scanning the filesystem for user shots.
+
+    Inherits from ThreadSafeWorker for proper lifecycle management
+    and thread safety guarantees.
     """
 
     # Signals
+    started = Signal()  # Emitted when scan starts
     shot_found = Signal(dict)  # Emitted for each shot found
-    scan_progress = Signal(int, int)  # current, total
+    scan_progress = Signal(int, int, str)  # current, total, current_operation
     scan_finished = Signal(list)  # List of all shots found
     error_occurred = Signal(str)  # Error message
 
     def __init__(
         self,
-        active_shots: List[Shot],
-        username: Optional[str] = None,
+        active_shots: list[Shot],
+        username: str | None = None,
         shows_root: Path = Path("/shows"),
         parent=None,
     ):
@@ -39,39 +45,51 @@ class PreviousShotsWorker(QThread):
             active_shots: List of currently active shots to filter out.
             username: Username to search for (uses current if None).
             shows_root: Root directory to search.
-            parent: Optional parent QObject.
+            parent: parent QObject.
         """
         super().__init__(parent)
 
         self._active_shots = active_shots
         self._shows_root = shows_root
         self._finder = PreviousShotsFinder(username)
-        self._should_stop = False
-        self._found_shots: List[Shot] = []
+        # No need for _should_stop, use base class should_stop() method
+        self._found_shots: list[Shot] = []
 
         logger.info(
             f"PreviousShotsWorker initialized for user: {self._finder.username}"
         )
 
     def stop(self) -> None:
-        """Request the worker to stop."""
-        self._should_stop = True
+        """Request the worker to stop safely."""
+        self.request_stop()  # Use base class method for proper state transition
         logger.debug("Stop requested for PreviousShotsWorker")
 
-    def run(self) -> None:
-        """Run the background scanning process."""
+    def do_work(self) -> None:
+        """Perform the background scanning process.
+
+        This method is called by the base class after proper state transitions.
+        The base class handles state management, so we don't need to manage it here.
+        """
         logger.info("Starting previous shots scan")
         start_time = time.time()
 
+        # Emit started signal - base class already emits worker_started
+        self.started.emit()
+
         try:
+            # Emit initial progress
+            self.scan_progress.emit(0, 100, "Initializing scan...")
+
             # PERFORMANCE FIX: Use finder's efficient find command instead of manual traversal
             # This avoids duplicate filesystem scanning
+            self.scan_progress.emit(10, 100, "Scanning filesystem...")
             all_user_shots = self._finder.find_user_shots(self._shows_root)
 
-            if self._should_stop:
+            if self.should_stop():
                 logger.info("Scan stopped by user request")
                 return
 
+            self.scan_progress.emit(50, 100, "Filtering approved shots...")
             # Filter to get only approved shots
             approved_shots = self._finder.filter_approved_shots(
                 all_user_shots, self._active_shots
@@ -79,9 +97,17 @@ class PreviousShotsWorker(QThread):
 
             # Convert to dictionaries for signal emission
             shot_dicts = []
-            for shot in approved_shots:
-                if self._should_stop:
+            total_shots = len(approved_shots)
+
+            for i, shot in enumerate(approved_shots):
+                if self.should_stop():
                     break
+
+                # Emit progress for processing each shot
+                progress = 50 + int((i / total_shots) * 40)  # 50-90% range
+                self.scan_progress.emit(
+                    progress, 100, f"Processing shot {i + 1} of {total_shots}"
+                )
 
                 shot_dict = {
                     "show": shot.show,
@@ -92,6 +118,9 @@ class PreviousShotsWorker(QThread):
                 shot_dicts.append(shot_dict)
                 self.shot_found.emit(shot_dict)
 
+            # Final progress update
+            self.scan_progress.emit(100, 100, "Scan completed")
+
             elapsed = time.time() - start_time
             logger.info(
                 f"Previous shots scan completed in {elapsed:.2f}s. "
@@ -101,12 +130,20 @@ class PreviousShotsWorker(QThread):
             # Emit final results
             self.scan_finished.emit(shot_dicts)
 
+            # Base class handles state transition and worker_stopped signal
+
         except Exception as e:
             error_msg = f"Error during previous shots scan: {e}"
             logger.error(error_msg)
             self.error_occurred.emit(error_msg)
+            # Re-raise to let base class handle error state
+            raise
 
-    def _scan_for_user_shots(self) -> List[Shot]:
+            # Transition to error state then stopped
+            self.set_state(WorkerState.ERROR)
+            self.set_state(WorkerState.STOPPED)
+
+    def _scan_for_user_shots(self) -> list[Shot]:
         """DEPRECATED: Use self._finder.find_user_shots() instead.
 
         This method duplicates functionality already in PreviousShotsFinder.
@@ -130,7 +167,7 @@ class PreviousShotsWorker(QThread):
                 logger.debug(f"Scanning {total_shows} shows for user work")
 
                 for index, show_dir in enumerate(show_dirs):
-                    if self._should_stop:
+                    if self.should_stop():
                         break
 
                     # Emit progress
@@ -149,7 +186,7 @@ class PreviousShotsWorker(QThread):
 
         return shots
 
-    def _find_shots_in_show(self, show_dir: Path) -> List[Shot]:
+    def _find_shots_in_show(self, show_dir: Path) -> list[Shot]:
         """Find user shots within a specific show.
 
         Args:
@@ -168,14 +205,14 @@ class PreviousShotsWorker(QThread):
             # Look for user directories in shot paths
 
             for sequence_dir in shots_dir.iterdir():
-                if self._should_stop:
+                if self.should_stop():
                     break
 
                 if not sequence_dir.is_dir():
                     continue
 
                 for shot_dir in sequence_dir.iterdir():
-                    if self._should_stop:
+                    if self.should_stop():
                         break
 
                     if not shot_dir.is_dir():
@@ -206,7 +243,7 @@ class PreviousShotsWorker(QThread):
 
         return shots
 
-    def get_found_shots(self) -> List[Shot]:
+    def get_found_shots(self) -> list[Shot]:
         """Get the list of shots found so far.
 
         Returns:

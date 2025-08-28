@@ -1,17 +1,42 @@
 """Integration tests for shot workflow with cache integration."""
 
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+
+from __future__ import annotations
+
 import json
 import shutil
+import sys
 import tempfile
-import unittest.mock
+import traceback
 from datetime import datetime
 from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.integration
+
+# Import real application components for integration testing
+from cache_manager import CacheManager
+from shot_model import RefreshResult, ShotModel
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import (
+    TestProcessPool,
+    TestSubprocess,
+)
 
 
 class TestShotWorkflowIntegration:
     """Integration tests for shot refresh and caching workflow following UNIFIED_TESTING_GUIDE."""
 
     def setup_method(self):
+        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
+        self.test_subprocess = TestSubprocess()
         """Minimal setup to avoid pytest fixture overhead."""
         self.temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_shot_workflow_"))
         self.cache_dir = self.temp_dir / "cache"
@@ -30,13 +55,8 @@ class TestShotWorkflowIntegration:
     def test_shot_model_refresh_with_cache_integration(self):
         """Test shot model refreshing from workspace with cache integration."""
         # Import locally to avoid pytest environment issues
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from tests.test_doubles import TestProcessPool
-        from cache_manager import CacheManager
-        from shot_model import ShotModel, RefreshResult
 
         # Mock ws command output with realistic shot data
         mock_ws_output = """
@@ -44,197 +64,176 @@ workspace /shows/show1/shots/seq01/seq01_0010
 workspace /shows/show1/shots/seq01/seq01_0020
 workspace /shows/show1/shots/seq02/seq02_0010
 """.strip()
-        
+
         # Create test double for ProcessPoolManager
         test_process_pool = TestProcessPool()
         test_process_pool.set_outputs(mock_ws_output)
-        
+
         # Create real cache manager with temp directory
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        
+
         # Create shot model and replace ProcessPoolManager with test double
         shot_model = ShotModel(cache_manager=cache_manager)
         shot_model._process_pool = test_process_pool
-        
+
         # Test initial refresh
         result = shot_model.refresh_shots()
-        
+
         # Verify result type and success
         assert isinstance(result, RefreshResult)
         assert result.success is True
         assert result.has_changes is True  # First refresh should have changes
-        
+
         # Verify shots were parsed correctly
         shots = shot_model.get_shots()
         assert len(shots) == 3
-        
+
         # Verify first shot details
         first_shot = shots[0]
         assert first_shot.show == "show1"
         assert first_shot.sequence == "seq01"
         assert first_shot.shot == "seq01_0010"  # Shot name is the full directory name
         assert "seq01_0010" in first_shot.workspace_path
-        
+
         # Verify test process pool was used
         assert len(test_process_pool.commands) == 1
         assert "ws -sg" in test_process_pool.commands[0]
 
     def test_shot_data_persistence_through_cache(self):
         """Test shot data persists correctly through cache storage."""
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from tests.test_doubles import TestProcessPool
-        from cache_manager import CacheManager
-        from shot_model import ShotModel
 
         # Create cache manager
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        
+
         # Create test shot data
         test_shots_data = [
             {
                 "show": "test_show",
-                "sequence": "seq01", 
+                "sequence": "seq01",
                 "shot": "seq01_0010",
                 "workspace_path": "/shows/test_show/shots/seq01/seq01_0010",
-                "name": "seq01_0010"
+                "name": "seq01_0010",
             },
             {
                 "show": "test_show",
                 "sequence": "seq01",
-                "shot": "seq01_0020", 
+                "shot": "seq01_0020",
                 "workspace_path": "/shows/test_show/shots/seq01/seq01_0020",
-                "name": "seq01_0020"
-            }
+                "name": "seq01_0020",
+            },
         ]
-        
+
         # Store shots in cache
         cache_manager._storage_backend.write_json(
-            cache_manager._shot_cache._cache_file, 
-            {
-                "timestamp": datetime.now().isoformat(),
-                "shots": test_shots_data
-            }
+            cache_manager._shot_cache._cache_file,
+            {"timestamp": datetime.now().isoformat(), "shots": test_shots_data},
         )
-        
+
         # Create shot model and replace ProcessPoolManager with failing test double
         shot_model = ShotModel(cache_manager=cache_manager)
         test_process_pool = TestProcessPool()
         # Don't set outputs to simulate command failure
         shot_model._process_pool = test_process_pool
-        
+
         # Load shots should fall back to cache
         shots = shot_model.get_shots()
-        
+
         # Verify shots loaded from cache
         assert len(shots) == 2
         assert shots[0].show == "test_show"
-        assert shots[0].sequence == "seq01" 
+        assert shots[0].sequence == "seq01"
         assert shots[0].shot == "seq01_0010"
         assert shots[1].shot == "seq01_0020"
 
     def test_shot_model_change_detection(self):
         """Test shot model correctly detects changes between refreshes."""
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from tests.test_doubles import TestProcessPool
-        from cache_manager import CacheManager
-        from shot_model import ShotModel
 
         cache_manager = CacheManager(cache_dir=self.cache_dir)
         shot_model = ShotModel(cache_manager=cache_manager)
-        
+
         # Initial shot data
         initial_output = "workspace /shows/show1/shots/seq01/seq01_0010"
-        
+
         # Create test double and replace ProcessPoolManager
         test_process_pool = TestProcessPool()
         test_process_pool.set_outputs(initial_output)
         shot_model._process_pool = test_process_pool
-        
+
         # First refresh
         result1 = shot_model.refresh_shots()
         assert result1.success is True
         assert result1.has_changes is True  # First refresh always has changes
-        
+
         # Second refresh with same data - should detect no changes
         test_process_pool.set_outputs(initial_output)  # Set same output again
         result2 = shot_model.refresh_shots()
         assert result2.success is True
         assert result2.has_changes is False  # No changes
-        
+
         # Third refresh with new shot - should detect changes
-        updated_output = initial_output + "\nworkspace /shows/show1/shots/seq01/seq01_0020"
+        updated_output = (
+            initial_output + "\nworkspace /shows/show1/shots/seq01/seq01_0020"
+        )
         test_process_pool.set_outputs(updated_output)
-        
+
         result3 = shot_model.refresh_shots()
         assert result3.success is True
         assert result3.has_changes is True  # New shot added
-        
+
         # Verify shot count increased
         shots = shot_model.get_shots()
         assert len(shots) == 2
 
     def test_shot_model_cache_invalidation_workflow(self):
         """Test cache invalidation when shots are updated."""
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from tests.test_doubles import TestProcessPool
-        from cache_manager import CacheManager
-        from shot_model import ShotModel
 
         cache_manager = CacheManager(cache_dir=self.cache_dir)
         shot_model = ShotModel(cache_manager=cache_manager)
-        
+
         # Create test double and replace ProcessPoolManager
         test_process_pool = TestProcessPool()
         test_process_pool.set_outputs("workspace /shows/show1/shots/seq01/seq01_0010")
         shot_model._process_pool = test_process_pool
-        
+
         # Refresh shots to populate cache
         shot_model.refresh_shots()
-        
+
         # Verify cache file was created
         cache_file = self.cache_dir / "shots.json"
         assert cache_file.exists()
-        
+
         # Read cache data
-        with open(cache_file, 'r') as f:
+        with open(cache_file, "r") as f:
             cache_data = json.load(f)
-        
+
         assert "shots" in cache_data
         assert len(cache_data["shots"]) == 1
         assert cache_data["shots"][0]["show"] == "show1"
-        
+
         # Update shots and verify cache is updated
         test_process_pool.set_outputs("workspace /shows/show2/shots/seq01/seq01_0010")
-        
+
         shot_model.refresh_shots()
-        
+
         # Verify cache was updated
-        with open(cache_file, 'r') as f:
+        with open(cache_file, "r") as f:
             updated_cache_data = json.load(f)
-        
+
         assert updated_cache_data["shots"][0]["show"] == "show2"
 
     def test_shot_model_error_handling_with_cache_fallback(self):
         """Test shot model error handling with cache fallback."""
-        import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from tests.test_doubles import TestProcessPool
-        from cache_manager import CacheManager
-        from shot_model import ShotModel
 
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        
+
         # Pre-populate cache with test data
         cache_data = {
             "timestamp": datetime.now().isoformat(),
@@ -242,19 +241,19 @@ workspace /shows/show1/shots/seq02/seq02_0010
                 {
                     "show": "cached_show",
                     "sequence": "seq01",
-                    "shot": "seq01_0010", 
+                    "shot": "seq01_0010",
                     "workspace_path": "/shows/cached_show/shots/seq01/seq01_0010",
-                    "name": "seq01_0010"
+                    "name": "seq01_0010",
                 }
-            ]
+            ],
         }
-        
+
         cache_file = self.cache_dir / "shots.json"
-        with open(cache_file, 'w') as f:
+        with open(cache_file, "w") as f:
             json.dump(cache_data, f)
-        
+
         shot_model = ShotModel(cache_manager=cache_manager)
-        
+
         # Should load from cache at initialization if available
         shots = shot_model.get_shots()
         assert len(shots) == 1
@@ -289,7 +288,7 @@ if __name__ == "__main__":
         print("All shot workflow integration tests passed!")
     except Exception as e:
         print(f"Test failed: {e}")
-        import traceback
+
         traceback.print_exc()
     finally:
         test.teardown_method()

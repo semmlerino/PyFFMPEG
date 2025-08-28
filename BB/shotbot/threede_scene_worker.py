@@ -1,5 +1,7 @@
 """Thread-safe worker for background 3DE scene discovery."""
 
+from __future__ import annotations
+
 import logging
 import time
 from collections import deque
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 class ProgressCalculator:
     """Helper class for calculating progress and ETA during file scanning."""
 
-    def __init__(self, smoothing_window: Optional[int] = None):  # pyright: ignore[reportMissingSuperCall]
+    def __init__(self, smoothing_window: int | None = None):  # pyright: ignore[reportMissingSuperCall]
         """Initialize progress calculator.
 
         Args:
@@ -31,15 +33,15 @@ class ProgressCalculator:
         self.smoothing_window = smoothing_window or Config.PROGRESS_ETA_SMOOTHING_WINDOW
         self.start_time = time.time()
         self.last_update_time = self.start_time
-        self.processing_times: Deque[float] = deque(maxlen=self.smoothing_window)
+        self.processing_times: deque[float] = deque(maxlen=self.smoothing_window)
         self.files_processed = 0
         self.total_files_estimate = 0
 
     def update(
         self,
         files_processed: int,
-        total_estimate: Optional[int] = None,
-    ) -> Tuple[float, str]:
+        total_estimate: int | None = None,
+    ) -> tuple[float, str]:
         """Update progress and calculate ETA.
 
         Args:
@@ -149,9 +151,9 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
     def __init__(
         self,
-        shots: List[Shot],
-        excluded_users: Optional[Set[str]] = None,
-        batch_size: Optional[int] = None,
+        shots: list[Shot],
+        excluded_users: set[str | None] = None,
+        batch_size: int | None = None,
         enable_progressive: bool = True,
         scan_all_shots: bool = False,
     ):
@@ -182,7 +184,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         # Progress tracking
         self._progress_calculator = ProgressCalculator()
         self._last_progress_time = 0
-        self._all_scenes: List[ThreeDEScene] = []
+        self._all_scenes: list[ThreeDEScene] = []
         self._files_processed = 0
 
         # Store desired priority for setting after thread starts
@@ -322,7 +324,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             # Re-raise to trigger worker_error signal from base class
             raise
 
-    def _discover_scenes_progressive(self) -> List[ThreeDEScene]:
+    def _discover_scenes_progressive(self) -> list[ThreeDEScene]:
         """Progressive scene discovery with batch processing and detailed progress.
 
         Returns:
@@ -430,7 +432,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         return self._all_scenes
 
-    def _discover_all_scenes_in_shows(self) -> List[ThreeDEScene]:
+    def _discover_all_scenes_in_shows(self) -> list[ThreeDEScene]:
         """Discover ALL 3DE scenes in the shows (not just user's shots).
 
         This uses the efficient file-first discovery to find ALL 3DE files,
@@ -476,7 +478,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         return other_scenes
 
-    def _discover_scenes_traditional(self) -> List[ThreeDEScene]:
+    def _discover_scenes_traditional(self) -> list[ThreeDEScene]:
         """Traditional scene discovery method for backward compatibility.
 
         Returns:
@@ -484,11 +486,11 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         """
         logger.info("Using traditional 3DE scene discovery method")
 
-        all_scenes: List[ThreeDEScene] = []
+        all_scenes: list[ThreeDEScene] = []
 
         # Extract unique shows and show roots
-        shows_to_search: Set[str] = set()
-        show_roots: Set[str] = set()
+        shows_to_search: set[str] = set()
+        show_roots: set[str] = set()
 
         for shot in self.shots:
             shows_to_search.add(shot.show)

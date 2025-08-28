@@ -3,6 +3,8 @@
 Following the testing guide's advice to minimize mocking and test real behavior.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import pytest
@@ -10,7 +12,16 @@ import pytest
 from cache_manager import CacheManager
 from config import Config
 from shot_model import Shot
+
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from utils import FileUtils, PathUtils
+
+pytestmark = pytest.mark.unit
 
 
 class TestThumbnailPriority:

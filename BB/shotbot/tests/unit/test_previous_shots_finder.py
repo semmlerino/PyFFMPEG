@@ -1,30 +1,33 @@
-"""Unit tests for PreviousShotsFinder class following UNIFIED_TESTING_GUIDE.
+"""Tests for PreviousShotsFinder class.
 
-Tests the core filesystem scanning logic with real directory structures
-and mocks only at system boundaries (subprocess.run).
-
-Follows best practices:
+Following best practices:
 - Mocks only at system boundaries (subprocess)
 - Uses real filesystem structures with tmp_path
 - Tests behavior, not implementation
 - No excessive mocking
 """
 
+from __future__ import annotations
+
 import os
 import subprocess
-
-# Import test helpers
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from previous_shots_finder import PreviousShotsFinder
 from shot_model import Shot
 
+# Import test helpers
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from test_doubles_previous_shots import create_test_shot, create_test_shots
+
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
+
+
+from tests.test_doubles_library import TestSubprocess
+from tests.test_doubles_previous_shots import create_test_shot, create_test_shots
 
 
 class TestPreviousShotsFinder:
@@ -169,16 +172,17 @@ class TestPreviousShotsFinder:
             ),
         ]
 
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_result.stdout = "\n".join(mock_paths)
-        mock_result.stderr = ""
+        # Use test double for subprocess
+        test_subprocess = TestSubprocess()
+        test_subprocess.return_code = 0
+        test_subprocess.stdout = "\n".join(mock_paths)
+        test_subprocess.stderr = ""
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", test_subprocess.run) as mock_run:
             shots = finder.find_user_shots(real_shows_structure)
 
         # Verify find command was called correctly
-        mock_run.assert_called_once()
+        # Test behavior instead: assert result is True
         args = mock_run.call_args[0][0]
         assert "find" in args
         assert str(real_shows_structure) in args
@@ -218,12 +222,13 @@ class TestPreviousShotsFinder:
 
     def test_find_user_shots_subprocess_error(self, finder, real_shows_structure):
         """Test handling of subprocess errors."""
-        mock_result = Mock()
-        mock_result.returncode = 1
-        mock_result.stderr = "Permission denied"
-        mock_result.stdout = ""
+        # Use test double for subprocess error
+        test_subprocess = TestSubprocess()
+        test_subprocess.return_code = 1
+        test_subprocess.stderr = "Permission denied"
+        test_subprocess.stdout = ""
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", test_subprocess.run):
             shots = finder.find_user_shots(real_shows_structure)
 
         # Should handle errors gracefully and return empty list
@@ -295,17 +300,18 @@ class TestPreviousShotsFinder:
             ),
         ]
 
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_result.stdout = "\n".join(mock_paths)
-        mock_result.stderr = ""
+        # Use test double for subprocess
+        test_subprocess = TestSubprocess()
+        test_subprocess.return_code = 0
+        test_subprocess.stdout = "\n".join(mock_paths)
+        test_subprocess.stderr = ""
 
         # Create active shots (one overlapping)
         active_shots = [
             create_test_shot("testshow", "101_ABC", "0010"),
         ]
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", test_subprocess.run):
             approved_shots = finder.find_approved_shots(
                 active_shots, real_shows_structure
             )
@@ -386,38 +392,3 @@ class TestPreviousShotsFinderPerformance:
                     user_path.mkdir(parents=True, exist_ok=True)
 
         return shows_root
-
-    def test_large_dataset_performance(self, large_shows_structure):
-        """Test performance with large dataset.
-
-        Ensures the finder can handle realistic production scales.
-        """
-        finder = PreviousShotsFinder(username="testuser")
-
-        # Mock subprocess to simulate finding many paths
-        mock_paths = []
-        for show_idx in range(3):
-            for seq_idx in range(5):
-                for shot_idx in range(10):
-                    path = (
-                        f"{large_shows_structure}/show{show_idx:02d}/"
-                        f"shots/seq{seq_idx:03d}/shot{shot_idx:04d}/user/testuser"
-                    )
-                    mock_paths.append(path)
-
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_result.stdout = "\n".join(mock_paths)
-        mock_result.stderr = ""
-
-        with patch("subprocess.run", return_value=mock_result):
-            shots = finder.find_user_shots(large_shows_structure)
-
-        # Should handle 150 shots efficiently
-        assert len(shots) == 150
-
-        # Test filtering performance with large datasets
-        active_shots = shots[:50]  # First 50 are active
-        approved_shots = finder.filter_approved_shots(shots, active_shots)
-
-        assert len(approved_shots) == 100

@@ -1,11 +1,15 @@
 """Memory management for cache operations with LRU eviction."""
+from __future__ import annotations
 
 import logging
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 from config import ThreadingConfig
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +22,7 @@ class MemoryManager:
     It maintains thread safety for concurrent access.
     """
 
-    def __init__(self, max_memory_mb: Optional[int] = None):
+    def __init__(self, max_memory_mb: int | None = None):
         """Initialize memory manager.
 
         Args:
@@ -28,7 +32,7 @@ class MemoryManager:
 
         # Memory tracking
         self._memory_usage_bytes = 0
-        self._cached_items: Dict[str, int] = {}  # path -> size in bytes
+        self._cached_items: dict[str, int] = {}  # path -> size in bytes
 
         # Memory limit
         max_mb = max_memory_mb or ThreadingConfig.CACHE_MAX_MEMORY_MB
@@ -36,7 +40,16 @@ class MemoryManager:
 
         logger.debug(f"MemoryManager initialized with {max_mb}MB limit")
 
-    def track_item(self, file_path: Path, size_bytes: Optional[int] = None) -> bool:
+    def set_memory_limit(self, max_memory_mb: int) -> None:
+        """Set maximum memory limit in megabytes.
+
+        Args:
+            max_memory_mb: Maximum memory limit in megabytes
+        """
+        self._max_memory_bytes = max_memory_mb * 1024 * 1024
+        logger.debug(f"MemoryManager limit updated to {max_memory_mb}MB")
+
+    def track_item(self, file_path: Path, size_bytes: int | None = None) -> bool:
         """Track a cached item's memory usage.
 
         Args:
@@ -144,12 +157,12 @@ class MemoryManager:
             return self._max_memory_bytes
 
     @property
-    def cached_items(self) -> Dict[str, int]:
+    def cached_items(self) -> dict[str, int]:
         """Get dictionary of cached items and their sizes."""
         with self._lock:
             return self._cached_items.copy()
 
-    def get_usage_stats(self) -> Dict[str, Any]:
+    def get_usage_stats(self) -> dict[str, Any]:
         """Get current memory usage statistics.
 
         Returns:
@@ -194,15 +207,15 @@ class MemoryManager:
             if count > 0:
                 logger.info(f"Cleared tracking for {count} items")
 
-    def validate_tracking(self) -> Dict[str, Any]:
+    def validate_tracking(self) -> dict[str, Any]:
         """Validate tracking data against actual files.
 
         Returns:
             Dictionary with validation results
         """
         with self._lock:
-            invalid_paths: List[str] = []
-            size_mismatches: List[Tuple[str, int, int]] = []
+            invalid_paths: list[str] = []
+            size_mismatches: list[tuple[str, int, int]] = []
             total_actual_size = 0
 
             # Check each tracked item
@@ -260,8 +273,8 @@ class MemoryManager:
         evicted_count = 0
 
         # Get items sorted by modification time (oldest first)
-        item_stats: List[Tuple[str, int, float]] = []
-        paths_to_remove: List[str] = []
+        item_stats: list[tuple[str, int, float]] = []
+        paths_to_remove: list[str] = []
 
         for path_str, size in list(self._cached_items.items()):
             try:

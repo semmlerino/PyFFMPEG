@@ -8,12 +8,20 @@ This refactored version:
 - Uses real CacheManager with temporary storage
 """
 
+from __future__ import annotations
+
 import os
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from shot_model import Shot
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+
+pytestmark = pytest.mark.unit
 
 
 class TestThreeDEScene:

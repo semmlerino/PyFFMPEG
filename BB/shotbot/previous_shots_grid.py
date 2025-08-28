@@ -1,5 +1,7 @@
 """Grid widget for displaying previous/approved shots."""
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, Optional
 
@@ -17,6 +19,7 @@ from PySide6.QtWidgets import (
 from cache_manager import CacheManager
 from config import Config
 from previous_shots_model import PreviousShotsModel
+from progress_manager import ProgressManager
 from shot_model import Shot
 from thumbnail_widget import ThumbnailWidget
 
@@ -37,8 +40,8 @@ class PreviousShotsGrid(QWidget):
     def __init__(
         self,
         previous_shots_model: PreviousShotsModel,
-        cache_manager: Optional[CacheManager] = None,
-        parent: Optional[QWidget] = None,
+        cache_manager: CacheManager | None = None,
+        parent: QWidget | None = None,
     ):
         """Initialize the previous shots grid.
 
@@ -51,15 +54,16 @@ class PreviousShotsGrid(QWidget):
 
         self._model = previous_shots_model
         self._cache_manager = cache_manager or CacheManager()
-        self._thumbnail_widgets: Dict[str, ThumbnailWidget] = {}
-        self._selected_shot: Optional[Shot] = None
+        self._thumbnail_widgets: dict[str, ThumbnailWidget] = {}
+        self._selected_shot: Shot | None = None
+        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE  # type: ignore[attr-defined]
 
         # PERFORMANCE: Resize debouncing timer
         self._resize_timer = QTimer()
         self._resize_timer.setSingleShot(True)
         self._resize_timer.timeout.connect(self._do_resize)
         self._resize_timer.setInterval(100)  # 100ms debounce
-        self._pending_size: Optional[QSize] = None
+        self._pending_size: QSize | None = None
 
         self._setup_ui()
         self._connect_signals()
@@ -68,6 +72,15 @@ class PreviousShotsGrid(QWidget):
         self._populate_grid()
 
         logger.info("PreviousShotsGrid initialized")
+
+    @property
+    def thumbnail_size(self) -> int:
+        """Get the current thumbnail size.
+
+        Returns:
+            Current thumbnail size in pixels
+        """
+        return self._thumbnail_size  # type: ignore[attr-defined]
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
@@ -121,6 +134,24 @@ class PreviousShotsGrid(QWidget):
         self._model.scan_finished.connect(self._on_scan_finished)
         self._model.scan_progress.connect(self._on_scan_progress)
 
+    @Slot(int, int, str)
+    def _on_scan_progress(self, current: int, total: int, operation: str) -> None:
+        """Handle scan progress updates.
+
+        Args:
+            current: Current progress value
+            total: Total progress value
+            operation: Current operation description
+        """
+        # Update progress operation if active
+        operation_obj = ProgressManager.get_current_operation()
+        if operation_obj:
+            operation_obj.set_total(total)
+            operation_obj.update(current, operation)
+
+        # Update status label
+        self._status_label.setText(f"Scanning: {operation}")
+
     @Slot()
     def _on_refresh_clicked(self) -> None:
         """Handle refresh button click."""
@@ -136,8 +167,16 @@ class PreviousShotsGrid(QWidget):
         self._refresh_button.setText("Scanning...")
         self._status_label.setText("Scanning for approved shots...")
 
+        # Start progress operation for previous shots scan
+        ProgressManager.start_operation("Scanning for previous shots")
+
     @Slot()
     def _on_scan_finished(self) -> None:
+        """Handle scan completion."""
+        # Finish progress operation
+        ProgressManager.finish_operation(success=True)
+
+        # Reset UI state
         """Handle scan completion."""
         self._refresh_button.setEnabled(True)
         self._refresh_button.setText("Refresh")
@@ -174,7 +213,7 @@ class PreviousShotsGrid(QWidget):
         self._grid_widget.show()
 
         # Calculate grid dimensions
-        columns = max(1, self.width() // (Config.DEFAULT_THUMBNAIL_SIZE + 20))
+        columns = max(1, self.width() // (self._thumbnail_size + 20))  # type: ignore[attr-defined]
 
         # Add thumbnails to grid
         for index, shot in enumerate(shots):
@@ -201,7 +240,7 @@ class PreviousShotsGrid(QWidget):
             ThumbnailWidget instance.
         """
         # FIX: ThumbnailWidget takes (shot, size) not (shot, cache_manager)
-        thumbnail = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
+        thumbnail = ThumbnailWidget(shot, self._thumbnail_size)  # type: ignore[attr-defined]
 
         # Set the cache manager for the widget class if needed
         if self._cache_manager:
@@ -269,7 +308,7 @@ class PreviousShotsGrid(QWidget):
         self.shot_double_clicked.emit(shot)
         logger.debug(f"Double-clicked approved shot: {shot.shot}")
 
-    def get_selected_shot(self) -> Optional[Shot]:
+    def get_selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
 
         Returns:

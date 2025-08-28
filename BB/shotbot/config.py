@@ -49,6 +49,7 @@ Thread Safety:
     access. Runtime modifications should be avoided in production environments.
 """
 
+import multiprocessing
 from pathlib import Path
 
 
@@ -95,6 +96,7 @@ class Config:
 
     # Threading
     MAX_THUMBNAIL_THREADS = 4
+    CPU_COUNT = multiprocessing.cpu_count()  # Number of CPU cores available
 
     # Memory optimization (deprecated - Model/View is always used)
     # The Model/View architecture provides automatic memory optimization
@@ -118,7 +120,12 @@ class Config:
     # Cache settings
     CACHE_EXPIRY_MINUTES = 1440  # Cache for 24 hours (1 day) - data persists longer
     CACHE_THUMBNAIL_SIZE = 512  # Size for cached thumbnails
-    CACHE_REFRESH_INTERVAL_MINUTES = 10  # Background refresh check interval
+    CACHE_REFRESH_INTERVAL_MINUTES = (
+        60  # Background refresh check interval (once per hour)
+    )
+    ENABLE_BACKGROUND_REFRESH = (
+        True  # Can be overridden by SHOTBOT_NO_BACKGROUND_REFRESH env var
+    )
 
     # Enhanced cache settings
     PATH_CACHE_TTL_SECONDS = 300  # 5 minutes for path validation (10x improvement)
@@ -144,6 +151,12 @@ class Config:
     # Performance monitoring
     ENABLE_PERFORMANCE_MONITORING = True
     CACHE_STATS_LOG_INTERVAL = 300  # Log cache stats every 5 minutes
+
+    # Notification settings
+    NOTIFICATION_TOAST_DURATION_MS = 4000  # Auto-dismiss time for toast notifications
+    NOTIFICATION_SUCCESS_TIMEOUT_MS = 3000  # Success message timeout in status bar
+    NOTIFICATION_ERROR_TIMEOUT_MS = 5000  # Error message timeout in status bar
+    NOTIFICATION_MAX_TOASTS = 5  # Maximum simultaneous toast notifications
 
     # VFX pipeline settings
     DEFAULT_USERNAME = "gabriel-h"  # Default username for pipeline paths

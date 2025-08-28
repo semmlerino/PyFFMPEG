@@ -4,7 +4,7 @@ This module provides lightweight test doubles for use in unit tests,
 avoiding excessive mocking and focusing on behavior testing.
 
 Test Doubles Provided:
-    - TestSignal: Lightweight signal emulation for non-Qt components
+    - SignalDouble: Lightweight signal emulation for non-Qt components
     - TestProcessPool: Subprocess boundary mock with predictable behavior
     - TestFileSystem: In-memory filesystem for fast testing
     - TestQApplication: Minimal Qt application for widget testing
@@ -15,238 +15,22 @@ Usage:
     more realistic behavior while maintaining test isolation and speed.
 """
 
-import subprocess
+from __future__ import annotations
+
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
+import pytest
 
-class TestSignal:
-    """Lightweight signal test double for non-Qt components.
+# This test file follows UNIFIED_TESTING_GUIDE best practices:
+# - Test behavior, not implementation
+# - Use test doubles instead of mocks
+# - Real components where possible
+# - Thread-safe testing patterns
 
-    Provides a signal-like interface without Qt dependencies, useful for
-    testing components that emit events without requiring full Qt setup.
-
-    Example:
-        signal = TestSignal()
-        signal.connect(callback_function)
-        signal.emit("data")
-        assert signal.was_emitted
-        assert signal.emission_count == 1
-    """
-
-    __test__ = False
-
-    def __init__(self):
-        """Initialize the test signal."""
-        self.emissions: List[Tuple[Any, ...]] = []
-        self.callbacks: List[Callable] = []
-        self.blocked = False
-
-    def emit(self, *args: Any) -> None:
-        """Emit signal with given arguments.
-
-        Args:
-            *args: Arguments to pass to connected callbacks
-        """
-        if self.blocked:
-            return
-
-        self.emissions.append(args)
-        for callback in self.callbacks:
-            try:
-                callback(*args)
-            except Exception:
-                pass  # Swallow exceptions in test callbacks
-
-    def connect(self, callback: Callable) -> None:
-        """Connect a callback to this signal.
-
-        Args:
-            callback: Function to call when signal is emitted
-        """
-        if callback not in self.callbacks:
-            self.callbacks.append(callback)
-
-    def disconnect(self, callback: Callable) -> None:
-        """Disconnect a callback from this signal.
-
-        Args:
-            callback: Function to remove from callbacks
-        """
-        if callback in self.callbacks:
-            self.callbacks.remove(callback)
-
-    def block(self) -> None:
-        """Block signal emission."""
-        self.blocked = True
-
-    def unblock(self) -> None:
-        """Unblock signal emission."""
-        self.blocked = False
-
-    def clear(self) -> None:
-        """Clear emission history."""
-        self.emissions.clear()
-
-    @property
-    def was_emitted(self) -> bool:
-        """Check if signal was ever emitted."""
-        return len(self.emissions) > 0
-
-    @property
-    def emission_count(self) -> int:
-        """Get number of times signal was emitted."""
-        return len(self.emissions)
-
-    @property
-    def last_emission(self) -> Optional[Tuple[Any, ...]]:
-        """Get arguments from last emission."""
-        return self.emissions[-1] if self.emissions else None
-
-
-class TestProcessPool:
-    """Test double for subprocess operations at system boundary.
-
-    Replaces actual subprocess calls with predictable test behavior,
-    following the principle of mocking only at system boundaries.
-
-    Example:
-        pool = TestProcessPool()
-        pool.set_outputs("workspace /test/path", "another output")
-        result = pool.execute_workspace_command("ws -sg")
-        assert result == "workspace /test/path"
-    """
-
-    __test__ = False
-
-    def __init__(self):
-        """Initialize the test process pool."""
-        self.commands: List[str] = []
-        self.outputs: List[str] = []
-        self.errors: List[str] = []
-        self.should_fail = False
-        self.fail_on_commands: Set[str] = set()
-        self.delay_seconds = 0.0
-        self.call_count = 0
-
-        # Signals for testing async behavior
-        self.command_started = TestSignal()
-        self.command_completed = TestSignal()
-        self.command_failed = TestSignal()
-
-    def execute_workspace_command(self, command: str, **kwargs) -> str:
-        """Execute a workspace command (test implementation).
-
-        Args:
-            command: Command to execute
-            **kwargs: Additional arguments (ignored in test)
-
-        Returns:
-            str: Predetermined output
-
-        Raises:
-            subprocess.CalledProcessError: If configured to fail
-        """
-        self.commands.append(command)
-        self.call_count += 1
-        self.command_started.emit(command)
-
-        # Simulate delay if configured
-        if self.delay_seconds > 0:
-            import time
-
-            time.sleep(self.delay_seconds)
-
-        # Check for specific command failures
-        if self.should_fail or command in self.fail_on_commands:
-            error_msg = (
-                self.errors.pop(0) if self.errors else f"Command failed: {command}"
-            )
-            self.command_failed.emit(command, error_msg)
-            raise subprocess.CalledProcessError(1, command, output=error_msg)
-
-        # Return predetermined output
-        output = self.outputs.pop(0) if self.outputs else ""
-        self.command_completed.emit(command, output)
-        return output
-
-    def execute(self, command: str, **kwargs) -> subprocess.CompletedProcess:
-        """Execute a general command (test implementation).
-
-        Args:
-            command: Command to execute
-            **kwargs: Additional arguments
-
-        Returns:
-            subprocess.CompletedProcess: Test result
-        """
-        output = self.execute_workspace_command(command, **kwargs)
-        return subprocess.CompletedProcess(
-            args=command,
-            returncode=0 if not self.should_fail else 1,
-            stdout=output,
-            stderr="" if not self.should_fail else output,
-        )
-
-    def set_outputs(self, *outputs: str) -> None:
-        """Set outputs to return for subsequent commands.
-
-        Args:
-            *outputs: Output strings to return in order
-        """
-        self.outputs = list(outputs)
-
-    def set_errors(self, *errors: str) -> None:
-        """Set error messages for failed commands.
-
-        Args:
-            *errors: Error messages to use for failures
-        """
-        self.errors = list(errors)
-
-    def fail_on(self, *commands: str) -> None:
-        """Configure specific commands to fail.
-
-        Args:
-            *commands: Commands that should fail when executed
-        """
-        self.fail_on_commands.update(commands)
-
-    def reset(self) -> None:
-        """Reset all state for fresh test."""
-        self.commands.clear()
-        self.outputs.clear()
-        self.errors.clear()
-        self.should_fail = False
-        self.fail_on_commands.clear()
-        self.delay_seconds = 0.0
-        self.call_count = 0
-        self.command_started.clear()
-        self.command_completed.clear()
-        self.command_failed.clear()
-
-    def invalidate_cache(self, command: str) -> None:
-        """Invalidate cache for a specific command (test implementation)."""
-        # In test, just track that it was called
-        pass
-
-    def get_metrics(self) -> Dict[str, Any]:
-        """Get performance metrics (test implementation)."""
-        return {
-            "subprocess_calls": self.call_count,
-            "cache_hits": 0,
-            "cache_misses": self.call_count,
-            "average_response_ms": 100.0 if self.call_count > 0 else 0.0,
-        }
-
-    @classmethod
-    def get_instance(cls) -> "TestProcessPool":
-        """Get a singleton instance (for compatibility)."""
-        if not hasattr(cls, "_instance"):
-            cls._instance = cls()
-        return cls._instance
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 class TestFileSystem:
@@ -265,11 +49,11 @@ class TestFileSystem:
 
     def __init__(self):
         """Initialize the test filesystem."""
-        self.files: Dict[str, bytes] = {}
-        self.directories: Set[str] = set()
-        self.metadata: Dict[str, Dict[str, Any]] = defaultdict(dict)
-        self.access_times: Dict[str, datetime] = {}
-        self.modification_times: Dict[str, datetime] = {}
+        self.files: dict[str, bytes] = {}
+        self.directories: set[str] = set()
+        self.metadata: dict[str, dict[str, Any]] = defaultdict(dict)
+        self.access_times: dict[str, datetime] = {}
+        self.modification_times: dict[str, datetime] = {}
 
     def write_file(self, path: str, content: Any) -> None:
         """Write content to a file path.
@@ -378,14 +162,14 @@ class TestFileSystem:
         else:
             self.directories.add(path)
 
-    def listdir(self, path: str) -> List[str]:
+    def listdir(self, path: str) -> list[str]:
         """List directory contents.
 
         Args:
             path: Directory path to list
 
         Returns:
-            List[str]: Names of files and directories in path
+            list[str]: Names of files and directories in path
         """
         path = str(Path(path))
         if path not in self.directories:
@@ -474,9 +258,9 @@ class TestCache:
 
     def __init__(self):
         """Initialize the test cache."""
-        self.data: Dict[str, Any] = {}
-        self.expiry_times: Dict[str, datetime] = {}
-        self.access_counts: Dict[str, int] = defaultdict(int)
+        self.data: dict[str, Any] = {}
+        self.expiry_times: dict[str, datetime] = {}
+        self.access_counts: dict[str, int] = defaultdict(int)
         self.cache_hits = 0
         self.cache_misses = 0
 
@@ -505,7 +289,7 @@ class TestCache:
         self.cache_misses += 1
         return default
 
-    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None) -> None:
+    def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
         """Set value in cache.
 
         Args:
