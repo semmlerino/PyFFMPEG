@@ -12,7 +12,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest

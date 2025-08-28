@@ -6,7 +6,6 @@ import logging
 import time
 from collections import deque
 from pathlib import Path
-from typing import Deque, List, Optional, Set, Tuple
 
 from PySide6.QtCore import QMutex, QThread, QWaitCondition, Signal
 

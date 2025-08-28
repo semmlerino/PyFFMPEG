@@ -26,7 +26,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable
 
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtGui import QColor, QImage

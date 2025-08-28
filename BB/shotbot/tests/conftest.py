@@ -26,7 +26,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Generator
+from typing import Any, Generator
 
 import pytest
 from PySide6.QtCore import QCoreApplication, QTimer

@@ -5,7 +5,6 @@ import logging
 import threading
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any
 
 from PySide6.QtCore import QObject, QRunnable, Signal
 

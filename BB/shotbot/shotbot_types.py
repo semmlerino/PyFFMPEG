@@ -10,12 +10,6 @@ from __future__ import annotations
 from typing import Any, TypedDict
 
 # Import common types from primary definitions to avoid duplication
-from type_definitions import (
-    LauncherDict as LauncherData,  # Alias for backward compatibility
-    ProcessInfoDict as ProcessInfo,  # Alias for backward compatibility
-    ShotDict as ShotData,  # Alias for backward compatibility
-    PathLike as PathType,  # Modernized alias
-)
 
 # ==============================================================================
 # Additional TypedDict Definitions

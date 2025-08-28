@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum, auto
-from typing import Callable, List, Optional
+from typing import Callable
 
 from PySide6.QtCore import (
     QEasingCurve,

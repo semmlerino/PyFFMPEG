@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from enum import IntEnum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from PySide6.QtCore import (
     QAbstractListModel,

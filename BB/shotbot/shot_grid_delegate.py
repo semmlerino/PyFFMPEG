@@ -8,7 +8,6 @@ and optimized rendering for large datasets.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from PySide6.QtCore import QModelIndex, QRect, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import (

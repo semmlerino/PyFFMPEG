@@ -8,7 +8,7 @@ import sys
 from abc import abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Protocol, TypeVar
+from typing import Protocol, TypeVar
 
 from PySide6.QtCore import (
     QObject,

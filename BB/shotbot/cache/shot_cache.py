@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from config import Config
 

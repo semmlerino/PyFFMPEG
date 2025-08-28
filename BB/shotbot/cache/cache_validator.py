@@ -3,14 +3,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from .memory_manager import MemoryManager
 from .storage_backend import StorageBackend
 
 if TYPE_CHECKING:
     from type_definitions import (
-        CacheEfficiencyDict,
         ValidationResultDict,
     )
 

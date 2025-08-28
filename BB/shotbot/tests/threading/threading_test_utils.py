@@ -48,13 +48,9 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
-    Dict,
     Iterator,
-    List,
     NamedTuple,
-    Optional,
     Protocol,
-    Tuple,
     TypeVar,
 )
 

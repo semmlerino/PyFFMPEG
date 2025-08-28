@@ -56,7 +56,7 @@ class TestLauncherRefactoringSafety:
         # List
         launchers = launcher_manager.list_launchers()
         assert len(launchers) > 0
-        assert any(l.id == sample_launcher.id for l in launchers)
+        assert any(launcher.id == sample_launcher.id for launcher in launchers)
 
         # Update
         updated_launcher = CustomLauncher(
@@ -171,7 +171,7 @@ class TestLauncherRefactoringSafety:
         # Test filtering by category
         vfx_launchers = launcher_manager.list_launchers(category="VFX")
         assert len(vfx_launchers) >= 1
-        assert all(l.category == "VFX" for l in vfx_launchers)
+        assert all(launcher.category == "VFX" for launcher in vfx_launchers)
 
     def test_process_tracking(self, launcher_manager, sample_launcher):
         """Verify process tracking functionality."""
@@ -338,7 +338,7 @@ class TestCombinedIntegration:
 
             # Verify it appears in list
             launchers = launcher_manager.list_launchers()
-            assert any(l.id == "ui_test" for l in launchers)
+            assert any(launcher.id == "ui_test" for launcher in launchers)
 
 
 def test_import_compatibility():

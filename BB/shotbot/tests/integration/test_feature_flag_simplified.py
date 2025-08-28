@@ -10,14 +10,13 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from base_shot_model import BaseShotModel
 from cache_manager import CacheManager
 from shot_model import Shot, ShotModel
 from shot_model_optimized import OptimizedShotModel

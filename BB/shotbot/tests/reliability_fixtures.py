@@ -5,7 +5,6 @@ from __future__ import annotations
 import shutil
 import tempfile
 from pathlib import Path
-from typing import List
 
 import pytest
 from PySide6.QtCore import QThread, QTimer

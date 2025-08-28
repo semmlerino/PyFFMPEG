@@ -9,15 +9,14 @@ import concurrent.futures
 import hashlib
 import logging
 import os
+import sys
 import threading
 import time
 from pathlib import Path
 from typing import Any, List
 
-# Note: fcntl is not currently used, setting HAS_FCNTL to False
-HAS_FCNTL = False
-
 from PySide6.QtCore import QObject, Signal
+from PySide6.QtWidgets import QApplication
 
 from config import ThreadingConfig
 from persistent_bash_session import PersistentBashSession
@@ -30,10 +29,12 @@ try:
         setup_enhanced_debugging,
         timing_profiler,
     )
-
     HAS_DEBUG_UTILS = True
 except ImportError:
     HAS_DEBUG_UTILS = False
+
+# Note: fcntl is not currently used, setting HAS_FCNTL to False
+HAS_FCNTL = False
 
 logger = logging.getLogger(__name__)
 
@@ -648,10 +649,6 @@ class ProcessMetrics:
 
 # Example usage
 if __name__ == "__main__":
-    import sys
-
-    from PySide6.QtWidgets import QApplication
-
     app = QApplication(sys.argv)
 
     # Get singleton instance

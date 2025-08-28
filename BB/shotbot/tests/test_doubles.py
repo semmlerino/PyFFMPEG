@@ -13,7 +13,6 @@ This test file follows UNIFIED_TESTING_GUIDE best practices:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional, Union
 
 import pytest
 from PySide6.QtGui import QColor, QPixmap

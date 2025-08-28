@@ -17,7 +17,6 @@ from __future__ import annotations
 import statistics
 import time
 from pathlib import Path
-from typing import List
 
 import pytest
 from PySide6.QtGui import QColor, QImage

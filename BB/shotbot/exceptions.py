@@ -13,7 +13,7 @@ Following best practices for exception design:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class ShotBotError(Exception):

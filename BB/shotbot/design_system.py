@@ -7,7 +7,6 @@ spacing, and component styles following modern UI/UX best practices.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 
 @dataclass

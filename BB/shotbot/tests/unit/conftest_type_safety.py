@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Generator, List
+from typing import Any, Generator
 from unittest.mock import patch
 
 import pytest

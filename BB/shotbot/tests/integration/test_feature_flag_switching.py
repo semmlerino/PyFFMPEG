@@ -4,11 +4,9 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QThread, QTimer
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

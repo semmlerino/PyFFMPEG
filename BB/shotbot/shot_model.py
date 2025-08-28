@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 from config import Config
 from exceptions import WorkspaceError
-from type_definitions import ShotDict
+from type_definitions import PerformanceMetricsDict, ShotDict
 from utils import FileUtils, PathUtils
 
 # Set up logger for this module
@@ -203,7 +203,7 @@ class ShotModel(BaseShotModel):
 
     def __init__(
         self,
-        cache_manager: "CacheManager" | None = None,
+        cache_manager: "CacheManager | None" = None,
         load_cache: bool = True,
     ):
         """Initialize synchronous shot model.
@@ -409,7 +409,7 @@ class ShotModel(BaseShotModel):
         """Clear the current shot selection."""
         self.select_shot(None)
 
-    def get_performance_metrics(self) -> dict[str, Any]:
+    def get_performance_metrics(self) -> PerformanceMetricsDict:
         """Get performance metrics for subprocess operations.
 
         Extends base metrics with process pool statistics.
@@ -420,7 +420,7 @@ class ShotModel(BaseShotModel):
         metrics = super().get_performance_metrics()
         # Add process pool metrics
         pool_metrics = self._process_pool.get_metrics()
-        metrics.update(pool_metrics)
+        metrics.update(pool_metrics)  # type: ignore[typeddict-item]
         return metrics
 
     # ================================================================

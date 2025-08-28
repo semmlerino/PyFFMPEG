@@ -18,7 +18,6 @@ from __future__ import annotations
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import pytest
 

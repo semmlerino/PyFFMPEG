@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 from contextlib import contextmanager
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 from PySide6.QtCore import QCoreApplication, QThread, Signal
 from pytestqt.qtbot import QtBot

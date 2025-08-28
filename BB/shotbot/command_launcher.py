@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 from datetime import datetime
-from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
 

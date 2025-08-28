@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import List, Optional
 from unittest.mock import patch
 
 import pytest

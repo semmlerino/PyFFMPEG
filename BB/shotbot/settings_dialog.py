@@ -47,7 +47,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QIcon

@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # Set minimal environment
 os.environ["QT_QPA_PLATFORM"] = "offscreen"

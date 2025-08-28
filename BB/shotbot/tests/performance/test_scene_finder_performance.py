@@ -35,7 +35,6 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, Tuple
 
 import psutil
 import pytest

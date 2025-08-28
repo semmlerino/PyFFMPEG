@@ -16,7 +16,7 @@ This module provides lightweight test doubles that follow the guide's principles
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from PySide6.QtCore import QObject, Signal
 

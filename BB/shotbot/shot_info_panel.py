@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional, Union
 
 from PySide6.QtCore import Qt, QThreadPool
 from PySide6.QtGui import QFont, QPixmap

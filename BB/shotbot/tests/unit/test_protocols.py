@@ -13,7 +13,7 @@ to ensure type safety without over-specification.
 from __future__ import annotations
 
 from pathlib import Path as PathType  # Renamed to avoid pytest collection
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 import pytest
 

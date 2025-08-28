@@ -7,7 +7,6 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Set, Tuple
 
 
 class NukeScriptGenerator:

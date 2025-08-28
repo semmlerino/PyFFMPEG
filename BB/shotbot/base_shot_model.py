@@ -8,9 +8,9 @@ import re
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from type_definitions import PerformanceMetricsDict
-
 from PySide6.QtCore import QObject, Signal
+
+from type_definitions import PerformanceMetricsDict
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
@@ -43,17 +43,17 @@ class BaseShotModel(QObject):
     """
 
     # Common Qt signals
-    shots_loaded = Signal(list)  # List of Shot objects
-    shots_changed = Signal(list)  # List of Shot objects
-    refresh_started = Signal()
-    refresh_finished = Signal(bool, bool)  # success, has_changes
-    error_occurred = Signal(str)  # Error message
-    shot_selected = Signal(object)  # Shot object
-    cache_updated = Signal()
+    shots_loaded: Signal = Signal(list)  # List of Shot objects
+    shots_changed: Signal = Signal(list)  # List of Shot objects
+    refresh_started: Signal = Signal()
+    refresh_finished: Signal = Signal(bool, bool)  # success, has_changes
+    error_occurred: Signal = Signal(str)  # Error message
+    shot_selected: Signal = Signal(object)  # Shot object
+    cache_updated: Signal = Signal()
 
     def __init__(
         self,
-        cache_manager: "CacheManager" | None = None,
+        cache_manager: "CacheManager | None" = None,
         load_cache: bool = True,
     ):
         """Initialize base shot model.
@@ -70,7 +70,7 @@ class BaseShotModel(QObject):
         self._parse_pattern = re.compile(
             r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+))",
         )
-        self._selected_shot: "Shot" | None = None
+        self._selected_shot: "Shot | None" = None
 
         # Initialize ProcessPoolManager singleton
         if DEBUG_VERBOSE:

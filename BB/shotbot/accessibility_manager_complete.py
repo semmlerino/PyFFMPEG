@@ -10,8 +10,6 @@ Provides comprehensive accessibility support including:
 
 from __future__ import annotations
 
-from typing import Optional
-
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QColor, QKeySequence, QPalette, QShortcut
 from PySide6.QtWidgets import QApplication, QToolTip, QWidget

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Generator, List, Optional, Set, Tuple
+from typing import Generator
 
 import pytest
 from PySide6.QtTest import QSignalSpy

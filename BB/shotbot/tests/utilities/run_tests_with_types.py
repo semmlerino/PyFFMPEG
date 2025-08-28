@@ -13,7 +13,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
 def run_command(cmd: list[str], description: str) -> tuple[bool, str]:

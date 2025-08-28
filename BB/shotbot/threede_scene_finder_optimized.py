@@ -26,7 +26,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List
 
 # Import original components we'll keep
 # Performance monitoring removed - was using archived module

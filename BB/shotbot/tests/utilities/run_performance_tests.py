@@ -12,7 +12,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 
 def run_test_script(script_path: Path) -> tuple[bool, float, str]:
