@@ -429,6 +429,9 @@ class TestThumbnailProcessorPerformance:
         results = processor_parallel.process_thumbnails_parallel(
             test_images * 2, max_workers=4
         )
+        
+        # Verify parallel processing succeeded
+        assert results is not None, "Parallel processing should return results"
 
         optimized_peak_memory = process.memory_info().rss / 1024 / 1024
         optimized_memory_increase = optimized_peak_memory - initial_memory

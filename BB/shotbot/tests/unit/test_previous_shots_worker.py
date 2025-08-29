@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import QCoreApplication
@@ -149,10 +148,19 @@ class TestPreviousShotsWorkerWorkflow:
         error_spy = QSignalSpy(worker.error_occurred)
 
         # FIX: Set up signal waiter BEFORE starting to prevent race condition
-        with patch("subprocess.run", return_value=test_result):
+        # Use direct method replacement instead of patch for system boundary
+        import subprocess
+
+        original_run = subprocess.run
+        subprocess.run = lambda *args, **kwargs: test_result
+
+        try:
             with qtbot.waitSignal(worker.scan_finished, timeout=5000):
                 # Start worker after signal waiter is ready
                 worker.start()
+        finally:
+            # Restore original subprocess.run
+            subprocess.run = original_run
 
         # Ensure thread has finished
         worker.wait(2000)
@@ -181,9 +189,18 @@ class TestPreviousShotsWorkerWorkflow:
         shot_found_spy = QSignalSpy(worker.shot_found)
 
         # FIX: Set up signal waiter BEFORE starting to prevent race condition
-        with patch("subprocess.run", return_value=test_result):
+        # Use direct method replacement instead of patch for system boundary
+        import subprocess
+
+        original_run = subprocess.run
+        subprocess.run = lambda *args, **kwargs: test_result
+
+        try:
             with qtbot.waitSignal(worker.scan_finished, timeout=5000):
                 worker.start()
+        finally:
+            # Restore original subprocess.run
+            subprocess.run = original_run
 
         worker.wait(2000)
 
@@ -220,7 +237,13 @@ class TestPreviousShotsWorkerWorkflow:
         QSignalSpy(worker.scan_finished)
 
         # FIX: Use a flag to coordinate stop timing
-        with patch("subprocess.run", side_effect=slow_subprocess):
+        # Use direct method replacement instead of patch for system boundary
+        import subprocess
+
+        original_run = subprocess.run
+        subprocess.run = slow_subprocess
+
+        try:
             # Start worker with proper signal handling
             worker.start()
 
@@ -232,6 +255,9 @@ class TestPreviousShotsWorkerWorkflow:
 
             # Wait for thread to finish gracefully
             worker.wait(3000)
+        finally:
+            # Restore original subprocess.run
+            subprocess.run = original_run
 
         # Worker should complete (may or may not emit scan_finished depending on timing)
         # Key test is that it stops gracefully without hanging
@@ -244,14 +270,20 @@ class TestPreviousShotsWorkerWorkflow:
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # Mock finder.find_user_shots to raise exception (this will propagate)
-        with patch.object(
-            worker._finder,
-            "find_user_shots",
-            side_effect=RuntimeError("Critical finder error"),
-        ):
+        # Use direct method replacement instead of patch
+        def failing_find_user_shots(*args):
+            raise RuntimeError("Critical finder error")
+
+        original_find = worker._finder.find_user_shots
+        worker._finder.find_user_shots = failing_find_user_shots
+
+        try:
             # FIX: Use waitSignal to properly wait for error signal
             with qtbot.waitSignal(worker.error_occurred, timeout=5000):
                 worker.start()
+        finally:
+            # Restore original method
+            worker._finder.find_user_shots = original_find
 
             # Ensure thread has finished
             worker.wait(2000)
@@ -283,9 +315,18 @@ class TestPreviousShotsWorkerWorkflow:
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # FIX: Set up signal waiter BEFORE starting to prevent race condition
-        with patch("subprocess.run", return_value=test_result):
+        # Use direct method replacement instead of patch for system boundary
+        import subprocess
+
+        original_run = subprocess.run
+        subprocess.run = lambda *args, **kwargs: test_result
+
+        try:
             with qtbot.waitSignal(worker.scan_finished, timeout=5000):
                 worker.start()
+        finally:
+            # Restore original subprocess.run
+            subprocess.run = original_run
 
         worker.wait(2000)
 
@@ -401,9 +442,18 @@ class TestPreviousShotsWorkerIntegration:
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # FIX: Set up signal waiter BEFORE starting to prevent race condition
-        with patch("subprocess.run", return_value=test_result):
+        # Use direct method replacement instead of patch for system boundary
+        import subprocess
+
+        original_run = subprocess.run
+        subprocess.run = lambda *args, **kwargs: test_result
+
+        try:
             with qtbot.waitSignal(worker.scan_finished, timeout=10000):
                 worker.start()
+        finally:
+            # Restore original subprocess.run
+            subprocess.run = original_run
 
         # Cleanup
         worker.wait(2000)

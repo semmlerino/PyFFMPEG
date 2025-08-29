@@ -1,4 +1,5 @@
 """Failure tracking with exponential backoff for cache operations."""
+
 from __future__ import annotations
 
 import logging
@@ -118,7 +119,7 @@ class FailureTracker:
             source_name = source_path.name if source_path else cache_key
             logger.info(
                 f"Recorded failed attempt #{attempts} for {source_name}, "
-                + f"next retry in {delay_minutes}min ({next_retry.strftime('%H:%M:%S')})"
+                + f"next retry in {delay_minutes:.2f}min ({next_retry.strftime('%H:%M:%S')})"
             )
 
             # Cleanup old failures periodically
@@ -172,7 +173,7 @@ class FailureTracker:
         with self._lock:
             return self._cleanup_old_failures()
 
-    def _calculate_retry_delay(self, attempts: int) -> int:
+    def _calculate_retry_delay(self, attempts: int) -> float:
         """Calculate retry delay using exponential backoff.
 
         Args:
@@ -183,7 +184,7 @@ class FailureTracker:
         """
         if attempts >= self._max_failed_attempts:
             # Max attempts reached, use maximum delay
-            return self._max_retry_delay_minutes
+            return float(self._max_retry_delay_minutes)
 
         # Exponential backoff: 5min, 15min, 45min, 135min...
         delay_minutes = min(

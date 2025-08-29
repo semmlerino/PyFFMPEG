@@ -122,6 +122,7 @@ class TestCacheScenarios:
             model._process_pool = mock_pool
 
             result = model.initialize_async()
+            assert result.success is True  # initialize_async returns success immediately
 
             # Should trigger background refresh
             qtbot.waitUntil(lambda: len(shots_changed_spy) > 0, timeout=5000)

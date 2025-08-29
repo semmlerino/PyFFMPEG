@@ -21,14 +21,13 @@ from PySide6.QtWidgets import QApplication
 
 from cache_manager import CacheManager
 from shot_model import Shot
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import TestSubprocess
 from threede_scene_finder import ThreeDESceneFinder
 from threede_scene_model import ThreeDESceneModel
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
-
-
-# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestSubprocess
 
 
 class TestThreeDEScannerIntegration:

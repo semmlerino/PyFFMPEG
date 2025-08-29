@@ -8,6 +8,7 @@ import re
 import time
 from functools import lru_cache
 from pathlib import Path
+from types import TracebackType
 from typing import Any
 
 from config import Config
@@ -53,7 +54,7 @@ class CacheIsolation:
 
     def __init__(self):
         super().__init__()
-        self.original_cache_state: dict[str, tuple[bool, float | None]] = None
+        self.original_cache_state: dict[str, tuple[bool, float]] | None = None
         self.original_disabled_state: bool | None = None
 
     def __enter__(self):
@@ -68,13 +69,20 @@ class CacheIsolation:
         disable_caching()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Exit context and restore original state."""
         global _path_cache, _cache_disabled
         # Restore original state
         _path_cache.clear()
         if self.original_cache_state is not None:
-            _path_cache.update(self.original_cache_state)
+            # Update from dict items to handle type correctly
+            for key, value in self.original_cache_state.items():
+                _path_cache[key] = value
         if self.original_disabled_state is not None:
             _cache_disabled = self.original_disabled_state
         logger.debug("Cache isolation context exited")
@@ -536,8 +544,8 @@ class PathUtils:
 
             try:
                 # Collect all candidate files
-                lightweight_candidates = []
-                exr_candidates = []
+                lightweight_candidates: list[Path] = []
+                exr_candidates: list[Path] = []
 
                 for file_path in directory.iterdir():
                     if file_path.is_file() and "1001" in file_path.name:
@@ -629,7 +637,7 @@ class VersionUtils:
     """Utilities for handling versioned directories and files."""
 
     # Pattern for version directories (v001, v002, etc.)
-    VERSION_PATTERN = re.compile(r"^v(\d{3})$")
+    VERSION_PATTERN: re.Pattern[str] = re.compile(r"^v(\d{3})$")
 
     # Cache for version directory listings
     _version_cache: dict[str, tuple[list[tuple[int, str]], float]] = {}
@@ -997,7 +1005,7 @@ class ValidationUtils:
     @staticmethod
     def validate_not_empty(
         *values: str | None,
-        names: list[str | None] = None,
+        names: list[str] | None = None,
     ) -> bool:
         """Validate that values are not None or empty strings.
 
@@ -1059,7 +1067,7 @@ class ValidationUtils:
         return Config.DEFAULT_USERNAME
 
     @staticmethod
-    def get_excluded_users(additional_users: set[str | None] = None) -> set[str]:
+    def get_excluded_users(additional_users: set[str] | None = None) -> set[str]:
         """Get set of users to exclude from searches.
 
         Automatically excludes the current user and any additional specified users.

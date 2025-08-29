@@ -17,13 +17,13 @@ from pathlib import Path
 import pytest
 from PySide6.QtGui import QColor, QPixmap
 
-pytestmark = [pytest.mark.unit, pytest.mark.integration, pytest.mark.slow]
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     SignalDouble,
     ThreadSafeTestImage,
 )
+
+pytestmark = [pytest.mark.unit, pytest.mark.integration, pytest.mark.slow]
 
 
 class LauncherWorkerDouble:

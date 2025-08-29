@@ -23,11 +23,6 @@ from launcher_dialog import (
     LauncherPreviewPanel,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
-
-
-# Test Data Factories
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     LauncherManagerDouble,
@@ -35,6 +30,10 @@ from tests.test_doubles_library import (
     TestLauncherEnvironment,
     TestLauncherTerminal,
 )
+
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+
+# Test Data Factories
 
 
 def create_test_launcher(
@@ -93,9 +92,6 @@ def mock_launcher_manager():
 def sample_launchers():
     """Create sample launchers for testing."""
     return [create_test_launcher(), create_rez_launcher(), create_conda_launcher()]
-
-
-from tests.test_doubles_library import TestLauncher
 
 
 class TestLauncherListWidget:

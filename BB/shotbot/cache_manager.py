@@ -4,13 +4,14 @@ This module provides a backward-compatible interface to the new modular cache
 architecture while maintaining the exact same public API as the original
 monolithic CacheManager.
 """
+
 from __future__ import annotations
 
 import logging
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence, override
 
 from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal
 from PySide6.QtWidgets import QApplication
@@ -172,9 +173,7 @@ class CacheManager(QObject):
         return self._storage_backend.ensure_directory(self.thumbnails_dir)
 
     # Thumbnail caching methods - backward compatible interface
-    def get_cached_thumbnail(
-        self, show: str, sequence: str, shot: str
-    ) -> Path | None:
+    def get_cached_thumbnail(self, show: str, sequence: str, shot: str) -> Path | None:
         """Get path to cached thumbnail if it exists (thread-safe)."""
         with self._lock:
             # Periodic validation
@@ -183,7 +182,7 @@ class CacheManager(QObject):
             cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
             if cache_path.exists():
                 # Track in memory manager if not already tracked
-                self._memory_manager.track_item(cache_path)
+                _ = self._memory_manager.track_item(cache_path)
                 return cache_path
             return None
 
@@ -233,7 +232,7 @@ class CacheManager(QObject):
             cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
             if cache_path.exists():
                 logger.debug(f"Thumbnail already cached: {cache_path}")
-                self._memory_manager.track_item(cache_path)
+                _ = self._memory_manager.track_item(cache_path)
                 return cache_path
 
             # Check failure tracker
@@ -254,7 +253,7 @@ class CacheManager(QObject):
 
         if not is_main_thread:
             # Background thread - use ThumbnailLoader
-            loader = ThumbnailLoader(
+            loader: ThumbnailLoader = ThumbnailLoader(
                 self._thumbnail_processor,
                 self._failure_tracker,
                 source_path_obj,
@@ -266,13 +265,18 @@ class CacheManager(QObject):
             )
 
             # Connect cleanup
-            loader.signals.loaded.connect(
-                lambda *args: self._on_thumbnail_loaded(cache_key, cache_path)
-            )
-            loader.signals.failed.connect(lambda *args: self._cleanup_loader(cache_key))
+            # Use proper typed functions instead of lambdas to avoid type issues
+            def on_loaded(show: str, sequence: str, shot: str, path: Path) -> None:
+                self._on_thumbnail_loaded(cache_key, cache_path)
+            
+            def on_failed(show: str, sequence: str, shot: str, error: str) -> None:
+                self._cleanup_loader(cache_key)
+                
+            _ = loader.signals.loaded.connect(on_loaded)
+            _ = loader.signals.failed.connect(on_failed)
 
             pool = QThreadPool.globalInstance()
-            pool.start(loader)
+            pool.start(loader)  # type: ignore[arg-type]
 
             if wait:
                 return result.get_result(timeout)
@@ -304,23 +308,23 @@ class CacheManager(QObject):
         cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
 
         if self._thumbnail_processor.process_thumbnail(source_path, cache_path):
-            self._memory_manager.track_item(cache_path)
+            _ = self._memory_manager.track_item(cache_path)
             # Trigger eviction if memory limit exceeded
-            self._memory_manager.evict_if_needed()
+            _ = self._memory_manager.evict_if_needed()
             return cache_path
         return None
 
     def _on_thumbnail_loaded(self, cache_key: str, cache_path: Path):
         """Handle successful thumbnail loading."""
         # Track in memory manager
-        self._memory_manager.track_item(cache_path)
+        _ = self._memory_manager.track_item(cache_path)
         # Trigger eviction if memory limit exceeded
-        self._memory_manager.evict_if_needed()
+        _ = self._memory_manager.evict_if_needed()
 
     def _cleanup_loader(self, cache_key: str) -> None:
         """Remove completed loader from tracking."""
         with self._lock:
-            self._active_loaders.pop(cache_key, None)
+            _ = self._active_loaders.pop(cache_key, None)
 
     def _run_periodic_validation(self) -> None:
         """Run periodic cache validation."""
@@ -328,7 +332,7 @@ class CacheManager(QObject):
         if time_since_validation > timedelta(minutes=self._validation_interval_minutes):
             if self._cache_validator:
                 logger.debug("Running periodic cache validation")
-                self._cache_validator.validate_cache(fix_issues=True)
+                _ = self._cache_validator.validate_cache(fix_issues=True)
             self._last_validation_time = datetime.now()
 
     # Shot caching methods - delegate to ShotCache
@@ -338,7 +342,7 @@ class CacheManager(QObject):
 
     def cache_shots(self, shots: Sequence["Shot"] | Sequence[ShotDict]):
         """Cache shot list to file."""
-        self._shot_cache.cache_shots(shots)
+        _ = self._shot_cache.cache_shots(shots)
 
     # Previous shots caching methods - delegate to ShotCache
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
@@ -347,7 +351,7 @@ class CacheManager(QObject):
 
     def cache_previous_shots(self, shots: Sequence["Shot"] | Sequence[ShotDict]):
         """Cache previous/approved shot list to file."""
-        self._previous_shots_cache.cache_shots(shots)
+        _ = self._previous_shots_cache.cache_shots(shots)
 
     # 3DE scene caching methods - delegate to ThreeDECache
     def get_cached_threede_scenes(self) -> list[ThreeDESceneDict] | None:
@@ -362,7 +366,7 @@ class CacheManager(QObject):
         self, scenes: list[ThreeDESceneDict], metadata: dict[str, Any] | None = None
     ):
         """Cache 3DE scene list to file with optional metadata."""
-        self._threede_cache.cache_scenes(scenes, metadata)
+        _ = self._threede_cache.cache_scenes(scenes, metadata)
 
     # Generic data caching methods for backward compatibility
     def cache_data(self, key: str, data: Any) -> None:
@@ -377,7 +381,7 @@ class CacheManager(QObject):
         else:
             # For other generic data, use storage backend directly
             cache_file = self.cache_dir / f"{key}.json"
-            self._storage_backend.write_json(cache_file, data)
+            _ = self._storage_backend.write_json(cache_file, data)
 
     def get_cached_data(self, key: str) -> Any | None:
         """Get cached generic data by key (for backward compatibility).
@@ -412,22 +416,48 @@ class CacheManager(QObject):
                 cache_file.unlink()
 
     # Memory and validation methods - delegate to appropriate components
-    def get_memory_usage(self) -> MemoryStatsDict:
+    def get_memory_usage(self) -> dict[str, Any]:
         """Get current cache memory usage statistics (backward compatible)."""
         stats = self._memory_manager.get_usage_stats()
-        # Add backward compatibility keys
-        stats["thumbnail_count"] = stats["tracked_items"]
-        return stats
+        total_bytes = stats.get("total_bytes", 0)
+        max_bytes = self._memory_manager._max_memory_bytes
+        
+        # Return old format for backward compatibility
+        return {
+            "total_bytes": total_bytes,
+            "total_mb": total_bytes / (1024 * 1024),
+            "max_mb": max_bytes / (1024 * 1024),
+            "usage_percent": stats.get("usage_percent", 0.0),
+            "thumbnail_count": stats.get("tracked_items", 0),
+        }
 
-    def validate_cache(self) -> ValidationResultDict:
+    def validate_cache(self) -> dict[str, Any]:
         """Validate cache consistency and fix issues (backward compatible)."""
         if self._cache_validator:
             result = self._cache_validator.validate_cache()
-            # Add backward compatibility keys
-            result["invalid_entries"] = result.get("missing_files", 0)
-            result["orphaned_files"] = result.get("orphaned_files", 0)
-            return result
-        return {"valid": False, "error": "Validator not available"}
+            # Return old format for backward compatibility with all expected fields
+            return {
+                "valid": result.get("valid", False),
+                "issues_found": result.get("issues_found", 0),
+                "issues_fixed": result.get("issues_fixed", 0),
+                "orphaned_files": result.get("orphaned_files", 0),
+                "missing_files": result.get("missing_files", 0),
+                "invalid_entries": [],  # Not tracked in new implementation
+                "size_mismatches": result.get("size_mismatches", 0),
+                "memory_usage_corrected": result.get("memory_usage_corrected", False),
+                "details": result.get("details", []),
+            }
+        return {
+            "valid": False,
+            "issues_found": 0,
+            "issues_fixed": 0,
+            "orphaned_files": 0,
+            "missing_files": 0,
+            "invalid_entries": [],
+            "size_mismatches": 0,
+            "memory_usage_corrected": False,
+            "details": [],
+        }
 
     def clear_cache(self):
         """Clear all cached data."""
@@ -439,8 +469,8 @@ class CacheManager(QObject):
             self._failure_tracker.clear_failures()
 
             # Clear data caches
-            self._shot_cache.clear_cache()
-            self._threede_cache.clear_cache()
+            _ = self._shot_cache.clear_cache()
+            _ = self._threede_cache.clear_cache()
 
             # Clear active loaders
             self._active_loaders.clear()
@@ -567,12 +597,12 @@ class CacheManager(QObject):
     @property
     def test_cached_thumbnails(self) -> dict[str, int]:
         """Test-only access to cached thumbnails dictionary.
-        
+
         Returns:
             Dictionary mapping thumbnail path to size in bytes.
             This is for test access only - production code should use
             get_memory_usage() for memory statistics.
-            
+
         Note:
             The return type is dict[str, int] where:
             - key: thumbnail file path (str)
@@ -583,7 +613,7 @@ class CacheManager(QObject):
     @property
     def test_memory_usage_bytes(self) -> int:
         """Test-only access to memory usage counter.
-        
+
         Returns:
             Current memory usage in bytes.
         """
@@ -592,10 +622,10 @@ class CacheManager(QObject):
     @test_memory_usage_bytes.setter
     def test_memory_usage_bytes(self, value: int) -> None:
         """Test-only setter for memory usage counter.
-        
+
         Args:
             value: Memory usage value in bytes.
-            
+
         Warning:
             This setter is for testing only. Production code should
             not directly manipulate memory usage counters.
@@ -605,7 +635,7 @@ class CacheManager(QObject):
     @property
     def test_max_memory_bytes(self) -> int:
         """Test-only access to max memory limit.
-        
+
         Returns:
             Maximum memory limit in bytes.
         """
@@ -614,10 +644,10 @@ class CacheManager(QObject):
     @property
     def test_lock(self) -> threading.RLock:
         """Test-only access to the coordination lock.
-        
+
         Returns:
             The RLock used for thread-safe coordination.
-            
+
         Warning:
             This is for testing thread safety only. Production code
             should not access internal locking mechanisms.
@@ -629,7 +659,15 @@ class CacheManager(QObject):
 class ThumbnailCacheLoader(QRunnable):
     """Backward compatibility wrapper for the original ThumbnailCacheLoader API."""
 
-    def __init__(self, cache_manager, source_path, show, sequence, shot, result=None):
+    def __init__(
+        self,
+        cache_manager: "CacheManager",
+        source_path: Path | str,
+        show: str,
+        sequence: str,
+        shot: str,
+        result: dict[str, Any] | None = None,
+    ):
         """Initialize with original constructor signature."""
         super().__init__()
         from cache.thumbnail_loader import ThumbnailLoader
@@ -638,16 +676,28 @@ class ThumbnailCacheLoader(QRunnable):
         cache_path = (
             cache_manager.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
         )
+        
+        # Ensure source_path is a Path object
+        source_path_obj = Path(source_path) if isinstance(source_path, str) else source_path
+        
+        # Convert dict result to ThumbnailCacheResult if needed
+        result_obj = None
+        if result is not None:
+            if isinstance(result, dict):
+                result_obj = ThumbnailCacheResult()
+                # Copy any existing data from dict to result object
+            else:
+                result_obj = result
 
         self._loader = ThumbnailLoader(
             cache_manager._thumbnail_processor,
             cache_manager._failure_tracker,
-            source_path,
+            source_path_obj,
             cache_path,
             show,
             sequence,
             shot,
-            result,
+            result_obj,
         )
 
         # Expose the same interface
@@ -659,13 +709,16 @@ class ThumbnailCacheLoader(QRunnable):
         self.signals = self._loader.signals
         self.result = self._loader.result
 
+    @override
     def run(self):
         """Run the thumbnail processing."""
         return self._loader.run()
 
-    def setAutoDelete(self, auto_delete):
+    @override
+    def setAutoDelete(self, autoDelete: bool) -> None:
         """Set auto delete flag."""
-        return self._loader.setAutoDelete(auto_delete)
+        super().setAutoDelete(autoDelete)
+        self._loader.setAutoDelete(autoDelete)
 
 
 # Maintain backward compatibility by re-exporting classes

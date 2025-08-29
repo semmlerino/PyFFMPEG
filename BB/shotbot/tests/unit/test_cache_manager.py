@@ -21,8 +21,7 @@ from PySide6.QtTest import QSignalSpy
 from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
 from config import ThreadingConfig
 from shot_model import Shot
-
-# Import already included from test_helpers above
+from tests.test_helpers import ThreadSafeTestImage
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
@@ -50,9 +49,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_helpers import (
-    ThreadSafeTestImage,
-)
+# ThreadSafeTestImage imported at top of file
 
 
 @pytest.fixture
@@ -259,6 +256,7 @@ class TestCacheManager:
             time.sleep(0.1)
             # Check that thumbnail file was actually created (behavior, not mock call)
             # Note: In threaded context, file may not exist immediately
+            assert expected_thumb.exists(), f"Thumbnail file should be created at {expected_thumb}"
 
     def test_get_cached_thumbnail(self, cache_manager, temp_cache_dir):
         """Test retrieving cached thumbnail."""
@@ -839,7 +837,9 @@ class TestMemoryManagement:
 
         # Check that old thumbnails were evicted
         # (memory usage should be under limit)
-        assert cache_manager.test_memory_usage_bytes <= cache_manager.test_max_memory_bytes
+        assert (
+            cache_manager.test_memory_usage_bytes <= cache_manager.test_max_memory_bytes
+        )
 
     def test_get_memory_usage(self, cache_manager, test_image):
         """Test getting memory usage information."""
@@ -1264,8 +1264,12 @@ class TestCacheManagerThreading:
         manager = cache_manager
 
         # Add some cached data using thread-safe test doubles
-        manager.test_cached_thumbnails["/test/image1.jpg"] = ThreadSafeTestImage(100, 100)
-        manager.test_cached_thumbnails["/test/image2.jpg"] = ThreadSafeTestImage(100, 100)
+        manager.test_cached_thumbnails["/test/image1.jpg"] = ThreadSafeTestImage(
+            100, 100
+        )
+        manager.test_cached_thumbnails["/test/image2.jpg"] = ThreadSafeTestImage(
+            100, 100
+        )
         manager._memory_usage_bytes = 2000
 
         cleanup_results = []

@@ -3,6 +3,7 @@
 Provides centralized accessibility support including screen reader compatibility,
 keyboard navigation, and tooltip management.
 """
+
 from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
@@ -13,9 +14,10 @@ from PySide6.QtWidgets import QListView, QPushButton, QSlider, QTabWidget, QWidg
 @runtime_checkable
 class GridWidget(Protocol):
     """Protocol for grid widgets that may have accessibility features."""
-    
+
     def setAccessibleName(self, name: str) -> None: ...
     def setAccessibleDescription(self, description: str) -> None: ...
+
     # attributes - checked with hasattr at runtime
     size_slider: QSlider | None
     list_view: QListView | None
@@ -38,7 +40,7 @@ class AccessibilityManager:
 
     @staticmethod
     def setup_shot_grid_accessibility(
-        grid_widget: GridWidget, grid_type: str = "shots"
+        grid_widget: QWidget, grid_type: str = "shots"
     ) -> None:
         """Set up accessibility for shot grid widgets.
 

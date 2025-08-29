@@ -262,8 +262,10 @@ class LauncherProcessManager(QObject):
                         "type": "worker",
                         "key": worker_key,
                         "launcher_id": worker.launcher_id,
+                        "launcher_name": getattr(worker, "launcher_name", "Unknown"),
                         "command": worker.command,
                         "running": worker.isRunning(),
+                        "timestamp": getattr(worker, "timestamp", None),
                     }
                 )
             except Exception as e:

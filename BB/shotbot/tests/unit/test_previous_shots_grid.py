@@ -28,16 +28,15 @@ from config import Config
 from previous_shots_grid import PreviousShotsGrid
 from previous_shots_model import PreviousShotsModel
 from shot_model import Shot
-from thumbnail_widget import ThumbnailWidget
-
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
-
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     TestCacheManager,
     TestProgressManager,
 )
+from thumbnail_widget import ThumbnailWidget
+
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 def create_test_shot(show="testshow", sequence="seq01", shot="0010"):

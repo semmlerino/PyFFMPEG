@@ -72,10 +72,10 @@ class StorageBackend:
 
     def get_actual_directory(self, requested_directory: Path) -> Path:
         """Get the actual directory being used (original or fallback).
-        
+
         Args:
             requested_directory: The originally requested directory
-            
+
         Returns:
             The actual directory path being used (may be a fallback)
         """
@@ -105,11 +105,11 @@ class StorageBackend:
         if not self.ensure_directory(file_path.parent):
             logger.error(f"Failed to create parent directory for {file_path}")
             return False
-        
+
         # Use actual directory (may be fallback)
         actual_parent = self.get_actual_directory(file_path.parent)
         actual_file_path = actual_parent / file_path.name
-        
+
         # Update file_path to use actual directory
         file_path = actual_file_path
 

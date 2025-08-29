@@ -1,4 +1,5 @@
 """3DE scene data caching with metadata support."""
+
 from __future__ import annotations
 
 import logging
@@ -12,7 +13,7 @@ from .storage_backend import StorageBackend
 
 if TYPE_CHECKING:
     pass
-    
+
 from type_definitions import CacheDataDict, CacheInfoDict, ThreeDESceneDict
 
 logger = logging.getLogger(__name__)

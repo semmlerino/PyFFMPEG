@@ -424,9 +424,7 @@ class TestCacheManager(QObject):
 
         return cached_path
 
-    def get_cached_thumbnail(
-        self, show: str, sequence: str, shot: str
-    ) -> Path | None:
+    def get_cached_thumbnail(self, show: str, sequence: str, shot: str) -> Path | None:
         """Get cached thumbnail path."""
         cache_key = f"{show}_{sequence}_{shot}"
         return self._cached_thumbnails.get(cache_key)

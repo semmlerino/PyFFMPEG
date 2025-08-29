@@ -85,6 +85,7 @@ from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel  # Model/View data model
+from base_shot_model import BaseShotModel
 from shot_model import Shot, ShotModel
 from shot_model_optimized import OptimizedShotModel  # Performance-optimized model
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
@@ -130,6 +131,7 @@ class MainWindow(QMainWindow):
             use_legacy = False
 
         # Pass to models - OptimizedShotModel is now the default
+        self.shot_model: BaseShotModel
         if use_legacy:
             logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
             self.shot_model = ShotModel(self.cache_manager)
@@ -194,17 +196,17 @@ class MainWindow(QMainWindow):
         self.shot_item_model = ShotItemModel(cache_manager=self.cache_manager)
         self.shot_item_model.set_shots(self.shot_model.shots)
         self.shot_grid = ShotGridView(model=self.shot_item_model)
-        self.tab_widget.addTab(self.shot_grid, "My Shots")
+        _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
 
         # Tab 2: Other 3DE scenes
         self.threede_shot_grid = ThreeDEShotGrid(self.threede_scene_model)
-        self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
+        _ = self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
 
         # Tab 3: Previous Shots (approved/completed)
         self.previous_shots_grid = PreviousShotsGrid(
             self.previous_shots_model, self.cache_manager
         )
-        self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
+        _ = self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
 
         # Right side - Controls and log
         right_widget = QWidget()
@@ -257,7 +259,7 @@ class MainWindow(QMainWindow):
         for app_name, command in Config.APPS.items():
             button = QPushButton(app_name.upper())
             button.setObjectName("builtInLauncherButton")
-            button.clicked.connect(
+            _ = button.clicked.connect(
                 lambda checked=False, app=app_name: self._launch_app(app)
             )
             button.setEnabled(False)  # Disabled until shot selected
@@ -336,10 +338,10 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
 
         # Initialize notification manager
-        NotificationManager.initialize(self, self.status_bar)
+        _ = NotificationManager.initialize(self, self.status_bar)
 
         # Initialize progress manager
-        ProgressManager.initialize(self.status_bar)
+        _ = ProgressManager.initialize(self.status_bar)
 
         self._update_status("Ready")
 
@@ -352,25 +354,25 @@ class MainWindow(QMainWindow):
 
         self.refresh_action = QAction("&Refresh Shots", self)
         self.refresh_action.setShortcut(QKeySequence.StandardKey.Refresh)
-        self.refresh_action.triggered.connect(self._refresh_shots)
+        _ = self.refresh_action.triggered.connect(self._refresh_shots)
         file_menu.addAction(self.refresh_action)
 
-        file_menu.addSeparator()
+        _ = file_menu.addSeparator()
 
         # Settings import/export
         import_settings_action = QAction("&Import Settings...", self)
-        import_settings_action.triggered.connect(self._import_settings)
+        _ = import_settings_action.triggered.connect(self._import_settings)
         file_menu.addAction(import_settings_action)
 
         export_settings_action = QAction("&Export Settings...", self)
-        export_settings_action.triggered.connect(self._export_settings)
+        _ = export_settings_action.triggered.connect(self._export_settings)
         file_menu.addAction(export_settings_action)
 
-        file_menu.addSeparator()
+        _ = file_menu.addSeparator()
 
         exit_action = QAction("&Exit", self)
         exit_action.setShortcut(QKeySequence.StandardKey.Quit)
-        exit_action.triggered.connect(self.close)
+        _ = exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
         # View menu
@@ -378,19 +380,19 @@ class MainWindow(QMainWindow):
 
         increase_size_action = QAction("&Increase Thumbnail Size", self)
         increase_size_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
-        increase_size_action.triggered.connect(self._increase_thumbnail_size)
+        _ = increase_size_action.triggered.connect(self._increase_thumbnail_size)
         view_menu.addAction(increase_size_action)
 
         decrease_size_action = QAction("&Decrease Thumbnail Size", self)
         decrease_size_action.setShortcut(QKeySequence.StandardKey.ZoomOut)
-        decrease_size_action.triggered.connect(self._decrease_thumbnail_size)
+        _ = decrease_size_action.triggered.connect(self._decrease_thumbnail_size)
         view_menu.addAction(decrease_size_action)
 
-        view_menu.addSeparator()
+        _ = view_menu.addSeparator()
 
         # Reset layout action
         reset_layout_action = QAction("&Reset Layout", self)
-        reset_layout_action.triggered.connect(self._reset_layout)
+        _ = reset_layout_action.triggered.connect(self._reset_layout)
         view_menu.addAction(reset_layout_action)
 
         # Edit menu
@@ -398,7 +400,7 @@ class MainWindow(QMainWindow):
 
         preferences_action = QAction("&Preferences...", self)
         preferences_action.setShortcut("Ctrl+,")  # Standard preferences shortcut
-        preferences_action.triggered.connect(self._show_preferences)
+        _ = preferences_action.triggered.connect(self._show_preferences)
         edit_menu.addAction(preferences_action)
 
         # Tools menu
@@ -407,10 +409,10 @@ class MainWindow(QMainWindow):
         # Launcher manager
         self.launcher_manager_action = QAction("&Manage Custom Launchers...", self)
         self.launcher_manager_action.setShortcut("Ctrl+L")
-        self.launcher_manager_action.triggered.connect(self._show_launcher_manager)
+        _ = self.launcher_manager_action.triggered.connect(self._show_launcher_manager)
         tools_menu.addAction(self.launcher_manager_action)
 
-        tools_menu.addSeparator()
+        _ = tools_menu.addSeparator()
 
         # Custom launchers submenu
         self.custom_launcher_menu = tools_menu.addMenu("Custom &Launchers")
@@ -421,13 +423,13 @@ class MainWindow(QMainWindow):
 
         shortcuts_action = QAction("&Keyboard Shortcuts", self)
         shortcuts_action.setShortcut(QKeySequence.StandardKey.HelpContents)
-        shortcuts_action.triggered.connect(self._show_shortcuts)
+        _ = shortcuts_action.triggered.connect(self._show_shortcuts)
         help_menu.addAction(shortcuts_action)
 
-        help_menu.addSeparator()
+        _ = help_menu.addSeparator()
 
         about_action = QAction("&About", self)
-        about_action.triggered.connect(self._show_about)
+        _ = about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
 
     def _setup_accessibility(self) -> None:
@@ -466,50 +468,50 @@ class MainWindow(QMainWindow):
     def _connect_signals(self) -> None:
         """Connect signals."""
         # Connect to shot model signals for reactive updates
-        self.shot_model.shots_loaded.connect(self._on_shots_loaded)  # type: ignore[attr-defined]
-        self.shot_model.shots_changed.connect(self._on_shots_changed)  # type: ignore[attr-defined]
-        self.shot_model.refresh_started.connect(self._on_refresh_started)  # type: ignore[attr-defined]
-        self.shot_model.refresh_finished.connect(self._on_refresh_finished)  # type: ignore[attr-defined]
-        self.shot_model.error_occurred.connect(self._on_shot_error)  # type: ignore[attr-defined]
-        self.shot_model.shot_selected.connect(self._on_model_shot_selected)  # type: ignore[attr-defined]
-        self.shot_model.cache_updated.connect(self._on_cache_updated)  # type: ignore[attr-defined]
+        _ = self.shot_model.shots_loaded.connect(self._on_shots_loaded)  # type: ignore[attr-defined]
+        _ = self.shot_model.shots_changed.connect(self._on_shots_changed)  # type: ignore[attr-defined]
+        _ = self.shot_model.refresh_started.connect(self._on_refresh_started)  # type: ignore[attr-defined]
+        _ = self.shot_model.refresh_finished.connect(self._on_refresh_finished)  # type: ignore[attr-defined]
+        _ = self.shot_model.error_occurred.connect(self._on_shot_error)  # type: ignore[attr-defined]
+        _ = self.shot_model.shot_selected.connect(self._on_model_shot_selected)  # type: ignore[attr-defined]
+        _ = self.shot_model.cache_updated.connect(self._on_cache_updated)  # type: ignore[attr-defined]
 
         # Shot selection
-        self.shot_grid.shot_selected.connect(self._on_shot_selected)
-        self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
-        self.shot_grid.app_launch_requested.connect(self._launch_app)
+        _ = self.shot_grid.shot_selected.connect(self._on_shot_selected)
+        _ = self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
+        _ = self.shot_grid.app_launch_requested.connect(self._launch_app)
 
         # 3DE scene selection
-        self.threede_shot_grid.scene_selected.connect(self._on_scene_selected)
-        self.threede_shot_grid.scene_double_clicked.connect(
+        _ = self.threede_shot_grid.scene_selected.connect(self._on_scene_selected)
+        _ = self.threede_shot_grid.scene_double_clicked.connect(
             self._on_scene_double_clicked,
         )
-        self.threede_shot_grid.app_launch_requested.connect(self._launch_app)
+        _ = self.threede_shot_grid.app_launch_requested.connect(self._launch_app)
 
         # Previous shots selection
-        self.previous_shots_grid.shot_selected.connect(self._on_shot_selected)
-        self.previous_shots_grid.shot_double_clicked.connect(
+        _ = self.previous_shots_grid.shot_selected.connect(self._on_shot_selected)
+        _ = self.previous_shots_grid.shot_double_clicked.connect(
             self._on_shot_double_clicked
         )
 
         # Command launcher
-        self.command_launcher.command_executed.connect(self.log_viewer.add_command)
-        self.command_launcher.command_error.connect(self.log_viewer.add_error)
-        self.command_launcher.command_error.connect(self._on_command_error)
+        _ = self.command_launcher.command_executed.connect(self.log_viewer.add_command)
+        _ = self.command_launcher.command_error.connect(self.log_viewer.add_error)
+        _ = self.command_launcher.command_error.connect(self._on_command_error)
 
         # Custom launcher manager
-        self.launcher_manager.launchers_changed.connect(self._update_launcher_menu)
-        self.launcher_manager.launchers_changed.connect(
+        _ = self.launcher_manager.launchers_changed.connect(self._update_launcher_menu)
+        _ = self.launcher_manager.launchers_changed.connect(
             self._update_custom_launcher_buttons,
         )
-        self.launcher_manager.execution_started.connect(
+        _ = self.launcher_manager.execution_started.connect(
             lambda launcher_id: self._on_launcher_started(launcher_id),
         )
-        self.launcher_manager.execution_finished.connect(self._on_launcher_finished)
+        _ = self.launcher_manager.execution_finished.connect(self._on_launcher_finished)
 
         # Synchronize thumbnail sizes between tabs
-        self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
-        self.threede_shot_grid.size_slider.valueChanged.connect(
+        _ = self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
+        _ = self.threede_shot_grid.size_slider.valueChanged.connect(
             self._sync_thumbnail_sizes,
         )
 
@@ -589,7 +591,7 @@ class MainWindow(QMainWindow):
             # Simply call refresh_shots on the model
             # The model will emit signals that trigger the appropriate handlers
             # which will handle UI updates, notifications, and 3DE refresh
-            self.shot_model.refresh_shots()
+            _ = self.shot_model.refresh_shots()
 
     def _refresh_threede_scenes(self) -> None:
         """Thread-safe refresh of 3DE scene list using background worker."""
@@ -652,42 +654,42 @@ class MainWindow(QMainWindow):
 
         # Connect worker signals outside of mutex (signals are thread-safe)
         # Connect enhanced worker signals using safe_connect method for proper cleanup
-        self._threede_worker.safe_connect(
+        _ = self._threede_worker.safe_connect(
             self._threede_worker.started,
             self._on_threede_discovery_started,
             Qt.ConnectionType.QueuedConnection,
         )
-        self._threede_worker.safe_connect(
+        _ = self._threede_worker.safe_connect(
             self._threede_worker.batch_ready,
             self._on_threede_batch_ready,
             Qt.ConnectionType.QueuedConnection,
         )
-        self._threede_worker.safe_connect(
+        _ = self._threede_worker.safe_connect(
             self._threede_worker.progress,
             self._on_threede_discovery_progress,
             Qt.ConnectionType.QueuedConnection,
         )
-        self._threede_worker.safe_connect(
+        _ = self._threede_worker.safe_connect(
             self._threede_worker.scan_progress,
             self._on_threede_scan_progress,
             Qt.ConnectionType.QueuedConnection,
         )
-        self._threede_worker.safe_connect(
+        _ = self._threede_worker.safe_connect(
             self._threede_worker.finished,
             self._on_threede_discovery_finished,
             Qt.ConnectionType.QueuedConnection,
         )
-        self._threede_worker.safe_connect(
+        _ = self._threede_worker.safe_connect(
             self._threede_worker.error,
             self._on_threede_discovery_error,
             Qt.ConnectionType.QueuedConnection,
         )
-        self._threede_worker.safe_connect(
+        _ = self._threede_worker.safe_connect(
             self._threede_worker.paused,
             self._on_threede_discovery_paused,
             Qt.ConnectionType.QueuedConnection,
         )
-        self._threede_worker.safe_connect(
+        _ = self._threede_worker.safe_connect(
             self._threede_worker.resumed,
             self._on_threede_discovery_resumed,
             Qt.ConnectionType.QueuedConnection,
@@ -699,7 +701,7 @@ class MainWindow(QMainWindow):
     def _on_threede_discovery_started(self) -> None:
         """Handle 3DE discovery worker started signal."""
         # Start progress for 3DE discovery
-        ProgressManager.start_operation("Scanning for 3DE scenes")
+        _ = ProgressManager.start_operation("Scanning for 3DE scenes")
 
     def _on_threede_discovery_progress(
         self,
@@ -1178,8 +1180,8 @@ class MainWindow(QMainWindow):
         finally:
             # Always restore signal state, even if an exception occurs
             # This prevents leaving signals permanently blocked
-            self.shot_grid.size_slider.blockSignals(shot_grid_was_blocked)
-            self.threede_shot_grid.size_slider.blockSignals(threede_grid_was_blocked)
+            _ = self.shot_grid.size_slider.blockSignals(shot_grid_was_blocked)
+            _ = self.threede_shot_grid.size_slider.blockSignals(threede_grid_was_blocked)
 
     def _update_status(self, message: str) -> None:
         """Update status bar."""
@@ -1217,7 +1219,7 @@ class MainWindow(QMainWindow):
         """Handle custom launcher start with progress indication."""
         launcher = self.launcher_manager.get_launcher(launcher_id)
         launcher_name = launcher.name if launcher else "Custom command"
-        ProgressManager.start_operation(f"Launching {launcher_name}")
+        _ = ProgressManager.start_operation(f"Launching {launcher_name}")
 
     def _on_launcher_finished(self, launcher_id: str, success: bool) -> None:
         """Handle custom launcher completion with notifications."""
@@ -1257,11 +1259,11 @@ class MainWindow(QMainWindow):
         </table>
         """
 
-        QMessageBox.information(self, "Keyboard Shortcuts", shortcuts_text)
+        _ = QMessageBox.information(self, "Keyboard Shortcuts", shortcuts_text)
 
     def _show_about(self) -> None:
         """Show about dialog."""
-        QMessageBox.about(
+        _ = QMessageBox.about(
             self,
             f"About {Config.APP_NAME}",
             f"{Config.APP_NAME} v{Config.APP_VERSION}\n\n"
@@ -1312,24 +1314,24 @@ class MainWindow(QMainWindow):
                     action = QAction(launcher.name, self)
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
-                    action.triggered.connect(
+                    _ = action.triggered.connect(
                         lambda checked, lid=launcher.id: self._execute_custom_launcher(
                             lid,
                         ),
                     )
-                    category_menu.addAction(action)
+                    _ = category_menu.addAction(action)
             else:
                 # Add directly to main menu if only one category
                 for launcher in category_launchers:
                     action = QAction(launcher.name, self)
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
-                    action.triggered.connect(
+                    _ = action.triggered.connect(
                         lambda checked, lid=launcher.id: self._execute_custom_launcher(
                             lid,
                         ),
                     )
-                    self.custom_launcher_menu.addAction(action)
+                    _ = self.custom_launcher_menu.addAction(action)
 
         # Update menu availability
         has_shot_or_scene = (
@@ -1403,16 +1405,16 @@ class MainWindow(QMainWindow):
             # Restore window geometry and state
             geometry = self.settings_manager.get_window_geometry()
             if not geometry.isEmpty():
-                self.restoreGeometry(geometry)
+                _ = self.restoreGeometry(geometry)
 
             state = self.settings_manager.get_window_state()
             if not state.isEmpty():
-                self.restoreState(state)
+                _ = self.restoreState(state)
 
             # Restore splitter states
             main_splitter_state = self.settings_manager.get_splitter_state("main")
             if not main_splitter_state.isEmpty():
-                self.splitter.restoreState(main_splitter_state)
+                _ = self.splitter.restoreState(main_splitter_state)
 
             # Apply window maximized state
             if self.settings_manager.is_window_maximized():
@@ -1557,7 +1559,7 @@ class MainWindow(QMainWindow):
                 button = QPushButton(f"🚀 {launcher.name}")
                 button.setObjectName("customLauncherButton")
                 button.setToolTip(launcher.description or f"Launch {launcher.name}")
-                button.clicked.connect(
+                _ = button.clicked.connect(
                     lambda checked, lid=launcher.id: self._execute_custom_launcher(lid),
                 )
 
@@ -1710,7 +1712,7 @@ class MainWindow(QMainWindow):
         """Show the preferences dialog."""
         if self._settings_dialog is None:
             self._settings_dialog = SettingsDialog(self.settings_manager, self)
-            self._settings_dialog.settings_applied.connect(self._on_settings_applied)
+            _ = self._settings_dialog.settings_applied.connect(self._on_settings_applied)
 
         self._settings_dialog.load_current_settings()
         self._settings_dialog.show()
@@ -1745,11 +1747,11 @@ class MainWindow(QMainWindow):
                 # Reload settings
                 self._apply_ui_settings()
                 self._apply_cache_settings()
-                QMessageBox.information(
+                _ = QMessageBox.information(
                     self, "Import Success", "Settings imported successfully."
                 )
             else:
-                QMessageBox.warning(
+                _ = QMessageBox.warning(
                     self,
                     "Import Error",
                     "Failed to import settings. Check the file format.",
@@ -1768,11 +1770,11 @@ class MainWindow(QMainWindow):
 
         if file_path:
             if self.settings_manager.export_settings(file_path):
-                QMessageBox.information(
+                _ = QMessageBox.information(
                     self, "Export Success", f"Settings exported to:\n{file_path}"
                 )
             else:
-                QMessageBox.warning(self, "Export Error", "Failed to export settings.")
+                _ = QMessageBox.warning(self, "Export Error", "Failed to export settings.")
 
     def _reset_layout(self):
         """Reset window layout to defaults."""

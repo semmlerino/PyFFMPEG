@@ -18,8 +18,6 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.integration
-
 # Import real application components for integration testing
 from cache_manager import CacheManager
 from shot_model import RefreshResult, ShotModel
@@ -29,6 +27,8 @@ from tests.test_doubles_library import (
     TestProcessPool,
     TestSubprocess,
 )
+
+pytestmark = pytest.mark.integration
 
 
 class TestShotWorkflowIntegration:

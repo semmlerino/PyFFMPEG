@@ -129,13 +129,14 @@ def test_shot_refresh():
     
     test_pool = TestProcessPoolManager()
     test_pool.set_outputs(
-        "workspace /shows/TEST/seq01/0010",
-        "workspace /shows/TEST/seq01/0020"
+        "workspace /shows/TEST/shots/seq01/seq01_0010",  # Correct VFX format
+        "workspace /shows/TEST/shots/seq01/seq01_0020"   # Must include shots/ and seq prefix
     )
     model._process_pool = test_pool
     
     result = model.refresh_shots()
     assert result.success
+    assert model.shots[0].shot == "0010"  # Parser extracts shot number
 ```
 
 ### Parametrization Patterns (Modern)
@@ -191,7 +192,7 @@ def test_shot_workflow():
     
     # Only mock the 'ws' command (system boundary)
     model._process_pool = TestProcessPoolManager()
-    model._process_pool.set_outputs("workspace /shows/TEST/seq01/0010")
+    model._process_pool.set_outputs("workspace /shows/TEST/shots/seq01/seq01_0010")
     
     # Test real behavior
     result = model.refresh_shots()
@@ -199,6 +200,30 @@ def test_shot_workflow():
     
     assert result.success
     assert len(shots) == 1
+    assert shots[0].shot == "0010"
+```
+
+### AsyncShotLoader Pattern
+```python
+def test_async_loader(qtbot):
+    # CRITICAL: Must provide parse_function from BaseShotModel
+    from base_shot_model import BaseShotModel
+    
+    base_model = BaseShotModel()
+    test_pool = TestProcessPoolDouble()
+    test_pool.set_outputs("workspace /shows/TEST/shots/seq01/seq01_0010")
+    
+    loader = AsyncShotLoader(
+        test_pool,
+        parse_function=base_model._parse_ws_output  # Required!
+    )
+    
+    spy = QSignalSpy(loader.shots_loaded)
+    loader.start()
+    loader.wait(5000)
+    
+    assert spy.count() == 1
+    shots = spy.at(0)[0]
     assert shots[0].shot == "0010"
 ```
 
@@ -233,6 +258,19 @@ with qtbot.waitSignal(worker.started):
 ```python
 with qtbot.waitSignal(worker.started):
     worker.start()  # Signal captured correctly
+```
+
+### QSignalSpy Indexing
+❌ **SEGFAULT**:
+```python
+# QSignalSpy doesn't support negative indexing!
+signal_data = spy.at(-1)  # Segmentation fault in Qt
+```
+
+✅ **SAFE**:
+```python
+# Use count() - 1 for last signal
+signal_data = spy.at(spy.count() - 1)
 ```
 
 ### Qt Container Truthiness
@@ -326,8 +364,11 @@ python3 run_tests_wsl.py --all     # Full suite in batches
 
 ### Test Doubles Library
 ```python
-class TestProcessPoolManager:
+class TestProcessPoolManager:  # Or TestProcessPoolDouble
     """For 'ws' command testing"""
+    
+    __test__ = False  # CRITICAL: Prevents pytest collection warning
+    
     def __init__(self):
         self.commands = []  # Track what was called
         self.outputs = []
@@ -392,12 +433,15 @@ class TestSignal:
 | Issue | Solution |
 |-------|----------|
 | "Fatal Python error: Aborted" | Using QPixmap in thread - use QImage |
-| Collection warnings | Classes starting with Test need renaming |
+| Collection warnings | Classes starting with Test need `__test__ = False` |
 | Signal not received | Set up waitSignal before triggering |
 | Empty Qt container is falsy | Use `is not None` check |
 | 'ws' command fails | Use interactive bash: `["/bin/bash", "-i", "-c", "ws -sg"]` |
 | Tests hang on WSL | Use categorized runners and batching |
 | Mock everything pattern | Use real components with test doubles at boundaries |
+| QSignalSpy segfault | Use `spy.at(spy.count() - 1)` not `spy.at(-1)` |
+| `__builtins__.__import__` error | Import builtins module: `import builtins` |
+| Wrong VFX path format | Use `/shows/{show}/shots/{seq}/{seq}_{shot}` |
 
 ### External Guides
 - WSL Testing → WSL-TESTING.md
@@ -422,6 +466,9 @@ if self.layout:                                             # Falsy when empty
 worker.start(); with qtbot.waitSignal(worker.signal): pass # Race condition
 controller = Mock(spec=Controller)                          # Testing mock
 mock.assert_called_once()                                   # Testing implementation
+spy.at(-1)                                                  # Segfault in Qt
+class TestHelper:  # without __test__ = False              # Collection warning
+__builtins__.__import__                                    # AttributeError on dict
 
 # ✅ Use these instead:
 ThreadSafeTestImage(100, 100)                              # Thread-safe
@@ -430,6 +477,9 @@ if self.layout is not None:                                # Explicit check
 with qtbot.waitSignal(signal): worker.start()              # Signal first
 Controller(process_pool=TestProcessPoolManager())          # Real with test doubles
 assert result.success                                       # Test behavior
+spy.at(spy.count() - 1)                                   # Safe indexing
+class TestHelper: __test__ = False                         # Prevent collection
+import builtins; builtins.__import__                      # Correct access
 ```
 
 ### Testing Checklist
@@ -443,16 +493,22 @@ assert result.success                                       # Test behavior
 - [ ] Categorize tests as fast/slow/critical for WSL
 - [ ] Use factory fixtures for flexible test data
 - [ ] Test behavior, not implementation
+- [ ] Add `__test__ = False` to all test double classes
+- [ ] Use `spy.at(spy.count() - 1)` not `spy.at(-1)` for QSignalSpy
+- [ ] Provide parse_function to AsyncShotLoader from BaseShotModel
+- [ ] Import builtins explicitly for `__import__` access
+- [ ] Use correct VFX path format: `/shows/{show}/shots/{seq}/{seq}_{shot}`
 
 ---
 
 *This guide provides complete testing patterns for ShotBot. Use the decision tree and lookup table to quickly find the right approach for your testing scenario.*
 
 **Key Metrics After Refactor**:
-- Guide length: 457 lines (vs 1288) - 65% reduction!
+- Guide length: ~510 lines (vs 1288) - 60% reduction!
 - Zero redundancy: Each concept appears once
 - Quick Start section: 50 lines of copy-paste examples
 - Modern patterns: Factory fixtures, pytest.param, qtbot.waitUntil
 - LLM-optimized: Clear hierarchy and decision trees
+- Real-world tested: All patterns validated through comprehensive refactoring
 
-*Last Updated: 2025-01-11 | Refactored for LLM optimization*
+*Last Updated: 2025-01-28 | Enhanced with production discoveries*

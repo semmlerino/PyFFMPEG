@@ -27,11 +27,10 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from cache_manager import CacheManager
 
-pytestmark = pytest.mark.integration
-
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestSubprocess
+
+pytestmark = pytest.mark.integration
 
 
 class TestCacheIntegration:

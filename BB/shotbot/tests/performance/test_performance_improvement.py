@@ -33,7 +33,7 @@ def test_original_startup() -> dict[str, Any]:
 workspace /shows/TEST/seq01/0020
 workspace /shows/TEST/seq02/0010"""
         # Set process pool for testing - accessing private attribute for test setup
-        setattr(model, '_process_pool', mock_pool)  # pyright: ignore[reportUnknownMemberType]
+        setattr(model, "_process_pool", mock_pool)  # pyright: ignore[reportUnknownMemberType]
 
         result = model.refresh_shots()
         elapsed = time.perf_counter() - start
@@ -51,6 +51,7 @@ def test_optimized_startup() -> dict[str, Any]:
 
         # Pre-cache some data to simulate real scenario
         from shot_model import Shot
+
         cached_shot = Shot("CACHED", "seq01", "0010", "/cached/path")
         cache.cache_shots([cached_shot])  # Use real Shot objects
 
@@ -64,7 +65,7 @@ def test_optimized_startup() -> dict[str, Any]:
 workspace /shows/TEST/seq01/0020
 workspace /shows/TEST/seq02/0010"""
         # Set process pool for testing
-        setattr(model, '_process_pool', mock_pool)  # pyright: ignore[reportUnknownMemberType]
+        setattr(model, "_process_pool", mock_pool)  # pyright: ignore[reportUnknownMemberType]
 
         # Initialize with async strategy (returns immediately)
         result = model.initialize_async()
@@ -74,7 +75,7 @@ workspace /shows/TEST/seq02/0010"""
         initial_shots = len(model.shots)
 
         # Wait a bit for background load (in real app, this is event-driven)
-        async_loader = getattr(model, '_async_loader', None)  # pyright: ignore[reportUnknownMemberType]
+        async_loader = getattr(model, "_async_loader", None)  # pyright: ignore[reportUnknownMemberType]
         if async_loader:
             # Give it a moment to process
             time.sleep(0.1)
@@ -111,7 +112,7 @@ def test_with_session_warming() -> dict[str, Any]:
         # Now create model with warmed pool
         model = OptimizedShotModel(cache_manager=cache)
         # Set warmed process pool for testing
-        setattr(model, '_process_pool', pool)  # pyright: ignore[reportUnknownMemberType]
+        setattr(model, "_process_pool", pool)  # pyright: ignore[reportUnknownMemberType]
 
         # Time the actual load (should be faster)
         start = time.perf_counter()

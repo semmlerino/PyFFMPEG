@@ -3,11 +3,24 @@
 
 import threading
 import time
-from unittest.mock import Mock
 
 import pytest
 
 from shot_model_optimized import OptimizedShotModel
+
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+class TestProcessPoolDouble:
+    """Test double for process pool following UNIFIED_TESTING_GUIDE principles."""
+
+    def __init__(self, workspace_response="workspace /test/concurrent/0010"):
+        self.workspace_response = workspace_response
+        self.call_count = 0
+
+    def execute_workspace_command(self):
+        """Simulate workspace command execution."""
+        self.call_count += 1
+        return self.workspace_response
 
 
 class TestConcurrentOperations:
@@ -18,12 +31,9 @@ class TestConcurrentOperations:
         """Create OptimizedShotModel for concurrent testing."""
         model = OptimizedShotModel(real_cache_manager)
 
-        # Mock process pool to avoid real subprocess calls
-        mock_pool = Mock()
-        mock_pool.execute_workspace_command.return_value = (
-            "workspace /test/concurrent/0010"
-        )
-        model._process_pool = mock_pool
+        # Use test double for process pool to avoid real subprocess calls
+        test_pool = TestProcessPoolDouble("workspace /test/concurrent/0010")
+        model._process_pool = test_pool
 
         return model
 

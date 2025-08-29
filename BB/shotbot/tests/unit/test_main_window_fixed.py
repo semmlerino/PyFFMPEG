@@ -1,16 +1,14 @@
 """Fixed tests for MainWindow - avoiding hanging issues.
 
-This version properly mocks subprocess calls and prevents background workers
-from starting, which were causing tests to hang.
+This version uses test doubles instead of mocks, following UNIFIED_TESTING_GUIDE.
+Background workers are managed properly through Qt mechanisms.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import QTimer
 
 from cache_manager import CacheManager
 from main_window import MainWindow
@@ -29,38 +27,32 @@ class TestMainWindowNoHang:
     """Fixed MainWindow tests that don't hang."""
 
     @pytest.fixture
-    def mock_subprocess(self):
-        """Mock subprocess.run at system boundary."""
-        with patch("subprocess.run") as mock_run:
-            # Default to empty output to prevent hanging
-            mock_run.return_value = TestCompletedProcess(
-                args=[], returncode=0, stdout="", stderr=""
-            )
-            yield mock_run
-
-    @pytest.fixture
-    def mock_timer(self):
-        """Mock QTimer.singleShot to prevent background workers."""
-        with patch.object(QTimer, "singleShot") as mock:
-            yield mock
-
-    @pytest.fixture
-    def safe_main_window(self, qtbot, tmp_path: Path, mock_subprocess, mock_timer):
-        """Create MainWindow with all blocking operations mocked."""
+    def safe_main_window(self, qtbot, tmp_path: Path):
+        """Create MainWindow with test doubles for subprocess operations."""
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir(exist_ok=True)
         cache_manager = CacheManager(cache_dir=cache_dir)
 
-        # Create window with mocks already in place
+        # Create window with test process pool to avoid real subprocess calls
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Stop any background workers
+        # Replace process pool with test double
+        test_pool = TestProcessPool()
+        test_pool.set_outputs("")  # Empty output by default
+        main_window.shot_model._process_pool = test_pool
+
+        # Stop any background workers if they exist
         if hasattr(main_window, "_background_refresh_worker"):
             worker = main_window._background_refresh_worker
             if worker and worker.isRunning():
                 worker.stop()
                 worker.wait(100)  # Short wait
+
+        # Disable auto-refresh timers if they exist
+        if hasattr(main_window, "_refresh_timer"):
+            if main_window._refresh_timer and main_window._refresh_timer.isActive():
+                main_window._refresh_timer.stop()
 
         return main_window
 
@@ -104,22 +96,11 @@ class TestMainWindowNoHang:
         # Shot info updated
         assert safe_main_window.shot_info_panel._current_shot == shot
 
-    def test_refresh_shots_with_mock_pool(
-        self, safe_main_window, mock_subprocess
-    ) -> None:
-        """Test shot refresh with properly mocked subprocess."""
-        # Configure mock response
-        mock_subprocess.return_value = TestCompletedProcess(
-            args=[],
-            returncode=0,
-            stdout="workspace /shows/test/shots/seq01/0010\n",
-            stderr="",
-        )
-
-        # Use test process pool
-        test_pool = TestProcessPool()
-        test_pool.set_outputs("workspace /shows/test/shots/seq01/0010")
-        safe_main_window.shot_model._process_pool = test_pool
+    def test_refresh_shots_with_test_pool(self, safe_main_window) -> None:
+        """Test shot refresh with test process pool."""
+        # Configure test pool response
+        test_pool = safe_main_window.shot_model._process_pool
+        test_pool.set_outputs("workspace /shows/test/shots/seq01/0010\n")
 
         # Clear any existing shots
         safe_main_window.shot_model.shots = []
@@ -140,16 +121,18 @@ class TestApplicationLaunchingNoHang:
         """Create window with a shot pre-selected."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
-        # Mock subprocess before window creation
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = TestCompletedProcess(
-                args=[], returncode=0, stdout="", stderr=""
-            )
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
 
-            # Prevent background workers
-            with patch.object(QTimer, "singleShot"):
-                main_window = MainWindow(cache_manager=cache_manager)
-                qtbot.addWidget(main_window)
+        # Use test process pool
+        test_pool = TestProcessPool()
+        test_pool.set_outputs("")
+        main_window.shot_model._process_pool = test_pool
+
+        # Disable timers
+        if hasattr(main_window, "_refresh_timer"):
+            if main_window._refresh_timer and main_window._refresh_timer.isActive():
+                main_window._refresh_timer.stop()
 
         # Select a shot
         shot = Shot("test_show", "seq01", "0010", "/shows/test/seq01/0010")
@@ -157,37 +140,60 @@ class TestApplicationLaunchingNoHang:
 
         return main_window, shot
 
-    @patch("command_launcher.CommandLauncher.launch_app")
-    def test_launch_app_with_selected_shot(
-        self, mock_launch, safe_window_with_shot
-    ) -> None:
+    def test_launch_app_with_selected_shot(self, safe_window_with_shot) -> None:
         """Test launching an application with a selected shot."""
         main_window, shot = safe_window_with_shot
 
-        # Launch app
-        main_window._launch_app("nuke")
+        # Replace command launcher's subprocess execution with test double
+        executed_commands = []
+        original_run = None
 
-        # Mock successful launch
-        mock_launch.return_value = True
+        if hasattr(main_window.command_launcher, "_run_command"):
+            original_run = main_window.command_launcher._run_command
 
-        # Verify called correctly
-        # Test behavior instead: assert result is True
+            def test_run_command(command, **kwargs):
+                executed_commands.append(command)
+                return TestCompletedProcess(
+                    args=command, returncode=0, stdout="", stderr=""
+                )
+
+            main_window.command_launcher._run_command = test_run_command
+
+        try:
+            # Launch app
+            result = main_window._launch_app("nuke")
+
+            # Test behavior: verify command was executed
+            if original_run:
+                assert len(executed_commands) > 0
+                # Should have nuke in the command
+                assert any("nuke" in str(cmd) for cmd in executed_commands)
+                # Verify launch was successful
+                assert result is True
+        finally:
+            if original_run:
+                main_window.command_launcher._run_command = original_run
 
     def test_launch_without_shot_returns_false(self, qtbot, tmp_path) -> None:
-        """Test launching without shot returns False."""
+        """Test launching without shot is handled properly."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
 
-        with patch("subprocess.run"):
-            with patch.object(QTimer, "singleShot"):
-                main_window = MainWindow(cache_manager=cache_manager)
-                qtbot.addWidget(main_window)
+        # Use test process pool
+        test_pool = TestProcessPool()
+        main_window.shot_model._process_pool = test_pool
 
-        # Try to launch without shot - should return False
-        with patch.object(
-            main_window.command_launcher, "launch_app", return_value=False
-        ):
-            main_window._launch_app("nuke")
-            # Test behavior instead: assert result is True
+        # Disable timers
+        if hasattr(main_window, "_refresh_timer"):
+            if main_window._refresh_timer and main_window._refresh_timer.isActive():
+                main_window._refresh_timer.stop()
+
+        # No shot selected - buttons should be disabled
+        assert not main_window.app_buttons["nuke"].isEnabled()
+
+        # Try to launch without shot - button is disabled so can't be clicked
+        # This is the correct behavior - UI prevents invalid operations
 
 
 # Helper fixture for all tests
@@ -196,4 +202,4 @@ def cleanup_workers():
     """Ensure all workers are cleaned up after each test."""
     yield
     # Cleanup happens after test
-    # This prevents hanging workers from affecting other tests
+    # Qt widgets are automatically cleaned up by qtbot

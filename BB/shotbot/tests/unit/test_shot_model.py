@@ -518,7 +518,7 @@ workspace /shows/test/shots/seq3/very_long_complex_shot_name_0050"""
         # Test shot name extraction logic with new parsing:
         # For shot_dir that doesn't start with sequence_, it uses the last part after underscore
         assert shots[0].shot == "0010"  # 001_ABC_0010 -> last part after underscore
-        assert shots[1].shot == "name"  # simple_name -> last part after underscore 
+        assert shots[1].shot == "name"  # simple_name -> last part after underscore
         assert shots[2].shot == "0050"  # very_long_complex_shot_name_0050 -> last part
 
 

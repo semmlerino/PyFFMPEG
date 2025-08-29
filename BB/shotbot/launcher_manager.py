@@ -89,6 +89,73 @@ class LauncherManager(QObject):
             f"LauncherManager initialized with {self._repository.count()} launchers"
         )
 
+    # ==================== Backward Compatibility Properties ====================
+
+    @property
+    def _active_processes(self) -> dict[str, Any]:
+        """Backward compatibility property for accessing active processes.
+        
+        This exposes the _active_processes from the process manager to maintain
+        compatibility with existing tests and code that expect this attribute
+        directly on LauncherManager.
+        
+        Returns:
+            Dictionary of active processes from the process manager
+        """
+        return self._process_manager._active_processes
+
+    @property
+    def _active_workers(self) -> dict[str, Any]:
+        """Backward compatibility property for accessing active workers.
+        
+        Returns:
+            Dictionary of active workers from the process manager
+        """
+        return self._process_manager._active_workers
+
+    @_active_workers.setter
+    def _active_workers(self, value: dict[str, Any]) -> None:
+        """Setter for active workers (backward compatibility for tests).
+        
+        Args:
+            value: Dictionary of active workers to set
+        """
+        self._process_manager._active_workers = value
+
+    @property
+    def _process_lock(self):
+        """Backward compatibility property for accessing process lock.
+        
+        Returns:
+            Process lock from the process manager
+        """
+        return self._process_manager._process_lock
+
+    @property
+    def _cleanup_retry_timer(self):
+        """Backward compatibility property for accessing cleanup retry timer.
+        
+        Returns:
+            Cleanup retry timer from the process manager
+        """
+        return self._process_manager._cleanup_retry_timer
+
+    @property
+    def _cleanup_scheduled(self):
+        """Backward compatibility property for accessing cleanup scheduled flag.
+        
+        Returns:
+            Cleanup scheduled flag from the process manager
+        """
+        return self._process_manager._cleanup_scheduled
+
+    def _cleanup_finished_workers(self):
+        """Backward compatibility method for cleaning up finished workers.
+        
+        Delegates to the process manager's cleanup method.
+        """
+        return self._process_manager._cleanup_finished_workers()
+
     # ==================== CRUD Operations ====================
 
     def create_launcher(
@@ -97,7 +164,7 @@ class LauncherManager(QObject):
         command: str,
         description: str = "",
         category: str = "custom",
-        variables: dict[str, str | None] = None,
+        variables: dict[str, str | None] | None = None,
         environment: LauncherEnvironment | None = None,
         terminal: LauncherTerminal | None = None,
         validation: LauncherValidation | None = None,
@@ -124,7 +191,7 @@ class LauncherManager(QObject):
             description=description,
             command=command.strip(),
             category=category,
-            variables=variables or {},
+            variables={k: v for k, v in (variables or {}).items() if v is not None},
             environment=environment or LauncherEnvironment(),
             terminal=terminal or LauncherTerminal(),
             validation=validation or LauncherValidation(),
@@ -152,6 +219,37 @@ class LauncherManager(QObject):
         self.validation_error.emit("general", "Failed to save launcher configuration")
         return None
 
+    def create_launcher_from_object(self, launcher: CustomLauncher) -> bool:
+        """Create a launcher from a CustomLauncher object (backward compatibility).
+        
+        Args:
+            launcher: CustomLauncher object to create
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        # Validate configuration
+        launchers_dict = {
+            existing.id: existing for existing in self._repository.list_all()
+        }
+        valid, errors = self._validator.validate_launcher_config(
+            launcher, launchers_dict
+        )
+        if not valid:
+            for error in errors:
+                self.validation_error.emit("general", error)
+            return False
+
+        # Create through repository, preserving the launcher's ID
+        if self._repository.create(launcher):
+            logger.info(f"Created launcher '{launcher.name}' with ID {launcher.id}")
+            self.launcher_added.emit(launcher.id)
+            self.launchers_changed.emit()
+            return True
+
+        self.validation_error.emit("general", "Failed to save launcher configuration")
+        return False
+
     def update_launcher(
         self,
         launcher_id: str,
@@ -159,7 +257,7 @@ class LauncherManager(QObject):
         command: str | None = None,
         description: str | None = None,
         category: str | None = None,
-        variables: dict[str, str | None] = None,
+        variables: dict[str, str | None] | None = None,
         environment: LauncherEnvironment | None = None,
         terminal: LauncherTerminal | None = None,
         validation: LauncherValidation | None = None,
@@ -196,7 +294,7 @@ class LauncherManager(QObject):
         if category is not None:
             launcher.category = category
         if variables is not None:
-            launcher.variables = variables
+            launcher.variables = {k: v for k, v in variables.items() if v is not None}
         if environment is not None:
             launcher.environment = environment
         if terminal is not None:
@@ -328,7 +426,7 @@ class LauncherManager(QObject):
     def execute_launcher(
         self,
         launcher_id: str,
-        custom_vars: dict[str, str | None] = None,
+        custom_vars: dict[str, str | None] | dict[str, str] | None = None,
         dry_run: bool = False,
         use_worker: bool = True,
     ) -> bool:
@@ -411,7 +509,7 @@ class LauncherManager(QObject):
         self,
         launcher_id: str,
         shot: Shot | None = None,
-        custom_vars: dict[str, str | None] = None,
+        custom_vars: dict[str, str | None] | dict[str, str] | None = None,
     ) -> bool:
         """Execute a launcher in the context of a specific shot.
 
@@ -430,7 +528,7 @@ class LauncherManager(QObject):
             return False
 
         # Build shot variables if shot provided
-        shot_vars = {}
+        shot_vars: dict[str, str] = {}
         if shot:
             shot_vars.update(
                 {
@@ -444,8 +542,8 @@ class LauncherManager(QObject):
             # Note: PathUtils.get_shot_path_variables would need to be implemented
             # if path component extraction is needed
 
-        # Merge all variables
-        all_vars = {**launcher.variables, **shot_vars, **(custom_vars or {})}
+        # Merge all variables  
+        all_vars: dict[str, str] = {**launcher.variables, **shot_vars, **{k: v for k, v in (custom_vars or {}).items() if v is not None}}
 
         # Execute with merged variables
         return self.execute_launcher(launcher_id, all_vars)

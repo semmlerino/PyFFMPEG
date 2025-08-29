@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import Qt
@@ -129,9 +128,24 @@ class TestThreeDEShotGridSceneDisplay:
 
     def test_refresh_scenes_with_scenes(self, threede_grid, sample_scenes):
         """Test refreshing grid with scenes."""
-        with patch.object(threede_grid, "_clear_grid"):
-            with patch.object(threede_grid, "_get_column_count", return_value=3):
-                threede_grid.refresh_scenes()
+        # Replace methods temporarily with test doubles
+        original_clear = threede_grid._clear_grid
+        original_get_column = threede_grid._get_column_count
+
+        clear_called = []
+
+        def test_clear_grid():
+            clear_called.append(True)
+            original_clear()
+
+        threede_grid._clear_grid = test_clear_grid
+        threede_grid._get_column_count = lambda: 3
+
+        try:
+            threede_grid.refresh_scenes()
+        finally:
+            threede_grid._clear_grid = original_clear
+            threede_grid._get_column_count = original_get_column
 
         # Check thumbnails were created
         assert len(threede_grid.thumbnails) == len(sample_scenes)
@@ -147,8 +161,22 @@ class TestThreeDEShotGridSceneDisplay:
         """Test refreshing with no scenes."""
         threede_grid.scene_model.scenes = []
 
-        with patch.object(threede_grid, "_show_empty_state"):
+        # Track if empty state was shown
+        original_show_empty = threede_grid._show_empty_state
+        empty_state_shown = []
+
+        def test_show_empty():
+            empty_state_shown.append(True)
+            original_show_empty()
+
+        threede_grid._show_empty_state = test_show_empty
+
+        try:
             threede_grid.refresh_scenes()
+            assert len(empty_state_shown) > 0  # Empty state was shown
+        finally:
+            threede_grid._show_empty_state = original_show_empty
+
         assert len(threede_grid.thumbnails) == 0
 
     def test_show_empty_state(self, threede_grid):
@@ -181,20 +209,30 @@ class TestThreeDEShotGridColumnCalculation:
 
     def test_get_column_count_default(self, threede_grid):
         """Test default column count."""
-        with patch.object(threede_grid.scroll_area.viewport(), "width", return_value=0):
+        # Replace viewport width method temporarily
+        viewport = threede_grid.scroll_area.viewport()
+        original_width = viewport.width
+        viewport.width = lambda: 0
+
+        try:
             count = threede_grid._get_column_count()
+        finally:
+            viewport.width = original_width
+
         assert count == Config.GRID_COLUMNS
 
     def test_get_column_count_calculated(self, threede_grid):
         """Test calculated column count."""
-        # Mock viewport width
+        # Replace viewport width temporarily
         viewport_width = 500
-        with patch.object(
-            threede_grid.scroll_area.viewport(),
-            "width",
-            return_value=viewport_width,
-        ):
+        viewport = threede_grid.scroll_area.viewport()
+        original_width = viewport.width
+        viewport.width = lambda: viewport_width
+
+        try:
             count = threede_grid._get_column_count()
+        finally:
+            viewport.width = original_width
 
         expected = max(
             1,
@@ -205,12 +243,15 @@ class TestThreeDEShotGridColumnCalculation:
 
     def test_get_column_count_minimum(self, threede_grid):
         """Test minimum column count is 1."""
-        with patch.object(
-            threede_grid.scroll_area.viewport(),
-            "width",
-            return_value=10,
-        ):
+        viewport = threede_grid.scroll_area.viewport()
+        original_width = viewport.width
+        viewport.width = lambda: 10
+
+        try:
             count = threede_grid._get_column_count()
+        finally:
+            viewport.width = original_width
+
         assert count >= 1
 
 
@@ -229,8 +270,22 @@ class TestThreeDEShotGridSizeControl:
         threede_grid.refresh_scenes()
 
         new_size = 200
-        with patch.object(threede_grid, "_reflow_grid"):
+
+        # Track reflow calls
+        original_reflow = threede_grid._reflow_grid
+        reflow_called = []
+
+        def test_reflow():
+            reflow_called.append(True)
+            # Don't call original to avoid complex layout operations in test
+
+        threede_grid._reflow_grid = test_reflow
+
+        try:
             threede_grid._on_size_changed(new_size)
+            assert len(reflow_called) > 0  # Reflow was called
+        finally:
+            threede_grid._reflow_grid = original_reflow
 
         assert threede_grid._thumbnail_size == new_size
         assert threede_grid.size_label.text() == f"{new_size}px"
@@ -415,8 +470,14 @@ class TestThreeDEShotGridKeyboardNavigation:
             QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.NoModifier
         )
 
-        with patch.object(threede_grid, "_get_column_count", return_value=3):
+        # Replace column count method temporarily
+        original_get_column = threede_grid._get_column_count
+        threede_grid._get_column_count = lambda: 3
+
+        try:
             threede_grid.keyPressEvent(event)
+        finally:
+            threede_grid._get_column_count = original_get_column
 
         # Should move down by column count (3 positions)
         assert threede_grid.selected_scene == sample_scenes[3]
@@ -554,8 +615,14 @@ class TestThreeDEShotGridReflow:
         """Test reflowing grid layout."""
         threede_grid.refresh_scenes()
 
-        with patch.object(threede_grid, "_get_column_count", return_value=2):
+        # Replace column count method
+        original_get_column = threede_grid._get_column_count
+        threede_grid._get_column_count = lambda: 2
+
+        try:
             threede_grid._reflow_grid()
+        finally:
+            threede_grid._get_column_count = original_get_column
 
         # Check that widgets are in correct positions
         for i, scene in enumerate(sample_scenes):
@@ -614,10 +681,22 @@ class TestThreeDEShotGridSignalConnections:
         """Test size slider is connected."""
         # Change slider value
         new_value = 200
-        with patch.object(threede_grid, "_on_size_changed"):
-            threede_grid.size_slider.setValue(new_value)
-            # The valueChanged signal should trigger the handler
-            # Note: In real Qt this would work, but in test we need to verify setup
 
-        # Verify slider was set up with connection
+        # Track size change calls
+        original_on_size = threede_grid._on_size_changed
+        size_changed_calls = []
+
+        def test_on_size_changed(value):
+            size_changed_calls.append(value)
+            # Don't call original to avoid side effects
+
+        threede_grid._on_size_changed = test_on_size_changed
+
+        try:
+            threede_grid.size_slider.setValue(new_value)
+            # Note: Signal connection was established during __init__
+        finally:
+            threede_grid._on_size_changed = original_on_size
+
+        # Verify slider value was set
         assert threede_grid.size_slider.value() == new_value

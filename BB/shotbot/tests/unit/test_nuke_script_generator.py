@@ -6,7 +6,7 @@ Focuses on script content, colorspace handling, and temporary file management.
 Following UNIFIED_TESTING_GUIDE principles:
 - Test behavior, not implementation
 - Use real NukeScriptGenerator with temporary files
-- Mock only at system boundaries
+- Use TestCommand instead of unittest.mock
 - Focus on edge cases and error conditions
 """
 
@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
 
 import pytest
 
@@ -107,7 +106,7 @@ class TestNukeScriptGenerator:
                 or "StickyNote {" in content
             )
 
-    def test_colorspace_detection(self):
+    def test_colorspace_detection(self, monkeypatch):
         """Test colorspace detection from file paths."""
         NukeScriptGenerator()
 
@@ -119,13 +118,15 @@ class TestNukeScriptGenerator:
             ("plate_unknown.exr", "Linear"),  # Default fallback
         ]
 
+        # Use monkeypatch instead of patch
+        monkeypatch.setattr("os.path.exists", lambda path: True)
+
         for filepath, expected in test_cases:
-            with patch("os.path.exists", return_value=True):
-                colorspace, use_raw = NukeScriptGenerator._detect_colorspace(filepath)
-                # Test that some colorspace is returned (exact matching may vary)
-                assert isinstance(colorspace, str)
-                assert len(colorspace) > 0
-                assert isinstance(use_raw, bool)
+            colorspace, use_raw = NukeScriptGenerator._detect_colorspace(filepath)
+            # Test that some colorspace is returned (exact matching may vary)
+            assert isinstance(colorspace, str)
+            assert len(colorspace) > 0
+            assert isinstance(use_raw, bool)
 
     def test_shot_name_sanitization(self):
         """Test shot name sanitization for script generation."""
@@ -225,7 +226,7 @@ class TestNukeScriptGenerator:
             for path in script_paths:
                 assert path in NukeScriptGenerator._temp_files
 
-    def test_colorspace_with_spaces(self):
+    def test_colorspace_with_spaces(self, monkeypatch):
         """Test colorspace handling with spaces in names."""
         # Test colorspace names that contain spaces
         test_colorspace = "Input - Sony - S-Gamut3.Cine - Linear"
@@ -235,23 +236,25 @@ class TestNukeScriptGenerator:
             plate_path = temp_path / "test_plate.exr"
             plate_path.touch()
 
-            with patch.object(
+            # Use monkeypatch instead of patch.object
+            monkeypatch.setattr(
                 NukeScriptGenerator,
                 "_detect_colorspace",
-                return_value=(test_colorspace, False),
-            ):
-                script_path = NukeScriptGenerator.create_plate_script(
-                    plate_path=str(plate_path), shot_name="test_shot"
-                )
+                lambda self, filepath: (test_colorspace, False),
+            )
 
-                with open(script_path, "r") as f:
-                    content = f.read()
+            script_path = NukeScriptGenerator.create_plate_script(
+                plate_path=str(plate_path), shot_name="test_shot"
+            )
 
-                # Test colorspace is properly quoted/handled
-                assert (
-                    test_colorspace in content
-                    or test_colorspace.replace(" ", "_") in content
-                )
+            with open(script_path, "r") as f:
+                content = f.read()
+
+            # Test colorspace is properly quoted/handled
+            assert (
+                test_colorspace in content
+                or test_colorspace.replace(" ", "_") in content
+            )
 
     def test_generate_complete_comp_script(self):
         """Test generating complete comp script with Read and Write nodes."""

@@ -1,4 +1,5 @@
 """Background worker for scanning previous/approved shots."""
+
 from __future__ import annotations
 
 import logging

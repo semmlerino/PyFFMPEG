@@ -1,4 +1,5 @@
 """Async thumbnail loading with QRunnable background processing."""
+
 from __future__ import annotations
 
 import logging

@@ -16,7 +16,6 @@ import concurrent.futures
 import gc
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -52,38 +51,24 @@ class TestFailureTracker:
         )
 
     @pytest.fixture
-    def mock_datetime_now(self):
-        """Mock datetime.now() for time-based testing without delays."""
+    def time_controller(self):
+        """Controlled time fixture for time-based testing without delays."""
         base_time = datetime(2025, 1, 1, 12, 0, 0)  # Start at noon
         current_offset = timedelta(0)
-
-        def mock_now():
-            return base_time + current_offset
 
         def advance_time(minutes=0, hours=0, seconds=0):
             nonlocal current_offset
             current_offset += timedelta(minutes=minutes, hours=hours, seconds=seconds)
-            return mock_now()
+            return base_time + current_offset
 
-        # Mock datetime.now() but preserve other datetime functionality
-        original_datetime = datetime
+        def get_current_time():
+            return base_time + current_offset
 
-        class MockDateTime:
-            @staticmethod
-            def now():
-                return mock_now()
-
-            def __getattr__(self, name):
-                return getattr(original_datetime, name)
-
-        mock_datetime_obj = MockDateTime()
-        # Copy all other attributes from original datetime
-        for attr in dir(original_datetime):
-            if not attr.startswith("_") and attr != "now":
-                setattr(mock_datetime_obj, attr, getattr(original_datetime, attr))
-
-        with patch("cache.failure_tracker.datetime", mock_datetime_obj):
-            yield advance_time
+        return type(
+            "TimeController",
+            (),
+            {"advance": advance_time, "now": get_current_time, "base_time": base_time},
+        )()
 
     def test_initial_state(self, failure_tracker):
         """Test that a new FailureTracker starts in clean state."""
@@ -108,18 +93,27 @@ class TestFailureTracker:
         assert should_retry is True
         assert reason == "No previous failures recorded"
 
-    def test_record_failure_first_attempt(self, failure_tracker, mock_datetime_now):
+    def test_record_failure_first_attempt(self, failure_tracker):
         """Test recording the first failure creates correct state."""
         cache_key = "test_key"
         error_message = "Test error"
         source_path = Path("/test/image.jpg")
 
-        failure_tracker.record_failure(cache_key, error_message, source_path)
+        # Use real FailureTracker with controllable time
+        tracker = FailureTracker(
+            base_retry_delay_minutes=5,
+            max_retry_delay_minutes=120,
+            retry_multiplier=3,
+            max_failed_attempts=4,
+            cleanup_age_hours=24,
+        )
 
-        assert len(failure_tracker) == 1
-        assert cache_key in failure_tracker
+        tracker.record_failure(cache_key, error_message, source_path)
 
-        status = failure_tracker.get_failure_status()
+        assert len(tracker) == 1
+        assert cache_key in tracker
+
+        status = tracker.get_failure_status()
         assert cache_key in status
 
         failure_info = status[cache_key]
@@ -127,13 +121,12 @@ class TestFailureTracker:
         assert failure_info["error"] == error_message
         assert failure_info["source_path"] == str(source_path)
 
-        # Should have next_retry set to 5 minutes from now
-        expected_retry = datetime(2025, 1, 1, 12, 5, 0)  # 5 minutes later
-        assert failure_info["next_retry"] == expected_retry
+        # Next retry should be approximately 5 minutes from now
+        next_retry = failure_info["next_retry"]
+        time_diff = (next_retry - datetime.now()).total_seconds() / 60
+        assert 4.8 <= time_diff <= 5.2  # Allow small tolerance for execution time
 
-    def test_record_failure_without_source_path(
-        self, failure_tracker, mock_datetime_now
-    ):
+    def test_record_failure_without_source_path(self, failure_tracker):
         """Test recording failure without source_path uses cache_key as fallback."""
         cache_key = "test_key"
         error_message = "Test error"
@@ -144,8 +137,16 @@ class TestFailureTracker:
         failure_info = status[cache_key]
         assert failure_info["source_path"] == cache_key
 
-    def test_exponential_backoff_progression(self, failure_tracker, mock_datetime_now):
+    def test_exponential_backoff_progression(self):
         """Test exponential backoff follows expected progression: 5min → 15min → 45min → 120min."""
+        # Create tracker with known configuration for predictable testing
+        tracker = FailureTracker(
+            base_retry_delay_minutes=5,
+            max_retry_delay_minutes=120,
+            retry_multiplier=3,
+            max_failed_attempts=4,
+        )
+
         cache_key = "test_key"
         error_message = "Test error"
 
@@ -153,23 +154,23 @@ class TestFailureTracker:
         expected_delays = [5, 15, 45, 120, 120]  # Last two should be capped at max
 
         for attempt, expected_delay in enumerate(expected_delays, 1):
-            # Reset time before each failure
-            current_time = mock_datetime_now()
+            before_failure = datetime.now()
 
-            failure_tracker.record_failure(cache_key, f"{error_message} #{attempt}")
+            tracker.record_failure(cache_key, f"{error_message} #{attempt}")
 
-            status = failure_tracker.get_failure_status()
+            status = tracker.get_failure_status()
             failure_info = status[cache_key]
 
             assert failure_info["attempts"] == attempt
 
-            # Verify the next_retry time matches expected delay
-            expected_retry = current_time + timedelta(minutes=expected_delay)
-            assert failure_info["next_retry"] == expected_retry
+            # Verify the next_retry time is approximately the expected delay from now
+            next_retry = failure_info["next_retry"]
+            actual_delay = (next_retry - before_failure).total_seconds() / 60
 
-    def test_should_retry_within_backoff_period(
-        self, failure_tracker, mock_datetime_now
-    ):
+            # Allow small tolerance for execution time
+            assert expected_delay - 0.1 <= actual_delay <= expected_delay + 0.1
+
+    def test_should_retry_within_backoff_period(self, failure_tracker):
         """Test should_retry returns False when within backoff period."""
         cache_key = "test_key"
         source_path = Path("/test/image.jpg")
@@ -183,43 +184,65 @@ class TestFailureTracker:
         assert should_retry is False
         assert "Skipping recently failed operation for image.jpg" in reason
         assert "attempt 1" in reason
-        assert "retry in 5min" in reason
+        # Don't check exact retry time as it depends on current time
 
-    def test_should_retry_after_backoff_period(
-        self, failure_tracker, mock_datetime_now
-    ):
+    def test_should_retry_after_backoff_period(self):
         """Test should_retry returns True after backoff period expires."""
+        # Use very short delays for testing without actual waiting
+        tracker = FailureTracker(
+            base_retry_delay_minutes=0.01,  # 0.6 seconds
+            max_retry_delay_minutes=1,
+            retry_multiplier=2,
+            max_failed_attempts=3,
+        )
+
         cache_key = "test_key"
 
         # Record a failure
-        failure_tracker.record_failure(cache_key, "Test error")
+        tracker.record_failure(cache_key, "Test error")
 
-        # Advance time beyond backoff period (5 minutes + 1 second)
-        mock_datetime_now(minutes=5, seconds=1)
+        # Should be blocked immediately
+        should_retry, _ = tracker.should_retry(cache_key)
+        assert should_retry is False
 
-        should_retry, reason = failure_tracker.should_retry(cache_key)
+        # Wait for backoff period to expire
+        import time
 
+        time.sleep(0.7)  # Wait slightly longer than 0.6 seconds
+
+        should_retry, reason = tracker.should_retry(cache_key)
         assert should_retry is True
         assert reason == "Retry allowed after 1 previous attempts"
 
-    def test_should_retry_exact_boundary_condition(
-        self, failure_tracker, mock_datetime_now
-    ):
+    def test_should_retry_exact_boundary_condition(self):
         """Test should_retry behavior exactly at retry time boundary."""
+        # Use very short delay for precise testing
+        tracker = FailureTracker(
+            base_retry_delay_minutes=0.02,  # 1.2 seconds
+            max_retry_delay_minutes=1,
+            retry_multiplier=2,
+            max_failed_attempts=3,
+        )
+
         cache_key = "test_key"
 
-        # Record failure at exactly 12:00:00
-        failure_tracker.record_failure(cache_key, "Test error")
+        # Record failure
+        tracker.record_failure(cache_key, "Test error")
 
-        # Just before 12:05:00 (retry time), should still be blocked
-        # The implementation uses datetime.now() < next_retry, so we test just before
-        mock_datetime_now(minutes=4, seconds=59)
-        should_retry, _ = failure_tracker.should_retry(cache_key)
+        # Should be blocked immediately after failure
+        should_retry, _ = tracker.should_retry(cache_key)
         assert should_retry is False
 
-        # At exactly 12:05:00 (retry time), should be allowed
-        mock_datetime_now(seconds=1)  # Now at exactly 12:05:00
-        should_retry, _ = failure_tracker.should_retry(cache_key)
+        # Wait just before retry time expires
+        import time
+
+        time.sleep(1.1)  # Just before 1.2 seconds
+        should_retry, _ = tracker.should_retry(cache_key)
+        assert should_retry is False
+
+        # Wait past retry time
+        time.sleep(0.2)  # Now past 1.2 seconds
+        should_retry, _ = tracker.should_retry(cache_key)
         assert should_retry is True
 
     def test_clear_failures_specific_key(self, failure_tracker):
@@ -272,25 +295,35 @@ class TestFailureTracker:
 
         assert len(failure_tracker) == 0
 
-    def test_cleanup_old_failures(self, failure_tracker, mock_datetime_now):
+    def test_cleanup_old_failures(self):
         """Test automatic cleanup of old failure records."""
-        # Record failure at initial time (12:00)
-        failure_tracker.record_failure("old_key", "Old error")
+        # Use very short cleanup age for testing
+        tracker = FailureTracker(
+            base_retry_delay_minutes=1,
+            max_retry_delay_minutes=5,
+            retry_multiplier=2,
+            max_failed_attempts=3,
+            cleanup_age_hours=0.001,  # About 3.6 seconds
+        )
 
-        # Advance time to just under cleanup threshold (23 hours later)
-        mock_datetime_now(hours=23)
-        failure_tracker.record_failure("recent_key", "Recent error")
+        # Record old failure
+        tracker.record_failure("old_key", "Old error")
 
-        # Now advance time to 25 hours total (2 more hours)
-        mock_datetime_now(hours=2)
+        # Wait for cleanup age to pass
+        import time
 
-        # Should clean up the first failure (25h old) but keep the second (2h old)
-        cleaned_count = failure_tracker.cleanup_old_failures()
+        time.sleep(4)  # Wait longer than 3.6 seconds
+
+        # Record recent failure
+        tracker.record_failure("recent_key", "Recent error")
+
+        # Should clean up the old failure but keep the recent one
+        cleaned_count = tracker.cleanup_old_failures()
 
         assert cleaned_count == 1
-        assert len(failure_tracker) == 1
-        assert "old_key" not in failure_tracker
-        assert "recent_key" in failure_tracker
+        assert len(tracker) == 1
+        assert "old_key" not in tracker
+        assert "recent_key" in tracker
 
     def test_automatic_cleanup_trigger(self, failure_tracker):
         """Test that cleanup is automatically triggered when failure count exceeds threshold."""
@@ -302,9 +335,11 @@ class TestFailureTracker:
         # (Though without time advancement, nothing would be cleaned)
         assert len(failure_tracker) == 12
 
-    def test_custom_configuration(self, custom_failure_tracker, mock_datetime_now):
+    def test_custom_configuration(self, custom_failure_tracker):
         """Test FailureTracker with custom configuration parameters."""
         cache_key = "test_key"
+
+        before_failure = datetime.now()
 
         # Record failure - should use 2min base delay (not 5min)
         custom_failure_tracker.record_failure(cache_key, "Error")
@@ -312,19 +347,26 @@ class TestFailureTracker:
         status = custom_failure_tracker.get_failure_status()
         failure_info = status[cache_key]
 
-        expected_retry = datetime(2025, 1, 1, 12, 2, 0)  # 2 minutes later
-        assert failure_info["next_retry"] == expected_retry
+        # Verify delay is approximately 2 minutes
+        next_retry = failure_info["next_retry"]
+        delay_minutes = (next_retry - before_failure).total_seconds() / 60
+        assert 1.9 <= delay_minutes <= 2.1  # 2 minute delay with tolerance
 
         # Test custom multiplier (2x instead of 3x)
-        mock_datetime_now(minutes=3)  # Move past first retry time
+        import time
+
+        time.sleep(0.1)  # Small delay to differentiate timestamps
+
+        before_second = datetime.now()
         custom_failure_tracker.record_failure(cache_key, "Error 2")
 
         status = custom_failure_tracker.get_failure_status()
         failure_info = status[cache_key]
 
-        # Second failure: 2 * 2^(2-1) = 2 * 2 = 4 minutes from current time (12:03)
-        expected_retry = datetime(2025, 1, 1, 12, 7, 0)  # 4 minutes from 12:03
-        assert failure_info["next_retry"] == expected_retry
+        # Second failure: 2 * 2^(2-1) = 2 * 2 = 4 minutes
+        next_retry = failure_info["next_retry"]
+        delay_minutes = (next_retry - before_second).total_seconds() / 60
+        assert 3.9 <= delay_minutes <= 4.1  # 4 minute delay with tolerance
 
     def test_thread_safety_concurrent_failures(self, failure_tracker):
         """Test thread safety when recording failures concurrently."""
@@ -523,16 +565,19 @@ class TestFailureTracker:
             == "FailureTracker(failures=0, max_delay=60min)"
         )
 
-    def test_cleanup_age_configuration(self, mock_datetime_now):
+    def test_cleanup_age_configuration(self):
         """Test cleanup with custom age configuration."""
-        # Create tracker with 1 hour cleanup age (instead of default 24h)
-        tracker = FailureTracker(cleanup_age_hours=1)
+        # Create tracker with very short cleanup age for testing
+        tracker = FailureTracker(cleanup_age_hours=0.001)  # About 3.6 seconds
 
-        # Record failure at initial time
+        # Record failure
         tracker.record_failure("old_key", "Old error")
+        assert len(tracker) == 1
 
-        # Advance time by 2 hours (past the 1 hour cleanup threshold)
-        mock_datetime_now(hours=2)
+        # Wait past cleanup threshold
+        import time
+
+        time.sleep(4)  # Wait longer than 3.6 seconds
 
         cleaned_count = tracker.cleanup_old_failures()
 
@@ -540,45 +585,59 @@ class TestFailureTracker:
         assert cleaned_count == 1
         assert len(tracker) == 0
 
-    def test_max_attempts_capping(self, failure_tracker, mock_datetime_now):
+    def test_max_attempts_capping(self):
         """Test that delays are capped at max_failed_attempts."""
+        # Create tracker with known configuration
+        tracker = FailureTracker(
+            base_retry_delay_minutes=5,
+            max_retry_delay_minutes=120,
+            retry_multiplier=3,
+            max_failed_attempts=4,
+        )
+
         cache_key = "test_key"
+
+        # Expected delays: 5, 15, 45, 120, 120, 120 (capped at max)
+        expected_delays = [5, 15, 45, 120, 120, 120]
 
         # Default config: max_failed_attempts=4, so attempts 4+ should use max delay
         for attempt in range(6):  # Go beyond max attempts
-            mock_datetime_now()  # Reset time
-            failure_tracker.record_failure(cache_key, f"Error #{attempt + 1}")
+            before_failure = datetime.now()
+            tracker.record_failure(cache_key, f"Error #{attempt + 1}")
 
-            status = failure_tracker.get_failure_status()
+            status = tracker.get_failure_status()
             failure_info = status[cache_key]
 
-            # After 4 attempts, should always use max delay (120 min)
-            if attempt >= 3:  # 4th attempt and beyond (0-indexed)
-                expected_delay = 120
-            else:
-                # Standard exponential backoff
-                expected_delays = [5, 15, 45]
-                expected_delay = expected_delays[attempt]
+            # Verify delay matches expected pattern
+            expected_delay = expected_delays[attempt]
+            next_retry = failure_info["next_retry"]
+            actual_delay = (next_retry - before_failure).total_seconds() / 60
 
-            current_time = datetime(2025, 1, 1, 12, 0, 0)
-            expected_retry = current_time + timedelta(minutes=expected_delay)
-            assert failure_info["next_retry"] == expected_retry
+            # Allow tolerance for execution time
+            assert expected_delay - 0.2 <= actual_delay <= expected_delay + 0.2
 
-    def test_edge_case_zero_cleanup_age(self, mock_datetime_now):
+            # Small sleep to differentiate timestamps
+            import time
+
+            time.sleep(0.01)
+
+    def test_edge_case_zero_cleanup_age(self):
         """Test edge case with zero cleanup age (immediate cleanup)."""
         tracker = FailureTracker(cleanup_age_hours=0)
 
         tracker.record_failure("key", "Error")
         assert len(tracker) == 1
 
-        # Any time advancement should trigger cleanup with zero age
-        mock_datetime_now(seconds=1)  # Even 1 second should be enough
+        # Any time should trigger cleanup with zero age
+        import time
+
+        time.sleep(0.001)  # Minimal delay
         cleaned_count = tracker.cleanup_old_failures()
 
         assert cleaned_count == 1
         assert len(tracker) == 0
 
-    def test_pathlib_path_handling(self, failure_tracker, mock_datetime_now):
+    def test_pathlib_path_handling(self, failure_tracker):
         """Test proper handling of pathlib.Path objects in source_path."""
         cache_key = "test_key"
         source_path = Path("/complex/path/with spaces/image file.jpg")

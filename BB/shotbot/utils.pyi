@@ -17,7 +17,7 @@ def enable_caching() -> None: ...
 
 class CacheIsolation:
     """Context manager for cache isolation in tests."""
-    
+
     def __init__(self) -> None: ...
     def __enter__(self) -> CacheIsolation: ...
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None: ...
@@ -34,6 +34,20 @@ class PathUtils:
         sequence: str,
         shot: str,
     ) -> Path: ...
+    @staticmethod
+    def find_turnover_plate_thumbnail(
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
+    ) -> Optional[Path]: ...
+    @staticmethod
+    def find_any_publish_thumbnail(
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
+    ) -> Optional[Path]: ...
     @staticmethod
     def build_raw_plate_path(workspace_path: str) -> Path: ...
     @staticmethod

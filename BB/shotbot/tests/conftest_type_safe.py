@@ -38,9 +38,9 @@ from tests.test_type_safe_patterns import (
 
 class TestQApplication:
     """Type-safe QApplication wrapper for tests."""
-    
+
     _instance: QApplication | None = None
-    
+
     @classmethod
     def get_instance(cls) -> QApplication:
         """Get or create test QApplication instance."""
@@ -78,7 +78,7 @@ def temp_cache_dir() -> Iterator[Path]:
 @pytest.fixture
 def typed_cache_manager(temp_cache_dir: Path) -> Iterator[Any]:  # CacheManager
     """Type-safe CacheManager fixture using real implementation.
-    
+
     Returns:
         Real CacheManager instance with temporary storage.
     """
@@ -93,11 +93,7 @@ def typed_cache_manager(temp_cache_dir: Path) -> Iterator[Any]:  # CacheManager
 @pytest.fixture
 def real_shot_data() -> ShotTestData:
     """Real shot test data with actual file structure."""
-    return create_test_shot_data(
-        show="TEST_SHOW",
-        sequence="seq01", 
-        shot="0010"
-    )
+    return create_test_shot_data(show="TEST_SHOW", sequence="seq01", shot="0010")
 
 
 @pytest.fixture
@@ -113,7 +109,7 @@ def multiple_shot_data() -> list[ShotTestData]:
 @pytest.fixture
 def typed_process_pool_mock() -> ProcessPoolProtocol:
     """Type-safe ProcessPoolManager mock.
-    
+
     Use only when real ProcessPoolManager can't work due to external dependencies.
     """
     return create_typed_process_pool_mock()
@@ -127,32 +123,31 @@ def typed_process_pool_mock() -> ProcessPoolProtocol:
 @pytest.fixture
 def shot_data_factory() -> Any:  # Callable[[str, str, str], ShotTestData]
     """Factory for creating shot test data on demand."""
+
     def _create_shot_data(
-        show: str = "TEST", 
-        sequence: str = "seq01", 
-        shot: str = "0010"
+        show: str = "TEST", sequence: str = "seq01", shot: str = "0010"
     ) -> ShotTestData:
         return create_test_shot_data(show, sequence, shot)
-    
+
     return _create_shot_data
 
 
 @pytest.fixture
 def cache_test_helper(typed_cache_manager: Any) -> Any:  # CacheTestHelper
     """Helper class for cache-related test operations."""
-    
+
     class CacheTestHelper:
         """Helper for type-safe cache testing operations."""
-        
+
         def __init__(self, cache_manager: Any) -> None:  # CacheManager
             self.cache = cache_manager
-        
+
         def populate_test_shots(self, count: int = 3) -> list[dict[str, Any]]:
             """Populate cache with test shot data.
-            
+
             Args:
                 count: Number of test shots to create
-                
+
             Returns:
                 List of shot dictionaries that were cached
             """
@@ -161,27 +156,27 @@ def cache_test_helper(typed_cache_manager: Any) -> Any:  # CacheTestHelper
                 shot_data = {
                     "show": f"TEST_SHOW_{i}",
                     "sequence": "seq01",
-                    "shot": f"{i+1:04d}",
-                    "workspace_path": f"/test/path/shot_{i+1:04d}",
+                    "shot": f"{i + 1:04d}",
+                    "workspace_path": f"/test/path/shot_{i + 1:04d}",
                 }
                 shots_data.append(shot_data)
-            
+
             self.cache.cache_shots(shots_data)
             return shots_data
-        
+
         def assert_memory_within_limits(self, max_bytes: int) -> None:
             """Assert that cache memory usage is within limits."""
             current_usage = self.cache.test_memory_usage_bytes
             assert current_usage <= max_bytes, (
                 f"Memory usage {current_usage} exceeds limit {max_bytes}"
             )
-        
+
         def clear_and_verify(self) -> None:
             """Clear cache and verify it's empty."""
             self.cache.clear_cache()
             assert len(self.cache.test_cached_thumbnails) == 0
             assert self.cache.test_memory_usage_bytes == 0
-    
+
     return CacheTestHelper(typed_cache_manager)
 
 
@@ -192,25 +187,28 @@ def cache_test_helper(typed_cache_manager: Any) -> Any:  # CacheTestHelper
 
 class MockConfigurationHelper:
     """Helper for configuring mocks with proper typing."""
-    
+
     @staticmethod
     def configure_process_pool_mock(
         mock: ProcessPoolProtocol,
         workspace_output: str | None = None,
     ) -> None:
         """Configure ProcessPoolManager mock with standard responses.
-        
+
         Args:
             mock: Mock to configure
             workspace_output: Custom workspace command output
         """
-        default_output = workspace_output or """workspace /shows/TEST/seq01/0010
+        default_output = (
+            workspace_output
+            or """workspace /shows/TEST/seq01/0010
 workspace /shows/TEST/seq01/0020
 workspace /shows/TEST/seq02/0010"""
-        
+        )
+
         # Configure with proper typing awareness
         mock.execute_workspace_command.return_value = default_output  # pyright: ignore[reportUnknownMemberType]
-    
+
     @staticmethod
     def configure_launcher_mock(mock: Mock) -> None:
         """Configure LauncherManager mock with standard responses."""
@@ -231,23 +229,25 @@ def mock_config_helper() -> MockConfigurationHelper:
 
 def assert_shot_data_valid(shot_data: ShotTestData) -> None:
     """Assert that shot test data is valid and well-formed.
-    
+
     Args:
         shot_data: Shot data to validate
-        
+
     Raises:
         AssertionError: If shot data is invalid
     """
     assert shot_data.shot is not None, "Shot object is None"
-    assert shot_data.workspace_path.exists(), f"Workspace path {shot_data.workspace_path} doesn't exist"
+    assert shot_data.workspace_path.exists(), (
+        f"Workspace path {shot_data.workspace_path} doesn't exist"
+    )
     assert shot_data.shot.show, "Show name is empty"
-    assert shot_data.shot.sequence, "Sequence name is empty"  
+    assert shot_data.shot.sequence, "Sequence name is empty"
     assert shot_data.shot.shot, "Shot name is empty"
 
 
 def assert_cache_state_clean(cache_manager: Any) -> None:  # CacheManager
     """Assert that cache manager is in clean state.
-    
+
     Args:
         cache_manager: Cache manager to check
     """
@@ -263,13 +263,13 @@ def assert_cache_state_clean(cache_manager: Any) -> None:  # CacheManager
 # Type-safe parametrized data for common test scenarios
 SHOT_TEST_CASES = [
     ("SHOW_A", "seq01", "0010"),
-    ("SHOW_B", "seq02", "0020"), 
+    ("SHOW_B", "seq02", "0020"),
     ("COMPLEX_SHOW", "101_ABC", "0030"),
 ]
 
 MEMORY_TEST_CASES = [
-    (1024, 1),      # 1KB, 1 item
-    (10240, 10),    # 10KB, 10 items  
+    (1024, 1),  # 1KB, 1 item
+    (10240, 10),  # 10KB, 10 items
     (102400, 100),  # 100KB, 100 items
 ]
 
@@ -294,22 +294,22 @@ def memory_test_params(request: pytest.FixtureRequest) -> tuple[int, int]:
 
 
 # ============================================================================
-# INTEGRATION TEST HELPERS  
+# INTEGRATION TEST HELPERS
 # ============================================================================
 
 
 class IntegrationTestEnvironment:
     """Type-safe integration test environment."""
-    
+
     def __init__(self, temp_dir: Path) -> None:
         self.temp_dir = temp_dir
         self.cache_dir = temp_dir / "cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Initialize real components
         self.cache_manager = create_real_cache_manager(self.cache_dir)
         self.app = TestQApplication.get_instance()
-    
+
     def cleanup(self) -> None:
         """Clean up test environment."""
         self.cache_manager.clear_cache()
@@ -333,13 +333,13 @@ def integration_env() -> Iterator[IntegrationTestEnvironment]:
 
 def verify_type_safety() -> None:
     """Verify that type-safe patterns are working correctly.
-    
+
     This function can be called in tests to ensure type safety is maintained.
     """
     # Create instances to verify typing works
     shot_data = create_test_shot_data()
     assert_shot_data_valid(shot_data)
-    
+
     # Verify mock protocols work
     mock_pool = create_typed_process_pool_mock()
     result = mock_pool.execute_workspace_command("test")

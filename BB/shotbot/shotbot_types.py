@@ -18,7 +18,7 @@ from typing import Any, TypedDict
 
 class ThreeDESceneData(TypedDict):
     """Type definition for 3DE scene data dictionary.
-    
+
     Note: This differs from ThreeDESceneDict in type_definitions.py
     by having different fields (plate, scene_path instead of filepath, etc.)
     """

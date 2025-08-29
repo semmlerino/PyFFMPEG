@@ -19,6 +19,9 @@ except ImportError:
 from cache_manager import CacheManager
 from launcher_manager import LauncherManager
 
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import TestShot, TestShotModel, TestSubprocess
+
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
 # This file shows how to properly write tests using test doubles instead of mocks,
@@ -27,9 +30,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 # - Use real components where possible
 # - Mock only at system boundaries
 # - Use test doubles for non-system components
-
-# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestShot, TestShotModel, TestSubprocess
 
 
 class TestBehaviorNotImplementation:

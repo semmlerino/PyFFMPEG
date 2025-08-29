@@ -61,12 +61,14 @@ workspace /shows/TEST/seq02/0030"""
         loader = AsyncShotLoader(self.mock_process_pool)
 
         signals_received: list[str] = []
+
         # Connect signals with proper typing
         def on_shots_loaded(shots: Any) -> None:
             signals_received.append("loaded")
+
         def on_load_failed(error: Any) -> None:
             signals_received.append("failed")
-            
+
         loader.shots_loaded.connect(on_shots_loaded)
         loader.load_failed.connect(on_load_failed)
 
@@ -226,14 +228,21 @@ class TestProcessPoolManagerSingleton:
             # Multiple threads trying to get sessions of same type
             def get_session() -> Any:  # PersistentBashSession
                 # Access private method for testing - this tests internal behavior
-                return getattr(manager, '_get_bash_session')("test_type")  # pyright: ignore[reportUnknownMemberType]
+                return getattr(manager, "_get_bash_session")("test_type")  # pyright: ignore[reportUnknownMemberType]
 
+            # Get expected session count for validation
+            expected = getattr(manager, "_sessions_per_type", 2)  # pyright: ignore[reportUnknownMemberType]
+            
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                 futures = [executor.submit(get_session) for _ in range(10)]
                 sessions = [f.result() for f in futures]
 
+            # Verify all sessions were created successfully
+            assert all(session is not None for session in sessions), "All sessions should be created"
+            # Verify session pooling - all sessions should be the same instances
+            assert len(set(id(s) for s in sessions)) <= expected, f"Should have at most {expected} unique session instances"
+
             # Should create exactly sessions_per_type sessions
-            expected = getattr(manager, '_sessions_per_type', 2)  # pyright: ignore[reportUnknownMemberType]
             assert creation_count[0] == expected, (
                 f"Should create exactly {expected} sessions"
             )

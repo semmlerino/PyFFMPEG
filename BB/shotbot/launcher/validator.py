@@ -123,7 +123,7 @@ class LauncherValidator:
         return errors
 
     def validate_command_syntax(self, command: str) -> tuple[bool, str | None]:
-        """Validate command syntax for variable substitutions.
+        """Validate command syntax for variable substitutions and security.
 
         Args:
             command: Command string to validate
@@ -133,6 +133,31 @@ class LauncherValidator:
         """
         if not command:
             return False, "Command cannot be empty"
+        
+        # Security check: validate against dangerous patterns
+        dangerous_patterns = [
+            r"\brm\s+-rf\s+/",  # rm -rf /
+            r"\brm\s+.*\*",  # rm with wildcards
+            r";\s*rm\s",  # Command chaining with rm
+            r"&&\s*rm\s",  # Command chaining with rm
+            r"\|\s*rm\s",  # Piping to rm
+            r"`rm\s",  # Command substitution with rm
+            r"\$\(rm\s",  # Command substitution with rm
+            r";\s*sudo\s",  # sudo after semicolon
+            r"&&\s*sudo\s",  # sudo after &&
+            r";\s*su\s",  # su after semicolon
+            r"&&\s*su\s",  # su after &&
+            r"/etc/passwd",  # System file access
+            r"/etc/shadow",  # System file access
+        ]
+        
+        cmd_lower = command.lower()
+        for pattern in dangerous_patterns:
+            try:
+                if re.search(pattern, cmd_lower):
+                    return False, f"Command contains dangerous pattern: {pattern}"
+            except re.error:
+                logger.warning(f"Invalid regex pattern: {pattern}")
 
         try:
             # Use string.Template to validate syntax
@@ -276,7 +301,7 @@ class LauncherValidator:
     def validate_launcher_config(
         self,
         launcher: CustomLauncher,
-        existing_launchers: dict[str, CustomLauncher | None] = None,
+        existing_launchers: dict[str, CustomLauncher] | None = None,
     ) -> tuple[bool, list[str]]:
         """Comprehensive validation of a launcher configuration.
 

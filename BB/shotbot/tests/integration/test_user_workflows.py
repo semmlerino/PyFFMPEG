@@ -44,11 +44,6 @@ import pytest
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication
 
-pytestmark = [pytest.mark.integration, pytest.mark.qt]
-
-# Test markers for pytest
-
-
 from cache_manager import CacheManager
 from launcher_manager import LauncherManager
 from main_window import MainWindow
@@ -61,6 +56,10 @@ from tests.test_doubles_library import (
     TestSubprocess,
 )
 from threede_scene_model import ThreeDESceneModel
+
+pytestmark = [pytest.mark.integration, pytest.mark.qt]
+
+# Test markers for pytest
 
 
 class ProgressOperationDouble:

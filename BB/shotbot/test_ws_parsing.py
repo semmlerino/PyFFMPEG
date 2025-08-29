@@ -2,9 +2,8 @@
 """Test script to verify ws output parsing with actual VFX data."""
 
 import re
+
 from shot_model import Shot
-from utils import PathUtils
-from config import Config
 
 # Actual ws -sg output from VFX environment
 WS_OUTPUT = """workspace /shows/gator/shots/012_DC/012_DC_1000
@@ -20,68 +19,67 @@ workspace /shows/broken_eggs/shots/BRX_170/BRX_170_0100
 workspace /shows/broken_eggs/shots/BRX_070/BRX_070_0010
 workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
+
 def test_parsing():
     """Test parsing of actual ws output."""
     parse_pattern = re.compile(
         r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+_\w+))",
     )
-    
+
     lines = WS_OUTPUT.strip().split("\n")
     print(f"Parsing {len(lines)} lines of ws output\n")
-    
+
     for line_num, line in enumerate(lines, 1):
         line = line.strip()
         if not line:
             continue
-            
+
         match = parse_pattern.search(line)
         if match:
             workspace_path = match.group(1)
             show = match.group(2)
             sequence = match.group(3)
             shot_dir = match.group(4)
-            
+
             # Extract shot from shot_dir
             if shot_dir.startswith(f"{sequence}_"):
-                shot = shot_dir[len(sequence) + 1:]
+                shot = shot_dir[len(sequence) + 1 :]
             else:
                 shot_parts = shot_dir.rsplit("_", 1)
                 if len(shot_parts) == 2:
                     shot = shot_parts[1]
                 else:
                     shot = shot_dir
-            
+
             print(f"Line {line_num}: {line}")
-            print(f"  Parsed:")
+            print("  Parsed:")
             print(f"    workspace_path: {workspace_path}")
             print(f"    show: {show}")
             print(f"    sequence: {sequence}")
             print(f"    shot_dir: {shot_dir}")
             print(f"    extracted shot: {shot}")
-            
+
             # Create Shot object
             shot_obj = Shot(
-                show=show,
-                sequence=sequence,
-                shot=shot,
-                workspace_path=workspace_path
+                show=show, sequence=sequence, shot=shot, workspace_path=workspace_path
             )
-            print(f"  Shot object:")
+            print("  Shot object:")
             print(f"    full_name: {shot_obj.full_name}")
-            
+
             # Test path construction
             thumb_path = shot_obj.thumbnail_dir
             print(f"    thumbnail_dir: {thumb_path}")
-            
+
             # Check for the issue - should NOT contain /shots/shots/
             path_str = str(thumb_path)
             if "/shots/shots/" in path_str:
                 print(f"    ❌ ERROR: Path contains duplicate 'shots': {path_str}")
             elif f"/shots/{sequence}/{shot_dir}/" in path_str:
-                print(f"    ✓ Path correctly constructed")
+                print("    ✓ Path correctly constructed")
             else:
-                print(f"    ⚠ WARNING: Path structure may be incorrect")
+                print("    ⚠ WARNING: Path structure may be incorrect")
             print()
+
 
 if __name__ == "__main__":
     test_parsing()

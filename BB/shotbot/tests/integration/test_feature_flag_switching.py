@@ -41,7 +41,7 @@ class TestFeatureFlagSwitching:
             mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
             mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
             MockCacheManager.return_value = mock_cache
-            
+
             # Mock QTimer to prevent delayed operations
             with patch("PySide6.QtCore.QTimer.singleShot"):
                 window = MainWindow()
@@ -50,9 +50,9 @@ class TestFeatureFlagSwitching:
                 # Verify standard ShotModel is used
                 assert isinstance(window.shot_model, ShotModel)
                 assert not isinstance(window.shot_model, OptimizedShotModel)
-                
+
                 # Clean up any threads if present
-                if hasattr(window, '_threede_worker') and window._threede_worker:
+                if hasattr(window, "_threede_worker") and window._threede_worker:
                     if window._threede_worker.isRunning():
                         window._threede_worker.quit()
                         window._threede_worker.wait(1000)
@@ -70,7 +70,7 @@ class TestFeatureFlagSwitching:
                 mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
                 mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
                 MockCacheManager.return_value = mock_cache
-                
+
                 # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
                     window = MainWindow()
@@ -79,9 +79,9 @@ class TestFeatureFlagSwitching:
                     # Verify OptimizedShotModel is used
                     assert isinstance(window.shot_model, OptimizedShotModel)
                     assert isinstance(window.shot_model, BaseShotModel)
-                    
+
                     # Clean up any threads if present
-                    if hasattr(window, '_threede_worker') and window._threede_worker:
+                    if hasattr(window, "_threede_worker") and window._threede_worker:
                         if window._threede_worker.isRunning():
                             window._threede_worker.quit()
                             window._threede_worker.wait(1000)
@@ -116,7 +116,7 @@ class TestFeatureFlagSwitching:
                     mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
                     mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
                     MockCacheManager.return_value = mock_cache
-                    
+
                     # Mock QTimer to prevent delayed operations
                     with patch("PySide6.QtCore.QTimer.singleShot"):
                         window = MainWindow()
@@ -130,12 +130,15 @@ class TestFeatureFlagSwitching:
                             assert isinstance(window.shot_model, ShotModel), (
                                 f"Expected ShotModel for value '{value}'"
                             )
-                            assert not isinstance(window.shot_model, OptimizedShotModel), (
-                                f"Should not be OptimizedShotModel for value '{value}'"
-                            )
-                        
+                            assert not isinstance(
+                                window.shot_model, OptimizedShotModel
+                            ), f"Should not be OptimizedShotModel for value '{value}'"
+
                         # Clean up any threads if present
-                        if hasattr(window, '_threede_worker') and window._threede_worker:
+                        if (
+                            hasattr(window, "_threede_worker")
+                            and window._threede_worker
+                        ):
                             if window._threede_worker.isRunning():
                                 window._threede_worker.quit()
                                 window._threede_worker.wait(1000)
@@ -296,7 +299,7 @@ class TestMainWindowIntegration:
             mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
             mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
             MockCacheManager.return_value = mock_cache
-            
+
             # Mock QTimer to prevent delayed operations
             with patch("PySide6.QtCore.QTimer.singleShot"):
                 # Should not raise any exceptions
@@ -304,9 +307,9 @@ class TestMainWindowIntegration:
                 qtbot.addWidget(window)  # CRITICAL: Register for cleanup
                 assert window is not None
                 assert window.shot_model is not None
-                
+
                 # Clean up any threads if present
-                if hasattr(window, '_threede_worker') and window._threede_worker:
+                if hasattr(window, "_threede_worker") and window._threede_worker:
                     if window._threede_worker.isRunning():
                         window._threede_worker.quit()
                         window._threede_worker.wait(1000)
@@ -322,7 +325,7 @@ class TestMainWindowIntegration:
                 mock_cache.get_cached_shots.return_value = []  # Return empty list
                 mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration
                 MockCacheManager.return_value = mock_cache
-                
+
                 # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
                     # Mock ProcessPoolManager to avoid subprocess calls
@@ -333,9 +336,12 @@ class TestMainWindowIntegration:
                         assert window is not None
                         assert window.shot_model is not None
                         assert isinstance(window.shot_model, OptimizedShotModel)
-                        
+
                         # Clean up any threads if present
-                        if hasattr(window, '_threede_worker') and window._threede_worker:
+                        if (
+                            hasattr(window, "_threede_worker")
+                            and window._threede_worker
+                        ):
                             if window._threede_worker.isRunning():
                                 window._threede_worker.quit()
                                 window._threede_worker.wait(1000)
@@ -353,8 +359,8 @@ class TestMainWindowIntegration:
                 mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
                 mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
                 MockCacheManager.return_value = mock_cache
-                
-                # Mock QTimer to prevent delayed operations  
+
+                # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
                     with patch("shot_model_optimized.ProcessPoolManager"):
                         window = MainWindow()

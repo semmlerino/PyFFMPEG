@@ -13,7 +13,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -23,11 +22,10 @@ from shot_model import Shot
 # Import test helpers
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-pytestmark = [pytest.mark.unit, pytest.mark.slow]
-
-
 from tests.test_doubles_library import TestSubprocess
 from tests.test_doubles_previous_shots import create_test_shot, create_test_shots
+
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 class TestPreviousShotsFinder:
@@ -45,32 +43,34 @@ class TestPreviousShotsFinder:
         return PreviousShotsFinder(username="testuser")
 
     @pytest.fixture
-    def real_shows_structure(self, tmp_path: Path) -> Path:
-        """Create realistic shows directory structure using real filesystem.
+    def real_shows_structure(self, make_test_filesystem):
+        """Create realistic shows directory structure using TestFileSystem.
 
         Following UNIFIED_TESTING_GUIDE:
-        - Use real filesystem operations
+        - Use TestFileSystem for real filesystem operations
         - Create actual directory structures
+        - Track file operations for verification
         """
-        shows_root = tmp_path / "shows"
+        fs = make_test_filesystem()
 
         # Create multiple shows with shots containing user work
         for show in ["testshow", "anothershow"]:
             for seq in ["101_ABC", "102_DEF"]:
                 for shot in ["0010", "0020", "0030"]:
-                    shot_path = shows_root / show / "shots" / seq / shot
+                    # Create VFX structure for each shot
+                    shot_path = fs.create_vfx_structure(show, seq, shot)
+
+                    # Add user work files
                     user_path = shot_path / "user" / "testuser"
-                    user_path.mkdir(parents=True, exist_ok=True)
+                    fs.create_file(user_path / "work.3de", "3DE scene content")
+                    fs.create_file(user_path / "comp.nk", "Nuke script content")
+                    fs.create_file(user_path / "anim.ma", "Maya animation")
 
-                    # Add some work files (real files)
-                    (user_path / "work.3de").write_text("3DE scene")
-                    (user_path / "comp.nk").write_text("Nuke script")
+        # Create shot without user work
+        _shot_without_work = fs.create_vfx_structure("testshow", "101_ABC", "0040")
+        # Don't add user directory - simulates shot without user work
 
-        # Create some shots without user work
-        no_work_path = shows_root / "testshow" / "shots" / "101_ABC" / "0040"
-        no_work_path.mkdir(parents=True, exist_ok=True)
-
-        return shows_root
+        return fs.base_path / "shows"
 
     def test_finder_initialization_with_username(self):
         """Test finder initialization with specific username."""
@@ -95,10 +95,21 @@ class TestPreviousShotsFinder:
             PreviousShotsFinder(username="../../")
 
     def test_finder_initialization_default_user(self):
-        """Test finder initialization with default user."""
-        with patch.dict(os.environ, {"USER": "envuser"}):
+        """Test finder initialization with default user from environment."""
+        # Save original USER env var
+        original_user = os.environ.get("USER")
+
+        try:
+            # Set test user in environment
+            os.environ["USER"] = "envuser"
             finder = PreviousShotsFinder()
             assert finder.username == "envuser"
+        finally:
+            # Restore original environment
+            if original_user is not None:
+                os.environ["USER"] = original_user
+            elif "USER" in os.environ:
+                del os.environ["USER"]
 
     @pytest.mark.parametrize(
         "path,expected_shot",
@@ -178,23 +189,28 @@ class TestPreviousShotsFinder:
         test_subprocess.stdout = "\n".join(mock_paths)
         test_subprocess.stderr = ""
 
-        with patch("subprocess.run", test_subprocess.run) as mock_run:
+        # Import patch locally
+        from unittest.mock import patch
+
+        with patch("subprocess.run", test_subprocess.run):
             shots = finder.find_user_shots(real_shows_structure)
 
-        # Verify find command was called correctly
-        # Test behavior instead: assert result is True
-        args = mock_run.call_args[0][0]
-        assert "find" in args
-        assert str(real_shows_structure) in args
-        # Pattern should be in the path argument
-        pattern_found = any("*/user/testuser" in arg for arg in args)
-        assert pattern_found, f"Pattern '*/user/testuser' not found in args: {args}"
+        # Verify command was executed using test double tracking
+        assert len(test_subprocess.executed_commands) == 1
+        command = test_subprocess.executed_commands[0]
+        assert "find" in command
+        assert str(real_shows_structure) in command
+        # Pattern should be in the command arguments
+        pattern_found = any("*/user/testuser" in arg for arg in command)
+        assert pattern_found, (
+            f"Pattern '*/user/testuser' not found in command: {command}"
+        )
         # We no longer have "2>/dev/null" as it's handled by stderr=subprocess.DEVNULL
-        assert "2>/dev/null" not in args
+        assert "2>/dev/null" not in command
 
-        # Verify stderr handling
-        kwargs = mock_run.call_args[1]
-        assert kwargs.get("stderr") == subprocess.DEVNULL
+        # Verify stderr handling from execution history
+        execution = test_subprocess.execution_history[0]
+        assert execution["kwargs"].get("stderr") == subprocess.DEVNULL
 
         # Verify shots were parsed correctly
         assert len(shots) == 3
@@ -215,7 +231,15 @@ class TestPreviousShotsFinder:
 
     def test_find_user_shots_subprocess_timeout(self, finder, real_shows_structure):
         """Test handling of subprocess timeout."""
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("find", 30)):
+
+        # Use test double that simulates timeout
+        def timeout_run(*args, **kwargs):
+            raise subprocess.TimeoutExpired("find", 30)
+
+        # Import patch locally since we're removing the global import
+        from unittest.mock import patch
+
+        with patch("subprocess.run", timeout_run):
             shots = finder.find_user_shots(real_shows_structure)
 
         assert shots == []
@@ -227,6 +251,9 @@ class TestPreviousShotsFinder:
         test_subprocess.return_code = 1
         test_subprocess.stderr = "Permission denied"
         test_subprocess.stdout = ""
+
+        # Import patch locally
+        from unittest.mock import patch
 
         with patch("subprocess.run", test_subprocess.run):
             shots = finder.find_user_shots(real_shows_structure)
@@ -311,6 +338,9 @@ class TestPreviousShotsFinder:
             create_test_shot("testshow", "101_ABC", "0010"),
         ]
 
+        # Import patch locally
+        from unittest.mock import patch
+
         with patch("subprocess.run", test_subprocess.run):
             approved_shots = finder.find_approved_shots(
                 active_shots, real_shows_structure
@@ -372,23 +402,29 @@ class TestPreviousShotsFinderPerformance:
     """Performance tests for PreviousShotsFinder."""
 
     @pytest.fixture
-    def large_shows_structure(self, tmp_path: Path) -> Path:
+    def large_shows_structure(self, make_test_filesystem):
         """Create large shows structure for performance testing.
 
-        Real filesystem structure for realistic performance testing.
+        Uses TestFileSystem for realistic performance testing with real files.
         """
-        shows_root = tmp_path / "shows"
+        fs = make_test_filesystem()
 
-        # Create many shows, sequences, and shots
+        # Create many shows, sequences, and shots with actual files
         for show_idx in range(3):
-            for seq_idx in range(5):
-                for shot_idx in range(10):
+            for seq_idx in range(2):  # Reduced for performance
+                for shot_idx in range(5):  # Reduced for performance
                     show = f"show{show_idx:02d}"
                     seq = f"seq{seq_idx:03d}"
                     shot = f"shot{shot_idx:04d}"
 
-                    shot_path = shows_root / show / "shots" / seq / shot
-                    user_path = shot_path / "user" / "testuser"
-                    user_path.mkdir(parents=True, exist_ok=True)
+                    # Create full VFX structure
+                    shot_path = fs.create_vfx_structure(show, seq, shot)
 
-        return shows_root
+                    # Add user work files for realistic testing
+                    user_path = shot_path / "user" / "testuser"
+                    fs.create_file(
+                        user_path / "scene.3de", f"3DE scene for {show}_{seq}_{shot}"
+                    )
+                    fs.create_file(user_path / "comp.nk", f"Nuke script for {shot}")
+
+        return fs.base_path / "shows"

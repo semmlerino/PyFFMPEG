@@ -70,7 +70,7 @@ class BaseShotModel(QObject):
         self._parse_pattern = re.compile(
             r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+_\w+))",
         )
-        self._selected_shot: "Shot | None" = None
+        self._selected_shot: Shot | None = None
 
         # Initialize ProcessPoolManager singleton
         if DEBUG_VERBOSE:
@@ -140,7 +140,7 @@ class BaseShotModel(QObject):
             logger.info(f"First line of ws output: {lines[0][:200]}")
             # Log first 3 lines for debugging
             for i, line in enumerate(lines[:3]):
-                logger.debug(f"ws output line {i+1}: {line}")
+                logger.debug(f"ws output line {i + 1}: {line}")
 
         for line_num, line in enumerate(lines, 1):
             line = line.strip()
@@ -179,7 +179,7 @@ class BaseShotModel(QObject):
                     # Check if shot_dir starts with sequence_
                     if shot_dir.startswith(f"{sequence}_"):
                         # Remove the sequence prefix to get the shot number
-                        shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
+                        shot = shot_dir[len(sequence) + 1 :]  # +1 for the underscore
                     else:
                         # Fallback: use the last part after underscore
                         shot_parts = shot_dir.rsplit("_", 1)
@@ -243,7 +243,7 @@ class BaseShotModel(QObject):
         """
         return len(self.shots)
 
-    def select_shot(self, shot: Any | None) -> None:
+    def select_shot(self, shot: Shot | None) -> None:
         """Select a shot and emit signal.
 
         Args:
@@ -252,7 +252,7 @@ class BaseShotModel(QObject):
         self._selected_shot = shot
         self.shot_selected.emit(shot)
 
-    def get_selected_shot(self) -> Any | None:
+    def get_selected_shot(self) -> Shot | None:
         """Get currently selected shot.
 
         Returns:
@@ -260,7 +260,7 @@ class BaseShotModel(QObject):
         """
         return self._selected_shot
 
-    def find_shot_by_name(self, full_name: str) -> Any | None:
+    def find_shot_by_name(self, full_name: str) -> Shot | None:
         """Find a shot by its full name.
 
         Args:

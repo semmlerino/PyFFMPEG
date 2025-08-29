@@ -157,6 +157,128 @@ def make_process_pool():
     created_pools.clear()
 
 
+@pytest.fixture
+def make_test_widget(qtbot):
+    """Factory for creating test Qt widgets with proper cleanup.
+    Following UNIFIED_TESTING_GUIDE pattern for Qt testing.
+    """
+    from PySide6.QtWidgets import QWidget
+
+    created_widgets = []
+
+    def _make_widget(widget_class=QWidget, **kwargs):
+        widget = widget_class(**kwargs)
+        qtbot.addWidget(widget)  # Critical for cleanup
+        created_widgets.append(widget)
+        return widget
+
+    yield _make_widget
+
+    # Cleanup
+    for widget in created_widgets:
+        if widget and not widget.isDeleted():
+            widget.deleteLater()
+
+
+@pytest.fixture
+def make_test_worker():
+    """Factory for creating thread-safe test workers.
+    CRITICAL: Uses ThreadSafeTestImage, not QPixmap!
+    """
+    from tests.test_doubles_extended import TestWorker
+
+    created_workers = []
+
+    def _make_worker(name="test_worker"):
+        worker = TestWorker()
+        worker.name = name
+        created_workers.append(worker)
+        return worker
+
+    yield _make_worker
+
+    # Cleanup
+    for worker in created_workers:
+        if worker.is_running:
+            worker.complete(None)
+
+
+@pytest.fixture
+def make_test_cache(tmp_path):
+    """Factory for creating test cache instances.
+    Each cache gets its own temporary directory.
+    """
+    created_caches = []
+
+    def _make_cache(name="cache"):
+        from tests.test_doubles_extended import TestCache
+
+        cache_dir = tmp_path / name
+        cache_dir.mkdir(exist_ok=True)
+        cache = TestCache()
+        cache.cache_dir = cache_dir
+        created_caches.append(cache)
+        return cache
+
+    yield _make_cache
+
+    # Cleanup
+    for cache in created_caches:
+        cache.clear()
+
+
+@pytest.fixture
+def make_test_command():
+    """Factory for creating test command executors.
+    Tracks executed commands and provides controlled outputs.
+    """
+
+    def _make_command(default_output="success"):
+        from tests.test_doubles_extended import TestCommand
+
+        executor = TestCommand()
+        executor.default_output = default_output
+        return executor
+
+    return _make_command
+
+
+@pytest.fixture
+def make_test_filesystem(tmp_path):
+    """Factory for creating VFX directory structures.
+    Creates realistic /shows/{show}/shots/{seq}/{seq}_{shot} paths.
+    """
+
+    def _make_filesystem():
+        from tests.test_doubles_extended import TestFileSystem
+
+        fs = TestFileSystem(tmp_path)
+        return fs
+
+    return _make_filesystem
+
+
+@pytest.fixture
+def workspace_outputs():
+    """Common workspace command outputs for testing.
+    Provides realistic ws -sg output patterns.
+    """
+    return {
+        "single": "workspace /shows/test/shots/seq01/seq01_0010",
+        "multiple": (
+            "workspace /shows/test/shots/seq01/seq01_0010\n"
+            "workspace /shows/test/shots/seq01/seq01_0020\n"
+            "workspace /shows/test/shots/seq02/seq02_0010"
+        ),
+        "vfx_production": (
+            "workspace /shows/gator/shots/012_DC/012_DC_1000\n"
+            "workspace /shows/jack_ryan/shots/DB_256/DB_256_1200"
+        ),
+        "empty": "",
+        "invalid": "no workspace prefix here",
+    }
+
+
 def pytest_configure(config: Any) -> None:
     """Configure pytest with custom markers following UNIFIED_TESTING_GUIDE."""
     # Register custom markers
@@ -579,11 +701,16 @@ def make_test_launcher():
 
 @pytest.fixture
 def make_thread_safe_image():
-    """Factory for creating ThreadSafeTestImage instances."""
-    from tests.test_helpers import ThreadSafeTestImage
+    """Factory for creating thread-safe images.
+    CRITICAL: Use this instead of QPixmap in worker threads!
+    """
+    from tests.test_doubles_library import ThreadSafeTestImage
 
-    def _make_image(width=100, height=100):
-        return ThreadSafeTestImage(width, height)
+    def _make_image(width=100, height=100, color=None):
+        image = ThreadSafeTestImage(width, height)
+        if color:
+            image.fill(color)
+        return image
 
     return _make_image
 

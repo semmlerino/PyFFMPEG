@@ -30,6 +30,9 @@ from tests.test_doubles_previous_shots import (
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import TestCacheManager
+
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
@@ -37,10 +40,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 # - Use test doubles instead of mocks
 # - Real components where possible
 # - Thread-safe testing patterns
-
-
-# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestCacheManager
 
 
 class TestPreviousShotsModel:

@@ -17,13 +17,15 @@ import concurrent.futures
 import json
 import time
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from cache_manager import CacheManager
 from previous_shots_model import PreviousShotsModel
 from shot_model import Shot
+
+# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+from tests.test_doubles_library import TestShot, TestShotModel
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
@@ -32,10 +34,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 # - Use test doubles instead of mocks
 # - Real components where possible
 # - Thread-safe testing patterns
-
-
-# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestShot, TestShotModel
 
 
 class TestPreviousShootsCacheIntegration:
@@ -233,6 +231,9 @@ class TestPreviousShootsCacheIntegration:
         mock_approved = [
             Shot("new_show", "new_seq", "new_shot", "/new/path"),
         ]
+
+        # Use local import for patch since we removed the global import
+        from unittest.mock import patch
 
         with patch.object(
             previous_shots_model._finder,

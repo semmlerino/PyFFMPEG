@@ -137,7 +137,7 @@ class TestCommandLauncherImproved:
     def test_command_formatting_behavior(self):
         """Test command formatting with actual app launch."""
         # Arrange: Mock shot with test data
-        self.test_subprocess.set_success("Application started")
+        self.test_subprocess.set_command_output("nuke", return_code=0, stdout="Application started")
         self.launcher.current_shot = MagicMock(
             show="project_x",
             sequence="seq99",
@@ -164,7 +164,7 @@ class TestCommandLauncherImproved:
             show="show2", sequence="seq02", shot="0020", workspace_path="/shows/show2"
         )
 
-        self.test_subprocess.set_success("Changed workspace")
+        self.test_subprocess.set_command_output("nuke", return_code=0, stdout="Changed workspace")
 
         # Act: Change shots and launch
         self.launcher.set_current_shot(shot1)

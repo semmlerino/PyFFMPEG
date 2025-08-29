@@ -21,11 +21,10 @@ from PySide6.QtTest import QTest
 # Import the module under test
 from launcher_manager import LauncherManager
 
-pytestmark = [pytest.mark.integration, pytest.mark.qt]
-
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestSubprocess
+
+pytestmark = [pytest.mark.integration, pytest.mark.qt]
 
 
 class TestLauncherWorkflowIntegration:

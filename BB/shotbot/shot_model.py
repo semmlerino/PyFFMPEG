@@ -6,7 +6,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, override
 
 from base_shot_model import BaseShotModel
 
@@ -146,7 +146,7 @@ class Shot:
                 return thumbnail
 
         # Fall back to turnover plate thumbnails
-        thumbnail = PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
+        thumbnail = PathUtils.find_turnover_plate_thumbnail(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,
@@ -157,7 +157,7 @@ class Shot:
             return thumbnail
 
         # Third fallback: any EXR with 1001 in publish folder
-        thumbnail = PathUtils.find_any_publish_thumbnail(  # type: ignore[attr-defined]
+        thumbnail = PathUtils.find_any_publish_thumbnail(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,
@@ -214,6 +214,7 @@ class ShotModel(BaseShotModel):
         """
         super().__init__(cache_manager, load_cache)
 
+    @override
     def load_shots(self) -> RefreshResult:
         """Load shots synchronously (same as refresh for sync model).
 
@@ -222,6 +223,7 @@ class ShotModel(BaseShotModel):
         """
         return self.refresh_strategy()
 
+    @override
     def refresh_strategy(self) -> RefreshResult:
         """Fetch and parse shot list from ws -sg command.
 
@@ -348,7 +350,8 @@ class ShotModel(BaseShotModel):
             return self.shots[index]
         return None
 
-    def find_shot_by_name(self, full_name: str) -> Shot | None:
+    @override
+    def find_shot_by_name(self, full_name: str) -> Shot | None:  # type: ignore[override]
         """Find shot by full name."""
         for shot in self.shots:
             if shot.full_name == full_name:
@@ -369,27 +372,6 @@ class ShotModel(BaseShotModel):
         self._process_pool.invalidate_cache("ws -sg")
         logger.info("Invalidated workspace cache for immediate refresh")
 
-    def select_shot(self, shot: Shot | None) -> None:
-        """Select a shot and emit the shot_selected signal.
-
-        Args:
-            shot: The shot to select, or None to clear selection
-        """
-        self._selected_shot = shot
-        self.shot_selected.emit(shot)
-        if shot:
-            logger.debug(f"Shot selected: {shot.full_name}")
-        else:
-            logger.debug("Shot selection cleared")
-
-    def get_selected_shot(self) -> Shot | None:
-        """Get the currently selected shot.
-
-        Returns:
-            The currently selected shot or None if no shot is selected
-        """
-        return self._selected_shot
-
     def select_shot_by_name(self, full_name: str) -> bool:
         """Select a shot by its full name.
 
@@ -401,7 +383,7 @@ class ShotModel(BaseShotModel):
         """
         shot = self.find_shot_by_name(full_name)
         if shot:
-            self.select_shot(shot)
+            self.select_shot(shot)  # type: ignore[arg-type]
             return True
         return False
 
@@ -409,6 +391,7 @@ class ShotModel(BaseShotModel):
         """Clear the current shot selection."""
         self.select_shot(None)
 
+    @override
     def get_performance_metrics(self) -> PerformanceMetricsDict:
         """Get performance metrics for subprocess operations.
 

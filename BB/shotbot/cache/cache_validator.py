@@ -1,4 +1,5 @@
 """Cache validation and repair operations."""
+
 from __future__ import annotations
 
 import logging
@@ -148,9 +149,7 @@ class CacheValidator:
 
         return stats
 
-    def _validate_memory_tracking(
-        self, fix_issues: bool
-    ) -> "ValidationResultDict":
+    def _validate_memory_tracking(self, fix_issues: bool) -> "ValidationResultDict":
         """Validate memory manager tracking accuracy.
 
         Args:
@@ -231,9 +230,7 @@ class CacheValidator:
 
         return results
 
-    def _validate_directory_structure(
-        self, fix_issues: bool
-    ) -> "ValidationResultDict":
+    def _validate_directory_structure(self, fix_issues: bool) -> "ValidationResultDict":
         """Validate the cache directory structure.
 
         Args:

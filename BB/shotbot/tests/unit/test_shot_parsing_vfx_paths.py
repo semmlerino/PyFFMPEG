@@ -8,8 +8,8 @@ the UNIFIED_TESTING_GUIDE principles:
 """
 
 import pytest
-from shot_model import Shot, ShotModel
-from base_shot_model import BaseShotModel
+
+from shot_model import ShotModel
 from tests.test_doubles_library import TestProcessPool
 
 
@@ -44,24 +44,23 @@ workspace /shows/broken_eggs/shots/BRX_166/BRX_166_0020
 workspace /shows/broken_eggs/shots/BRX_170/BRX_170_0100
 workspace /shows/broken_eggs/shots/BRX_070/BRX_070_0010
 workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
-        
+
         test_process_pool.set_outputs(test_output)
-        
+
         # Refresh shots
         result = shot_model.refresh_shots()
         assert result.success
         assert result.has_changes
-        
+
         # Verify shots were parsed correctly
         shots = shot_model.get_shots()
         assert len(shots) == 12
-        
+
         # Check specific shot parsing
         shot_data = {
-            (shot.show, shot.sequence, shot.shot, shot.full_name) 
-            for shot in shots
+            (shot.show, shot.sequence, shot.shot, shot.full_name) for shot in shots
         }
-        
+
         expected_shots = {
             ("gator", "012_DC", "1000", "012_DC_1000"),
             ("gator", "012_DC", "1070", "012_DC_1070"),
@@ -76,7 +75,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
             ("broken_eggs", "BRX_070", "0010", "BRX_070_0010"),
             ("jack_ryan", "999_xx", "999", "999_xx_999"),  # Special case
         }
-        
+
         assert shot_data == expected_shots
 
     def test_shot_directory_extraction(self, make_shot):
@@ -89,64 +88,87 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
             ("BRX_166", "BRX_166_0010", "0010"),
             ("FF_278", "FF_278_4380", "4380"),
         ]
-        
+
         for sequence, shot_dir, expected_shot in test_cases:
             # Parse shot from directory name (simulating the logic)
             if shot_dir.startswith(f"{sequence}_"):
-                shot = shot_dir[len(sequence) + 1:]
+                shot = shot_dir[len(sequence) + 1 :]
             else:
                 shot_parts = shot_dir.rsplit("_", 1)
                 if len(shot_parts) == 2:
                     shot = shot_parts[1]
                 else:
                     shot = shot_dir
-            
+
             assert shot == expected_shot, f"Failed for {shot_dir}"
 
     def test_thumbnail_path_construction(self, make_shot):
         """Test correct thumbnail path construction for VFX shots."""
-        from utils import PathUtils
         from config import Config
-        
+        from utils import PathUtils
+
         test_cases = [
             # (show, sequence, shot, expected_path_segment)
             ("gator", "012_DC", "1000", "012_DC_1000"),
             ("jack_ryan", "DB_256", "1200", "DB_256_1200"),
             ("broken_eggs", "BRX_166", "0010", "BRX_166_0010"),
         ]
-        
+
         for show, sequence, shot, expected_segment in test_cases:
             path = PathUtils.build_thumbnail_path(
-                Config.SHOWS_ROOT,
-                show,
-                sequence,
-                shot
+                Config.SHOWS_ROOT, show, sequence, shot
             )
-            
+
             # Verify the path contains the correct shot directory
             assert expected_segment in str(path)
             # Verify it doesn't have duplicate 'shots' segments
-            path_parts = str(path).split('/')
-            assert path_parts.count('shots') == 1, f"Path has duplicate 'shots': {path}"
+            path_parts = str(path).split("/")
+            assert path_parts.count("shots") == 1, f"Path has duplicate 'shots': {path}"
 
-    @pytest.mark.parametrize("workspace_line,expected", [
-        ("workspace /shows/gator/shots/012_DC/012_DC_1000", 
-         {"show": "gator", "sequence": "012_DC", "shot": "1000", "full_name": "012_DC_1000"}),
-        ("workspace /shows/jack_ryan/shots/DB_256/DB_256_1200",
-         {"show": "jack_ryan", "sequence": "DB_256", "shot": "1200", "full_name": "DB_256_1200"}),
-        ("workspace /shows/broken_eggs/shots/BRX_166/BRX_166_0010",
-         {"show": "broken_eggs", "sequence": "BRX_166", "shot": "0010", "full_name": "BRX_166_0010"}),
-    ])
-    def test_workspace_line_parsing(self, shot_model, test_process_pool, workspace_line, expected):
+    @pytest.mark.parametrize(
+        "workspace_line,expected",
+        [
+            (
+                "workspace /shows/gator/shots/012_DC/012_DC_1000",
+                {
+                    "show": "gator",
+                    "sequence": "012_DC",
+                    "shot": "1000",
+                    "full_name": "012_DC_1000",
+                },
+            ),
+            (
+                "workspace /shows/jack_ryan/shots/DB_256/DB_256_1200",
+                {
+                    "show": "jack_ryan",
+                    "sequence": "DB_256",
+                    "shot": "1200",
+                    "full_name": "DB_256_1200",
+                },
+            ),
+            (
+                "workspace /shows/broken_eggs/shots/BRX_166/BRX_166_0010",
+                {
+                    "show": "broken_eggs",
+                    "sequence": "BRX_166",
+                    "shot": "0010",
+                    "full_name": "BRX_166_0010",
+                },
+            ),
+        ],
+    )
+    def test_workspace_line_parsing(
+        self, shot_model, test_process_pool, workspace_line, expected
+    ):
         """Test parsing of individual workspace lines with parametrization."""
         test_process_pool.set_outputs(workspace_line)
-        
+
         result = shot_model.refresh_shots()
         assert result.success
-        
+
         shots = shot_model.get_shots()
         assert len(shots) == 1
-        
+
         shot = shots[0]
         assert shot.show == expected["show"]
         assert shot.sequence == expected["sequence"]
@@ -157,50 +179,73 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         """Test that workspace paths follow the expected format."""
         # Create shots with actual VFX naming
         shot = make_shot(show="jack_ryan", seq="DB_256", shot="1200")
-        
+
         # Verify workspace path format
         assert shot.workspace_path == "/shows/jack_ryan/DB_256/DB_256_1200"
         assert shot.full_name == "DB_256_1200"
-        
+
         # Verify thumbnail path construction
-        from utils import PathUtils
         from config import Config
-        
+        from utils import PathUtils
+
         thumb_path = PathUtils.build_thumbnail_path(
-            Config.SHOWS_ROOT,
-            shot.show,
-            shot.sequence,
-            shot.shot
+            Config.SHOWS_ROOT, shot.show, shot.sequence, shot.shot
         )
-        
+
         expected_path = "/shows/jack_ryan/shots/DB_256/DB_256_1200/publish/editorial/cutref/v001/jpg/1920x1080"
         assert str(thumb_path) == expected_path
 
     def test_vfx_asset_paths(self):
         """Test construction and discovery of VFX asset paths."""
-        from utils import PathUtils
         from pathlib import Path
-        
+
+        from utils import PathUtils
+
         # Test 3DE scene path construction
         workspace = "/shows/jack_ryan/shots/DB_256/DB_256_1200"
         username = "gabriel-h"
-        
+
         threede_path = PathUtils.build_threede_scene_path(workspace, username)
-        expected_3de = Path(workspace) / "user" / username / "mm" / "3de" / "mm-default" / "scenes"
+        expected_3de = (
+            Path(workspace)
+            / "user"
+            / username
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
         assert threede_path == expected_3de
-        
+
         # Test undistortion path construction
         undist_path = PathUtils.build_undistortion_path(workspace, username)
-        expected_undist = Path(workspace) / "user" / username / "mm" / "3de" / "mm-default" / "exports" / "scene"
+        # Note: build_undistortion_path includes a default plate name
+        expected_undist = (
+            Path(workspace)
+            / "user"
+            / username
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "exports"
+            / "scene"
+            / "bg01"
+            / "nuke_lens_distortion"
+        )
         assert undist_path == expected_undist
-        
+
         # Test raw plate path construction
         plate_path = PathUtils.build_raw_plate_path(workspace)
-        expected_plate = Path(workspace) / "publish" / "turnover" / "plate" / "input_plate"
+        expected_plate = (
+            Path(workspace) / "publish" / "turnover" / "plate" / "input_plate"
+        )
         assert plate_path == expected_plate
-        
+
     def test_actual_vfx_file_paths(self):
         """Test parsing and construction of actual VFX file paths provided by user."""
+        from pathlib import Path
+
         # Test data from actual VFX pipeline
         test_cases = [
             {
@@ -233,7 +278,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
                 "version": "v001",
             },
         ]
-        
+
         for case in test_cases:
             path = Path(case["path"])
             assert path.parts[0] == "/"

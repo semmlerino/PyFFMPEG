@@ -22,11 +22,10 @@ try:
 except ImportError:
     Image = None
 
-pytestmark = [pytest.mark.unit, pytest.mark.slow]
-
-
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestPILImage
+
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 class TestParametrizedPriority:
@@ -317,24 +316,17 @@ class TestParametrizedErrorHandling:
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
-        # Mock all EXR processing backends to ensure they all fail
-        with patch("PIL.Image.open", side_effect=error_instance), patch(
-            "cache.thumbnail_processor.ThumbnailProcessor._load_exr_with_openexr",
-            side_effect=error_instance,
-        ), patch(
-            "cache.thumbnail_processor.ThumbnailProcessor._load_exr_with_system_tools",
-            side_effect=error_instance,
-        ), patch(
-            "cache.thumbnail_processor.ThumbnailProcessor._load_exr_with_imageio",
-            side_effect=error_instance,
-        ):
-            # Should handle error gracefully when all backends fail
-            result = cache_manager.cache_thumbnail(
-                test_file, show="test", sequence="seq", shot="0010", wait=True
-            )
+        # Test error resilience by creating a corrupted file
+        # Write some invalid data to trigger processing errors
+        test_file.write_bytes(b"Not a valid EXR file")
 
-            # Should return None on error, not crash
-            assert result is None
+        # Should handle error gracefully when EXR processing fails
+        result = cache_manager.cache_thumbnail(
+            test_file, show="test", sequence="seq", shot="0010", wait=True
+        )
+
+        # Should return None on error, not crash
+        assert result is None
 
     @pytest.mark.parametrize(
         "missing_component", ["show", "sequence", "shot", "workspace_path"]

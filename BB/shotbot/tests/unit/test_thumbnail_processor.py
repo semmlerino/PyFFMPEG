@@ -28,9 +28,9 @@ try:
 except ImportError:
     PILImage = None
 
-pytestmark = [pytest.mark.unit, pytest.mark.slow]
-
 from tests.test_doubles_library import TestSubprocess, ThreadSafeTestImage
+
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 class PILImageDouble:

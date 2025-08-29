@@ -1,4 +1,5 @@
 """Shot data caching with TTL expiration."""
+
 from __future__ import annotations
 
 import logging
@@ -12,7 +13,7 @@ from .storage_backend import StorageBackend
 
 if TYPE_CHECKING:
     from shot_model import Shot
-    
+
 from type_definitions import CacheDataDict, CacheInfoDict, ShotDict
 
 logger = logging.getLogger(__name__)

@@ -6,7 +6,6 @@ This module adds comprehensive tests for uncovered functionality in utils.py.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -49,50 +48,65 @@ class TestPathUtilsTurnoverPlate:
             (plate_dir / "test.1001.exr").touch()
             (plate_dir / "test.1002.exr").touch()
 
-        # Mock the path building and validation
-        with patch("utils.PathUtils.validate_path_exists", return_value=True):
-            with patch("utils.PathUtils.build_path", return_value=turnover_path):
-                result = PathUtils.find_turnover_plate_thumbnail(
-                    str(tmp_path / "shows"),
-                    "testshow",
-                    "seq01",
-                    "shot01",
-                )
+        # Test with real path building and validation
+        result = PathUtils.find_turnover_plate_thumbnail(
+            str(tmp_path / "shows"),
+            "testshow",
+            "seq01",
+            "shot01",
+        )
 
-                # Should find FG01 first due to priority
-                assert result is not None
-                assert "FG01" in str(result)
-                assert "1001.exr" in result.name
+        # Should find FG01 first due to priority (when structure exists)
+        assert result is not None
+        assert "FG01" in str(result)
+        assert "1001.exr" in result.name
 
-    def test_find_turnover_plate_no_plates(self):
+    def test_find_turnover_plate_no_plates(self, tmp_path):
         """Test find_turnover_plate_thumbnail when no plates exist."""
-        with patch("utils.PathUtils.validate_path_exists", return_value=True):
-            with patch(
-                "pathlib.Path.iterdir",
-                side_effect=OSError("Permission denied"),
-            ):
-                result = PathUtils.find_turnover_plate_thumbnail(
-                    "/shows",
-                    "testshow",
-                    "seq01",
-                    "shot01",
-                )
-                assert result is None
+        # Create base structure without plates
+        shows_root = tmp_path / "shows"
+        base_path = (
+            shows_root
+            / "testshow"
+            / "shots"
+            / "seq01"
+            / "seq01_shot01"
+            / "publish"
+            / "turnover"
+            / "plates"
+        )
+        base_path.mkdir(parents=True)
+
+        result = PathUtils.find_turnover_plate_thumbnail(
+            str(shows_root),
+            "testshow",
+            "seq01",
+            "shot01",
+        )
+        assert result is None
 
     def test_find_turnover_plate_empty_directory(self, tmp_path):
         """Test when turnover directory exists but is empty."""
-        turnover_path = tmp_path / "publish" / "turnover" / "plates"
+        shows_root = tmp_path / "shows"
+        turnover_path = (
+            shows_root
+            / "testshow"
+            / "shots"
+            / "seq01"
+            / "seq01_shot01"
+            / "publish"
+            / "turnover"
+            / "plates"
+        )
         turnover_path.mkdir(parents=True)
 
-        with patch("utils.PathUtils.validate_path_exists", return_value=True):
-            with patch("utils.PathUtils.build_path", return_value=turnover_path):
-                result = PathUtils.find_turnover_plate_thumbnail(
-                    str(tmp_path),
-                    "testshow",
-                    "seq01",
-                    "shot01",
-                )
-                assert result is None
+        result = PathUtils.find_turnover_plate_thumbnail(
+            str(shows_root),
+            "testshow",
+            "seq01",
+            "shot01",
+        )
+        assert result is None
 
     def test_plate_priority_sorting(self):
         """Test plate priority function used in sorting."""
@@ -150,17 +164,15 @@ class TestPathUtilsPublishThumbnail:
         (deep_path / "comp_v001.1002.exr").touch()
         (deep_path / "comp_v001.jpg").touch()
 
-        with patch("utils.PathUtils.validate_path_exists", return_value=True):
-            with patch("utils.PathUtils.build_path", return_value=publish_path):
-                result = PathUtils.find_any_publish_thumbnail(
-                    str(tmp_path / "shows"),
-                    "testshow",
-                    "seq01",
-                    "shot01",
-                )
+        result = PathUtils.find_any_publish_thumbnail(
+            str(tmp_path / "shows"),
+            "testshow",
+            "seq01",
+            "shot01",
+        )
 
-                assert result is not None
-                assert "1001.exr" in result.name
+        assert result is not None
+        assert "1001.exr" in result.name
 
     def test_find_any_publish_thumbnail_max_depth(self, tmp_path):
         """Test find_any_publish_thumbnail respects max depth."""
@@ -178,50 +190,57 @@ class TestPathUtilsPublishThumbnail:
         shallow = publish_path / "level0" / "level1"
         (shallow / "test.1001.exr").touch()
 
-        with patch("utils.PathUtils.validate_path_exists", return_value=True):
-            with patch("utils.PathUtils.build_path", return_value=publish_path):
-                result = PathUtils.find_any_publish_thumbnail(
-                    "/shows",
-                    "testshow",
-                    "seq01",
-                    "shot01",
-                    max_depth=3,  # Only search 3 levels
-                )
+        result = PathUtils.find_any_publish_thumbnail(
+            str(tmp_path / "shows"),
+            "testshow",
+            "seq01",
+            "shot01",
+            max_depth=3,  # Only search 3 levels
+        )
 
-                # Should find the shallow file, not the deep one
-                assert result is not None
-                assert "level1" in str(result)
+        # Should find the shallow file, not the deep one
+        assert result is not None
+        assert "level1" in str(result)
 
     def test_find_any_publish_thumbnail_permission_error(self, tmp_path):
         """Test find_any_publish_thumbnail handles permission errors gracefully."""
-        publish_path = tmp_path / "publish"
-        publish_path.mkdir()
+        shows_root = tmp_path / "shows"
+        publish_path = (
+            shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01" / "publish"
+        )
+        publish_path.mkdir(parents=True)
 
-        with patch("utils.PathUtils.validate_path_exists", return_value=True):
-            with patch("utils.PathUtils.build_path", return_value=publish_path):
-                with patch.object(
-                    Path,
-                    "iterdir",
-                    side_effect=PermissionError("Access denied"),
-                ):
-                    result = PathUtils.find_any_publish_thumbnail(
-                        "/shows",
-                        "testshow",
-                        "seq01",
-                        "shot01",
-                    )
-                    assert result is None
+        # Create a subdirectory and make it inaccessible
+        restricted_dir = publish_path / "restricted"
+        restricted_dir.mkdir()
+        restricted_dir.chmod(0o000)  # Remove all permissions
 
-    def test_find_any_publish_thumbnail_no_publish_dir(self):
-        """Test when publish directory doesn't exist."""
-        with patch("utils.PathUtils.validate_path_exists", return_value=False):
+        try:
             result = PathUtils.find_any_publish_thumbnail(
-                "/shows",
+                str(shows_root),
                 "testshow",
                 "seq01",
                 "shot01",
             )
+            # Should handle permission error gracefully and return None
             assert result is None
+        finally:
+            # Restore permissions for cleanup
+            restricted_dir.chmod(0o755)
+
+    def test_find_any_publish_thumbnail_no_publish_dir(self, tmp_path):
+        """Test when publish directory doesn't exist."""
+        shows_root = tmp_path / "shows"
+        shows_root.mkdir()
+        # Don't create the publish directory structure
+
+        result = PathUtils.find_any_publish_thumbnail(
+            str(shows_root),
+            "testshow",
+            "seq01",
+            "shot01",
+        )
+        assert result is None
 
 
 class TestPathUtilsPlateDiscovery:
@@ -261,9 +280,8 @@ class TestPathUtilsPlateDiscovery:
 
     def test_discover_plate_directories_nonexistent(self):
         """Test discover_plate_directories with non-existent path."""
-        with patch("utils.PathUtils.validate_path_exists", return_value=False):
-            result = PathUtils.discover_plate_directories("/non/existent/path")
-            assert result == []
+        result = PathUtils.discover_plate_directories("/non/existent/path")
+        assert result == []
 
 
 class TestValidationUtilsExtended:
@@ -271,25 +289,18 @@ class TestValidationUtilsExtended:
 
     def test_get_excluded_users(self):
         """Test getting excluded users list."""
-        with patch(
-            "utils.ValidationUtils.get_current_username",
-            return_value="testuser",
-        ):
-            excluded = ValidationUtils.get_excluded_users()
+        # Test with real username from environment or default
+        excluded = ValidationUtils.get_excluded_users()
 
-            assert isinstance(excluded, set)
-            assert "testuser" in excluded
+        assert isinstance(excluded, set)
+        assert len(excluded) >= 1  # Should include at least current user
 
     def test_get_excluded_users_with_additional(self):
         """Test getting excluded users with additional users."""
-        with patch(
-            "utils.ValidationUtils.get_current_username",
-            return_value="testuser",
-        ):
-            additional = {"user1", "user2"}
-            excluded = ValidationUtils.get_excluded_users(additional)
+        additional = {"user1", "user2"}
+        excluded = ValidationUtils.get_excluded_users(additional)
 
-            assert isinstance(excluded, set)
-            assert "testuser" in excluded
-            assert "user1" in excluded
-            assert "user2" in excluded
+        assert isinstance(excluded, set)
+        assert "user1" in excluded
+        assert "user2" in excluded
+        assert len(excluded) >= 3  # Should include current user + 2 additional

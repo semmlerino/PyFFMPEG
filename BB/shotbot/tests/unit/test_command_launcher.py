@@ -4,12 +4,12 @@ This test suite validates CommandLauncher behavior using:
 - Test doubles at system boundaries only (subprocess)
 - Real Qt components and signals
 - Behavior testing, not implementation details
-- No # TODO: Verify operation completed
-        # assert operation_completed is True patterns
-- Minimal, focused test doubles
+- No mock.Mock or MagicMock usage
+- TestCommand and TestProcessPool instead of unittest.mock
 
 Key improvements:
-- Reduced from 25+ mocks to <5 test doubles
+- Uses TestCommand for command execution testing
+- Uses TestProcessPool for workspace command testing
 - Tests behavior, not implementation
 - Uses real components where possible
 """
@@ -17,7 +17,6 @@ Key improvements:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from PySide6.QtTest import QSignalSpy
@@ -26,13 +25,11 @@ import command_launcher
 from command_launcher import CommandLauncher
 from config import Config
 from shot_model import Shot
+from tests.test_doubles_extended import TestCommand
+from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import (
-    PopenDouble,
-    TestShot,
-    TestSubprocess,
-)
+from tests.test_doubles_library import TestShot, TestSubprocess
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
@@ -54,16 +51,14 @@ class TestCommandLauncherInitialization:
     """Test CommandLauncher initialization and basic setup."""
 
     def setup_method(self):
-        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
-        self.test_subprocess = TestSubprocess()
         """Setup with test doubles at system boundary."""
         self.launcher = CommandLauncher()
-        self.test_subprocess = TestSubprocess()
+        self.command_executor = TestCommand()
 
-        # Replace subprocess at system boundary only
-
-        self.original_popen = command_launcher.subprocess.Popen
-        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        # Replace command execution with test double
+        # This depends on how CommandLauncher executes commands
+        # We'll patch at subprocess level for workspace commands
+        self.process_pool = TestProcessPool()
 
         # Track emitted signals (behavior)
         self.emitted_commands = []
@@ -75,11 +70,6 @@ class TestCommandLauncherInitialization:
         self.launcher.command_error.connect(
             lambda t, e: self.emitted_errors.append((t, e))
         )
-
-    def teardown_method(self):
-        """Clean up test doubles."""
-
-        command_launcher.subprocess.Popen = self.original_popen
 
     def test_initialization(self, qtbot):
         """Test CommandLauncher initializes correctly."""
@@ -120,8 +110,6 @@ class SignalDoubleEmissions:
     """Test signal emissions for command execution events."""
 
     def setup_method(self):
-        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
-        self.test_subprocess = TestSubprocess()
         """Setup with test doubles."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
@@ -215,8 +203,6 @@ class TestApplicationLaunching:
     """Test application launching functionality with behavior focus."""
 
     def setup_method(self):
-        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
-        self.test_subprocess = TestSubprocess()
         """Setup with test doubles."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
@@ -344,9 +330,23 @@ class TestApplicationLaunching:
 class TestThreeDESceneLaunching:
     """Test 3DE scene launching functionality."""
 
+    def setup_method(self):
+        """Setup with test doubles."""
+        self.test_subprocess = TestSubprocess()
+        self.original_popen = command_launcher.subprocess.Popen
+        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+
+    def teardown_method(self):
+        """Restore original subprocess."""
+        command_launcher.subprocess.Popen = self.original_popen
+
     def test_launch_app_with_scene(self, qtbot):
         """Test launching application with 3DE scene file."""
         launcher = CommandLauncher()
+
+        # Set up test double for success
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "3de launched successfully"
 
         # Create test scene
         scene = ThreeDEScene(
@@ -362,22 +362,18 @@ class TestThreeDESceneLaunching:
         # Set up signal spy
         spy = QSignalSpy(launcher.command_executed)
 
-        # Use test double to avoid actual execution
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = PopenDouble(["3de", str(scene.scene_path)])
+        result = launcher.launch_app_with_scene("3de", scene)
+        assert result is True
 
-            result = launcher.launch_app_with_scene("3de", scene)
-            assert result is True
+        # Verify signal emission (synchronous)
+        assert spy.count() >= 1
+        signal_args = spy.at(0)
+        command = signal_args[1]
 
-            # Verify signal emission (synchronous)
-            assert spy.count() >= 1
-            signal_args = spy.at(0)
-            command = signal_args[1]
-
-            # Verify command includes scene file
-            assert str(scene.scene_path) in command
-            assert scene.workspace_path in command
-            assert "3de" in command
+        # Verify command includes scene file
+        assert str(scene.scene_path) in command
+        assert scene.workspace_path in command
+        assert "3de" in command
 
     def test_launch_app_with_scene_unknown_app(self, qtbot):
         """Test error handling for unknown app with scene."""
@@ -401,6 +397,10 @@ class TestThreeDESceneLaunching:
         """Test launching app with scene context (no scene file)."""
         launcher = CommandLauncher()
 
+        # Set up test double for success
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "nuke launched successfully"
+
         # Create test scene
         scene = ThreeDEScene(
             show="test_show",
@@ -412,20 +412,30 @@ class TestThreeDESceneLaunching:
             plate="bg01",
         )
 
-        # Use test double to avoid actual execution
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = PopenDouble(["nuke"])
-
-            result = launcher.launch_app_with_scene_context("nuke", scene)
-            assert result is True
+        result = launcher.launch_app_with_scene_context("nuke", scene)
+        assert result is True
 
 
 class TestWorkspaceIntegration:
     """Test workspace command integration."""
 
+    def setup_method(self):
+        """Setup with test doubles."""
+        self.test_subprocess = TestSubprocess()
+        self.original_popen = command_launcher.subprocess.Popen
+        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+
+    def teardown_method(self):
+        """Restore original subprocess."""
+        command_launcher.subprocess.Popen = self.original_popen
+
     def test_workspace_command_construction(self, qtbot):
         """Test proper workspace command construction."""
         launcher = CommandLauncher()
+
+        # Set up test double for success
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "rv launched successfully"
 
         # Set test shot
         shot = Shot(
@@ -439,26 +449,26 @@ class TestWorkspaceIntegration:
         # Set up signal spy
         spy = QSignalSpy(launcher.command_executed)
 
-        # Use test double to avoid actual execution
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = PopenDouble(["rv"])
+        launcher.launch_app("rv")
 
-            launcher.launch_app("rv")
+        # Verify command construction (synchronous)
+        assert spy.count() >= 1
+        signal_args = spy.at(0)
+        command = signal_args[1]
 
-            # Verify command construction (synchronous)
-            assert spy.count() >= 1
-            signal_args = spy.at(0)
-            command = signal_args[1]
-
-            # Check workspace setup is properly formatted
-            expected_ws_cmd = f"ws {shot.workspace_path}"
-            assert expected_ws_cmd in command
-            assert "&&" in command
-            assert Config.APPS["rv"] in command
+        # Check workspace setup is properly formatted
+        expected_ws_cmd = f"ws {shot.workspace_path}"
+        assert expected_ws_cmd in command
+        assert "&&" in command
+        assert Config.APPS["rv"] in command
 
     def test_workspace_path_handling(self, qtbot):
         """Test different workspace path formats."""
         launcher = CommandLauncher()
+
+        # Set up test double for success
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "nuke launched successfully"
 
         # Test different path formats
         test_paths = [
@@ -478,21 +488,27 @@ class TestWorkspaceIntegration:
 
             spy = QSignalSpy(launcher.command_executed)
 
-            with patch("command_launcher.subprocess.Popen") as mock_popen:
-                mock_popen.return_value = PopenDouble(["nuke"])
+            result = launcher.launch_app("nuke")
+            assert result is True
 
-                result = launcher.launch_app("nuke")
-                assert result is True
-
-                # Verify workspace path is included correctly (synchronous)
-                assert spy.count() >= 1
-                signal_args = spy.at(0)
-                command = signal_args[1]
-                assert workspace_path in command
+            # Verify workspace path is included correctly (synchronous)
+            assert spy.count() >= 1
+            signal_args = spy.at(0)
+            command = signal_args[1]
+            assert workspace_path in command
 
 
 class TestErrorHandling:
     """Test error handling and edge cases."""
+
+    def setup_method(self):
+        """Setup with test doubles."""
+        self.test_subprocess = TestSubprocess()
+        self.original_popen = command_launcher.subprocess.Popen
+
+    def teardown_method(self):
+        """Restore original subprocess."""
+        command_launcher.subprocess.Popen = self.original_popen
 
     def test_subprocess_execution_failure(self, qtbot):
         """Test handling of subprocess execution failures."""
@@ -510,18 +526,20 @@ class TestErrorHandling:
         # Set up error signal spy
         spy = QSignalSpy(launcher.command_error)
 
-        # Use test double to raise exception
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.side_effect = Exception("Process execution failed")
+        # Replace subprocess to raise exception
+        def failing_subprocess(*args, **kwargs):
+            raise Exception("Process execution failed")
 
-            result = launcher.launch_app("nuke")
-            assert result is False
+        command_launcher.subprocess.Popen = failing_subprocess
 
-            # Verify error signal emission (synchronous)
-            assert spy.count() >= 1
-            signal_args = spy.at(0)
-            error_msg = signal_args[1]
-            assert "Failed to launch nuke" in error_msg
+        result = launcher.launch_app("nuke")
+        assert result is False
+
+        # Verify error signal emission (synchronous)
+        assert spy.count() >= 1
+        signal_args = spy.at(0)
+        error_msg = signal_args[1]
+        assert "Failed to launch nuke" in error_msg
 
     def test_all_terminals_fail(self, qtbot):
         """Test when all terminal attempts fail but direct execution succeeds."""
@@ -536,18 +554,28 @@ class TestErrorHandling:
         )
         launcher.set_current_shot(shot)
 
-        # Use test double - all terminals fail, direct bash succeeds
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            # All terminals fail, direct bash succeeds
-            mock_popen.side_effect = [
-                FileNotFoundError(),  # gnome-terminal
-                FileNotFoundError(),  # xterm
-                FileNotFoundError(),  # konsole
-                PopenDouble(["bash", "-c", "nuke"]),  # direct bash
-            ]
+        # Track execution attempts
+        attempt_count = 0
 
-            result = launcher.launch_app("nuke")
-            assert result is True
+        def fallback_subprocess(*args, **kwargs):
+            nonlocal attempt_count
+            attempt_count += 1
+
+            # First few attempts fail (terminals not found)
+            if attempt_count <= 3:
+                raise FileNotFoundError("Terminal not found")
+            else:
+                # Direct bash succeeds
+                success_subprocess = TestSubprocess()
+                success_subprocess.return_code = 0
+                success_subprocess.stdout = "nuke launched successfully"
+                return success_subprocess
+
+        command_launcher.subprocess.Popen = fallback_subprocess
+
+        result = launcher.launch_app("nuke")
+        assert result is True
+        assert attempt_count >= 3  # Multiple attempts made
 
     def test_complete_execution_failure(self, qtbot):
         """Test when all execution methods fail."""
@@ -565,19 +593,33 @@ class TestErrorHandling:
         # Set up error signal spy
         spy = QSignalSpy(launcher.command_error)
 
-        # Use test double - all execution methods fail
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.side_effect = Exception("All execution failed")
+        # Replace subprocess to always fail
+        def failing_subprocess(*args, **kwargs):
+            raise Exception("All execution failed")
 
-            result = launcher.launch_app("nuke")
-            assert result is False
+        command_launcher.subprocess.Popen = failing_subprocess
 
-            # Verify error signal (synchronous)
-            assert spy.count() >= 1
+        result = launcher.launch_app("nuke")
+        assert result is False
+
+        # Verify error signal (synchronous)
+        assert spy.count() >= 1
 
 
 class TestNukeIntegration:
     """Test Nuke-specific integration features."""
+
+    def setup_method(self):
+        """Setup with test doubles."""
+        self.test_subprocess = TestSubprocess()
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "nuke launched successfully"
+        self.original_popen = command_launcher.subprocess.Popen
+        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+
+    def teardown_method(self):
+        """Restore original subprocess."""
+        command_launcher.subprocess.Popen = self.original_popen
 
     def test_nuke_with_raw_plate_option(self, qtbot):
         """Test Nuke launching with raw plate integration."""
@@ -592,36 +634,47 @@ class TestNukeIntegration:
         )
         launcher.set_current_shot(shot)
 
-        # Mock RawPlateFinder
-        with patch("command_launcher.RawPlateFinder") as mock_finder:
-            mock_finder.find_latest_raw_plate.return_value = "/path/to/plate.%04d.exr"
-            mock_finder.verify_plate_exists.return_value = True
-            mock_finder.get_version_from_path.return_value = "v001"
+        # Create test doubles for dependencies
+        class TestRawPlateFinder:
+            @staticmethod
+            def find_latest_raw_plate(*args, **kwargs):
+                return "/path/to/plate.%04d.exr"
 
-            # Use test double for subprocess
-            with patch("command_launcher.subprocess.Popen") as mock_popen:
-                mock_popen.return_value = PopenDouble(["nuke", "/tmp/script.nk"])
+            @staticmethod
+            def verify_plate_exists(*args, **kwargs):
+                return True
 
-                # Use test double for dynamic import
-                # Store original import before patching
-                original_import = __import__
+            @staticmethod
+            def get_version_from_path(*args, **kwargs):
+                return "v001"
 
-                with patch("builtins.__import__") as mock_import:
-                    mock_generator = TestNukeScriptGenerator()
+        # Replace RawPlateFinder
+        original_finder = getattr(command_launcher, "RawPlateFinder", None)
+        command_launcher.RawPlateFinder = TestRawPlateFinder
 
-                    class MockModule:
-                        NukeScriptGenerator = mock_generator
+        # Mock dynamic import for NukeScriptGenerator
+        original_import = __builtins__["__import__"]
 
-                    def selective_mock_import(name, *args, **kwargs):
-                        if name == "nuke_script_generator":
-                            return MockModule()
-                        else:
-                            return original_import(name, *args, **kwargs)
+        def mock_import(name, *args, **kwargs):
+            if name == "nuke_script_generator":
 
-                    mock_import.side_effect = selective_mock_import
+                class MockModule:
+                    NukeScriptGenerator = TestNukeScriptGenerator()
 
-                    result = launcher.launch_app("nuke", include_raw_plate=True)
-                    assert result is True
+                return MockModule()
+            else:
+                return original_import(name, *args, **kwargs)
+
+        __builtins__["__import__"] = mock_import
+
+        try:
+            result = launcher.launch_app("nuke", include_raw_plate=True)
+            assert result is True
+        finally:
+            # Restore originals
+            __builtins__["__import__"] = original_import
+            if original_finder:
+                command_launcher.RawPlateFinder = original_finder
 
     def test_nuke_with_undistortion_option(self, qtbot):
         """Test Nuke launching with undistortion integration."""
@@ -636,18 +689,26 @@ class TestNukeIntegration:
         )
         launcher.set_current_shot(shot)
 
-        # Mock UndistortionFinder
-        with patch("command_launcher.UndistortionFinder") as mock_finder:
-            mock_finder.find_latest_undistortion.return_value = Path(
-                "/path/to/undist.nk",
-            )
-            mock_finder.get_version_from_path.return_value = "v001"
+        # Create test double for UndistortionFinder
+        class TestUndistortionFinder:
+            @staticmethod
+            def find_latest_undistortion(*args, **kwargs):
+                return Path("/path/to/undist.nk")
 
-            with patch("command_launcher.subprocess.Popen") as mock_popen:
-                mock_popen.return_value = PopenDouble(["nuke", "/path/to/undist.nk"])
+            @staticmethod
+            def get_version_from_path(*args, **kwargs):
+                return "v001"
 
-                result = launcher.launch_app("nuke", include_undistortion=True)
-                assert result is True
+        # Replace UndistortionFinder
+        original_finder = getattr(command_launcher, "UndistortionFinder", None)
+        command_launcher.UndistortionFinder = TestUndistortionFinder
+
+        try:
+            result = launcher.launch_app("nuke", include_undistortion=True)
+            assert result is True
+        finally:
+            if original_finder:
+                command_launcher.UndistortionFinder = original_finder
 
     def test_nuke_with_both_plate_and_undistortion(self, qtbot):
         """Test Nuke launching with both raw plate and undistortion."""
@@ -662,50 +723,64 @@ class TestNukeIntegration:
         )
         launcher.set_current_shot(shot)
 
-        # Mock both finders
-        with patch("command_launcher.RawPlateFinder") as mock_plate_finder, patch(
-            "command_launcher.UndistortionFinder",
-        ) as mock_undist_finder:
-            mock_plate_finder.find_latest_raw_plate.return_value = (
-                "/path/to/plate.%04d.exr"
+        # Create test doubles for both finders
+        class TestRawPlateFinder:
+            @staticmethod
+            def find_latest_raw_plate(*args, **kwargs):
+                return "/path/to/plate.%04d.exr"
+
+            @staticmethod
+            def verify_plate_exists(*args, **kwargs):
+                return True
+
+            @staticmethod
+            def get_version_from_path(*args, **kwargs):
+                return "v001"
+
+        class TestUndistortionFinder:
+            @staticmethod
+            def find_latest_undistortion(*args, **kwargs):
+                return Path("/path/to/undist.nk")
+
+            @staticmethod
+            def get_version_from_path(*args, **kwargs):
+                return "v001"
+
+        # Replace both finders
+        original_plate_finder = getattr(command_launcher, "RawPlateFinder", None)
+        original_undist_finder = getattr(command_launcher, "UndistortionFinder", None)
+        command_launcher.RawPlateFinder = TestRawPlateFinder
+        command_launcher.UndistortionFinder = TestUndistortionFinder
+
+        # Mock dynamic import for NukeScriptGenerator
+        original_import = __builtins__["__import__"]
+
+        def mock_import(name, *args, **kwargs):
+            if name == "nuke_script_generator":
+
+                class MockModule:
+                    NukeScriptGenerator = TestNukeScriptGenerator()
+
+                return MockModule()
+            else:
+                return original_import(name, *args, **kwargs)
+
+        __builtins__["__import__"] = mock_import
+
+        try:
+            result = launcher.launch_app(
+                "nuke",
+                include_raw_plate=True,
+                include_undistortion=True,
             )
-            mock_plate_finder.verify_plate_exists.return_value = True
-            mock_plate_finder.get_version_from_path.return_value = "v001"
-
-            mock_undist_finder.find_latest_undistortion.return_value = Path(
-                "/path/to/undist.nk",
-            )
-            mock_undist_finder.get_version_from_path.return_value = "v001"
-
-            with patch("command_launcher.subprocess.Popen") as mock_popen:
-                mock_popen.return_value = PopenDouble(
-                    ["nuke", "/tmp/integrated_script.nk"]
-                )
-
-                # Use test double for dynamic import
-                # Store original import before patching
-                original_import = __import__
-
-                with patch("builtins.__import__") as mock_import:
-                    mock_generator = TestNukeScriptGenerator()
-
-                    class MockModule:
-                        NukeScriptGenerator = mock_generator
-
-                    def selective_mock_import(name, *args, **kwargs):
-                        if name == "nuke_script_generator":
-                            return MockModule()
-                        else:
-                            return original_import(name, *args, **kwargs)
-
-                    mock_import.side_effect = selective_mock_import
-
-                    result = launcher.launch_app(
-                        "nuke",
-                        include_raw_plate=True,
-                        include_undistortion=True,
-                    )
-                    assert result is True
+            assert result is True
+        finally:
+            # Restore originals
+            __builtins__["__import__"] = original_import
+            if original_plate_finder:
+                command_launcher.RawPlateFinder = original_plate_finder
+            if original_undist_finder:
+                command_launcher.UndistortionFinder = original_undist_finder
 
 
 class TestTimestampGeneration:
@@ -754,10 +829,15 @@ class TestTimestampGeneration:
         spy_executed = QSignalSpy(launcher.command_executed)
         spy_error = QSignalSpy(launcher.command_error)
 
-        # Use test double to avoid actual execution
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = PopenDouble(["nuke"])
+        # Set up test double for success
+        test_subprocess = TestSubprocess()
+        test_subprocess.return_code = 0
+        test_subprocess.stdout = "nuke launched successfully"
 
+        original_popen = command_launcher.subprocess.Popen
+        command_launcher.subprocess.Popen = lambda *args, **kwargs: test_subprocess
+
+        try:
             # Trigger successful execution
             launcher.launch_app("nuke")
 
@@ -775,10 +855,24 @@ class TestTimestampGeneration:
             # Both should have same format
             assert len(executed_timestamp.split(":")) == 3
             assert len(error_timestamp.split(":")) == 3
+        finally:
+            command_launcher.subprocess.Popen = original_popen
 
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
+
+    def setup_method(self):
+        """Setup with test doubles."""
+        self.test_subprocess = TestSubprocess()
+        self.test_subprocess.return_code = 0
+        self.test_subprocess.stdout = "app launched successfully"
+        self.original_popen = command_launcher.subprocess.Popen
+        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+
+    def teardown_method(self):
+        """Restore original subprocess."""
+        command_launcher.subprocess.Popen = self.original_popen
 
     def test_empty_workspace_path(self, qtbot):
         """Test handling of empty workspace path."""
@@ -793,13 +887,9 @@ class TestEdgeCases:
         )
         launcher.set_current_shot(shot)
 
-        # Use test double to avoid actual execution
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = PopenDouble(["nuke"])
-
-            result = launcher.launch_app("nuke")
-            # Should still work with empty workspace
-            assert result is True
+        result = launcher.launch_app("nuke")
+        # Should still work with empty workspace
+        assert result is True
 
     def test_special_characters_in_paths(self, qtbot):
         """Test handling of special characters in workspace paths."""
@@ -821,11 +911,8 @@ class TestEdgeCases:
             )
             launcher.set_current_shot(shot)
 
-            with patch("command_launcher.subprocess.Popen") as mock_popen:
-                mock_popen.return_value = PopenDouble(["nuke"])
-
-                result = launcher.launch_app("nuke")
-                assert result is True
+            result = launcher.launch_app("nuke")
+            assert result is True
 
     def test_rapid_successive_launches(self, qtbot):
         """Test rapid successive application launches."""
@@ -840,15 +927,11 @@ class TestEdgeCases:
         )
         launcher.set_current_shot(shot)
 
-        # Use test double to avoid actual execution
-        with patch("command_launcher.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = PopenDouble(["app"])
+        # Launch multiple apps rapidly
+        results = []
+        for app in ["nuke", "maya", "rv", "3de"]:
+            result = launcher.launch_app(app)
+            results.append(result)
 
-            # Launch multiple apps rapidly
-            results = []
-            for app in ["nuke", "maya", "rv", "3de"]:
-                result = launcher.launch_app(app)
-                results.append(result)
-
-            # All should succeed
-            assert all(results)
+        # All should succeed
+        assert all(results)

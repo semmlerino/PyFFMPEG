@@ -115,7 +115,7 @@ class TestQtIntegration:
 
     def test_memory_cleanup_in_qt_context(self, qt_model, qtbot):
         """Test memory cleanup works properly in Qt context."""
-        initial_loader_count = 0
+        _initial_loader_count = 0  # Not used in this test
 
         # Create several async loaders
         for _ in range(5):

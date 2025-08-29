@@ -1,4 +1,5 @@
 """Thumbnail processing with multi-format support (Qt/PIL/OpenEXR)."""
+
 from __future__ import annotations
 
 import gc

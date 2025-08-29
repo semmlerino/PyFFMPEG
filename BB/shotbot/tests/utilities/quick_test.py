@@ -6,7 +6,9 @@ import sys
 from pathlib import Path
 
 # Set up environment
-sys.path.insert(0, str(Path(__file__).parent))
+# Add the project root directory (two levels up from utilities)
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 

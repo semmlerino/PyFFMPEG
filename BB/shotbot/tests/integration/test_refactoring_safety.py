@@ -45,7 +45,7 @@ class TestLauncherRefactoringSafety:
     def test_launcher_crud_operations(self, launcher_manager, sample_launcher):
         """Verify all CRUD operations work correctly."""
         # Create
-        assert launcher_manager.create_launcher(sample_launcher)
+        assert launcher_manager.create_launcher_from_object(sample_launcher)
 
         # Read
         retrieved = launcher_manager.get_launcher(sample_launcher.id)
@@ -59,14 +59,12 @@ class TestLauncherRefactoringSafety:
         assert any(launcher.id == sample_launcher.id for launcher in launchers)
 
         # Update
-        updated_launcher = CustomLauncher(
-            id=sample_launcher.id,
+        assert launcher_manager.update_launcher(
+            sample_launcher.id,
             name="Updated Test Launcher",
             command="echo 'Updated {shot_name}'",
             description="Updated description",
-            category="Test",
         )
-        assert launcher_manager.update_launcher(updated_launcher)
 
         # Verify update
         retrieved_after_update = launcher_manager.get_launcher(sample_launcher.id)
@@ -82,7 +80,7 @@ class TestLauncherRefactoringSafety:
     def test_launcher_execution(self, launcher_manager, sample_launcher):
         """Verify launchers can execute commands."""
         # Create launcher
-        launcher_manager.create_launcher(sample_launcher)
+        launcher_manager.create_launcher_from_object(sample_launcher)
 
         # Mock subprocess to avoid actual execution
         with patch("subprocess.Popen") as mock_popen:
@@ -101,12 +99,20 @@ class TestLauncherRefactoringSafety:
                 workspace_path="/shows/TEST/seq01/0010",
             )
 
-            process_id = launcher_manager.execute_launcher(
-                sample_launcher.id, shot=shot
+            # Execute launcher with shot context variables
+            custom_vars = {
+                "shot_name": f"{shot.sequence}_{shot.shot}",
+                "show": shot.show,
+                "sequence": shot.sequence,
+                "shot": shot.shot,
+                "workspace_path": shot.workspace_path,
+            }
+            success = launcher_manager.execute_launcher(
+                sample_launcher.id, custom_vars=custom_vars
             )
 
             # Verify execution started
-            assert process_id is not None
+            assert success is True
 
     def test_launcher_validation(self, launcher_manager):
         """Verify command validation works correctly."""
@@ -137,7 +143,7 @@ class TestLauncherRefactoringSafety:
     ):
         """Verify launcher configurations persist correctly."""
         # Create and save launcher
-        launcher_manager.create_launcher(sample_launcher)
+        launcher_manager.create_launcher_from_object(sample_launcher)
 
         # Create new manager instance with same config dir
         new_manager = LauncherManager(config_dir=temp_config_dir)
@@ -161,7 +167,7 @@ class TestLauncherRefactoringSafety:
                 description=f"Test for {category}",
                 category=category,
             )
-            launcher_manager.create_launcher(launcher)
+            launcher_manager.create_launcher_from_object(launcher)
 
         # Verify categories
         retrieved_categories = launcher_manager.get_categories()
@@ -175,7 +181,7 @@ class TestLauncherRefactoringSafety:
 
     def test_process_tracking(self, launcher_manager, sample_launcher):
         """Verify process tracking functionality."""
-        launcher_manager.create_launcher(sample_launcher)
+        launcher_manager.create_launcher_from_object(sample_launcher)
 
         with patch("subprocess.Popen") as mock_popen:
             # Setup mock process
@@ -186,6 +192,7 @@ class TestLauncherRefactoringSafety:
 
             # Start process
             process_id = launcher_manager.execute_launcher(sample_launcher.id)
+            assert process_id is not None  # Verify process started
 
             # Check active process count
             assert launcher_manager.get_active_process_count() > 0
@@ -197,7 +204,7 @@ class TestLauncherRefactoringSafety:
 
     def test_signal_emission(self, launcher_manager, sample_launcher, qtbot):
         """Verify Qt signals are emitted correctly."""
-        launcher_manager.create_launcher(sample_launcher)
+        launcher_manager.create_launcher_from_object(sample_launcher)
 
         # Track signal emissions
         signal_emissions = []
@@ -209,7 +216,7 @@ class TestLauncherRefactoringSafety:
             return handler
 
         # Connect signal trackers
-        launcher_manager.launcher_created.connect(track_signal("created"))
+        launcher_manager.launcher_added.connect(track_signal("created"))
         launcher_manager.launcher_updated.connect(track_signal("updated"))
         launcher_manager.launcher_deleted.connect(track_signal("deleted"))
 

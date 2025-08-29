@@ -47,9 +47,9 @@ def shot_model_with_test_pool(real_cache_manager):
     # Use TestProcessPool from library with default workspace data
     test_pool = TestProcessPool()
     test_pool.set_outputs(
-        "workspace /shows/testshow/shots/seq01/shot01",
-        "workspace /shows/testshow/shots/seq01/shot02",
-        "workspace /shows/testshow/shots/seq02/shot01",
+        "workspace /shows/testshow/shots/seq01/seq01_shot01",
+        "workspace /shows/testshow/shots/seq01/seq01_shot02",
+        "workspace /shows/testshow/shots/seq02/seq02_shot01",
     )
     model._process_pool = test_pool
     return model, test_pool
@@ -62,10 +62,10 @@ class TestShotModelRefreshCriticalPaths:
         """Test successful refresh when shot list changes."""
         model, test_pool = shot_model_with_test_pool
 
-        # Set up test workspace output
-        test_output = """workspace /shows/project/shots/seq01/shot01
-workspace /shows/project/shots/seq01/shot02
-workspace /shows/project/shots/seq02/shot01"""
+        # Set up test workspace output using VFX format: {sequence}_{shot}
+        test_output = """workspace /shows/project/shots/seq01/seq01_shot01
+workspace /shows/project/shots/seq01/seq01_shot02
+workspace /shows/project/shots/seq02/seq02_shot01"""
 
         model._process_pool.set_outputs(test_output)
 
@@ -100,7 +100,7 @@ workspace /shows/project/shots/seq02/shot01"""
         """Test refresh when shot list hasn't changed."""
         model, test_pool = shot_model_with_test_pool
 
-        same_output = """workspace /shows/project/shots/seq01/shot01"""
+        same_output = """workspace /shows/project/shots/seq01/seq01_shot01"""
 
         # First refresh to establish baseline
         model._process_pool.set_outputs(same_output, same_output)
@@ -158,7 +158,7 @@ workspace /shows/project/shots/seq02/shot01"""
         cache = real_cache_manager
 
         # Provide test data
-        model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/shot01""")
+        model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/seq01_shot01""")
 
         # Refresh shots
         result = model.refresh_shots()
@@ -175,17 +175,17 @@ workspace /shows/project/shots/seq02/shot01"""
         model, test_pool = shot_model_with_test_pool
 
         # Test data
-        output1 = """workspace /shows/test/shots/seq01/shot01
-workspace /shows/test/shots/seq01/shot02"""
+        output1 = """workspace /shows/test/shots/seq01/seq01_shot01
+workspace /shows/test/shots/seq01/seq01_shot02"""
 
-        output2 = """workspace /shows/test/shots/seq01/shot01
-workspace /shows/test/shots/seq01/shot02
-workspace /shows/test/shots/seq01/shot03"""  # Added shot
+        output2 = """workspace /shows/test/shots/seq01/seq01_shot01
+workspace /shows/test/shots/seq01/seq01_shot02
+workspace /shows/test/shots/seq01/seq01_shot03"""  # Added shot
 
-        output3 = """workspace /shows/test/shots/seq01/shot01"""  # Removed shot
+        output3 = """workspace /shows/test/shots/seq01/seq01_shot01"""  # Removed shot
 
-        output4 = """workspace /shows/test/shots/seq01/shot01
-workspace /shows/different/shots/seq01/shot02"""  # Path changed
+        output4 = """workspace /shows/test/shots/seq01/seq01_shot01
+workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
 
         # Test adding shots
         model._process_pool.set_outputs(output1, output2)
@@ -228,8 +228,8 @@ workspace /shows/different/shots/seq01/shot02"""  # Path changed
 
         # Provide different outputs for each call
         model._process_pool.set_outputs(
-            """workspace /shows/test/shots/seq01/shot01""",
-            """workspace /shows/test/shots/seq01/shot02""",
+            """workspace /shows/test/shots/seq01/seq01_shot01""",
+            """workspace /shows/test/shots/seq01/seq01_shot02""",
         )
 
         # Start multiple refreshes (second should wait or be handled gracefully)
@@ -250,7 +250,7 @@ workspace /shows/different/shots/seq01/shot02"""  # Path changed
         model, test_pool = shot_model_with_test_pool
 
         # Initial refresh
-        model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/shot01""")
+        model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/seq01_shot01""")
         model.refresh_shots()
         assert len(model.get_shots()) == 1
 
@@ -261,7 +261,7 @@ workspace /shows/different/shots/seq01/shot02"""  # Path changed
         assert "ws -sg" not in model._process_pool._cache
 
         # Next refresh should fetch fresh data
-        model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/shot02""")
+        model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/seq01_shot02""")
         result2 = model.refresh_shots()
 
         assert result2.has_changes is True

@@ -76,7 +76,9 @@ class AsyncShotLoader(QThread):
                 shots = self.parse_function(output)
             else:
                 # Fallback to simple parsing (should not be used in practice)
-                logger.warning("Using fallback parsing - this may produce incorrect results")
+                logger.warning(
+                    "Using fallback parsing - this may produce incorrect results"
+                )
                 shots = []
                 for line in output.strip().split("\n"):
                     # Check for interruption in loop for faster response
@@ -86,7 +88,6 @@ class AsyncShotLoader(QThread):
                     if line.startswith("workspace "):
                         parts = line.split()
                         if len(parts) >= 2:
-                            path = parts[1]
                             # This simple parsing is incorrect and kept only as fallback
                             # The proper parsing is in BaseShotModel._parse_ws_output
                             logger.error(f"Fallback parsing used for: {line}")
@@ -205,8 +206,8 @@ class OptimizedShotModel(BaseShotModel):
 
             # Create and configure loader with proper parse function
             self._async_loader = AsyncShotLoader(
-                self._process_pool, 
-                parse_function=self._parse_ws_output  # Use base class's correct parsing
+                self._process_pool,
+                parse_function=self._parse_ws_output,  # Use base class's correct parsing
             )
             self._async_loader.shots_loaded.connect(self._on_shots_loaded)
             self._async_loader.load_failed.connect(self._on_load_failed)

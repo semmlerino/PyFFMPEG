@@ -294,11 +294,11 @@ class TestResultDict(TypedDict):
 
 class PerformanceMetricsDict(TypedDict):
     """Performance metrics for shot models.
-    
+
     Contains base metrics from BaseShotModel and extended metrics
     from OptimizedShotModel with async loading support.
     """
-    
+
     # Base metrics from BaseShotModel.get_performance_metrics()
     total_shots: int
     total_refreshes: int
@@ -306,7 +306,7 @@ class PerformanceMetricsDict(TypedDict):
     cache_hits: int
     cache_misses: int
     cache_hit_rate: float
-    
+
     # Extended metrics from OptimizedShotModel (optional for base model)
     cache_hit_count: int
     cache_miss_count: int
@@ -316,7 +316,7 @@ class PerformanceMetricsDict(TypedDict):
 
 class ValidationResultDict(TypedDict, total=False):
     """Result of cache validation operations.
-    
+
     All fields except 'valid' are optional to allow for partial updates
     and error conditions.
     """

@@ -1,32 +1,40 @@
 #!/usr/bin/env python3
-"""Critical tests for AsyncShotLoader thread safety and signal emission."""
+"""Critical tests for AsyncShotLoader thread safety and signal emission.
 
-import time
-from unittest.mock import Mock
+Refactored to eliminate unittest.mock and fix thread safety issues.
+Follows UNIFIED_TESTING_GUIDE patterns with real components and TestProcessPool boundaries.
+"""
 
 import pytest
 from PySide6.QtTest import QSignalSpy
 
-from process_pool_manager import ProcessPoolManager
+from base_shot_model import BaseShotModel
 from shot_model_optimized import AsyncShotLoader, OptimizedShotModel
+from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 
 
 class TestAsyncShotLoader:
     """Test AsyncShotLoader thread behavior and signal emission."""
 
     @pytest.fixture
-    def mock_process_pool(self):
-        """Create mock process pool for testing."""
-        pool = Mock(spec=ProcessPoolManager)
-        pool.execute_workspace_command.return_value = """workspace /shows/TEST/seq01/0010
-workspace /shows/TEST/seq01/0020
-workspace /shows/TEST/seq02/0010"""
+    def test_process_pool(self):
+        """Create test process pool for testing."""
+        pool = TestProcessPool()
+        pool.set_outputs(
+            "workspace /shows/TEST/shots/seq01/TEST_seq01_0010\n"
+            "workspace /shows/TEST/shots/seq01/TEST_seq01_0020\n"
+            "workspace /shows/TEST/shots/seq02/TEST_seq02_0010"
+        )
         return pool
 
     @pytest.fixture
-    def loader(self, mock_process_pool, qtbot):
+    def loader(self, test_process_pool, qtbot):
         """Create AsyncShotLoader for testing."""
-        loader = AsyncShotLoader(mock_process_pool)
+        # Create BaseShotModel instance to get the parse function
+        base_model = BaseShotModel()
+        loader = AsyncShotLoader(
+            test_process_pool, parse_function=base_model._parse_ws_output
+        )
         # AsyncShotLoader is a QThread, not a QWidget, so we don't use addWidget
         # Instead, ensure it gets properly cleaned up
         yield loader
@@ -63,46 +71,53 @@ workspace /shows/TEST/seq02/0010"""
     def test_failed_loading_signal_emission(self, qtbot):
         """Test load_failed signal is emitted on exception."""
         # Create failing process pool
-        failing_pool = Mock(spec=ProcessPoolManager)
-        failing_pool.execute_workspace_command.side_effect = RuntimeError(
-            "Command failed"
+        failing_pool = TestProcessPool()
+        failing_pool.should_fail = True
+        failing_pool.fail_with_message = "Command failed"
+
+        base_model = BaseShotModel()
+        loader = AsyncShotLoader(
+            failing_pool, parse_function=base_model._parse_ws_output
         )
+        try:
+            # Use QSignalSpy for error signal
+            error_spy = QSignalSpy(loader.load_failed)
 
-        loader = AsyncShotLoader(failing_pool)
+            loader.start()
+            assert loader.wait(5000)
 
-        # Use QSignalSpy for error signal
-        error_spy = QSignalSpy(loader.load_failed)
+            # Verify error signal emission
+            assert error_spy.count() == 1
+            assert "Command failed" in error_spy.at(0)[0]
+        finally:
+            if loader.isRunning():
+                loader.quit()
+                loader.wait(1000)
 
-        loader.start()
-        assert loader.wait(5000)
-
-        # Verify error signal emission
-        assert error_spy.count() == 1
-        assert "Command failed" in error_spy.at(0)[0]
-
-    def test_loader_stop_request(self, loader, qtbot):
+    def test_loader_stop_request(self, qtbot):
         """Test that stop() request prevents signal emission."""
         # Create slow process pool
-        slow_pool = Mock(spec=ProcessPoolManager)
+        slow_pool = TestProcessPool()
+        slow_pool.simulated_delay = 0.1  # Simulate slow operation
+        slow_pool.set_outputs("workspace /shows/TEST/shots/seq01/TEST_seq01_0010")
 
-        def slow_command(*args, **kwargs):
-            time.sleep(0.1)  # Simulate slow operation
-            return "workspace /shows/TEST/seq01/0010"
+        base_model = BaseShotModel()
+        loader = AsyncShotLoader(slow_pool, parse_function=base_model._parse_ws_output)
+        try:
+            spy = QSignalSpy(loader.shots_loaded)
 
-        slow_pool.execute_workspace_command.side_effect = slow_command
+            # Start and immediately stop
+            loader.start()
+            loader.stop()
 
-        loader = AsyncShotLoader(slow_pool)
+            assert loader.wait(1000)
 
-        spy = QSignalSpy(loader.shots_loaded)
-
-        # Start and immediately stop
-        loader.start()
-        loader.stop()
-
-        assert loader.wait(1000)
-
-        # No signals should be emitted when stopped
-        assert spy.count() == 0
+            # No signals should be emitted when stopped
+            assert spy.count() == 0
+        finally:
+            if loader.isRunning():
+                loader.quit()
+                loader.wait(1000)
 
     def test_thread_cleanup(self, loader, qtbot):
         """Test proper thread resource cleanup."""
@@ -115,39 +130,44 @@ workspace /shows/TEST/seq02/0010"""
 
     def test_concurrent_loader_instances(self, qtbot):
         """Test multiple AsyncShotLoader instances don't interfere."""
-        pool1 = Mock(spec=ProcessPoolManager)
-        pool1.execute_workspace_command.return_value = (
-            "workspace /shows/SHOW1/seq01/0010"
-        )
+        pool1 = TestProcessPool()
+        pool1.set_outputs("workspace /shows/SHOW1/shots/seq01/SHOW1_seq01_0010")
 
-        pool2 = Mock(spec=ProcessPoolManager)
-        pool2.execute_workspace_command.return_value = (
-            "workspace /shows/SHOW2/seq01/0020"
-        )
+        pool2 = TestProcessPool()
+        pool2.set_outputs("workspace /shows/SHOW2/shots/seq01/SHOW2_seq01_0020")
 
-        loader1 = AsyncShotLoader(pool1)
-        loader2 = AsyncShotLoader(pool2)
+        base_model1 = BaseShotModel()
+        base_model2 = BaseShotModel()
+        loader1 = AsyncShotLoader(pool1, parse_function=base_model1._parse_ws_output)
+        loader2 = AsyncShotLoader(pool2, parse_function=base_model2._parse_ws_output)
         # loaders are QThread objects, not widgets
 
-        spy1 = QSignalSpy(loader1.shots_loaded)
-        spy2 = QSignalSpy(loader2.shots_loaded)
+        try:
+            spy1 = QSignalSpy(loader1.shots_loaded)
+            spy2 = QSignalSpy(loader2.shots_loaded)
 
-        # Start both loaders
-        loader1.start()
-        loader2.start()
+            # Start both loaders
+            loader1.start()
+            loader2.start()
 
-        # Wait for both
-        assert loader1.wait(5000)
-        assert loader2.wait(5000)
+            # Wait for both
+            assert loader1.wait(5000)
+            assert loader2.wait(5000)
 
-        # Both should complete successfully
-        assert spy1.count() == 1
-        assert spy2.count() == 1
+            # Both should complete successfully
+            assert spy1.count() == 1
+            assert spy2.count() == 1
 
-        # Results should be different
-        shots1 = spy1.at(0)[0]
-        shots2 = spy2.at(0)[0]
-        assert shots1[0].show != shots2[0].show
+            # Results should be different
+            shots1 = spy1.at(0)[0]
+            shots2 = spy2.at(0)[0]
+            assert shots1[0].show != shots2[0].show
+        finally:
+            # Clean up both loaders
+            for loader in [loader1, loader2]:
+                if loader.isRunning():
+                    loader.quit()
+                    loader.wait(1000)
 
 
 class TestOptimizedShotModelSignals:
@@ -165,13 +185,16 @@ class TestOptimizedShotModelSignals:
         started_spy = QSignalSpy(optimized_model.background_load_started)
         finished_spy = QSignalSpy(optimized_model.background_load_finished)
 
-        # Mock process pool to avoid real subprocess
-        mock_pool = Mock()
-        mock_pool.execute_workspace_command.return_value = "workspace /test/path"
-        optimized_model._process_pool = mock_pool
+        # Use TestProcessPool boundary mock to avoid real subprocess
+        test_pool = TestProcessPool()
+        test_pool.set_outputs("workspace /shows/TEST/shots/seq01/TEST_seq01_0010")
+        optimized_model._process_pool = test_pool
 
         # Initialize async
         result = optimized_model.initialize_async()
+        
+        # Verify initialization succeeded
+        assert result.success is True, "Async initialization should succeed"
 
         # Wait for background load to complete
         qtbot.waitUntil(lambda: finished_spy.count() == 1, timeout=5000)
@@ -187,12 +210,10 @@ class TestOptimizedShotModelSignals:
 
         shots_changed_spy = QSignalSpy(optimized_model.shots_changed)
 
-        # Mock new data
-        mock_pool = Mock()
-        mock_pool.execute_workspace_command.return_value = (
-            "workspace /shows/NEW/seq01/0010"
-        )
-        optimized_model._process_pool = mock_pool
+        # Use TestProcessPool with new data
+        test_pool = TestProcessPool()
+        test_pool.set_outputs("workspace /shows/NEW/shots/seq01/NEW_seq01_0010")
+        optimized_model._process_pool = test_pool
 
         optimized_model.initialize_async()
 

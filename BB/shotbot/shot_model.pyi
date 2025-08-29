@@ -42,6 +42,7 @@ class ShotModel:
     shots: List[Shot]
     cache_manager: CacheManager
     _parse_pattern: re.Pattern[str]
+    _selected_shot: Optional[Shot]
 
     def __init__(
         self,
