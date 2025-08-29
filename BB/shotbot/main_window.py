@@ -50,7 +50,10 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
+
+# Use typing_extensions for override (compatible with Python 3.11)
+from typing_extensions import override
 
 from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer, Slot
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence

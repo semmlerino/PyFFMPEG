@@ -18,6 +18,42 @@ Focus on functionality, performance, and VFX workflow optimization instead.
 
 ShotBot is a PySide6-based GUI application for VFX shot browsing and application launching. It integrates with VFX pipeline tools using the `ws` (workspace) command to list and navigate shots. The application provides a visual interface for artists to browse shots, view thumbnails, and launch VFX applications in the correct shot context.
 
+## Python Compatibility
+
+### Supported Versions
+- **Minimum**: Python 3.11
+- **Recommended**: Python 3.12+
+- **Tested**: Python 3.11, 3.12
+
+### Important Compatibility Notes
+
+#### Type Annotations
+This codebase uses modern type annotations with union syntax (`str | None`) which requires Python 3.10+. All type annotations are compatible with Python 3.11.
+
+#### Override Decorator
+The `@override` decorator is used for better type safety. For Python 3.11 compatibility:
+- **DO NOT** import from `typing.override` (Python 3.12+ only)
+- **DO** import from `typing_extensions.override` (works with 3.11+)
+
+```python
+# Correct (Python 3.11+ compatible)
+from typing_extensions import override
+
+# Incorrect (Python 3.12+ only)
+from typing import override  # Will fail on Python 3.11!
+```
+
+#### Threading and Performance
+Recent improvements include:
+- Parallel filesystem scanning with `concurrent.futures.ThreadPoolExecutor`
+- Proper `@Slot` decorators on all QThread `run()` methods
+- Thread-safe singleton initialization for `ProcessPoolManager`
+
+These features are fully compatible with Python 3.11+.
+
+#### Dependencies
+The `typing_extensions` package is required and included in requirements.txt. This provides backports of typing features for older Python versions.
+
 ## Commands
 
 ### Running the Application
