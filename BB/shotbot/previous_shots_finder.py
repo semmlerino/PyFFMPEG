@@ -79,12 +79,13 @@ class PreviousShotsFinder:
 
             # SECURITY FIX: Use stderr=subprocess.DEVNULL instead of shell redirection
             # Note: Can't use capture_output=True with stderr=subprocess.DEVNULL
+            # Increased timeout to 120 seconds for large filesystem searches
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,  # Capture stdout explicitly
                 stderr=subprocess.DEVNULL,  # Suppress stderr
                 text=True,
-                timeout=30,
+                timeout=120,  # Increased from 30 to 120 seconds
                 shell=False,
             )
 
@@ -105,7 +106,7 @@ class PreviousShotsFinder:
             logger.info(f"Found {len(shots)} shots with user work")
 
         except subprocess.TimeoutExpired:
-            logger.error("Find command timed out after 30 seconds")
+            logger.error("Find command timed out after 120 seconds")
         except Exception as e:
             logger.error(f"Error finding user shots: {e}")
 

@@ -10,11 +10,11 @@ from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Signal
 
+from shot_model import Shot
 from type_definitions import PerformanceMetricsDict
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
-    from shot_model import Shot
 
 from exceptions import WorkspaceError
 from process_pool_manager import ProcessPoolManager
@@ -65,7 +65,7 @@ class BaseShotModel(QObject):
         super().__init__()
         from cache_manager import CacheManager
 
-        self.shots: list[Any] = []
+        self.shots: list[Shot] = []
         self.cache_manager = cache_manager or CacheManager()
         self._parse_pattern = re.compile(
             r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+_\w+))",
@@ -95,8 +95,6 @@ class BaseShotModel(QObject):
         """
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
-            from shot_model import Shot
-
             self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
             self.shots_loaded.emit(self.shots)
             self._cache_hits += 1
@@ -124,9 +122,7 @@ class BaseShotModel(QObject):
                 details={"expected": "str", "got": str(type(output))},
             )
 
-        from shot_model import Shot
-
-        shots: list[Any] = []
+        shots: list[Shot] = []
         lines = output.strip().split("\n")
 
         # If output is completely empty, that might indicate an issue

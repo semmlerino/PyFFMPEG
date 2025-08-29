@@ -50,8 +50,9 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import override
 
-from PySide6.QtCore import QMutex, QMutexLocker, Qt, QTimer
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -75,11 +76,12 @@ from cache_manager import CacheManager
 from command_launcher import CommandLauncher
 from config import Config
 from launcher_dialog import LauncherManagerDialog
-from launcher_manager import LauncherManager
+from launcher_manager import CustomLauncher, LauncherManager
 from log_viewer import LogViewer
 from notification_manager import NotificationManager, NotificationType
 from previous_shots_grid import PreviousShotsGrid
 from previous_shots_model import PreviousShotsModel
+from process_pool_manager import ProcessPoolManager
 from progress_manager import ProgressManager
 from settings_dialog import SettingsDialog
 from settings_manager import SettingsManager
@@ -94,6 +96,33 @@ from threede_shot_grid import ThreeDEShotGrid
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
+
+
+class SessionWarmer(QThread):
+    """Background thread for pre-warming bash sessions without blocking UI.
+    
+    This thread runs during idle time after the UI is displayed, initializing
+    the bash environment and 'ws' function in the background. This prevents
+    the ~8 second freeze that would occur if this initialization happened
+    on the main thread during the first actual command execution.
+    """
+    
+    @override
+    def run(self) -> None:
+        """Pre-warm bash sessions in background thread."""
+        try:
+            logger.debug("Starting background session pre-warming")
+            # Get the process pool instance and warm it up
+            pool = ProcessPoolManager.get_instance()
+            _ = pool.execute_workspace_command(
+                "echo warming",
+                cache_ttl=1,  # Short TTL since this is just for warming
+                timeout=15,   # Give enough time for first initialization
+            )
+            logger.info("Bash session pre-warming completed successfully")
+        except Exception as e:
+            # Don't fail the app if pre-warming fails
+            logger.warning(f"Session pre-warming failed (non-critical): {e}")
 
 
 class MainWindow(QMainWindow):
@@ -468,13 +497,13 @@ class MainWindow(QMainWindow):
     def _connect_signals(self) -> None:
         """Connect signals."""
         # Connect to shot model signals for reactive updates
-        _ = self.shot_model.shots_loaded.connect(self._on_shots_loaded)  # type: ignore[attr-defined]
-        _ = self.shot_model.shots_changed.connect(self._on_shots_changed)  # type: ignore[attr-defined]
-        _ = self.shot_model.refresh_started.connect(self._on_refresh_started)  # type: ignore[attr-defined]
-        _ = self.shot_model.refresh_finished.connect(self._on_refresh_finished)  # type: ignore[attr-defined]
-        _ = self.shot_model.error_occurred.connect(self._on_shot_error)  # type: ignore[attr-defined]
-        _ = self.shot_model.shot_selected.connect(self._on_model_shot_selected)  # type: ignore[attr-defined]
-        _ = self.shot_model.cache_updated.connect(self._on_cache_updated)  # type: ignore[attr-defined]
+        _ = self.shot_model.shots_loaded.connect(self._on_shots_loaded)
+        _ = self.shot_model.shots_changed.connect(self._on_shots_changed)
+        _ = self.shot_model.refresh_started.connect(self._on_refresh_started)
+        _ = self.shot_model.refresh_finished.connect(self._on_refresh_finished)
+        _ = self.shot_model.error_occurred.connect(self._on_shot_error)
+        _ = self.shot_model.shot_selected.connect(self._on_model_shot_selected)
+        _ = self.shot_model.cache_updated.connect(self._on_cache_updated)
 
         # Shot selection
         _ = self.shot_grid.shot_selected.connect(self._on_shot_selected)
@@ -504,9 +533,7 @@ class MainWindow(QMainWindow):
         _ = self.launcher_manager.launchers_changed.connect(
             self._update_custom_launcher_buttons,
         )
-        _ = self.launcher_manager.execution_started.connect(
-            lambda launcher_id: self._on_launcher_started(launcher_id),
-        )
+        _ = self.launcher_manager.execution_started.connect(self._on_launcher_started)
         _ = self.launcher_manager.execution_finished.connect(self._on_launcher_finished)
 
         # Synchronize thumbnail sizes between tabs
@@ -522,8 +549,10 @@ class MainWindow(QMainWindow):
             # Use async initialization for instant UI
             result = self.shot_model.initialize_async()
             logger.info(f"Async initialization started, cache status: {result.success}")
-            # Pre-warm sessions for faster subsequent loads
-            QTimer.singleShot(100, self.shot_model.pre_warm_sessions)
+            # Pre-warm sessions in background thread to avoid UI freeze
+            self._session_warmer = SessionWarmer()
+            self._session_warmer.start()
+            logger.debug("Session warmer thread started in background")
 
         has_cached_shots = bool(self.shot_model.shots)
         has_cached_scenes = bool(self.threede_scene_model.scenes)
@@ -726,7 +755,7 @@ class MainWindow(QMainWindow):
             operation.set_total(total)
             operation.update(current, description)
 
-    def _on_threede_discovery_finished(self, scenes: list) -> None:
+    def _on_threede_discovery_finished(self, scenes: list[ThreeDEScene]) -> None:
         """Handle 3DE discovery worker completion.
 
         Args:
@@ -814,7 +843,7 @@ class MainWindow(QMainWindow):
             "Check that you have read permissions for the scan directories.",
         )
 
-    def _on_threede_batch_ready(self, scene_batch: list) -> None:
+    def _on_threede_batch_ready(self, scene_batch: list[ThreeDEScene]) -> None:
         """Handle batch of scenes ready from progressive scanning.
 
         Args:
@@ -861,7 +890,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "shot_item_model"):
             self.shot_item_model.set_shots(self.shot_model.shots)
 
-    def _on_shots_loaded(self, shots: list) -> None:
+    def _on_shots_loaded(self, shots: list[Shot]) -> None:
         """Handle shots loaded signal from model.
 
         Args:
@@ -872,7 +901,7 @@ class MainWindow(QMainWindow):
         self._update_status(f"Loaded {len(shots)} shots")
         NotificationManager.info(f"{len(shots)} shots loaded from cache")
 
-    def _on_shots_changed(self, shots: list) -> None:
+    def _on_shots_changed(self, shots: list[Shot]) -> None:
         """Handle shots changed signal from model.
 
         Args:
@@ -1646,6 +1675,18 @@ class MainWindow(QMainWindow):
                     # Clean up the worker reference
                     self._threede_worker.deleteLater()
                     self._threede_worker = None
+            
+            # Clean up session warmer if it exists
+            if hasattr(self, "_session_warmer") and self._session_warmer:
+                if not self._session_warmer.isFinished():
+                    logger.debug("Waiting for session warmer to complete")
+                    # Session warming is non-critical, give it max 2 seconds
+                    if not self._session_warmer.wait(2000):
+                        logger.debug("Session warmer didn't finish, terminating")
+                        self._session_warmer.terminate()
+                        self._session_warmer.wait(500)  # Brief wait for termination
+                self._session_warmer.deleteLater()
+                self._session_warmer = None
 
         # Shutdown launcher manager to stop all worker threads
         if hasattr(self.launcher_manager, "shutdown"):

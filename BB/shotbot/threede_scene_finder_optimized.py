@@ -231,24 +231,33 @@ class OptimizedThreeDESceneFinder:
             user_entries = OptimizedThreeDESceneFinder._get_directory_listing_cached(
                 user_dir
             )
+            
+            logger.debug(f"Scanning user dir: {user_dir}, found {len(user_entries)} entries")
+            logger.debug(f"Excluded users: {excluded_users}")
 
             for entry_name, is_dir, is_file in user_entries:
                 if is_dir and entry_name not in excluded_users:
                     user_path = user_dir / entry_name
+                    logger.debug(f"Searching for .3de files in user directory: {user_path}")
 
                     # Use rglob for finding .3de files (proven fastest in profiling)
                     try:
                         # Process both extensions efficiently
+                        found_count = 0
                         for ext in ("*.3de", "*.3DE"):
                             for threede_file in user_path.rglob(ext):
                                 if threede_file.is_file():
                                     files.append((entry_name, threede_file))
-                    except (OSError, PermissionError):
-                        logger.debug(f"Permission denied accessing {user_path}")
+                                    found_count += 1
+                                    logger.debug(f"Found .3de file: {threede_file}")
+                        if found_count > 0:
+                            logger.info(f"Found {found_count} .3de files for user {entry_name}")
+                    except (OSError, PermissionError) as e:
+                        logger.warning(f"Permission denied accessing {user_path}: {e}")
                         continue
 
-        except (OSError, PermissionError):
-            logger.debug(f"Permission denied accessing {user_dir}")
+        except (OSError, PermissionError) as e:
+            logger.warning(f"Permission denied accessing {user_dir}: {e}")
 
         return files
 
@@ -384,8 +393,11 @@ class OptimizedThreeDESceneFinder:
         # Check user directory
         user_dir = shot_path / "user"
         if not user_dir.exists():
-            logger.debug(f"No user directory found: {user_dir}")
+            logger.warning(f"No user directory found: {user_dir}")
             return scenes
+        
+        logger.debug(f"User directory exists: {user_dir}")
+        logger.debug(f"User directory is accessible: {os.access(user_dir, os.R_OK)}")
 
         # Estimate workload and choose strategy
         workload_size = OptimizedThreeDESceneFinder._estimate_workload_size(
@@ -584,21 +596,74 @@ class OptimizedThreeDESceneFinder:
             return False
 
     @staticmethod
+    def discover_all_shots_in_show(
+        show_root: str, show: str
+    ) -> list[tuple[str, str, str, str]]:
+        """Discover all shots in a show by scanning the filesystem.
+        
+        Args:
+            show_root: Root path for shows (e.g., '/shows')
+            show: Show name
+            
+        Returns:
+            List of tuples (workspace_path, show, sequence, shot)
+        """
+        shots = []
+        show_path = Path(show_root) / show
+        
+        if not show_path.exists():
+            logger.warning(f"Show path does not exist: {show_path}")
+            return shots
+            
+        # Look for shots directory
+        shots_dir = show_path / "shots"
+        if not shots_dir.exists():
+            logger.warning(f"No shots directory found for show {show}")
+            return shots
+            
+        try:
+            # Iterate through sequence directories
+            for sequence_dir in shots_dir.iterdir():
+                if not sequence_dir.is_dir():
+                    continue
+                    
+                sequence = sequence_dir.name
+                
+                # Iterate through shot directories
+                for shot_dir in sequence_dir.iterdir():
+                    if not shot_dir.is_dir():
+                        continue
+                        
+                    shot_name = shot_dir.name
+                    workspace_path = str(shot_dir)
+                    
+                    # Basic validation - check if it looks like a shot directory
+                    # Could have user/, publish/, or other standard directories
+                    shots.append((workspace_path, show, sequence, shot_name))
+                    
+            logger.info(f"Discovered {len(shots)} shots in show {show}")
+            
+        except (OSError, PermissionError) as e:
+            logger.error(f"Error discovering shots in {show}: {e}")
+            
+        return shots
+
+    @staticmethod
     def find_all_scenes_in_shows_efficient(
         user_shots: List,  # List of Shot objects
         excluded_users: set[str | None] = None,
     ) -> list[ThreeDEScene]:
-        """Efficient version that finds scenes across multiple shots using optimized individual shot discovery.
+        """Efficient version that finds scenes across ALL shots in the shows.
 
-        This method provides backward compatibility while leveraging the optimized
-        find_scenes_for_shot method for each shot.
+        This method discovers ALL shots in the shows (not just user's active shots)
+        and searches them for 3DE scenes.
 
         Args:
-            user_shots: List of Shot objects to search
+            user_shots: List of Shot objects to determine which shows to search
             excluded_users: Set of usernames to exclude
 
         Returns:
-            List of all ThreeDEScene objects found across all shots
+            List of all ThreeDEScene objects found across all shots in the shows
         """
         if not user_shots:
             logger.info("No user shots provided for scene discovery")
@@ -607,38 +672,61 @@ class OptimizedThreeDESceneFinder:
         if excluded_users is None:
             excluded_users = ValidationUtils.get_excluded_users()
 
-        all_scenes = []
-        processed_count = 0
-
-        logger.info(f"Searching for 3DE scenes across {len(user_shots)} shots")
-
+        # Extract unique shows from user's shots
+        shows_to_search = set()
+        show_roots = set()
+        
         for shot in user_shots:
-            try:
-                # Use the existing optimized method for each shot
-                shot_scenes = OptimizedThreeDESceneFinder.find_scenes_for_shot(
-                    shot_workspace_path=shot.workspace_path,
-                    show=shot.show,
-                    sequence=shot.sequence,
-                    shot=shot.shot,
-                    excluded_users=excluded_users,
+            shows_to_search.add(shot.show)
+            # Extract show root from workspace path
+            workspace_parts = Path(shot.workspace_path).parts
+            if "shows" in workspace_parts:
+                shows_idx = workspace_parts.index("shows")
+                show_root = "/".join(workspace_parts[:shows_idx + 1])
+                show_roots.add(show_root)
+                
+        if not show_roots:
+            show_roots = {"/shows"}  # Fallback to default
+            
+        all_scenes = []
+        
+        logger.info(f"Searching for 3DE scenes in shows: {', '.join(shows_to_search)}")
+        
+        # Discover ALL shots in each show (not just user's active shots)
+        for show_root in show_roots:
+            for show in shows_to_search:
+                logger.info(f"Discovering all shots in show {show}")
+                
+                # Discover ALL shots in this show
+                all_shots_in_show = OptimizedThreeDESceneFinder.discover_all_shots_in_show(
+                    show_root, show
                 )
-
-                all_scenes.extend(shot_scenes)
-                processed_count += 1
-
-                if shot_scenes:
-                    logger.debug(
-                        f"Found {len(shot_scenes)} scenes in {shot.show}/{shot.sequence}/{shot.shot}"
-                    )
-
-            except Exception as e:
-                logger.warning(
-                    f"Error searching shot {shot.show}/{shot.sequence}/{shot.shot}: {e}"
-                )
-                continue
+                
+                logger.info(f"Found {len(all_shots_in_show)} total shots in {show}")
+                
+                # Search each shot for 3DE scenes
+                for workspace_path, show_name, sequence, shot_name in all_shots_in_show:
+                    try:
+                        shot_scenes = OptimizedThreeDESceneFinder.find_scenes_for_shot(
+                            shot_workspace_path=workspace_path,
+                            show=show_name,
+                            sequence=sequence,
+                            shot=shot_name,
+                            excluded_users=excluded_users,
+                        )
+                        
+                        if shot_scenes:
+                            all_scenes.extend(shot_scenes)
+                            logger.debug(
+                                f"Found {len(shot_scenes)} scenes in {show_name}/{sequence}/{shot_name}"
+                            )
+                            
+                    except Exception as e:
+                        logger.debug(f"Error searching shot {workspace_path}: {e}")
+                        continue
 
         logger.info(
-            f"Found {len(all_scenes)} total scenes across {processed_count} shots"
+            f"Found {len(all_scenes)} total scenes across all shots in shows"
         )
         return all_scenes
 
