@@ -11,7 +11,18 @@ import logging
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence, override
+from typing import TYPE_CHECKING, Any, Sequence
+
+# Python 3.11 compatibility for override decorator
+try:
+    from typing import override  # Python 3.12+
+except ImportError:
+    try:
+        from typing_extensions import override  # typing_extensions if available
+    except ImportError:
+        # Create a no-op decorator for older Python versions
+        def override(func):  # type: ignore[misc]
+            return func
 
 from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal
 from PySide6.QtWidgets import QApplication
