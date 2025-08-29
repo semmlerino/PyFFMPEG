@@ -40,10 +40,8 @@ from cache.thumbnail_processor import ThumbnailProcessor
 from config import Config
 from exceptions import CacheError, ThumbnailError
 from type_definitions import (
-    MemoryStatsDict,
     ShotDict,
     ThreeDESceneDict,
-    ValidationResultDict,
 )
 
 if TYPE_CHECKING:

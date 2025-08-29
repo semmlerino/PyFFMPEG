@@ -70,6 +70,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from base_shot_model import BaseShotModel
 from cache_manager import CacheManager
 from command_launcher import CommandLauncher
 from config import Config
@@ -85,7 +86,6 @@ from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel  # Model/View data model
-from base_shot_model import BaseShotModel
 from shot_model import Shot, ShotModel
 from shot_model_optimized import OptimizedShotModel  # Performance-optimized model
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
