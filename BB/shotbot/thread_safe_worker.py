@@ -68,7 +68,7 @@ class ThreadSafeWorker(QThread):
         WorkerState.DELETED: [],  # Terminal state
     }
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Any = None) -> None:
         """Initialize thread-safe worker.
 
         Args:
@@ -259,6 +259,7 @@ class ThreadSafeWorker(QThread):
 
         self._connections.clear()
 
+    @Slot()
     def run(self) -> None:
         """Main thread execution with proper state management.
 

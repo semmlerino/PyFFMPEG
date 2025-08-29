@@ -357,3 +357,8 @@ class ThreadingConfig:
     # Thread pool settings
     MAX_WORKER_THREADS = 4  # Maximum number of worker threads
     THREAD_POOL_TIMEOUT = 5.0  # Thread pool operation timeout
+    
+    # Previous shots parallel scanning
+    PREVIOUS_SHOTS_PARALLEL_WORKERS = 4  # Number of parallel workers for shot scanning
+    PREVIOUS_SHOTS_SCAN_TIMEOUT = 30  # Timeout per show (seconds)
+    PREVIOUS_SHOTS_CACHE_TTL = 300  # Cache time-to-live (5 minutes)

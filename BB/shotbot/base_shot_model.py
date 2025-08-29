@@ -10,11 +10,11 @@ from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Signal
 
-from shot_model import Shot
 from type_definitions import PerformanceMetricsDict
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
+    from shot_model import Shot
 
 from exceptions import WorkspaceError
 from process_pool_manager import ProcessPoolManager
@@ -53,9 +53,9 @@ class BaseShotModel(QObject):
 
     def __init__(
         self,
-        cache_manager: "CacheManager | None" = None,
+        cache_manager: CacheManager | None = None,
         load_cache: bool = True,
-    ):
+    ) -> None:
         """Initialize base shot model.
 
         Args:
@@ -93,6 +93,8 @@ class BaseShotModel(QObject):
         Returns:
             True if cache was loaded, False otherwise
         """
+        from shot_model import Shot  # Import here to avoid circular import
+        
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
             self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
@@ -103,7 +105,7 @@ class BaseShotModel(QObject):
         self._cache_misses += 1
         return False
 
-    def _parse_ws_output(self, output: str) -> list[Any]:
+    def _parse_ws_output(self, output: str) -> list[Shot]:
         """Parse ws -sg output to extract shots.
 
         Args:
@@ -188,7 +190,8 @@ class BaseShotModel(QObject):
                     logger.debug(
                         f"Extracted shot '{shot}' from shot_dir '{shot_dir}' (sequence='{sequence}')"
                     )
-
+                    
+                    from shot_model import Shot  # Import here to avoid circular import
                     shots.append(
                         Shot(
                             show=show,
@@ -209,7 +212,7 @@ class BaseShotModel(QObject):
         logger.info(f"Parsed {len(shots)} shots from ws -sg output")
         return shots
 
-    def _check_for_changes(self, new_shots: list[Any]) -> bool:
+    def _check_for_changes(self, new_shots: list[Shot]) -> bool:
         """Check if the shot list has changed.
 
         Args:
@@ -223,7 +226,7 @@ class BaseShotModel(QObject):
         new_shot_data = {(shot.full_name, shot.workspace_path) for shot in new_shots}
         return old_shot_data != new_shot_data
 
-    def get_shots(self) -> list[Any]:
+    def get_shots(self) -> list[Shot]:
         """Get current list of shots.
 
         Returns:
@@ -284,6 +287,11 @@ class BaseShotModel(QObject):
             "cache_hits": self._cache_hits,
             "cache_misses": self._cache_misses,
             "cache_hit_rate": self._cache_hits / max(1, cache_total),
+            # Extended metrics for compatibility (defaults for base model)
+            "cache_hit_count": self._cache_hits,
+            "cache_miss_count": self._cache_misses,
+            "loading_in_progress": False,
+            "session_warmed": len(self.shots) > 0,
         }
 
     @abstractmethod

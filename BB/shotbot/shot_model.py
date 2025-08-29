@@ -8,16 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-# Python 3.11 compatibility for override decorator
-try:
-    from typing import override  # Python 3.12+
-except ImportError:
-    try:
-        from typing_extensions import override  # typing_extensions if available
-    except ImportError:
-        # Create a no-op decorator for older Python versions
-        def override(func):  # type: ignore[misc]
-            return func
+# Use typing_extensions for override (available in venv)
+from typing_extensions import override
 
 from base_shot_model import BaseShotModel
 

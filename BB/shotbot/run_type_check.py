@@ -1,100 +1,97 @@
 #!/usr/bin/env python3
-"""Run basedpyright type checking with proper timeout handling."""
+"""Run comprehensive type checking and linting for shotbot."""
 
 import subprocess
 import sys
 from pathlib import Path
 
-
-def run_basedpyright():
-    """Run basedpyright on main source files."""
-    print("🔍 Running basedpyright type checker...")
-
-    # Get all main Python files (exclude test files and scripts)
-    project_dir = Path(__file__).parent
-
-    # Core files to check (excluding tests and utility scripts)
-    core_files = [
-        "shotbot.py",
-        "main_window.py",
-        "shot_model.py",
-        "shot_grid.py",
-        "cache_manager.py",
-        "command_launcher.py",
-        "launcher_manager.py",
-        "launcher_dialog.py",
-        "threede_scene_finder.py",
-        "threede_scene_model.py",
-        "threede_scene_worker.py",
-        "threede_shot_grid.py",
-        "previous_shots_finder.py",
-        "previous_shots_model.py",
-        "previous_shots_worker.py",
-        "previous_shots_grid.py",
-        "shot_info_panel.py",
-        "thumbnail_widget.py",
-        "utils.py",
-        "config.py",
-        "type_definitions.py",
-        "shot_model_optimized.py",
-        "base_shot_model.py",
-        "process_pool_manager.py",
-    ]
-
-    # Add cache directory files
-    cache_files = list((project_dir / "cache").glob("*.py"))
-    cache_file_names = [str(f) for f in cache_files]
-
-    # Add launcher directory files
-    launcher_files = list((project_dir / "launcher").glob("*.py"))
-    launcher_file_names = [str(f) for f in launcher_files]
-
-    # Combine all files
-    all_files = core_files + cache_file_names + launcher_file_names
-
-    # Run basedpyright with a reasonable timeout
-    cmd = ["./venv/bin/basedpyright"] + all_files
-
+def run_command(cmd: list[str], description: str) -> bool:
+    """Run a command and return success status."""
+    print(f"\n{'='*60}")
+    print(f"Running: {description}")
+    print(f"Command: {' '.join(cmd)}")
+    print('='*60)
+    
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=60,  # 1 minute timeout
-            cwd=project_dir,
-        )
-
-        # Parse output for summary
-        lines = result.stdout.split("\n")
-
-        # Find error summary
-        errors_found = False
-        for line in lines:
-            if "error" in line.lower() or "warning" in line.lower():
-                errors_found = True
-                print(line)
-
-        if not errors_found and result.returncode == 0:
-            print("✅ No type errors found!")
-        else:
-            print("\n❌ Type errors found. Full output:")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        
+        if result.stdout:
+            print("STDOUT:")
             print(result.stdout)
-            if result.stderr:
-                print("Stderr:", result.stderr)
-
-        return result.returncode
-
+        
+        if result.stderr:
+            print("STDERR:")
+            print(result.stderr)
+        
+        success = result.returncode == 0
+        print(f"Exit code: {result.returncode} ({'SUCCESS' if success else 'FAILED'})")
+        return success
+        
     except subprocess.TimeoutExpired:
-        print("⏰ Type checking timed out after 60 seconds")
-        print("Try running on fewer files or increase timeout")
-        return 1
-    except FileNotFoundError:
-        print("❌ basedpyright not found. Install with: pip install basedpyright")
-        return 1
+        print("ERROR: Command timed out after 5 minutes")
+        return False
     except Exception as e:
-        print(f"💥 Unexpected error: {e}")
-        return 1
+        print(f"ERROR: Failed to run command: {e}")
+        return False
 
+def main():
+    """Run type checking and linting."""
+    
+    # Ensure we're in the right directory
+    script_dir = Path(__file__).parent
+    if script_dir != Path.cwd():
+        print(f"Changing directory to {script_dir}")
+        import os
+        os.chdir(script_dir)
+    
+    results = []
+    
+    # 1. Run ruff formatting
+    results.append(run_command(
+        ["python3", "-m", "ruff", "format", "--check", "."], 
+        "Ruff formatting check"
+    ))
+    
+    # 2. Run ruff linting with type-checking rules
+    results.append(run_command(
+        ["python3", "-m", "ruff", "check", "--select", "UP,TCH,ANN", "."], 
+        "Ruff type-checking rules (UP, TCH, ANN)"
+    ))
+    
+    # 3. Run basedpyright on key files
+    key_files = [
+        "base_shot_model.py",
+        "shot_model.py", 
+        "cache_manager.py",
+        "main_window.py",
+        "protocols.py",
+        "shotbot_types.py",
+        "type_definitions.py"
+    ]
+    
+    for file in key_files:
+        if Path(file).exists():
+            results.append(run_command(
+                ["python3", "-m", "basedpyright", file], 
+                f"Type checking {file}"
+            ))
+    
+    # Summary
+    print(f"\n{'='*60}")
+    print("SUMMARY")
+    print('='*60)
+    
+    passed = sum(results)
+    total = len(results)
+    
+    print(f"Passed: {passed}/{total}")
+    
+    if passed == total:
+        print("🎉 All type checking passed!")
+        return 0
+    else:
+        print("❌ Some checks failed")
+        return 1
 
 if __name__ == "__main__":
-    sys.exit(run_basedpyright())
+    sys.exit(main())

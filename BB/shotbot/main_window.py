@@ -50,9 +50,9 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import override
+from typing import TYPE_CHECKING, override
 
-from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer, Slot
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -71,12 +71,20 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from base_shot_model import BaseShotModel
-from cache_manager import CacheManager
-from command_launcher import CommandLauncher
+if TYPE_CHECKING:
+    from base_shot_model import BaseShotModel
+    from cache_manager import CacheManager
+    from command_launcher import CommandLauncher
+    from launcher_dialog import LauncherManagerDialog
+    from launcher_manager import LauncherManager
+
+# Runtime imports (needed at runtime)
+from base_shot_model import BaseShotModel  # Need at runtime for isinstance checks
+from cache_manager import CacheManager  # Need at runtime for instantiation 
+from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
-from launcher_dialog import LauncherManagerDialog
-from launcher_manager import CustomLauncher, LauncherManager
+from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
+from launcher_manager import LauncherManager  # Need at runtime
 from log_viewer import LogViewer
 from notification_manager import NotificationManager, NotificationType
 from previous_shots_grid import PreviousShotsGrid
@@ -107,13 +115,23 @@ class SessionWarmer(QThread):
     on the main thread during the first actual command execution.
     """
     
+    @Slot()
     @override
     def run(self) -> None:
         """Pre-warm bash sessions in background thread."""
         try:
+            # Check for interruption before starting
+            if self.isInterruptionRequested():
+                return
+                
             logger.debug("Starting background session pre-warming")
             # Get the process pool instance and warm it up
             pool = ProcessPoolManager.get_instance()
+            
+            # Check for interruption before executing
+            if self.isInterruptionRequested():
+                return
+                
             _ = pool.execute_workspace_command(
                 "echo warming",
                 cache_ttl=1,  # Short TTL since this is just for warming
@@ -128,8 +146,13 @@ class SessionWarmer(QThread):
 class MainWindow(QMainWindow):
     """Main application window."""
 
-    def __init__(self, cache_manager: CacheManager | None = None):
+    def __init__(self, cache_manager: CacheManager | None = None) -> None:
         super().__init__()
+        
+        # Initialize ProcessPoolManager singleton on main thread first
+        # This prevents race conditions if SessionWarmer tries to create it from a thread
+        ProcessPoolManager.get_instance()
+        
         # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager()
 
@@ -159,8 +182,8 @@ class MainWindow(QMainWindow):
             )
             use_legacy = False
 
-        # Pass to models - OptimizedShotModel is now the default
-        self.shot_model: BaseShotModel
+        # Pass to models - OptimizedShotModel is now the default  
+        self.shot_model: BaseShotModel | ShotModel | OptimizedShotModel
         if use_legacy:
             logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
             self.shot_model = ShotModel(self.cache_manager)
@@ -1679,12 +1702,14 @@ class MainWindow(QMainWindow):
             # Clean up session warmer if it exists
             if hasattr(self, "_session_warmer") and self._session_warmer:
                 if not self._session_warmer.isFinished():
-                    logger.debug("Waiting for session warmer to complete")
+                    logger.debug("Requesting session warmer to stop")
+                    # Use safe interruption instead of dangerous terminate()
+                    self._session_warmer.requestInterruption()
                     # Session warming is non-critical, give it max 2 seconds
                     if not self._session_warmer.wait(2000):
-                        logger.debug("Session warmer didn't finish, terminating")
-                        self._session_warmer.terminate()
-                        self._session_warmer.wait(500)  # Brief wait for termination
+                        logger.warning("Session warmer didn't finish gracefully")
+                        # DO NOT use terminate() - just abandon the thread
+                        # Qt will clean it up on exit
                 self._session_warmer.deleteLater()
                 self._session_warmer = None
 

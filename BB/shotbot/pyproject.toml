@@ -19,14 +19,23 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-# Enable pycodestyle (`E`) and Pyflakes (`F`) codes
-select = ["E", "F", "I"]
+# Enable comprehensive rule set including type-checking
+select = [
+    "E", "F",  # pycodestyle, Pyflakes
+    "I",       # isort
+    "UP",      # pyupgrade - modern type syntax
+    "TCH",     # flake8-type-checking - TYPE_CHECKING imports
+    "ANN",     # flake8-annotations - missing annotations
+]
 
 # Never enforce line length violations
 ignore = ["E501"]
 
 # Allow autofix for all enabled rules
 fixable = ["ALL"]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["PySide6.QtCore.QObject"]
 
 [tool.ruff.format]
 # Use single quotes for strings
@@ -42,11 +51,11 @@ skip-magic-trailing-comma = false
 docstring-code-format = true
 
 [tool.basedpyright]
-# Type checking mode
-typeCheckingMode = "basic"
+# Use recommended mode for better type safety with basedpyright improvements
+typeCheckingMode = "recommended"
 
-# Python version
-pythonVersion = "3.8"
+# Python version (match actual usage)
+pythonVersion = "3.12"
 
 # Virtual environment
 venvPath = "."
@@ -81,10 +90,11 @@ reportMissingTypeStubs = "warning"
 reportUnnecessaryTypeIgnoreComment = "error"
 reportIgnoreCommentWithoutRule = "error"
 reportPrivateUsage = "warning"
-reportUnknownMemberType = "information"
-reportUnknownArgumentType = "information"
-reportUnknownLambdaType = "information"
-reportUnknownVariableType = "information"
+# Stricter Unknown type reporting for better type safety
+reportUnknownMemberType = "error"
+reportUnknownArgumentType = "error"
+reportUnknownLambdaType = "warning"
+reportUnknownVariableType = "error"
 reportUntypedFunctionDecorator = "warning"
 reportUntypedClassDecorator = "warning"
 reportUntypedBaseClass = "error"

@@ -33,21 +33,21 @@ class AsyncShotLoader(QThread):
     """Background worker for loading shots without blocking UI.
 
     Thread Safety:
-    - Uses threading.Event instead of boolean flag for proper synchronization
+    - Uses Qt's interruption mechanism for proper synchronization
     - Signal emissions are automatically thread-safe in Qt
-    - No shared mutable state besides the stop event
+    - No shared mutable state
     """
 
     # Signals with proper type annotations
     shots_loaded = Signal(list)  # List of Shot objects
     load_failed = Signal(str)  # Error message string
 
-    def __init__(self, process_pool: ProcessPoolManager, parse_function=None) -> None:
+    def __init__(self, process_pool: ProcessPoolManager, parse_function: Any = None) -> None:
         super().__init__()
         self.process_pool = process_pool
         self.parse_function = parse_function  # Use base class's parse method
-        self._stop_event = threading.Event()  # Thread-safe stop mechanism
 
+    @Slot()
     def run(self) -> None:
         """Load shots in background thread.
 
@@ -56,7 +56,7 @@ class AsyncShotLoader(QThread):
         """
         try:
             # Check for interruption before starting
-            if self.isInterruptionRequested() or self._stop_event.is_set():
+            if self.isInterruptionRequested():
                 return
 
             # Execute ws -sg command
@@ -67,7 +67,7 @@ class AsyncShotLoader(QThread):
             )
 
             # Thread-safe check for stop request (both Qt and threading.Event)
-            if self.isInterruptionRequested() or self._stop_event.is_set():
+            if self.isInterruptionRequested():
                 return
 
             # Parse output using provided parse function or fallback
@@ -82,7 +82,7 @@ class AsyncShotLoader(QThread):
                 shots = []
                 for line in output.strip().split("\n"):
                     # Check for interruption in loop for faster response
-                    if self.isInterruptionRequested() or self._stop_event.is_set():
+                    if self.isInterruptionRequested():
                         return
 
                     if line.startswith("workspace "):
@@ -94,24 +94,23 @@ class AsyncShotLoader(QThread):
                             # Don't create shots with wrong data
 
             # Thread-safe check before emitting signal
-            if not (self.isInterruptionRequested() or self._stop_event.is_set()):
+            if not self.isInterruptionRequested():
                 self.shots_loaded.emit(shots)
 
         except TimeoutError as e:
-            if not (self.isInterruptionRequested() or self._stop_event.is_set()):
+            if not self.isInterruptionRequested():
                 self.load_failed.emit(f"Command timed out: {e}")
         except RuntimeError as e:
-            if not (self.isInterruptionRequested() or self._stop_event.is_set()):
+            if not self.isInterruptionRequested():
                 self.load_failed.emit(f"Process pool error: {e}")
         except Exception as e:
             # Only emit error if not stopped
-            if not (self.isInterruptionRequested() or self._stop_event.is_set()):
+            if not self.isInterruptionRequested():
                 self.load_failed.emit(f"Unexpected error: {e}")
 
     def stop(self) -> None:
         """Request thread to stop using Qt's safe interruption mechanism."""
-        self._stop_event.set()
-        self.requestInterruption()  # Qt's safe interruption request
+        self.requestInterruption()  # Qt's safe interruption request only
 
 
 class OptimizedShotModel(BaseShotModel):
@@ -126,7 +125,7 @@ class OptimizedShotModel(BaseShotModel):
     background_load_finished: Signal = Signal()
 
     def __init__(
-        self, cache_manager: "CacheManager" | None = None, load_cache: bool = True
+        self, cache_manager: CacheManager | None = None, load_cache: bool = True
     ) -> None:
         super().__init__(cache_manager, load_cache)
 
@@ -435,7 +434,7 @@ class OptimizedShotModel(BaseShotModel):
 
 # Example usage for immediate UI display
 def create_optimized_shot_model(
-    cache_manager: "CacheManager" | None = None,
+    cache_manager: CacheManager | None = None,
 ) -> OptimizedShotModel:
     """Create an optimized shot model with instant UI display.
 

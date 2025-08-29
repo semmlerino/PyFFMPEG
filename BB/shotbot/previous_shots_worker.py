@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import Signal
 
-from previous_shots_finder import PreviousShotsFinder
+from previous_shots_finder import ParallelShotsFinder
 from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker, WorkerState
 
@@ -37,8 +38,8 @@ class PreviousShotsWorker(ThreadSafeWorker):
         active_shots: list[Shot],
         username: str | None = None,
         shows_root: Path = Path("/shows"),
-        parent=None,
-    ):
+        parent: Any = None,
+    ) -> None:
         """Initialize the worker thread.
 
         Args:
@@ -51,17 +52,34 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
         self._active_shots = active_shots
         self._shows_root = shows_root
-        self._finder = PreviousShotsFinder(username)
+        
+        # Use new ParallelShotsFinder for improved performance
+        self._finder = ParallelShotsFinder(username)  # Uses config defaults
+        self._finder.set_progress_callback(self._on_finder_progress)
+        
         # No need for _should_stop, use base class should_stop() method
         self._found_shots: list[Shot] = []
 
         logger.info(
             f"PreviousShotsWorker initialized for user: {self._finder.username}"
         )
+    
+    def _on_finder_progress(self, current: int, total: int, message: str) -> None:
+        """Handle progress updates from the parallel finder.
+        
+        Args:
+            current: Current progress value
+            total: Total progress value
+            message: Progress message
+        """
+        # Forward progress to our own signal
+        self.scan_progress.emit(current, total, message)
 
     def stop(self) -> None:
         """Request the worker to stop safely."""
         self.request_stop()  # Use base class method for proper state transition
+        if hasattr(self._finder, 'request_stop'):
+            self._finder.request_stop()  # Also stop the parallel finder
         logger.debug("Stop requested for PreviousShotsWorker")
 
     def do_work(self) -> None:
@@ -80,10 +98,23 @@ class PreviousShotsWorker(ThreadSafeWorker):
             # Emit initial progress
             self.scan_progress.emit(0, 100, "Initializing scan...")
 
-            # PERFORMANCE FIX: Use finder's efficient find command instead of manual traversal
-            # This avoids duplicate filesystem scanning
-            self.scan_progress.emit(10, 100, "Scanning filesystem...")
-            all_user_shots = self._finder.find_user_shots(self._shows_root)
+            # Use new parallel finder with incremental loading
+            # Progress will be reported via the callback
+            all_user_shots = []
+            
+            # Collect shots incrementally from the generator
+            if hasattr(self._finder, 'find_user_shots_parallel'):
+                # Use generator for incremental results
+                for shot in self._finder.find_user_shots_parallel(self._shows_root):
+                    if self.should_stop():
+                        break
+                    all_user_shots.append(shot)
+                    # Emit individual shot as it's found
+                    self.shot_found.emit(shot.to_dict())
+            else:
+                # Fallback to regular method
+                self.scan_progress.emit(10, 100, "Scanning filesystem...")
+                all_user_shots = self._finder.find_user_shots(self._shows_root)
 
             if self.should_stop():
                 logger.info("Scan stopped by user request")
