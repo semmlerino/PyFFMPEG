@@ -215,7 +215,7 @@ class ShotInfoPanel(QWidget):
         except MemoryError:
             logger.error(f"Out of memory loading thumbnail: {path}")
             self._set_placeholder_thumbnail()
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.warning(f"I/O error loading thumbnail {path}: {e}")
             self._set_placeholder_thumbnail()
         except Exception as e:

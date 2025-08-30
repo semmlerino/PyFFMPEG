@@ -45,7 +45,7 @@ class CacheValidator:
 
         logger.debug(f"CacheValidator initialized for {thumbnails_directory}")
 
-    def validate_cache(self, fix_issues: bool = True) -> "ValidationResultDict":
+    def validate_cache(self, fix_issues: bool = True) -> ValidationResultDict:
         """Validate cache consistency and optionally fix issues.
 
         Args:
@@ -109,7 +109,7 @@ class CacheValidator:
                 "issues_fixed": 0,
             }
 
-    def repair_cache(self) -> "ValidationResultDict":
+    def repair_cache(self) -> ValidationResultDict:
         """Perform comprehensive cache repair operations.
 
         Returns:
@@ -118,7 +118,7 @@ class CacheValidator:
         logger.info("Starting comprehensive cache repair...")
         return self.validate_cache(fix_issues=True)
 
-    def get_cache_statistics(self) -> "ValidationResultDict":
+    def get_cache_statistics(self) -> ValidationResultDict:
         """Get detailed cache statistics without making changes.
 
         Returns:
@@ -149,7 +149,7 @@ class CacheValidator:
 
         return stats
 
-    def _validate_memory_tracking(self, fix_issues: bool) -> "ValidationResultDict":
+    def _validate_memory_tracking(self, fix_issues: bool) -> ValidationResultDict:
         """Validate memory manager tracking accuracy.
 
         Args:
@@ -180,7 +180,7 @@ class CacheValidator:
 
         return results
 
-    def _find_orphaned_files(self, fix_issues: bool) -> "ValidationResultDict":
+    def _find_orphaned_files(self, fix_issues: bool) -> ValidationResultDict:
         """Find thumbnail files not being tracked by memory manager.
 
         Args:
@@ -230,7 +230,7 @@ class CacheValidator:
 
         return results
 
-    def _validate_directory_structure(self, fix_issues: bool) -> "ValidationResultDict":
+    def _validate_directory_structure(self, fix_issues: bool) -> ValidationResultDict:
         """Validate the cache directory structure.
 
         Args:
@@ -289,7 +289,7 @@ class CacheValidator:
                     dirpath.rmdir()
                     removed_count += 1
                     logger.debug(f"Removed empty directory: {dirpath}")
-            except (OSError, IOError) as e:
+            except OSError as e:
                 logger.debug(f"Failed to remove directory {dirpath}: {e}")
 
         if removed_count > 0:

@@ -270,7 +270,7 @@ class NotificationManager(QObject):
     _active_toasts: list[ToastNotification] = []
     _current_progress: QProgressDialog | None = None
 
-    def __new__(cls) -> "NotificationManager":
+    def __new__(cls) -> NotificationManager:
         """Implement singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -289,7 +289,7 @@ class NotificationManager(QObject):
     @classmethod
     def initialize(
         cls, main_window: QMainWindow, status_bar: QStatusBar
-    ) -> "NotificationManager":
+    ) -> NotificationManager:
         """Initialize the notification manager with UI references.
 
         Args:

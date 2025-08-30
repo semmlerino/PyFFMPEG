@@ -220,20 +220,33 @@ class FakeCacheManager(QObject):
         return self._cache_data[cache_key]
 
 
-class FakePreviousShotsWorker:
-    """Test double for PreviousShotsWorker with controlled behavior."""
+class FakePreviousShotsWorker(QObject):
+    """Test double for PreviousShotsWorker with controlled behavior and real Qt signals."""
 
-    def __init__(self):
-        # Use FakeSignal for non-Qt double
-        self.shot_found = FakeSignal()
-        self.scan_progress = FakeSignal()
-        self.scan_finished = FakeSignal()
-        self.error_occurred = FakeSignal()
+    # Real Qt signals for proper integration
+    started = Signal()
+    shot_found = Signal(dict)
+    scan_progress = Signal(int, int, str)
+    scan_finished = Signal(list)
+    error_occurred = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
         # Control behavior
-        self.should_stop = False
+        self.should_stop_flag = False
         self.run_calls = 0
         self.shots_to_find = []
+
+        # Track method calls
+        self.start_calls = 0
+        self.stop_calls = 0
+
+    def start(self):
+        """Start the worker (simulate thread start)."""
+        self.start_calls += 1
+        self.started.emit()
+        # For testing, we don't automatically run - tests will trigger completion manually
 
     def run(self):
         """Simulate worker execution."""
@@ -241,7 +254,7 @@ class FakePreviousShotsWorker:
 
         # Emit signals based on configuration
         for i, shot in enumerate(self.shots_to_find):
-            if self.should_stop:
+            if self.should_stop_flag:
                 break
 
             shot_dict = {
@@ -251,14 +264,34 @@ class FakePreviousShotsWorker:
                 "workspace_path": shot.workspace_path,
             }
             self.shot_found.emit(shot_dict)
-            self.scan_progress.emit(i + 1, len(self.shots_to_find))
+            self.scan_progress.emit(
+                i + 1, len(self.shots_to_find), f"Processing {shot.shot}"
+            )
 
-        if not self.should_stop:
-            self.scan_finished.emit([])
+        if not self.should_stop_flag:
+            shot_dicts = [
+                {
+                    "show": shot.show,
+                    "sequence": shot.sequence,
+                    "shot": shot.shot,
+                    "workspace_path": shot.workspace_path,
+                }
+                for shot in self.shots_to_find
+            ]
+            self.scan_finished.emit(shot_dicts)
 
     def stop(self):
         """Request stop."""
-        self.should_stop = True
+        self.stop_calls += 1
+        self.should_stop_flag = True
+
+    def wait(self, timeout_ms=1000):
+        """Simulate thread wait."""
+        return True  # Always succeeds in test
+
+    def should_stop(self):
+        """Check if stop was requested."""
+        return self.should_stop_flag
 
 
 def create_test_shot(show="test", seq="seq01", shot="0010", path=None):

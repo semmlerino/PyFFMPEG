@@ -285,6 +285,7 @@ class TestCache:
 
     def __init__(self):
         """Initialize test cache."""
+        self.cache_dir: Path | None = None  # Add missing cache_dir attribute
         self.data: Dict[str, Any] = {}
         self.hits: int = 0
         self.misses: int = 0

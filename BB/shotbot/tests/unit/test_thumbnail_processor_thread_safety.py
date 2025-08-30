@@ -624,7 +624,7 @@ class TestThumbnailProcessorThreadSafety:
         """Get current process memory usage in bytes."""
         try:
             if sys.platform == "linux":
-                with open("/proc/self/status", "r") as f:
+                with open("/proc/self/status") as f:
                     for line in f:
                         if line.startswith("VmRSS:"):
                             return int(line.split()[1]) * 1024

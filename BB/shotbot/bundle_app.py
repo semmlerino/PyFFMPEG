@@ -49,7 +49,7 @@ class GitIgnoreParser:
 
     def _parse_gitignore(self, gitignore_path: str):
         """Parse .gitignore file and extract patterns."""
-        with open(gitignore_path, "r") as f:
+        with open(gitignore_path) as f:
             for line in f:
                 line = line.strip()
                 # Skip comments and empty lines
@@ -169,7 +169,7 @@ class ApplicationBundler:
 
         if config_path and os.path.exists(config_path):
             try:
-                with open(config_path, "r") as f:
+                with open(config_path) as f:
                     user_config: dict[str, Any] = json.load(f)
                     default_config.update(user_config)
                     if self.verbose:

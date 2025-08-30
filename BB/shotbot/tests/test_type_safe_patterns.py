@@ -239,7 +239,7 @@ def create_typed_process_pool_mock() -> ProcessPoolProtocol:
 workspace /shows/TEST/seq01/0020"""
 
     # Type assertion to satisfy type checker
-    return cast(ProcessPoolProtocol, mock)
+    return cast("ProcessPoolProtocol", mock)
 
 
 def create_typed_launcher_mock() -> LauncherProtocol:
@@ -252,7 +252,7 @@ def create_typed_launcher_mock() -> LauncherProtocol:
     mock.launch_application.return_value = True
     mock.create_custom_launcher.return_value = "test_launcher_id"
 
-    return cast(LauncherProtocol, mock)
+    return cast("LauncherProtocol", mock)
 
 
 # ============================================================================

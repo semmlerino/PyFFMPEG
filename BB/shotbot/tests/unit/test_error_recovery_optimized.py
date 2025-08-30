@@ -12,7 +12,7 @@ from shot_model_optimized import AsyncShotLoader, OptimizedShotModel
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 class TestProcessPoolDouble:
     """Test double for process pool that can simulate failures."""
-    
+
     __test__ = False  # Prevent pytest from collecting this as a test class
 
     def __init__(self, failure_mode=None):
@@ -82,7 +82,7 @@ class TestErrorRecovery:
         # Should return immediately even if background times out
         elapsed = time.perf_counter() - start_time
         assert elapsed < 0.1, "Initialization should return immediately"
-        
+
         # Wait for error signal from background timeout
         qtbot.waitUntil(lambda: error_spy.count() > 0, timeout=3000)
         assert error_spy.count() == 1
@@ -132,12 +132,15 @@ class TestErrorRecovery:
                 raise RuntimeError("Critical error")
 
         failing_pool = CriticalErrorPool()
-        
+
         # Need to provide parse_function (from UNIFIED_TESTING_GUIDE)
         from base_shot_model import BaseShotModel
+
         base_model = BaseShotModel()
 
-        loader = AsyncShotLoader(failing_pool, parse_function=base_model._parse_ws_output)
+        loader = AsyncShotLoader(
+            failing_pool, parse_function=base_model._parse_ws_output
+        )
         # Note: AsyncShotLoader is a QThread, not a QWidget, so no addWidget needed
 
         error_spy = QSignalSpy(loader.load_failed)
@@ -155,7 +158,7 @@ class TestErrorRecovery:
         """Test handling of partial or malformed workspace data."""
         # Test the parsing directly without async complications
         from cache_manager import CacheManager
-        
+
         # Use test double returning partial data
         class PartialDataPool:
             def execute_workspace_command(self, command=None, **kwargs):
@@ -165,14 +168,15 @@ invalid line without workspace prefix
 workspace /shows/test/shots/seq02/seq02_0020
 workspace incomplete_path_without_enough_parts
 workspace /shows/test/shots/seq03/seq03_0030"""
-        
+
         # Use regular ShotModel (not Optimized) for simpler synchronous testing
         from shot_model import ShotModel
+
         model = ShotModel(CacheManager(), load_cache=False)
         model._process_pool = PartialDataPool()
-        
+
         result = model.refresh_shots()
-        
+
         # Should parse valid entries and skip invalid ones
         assert result.success is True
         assert len(model.shots) == 3  # Only valid entries
@@ -182,7 +186,7 @@ workspace /shows/test/shots/seq03/seq03_0030"""
         assert "0010" in shot_names
         assert "0020" in shot_names
         assert "0030" in shot_names
-        
+
         # All shots should be from the "test" show
         assert all(shot.show == "test" for shot in model.shots)
 

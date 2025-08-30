@@ -265,7 +265,7 @@ class SynchronizationHelpers:
             time.sleep(0)  # Minimal sleep just to yield
 
     @staticmethod
-    def create_async_waiter(qtbot: Any) -> "AsyncWaiter":
+    def create_async_waiter(qtbot: Any) -> AsyncWaiter:
         """Create an async waiter for complex multi-signal scenarios.
 
         Example:
@@ -286,12 +286,12 @@ class AsyncWaiter:
         self.signals = []
         self.conditions = []
 
-    def add_signal(self, signal: Signal) -> "AsyncWaiter":
+    def add_signal(self, signal: Signal) -> AsyncWaiter:
         """Add a signal to wait for."""
         self.signals.append(signal)
         return self
 
-    def add_condition(self, condition: Callable[[], bool]) -> "AsyncWaiter":
+    def add_condition(self, condition: Callable[[], bool]) -> AsyncWaiter:
         """Add a condition to wait for."""
         self.conditions.append(condition)
         return self

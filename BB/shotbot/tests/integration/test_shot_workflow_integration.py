@@ -92,7 +92,9 @@ workspace /shows/show1/shots/seq02/seq02_0010
         first_shot = shots[0]
         assert first_shot.show == "show1"
         assert first_shot.sequence == "seq01"
-        assert first_shot.shot == "seq01_0010"  # Shot name is the full directory name
+        assert (
+            first_shot.shot == "0010"
+        )  # Shot name extracted by removing sequence prefix
         assert "seq01_0010" in first_shot.workspace_path
 
         # Verify test process pool was used
@@ -209,7 +211,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         assert cache_file.exists()
 
         # Read cache data
-        with open(cache_file, "r") as f:
+        with open(cache_file) as f:
             cache_data = json.load(f)
 
         assert "shots" in cache_data
@@ -222,7 +224,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         shot_model.refresh_shots()
 
         # Verify cache was updated
-        with open(cache_file, "r") as f:
+        with open(cache_file) as f:
             updated_cache_data = json.load(f)
 
         assert updated_cache_data["shots"][0]["show"] == "show2"

@@ -21,7 +21,7 @@ import pytest
 try:
     from PIL import Image
 except ImportError:
-    Image = None  # type: ignore[assignment]
+    Image = None
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -125,13 +125,13 @@ class TestCacheIntegration:
         test_file = self.cache_dir / "test_storage.json"
 
         # Write data atomically
-        cache_manager._storage_backend.write_json(test_file, test_data)
+        cache_manager._storage_backend.write_json(test_file, test_data)  # type: ignore[attr-defined]
 
         # Verify file exists
         assert test_file.exists()
 
         # Read data back
-        loaded_data = cache_manager._storage_backend.read_json(test_file)
+        loaded_data = cache_manager._storage_backend.read_json(test_file)  # type: ignore[attr-defined]
 
         # Verify data integrity
         assert loaded_data == test_data
@@ -142,10 +142,10 @@ class TestCacheIntegration:
         updated_data = test_data.copy()
         updated_data["new_key"] = "new_value"
 
-        cache_manager._storage_backend.write_json(test_file, updated_data)
+        cache_manager._storage_backend.write_json(test_file, updated_data)  # type: ignore[attr-defined]
 
         # Verify update worked
-        final_data = cache_manager._storage_backend.read_json(test_file)
+        final_data = cache_manager._storage_backend.read_json(test_file)  # type: ignore[attr-defined]
         assert final_data["new_key"] == "new_value"
         assert final_data["test_key"] == "test_value"  # Original data preserved
 
@@ -276,7 +276,7 @@ class TestCacheIntegration:
         assert cache_file.exists()
 
         # Read cache file directly
-        with open(cache_file, "r") as f:
+        with open(cache_file) as f:
             cache_data = json.load(f)
 
         assert "shots" in cache_data

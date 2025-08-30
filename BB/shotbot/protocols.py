@@ -24,7 +24,7 @@ class CacheableProtocol(Protocol):
         ...
 
     @classmethod
-    def from_dict(cls, data: dict) -> "CacheableProtocol":
+    def from_dict(cls, data: dict) -> CacheableProtocol:
         """Create object from cached dictionary."""
         ...
 
@@ -33,7 +33,7 @@ class CacheableProtocol(Protocol):
 class RefreshableProtocol(Protocol):
     """Protocol for objects that support data refreshing."""
 
-    def refresh_data(self) -> "RefreshResult":
+    def refresh_data(self) -> RefreshResult:
         """Refresh data from source."""
         ...
 
@@ -92,7 +92,7 @@ class DataModelProtocol(Protocol):
         """Get all data items."""
         ...
 
-    def refresh_data(self) -> "RefreshResult":
+    def refresh_data(self) -> RefreshResult:
         """Refresh data from source."""
         ...
 

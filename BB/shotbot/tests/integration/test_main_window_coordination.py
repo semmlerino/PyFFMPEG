@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from cache_manager import CacheManager
 from main_window import MainWindow
+from notification_manager import NotificationType
 from shot_model import RefreshResult, Shot
 
 # Import qapp fixture from conftest to ensure QApplication exists
@@ -100,57 +101,67 @@ class TestProgressManager:
 
 
 class TestNotificationManager:
-    """Test double for NotificationManager following UNIFIED_TESTING_GUIDE."""
+    """Test double for NotificationManager following UNIFIED_TESTING_GUIDE.
+
+    FIXED: All methods are now @classmethod to match the real NotificationManager interface.
+    This prevents Fatal Python errors when Qt objects are created from worker threads.
+    """
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    def __init__(self):
-        """Initialize test notification manager."""
-        self.notifications: list[dict[str, Any]] = []
+    # Class-level storage for notifications
+    _notifications: list[dict[str, Any]] = []
 
+    @classmethod
     def _record_notification(
-        self, notification_type: str, title: str, message: str = "", **kwargs
+        cls, notif_type: str, title: str, message: str = "", **kwargs
     ) -> None:
         """Record a notification."""
-        self.notifications.append(
-            {"type": notification_type, "title": title, "message": message, **kwargs}
+        cls._notifications.append(
+            {"type": notif_type, "title": title, "message": message, **kwargs}
         )
 
-    def warning(
-        self, title: str, message: str = "", parent: QObject | None = None
+    @classmethod
+    def error(cls, title: str, message: str = "", details: str = "") -> None:
+        """Record error notification with exact signature match."""
+        cls._record_notification("error", title, message, details=details)
+
+    @classmethod
+    def warning(cls, title: str, message: str = "", details: str = "") -> None:
+        """Record warning notification with exact signature match."""
+        cls._record_notification("warning", title, message, details=details)
+
+    @classmethod
+    def info(cls, message: str, timeout: int = 3000) -> None:
+        """Record info notification with exact signature match."""
+        cls._record_notification("info", "", message, timeout=timeout)
+
+    @classmethod
+    def success(cls, message: str, timeout: int = 3000) -> None:
+        """Record success notification with exact signature match."""
+        cls._record_notification("success", "", message, timeout=timeout)
+
+    @classmethod
+    def toast(
+        cls,
+        message: str,
+        notification_type: NotificationType = NotificationType.INFO,
+        duration: int = 4000,
     ) -> None:
-        """Record warning notification."""
-        self._record_notification("warning", title, message, parent=parent)
+        """Record toast notification with exact signature match."""
+        cls._record_notification(
+            "toast", "", message, notification_type=notification_type, duration=duration
+        )
 
-    def error(
-        self, title: str, message: str = "", parent: QObject | None = None
-    ) -> None:
-        """Record error notification."""
-        self._record_notification("error", title, message, parent=parent)
-
-    def info(
-        self, title: str, message: str = "", parent: QObject | None = None
-    ) -> None:
-        """Record info notification."""
-        self._record_notification("info", title, message, parent=parent)
-
-    def success(
-        self, title: str, message: str = "", parent: QObject | None = None
-    ) -> None:
-        """Record success notification."""
-        self._record_notification("success", title, message, parent=parent)
-
-    def toast(self, message: str, duration: int = 3000) -> None:
-        """Record toast notification."""
-        self._record_notification("toast", "", message, duration=duration)
-
-    def get_last_notification(self) -> dict[str, Any | None]:
+    @classmethod
+    def get_last_notification(cls) -> dict[str, Any | None]:
         """Get the last notification."""
-        return self.notifications[-1] if self.notifications else None
+        return cls._notifications[-1] if cls._notifications else None
 
-    def clear(self) -> None:
+    @classmethod
+    def clear(cls) -> None:
         """Clear notification history."""
-        self.notifications.clear()
+        cls._notifications.clear()
 
 
 class TestMessageBox:
@@ -184,22 +195,50 @@ def real_cache_manager(tmp_path):
 
 
 @pytest.fixture
-def main_window_with_real_components(qapp, qtbot, real_cache_manager):
+def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatch):
     """MainWindow with real components, not mocked.
 
     FIXED: Added qapp fixture to ensure QApplication exists before creating widgets.
     This prevents segmentation faults from Qt object creation without an app.
+
+    FIXED: Forces legacy ShotModel to avoid OptimizedShotModel threading issues
+    and ensures TestProcessPoolManager is used throughout the system.
+
+    FIXED: Monkey-patch NotificationManager BEFORE creating MainWindow to prevent
+    Fatal Python errors from QMessageBox being called from worker threads.
     """
     # Ensure QApplication is available (required for all Qt widgets)
     assert qapp is not None, "QApplication must exist before creating widgets"
 
-    window = MainWindow(cache_manager=real_cache_manager)
-    qtbot.addWidget(window)
+    # Force legacy ShotModel for predictable testing
+    monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
-    # Replace only external subprocess calls with proper test double
+    # Replace ProcessPoolManager.get_instance() to return our test double
     test_pool = TestProcessPoolManager()
     test_pool.set_outputs("workspace /test/path")
-    window.shot_model._process_pool = test_pool
+
+    def mock_get_instance():
+        return test_pool
+
+    # Mock at the system boundary - ProcessPoolManager singleton
+    from process_pool_manager import ProcessPoolManager
+
+    monkeypatch.setattr(ProcessPoolManager, "get_instance", mock_get_instance)
+
+    # CRITICAL: Replace NotificationManager BEFORE creating MainWindow
+    # This prevents Fatal Python errors when Qt objects are called from worker threads
+    from notification_manager import NotificationManager
+
+    # Clear any previous test notifications
+    TestNotificationManager.clear()
+
+    # Monkey-patch NotificationManager class methods with test double
+    # Must happen BEFORE MainWindow creation to avoid Qt threading issues
+    NotificationManager.error = TestNotificationManager.error
+    NotificationManager.warning = TestNotificationManager.warning
+    NotificationManager.info = TestNotificationManager.info
+    NotificationManager.success = TestNotificationManager.success
+    NotificationManager.toast = TestNotificationManager.toast
 
     # Replace ProgressManager with test double to avoid Qt object deletion issues
     from progress_manager import ProgressManager
@@ -211,26 +250,21 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager):
     ProgressManager.start_operation = test_progress_manager.start_operation
     ProgressManager.finish_operation = test_progress_manager.finish_operation
 
-    # Store test double for assertions
+    # NOW create the MainWindow with all patches in place
+    window = MainWindow(cache_manager=real_cache_manager)
+    qtbot.addWidget(window)
+
+    # Store test references for assertions
+    window._test_process_pool = test_pool
     window._test_progress_manager = test_progress_manager
+    window._test_notification_manager = TestNotificationManager
+
+    # CRITICAL: Replace the shot model's process pool with our test double
+    # This is needed because the ShotModel is already initialized with the real ProcessPoolManager
+    window.shot_model._process_pool = test_pool
 
     # Disable auto-refresh for previous shots to prevent Qt object issues
     window.previous_shots_model.stop_auto_refresh()
-
-    # Replace NotificationManager with test double to prevent dialog boxes
-    from notification_manager import NotificationManager
-
-    test_notification_manager = TestNotificationManager()
-
-    # Monkey-patch NotificationManager class methods with test double
-    NotificationManager.warning = test_notification_manager.warning
-    NotificationManager.error = test_notification_manager.error
-    NotificationManager.info = test_notification_manager.info
-    NotificationManager.success = test_notification_manager.success
-    NotificationManager.toast = test_notification_manager.toast
-
-    # Store test double for assertions
-    window._test_notification_manager = test_notification_manager
 
     return window
 
@@ -313,23 +347,29 @@ class TestMainWindowUICoordination:
         window = main_window_with_real_components
 
         # Configure test pool to return success
-        window.shot_model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/shot01
+        test_pool = window._test_process_pool
+        test_pool.set_outputs("""workspace /shows/test/shots/seq01/shot01
 workspace /shows/test/shots/seq01/shot02""")
 
         # Get initial command count
-        initial_command_count = len(
-            window.shot_model._process_pool.get_executed_commands()
-        )
+        initial_command_count = len(test_pool.get_executed_commands())
 
         # Directly test the refresh mechanism instead of using action trigger
         # This avoids any background thread issues
-        window.shot_model.refresh_shots()
+        result = window.shot_model.refresh_shots()
+
+        # Verify refresh completed successfully
+        assert result.success, "Shot refresh should succeed with test double"
 
         # Verify refresh was called
-        commands = window.shot_model._process_pool.get_executed_commands()
-        assert len(commands) > initial_command_count
+        commands = test_pool.get_executed_commands()
+        assert len(commands) > initial_command_count, (
+            f"Expected commands to be executed. Commands: {commands}"
+        )
         # Verify the correct command was executed
-        assert any("ws" in cmd for cmd in commands)
+        assert any("ws" in cmd for cmd in commands), (
+            f"Expected 'ws' command to be executed. Commands: {commands}"
+        )
 
     def test_launcher_execution_workflow(
         self, main_window_with_real_components, qtbot, monkeypatch
@@ -391,8 +431,9 @@ workspace /shows/test/shots/seq01/shot02""")
         # Note: The actual implementation might show an info notification instead of error
         # or might not trigger a notification at all for command errors
         if hasattr(window, "_test_notification_manager"):
-            pass
-            # Just verify that the error handling pathway was triggered
+            # Check for any notifications that might have been recorded
+            notifications = window._test_notification_manager._notifications
+            # Just verify that error handling pathway was triggered
             # The specific notification type may vary based on implementation
 
     def test_signal_slot_connections_established(
@@ -517,18 +558,19 @@ class TestMainWindowKeyboardShortcuts:
         # let's test that the shortcut is properly configured and trigger the action directly
         assert window.refresh_action.shortcut() == QKeySequence.StandardKey.Refresh
 
-        # Get initial command count
-        initial_command_count = len(
-            window.shot_model._process_pool.get_executed_commands()
-        )
+        # Get test pool and initial command count
+        test_pool = window._test_process_pool
+        initial_command_count = len(test_pool.get_executed_commands())
 
         # Trigger the refresh action directly (this is what the shortcut would do)
         window.refresh_action.trigger()
         qtbot.wait(50)
 
         # Verify refresh was triggered
-        commands = window.shot_model._process_pool.get_executed_commands()
-        assert len(commands) > initial_command_count
+        commands = test_pool.get_executed_commands()
+        assert len(commands) > initial_command_count, (
+            f"Expected commands to be executed. Commands: {commands}"
+        )
 
     def test_tab_navigation_with_keyboard(
         self, main_window_with_real_components, qtbot
@@ -559,7 +601,8 @@ class TestMainWindowErrorScenarios:
         window = main_window_with_real_components
 
         # Configure process pool to simulate failure
-        window.shot_model._process_pool.set_should_fail(True, "Network error")
+        test_pool = window._test_process_pool
+        test_pool.set_should_fail(True, "Network error")
 
         # Use TestMessageBox to capture warnings
         test_message_box = TestMessageBox()
@@ -578,7 +621,7 @@ class TestMainWindowErrorScenarios:
 
         # Also check notification manager if it captured the error
         if hasattr(window, "_test_notification_manager"):
-            notifications = window._test_notification_manager.notifications
+            notifications = window._test_notification_manager._notifications
             if notifications:
                 # Verify an error notification was created
                 error_notifications = [

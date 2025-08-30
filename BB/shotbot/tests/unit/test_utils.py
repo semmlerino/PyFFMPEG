@@ -29,7 +29,6 @@ import pytest
 
 from config import Config
 from utils import (
-    _PATH_CACHE_TTL,
     FileUtils,
     ImageUtils,
     PathUtils,
@@ -170,33 +169,37 @@ class TestPathUtils:
             # Always restore caching state
             disable_caching()
 
-    def test_validate_path_exists_cache_expiry(self, tmp_path):
-        """Test that cache entries expire after TTL."""
+    def test_validate_path_exists_manual_refresh_mode(self, tmp_path):
+        """Test that path validation works in manual refresh mode (TTL = 0)."""
         # Use context manager to temporarily enable caching for this test
 
         enable_caching()
         clear_all_caches()
 
         try:
-            test_file = tmp_path / "expiry_test.txt"
+            test_file = tmp_path / "manual_refresh_test.txt"
             test_file.write_text("test")
 
             # First call populates cache
-            result1 = PathUtils.validate_path_exists(test_file, "Expiry test")
+            result1 = PathUtils.validate_path_exists(test_file, "Manual refresh test")
             assert result1 is True
 
-            # Manually expire the cache entry using direct manipulation
-            # (this is acceptable in this test since we're testing cache behavior)
+            # Verify cache entry was created
             path_str = str(test_file)
-            old_time = time.time() - _PATH_CACHE_TTL - 1
-            _path_cache[path_str] = (True, old_time)
+            assert path_str in _path_cache
 
-            # Delete the file to test that cache refresh detects the change
+            # With TTL = 0 (manual refresh mode), cache entry should not expire automatically
+            # Delete the file, but cache should still return the cached result
             test_file.unlink()
 
-            # Next call should refresh cache and detect file is gone
-            result2 = PathUtils.validate_path_exists(test_file, "Expiry test")
-            assert result2 is False
+            # Next call should still use cached result (no automatic expiry)
+            result2 = PathUtils.validate_path_exists(test_file, "Manual refresh test")
+            assert result2 is True  # Still cached, not automatically refreshed
+
+            # Manual cache clear should force re-check
+            clear_all_caches()
+            result3 = PathUtils.validate_path_exists(test_file, "Manual refresh test")
+            assert result3 is False  # Now detects file is gone
         finally:
             # Always restore caching state
             disable_caching()
@@ -802,32 +805,37 @@ class TestCacheManagement:
             # Always restore caching state
             disable_caching()
 
-    def test_path_cache_ttl_expiry(self, tmp_path):
-        """Test that path cache entries expire correctly."""
+    def test_path_cache_manual_refresh_mode(self, tmp_path):
+        """Test that path cache works in manual refresh mode (TTL = 0)."""
         # Use context manager to temporarily enable caching for this test
 
         enable_caching()
         clear_all_caches()
 
         try:
-            test_file = tmp_path / "ttl_test.txt"
+            test_file = tmp_path / "manual_refresh_test.txt"
             test_file.write_text("test")
 
             # Validate path to populate cache
-            PathUtils.validate_path_exists(test_file)
+            result1 = PathUtils.validate_path_exists(test_file)
+            assert result1 is True
 
-            # Manually expire the cache entry using direct manipulation
-            # (this is acceptable in this test since we're testing cache behavior)
+            # Verify cache entry was created
             path_str = str(test_file)
-            old_time = time.time() - _PATH_CACHE_TTL - 10
-            _path_cache[path_str] = (True, old_time)
+            assert path_str in _path_cache
 
-            # Remove file
+            # Remove file, but with TTL = 0 (manual refresh mode),
+            # cache should not automatically expire
             test_file.unlink()
 
-            # Next validation should detect the change (cache expired)
-            result = PathUtils.validate_path_exists(test_file)
-            assert result is False
+            # Next validation should still use cached result (no auto-expiry)
+            result2 = PathUtils.validate_path_exists(test_file)
+            assert result2 is True  # Still cached
+
+            # Manual cache clear should force re-check
+            clear_all_caches()
+            result3 = PathUtils.validate_path_exists(test_file)
+            assert result3 is False  # Now detects file is gone
         finally:
             # Always restore caching state
             disable_caching()

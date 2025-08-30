@@ -380,9 +380,9 @@ class PersistentBashSession:
                                         logger.info(
                                             f"[{self.session_id}] Fallback init response: {test_line.strip()}",
                                         )
-                                except (IOError, OSError):
+                                except OSError:
                                     pass
-                    except (IOError, OSError):
+                    except OSError:
                         pass
                     # Continue anyway - the session might still work
 
@@ -600,7 +600,7 @@ class PersistentBashSession:
                             if clean_line:
                                 output.append(clean_line)
 
-            except (IOError, OSError) as e:
+            except OSError as e:
                 # Handle EAGAIN for non-blocking I/O
                 # Note: select.error is a subclass of IOError, so it's handled here too
                 if HAS_FCNTL:

@@ -98,7 +98,7 @@ def test_bash_removed_from_whitelist():
     # Import would fail without PySide6, so we'll check the file content
     import re
 
-    with open("launcher_manager.py", "r") as f:
+    with open("launcher_manager.py") as f:
         content = f.read()
 
     # Check ALLOWED_COMMANDS doesn't contain bash or sh
@@ -127,7 +127,7 @@ def test_thread_safety_fix():
     """Test that QPixmap caching was fixed to use QImage."""
     print("\nTesting thread safety fix...")
 
-    with open("shot_item_model.py", "r") as f:
+    with open("shot_item_model.py") as f:
         content = f.read()
 
     # Check for QImage usage instead of QPixmap in cache

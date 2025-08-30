@@ -13,6 +13,8 @@ from shot_model_optimized import OptimizedShotModel
 class TestProcessPoolDouble:
     """Test double for process pool following UNIFIED_TESTING_GUIDE principles."""
 
+    __test__ = False  # Prevents pytest collection
+
     def __init__(self, workspace_response="workspace /test/concurrent/0010"):
         self.workspace_response = workspace_response
         self.call_count = 0

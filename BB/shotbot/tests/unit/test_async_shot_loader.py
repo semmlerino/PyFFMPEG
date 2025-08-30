@@ -192,7 +192,7 @@ class TestOptimizedShotModelSignals:
 
         # Initialize async
         result = optimized_model.initialize_async()
-        
+
         # Verify initialization succeeded
         assert result.success is True, "Async initialization should succeed"
 

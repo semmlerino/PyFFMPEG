@@ -17,8 +17,11 @@ class TestQtIntegration:
     def qt_model(self, real_cache_manager, qtbot):
         """Create OptimizedShotModel with Qt integration."""
         model = OptimizedShotModel(real_cache_manager)
-        qtbot.addWidget(model)
-        return model
+        # Models are QObjects, not QWidgets, so don't need qtbot.addWidget
+        # Just ensure proper cleanup
+        yield model
+        model.cleanup()
+        model.deleteLater()
 
     def test_event_loop_responsiveness(self, qt_model, qtbot):
         """Test that UI remains responsive during background loading."""
@@ -136,7 +139,7 @@ class TestQtIntegration:
         """Test model lifecycle matches Qt widget patterns."""
         # Create model
         model = OptimizedShotModel(real_cache_manager)
-        qtbot.addWidget(model)  # This handles cleanup automatically
+        # Models are QObjects, not QWidgets, so don't use qtbot.addWidget
 
         # Use model
         mock_pool = Mock()
@@ -148,7 +151,10 @@ class TestQtIntegration:
         result = model.initialize_async()
         assert result.success is True
 
-        # qtbot cleanup should handle model cleanup automatically
+        # Manual cleanup for QObjects
+        model.cleanup()
+        model.deleteLater()
+
         # This test mainly verifies no crashes occur during cleanup
 
 

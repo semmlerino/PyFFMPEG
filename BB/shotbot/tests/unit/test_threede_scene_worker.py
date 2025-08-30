@@ -589,9 +589,7 @@ class TestThreeDESceneWorkerIntegration:
 
         return shows_root, shots
 
-    @pytest.mark.skip(
-        reason="Integration test needs real ThreeDESceneFinder interface - temporarily disabled"
-    )
+    @pytest.mark.integration  # This is actually an integration test
     def test_real_filesystem_discovery(self, qtbot, test_structure):
         """Test with real filesystem operations."""
         shows_root, shots = test_structure

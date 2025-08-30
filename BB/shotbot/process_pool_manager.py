@@ -247,7 +247,7 @@ class ProcessPoolManager(QObject):
         logger.info(f"ProcessPoolManager initialized with {max_workers} workers")
 
     @classmethod
-    def get_instance(cls) -> "ProcessPoolManager":
+    def get_instance(cls) -> ProcessPoolManager:
         """Get singleton instance.
 
         Returns:

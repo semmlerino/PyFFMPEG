@@ -115,7 +115,7 @@ class PreviousShotsModel(QObject):
             # Connect worker signals
             self._worker.scan_finished.connect(self._on_scan_finished)
             self._worker.error_occurred.connect(self._on_scan_error)
-            
+
             # Start worker thread
             logger.info("Starting previous shots scan in background thread")
             self._worker.start()
@@ -132,15 +132,17 @@ class PreviousShotsModel(QObject):
 
     def _on_scan_finished(self, approved_shots: list) -> None:
         """Handle worker completion.
-        
+
         Args:
             approved_shots: List of approved shots found by worker.
         """
         try:
             # Convert dictionaries back to Shot objects if needed
             if approved_shots and isinstance(approved_shots[0], dict):
-                approved_shots = [Shot.from_dict(shot_dict) for shot_dict in approved_shots]
-            
+                approved_shots = [
+                    Shot.from_dict(shot_dict) for shot_dict in approved_shots
+                ]
+
             # Check if there are changes
             has_changes = self._has_changes(approved_shots)
 
@@ -153,7 +155,7 @@ class PreviousShotsModel(QObject):
                 )
             else:
                 logger.debug("No changes in previous shots")
-                
+
         except Exception as e:
             logger.error(f"Error processing scan results: {e}")
         finally:
@@ -167,7 +169,7 @@ class PreviousShotsModel(QObject):
 
     def _on_scan_error(self, error_msg: str) -> None:
         """Handle worker error.
-        
+
         Args:
             error_msg: Error message from worker.
         """
@@ -288,27 +290,29 @@ class PreviousShotsModel(QObject):
 
     def _clear_caches_for_refresh(self) -> None:
         """Clear all relevant caches for manual refresh.
-        
+
         This method clears directory caches, path caches, and filesystem caches
         to ensure fresh data when manually refreshing.
         """
         try:
             # Clear our own cache
             self.clear_cache()
-            
+
             # Clear directory cache in 3DE scene finder
             from threede_scene_finder import ThreeDESceneFinder
-            if hasattr(ThreeDESceneFinder, 'refresh_cache'):
+
+            if hasattr(ThreeDESceneFinder, "refresh_cache"):
                 cleared_count = ThreeDESceneFinder.refresh_cache()
                 logger.debug(f"Cleared {cleared_count} directory cache entries")
-            
+
             # Clear path cache in utils
             from utils import clear_all_caches
+
             clear_all_caches()
             logger.debug("Cleared path validation caches")
-            
+
             logger.info("Successfully cleared all caches for manual refresh")
-            
+
         except Exception as e:
             logger.error(f"Error clearing caches for refresh: {e}")
 
@@ -321,7 +325,7 @@ class PreviousShotsModel(QObject):
             self._worker.wait(2000)  # Wait up to 2 seconds
             self._worker.deleteLater()
             self._worker = None
-    
+
     def is_scanning(self) -> bool:
         """Check if currently scanning for shots.
 

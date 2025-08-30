@@ -6,9 +6,7 @@ This implementation reduces startup time from 3.6s to <0.1s by:
 3. Pre-warming bash sessions during idle time
 
 Thread Safety:
-- Uses Qt.ConnectionType.QueuedConnection for all worker thread signals
-- This ensures slots run in main thread, preventing Qt widget violations
-- Uses Qt's interruption mechanism for proper synchronization
+- Uses threading.Event for proper synchronization
 - All signals are thread-safe via Qt's signal/slot mechanism
 - Proper cleanup with terminate fallback
 """
@@ -19,7 +17,7 @@ import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import Qt, QThread, Signal, Slot
+from PySide6.QtCore import QThread, Signal, Slot
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
@@ -37,7 +35,6 @@ class AsyncShotLoader(QThread):
     Thread Safety:
     - Uses Qt's interruption mechanism for proper synchronization
     - Signal emissions are automatically thread-safe in Qt
-    - Slots are connected with QueuedConnection to run in main thread
     - No shared mutable state
     """
 
@@ -45,13 +42,10 @@ class AsyncShotLoader(QThread):
     shots_loaded = Signal(list)  # List of Shot objects
     load_failed = Signal(str)  # Error message string
 
-    def __init__(
-        self, process_pool: ProcessPoolManager, parse_function: Any = None
-    ) -> None:
+    def __init__(self, process_pool: ProcessPoolManager, parse_function: Any = None) -> None:
         super().__init__()
         self.process_pool = process_pool
         self.parse_function = parse_function  # Use base class's parse method
-        self._stop_requested = False  # Track stop requests independent of Qt
 
     @Slot()
     def run(self) -> None:
@@ -61,8 +55,8 @@ class AsyncShotLoader(QThread):
         mechanisms to check for stop requests.
         """
         try:
-            # Check for interruption before starting (both mechanisms)
-            if self._stop_requested or self.isInterruptionRequested():
+            # Check for interruption before starting
+            if self.isInterruptionRequested():
                 return
 
             # Execute ws -sg command
@@ -72,8 +66,8 @@ class AsyncShotLoader(QThread):
                 timeout=30,
             )
 
-            # Thread-safe check for stop request
-            if self._stop_requested or self.isInterruptionRequested():
+            # Thread-safe check for stop request (both Qt and threading.Event)
+            if self.isInterruptionRequested():
                 return
 
             # Parse output using provided parse function or fallback
@@ -88,7 +82,7 @@ class AsyncShotLoader(QThread):
                 shots = []
                 for line in output.strip().split("\n"):
                     # Check for interruption in loop for faster response
-                    if self._stop_requested or self.isInterruptionRequested():
+                    if self.isInterruptionRequested():
                         return
 
                     if line.startswith("workspace "):
@@ -100,24 +94,23 @@ class AsyncShotLoader(QThread):
                             # Don't create shots with wrong data
 
             # Thread-safe check before emitting signal
-            if not self._stop_requested and not self.isInterruptionRequested():
+            if not self.isInterruptionRequested():
                 self.shots_loaded.emit(shots)
 
         except TimeoutError as e:
-            if not self._stop_requested and not self.isInterruptionRequested():
+            if not self.isInterruptionRequested():
                 self.load_failed.emit(f"Command timed out: {e}")
         except RuntimeError as e:
-            if not self._stop_requested and not self.isInterruptionRequested():
+            if not self.isInterruptionRequested():
                 self.load_failed.emit(f"Process pool error: {e}")
         except Exception as e:
             # Only emit error if not stopped
-            if not self._stop_requested and not self.isInterruptionRequested():
+            if not self.isInterruptionRequested():
                 self.load_failed.emit(f"Unexpected error: {e}")
 
     def stop(self) -> None:
-        """Request thread to stop using both flag and Qt's interruption mechanism."""
-        self._stop_requested = True  # Set flag for immediate checking
-        self.requestInterruption()  # Qt's safe interruption for running threads
+        """Request thread to stop using Qt's safe interruption mechanism."""
+        self.requestInterruption()  # Qt's safe interruption request only
 
 
 class OptimizedShotModel(BaseShotModel):
@@ -215,15 +208,9 @@ class OptimizedShotModel(BaseShotModel):
                 self._process_pool,
                 parse_function=self._parse_ws_output,  # Use base class's correct parsing
             )
-            self._async_loader.shots_loaded.connect(
-                self._on_shots_loaded, Qt.ConnectionType.QueuedConnection
-            )
-            self._async_loader.load_failed.connect(
-                self._on_load_failed, Qt.ConnectionType.QueuedConnection
-            )
-            self._async_loader.finished.connect(
-                self._on_loader_finished, Qt.ConnectionType.QueuedConnection
-            )
+            self._async_loader.shots_loaded.connect(self._on_shots_loaded)
+            self._async_loader.load_failed.connect(self._on_load_failed)
+            self._async_loader.finished.connect(self._on_loader_finished)
 
             # Start background loading
             self._async_loader.start()
@@ -308,13 +295,10 @@ class OptimizedShotModel(BaseShotModel):
         if not self.shots and not loading:
             # First load - use async strategy
             return self.initialize_async()
-        elif not loading:
-            # For subsequent refreshes, start background refresh only if not already loading
+        else:
+            # For subsequent refreshes, start background refresh
             self._start_background_refresh()
             # Return immediately with current state
-            return RefreshResult(success=True, has_changes=False)
-        else:
-            # Already loading, just return current state
             return RefreshResult(success=True, has_changes=False)
 
     def pre_warm_sessions(self) -> None:

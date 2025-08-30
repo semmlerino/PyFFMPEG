@@ -557,6 +557,60 @@ class TestUndistortionFinder:
         assert plate_subdir in str(result)  # Should find file in nested directory
         assert result.name == f"{shot_name}_mm_default_FG01_LD_v002.nk"
 
+    def test_find_latest_undistortion_exact_vfx_structure(
+        self,
+        tmp_path,
+    ):
+        """Test finding undistortion with exact VFX production structure.
+
+        Tests the exact structure from production:
+        /shows/jack_ryan/shots/DB_256/DB_256_1200/user/gabriel-h/mm/3de/mm-default/exports/
+        scene/FG01/nuke_lens_distortion/v002/GF_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001/
+        DB_256_1200_mm_default_FG01_LD_v002.nk
+        """
+        shot_name = "DB_256_1200"
+        username = "gabriel-h"
+
+        # Create exact production structure
+        base_path = (
+            tmp_path / "user" / username / "mm" / "3de" / "mm-default" / "exports"
+        )
+        scene_dir = base_path / "scene"
+
+        # Exact nested subdirectory from production
+        plate_subdir = "GF_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001"
+        full_path = scene_dir / "FG01" / "nuke_lens_distortion" / "v002" / plate_subdir
+        full_path.mkdir(parents=True)
+
+        # Create the exact file from production
+        nk_file = full_path / "DB_256_1200_mm_default_FG01_LD_v002.nk"
+        nk_file.write_text("# Production undistortion script\nroot {\n  inputs 0\n}")
+
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path),
+            shot_name,
+            username,
+        )
+
+        assert result is not None
+        assert result.name == "DB_256_1200_mm_default_FG01_LD_v002.nk"
+        assert "v002" in str(result)
+        assert plate_subdir in str(result)
+        assert "FG01" in str(result)
+
+        # Verify the full path structure
+        expected_parts = [
+            "scene",
+            "FG01",
+            "nuke_lens_distortion",
+            "v002",
+            plate_subdir,
+            "DB_256_1200_mm_default_FG01_LD_v002.nk",
+        ]
+        result_path = str(result)
+        for part in expected_parts:
+            assert part in result_path, f"Missing {part} in {result_path}"
+
     def test_find_latest_undistortion_nonexistent_directory(
         self,
         tmp_path,

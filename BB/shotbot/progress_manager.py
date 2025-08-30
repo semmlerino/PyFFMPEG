@@ -278,7 +278,7 @@ class ProgressManager:
     _operation_stack: list[ProgressOperation] = []
     _status_bar: QStatusBar | None = None
 
-    def __new__(cls) -> "ProgressManager":
+    def __new__(cls) -> ProgressManager:
         """Implement singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -294,7 +294,7 @@ class ProgressManager:
         logger.debug("ProgressManager initialized")
 
     @classmethod
-    def initialize(cls, status_bar: QStatusBar) -> "ProgressManager":
+    def initialize(cls, status_bar: QStatusBar) -> ProgressManager:
         """Initialize the progress manager with UI references.
 
         Args:

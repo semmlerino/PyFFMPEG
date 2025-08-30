@@ -68,7 +68,7 @@ class AccessibilityManager:
         # Set up for child widgets if they exist
         if hasattr(grid_widget, "size_slider"):
             # Cast to GridWidget protocol to access size_slider attribute safely
-            grid = cast(GridWidget, grid_widget)
+            grid = cast("GridWidget", grid_widget)
             if grid.size_slider is not None:
                 AccessibilityManager.setup_slider_accessibility(
                     grid.size_slider,
@@ -78,7 +78,7 @@ class AccessibilityManager:
 
         if hasattr(grid_widget, "list_view"):
             # Cast to GridWidget protocol to access list_view attribute safely
-            grid = cast(GridWidget, grid_widget)
+            grid = cast("GridWidget", grid_widget)
             if grid.list_view is not None:
                 grid.list_view.setAccessibleName(f"{grid_type.title()} List")
                 grid.list_view.setAccessibleDescription(

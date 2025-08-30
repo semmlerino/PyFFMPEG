@@ -178,7 +178,7 @@ class BaseThumbnailLoader(QRunnable):
         loaded = Signal(object, QPixmap)  # widget, pixmap
         failed = Signal(object)  # widget
 
-    def __init__(self, widget: "ThumbnailWidgetBase", path: Path):
+    def __init__(self, widget: ThumbnailWidgetBase, path: Path):
         super().__init__()
         self.widget = widget
         self.path = path
@@ -263,7 +263,7 @@ class BaseThumbnailLoader(QRunnable):
                     self.signals.failed.emit(self.widget)
                 except RuntimeError:
                     pass  # Signals object was deleted
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.warning(f"I/O error loading thumbnail {self.path}: {e}")
             # Safe signal emission
             if hasattr(self, "signals") and self.signals:
@@ -445,7 +445,7 @@ class ThumbnailWidgetBase(QFrame):
                 # No thumbnail available
                 self._on_thumbnail_failed(self)
 
-    def _on_thumbnail_loaded(self, widget: "ThumbnailWidgetBase", pixmap: QPixmap):
+    def _on_thumbnail_loaded(self, widget: ThumbnailWidgetBase, pixmap: QPixmap):
         """Handle loaded thumbnail."""
         if widget == self:
             self._loading_state = LoadingState.LOADED
@@ -453,7 +453,7 @@ class ThumbnailWidgetBase(QFrame):
             self._pixmap = pixmap
             self._update_thumbnail()
 
-    def _on_thumbnail_failed(self, widget: "ThumbnailWidgetBase"):
+    def _on_thumbnail_failed(self, widget: ThumbnailWidgetBase):
         """Handle failed thumbnail loading."""
         if widget == self:
             self._loading_state = LoadingState.FAILED

@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication
 
 from launcher_manager import LauncherManager
 from tests.test_doubles_library import TestSubprocess
@@ -42,10 +41,12 @@ class SimpleTestWorker(ThreadSafeWorker):
 
             self.steps_completed = step + 1
 
-            # Process events only if QApplication exists
-            app = QApplication.instance()
-            if app and not self.should_stop():
-                app.processEvents()
+            # REMOVED: Never call app.processEvents() in a worker thread!
+            # This causes deadlocks and undefined behavior
+            # Qt events should only be processed in the main thread
+
+            # Small sleep to simulate work without blocking
+            time.sleep(0.001)  # 1ms per step
 
         if self.fail_on_purpose:
             raise RuntimeError("Intentional failure for testing")
@@ -61,24 +62,39 @@ def test_subprocess():
 
 
 @pytest.fixture
-def launcher_manager(qtbot, test_subprocess):
-    """Create LauncherManager with test subprocess double."""
-    original_popen = subprocess.Popen
-    subprocess.Popen = lambda *args, **kwargs: test_subprocess
+def launcher_manager(qtbot, test_subprocess, monkeypatch):
+    """Create LauncherManager with test subprocess double and proper cleanup."""
+    # Use monkeypatch for safer patching that auto-restores
+    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: test_subprocess)
 
-    manager = None
+    manager = LauncherManager()
+    # LauncherManager is not a QWidget, so we don't use qtbot.addWidget
+
+    yield manager
+
+    # Explicit cleanup with proper error handling
     try:
-        manager = LauncherManager()
-        yield manager
-    finally:
-        subprocess.Popen = original_popen
-        if manager:
-            try:
-                manager.stop_all_workers()
-                manager.deleteLater()
-                qtbot.wait(10)
-            except Exception as e:
-                logger.warning(f"Cleanup error: {e}")
+        # Stop all workers with timeout
+        manager.stop_all_workers()
+
+        # Wait for workers to finish
+        for worker_id in list(manager._active_workers.keys()):
+            worker = manager._active_workers.get(worker_id)
+            if worker and worker.isRunning():
+                worker.request_stop()
+                if not worker.wait(1000):  # 1 second timeout
+                    worker.terminate()
+                    worker.wait(100)
+
+        # Clear the workers dict
+        manager._active_workers.clear()
+
+        # Stop timers
+        if hasattr(manager, "_cleanup_retry_timer"):
+            manager._cleanup_retry_timer.stop()
+
+    except Exception as e:
+        logger.warning(f"Cleanup error (non-fatal): {e}")
 
 
 class TestQTimerCascadePrevention:

@@ -94,11 +94,11 @@ class LauncherManager(QObject):
     @property
     def _active_processes(self) -> dict[str, Any]:
         """Backward compatibility property for accessing active processes.
-        
+
         This exposes the _active_processes from the process manager to maintain
         compatibility with existing tests and code that expect this attribute
         directly on LauncherManager.
-        
+
         Returns:
             Dictionary of active processes from the process manager
         """
@@ -107,7 +107,7 @@ class LauncherManager(QObject):
     @property
     def _active_workers(self) -> dict[str, Any]:
         """Backward compatibility property for accessing active workers.
-        
+
         Returns:
             Dictionary of active workers from the process manager
         """
@@ -116,7 +116,7 @@ class LauncherManager(QObject):
     @_active_workers.setter
     def _active_workers(self, value: dict[str, Any]) -> None:
         """Setter for active workers (backward compatibility for tests).
-        
+
         Args:
             value: Dictionary of active workers to set
         """
@@ -125,7 +125,7 @@ class LauncherManager(QObject):
     @property
     def _process_lock(self):
         """Backward compatibility property for accessing process lock.
-        
+
         Returns:
             Process lock from the process manager
         """
@@ -134,7 +134,7 @@ class LauncherManager(QObject):
     @property
     def _cleanup_retry_timer(self):
         """Backward compatibility property for accessing cleanup retry timer.
-        
+
         Returns:
             Cleanup retry timer from the process manager
         """
@@ -143,7 +143,7 @@ class LauncherManager(QObject):
     @property
     def _cleanup_scheduled(self):
         """Backward compatibility property for accessing cleanup scheduled flag.
-        
+
         Returns:
             Cleanup scheduled flag from the process manager
         """
@@ -151,7 +151,7 @@ class LauncherManager(QObject):
 
     def _cleanup_finished_workers(self):
         """Backward compatibility method for cleaning up finished workers.
-        
+
         Delegates to the process manager's cleanup method.
         """
         return self._process_manager._cleanup_finished_workers()
@@ -221,10 +221,10 @@ class LauncherManager(QObject):
 
     def create_launcher_from_object(self, launcher: CustomLauncher) -> bool:
         """Create a launcher from a CustomLauncher object (backward compatibility).
-        
+
         Args:
             launcher: CustomLauncher object to create
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -542,8 +542,12 @@ class LauncherManager(QObject):
             # Note: PathUtils.get_shot_path_variables would need to be implemented
             # if path component extraction is needed
 
-        # Merge all variables  
-        all_vars: dict[str, str] = {**launcher.variables, **shot_vars, **{k: v for k, v in (custom_vars or {}).items() if v is not None}}
+        # Merge all variables
+        all_vars: dict[str, str] = {
+            **launcher.variables,
+            **shot_vars,
+            **{k: v for k, v in (custom_vars or {}).items() if v is not None},
+        }
 
         # Execute with merged variables
         return self.execute_launcher(launcher_id, all_vars)

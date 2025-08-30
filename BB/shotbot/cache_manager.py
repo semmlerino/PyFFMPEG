@@ -13,11 +13,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence
 
-# Use typing_extensions for override (available in venv)
-from typing_extensions import override
-
 from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal
 from PySide6.QtWidgets import QApplication
+
+# Use typing_extensions for override (available in venv)
+from typing_extensions import override
 
 from cache.cache_validator import CacheValidator
 from cache.failure_tracker import FailureTracker
@@ -269,10 +269,10 @@ class CacheManager(QObject):
             # Use proper typed functions instead of lambdas to avoid type issues
             def on_loaded(show: str, sequence: str, shot: str, path: Path) -> None:
                 self._on_thumbnail_loaded(cache_key, cache_path)
-            
+
             def on_failed(show: str, sequence: str, shot: str, error: str) -> None:
                 self._cleanup_loader(cache_key)
-                
+
             _ = loader.signals.loaded.connect(on_loaded)
             _ = loader.signals.failed.connect(on_failed)
 
@@ -341,7 +341,7 @@ class CacheManager(QObject):
         """Get cached shot list if valid."""
         return self._shot_cache.get_cached_shots()
 
-    def cache_shots(self, shots: Sequence["Shot"] | Sequence[ShotDict]):
+    def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]):
         """Cache shot list to file."""
         _ = self._shot_cache.cache_shots(shots)
 
@@ -350,7 +350,7 @@ class CacheManager(QObject):
         """Get cached previous/approved shot list if valid."""
         return self._previous_shots_cache.get_cached_shots()
 
-    def cache_previous_shots(self, shots: Sequence["Shot"] | Sequence[ShotDict]):
+    def cache_previous_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]):
         """Cache previous/approved shot list to file."""
         _ = self._previous_shots_cache.cache_shots(shots)
 
@@ -422,7 +422,7 @@ class CacheManager(QObject):
         stats = self._memory_manager.get_usage_stats()
         total_bytes = stats.get("total_bytes", 0)
         max_bytes = self._memory_manager._max_memory_bytes
-        
+
         # Return old format for backward compatibility
         return {
             "total_bytes": total_bytes,
@@ -483,7 +483,7 @@ class CacheManager(QObject):
                 try:
                     shutil.rmtree(self.thumbnails_dir, ignore_errors=True)
                     logger.info("Cleared thumbnail cache directory")
-                except (OSError, IOError) as e:
+                except OSError as e:
                     # Log but don't raise - clearing cache is not critical
                     logger.error(f"Failed to clear thumbnail directory: {e}")
 
@@ -538,7 +538,7 @@ class CacheManager(QObject):
 
                 logger.info("CacheManager shutdown complete")
 
-            except (OSError, IOError, CacheError) as e:
+            except (OSError, CacheError) as e:
                 logger.error(f"Error during cache manager shutdown: {e}")
 
     def set_memory_limit(self, max_memory_mb: int) -> None:
@@ -571,27 +571,27 @@ class CacheManager(QObject):
     # DO NOT use these methods in production code.
 
     @property
-    def test_storage_backend(self) -> "StorageBackend":
+    def test_storage_backend(self) -> StorageBackend:
         """Test-only access to storage backend."""
         return self._storage_backend
 
     @property
-    def test_failure_tracker(self) -> "FailureTracker":
+    def test_failure_tracker(self) -> FailureTracker:
         """Test-only access to failure tracker."""
         return self._failure_tracker
 
     @property
-    def test_memory_manager(self) -> "MemoryManager":
+    def test_memory_manager(self) -> MemoryManager:
         """Test-only access to memory manager."""
         return self._memory_manager
 
     @property
-    def test_shot_cache(self) -> "ShotCache":
+    def test_shot_cache(self) -> ShotCache:
         """Test-only access to shot cache."""
         return self._shot_cache
 
     @property
-    def test_threede_cache(self) -> "ThreeDECache":
+    def test_threede_cache(self) -> ThreeDECache:
         """Test-only access to 3DE cache."""
         return self._threede_cache
 
@@ -662,7 +662,7 @@ class ThumbnailCacheLoader(QRunnable):
 
     def __init__(
         self,
-        cache_manager: "CacheManager",
+        cache_manager: CacheManager,
         source_path: Path | str,
         show: str,
         sequence: str,
@@ -677,10 +677,12 @@ class ThumbnailCacheLoader(QRunnable):
         cache_path = (
             cache_manager.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
         )
-        
+
         # Ensure source_path is a Path object
-        source_path_obj = Path(source_path) if isinstance(source_path, str) else source_path
-        
+        source_path_obj = (
+            Path(source_path) if isinstance(source_path, str) else source_path
+        )
+
         # Convert dict result to ThumbnailCacheResult if needed
         result_obj = None
         if result is not None:

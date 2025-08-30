@@ -119,14 +119,20 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 
         from PySide6.QtCore import QObject
 
+        from secure_command_executor import get_secure_executor
+
         QObject.__init__(self)  # Initialize QObject directly
 
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+        # Initialize secure executor (required by parent class methods)
+        self._secure_executor = get_secure_executor()
         self._session_pools: dict[str, list[BashSessionDouble]] = {}
         self._session_round_robin: dict[str, int] = {}
         self._sessions_per_type = 3
         self._cache = CommandCache(default_ttl=30)
         self._session_lock = threading.RLock()
+        # Add condition variable for proper thread synchronization
+        self._session_condition = threading.Condition(self._session_lock)
         self._metrics = ProcessMetrics()
         self._initialized = True
         self._test_session: BashSessionDouble | None = None
@@ -134,6 +140,78 @@ class InjectableProcessPoolManager(ProcessPoolManager):
     def set_test_session(self, session: BashSessionDouble):
         """Inject test session for testing."""
         self._test_session = session
+
+    def execute_workspace_command(
+        self,
+        command: str,
+        cache_ttl: int = 30,
+        timeout: int | None = None,
+    ) -> str:
+        """Override to use test session when available."""
+        if self._test_session:
+            # Use test session instead of secure executor
+            import time
+
+            # Check cache first (same as parent)
+            cached = self._cache.get(command)
+            if cached is not None:
+                self._metrics.cache_hits += 1
+                return cached
+
+            self._metrics.cache_misses += 1
+            self._metrics.subprocess_calls += 1
+
+            # Execute with test session
+            start_time = time.time()
+            try:
+                result = self._test_session.execute(command, timeout)
+
+                # Cache result
+                self._cache.set(command, result, ttl=cache_ttl)
+
+                # Update metrics
+                elapsed = (time.time() - start_time) * 1000
+                self._metrics.update_response_time(elapsed)
+
+                # Emit completion signal
+                self.command_completed.emit(command, result)
+
+                return result
+
+            except Exception as e:
+                self.command_failed.emit(command, str(e))
+                raise
+        else:
+            # Use parent implementation with secure executor
+            return super().execute_workspace_command(command, cache_ttl, timeout)
+
+    def _execute_with_session_pool(
+        self,
+        command: str,
+        cache_ttl: int,
+        session_type: str,
+    ) -> str:
+        """Override to use test session for batch execution."""
+        if self._test_session:
+            # Use test session instead of secure executor for batch commands
+            import time
+
+            start_time = time.time()
+            try:
+                result = self._test_session.execute(command, timeout=30)
+
+                # Update metrics
+                elapsed = (time.time() - start_time) * 1000
+                self._metrics.update_response_time(elapsed)
+                self._metrics.subprocess_calls += 1
+
+                return result
+
+            except Exception:
+                raise
+        else:
+            # Use parent implementation
+            return super()._execute_with_session_pool(command, cache_ttl, session_type)
 
     def _get_bash_session(self, session_type: str):
         """Override to return injected test session when available."""

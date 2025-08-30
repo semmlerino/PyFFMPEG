@@ -323,7 +323,7 @@ Viewer {{
                 logger.error(f"Undistortion file not found: {undistortion_path}")
                 return ""
 
-            with open(undistortion_path, "r", encoding="utf-8") as f:
+            with open(undistortion_path, encoding="utf-8") as f:
                 content = f.read()
 
             if not content.strip():
@@ -486,7 +486,7 @@ Viewer {{
                 logger.error(f"Undistortion file not found: {undistortion_path}")
                 return ""
 
-            with open(undistortion_path, "r", encoding="utf-8") as f:
+            with open(undistortion_path, encoding="utf-8") as f:
                 content = f.read()
 
             if not content.strip():
@@ -707,7 +707,7 @@ Viewer {{
 
             print(f"\n=== DEBUG ANALYSIS: {undistortion_path} ===")
 
-            with open(undistortion_path, "r", encoding="utf-8") as f:
+            with open(undistortion_path, encoding="utf-8") as f:
                 content = f.read()
 
             if not content.strip():

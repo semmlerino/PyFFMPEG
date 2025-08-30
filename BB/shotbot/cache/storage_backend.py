@@ -127,7 +127,7 @@ class StorageBackend:
             logger.debug(f"Successfully wrote JSON data to {file_path}")
             return True
 
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.error(f"I/O error writing JSON to {file_path}: {e}")
             self._cleanup_temp_file(temp_file)
             return False
@@ -153,7 +153,7 @@ class StorageBackend:
         """
         # Use EAFP pattern to avoid race condition
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 data: dict[str, Any] = json.load(f)
 
             # Validate that we got a dictionary
@@ -176,7 +176,7 @@ class StorageBackend:
             logger.warning(f"Corrupted JSON file {file_path}: {e}")
             return None
 
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.error(f"I/O error reading {file_path}: {e}")
             return None
 
@@ -203,7 +203,7 @@ class StorageBackend:
             # File already gone, that's fine
             return True
 
-        except (OSError, IOError, PermissionError) as e:
+        except (OSError, PermissionError) as e:
             logger.error(f"Failed to delete file {file_path}: {e}")
             return False
 
@@ -235,7 +235,7 @@ class StorageBackend:
             logger.error(f"Source file does not exist: {source}")
             return False
 
-        except (OSError, IOError, PermissionError) as e:
+        except (OSError, PermissionError) as e:
             logger.error(f"Failed to move file {source} -> {destination}: {e}")
             return False
 
@@ -257,7 +257,7 @@ class StorageBackend:
         try:
             return file_path.stat().st_size
 
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.debug(f"Failed to get size of {file_path}: {e}")
             return None
 
@@ -274,5 +274,5 @@ class StorageBackend:
         except FileNotFoundError:
             # Already gone, that's fine
             pass
-        except (OSError, IOError):
+        except OSError:
             logger.debug(f"Failed to clean up temporary file: {temp_file}")

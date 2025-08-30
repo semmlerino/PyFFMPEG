@@ -318,7 +318,10 @@ class TestThreeDEScannerIntegration:
         scene_file.write_text("# Worker Test Scene\nversion 1.0\n")
 
         shot = Shot(
-            show="testshow", sequence="seq01", shot="0070", workspace_path=str(seq_dir)
+            show="testshow",
+            sequence="seq01",
+            shot="seq01_0070",
+            workspace_path=str(seq_dir),
         )
 
         # Test scene model instead of worker directly (more reliable)
@@ -339,7 +342,7 @@ class TestThreeDEScannerIntegration:
             found_scene = scene_model.scenes[0]
             assert found_scene.show == "testshow"
             assert found_scene.sequence == "seq01"
-            assert found_scene.shot == "0070"
+            assert found_scene.shot == "seq01_0070"
             assert found_scene.user == "artist1"
             # Normalize paths for comparison
             actual_path = Path(str(found_scene.scene_path)).resolve()

@@ -555,7 +555,7 @@ class SettingsManager(QObject):
     def import_settings(self, file_path: str) -> bool:
         """Import settings from JSON file."""
         try:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 imported_settings: dict[str, Any] = json.load(f)
 
             # Import each category

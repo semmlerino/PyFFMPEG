@@ -120,7 +120,7 @@ class ThreeDEScene:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, str | Path]) -> "ThreeDEScene":
+    def from_dict(cls, data: dict[str, str | Path]) -> ThreeDEScene:
         """Create from dictionary."""
         scene = cls(
             show=str(data["show"]),

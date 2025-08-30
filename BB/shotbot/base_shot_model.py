@@ -94,7 +94,7 @@ class BaseShotModel(QObject):
             True if cache was loaded, False otherwise
         """
         from shot_model import Shot  # Import here to avoid circular import
-        
+
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
             self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
@@ -190,8 +190,9 @@ class BaseShotModel(QObject):
                     logger.debug(
                         f"Extracted shot '{shot}' from shot_dir '{shot_dir}' (sequence='{sequence}')"
                     )
-                    
+
                     from shot_model import Shot  # Import here to avoid circular import
+
                     shots.append(
                         Shot(
                             show=show,

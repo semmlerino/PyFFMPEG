@@ -673,7 +673,9 @@ class VersionUtils:
         # Check cache first - use the longer TTL for version cache too
         if path_str in VersionUtils._version_cache:
             version_dirs, timestamp = VersionUtils._version_cache[path_str]
-            if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:  # Use same TTL as path cache
+            if (
+                _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL
+            ):  # Use same TTL as path cache
                 return version_dirs.copy()  # Return a copy to prevent modification
 
         path_obj = Path(base_path) if isinstance(base_path, str) else base_path

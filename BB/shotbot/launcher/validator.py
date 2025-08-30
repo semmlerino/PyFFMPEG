@@ -133,7 +133,7 @@ class LauncherValidator:
         """
         if not command:
             return False, "Command cannot be empty"
-        
+
         # Security check: validate against dangerous patterns
         dangerous_patterns = [
             r"\brm\s+-rf\s+/",  # rm -rf /
@@ -150,7 +150,7 @@ class LauncherValidator:
             r"/etc/passwd",  # System file access
             r"/etc/shadow",  # System file access
         ]
-        
+
         cmd_lower = command.lower()
         for pattern in dangerous_patterns:
             try:

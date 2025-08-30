@@ -199,7 +199,7 @@ class TestProcessPoolManager:
         self.command_failed.clear()
 
     @classmethod
-    def get_instance(cls) -> "TestProcessPoolManager":
+    def get_instance(cls) -> TestProcessPoolManager:
         """Get a singleton instance (for compatibility)."""
         if not hasattr(cls, "_instance"):
             cls._instance = cls()

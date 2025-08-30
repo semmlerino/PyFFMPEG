@@ -52,9 +52,6 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-# Use typing_extensions for override (compatible with Python 3.11)
-from typing_extensions import override
-
 from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer, Slot
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
@@ -74,6 +71,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Use typing_extensions for override (compatible with Python 3.11)
+from typing_extensions import override
+
 if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
@@ -83,7 +83,7 @@ if TYPE_CHECKING:
 
 # Runtime imports (needed at runtime)
 from base_shot_model import BaseShotModel  # Need at runtime for isinstance checks
-from cache_manager import CacheManager  # Need at runtime for instantiation 
+from cache_manager import CacheManager  # Need at runtime for instantiation
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
 from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
@@ -111,13 +111,13 @@ logger = logging.getLogger(__name__)
 
 class SessionWarmer(QThread):
     """Background thread for pre-warming bash sessions without blocking UI.
-    
+
     This thread runs during idle time after the UI is displayed, initializing
     the bash environment and 'ws' function in the background. This prevents
     the ~8 second freeze that would occur if this initialization happened
     on the main thread during the first actual command execution.
     """
-    
+
     @Slot()
     @override
     def run(self) -> None:
@@ -126,19 +126,19 @@ class SessionWarmer(QThread):
             # Check for interruption before starting
             if self.isInterruptionRequested():
                 return
-                
+
             logger.debug("Starting background session pre-warming")
             # Get the process pool instance and warm it up
             pool = ProcessPoolManager.get_instance()
-            
+
             # Check for interruption before executing
             if self.isInterruptionRequested():
                 return
-                
+
             _ = pool.execute_workspace_command(
                 "echo warming",
                 cache_ttl=1,  # Short TTL since this is just for warming
-                timeout=15,   # Give enough time for first initialization
+                timeout=15,  # Give enough time for first initialization
             )
             logger.info("Bash session pre-warming completed successfully")
         except Exception as e:
@@ -151,11 +151,11 @@ class MainWindow(QMainWindow):
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
         super().__init__()
-        
+
         # Initialize ProcessPoolManager singleton on main thread first
         # This prevents race conditions if SessionWarmer tries to create it from a thread
         ProcessPoolManager.get_instance()
-        
+
         # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager()
 
@@ -185,7 +185,7 @@ class MainWindow(QMainWindow):
             )
             use_legacy = False
 
-        # Pass to models - OptimizedShotModel is now the default  
+        # Pass to models - OptimizedShotModel is now the default
         self.shot_model: BaseShotModel | ShotModel | OptimizedShotModel
         if use_legacy:
             logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
@@ -572,9 +572,8 @@ class MainWindow(QMainWindow):
         """Initial shot loading - instant from cache or async."""
         # Check if we're using OptimizedShotModel
         if isinstance(self.shot_model, OptimizedShotModel):
-            # Use async initialization for instant UI
-            result = self.shot_model.initialize_async()
-            logger.info(f"Async initialization started, cache status: {result.success}")
+            # Async initialization was already called in __init__, just pre-warm sessions
+            logger.info("Using async initialization (already started in __init__)")
             # Pre-warm sessions in background thread to avoid UI freeze
             self._session_warmer = SessionWarmer()
             self._session_warmer.start()
@@ -621,8 +620,16 @@ class MainWindow(QMainWindow):
 
         # Start auto-refresh for previous shots
         self.previous_shots_model.start_auto_refresh()
-        # Trigger initial refresh for previous shots after a short delay
-        QTimer.singleShot(1000, self.previous_shots_model.refresh_shots)
+        # Trigger initial refresh for previous shots ONLY after shots are loaded
+        # This prevents the "No target shows found" warning when shots haven't loaded yet
+        _ = self.shot_model.shots_loaded.connect(self._trigger_previous_shots_refresh)
+
+        # If shots are already loaded from cache, trigger refresh immediately
+        if self.shot_model.shots:
+            logger.info(
+                "Shots already loaded from cache, triggering previous shots refresh immediately"
+            )
+            QTimer.singleShot(100, self.previous_shots_model.refresh_shots)
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
         # This avoids unnecessary scans when we already know there are no scenes
@@ -990,6 +997,24 @@ class MainWindow(QMainWindow):
         logger.error(f"Shot model error: {error_msg}")
         self._update_status(f"Error: {error_msg}")
 
+    def _trigger_previous_shots_refresh(self, shots: list[Shot]) -> None:
+        """Trigger previous shots refresh only after shots are loaded.
+
+        This method is connected to the shot model's shots_loaded signal to ensure
+        that previous shots scanning only starts when active shots are available.
+        This prevents the "No target shows found" warning.
+
+        Args:
+            shots: The loaded shots (from signal)
+        """
+        if shots:  # Only refresh if we actually have shots
+            logger.info(
+                f"Triggering previous shots refresh after loading {len(shots)} active shots"
+            )
+            self.previous_shots_model.refresh_shots()
+        else:
+            logger.debug("No active shots loaded, skipping previous shots refresh")
+
     def _on_model_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selected signal from model.
 
@@ -1236,7 +1261,9 @@ class MainWindow(QMainWindow):
             # Always restore signal state, even if an exception occurs
             # This prevents leaving signals permanently blocked
             _ = self.shot_grid.size_slider.blockSignals(shot_grid_was_blocked)
-            _ = self.threede_shot_grid.size_slider.blockSignals(threede_grid_was_blocked)
+            _ = self.threede_shot_grid.size_slider.blockSignals(
+                threede_grid_was_blocked
+            )
 
     def _update_status(self, message: str) -> None:
         """Update status bar."""
@@ -1701,7 +1728,7 @@ class MainWindow(QMainWindow):
                     # Clean up the worker reference
                     self._threede_worker.deleteLater()
                     self._threede_worker = None
-            
+
             # Clean up session warmer if it exists
             if hasattr(self, "_session_warmer") and self._session_warmer:
                 if not self._session_warmer.isFinished():
@@ -1781,7 +1808,9 @@ class MainWindow(QMainWindow):
         """Show the preferences dialog."""
         if self._settings_dialog is None:
             self._settings_dialog = SettingsDialog(self.settings_manager, self)
-            _ = self._settings_dialog.settings_applied.connect(self._on_settings_applied)
+            _ = self._settings_dialog.settings_applied.connect(
+                self._on_settings_applied
+            )
 
         self._settings_dialog.load_current_settings()
         self._settings_dialog.show()
@@ -1843,7 +1872,9 @@ class MainWindow(QMainWindow):
                     self, "Export Success", f"Settings exported to:\n{file_path}"
                 )
             else:
-                _ = QMessageBox.warning(self, "Export Error", "Failed to export settings.")
+                _ = QMessageBox.warning(
+                    self, "Export Error", "Failed to export settings."
+                )
 
     def _reset_layout(self):
         """Reset window layout to defaults."""

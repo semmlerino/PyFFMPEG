@@ -10,19 +10,24 @@ Provides comprehensive accessibility support including:
 
 from __future__ import annotations
 
+from typing import Protocol, cast, runtime_checkable
+
 from PySide6.QtCore import QEvent, QObject, Qt
-from PySide6.QtGui import QKeyEvent
-from typing import cast, Protocol, runtime_checkable
-from PySide6.QtGui import QColor, QKeySequence, QPalette, QShortcut
-from PySide6.QtWidgets import QApplication, QGroupBox, QPushButton, QTabWidget, QToolTip, QWidget
-
-
+from PySide6.QtGui import QColor, QKeyEvent, QKeySequence, QPalette, QShortcut
+from PySide6.QtWidgets import (
+    QApplication,
+    QGroupBox,
+    QPushButton,
+    QTabWidget,
+    QToolTip,
+    QWidget,
+)
 
 
 @runtime_checkable
 class NavigatableWidget(Protocol):
     """Protocol for widgets that support navigation."""
-    
+
     def navigate(self, dx: int, dy: int) -> None: ...
     def navigate_page(self, direction: int) -> None: ...
     def select_first(self) -> None: ...
@@ -32,7 +37,7 @@ class NavigatableWidget(Protocol):
 @runtime_checkable
 class MainWindowProtocol(Protocol):
     """Protocol for main window widgets that may have accessibility features."""
-    
+
     def setAccessibleName(self, name: str) -> None: ...
     def setAccessibleDescription(self, description: str) -> None: ...
     def setTabOrder(self, first: QWidget, second: QWidget) -> None: ...
@@ -40,7 +45,7 @@ class MainWindowProtocol(Protocol):
     def setStyleSheet(self, stylesheet: str) -> None: ...
     def styleSheet(self) -> str: ...
     def _launch_app(self, app: str) -> None: ...  # method for launching apps
-    
+
     # Main window attributes - checked with hasattr at runtime
     tab_widget: QTabWidget | None
     shot_grid: QWidget | None
@@ -53,7 +58,7 @@ class MainWindowProtocol(Protocol):
     shot_info_panel: QWidget | None
     command_launcher: QWidget | None
     status_bar: QWidget | None
-    
+
     # Actions
     refresh_action: QWidget | None
     settings_action: QWidget | None
@@ -65,11 +70,12 @@ class MainWindowProtocol(Protocol):
     about_action: QWidget | None
 
 
-@runtime_checkable  
+@runtime_checkable
 class ShotGridProtocol(Protocol):
     """Protocol for shot grid widgets."""
-    
+
     def setFocus(self) -> None: ...
+
     size_slider: QWidget | None
     list_view: QWidget | None
 
@@ -77,7 +83,7 @@ class ShotGridProtocol(Protocol):
 @runtime_checkable
 class ShotModelProtocol(Protocol):
     """Protocol for shot model."""
-    
+
     shot_selected: QWidget | None  # signal
 
 
@@ -93,37 +99,64 @@ class KeyboardNavigationManager:
         """
         shortcuts = {
             # Navigation
-            "Ctrl+1": lambda: (lambda w=cast(MainWindowProtocol, window): w.tab_widget.setCurrentIndex(0) if hasattr(window, "tab_widget") and w.tab_widget is not None else None)(),  # My Shots
-            "Ctrl+2": lambda: (lambda w=cast(MainWindowProtocol, window): w.tab_widget.setCurrentIndex(1) if hasattr(window, "tab_widget") and w.tab_widget is not None else None)(),  # 3DE Scenes
-            "Ctrl+3": lambda: (lambda w=cast(MainWindowProtocol, window): w.tab_widget.setCurrentIndex(2) if hasattr(window, "tab_widget") and w.tab_widget is not None else None)(),  # Previous Shots
-            "Ctrl+4": lambda: (lambda w=cast(MainWindowProtocol, window): w.tab_widget.setCurrentIndex(3) if hasattr(window, "tab_widget") and w.tab_widget is not None else None)(),  # Command History
+            "Ctrl+1": lambda: (
+                lambda w=cast(
+                    "MainWindowProtocol", window
+                ): w.tab_widget.setCurrentIndex(0)
+                if hasattr(window, "tab_widget") and w.tab_widget is not None
+                else None
+            )(),  # My Shots
+            "Ctrl+2": lambda: (
+                lambda w=cast(
+                    "MainWindowProtocol", window
+                ): w.tab_widget.setCurrentIndex(1)
+                if hasattr(window, "tab_widget") and w.tab_widget is not None
+                else None
+            )(),  # 3DE Scenes
+            "Ctrl+3": lambda: (
+                lambda w=cast(
+                    "MainWindowProtocol", window
+                ): w.tab_widget.setCurrentIndex(2)
+                if hasattr(window, "tab_widget") and w.tab_widget is not None
+                else None
+            )(),  # Previous Shots
+            "Ctrl+4": lambda: (
+                lambda w=cast(
+                    "MainWindowProtocol", window
+                ): w.tab_widget.setCurrentIndex(3)
+                if hasattr(window, "tab_widget") and w.tab_widget is not None
+                else None
+            )(),  # Command History
             # Grid navigation
-            "Ctrl+G": lambda: cast(MainWindowProtocol, window).shot_grid.setFocus()
-            if hasattr(window, "shot_grid") and cast(MainWindowProtocol, window).shot_grid is not None
+            "Ctrl+G": lambda: cast("MainWindowProtocol", window).shot_grid.setFocus()
+            if hasattr(window, "shot_grid")
+            and cast("MainWindowProtocol", window).shot_grid is not None
             else None,  # Focus grid
-            "Ctrl+L": lambda: cast(MainWindowProtocol, window).launcher_group.setFocus()
+            "Ctrl+L": lambda: cast(
+                "MainWindowProtocol", window
+            ).launcher_group.setFocus()
             if hasattr(window, "launcher_group")
             else None,  # Focus launchers
             # Quick actions
-            "Alt+3": lambda: cast(MainWindowProtocol, window)._launch_app("3de")
+            "Alt+3": lambda: cast("MainWindowProtocol", window)._launch_app("3de")
             if hasattr(window, "_launch_app")
             and hasattr(window, "app_buttons")
-            and cast(MainWindowProtocol, window).app_buttons["3de"].isEnabled()
+            and cast("MainWindowProtocol", window).app_buttons["3de"].isEnabled()
             else None,
-            "Alt+N": lambda: cast(MainWindowProtocol, window)._launch_app("nuke")
+            "Alt+N": lambda: cast("MainWindowProtocol", window)._launch_app("nuke")
             if hasattr(window, "_launch_app")
             and hasattr(window, "app_buttons")
-            and cast(MainWindowProtocol, window).app_buttons["nuke"].isEnabled()
+            and cast("MainWindowProtocol", window).app_buttons["nuke"].isEnabled()
             else None,
-            "Alt+M": lambda: cast(MainWindowProtocol, window)._launch_app("maya")
+            "Alt+M": lambda: cast("MainWindowProtocol", window)._launch_app("maya")
             if hasattr(window, "_launch_app")
             and hasattr(window, "app_buttons")
-            and cast(MainWindowProtocol, window).app_buttons["maya"].isEnabled()
+            and cast("MainWindowProtocol", window).app_buttons["maya"].isEnabled()
             else None,
-            "Alt+R": lambda: cast(MainWindowProtocol, window)._launch_app("rv")
+            "Alt+R": lambda: cast("MainWindowProtocol", window)._launch_app("rv")
             if hasattr(window, "_launch_app")
             and hasattr(window, "app_buttons")
-            and cast(MainWindowProtocol, window).app_buttons["rv"].isEnabled()
+            and cast("MainWindowProtocol", window).app_buttons["rv"].isEnabled()
             else None,
             # Accessibility
             "F2": lambda: AccessibilityAnnouncer.announce_current_context(window),
@@ -161,7 +194,7 @@ class GridKeyboardNavigator(QObject):
             True if event was handled
         """
         if event.type() == QEvent.Type.KeyPress:
-            key_event = cast(QKeyEvent, event)
+            key_event = cast("QKeyEvent", event)
             key = key_event.key()
 
             # Cast watched to QWidget for navigation methods
@@ -210,7 +243,7 @@ class GridKeyboardNavigator(QObject):
         """
         # Implementation depends on widget type
         if hasattr(widget, "navigate"):
-            cast(NavigatableWidget, widget).navigate(dx, dy)
+            cast("NavigatableWidget", widget).navigate(dx, dy)
 
     def _navigate_page(self, widget: QWidget, direction: int) -> None:
         """Navigate by page.
@@ -220,17 +253,17 @@ class GridKeyboardNavigator(QObject):
             direction: -1 for up, 1 for down
         """
         if hasattr(widget, "navigate_page"):
-            cast(NavigatableWidget, widget).navigate_page(direction)
+            cast("NavigatableWidget", widget).navigate_page(direction)
 
     def _navigate_to_first(self, widget: QWidget) -> None:
         """Navigate to first item."""
         if hasattr(widget, "select_first"):
-            cast(NavigatableWidget, widget).select_first()
+            cast("NavigatableWidget", widget).select_first()
 
     def _navigate_to_last(self, widget: QWidget) -> None:
         """Navigate to last item."""
         if hasattr(widget, "select_last"):
-            cast(NavigatableWidget, widget).select_last()
+            cast("NavigatableWidget", widget).select_last()
 
 
 class AccessibilityAnnouncer:
@@ -250,7 +283,7 @@ class AccessibilityAnnouncer:
         if app and hasattr(app, "activeWindow"):
             window = app.activeWindow()
             if window and hasattr(window, "status_bar"):
-                cast(MainWindowProtocol, window).status_bar.showMessage(message, 3000)
+                cast("MainWindowProtocol", window).status_bar.showMessage(message, 3000)
 
     @staticmethod
     def announce_current_context(window: QWidget) -> None:
@@ -263,20 +296,27 @@ class AccessibilityAnnouncer:
 
         # Current tab
         if hasattr(window, "tab_widget"):
-            current_tab = cast(MainWindowProtocol, window).tab_widget.currentIndex()
-            tab_text = cast(MainWindowProtocol, window).tab_widget.tabText(current_tab)
+            current_tab = cast("MainWindowProtocol", window).tab_widget.currentIndex()
+            tab_text = cast("MainWindowProtocol", window).tab_widget.tabText(
+                current_tab
+            )
             messages.append(f"Current tab: {tab_text}")
 
         # Selected shot
-        if hasattr(window, "command_launcher") and cast(MainWindowProtocol, window).command_launcher.current_shot:
-            shot = cast(MainWindowProtocol, window).command_launcher.current_shot
+        if (
+            hasattr(window, "command_launcher")
+            and cast("MainWindowProtocol", window).command_launcher.current_shot
+        ):
+            shot = cast("MainWindowProtocol", window).command_launcher.current_shot
             messages.append(f"Selected shot: {shot.full_name}")
 
         # Enabled applications
         if hasattr(window, "app_buttons"):
             enabled_apps = [
                 name
-                for name, button in cast(MainWindowProtocol, window).app_buttons.items()
+                for name, button in cast(
+                    "MainWindowProtocol", window
+                ).app_buttons.items()
                 if button.isEnabled()
             ]
             if enabled_apps:
@@ -293,8 +333,10 @@ class AccessibilityAnnouncer:
         """
         if hasattr(window, "shot_info_panel"):
             # Get shot details from info panel
-            if hasattr(cast(MainWindowProtocol, window).shot_info_panel, "_current_shot"):
-                shot = cast(MainWindowProtocol, window).shot_info_panel._current_shot
+            if hasattr(
+                cast("MainWindowProtocol", window).shot_info_panel, "_current_shot"
+            ):
+                shot = cast("MainWindowProtocol", window).shot_info_panel._current_shot
                 if shot:
                     message = (
                         f"Shot {shot.shot} in sequence {shot.sequence}, "
@@ -460,33 +502,41 @@ class FocusManager:
 
         # Tab widget
         if hasattr(window, "tab_widget"):
-            focus_chain.append(cast(MainWindowProtocol, window).tab_widget)
+            focus_chain.append(cast("MainWindowProtocol", window).tab_widget)
 
         # Current grid
         if hasattr(window, "shot_grid"):
-            focus_chain.append(cast(MainWindowProtocol, window).shot_grid)
+            focus_chain.append(cast("MainWindowProtocol", window).shot_grid)
 
         # Size slider
-        if hasattr(window, "shot_grid") and hasattr(cast(MainWindowProtocol, window).shot_grid, "size_slider"):
-            focus_chain.append(cast(ShotGridProtocol, cast(MainWindowProtocol, window).shot_grid).size_slider)
+        if hasattr(window, "shot_grid") and hasattr(
+            cast("MainWindowProtocol", window).shot_grid, "size_slider"
+        ):
+            focus_chain.append(
+                cast(
+                    "ShotGridProtocol", cast("MainWindowProtocol", window).shot_grid
+                ).size_slider
+            )
 
         # Shot info panel
         if hasattr(window, "shot_info_panel"):
-            focus_chain.append(cast(MainWindowProtocol, window).shot_info_panel)
+            focus_chain.append(cast("MainWindowProtocol", window).shot_info_panel)
 
         # App buttons
         if hasattr(window, "app_buttons"):
-            for button in cast(MainWindowProtocol, window).app_buttons.values():
+            for button in cast("MainWindowProtocol", window).app_buttons.values():
                 focus_chain.append(button)
 
         # Custom launcher buttons
         if hasattr(window, "custom_launcher_buttons"):
-            for button in cast(MainWindowProtocol, window).custom_launcher_buttons.values():
+            for button in cast(
+                "MainWindowProtocol", window
+            ).custom_launcher_buttons.values():
                 focus_chain.append(button)
 
         # Log viewer
         if hasattr(window, "log_viewer"):
-            focus_chain.append(cast(MainWindowProtocol, window).log_viewer)
+            focus_chain.append(cast("MainWindowProtocol", window).log_viewer)
 
         # Set tab order
         for i in range(len(focus_chain) - 1):
@@ -534,11 +584,21 @@ class AccessibilityManagerComplete:
 
         # Grid navigation
         if hasattr(window, "shot_grid"):
-            KeyboardNavigationManager.setup_widget_navigation(cast(MainWindowProtocol, window).shot_grid) if cast(MainWindowProtocol, window).shot_grid is not None else None
+            KeyboardNavigationManager.setup_widget_navigation(
+                cast("MainWindowProtocol", window).shot_grid
+            ) if cast("MainWindowProtocol", window).shot_grid is not None else None
         if hasattr(window, "threede_shot_grid"):
-            KeyboardNavigationManager.setup_widget_navigation(cast(MainWindowProtocol, window).threede_shot_grid) if cast(MainWindowProtocol, window).threede_shot_grid is not None else None
+            KeyboardNavigationManager.setup_widget_navigation(
+                cast("MainWindowProtocol", window).threede_shot_grid
+            ) if cast(
+                "MainWindowProtocol", window
+            ).threede_shot_grid is not None else None
         if hasattr(window, "previous_shots_grid"):
-            KeyboardNavigationManager.setup_widget_navigation(cast(MainWindowProtocol, window).previous_shots_grid) if cast(MainWindowProtocol, window).previous_shots_grid is not None else None
+            KeyboardNavigationManager.setup_widget_navigation(
+                cast("MainWindowProtocol", window).previous_shots_grid
+            ) if cast(
+                "MainWindowProtocol", window
+            ).previous_shots_grid is not None else None
 
         # Enhanced tooltips
         AccessibilityManagerComplete.setup_enhanced_tooltips(window)
@@ -602,8 +662,10 @@ class AccessibilityManagerComplete:
         for attr, tooltip in tooltips.items():
             if attr == "app_buttons" and hasattr(window, attr):
                 for app, tip in tooltip.items():
-                    if app in cast(MainWindowProtocol, window).app_buttons:
-                        cast(MainWindowProtocol, window).app_buttons[app].setToolTip(tip)
+                    if app in cast("MainWindowProtocol", window).app_buttons:
+                        cast("MainWindowProtocol", window).app_buttons[app].setToolTip(
+                            tip
+                        )
             elif hasattr(window, attr):
                 widget = getattr(window, attr)
                 if hasattr(widget, "setToolTip"):

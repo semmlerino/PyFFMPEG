@@ -34,7 +34,7 @@ class TestPathUtilsTurnoverPlate:
             / "seq01_shot01"
             / "publish"
             / "turnover"
-            / "plates"
+            / "plate"
         )
 
         # Create multiple plate directories with priority
@@ -73,7 +73,7 @@ class TestPathUtilsTurnoverPlate:
             / "seq01_shot01"
             / "publish"
             / "turnover"
-            / "plates"
+            / "plate"
         )
         base_path.mkdir(parents=True)
 
@@ -176,8 +176,13 @@ class TestPathUtilsPublishThumbnail:
 
     def test_find_any_publish_thumbnail_max_depth(self, tmp_path):
         """Test find_any_publish_thumbnail respects max depth."""
+        # Create proper show/shot structure
+        shows_root = tmp_path / "shows"
+        publish_path = (
+            shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01" / "publish"
+        )
+
         # Create very deep structure
-        publish_path = tmp_path / "publish"
         very_deep = publish_path
         for i in range(10):  # Create 10 levels deep
             very_deep = very_deep / f"level{i}"
@@ -188,10 +193,11 @@ class TestPathUtilsPublishThumbnail:
 
         # Put file at acceptable depth
         shallow = publish_path / "level0" / "level1"
+        shallow.mkdir(parents=True, exist_ok=True)
         (shallow / "test.1001.exr").touch()
 
         result = PathUtils.find_any_publish_thumbnail(
-            str(tmp_path / "shows"),
+            str(shows_root),
             "testshow",
             "seq01",
             "shot01",

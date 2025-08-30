@@ -305,7 +305,7 @@ class TestParametrizedErrorHandling:
             ("PermissionError", PermissionError("No access")),
             ("FileNotFoundError", FileNotFoundError("File gone")),
             ("OSError", OSError("Disk full")),
-            ("IOError", IOError("Read error")),
+            ("IOError", OSError("Read error")),
             ("ValueError", ValueError("Invalid data")),
         ],
     )

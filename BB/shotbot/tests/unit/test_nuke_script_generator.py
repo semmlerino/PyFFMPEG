@@ -69,7 +69,7 @@ class TestNukeScriptGenerator:
             assert Path(script_path).exists()
 
             # Read script content
-            with open(script_path, "r") as f:
+            with open(script_path) as f:
                 content = f.read()
 
             # Test basic script structure
@@ -96,7 +96,7 @@ class TestNukeScriptGenerator:
             assert script_path is not None
             assert Path(script_path).exists()
 
-            with open(script_path, "r") as f:
+            with open(script_path) as f:
                 content = f.read()
 
             # Test undistortion is included
@@ -143,7 +143,7 @@ class TestNukeScriptGenerator:
             assert script_path is not None
             assert Path(script_path).exists()
 
-            with open(script_path, "r") as f:
+            with open(script_path) as f:
                 content = f.read()
 
             # Test that problematic characters are handled
@@ -240,14 +240,14 @@ class TestNukeScriptGenerator:
             monkeypatch.setattr(
                 NukeScriptGenerator,
                 "_detect_colorspace",
-                lambda self, filepath: (test_colorspace, False),
+                lambda filepath: (test_colorspace, False),
             )
 
             script_path = NukeScriptGenerator.create_plate_script(
                 plate_path=str(plate_path), shot_name="test_shot"
             )
 
-            with open(script_path, "r") as f:
+            with open(script_path) as f:
                 content = f.read()
 
             # Test colorspace is properly quoted/handled
@@ -278,7 +278,7 @@ class TestNukeScriptGenerator:
             assert script_path is not None
             assert Path(script_path).exists()
 
-            with open(script_path, "r") as f:
+            with open(script_path) as f:
                 content = f.read()
 
             # Test complete comp script structure

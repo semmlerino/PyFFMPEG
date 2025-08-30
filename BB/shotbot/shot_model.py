@@ -181,7 +181,7 @@ class Shot:
         }
 
     @classmethod
-    def from_dict(cls, data: ShotDict) -> "Shot":
+    def from_dict(cls, data: ShotDict) -> Shot:
         """Create shot from dictionary data."""
         shot = cls(
             show=data["show"],
@@ -206,7 +206,7 @@ class ShotModel(BaseShotModel):
 
     def __init__(
         self,
-        cache_manager: "CacheManager | None" = None,
+        cache_manager: CacheManager | None = None,
         load_cache: bool = True,
     ):
         """Initialize synchronous shot model.
@@ -328,7 +328,7 @@ class ShotModel(BaseShotModel):
                         self.cache_manager.cache_shots(self.shots)
                         # Emit cache updated signal
                         self.cache_updated.emit()
-                    except (OSError, IOError) as e:
+                    except OSError as e:
                         logger.warning(f"Failed to cache shots: {e}")
                         # Continue without caching - not critical for operation
 
@@ -417,7 +417,7 @@ class ShotModel(BaseShotModel):
     # DO NOT use these methods in production code.
 
     @property
-    def test_process_pool(self) -> "ProcessPoolManager":
+    def test_process_pool(self) -> ProcessPoolManager:
         """Test-only access to process pool manager."""
         return self._process_pool
 

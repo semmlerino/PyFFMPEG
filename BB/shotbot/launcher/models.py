@@ -73,7 +73,7 @@ class CustomLauncher:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "CustomLauncher":
+    def from_dict(cls, data: dict[str, Any]) -> CustomLauncher:
         """Create launcher from dictionary data."""
         # Handle nested objects
         if "environment" in data and isinstance(data["environment"], dict):

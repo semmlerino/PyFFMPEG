@@ -143,17 +143,38 @@ class TestPreviousShotsModel:
         Following UNIFIED_TESTING_GUIDE:
         - Set up signal spy BEFORE triggering action
         """
-        # Replace finder with test double
-        model._finder = test_finder
+        # Mock PreviousShotsWorker creation to use test double
+        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+
+        # Create test worker that will emit signals synchronously
+        test_worker = FakePreviousShotsWorker()
+        test_worker.shots_to_find = test_finder.approved_shots_to_return
 
         # Set up signal spies BEFORE triggering refresh (prevents race)
         scan_started_spy = QSignalSpy(model.scan_started)
         scan_finished_spy = QSignalSpy(model.scan_finished)
         shots_updated_spy = QSignalSpy(model.shots_updated)
 
-        # Use waitSignal to properly handle async operation
-        with qtbot.waitSignal(model.scan_finished, timeout=1000):
+        # Mock worker creation to return our test double
+        with patch(
+            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+        ):
+            # Trigger refresh - will create and use our test worker
             result = model.refresh_shots()
+
+            # Manually trigger worker completion since test worker is synchronous
+            shot_dicts = [
+                {
+                    "show": shot.show,
+                    "sequence": shot.sequence,
+                    "shot": shot.shot,
+                    "workspace_path": shot.workspace_path,
+                }
+                for shot in test_finder.approved_shots_to_return
+            ]
+
+            # Simulate worker completion
+            model._on_scan_finished(shot_dicts)
 
         # Verify return value
         assert result is True
@@ -242,16 +263,25 @@ class TestPreviousShotsModel:
 
     def test_refresh_shots_error_handling(self, model, qtbot):
         """Test error handling during refresh."""
+        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+
         scan_finished_spy = QSignalSpy(model.scan_finished)
 
-        # Mock finder to raise exception
-        with patch.object(
-            model._finder, "find_approved_shots", side_effect=Exception("Test error")
+        # Create test worker that will simulate an error
+        test_worker = FakePreviousShotsWorker()
+
+        # Mock worker creation and simulate error in worker
+        with patch(
+            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
         ):
             result = model.refresh_shots()
 
-        assert result is False
-        assert not model.is_scanning()  # Should reset scanning state
+            # Simulate worker error
+            model._on_scan_error("Test error")
+
+        # Worker creation succeeded, but error was handled
+        assert result is True  # refresh_shots() returns True when worker starts
+        assert not model.is_scanning()  # Should reset scanning state after error
         assert scan_finished_spy.count() == 1  # Should still emit finished signal
 
     def test_has_changes_detection(self, model):
@@ -330,18 +360,39 @@ class TestPreviousShotsModel:
         self, model_with_real_cache, temp_cache_dir
     ):
         """Test cache saving and loading with real CacheManager."""
-        model = model_with_real_cache
+        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
-        # Configure finder
+        model = model_with_real_cache
         test_finder = FakePreviousShotsFinder()
-        test_finder.approved_shots_to_return = [
+        test_shots = [
             create_test_shot("show1", "seq1", "shot1"),
             create_test_shot("show1", "seq1", "shot2"),
         ]
-        model._finder = test_finder
+        test_finder.approved_shots_to_return = test_shots
 
-        # Refresh should save to cache
-        model.refresh_shots()
+        # Create test worker with shots
+        test_worker = FakePreviousShotsWorker()
+        test_worker.shots_to_find = test_shots
+
+        # Mock worker creation and simulate successful completion
+        with patch(
+            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+        ):
+            # Refresh should save to cache
+            model.refresh_shots()
+
+            # Manually trigger successful completion
+            shot_dicts = [
+                {
+                    "show": shot.show,
+                    "sequence": shot.sequence,
+                    "shot": shot.shot,
+                    "workspace_path": shot.workspace_path,
+                }
+                for shot in test_shots
+            ]
+
+            model._on_scan_finished(shot_dicts)
 
         # Verify cache file was created
         cache_file = temp_cache_dir / "previous_shots.json"
@@ -369,13 +420,31 @@ class TestPreviousShotsModel:
 
     def test_clear_cache_functionality(self, model_with_real_cache, temp_cache_dir):
         """Test cache clearing functionality."""
-        model = model_with_real_cache
+        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
-        # Configure and refresh
+        model = model_with_real_cache
+        test_shot = create_test_shot()
+
+        # Configure and refresh with mock worker
         test_finder = FakePreviousShotsFinder()
-        test_finder.approved_shots_to_return = [create_test_shot()]
-        model._finder = test_finder
-        model.refresh_shots()
+        test_finder.approved_shots_to_return = [test_shot]
+
+        test_worker = FakePreviousShotsWorker()
+        test_worker.shots_to_find = [test_shot]
+
+        with patch(
+            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+        ):
+            model.refresh_shots()
+
+            # Manually trigger completion to save cache
+            shot_dict = {
+                "show": test_shot.show,
+                "sequence": test_shot.sequence,
+                "shot": test_shot.shot,
+                "workspace_path": test_shot.workspace_path,
+            }
+            model._on_scan_finished([shot_dict])
 
         # Verify cache exists
         cache_file = temp_cache_dir / "previous_shots.json"
@@ -389,21 +458,43 @@ class TestPreviousShotsModel:
 
     def test_timer_triggered_refresh(self, test_shot_model, test_cache_manager, qtbot):
         """Test refresh triggered by timer with proper signal handling."""
+        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+
         model = PreviousShotsModel(test_shot_model, test_cache_manager)
+        test_shot = create_test_shot()
 
         # Configure finder
         test_finder = FakePreviousShotsFinder()
-        test_finder.approved_shots_to_return = [create_test_shot()]
-        model._finder = test_finder
+        test_finder.approved_shots_to_return = [test_shot]
+
+        test_worker = FakePreviousShotsWorker()
+        test_worker.shots_to_find = [test_shot]
 
         shots_updated_spy = QSignalSpy(model.shots_updated)
 
         # Set very short interval for testing
         model._refresh_timer.setInterval(100)  # 100ms
 
-        # Start timer and wait for signal
-        with qtbot.waitSignal(model.shots_updated, timeout=500):
+        # Mock worker creation for timer-triggered refresh
+        with patch(
+            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+        ):
             model.start_auto_refresh()
+
+            # Wait for timer to trigger and then manually complete the worker
+            qtbot.wait(150)  # Wait for timer to trigger
+
+            # Manually trigger completion
+            shot_dict = {
+                "show": test_shot.show,
+                "sequence": test_shot.sequence,
+                "shot": test_shot.shot,
+                "workspace_path": test_shot.workspace_path,
+            }
+            model._on_scan_finished([shot_dict])
+
+            # Allow Qt to process signals
+            qtbot.wait(50)
 
         assert shots_updated_spy.count() >= 1
 
@@ -434,21 +525,35 @@ class TestPreviousShotsModelIntegration:
 
     def test_full_workflow(self, integration_setup, qtbot):
         """Test complete workflow with real components."""
+        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+
         model, shot_model, cache_manager = integration_setup
+        test_shot = create_test_shot("approved", "seq1", "shot1")
 
         # Configure finder with approved shots
         test_finder = FakePreviousShotsFinder()
-        test_finder.approved_shots_to_return = [
-            create_test_shot("approved", "seq1", "shot1"),
-        ]
-        model._finder = test_finder
+        test_finder.approved_shots_to_return = [test_shot]
+
+        test_worker = FakePreviousShotsWorker()
+        test_worker.shots_to_find = [test_shot]
 
         # Set up signal spy
         shots_updated_spy = QSignalSpy(model.shots_updated)
 
-        # Refresh with signal waiting
-        with qtbot.waitSignal(model.scan_finished, timeout=1000):
+        # Mock worker creation and trigger workflow
+        with patch(
+            "previous_shots_model.PreviousShotsWorker", return_value=test_worker
+        ):
             success = model.refresh_shots()
+
+            # Manually trigger completion
+            shot_dict = {
+                "show": test_shot.show,
+                "sequence": test_shot.sequence,
+                "shot": test_shot.shot,
+                "workspace_path": test_shot.workspace_path,
+            }
+            model._on_scan_finished([shot_dict])
 
         assert success
         assert shots_updated_spy.count() == 1

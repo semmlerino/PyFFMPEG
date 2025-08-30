@@ -225,7 +225,7 @@ class TestPreviousShootsCacheIntegration:
         assert shots[0].show == "cached_show"
         assert shots[0].shot == "cached_shot"
 
-    def test_model_cache_integration_on_refresh(self, previous_shots_model):
+    def test_model_cache_integration_on_refresh(self, previous_shots_model, qtbot):
         """Test model saves to cache after refresh."""
         # Mock finder to return approved shots
         mock_approved = [
@@ -235,9 +235,9 @@ class TestPreviousShootsCacheIntegration:
         # Use local import for patch since we removed the global import
         from unittest.mock import patch
 
-        with patch.object(
-            previous_shots_model._finder,
-            "find_approved_shots",
+        # Need to patch the ParallelShotsFinder class that the worker uses
+        with patch(
+            "previous_shots_worker.ParallelShotsFinder.find_approved_shots_targeted",
             return_value=mock_approved,
         ):
             # Refresh should trigger cache save
@@ -245,7 +245,11 @@ class TestPreviousShootsCacheIntegration:
 
             assert result is True
 
-            # Verify data was cached
+            # Wait for the async scan to complete
+            with qtbot.waitSignal(previous_shots_model.scan_finished, timeout=5000):
+                pass
+
+            # Verify data was cached after scan completes
             cached_data = (
                 previous_shots_model._cache_manager.get_cached_previous_shots()
             )

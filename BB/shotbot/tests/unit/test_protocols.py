@@ -12,7 +12,6 @@ to ensure type safety without over-specification.
 
 from __future__ import annotations
 
-from pathlib import Path as PathType  # Renamed to avoid pytest collection
 from typing import Any, Protocol
 
 import pytest
@@ -66,8 +65,8 @@ class CacheManagerProtocol(Protocol):
     def get_cached_shots(self) -> list[dict[str, Any | None]]: ...
 
     def cache_thumbnail_direct(
-        self, source_path: PathType, show: str, sequence: str, shot: str
-    ) -> PathType | None: ...
+        self, source_path: pathlib.Path, show: str, sequence: str, shot: str
+    ) -> pathlib.Path | None: ...
 
     def clear_cache(self) -> None: ...
 
@@ -85,6 +84,7 @@ class TestLauncherFactory(Protocol):
 
 
 # Type aliases for common test types
-TestImagePath = PathType
-TestConfigDir = PathType
-TestTempDir = PathType
+# Using string annotations to avoid pathlib import at module level
+TestImagePath = "pathlib.Path"
+TestConfigDir = "pathlib.Path"
+TestTempDir = "pathlib.Path"

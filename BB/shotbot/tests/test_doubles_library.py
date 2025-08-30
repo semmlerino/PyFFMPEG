@@ -386,6 +386,7 @@ class TestCacheManager(QObject):
         self.cache_dir = cache_dir or Path("/tmp/test_cache")
         self._cached_thumbnails: dict[str, Path] = {}
         self._cached_shots: list[TestShot] = []
+        self._cached_previous_shots: list[dict[str, Any]] | None = None
         self._memory_usage_bytes: int = 0
         self._cache_operations: list[dict[str, Any]] = []
 
@@ -443,6 +444,24 @@ class TestCacheManager(QObject):
         """Get cached shots."""
         return self._cached_shots.copy()
 
+    def get_cached_previous_shots(self) -> list[dict[str, Any]] | None:
+        """Get cached previous/approved shot list if valid."""
+        return (
+            self._cached_previous_shots.copy() if self._cached_previous_shots else None
+        )
+
+    def cache_previous_shots(self, shots: list[TestShot | dict[str, Any]]) -> bool:
+        """Cache previous shot data."""
+        self._cached_previous_shots = []
+        for shot in shots:
+            if isinstance(shot, TestShot):
+                shot_dict = shot.to_dict()
+            else:
+                shot_dict = shot
+            self._cached_previous_shots.append(shot_dict)
+        self.cache_updated.emit()
+        return True
+
     def get_memory_usage(self) -> dict[str, Any]:
         """Get memory usage statistics."""
         return {
@@ -455,8 +474,21 @@ class TestCacheManager(QObject):
         """Clear all caches."""
         self._cached_thumbnails.clear()
         self._cached_shots.clear()
+        self._cached_previous_shots = None
         self._memory_usage_bytes = 0
         self._cache_operations.clear()
+        self.cache_updated.emit()
+
+    def clear_cached_data(self, key: str) -> None:
+        """Clear cached generic data by key (for backward compatibility).
+
+        Args:
+            key: Cache key identifier
+        """
+        if key == "previous_shots":
+            self._cached_previous_shots = None
+        # For compatibility with other potential keys, we could extend this
+        # but for now we only need previous_shots support
         self.cache_updated.emit()
 
     def validate_cache(self) -> dict[str, Any]:
@@ -759,6 +791,7 @@ class TestWorker(QThread):
     def __init__(self, parent: QObject | None = None) -> None:
         """Initialize test worker."""
         super().__init__(parent)
+        self.name: str = "test_worker"  # Add missing name attribute
         self.test_result: Any = "success"
         self.test_error: str | None = None
         self.progress_values: list[int] = [25, 50, 75, 100]
@@ -829,7 +862,7 @@ class ThreadSafeTestImage:
             color = QColor(255, 255, 255)
         self._image.fill(color)
 
-    def scaled(self, width: int, height: int) -> "ThreadSafeTestImage":
+    def scaled(self, width: int, height: int) -> ThreadSafeTestImage:
         """Scale the image."""
         new_image = ThreadSafeTestImage(width, height)
         new_image._image = self._image.scaled(width, height)
@@ -878,7 +911,7 @@ class TestPILImage:
         # Test double: just record that save was called
         pass
 
-    def convert(self, mode: str) -> "TestPILImage":
+    def convert(self, mode: str) -> TestPILImage:
         """Convert image mode."""
         new_image = TestPILImage(self._width, self._height, mode)
         new_image._thumbnail_called = self._thumbnail_called

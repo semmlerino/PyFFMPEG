@@ -106,7 +106,7 @@ class ThumbnailProcessor:
         """
         try:
             file_size_mb = source_path.stat().st_size / (1024 * 1024)
-        except (OSError, IOError):
+        except OSError:
             file_size_mb = 0
 
         suffix_lower = source_path.suffix.lower()
@@ -893,7 +893,7 @@ class ThumbnailProcessor:
         if temp_path.exists():
             try:
                 temp_path.unlink()
-            except (OSError, IOError):
+            except OSError:
                 pass  # Ignore cleanup errors
 
     def __repr__(self) -> str:

@@ -192,7 +192,17 @@ class TestWorkspaceCommandProperties:
                 parts = path.split("/")
                 assert shot.show == parts[2]
                 assert shot.sequence == parts[4]
-                assert shot.shot == parts[5]
+                # Shot is extracted from shot_dir by removing sequence prefix
+                # e.g., "seq000_0000" -> "0000"
+                shot_dir = parts[5]
+                sequence = parts[4]
+                if shot_dir.startswith(f"{sequence}_"):
+                    expected_shot = shot_dir[len(sequence) + 1 :]
+                else:
+                    # Fallback logic matches what's in base_shot_model.py
+                    shot_parts = shot_dir.rsplit("_", 1)
+                    expected_shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
+                assert shot.shot == expected_shot
 
     @given(
         st.text(

@@ -102,8 +102,14 @@ class TimeoutConfig:
             setattr(cls, "FILE_SEARCH_QUICK", int(cls.FILE_SEARCH_QUICK * factor))
             setattr(cls, "FILE_SEARCH_STANDARD", int(cls.FILE_SEARCH_STANDARD * factor))
             setattr(cls, "FILE_SEARCH_DEEP", int(cls.FILE_SEARCH_DEEP * factor))
-            setattr(cls, "FILE_NETWORK_OPERATION", int(cls.FILE_NETWORK_OPERATION * factor))
-            setattr(cls, "WORKSPACE_COMMAND_DEFAULT", int(cls.WORKSPACE_COMMAND_DEFAULT * factor))
+            setattr(
+                cls, "FILE_NETWORK_OPERATION", int(cls.FILE_NETWORK_OPERATION * factor)
+            )
+            setattr(
+                cls,
+                "WORKSPACE_COMMAND_DEFAULT",
+                int(cls.WORKSPACE_COMMAND_DEFAULT * factor),
+            )
 
     @classmethod
     def get_config_summary(cls) -> str:

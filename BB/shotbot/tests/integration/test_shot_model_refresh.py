@@ -158,7 +158,9 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         cache = real_cache_manager
 
         # Provide test data
-        model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/seq01_shot01""")
+        model._process_pool.set_outputs(
+            """workspace /shows/test/shots/seq01/seq01_shot01"""
+        )
 
         # Refresh shots
         result = model.refresh_shots()
@@ -250,7 +252,9 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
         model, test_pool = shot_model_with_test_pool
 
         # Initial refresh
-        model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/seq01_shot01""")
+        model._process_pool.set_outputs(
+            """workspace /shows/test/shots/seq01/seq01_shot01"""
+        )
         model.refresh_shots()
         assert len(model.get_shots()) == 1
 
@@ -261,7 +265,9 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
         assert "ws -sg" not in model._process_pool._cache
 
         # Next refresh should fetch fresh data
-        model._process_pool.set_outputs("""workspace /shows/test/shots/seq01/seq01_shot02""")
+        model._process_pool.set_outputs(
+            """workspace /shows/test/shots/seq01/seq01_shot02"""
+        )
         result2 = model.refresh_shots()
 
         assert result2.has_changes is True

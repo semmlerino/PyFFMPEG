@@ -128,9 +128,15 @@ class Config:
     )
 
     # Enhanced cache settings
-    PATH_CACHE_TTL_SECONDS = 0  # Path validation (0 = no automatic expiry, manual refresh only)
-    DIR_CACHE_TTL_SECONDS = 0  # Directory listings (0 = no automatic expiry, manual refresh only) 
-    SCENE_CACHE_TTL_SECONDS = 0  # 3DE scenes (0 = no automatic expiry, manual refresh only)
+    PATH_CACHE_TTL_SECONDS = (
+        0  # Path validation (0 = no automatic expiry, manual refresh only)
+    )
+    DIR_CACHE_TTL_SECONDS = (
+        0  # Directory listings (0 = no automatic expiry, manual refresh only)
+    )
+    SCENE_CACHE_TTL_SECONDS = (
+        0  # 3DE scenes (0 = no automatic expiry, manual refresh only)
+    )
 
     # Cache size limits
     PATH_CACHE_MAX_SIZE = 5000  # Maximum path cache entries
@@ -357,8 +363,10 @@ class ThreadingConfig:
     # Thread pool settings
     MAX_WORKER_THREADS = 4  # Maximum number of worker threads
     THREAD_POOL_TIMEOUT = 5.0  # Thread pool operation timeout
-    
+
     # Previous shots parallel scanning
     PREVIOUS_SHOTS_PARALLEL_WORKERS = 4  # Number of parallel workers for shot scanning
     PREVIOUS_SHOTS_SCAN_TIMEOUT = 30  # Timeout per show (seconds)
-    PREVIOUS_SHOTS_CACHE_TTL = 0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)
+    PREVIOUS_SHOTS_CACHE_TTL = (
+        0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)
+    )

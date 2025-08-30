@@ -31,9 +31,9 @@ class TestFeatureFlagSwitching:
         self.temp_dir.cleanup()
 
     def test_standard_model_when_flag_not_set(self, qtbot):
-        """Test that ShotModel is used when feature flag is not set."""
-        # Clear environment variable
-        os.environ.pop("SHOTBOT_OPTIMIZED_MODE", None)
+        """Test that OptimizedShotModel is used when legacy flag is not set (default behavior)."""
+        # Clear environment variable to use default
+        os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
         # Create main window with proper Qt management
         with patch("main_window.CacheManager") as MockCacheManager:
@@ -44,24 +44,26 @@ class TestFeatureFlagSwitching:
 
             # Mock QTimer to prevent delayed operations
             with patch("PySide6.QtCore.QTimer.singleShot"):
-                window = MainWindow()
-                qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+                # Mock ProcessPoolManager to avoid subprocess calls
+                with patch("shot_model_optimized.ProcessPoolManager"):
+                    window = MainWindow()
+                    qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
-                # Verify standard ShotModel is used
-                assert isinstance(window.shot_model, ShotModel)
-                assert not isinstance(window.shot_model, OptimizedShotModel)
+                    # Verify OptimizedShotModel is used by default
+                    assert isinstance(window.shot_model, OptimizedShotModel)
+                    assert isinstance(window.shot_model, BaseShotModel)
 
-                # Clean up any threads if present
-                if hasattr(window, "_threede_worker") and window._threede_worker:
-                    if window._threede_worker.isRunning():
-                        window._threede_worker.quit()
-                        window._threede_worker.wait(1000)
-                window.close()
+                    # Clean up any threads if present
+                    if hasattr(window, "_threede_worker") and window._threede_worker:
+                        if window._threede_worker.isRunning():
+                            window._threede_worker.quit()
+                            window._threede_worker.wait(1000)
+                    window.close()
 
-    def test_optimized_model_when_flag_set(self, qtbot):
-        """Test that OptimizedShotModel is used when feature flag is set."""
+    def test_legacy_model_when_flag_set(self, qtbot):
+        """Test that ShotModel is used when legacy flag is set."""
         # Set environment variable
-        os.environ["SHOTBOT_OPTIMIZED_MODE"] = "1"
+        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
         try:
             # Create main window with proper Qt management
@@ -76,9 +78,9 @@ class TestFeatureFlagSwitching:
                     window = MainWindow()
                     qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
-                    # Verify OptimizedShotModel is used
-                    assert isinstance(window.shot_model, OptimizedShotModel)
-                    assert isinstance(window.shot_model, BaseShotModel)
+                    # Verify ShotModel is used when legacy flag is set
+                    assert isinstance(window.shot_model, ShotModel)
+                    assert not isinstance(window.shot_model, OptimizedShotModel)
 
                     # Clean up any threads if present
                     if hasattr(window, "_threede_worker") and window._threede_worker:
@@ -88,27 +90,27 @@ class TestFeatureFlagSwitching:
                     window.close()
         finally:
             # Clean up environment
-            os.environ.pop("SHOTBOT_OPTIMIZED_MODE", None)
+            os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
     def test_flag_values_recognized(self, qtbot):
-        """Test that various flag values are recognized correctly."""
+        """Test that various flag values are recognized correctly for legacy model."""
         test_cases = [
-            ("1", True),
-            ("true", True),
-            ("True", True),
-            ("TRUE", True),
-            ("yes", True),
-            ("Yes", True),
-            ("YES", True),
-            ("0", False),
-            ("false", False),
-            ("no", False),
-            ("invalid", False),
-            ("", False),
+            ("1", True),  # Use legacy ShotModel
+            ("true", True),  # Use legacy ShotModel
+            ("True", True),  # Use legacy ShotModel
+            ("TRUE", True),  # Use legacy ShotModel
+            ("yes", True),  # Use legacy ShotModel
+            ("Yes", True),  # Use legacy ShotModel
+            ("YES", True),  # Use legacy ShotModel
+            ("0", False),  # Use default OptimizedShotModel
+            ("false", False),  # Use default OptimizedShotModel
+            ("no", False),  # Use default OptimizedShotModel
+            ("invalid", False),  # Use default OptimizedShotModel
+            ("", False),  # Use default OptimizedShotModel
         ]
 
-        for value, expected_optimized in test_cases:
-            os.environ["SHOTBOT_OPTIMIZED_MODE"] = value
+        for value, expected_legacy in test_cases:
+            os.environ["SHOTBOT_USE_LEGACY_MODEL"] = value
 
             try:
                 with patch("main_window.CacheManager") as MockCacheManager:
@@ -119,14 +121,33 @@ class TestFeatureFlagSwitching:
 
                     # Mock QTimer to prevent delayed operations
                     with patch("PySide6.QtCore.QTimer.singleShot"):
-                        window = MainWindow()
-                        qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+                        # Handle different model types with appropriate mocking
+                        if not expected_legacy:
+                            # Use OptimizedShotModel, need to mock ProcessPoolManager
+                            with patch("shot_model_optimized.ProcessPoolManager"):
+                                window = MainWindow()
+                                qtbot.addWidget(
+                                    window
+                                )  # CRITICAL: Register for cleanup
 
-                        if expected_optimized:
-                            assert isinstance(window.shot_model, OptimizedShotModel), (
-                                f"Expected OptimizedShotModel for value '{value}'"
-                            )
+                                assert isinstance(
+                                    window.shot_model, OptimizedShotModel
+                                ), f"Expected OptimizedShotModel for value '{value}'"
+
+                                # Clean up any threads if present
+                                if (
+                                    hasattr(window, "_threede_worker")
+                                    and window._threede_worker
+                                ):
+                                    if window._threede_worker.isRunning():
+                                        window._threede_worker.quit()
+                                        window._threede_worker.wait(1000)
+                                window.close()
                         else:
+                            # Use legacy ShotModel, no ProcessPoolManager needed
+                            window = MainWindow()
+                            qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+
                             assert isinstance(window.shot_model, ShotModel), (
                                 f"Expected ShotModel for value '{value}'"
                             )
@@ -134,17 +155,17 @@ class TestFeatureFlagSwitching:
                                 window.shot_model, OptimizedShotModel
                             ), f"Should not be OptimizedShotModel for value '{value}'"
 
-                        # Clean up any threads if present
-                        if (
-                            hasattr(window, "_threede_worker")
-                            and window._threede_worker
-                        ):
-                            if window._threede_worker.isRunning():
-                                window._threede_worker.quit()
-                                window._threede_worker.wait(1000)
-                        window.close()
+                            # Clean up any threads if present
+                            if (
+                                hasattr(window, "_threede_worker")
+                                and window._threede_worker
+                            ):
+                                if window._threede_worker.isRunning():
+                                    window._threede_worker.quit()
+                                    window._threede_worker.wait(1000)
+                            window.close()
             finally:
-                os.environ.pop("SHOTBOT_OPTIMIZED_MODE", None)
+                os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
     def test_both_models_share_same_interface(self):
         """Test that both models implement the same interface."""
@@ -290,9 +311,9 @@ class TestMainWindowIntegration:
         self.qtbot = qtbot
         yield
 
-    def test_window_initialization_with_standard_model(self, qtbot):
-        """Test that MainWindow initializes correctly with standard model."""
-        os.environ.pop("SHOTBOT_OPTIMIZED_MODE", None)
+    def test_window_initialization_with_default_model(self, qtbot):
+        """Test that MainWindow initializes correctly with default optimized model."""
+        os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
         with patch("main_window.CacheManager") as MockCacheManager:
             mock_cache = Mock()
@@ -302,22 +323,25 @@ class TestMainWindowIntegration:
 
             # Mock QTimer to prevent delayed operations
             with patch("PySide6.QtCore.QTimer.singleShot"):
-                # Should not raise any exceptions
-                window = MainWindow()
-                qtbot.addWidget(window)  # CRITICAL: Register for cleanup
-                assert window is not None
-                assert window.shot_model is not None
+                # Mock ProcessPoolManager for OptimizedShotModel
+                with patch("shot_model_optimized.ProcessPoolManager"):
+                    # Should not raise any exceptions
+                    window = MainWindow()
+                    qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+                    assert window is not None
+                    assert window.shot_model is not None
+                    assert isinstance(window.shot_model, OptimizedShotModel)
 
-                # Clean up any threads if present
-                if hasattr(window, "_threede_worker") and window._threede_worker:
-                    if window._threede_worker.isRunning():
-                        window._threede_worker.quit()
-                        window._threede_worker.wait(1000)
-                window.close()
+                    # Clean up any threads if present
+                    if hasattr(window, "_threede_worker") and window._threede_worker:
+                        if window._threede_worker.isRunning():
+                            window._threede_worker.quit()
+                            window._threede_worker.wait(1000)
+                    window.close()
 
-    def test_window_initialization_with_optimized_model(self, qtbot):
-        """Test that MainWindow initializes correctly with optimized model."""
-        os.environ["SHOTBOT_OPTIMIZED_MODE"] = "1"
+    def test_window_initialization_with_legacy_model(self, qtbot):
+        """Test that MainWindow initializes correctly with legacy model."""
+        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
         try:
             with patch("main_window.CacheManager") as MockCacheManager:
@@ -328,30 +352,27 @@ class TestMainWindowIntegration:
 
                 # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
-                    # Mock ProcessPoolManager to avoid subprocess calls
-                    with patch("shot_model_optimized.ProcessPoolManager"):
-                        # Should not raise any exceptions
-                        window = MainWindow()
-                        qtbot.addWidget(window)  # CRITICAL: Register for cleanup
-                        assert window is not None
-                        assert window.shot_model is not None
-                        assert isinstance(window.shot_model, OptimizedShotModel)
+                    # Should not raise any exceptions
+                    window = MainWindow()
+                    qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+                    assert window is not None
+                    assert window.shot_model is not None
+                    assert isinstance(window.shot_model, ShotModel)
+                    assert not isinstance(window.shot_model, OptimizedShotModel)
 
-                        # Clean up any threads if present
-                        if (
-                            hasattr(window, "_threede_worker")
-                            and window._threede_worker
-                        ):
-                            if window._threede_worker.isRunning():
-                                window._threede_worker.quit()
-                                window._threede_worker.wait(1000)
-                        window.close()
+                    # Clean up any threads if present
+                    if hasattr(window, "_threede_worker") and window._threede_worker:
+                        if window._threede_worker.isRunning():
+                            window._threede_worker.quit()
+                            window._threede_worker.wait(1000)
+                    window.close()
         finally:
-            os.environ.pop("SHOTBOT_OPTIMIZED_MODE", None)
+            os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
     def test_closeEvent_handles_optimized_model(self, qtbot):
-        """Test that closeEvent properly handles OptimizedShotModel cleanup."""
-        os.environ["SHOTBOT_OPTIMIZED_MODE"] = "1"
+        """Test that closeEvent properly handles OptimizedShotModel cleanup (default behavior)."""
+        # Use default OptimizedShotModel (no environment variable needed)
+        os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
         try:
             with patch("main_window.CacheManager") as MockCacheManager:
@@ -378,7 +399,7 @@ class TestMainWindowIntegration:
                         # Verify cleanup was called
                         window.shot_model.cleanup.assert_called_once()
         finally:
-            os.environ.pop("SHOTBOT_OPTIMIZED_MODE", None)
+            pass  # No cleanup needed for default behavior
 
 
 if __name__ == "__main__":

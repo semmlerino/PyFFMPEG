@@ -5,7 +5,7 @@ by testing all the optimized code paths and performance improvements.
 
 Test Coverage Areas:
 1. Cache system effectiveness and TTL behavior
-2. Workload size estimation and strategy selection
+2. Adaptive discovery and strategy selection
 3. Different directory traversal methods (Python vs subprocess)
 4. Edge cases and error handling
 5. Memory optimization verification
@@ -67,7 +67,9 @@ class TestDirectoryCache:
     @patch("time.time")
     def test_cache_ttl_expiration(self, mock_time):
         """Test TTL expiration behavior - OPTIMIZED: Mock time instead of sleep."""
-        cache = DirectoryCache(ttl_seconds=0.1)  # Very short TTL
+        cache = DirectoryCache(
+            ttl_seconds=0.1, enable_auto_expiry=True
+        )  # Very short TTL with auto-expiry
 
         test_path = Path("/test/ttl")
         test_listing = [("expired.3de", False, True)]
@@ -154,54 +156,6 @@ class TestDirectoryCache:
         # Should have some entries and demonstrate cleanup behavior
         assert stats["total_entries"] <= 100
         # Test passes if cache manages its size appropriately
-
-
-class TestWorkloadSizeEstimation:
-    """Test workload size estimation and strategy selection."""
-
-    def test_workload_size_estimation_small(self, tmp_path):
-        """Test workload estimation for small projects."""
-        # Create small structure
-        shot_path = tmp_path / "small_shot"
-        user_dir = shot_path / "user"
-
-        # Create 3 users
-        for i in range(3):
-            user_path = user_dir / f"artist{i}"
-            user_path.mkdir(parents=True)
-
-        size = OptimizedThreeDESceneFinder._estimate_workload_size(str(shot_path))
-
-        # Should estimate ~9 files (3 users * 3 files average)
-        assert 5 <= size <= 15, f"Unexpected small workload size: {size}"
-
-    def test_workload_size_estimation_medium(self, tmp_path):
-        """Test workload estimation for medium projects."""
-        shot_path = tmp_path / "medium_shot"
-        user_dir = shot_path / "user"
-
-        # Create 10 users
-        for i in range(10):
-            user_path = user_dir / f"artist{i:02d}"
-            user_path.mkdir(parents=True)
-
-        size = OptimizedThreeDESceneFinder._estimate_workload_size(str(shot_path))
-
-        # Should estimate ~30 files (10 users * 3 files average)
-        assert 20 <= size <= 50, f"Unexpected medium workload size: {size}"
-
-    def test_workload_size_nonexistent(self):
-        """Test workload estimation for non-existent paths."""
-        size = OptimizedThreeDESceneFinder._estimate_workload_size("/nonexistent/path")
-        assert size == 0
-
-    def test_workload_size_no_users(self, tmp_path):
-        """Test workload estimation with no user directory."""
-        shot_path = tmp_path / "no_users"
-        shot_path.mkdir()
-
-        size = OptimizedThreeDESceneFinder._estimate_workload_size(str(shot_path))
-        assert size == 0
 
 
 class TestOptimizedFileFinding:

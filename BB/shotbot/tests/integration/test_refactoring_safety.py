@@ -229,17 +229,22 @@ class TestLauncherRefactoringSafety:
             category="Test",
         )
 
-        launcher_manager.create_launcher(new_launcher)
-        assert ("created", (new_launcher.id,)) in signal_emissions
+        created_id = launcher_manager.create_launcher(
+            name=new_launcher.name,
+            command=new_launcher.command,
+            description=new_launcher.description,
+            category=new_launcher.category,
+        )
+        assert created_id is not None
+        assert ("created", (created_id,)) in signal_emissions
 
         # Update launcher
-        new_launcher.name = "Updated Signal Test"
-        launcher_manager.update_launcher(new_launcher)
-        assert ("updated", (new_launcher.id,)) in signal_emissions
+        launcher_manager.update_launcher(created_id, name="Updated Signal Test")
+        assert ("updated", (created_id,)) in signal_emissions
 
         # Delete launcher
-        launcher_manager.delete_launcher(new_launcher.id)
-        assert ("deleted", (new_launcher.id,)) in signal_emissions
+        launcher_manager.delete_launcher(created_id)
+        assert ("deleted", (created_id,)) in signal_emissions
 
 
 class TestMainWindowRefactoringSafety:
@@ -259,7 +264,8 @@ class TestMainWindowRefactoringSafety:
         qtbot.addWidget(window)
 
         # Verify basic structure
-        assert window.windowTitle() == "ShotBot"
+        # Window title includes version, so check it starts with "ShotBot"
+        assert window.windowTitle().startswith("ShotBot")
         assert window.tab_widget is not None
         assert window.menuBar() is not None
         assert window.statusBar() is not None
@@ -322,6 +328,8 @@ class TestCombinedIntegration:
 
     def test_launcher_execution_from_ui(self, qapp, qtbot):
         """Verify launchers can be executed from UI context."""
+        import time
+
         from main_window import MainWindow
 
         with patch("subprocess.Popen"):
@@ -331,21 +339,23 @@ class TestCombinedIntegration:
             # Get launcher manager
             launcher_manager = window.launcher_manager
 
-            # Create test launcher
+            # Create test launcher with unique ID and name
+            unique_id = f"ui_test_{int(time.time() * 1000)}"
+            unique_name = f"UI Test Launcher {int(time.time() * 1000)}"
             launcher = CustomLauncher(
-                id="ui_test",
-                name="UI Test Launcher",
+                id=unique_id,
+                name=unique_name,
                 command="echo 'UI Test'",
                 description="Testing UI integration",
                 category="Test",
             )
 
             # Create launcher through UI's manager
-            assert launcher_manager.create_launcher(launcher)
+            assert launcher_manager.create_launcher_from_object(launcher)
 
             # Verify it appears in list
             launchers = launcher_manager.list_launchers()
-            assert any(launcher.id == "ui_test" for launcher in launchers)
+            assert any(launcher.id == unique_id for launcher in launchers)
 
 
 def test_import_compatibility():

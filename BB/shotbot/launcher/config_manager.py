@@ -43,7 +43,7 @@ class LauncherConfigManager:
             return {}
 
         try:
-            with open(self.config_file, "r") as f:
+            with open(self.config_file) as f:
                 data: dict[str, Any] = json.load(f)
 
             launchers: dict[str, Any] = {}

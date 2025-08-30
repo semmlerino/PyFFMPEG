@@ -5,12 +5,9 @@ from __future__ import annotations
 import logging
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from config import ThreadingConfig
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +64,7 @@ class MemoryManager:
             if size_bytes is None:
                 try:
                     size_bytes = file_path.stat().st_size
-                except (OSError, IOError) as e:
+                except OSError as e:
                     logger.debug(f"Failed to get size for {file_path}: {e}")
                     return False
 
@@ -235,7 +232,7 @@ class MemoryManager:
                                 (path_str, actual_size, tracked_size)
                             )
 
-                    except (OSError, IOError):
+                    except OSError:
                         invalid_paths.append(path_str)
 
             # Remove invalid entries
@@ -286,7 +283,7 @@ class MemoryManager:
                 else:
                     # File no longer exists, mark for removal
                     paths_to_remove.append(path_str)
-            except (OSError, IOError):
+            except OSError:
                 # Error accessing file, mark for removal
                 paths_to_remove.append(path_str)
 
@@ -318,7 +315,7 @@ class MemoryManager:
 
                 logger.debug(f"Evicted LRU item: {path.name} ({size / 1024:.1f}KB)")
 
-            except (OSError, IOError) as e:
+            except OSError as e:
                 logger.debug(f"Failed to evict item {path_str}: {e}")
 
         logger.info(

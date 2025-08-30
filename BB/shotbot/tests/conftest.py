@@ -541,7 +541,7 @@ def real_shot_model(real_cache_manager, test_process_pool):
 
     model = ShotModel(cache_manager=real_cache_manager, load_cache=False)
     # Only mock the subprocess boundary
-    model._process_pool = test_process_pool
+    model._process_pool = test_process_pool  # type: ignore[attr-defined]
 
     return model
 
@@ -665,7 +665,6 @@ def make_real_plate_files(tmp_path):
 # =============================================================================
 
 
-
 @pytest.fixture
 def make_test_launcher():
     """Factory for creating CustomLauncher instances."""
@@ -742,7 +741,7 @@ def common_test_paths():
 
 
 @pytest.fixture
-def temp_cache_dir(tmp_path: Path) -> TestConfigDir:
+def temp_cache_dir(tmp_path: Path) -> Path:
     """Create a temporary cache directory for testing."""
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
@@ -890,7 +889,7 @@ def benchmark_timer():
             self.end_time: float | None = None
             self.elapsed: float | None = None
 
-        def __enter__(self) -> "BenchmarkTimer":
+        def __enter__(self) -> BenchmarkTimer:
             self.start_time = time.perf_counter()
             return self
 
@@ -924,7 +923,7 @@ def memory_tracker():
             self.end_memory: int | None = None
             self.delta: int | None = None
 
-        def __enter__(self) -> "MemoryTracker":
+        def __enter__(self) -> MemoryTracker:
             gc.collect()
             self.start_memory = self.process.memory_info().rss
             return self
@@ -932,7 +931,7 @@ def memory_tracker():
         def __exit__(self, *args: Any) -> None:
             gc.collect()
             self.end_memory = self.process.memory_info().rss
-            if self.start_memory is not None:
+            if self.start_memory is not None and self.end_memory is not None:
                 self.delta = self.end_memory - self.start_memory
 
         def assert_under_mb(self, threshold_mb: float) -> None:
@@ -1016,3 +1015,77 @@ def thread_safety_monitor():
             return concurrent
 
     return ThreadSafetyMonitor()
+
+
+# =============================================================================
+# Autouse Fixtures for Test Safety
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def mock_gui_blocking_components(monkeypatch):
+    """Automatically mock GUI components that can hang tests.
+
+    This autouse fixture runs before every test to ensure:
+    1. QMessageBox never shows blocking dialogs that hang pytest
+    2. ProcessPoolManager uses TestProcessPool instead of real subprocesses
+    3. MainWindow can be safely created without triggering background threads that call GUI components
+    4. NotificationManager calls don't block from worker threads
+
+    This fixes the MainWindow test hang issue where:
+    - MainWindow creates OptimizedShotModel
+    - OptimizedShotModel starts AsyncShotLoader threads
+    - AsyncShotLoader threads may call NotificationManager.error()
+    - NotificationManager.error() calls QMessageBox.critical() from worker thread
+    - QMessageBox from non-main thread causes Qt to hang/crash
+    """
+    # Mock QMessageBox methods to prevent blocking dialogs
+    from PySide6.QtWidgets import QMessageBox
+
+    # Return appropriate button values immediately without showing dialogs
+    monkeypatch.setattr(
+        QMessageBox, "critical", lambda *args, **kwargs: QMessageBox.StandardButton.Ok
+    )
+    monkeypatch.setattr(
+        QMessageBox, "warning", lambda *args, **kwargs: QMessageBox.StandardButton.Ok
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "information",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Ok,
+    )
+
+    # Mock ProcessPoolManager.get_instance() to return TestProcessPool
+    # This prevents real subprocess execution that could trigger errors -> NotificationManager -> QMessageBox
+    from tests.test_doubles_library import TestProcessPool
+
+    test_pool = TestProcessPool()
+    # Set default successful output to prevent load_failed signals
+    test_pool.set_outputs("workspace /shows/test/shots/seq01/seq01_0010")
+
+    # Mock the singleton getter to return our test pool
+    monkeypatch.setattr(
+        "process_pool_manager.ProcessPoolManager.get_instance", lambda: test_pool
+    )
+
+    # Also patch it at the module level for direct imports
+    import threading
+
+    import process_pool_manager
+
+    # Create MockProcessPoolManager with required class attributes
+    MockProcessPoolManagerClass = type(
+        "MockProcessPoolManager",
+        (),
+        {
+            "get_instance": staticmethod(lambda: test_pool),
+            "_lock": threading.Lock(),  # Required class attribute for singleton pattern
+        },
+    )
+
+    monkeypatch.setattr(
+        process_pool_manager, "ProcessPoolManager", MockProcessPoolManagerClass
+    )
+
+    # Store reference for tests that need to access it
+    return test_pool
