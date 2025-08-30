@@ -340,9 +340,17 @@ manager.create_launcher(launcher)
 
 ### Type Checking
 ```bash
-# Run type checking with basedpyright
-basedpyright --typeCheckingMode=basic
+# Run type checking with basedpyright (uses tests/pyrightconfig.json)
+basedpyright
 
-# WSL compatibility
+# From tests directory for enhanced configuration
+cd tests && basedpyright
+
+# WSL compatibility if needed
 basedpyright --typeshedpath venv/lib/python3.12/site-packages/basedpyright/dist/typeshed-fallback
 ```
+
+**Type Checker Configuration**: The project uses `tests/pyrightconfig.json` for comprehensive type checking settings including:
+- Basic type checking mode with Python 3.12 target
+- Enhanced reporting for type issues (unknown members, arguments, etc.)
+- Strict error reporting for unnecessary type ignore comments

@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""Comprehensive Python 3.11 compatibility checker."""
+
+import ast
+import sys
+from pathlib import Path
+from typing import List, Tuple
+
+def check_file_syntax(filepath: Path) -> List[str]:
+    """Check a Python file for Python 3.11 compatibility issues."""
+    issues = []
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+        # Parse the AST
+        tree = ast.parse(content, str(filepath))
+        
+        # Check for specific patterns
+        for node in ast.walk(tree):
+            # Check for type parameter syntax (PEP 695) - Python 3.12+
+            if hasattr(ast, 'TypeAlias') and isinstance(node, ast.TypeAlias):
+                issues.append(f"Type parameter syntax (PEP 695) used at line {node.lineno}")
+                
+            # Check for improved f-strings (PEP 701) - Python 3.12+
+            if isinstance(node, ast.JoinedStr):
+                for value in node.values:
+                    if isinstance(value, ast.FormattedValue):
+                        # Check for nested f-strings or multiline expressions
+                        if hasattr(value, 'format_spec') and value.format_spec:
+                            if isinstance(value.format_spec, ast.JoinedStr):
+                                issues.append(f"Nested f-string at line {node.lineno} (Python 3.12+)")
+                                
+        # Check imports
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                if node.module == 'typing':
+                    # Check for Python 3.12+ only imports from typing
+                    for alias in node.names:
+                        if alias.name == 'override':
+                            issues.append(f"Line {node.lineno}: 'override' imported from typing (Python 3.12+ only)")
+                            
+    except SyntaxError as e:
+        issues.append(f"Syntax error: {e}")
+    except Exception as e:
+        issues.append(f"Error checking file: {e}")
+        
+    return issues
+
+def main():
+    """Check all Python files in the project."""
+    # Get all Python files, excluding venv and test_venv
+    python_files = []
+    for pattern in ['*.py', '**/*.py']:
+        for path in Path('.').glob(pattern):
+            if 'venv' not in str(path) and 'test_venv' not in str(path):
+                python_files.append(path)
+    
+    print(f"Checking {len(python_files)} Python files for Python 3.11 compatibility...")
+    print()
+    
+    all_issues = []
+    for filepath in sorted(python_files):
+        issues = check_file_syntax(filepath)
+        if issues:
+            all_issues.append((filepath, issues))
+            
+    if all_issues:
+        print("❌ Compatibility issues found:")
+        for filepath, issues in all_issues:
+            print(f"\n{filepath}:")
+            for issue in issues:
+                print(f"  - {issue}")
+    else:
+        print("✅ All files are Python 3.11 compatible!")
+        
+    # Also check for match/case usage (Python 3.10+, so compatible with 3.11)
+    print("\n📝 Files using match/case (Python 3.10+, compatible with 3.11):")
+    for filepath in sorted(python_files):
+        try:
+            with open(filepath, 'r') as f:
+                content = f.read()
+                if 'match ' in content and 'case ' in content:
+                    print(f"  - {filepath}")
+        except:
+            pass
+            
+    return 0 if not all_issues else 1
+
+if __name__ == '__main__':
+    sys.exit(main())

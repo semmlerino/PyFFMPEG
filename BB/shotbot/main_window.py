@@ -1726,7 +1726,7 @@ class MainWindow(QMainWindow):
             self.shot_model.cleanup()
 
         # Shutdown cache manager
-        self.cache_manager.shutdown()  # type: ignore[attr-defined]
+        self.cache_manager.shutdown()
 
         self._save_settings()
         event.accept()

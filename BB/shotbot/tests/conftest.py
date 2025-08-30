@@ -665,16 +665,6 @@ def make_real_plate_files(tmp_path):
 # =============================================================================
 
 
-@pytest.fixture
-def make_test_process():
-    """Factory for creating TestProcessDouble instances."""
-    from tests.unit.test_launcher_manager_coverage import TestProcessDouble
-
-    def _make_process(command="test_cmd", return_code=0, should_hang=False):
-        return TestProcessDouble(command, return_code, should_hang)
-
-    return _make_process
-
 
 @pytest.fixture
 def make_test_launcher():
@@ -872,14 +862,14 @@ def test_image_file(tmp_path):
 
         # Create a simple 100x100 red image
         img = Image.new("RGB", (100, 100), color="red")
-        img.save(str(image_file), "JPEG")
+        img.save(str(image_file), format="JPEG")
     except ImportError:
         # Fall back to Qt if PIL not available
         from PySide6.QtGui import QColor, QImage
 
         img = QImage(100, 100, QImage.Format.Format_RGB32)
         img.fill(QColor(255, 0, 0))  # Red
-        img.save(str(image_file), "JPEG")
+        img.save(str(image_file), "JPEG")  # type: ignore[reportCallIssue,reportArgumentType]
 
     return image_file  # Return Path object, not string
 

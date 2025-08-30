@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class ProgressCalculator:
     """Helper class for calculating progress and ETA during file scanning."""
 
-    def __init__(self, smoothing_window: int | None = None):  # pyright: ignore[reportMissingSuperCall]
+    def __init__(self, smoothing_window: int | None = None):
         """Initialize progress calculator.
 
         Args:
@@ -151,7 +151,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
     def __init__(
         self,
         shots: list[Shot],
-        excluded_users: set[str | None] = None,
+        excluded_users: set[str] | None = None,
         batch_size: int | None = None,
         enable_progressive: bool = True,
         scan_all_shots: bool = False,

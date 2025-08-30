@@ -24,8 +24,7 @@ from unittest.mock import Mock
 import pytest
 from PySide6.QtWidgets import QApplication
 
-# pyright: basic  # Less strict for test configuration
-# pyright: reportPrivateUsage=false  # Allow testing private methods
+# pyright: reportPrivateUsage=false
 # Import test patterns
 from tests.test_type_safe_patterns import (
     ProcessPoolProtocol,
@@ -46,7 +45,7 @@ class TestQApplication:
         """Get or create test QApplication instance."""
         if cls._instance is None:
             existing = QApplication.instance()
-            if existing is not None:
+            if existing is not None and isinstance(existing, QApplication):
                 cls._instance = existing
             else:
                 cls._instance = QApplication([])
@@ -59,7 +58,7 @@ class TestQApplication:
 
 
 @pytest.fixture(scope="session")
-def qt_app() -> QApplication:
+def qt_app() -> Iterator[QApplication]:
     """Session-scoped QApplication fixture with proper cleanup."""
     app = TestQApplication.get_instance()
     yield app
@@ -207,13 +206,13 @@ workspace /shows/TEST/seq02/0010"""
         )
 
         # Configure with proper typing awareness
-        mock.execute_workspace_command.return_value = default_output  # pyright: ignore[reportUnknownMemberType]
+        mock.execute_workspace_command.return_value = default_output
 
     @staticmethod
     def configure_launcher_mock(mock: Mock) -> None:
         """Configure LauncherManager mock with standard responses."""
-        mock.launch_application.return_value = True  # pyright: ignore[reportUnknownMemberType]
-        mock.get_custom_launchers.return_value = []  # pyright: ignore[reportUnknownMemberType]
+        mock.launch_application.return_value = True
+        mock.get_custom_launchers.return_value = []
 
 
 @pytest.fixture

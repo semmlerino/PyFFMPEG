@@ -105,7 +105,7 @@ class LoadingSpinner(QWidget):
 
     def __init__(self, size: int = 40, parent: QWidget | None = None):
         super().__init__(parent)
-        self.size = size
+        self._size = size
         self.angle = 0
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._rotate)
@@ -127,7 +127,7 @@ class LoadingSpinner(QWidget):
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen)
 
-        rect = QRect(5, 5, self.size - 10, self.size - 10)
+        rect = QRect(5, 5, self._size - 10, self._size - 10)
         painter.drawArc(rect, self.angle * 16, 120 * 16)
 
     def start(self):
@@ -241,8 +241,9 @@ class NotificationBanner(QFrame):
         self.icon_label.setStyleSheet("font-size: 18px; color: white;")
 
         # Animate in
-        if self.parent():
-            parent_rect = self.parent().rect()
+        parent_widget = self.parent()
+        if isinstance(parent_widget, QWidget):
+            parent_rect = parent_widget.rect()
             start_rect = QRect(0, -self.height(), parent_rect.width(), self.height())
             end_rect = QRect(0, 0, parent_rect.width(), self.height())
 
@@ -261,8 +262,9 @@ class NotificationBanner(QFrame):
 
     def hide_banner(self):
         """Hide the banner with animation."""
-        if self.parent():
-            parent_rect = self.parent().rect()
+        parent_widget = self.parent()
+        if isinstance(parent_widget, QWidget):
+            parent_rect = parent_widget.rect()
             start_rect = self.geometry()
             end_rect = QRect(0, -self.height(), parent_rect.width(), self.height())
 
@@ -352,8 +354,9 @@ class ProgressOverlay(QWidget):
         self.progress_bar.setValue(0)
         self.status_label.setText("")
 
-        if self.parent():
-            self.resize(self.parent().size())
+        parent_widget = self.parent()
+        if isinstance(parent_widget, QWidget):
+            self.resize(parent_widget.size())
 
         self.spinner.start()
         self.show()
@@ -512,8 +515,9 @@ class FloatingActionButton(QPushButton):
 
     def _position_button(self):
         """Position the FAB in bottom-right corner."""
-        if self.parent():
-            parent_rect = self.parent().rect()
+        parent_widget = self.parent()
+        if isinstance(parent_widget, QWidget):
+            parent_rect = parent_widget.rect()
             x = parent_rect.width() - self.width() - 24
             y = parent_rect.height() - self.height() - 24
             self.move(x, y)

@@ -6,7 +6,7 @@ keyboard navigation, and tooltip management.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 
 from PySide6.QtWidgets import QListView, QPushButton, QSlider, QTabWidget, QWidget
 
@@ -66,18 +66,24 @@ class AccessibilityManager:
         )
 
         # Set up for child widgets if they exist
-        if hasattr(grid_widget, "size_slider") and grid_widget.size_slider is not None:
-            AccessibilityManager.setup_slider_accessibility(
-                grid_widget.size_slider,
-                "Thumbnail Size",
-                "Adjust thumbnail size from 100 to 400 pixels. Use arrow keys or Ctrl+Mouse Wheel.",
-            )
+        if hasattr(grid_widget, "size_slider"):
+            # Cast to GridWidget protocol to access size_slider attribute safely
+            grid = cast(GridWidget, grid_widget)
+            if grid.size_slider is not None:
+                AccessibilityManager.setup_slider_accessibility(
+                    grid.size_slider,
+                    "Thumbnail Size",
+                    "Adjust thumbnail size from 100 to 400 pixels. Use arrow keys or Ctrl+Mouse Wheel.",
+                )
 
-        if hasattr(grid_widget, "list_view") and grid_widget.list_view is not None:
-            grid_widget.list_view.setAccessibleName(f"{grid_type.title()} List")
-            grid_widget.list_view.setAccessibleDescription(
-                f"List of {grid_type} items. Use arrow keys to navigate, Enter to select."
-            )
+        if hasattr(grid_widget, "list_view"):
+            # Cast to GridWidget protocol to access list_view attribute safely
+            grid = cast(GridWidget, grid_widget)
+            if grid.list_view is not None:
+                grid.list_view.setAccessibleName(f"{grid_type.title()} List")
+                grid.list_view.setAccessibleDescription(
+                    f"List of {grid_type} items. Use arrow keys to navigate, Enter to select."
+                )
 
     @staticmethod
     def setup_button_accessibility(

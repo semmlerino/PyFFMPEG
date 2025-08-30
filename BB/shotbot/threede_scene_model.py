@@ -85,7 +85,7 @@ class ThreeDEScene:
                 return thumbnail
 
         # Fall back to turnover plate thumbnails
-        thumbnail = PathUtils.find_turnover_plate_thumbnail(  # type: ignore[attr-defined]
+        thumbnail = PathUtils.find_turnover_plate_thumbnail(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,
@@ -96,7 +96,7 @@ class ThreeDEScene:
             return thumbnail
 
         # Third fallback: any EXR with 1001 in publish folder
-        thumbnail = PathUtils.find_any_publish_thumbnail(  # type: ignore[attr-defined]
+        thumbnail = PathUtils.find_any_publish_thumbnail(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,

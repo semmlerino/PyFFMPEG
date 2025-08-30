@@ -31,7 +31,7 @@ class ShotBotError(Exception):
     def __init__(
         self,
         message: str,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
         error_code: str | None = None,
     ):
         """Initialize ShotBot error.
@@ -66,7 +66,7 @@ class WorkspaceError(ShotBotError):
         message: str,
         workspace_path: str | None = None,
         command: str | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Initialize workspace error.
 
@@ -100,7 +100,7 @@ class ThumbnailError(ShotBotError):
         image_path: str | None = None,
         thumbnail_path: str | None = None,
         reason: str | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Initialize thumbnail error.
 
@@ -139,7 +139,7 @@ class SecurityError(ShotBotError):
         message: str,
         violation_type: str | None = None,
         attempted_command: str | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Initialize security error.
 
@@ -173,7 +173,7 @@ class LauncherError(ShotBotError):
         launcher_name: str | None = None,
         launcher_command: str | None = None,
         exit_code: int | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Initialize launcher error.
 
@@ -210,7 +210,7 @@ class CacheError(ShotBotError):
         cache_key: str | None = None,
         cache_file: str | None = None,
         operation: str | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Initialize cache error.
 
@@ -247,7 +247,7 @@ class NetworkError(ShotBotError):
         url: str | None = None,
         status_code: int | None = None,
         timeout: float | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Initialize network error.
 
@@ -285,7 +285,7 @@ class ConfigurationError(ShotBotError):
         config_file: str | None = None,
         expected_value: Any | None = None,
         actual_value: Any | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Initialize configuration error.
 
@@ -325,7 +325,7 @@ class ValidationError(ShotBotError):
         field: str | None = None,
         value: Any | None = None,
         constraint: str | None = None,
-        details: dict[str, Any | None] = None,
+        details: dict[str, Any | None] | None = None,
     ):
         """Initialize validation error.
 

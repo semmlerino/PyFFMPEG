@@ -99,11 +99,11 @@ class TimeoutConfig:
         if latency_ms > 100:  # High latency network
             # Increase file and network operation timeouts
             factor = 1 + (latency_ms / 100) * 0.5  # Scale factor based on latency
-            cls.FILE_SEARCH_QUICK = int(cls.FILE_SEARCH_QUICK * factor)
-            cls.FILE_SEARCH_STANDARD = int(cls.FILE_SEARCH_STANDARD * factor)
-            cls.FILE_SEARCH_DEEP = int(cls.FILE_SEARCH_DEEP * factor)
-            cls.FILE_NETWORK_OPERATION = int(cls.FILE_NETWORK_OPERATION * factor)
-            cls.WORKSPACE_COMMAND_DEFAULT = int(cls.WORKSPACE_COMMAND_DEFAULT * factor)
+            setattr(cls, "FILE_SEARCH_QUICK", int(cls.FILE_SEARCH_QUICK * factor))
+            setattr(cls, "FILE_SEARCH_STANDARD", int(cls.FILE_SEARCH_STANDARD * factor))
+            setattr(cls, "FILE_SEARCH_DEEP", int(cls.FILE_SEARCH_DEEP * factor))
+            setattr(cls, "FILE_NETWORK_OPERATION", int(cls.FILE_NETWORK_OPERATION * factor))
+            setattr(cls, "WORKSPACE_COMMAND_DEFAULT", int(cls.WORKSPACE_COMMAND_DEFAULT * factor))
 
     @classmethod
     def get_config_summary(cls) -> str:

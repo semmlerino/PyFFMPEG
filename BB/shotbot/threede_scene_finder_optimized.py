@@ -90,11 +90,11 @@ class DirectoryCache:
         """Get cache statistics."""
         with self.lock:
             total_requests = self.stats["hits"] + self.stats["misses"]
-            hit_rate = (
-                (self.stats["hits"] / total_requests * 100) if total_requests > 0 else 0
+            hit_rate_float = (
+                (self.stats["hits"] / total_requests * 100) if total_requests > 0 else 0.0
             )
             return {
-                "hit_rate_percent": hit_rate,
+                "hit_rate_percent": int(hit_rate_float),
                 "total_entries": len(self.cache),
                 **self.stats,
             }
@@ -176,7 +176,7 @@ class OptimizedThreeDESceneFinder:
             return cached
 
         # Generate listing
-        listing = []
+        listing: list[tuple[str, bool, bool]] = []
         try:
             with os.scandir(path) as entries:
                 for entry in entries:
@@ -218,7 +218,7 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def _find_3de_files_python_optimized(
-        user_dir: Path, excluded_users: set[str]
+        user_dir: Path, excluded_users: set[str] | None
     ) -> list[tuple[str, Path]]:
         """Optimized Python-based .3de file discovery.
 
@@ -236,7 +236,7 @@ class OptimizedThreeDESceneFinder:
             logger.debug(f"Excluded users: {excluded_users}")
 
             for entry_name, is_dir, is_file in user_entries:
-                if is_dir and entry_name not in excluded_users:
+                if is_dir and (excluded_users is None or entry_name not in excluded_users):
                     user_path = user_dir / entry_name
                     logger.debug(f"Searching for .3de files in user directory: {user_path}")
 
@@ -263,7 +263,7 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def _find_3de_files_subprocess_optimized(
-        user_dir: Path, excluded_users: set[str]
+        user_dir: Path, excluded_users: set[str] | None
     ) -> list[tuple[str, Path]]:
         """Optimized subprocess-based .3de file discovery for large workloads."""
         files = []
@@ -271,8 +271,9 @@ class OptimizedThreeDESceneFinder:
         try:
             # Build exclusion patterns for find command
             exclusions = []
-            for excluded_user in excluded_users:
-                exclusions.extend(["-not", "-path", f"*/{excluded_user}/*"])
+            if excluded_users:
+                for excluded_user in excluded_users:
+                    exclusions.extend(["-not", "-path", f"*/{excluded_user}/*"])
 
             # Single optimized find command
             cmd = [
@@ -302,7 +303,7 @@ class OptimizedThreeDESceneFinder:
                             relative_path = file_path.relative_to(user_dir)
                             if relative_path.parts:
                                 username = relative_path.parts[0]
-                                if username not in excluded_users:
+                                if excluded_users is None or username not in excluded_users:
                                     files.append((username, file_path))
                         except ValueError:
                             # File not under user_dir, skip
@@ -371,7 +372,7 @@ class OptimizedThreeDESceneFinder:
         show: str,
         sequence: str,
         shot: str,
-        excluded_users: set[str | None] = None,
+        excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Optimized version of find_scenes_for_shot with 5x+ performance improvement."""
 
@@ -651,7 +652,7 @@ class OptimizedThreeDESceneFinder:
     @staticmethod
     def find_all_scenes_in_shows_efficient(
         user_shots: List,  # List of Shot objects
-        excluded_users: set[str | None] = None,
+        excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Efficient version that finds scenes across ALL shots in the shows.
 
@@ -729,6 +730,103 @@ class OptimizedThreeDESceneFinder:
             f"Found {len(all_scenes)} total scenes across all shots in shows"
         )
         return all_scenes
+
+    @staticmethod
+    def estimate_scan_size(
+        shot_tuples: list[tuple[str, str, str, str]], 
+        excluded_users: set[str] | None = None
+    ) -> tuple[int, int]:
+        """Estimate the size of a scan operation.
+        
+        Args:
+            shot_tuples: List of (workspace_path, show, sequence, shot) tuples
+            excluded_users: Set of usernames to exclude
+            
+        Returns:
+            Tuple of (estimated_users, estimated_files)
+        """
+        if not shot_tuples:
+            return 0, 0
+            
+        total_estimated_users = 0
+        total_estimated_files = 0
+        
+        for workspace_path, show, sequence, shot in shot_tuples:
+            try:
+                shot_path = Path(workspace_path)
+                user_dir = shot_path / "user"
+                
+                if not user_dir.exists():
+                    continue
+                    
+                # Count user directories
+                user_count = 0
+                with os.scandir(user_dir) as entries:
+                    for entry in entries:
+                        if entry.is_dir():
+                            if excluded_users is None or entry.name not in excluded_users:
+                                user_count += 1
+                                
+                total_estimated_users += user_count
+                # Estimate 2-3 files per user on average
+                total_estimated_files += user_count * 3
+                
+            except (OSError, PermissionError):
+                # Use fallback estimate for inaccessible directories
+                total_estimated_files += 10
+                
+        return total_estimated_users, total_estimated_files
+
+    @staticmethod
+    def find_all_scenes_progressive(
+        shot_tuples: list[tuple[str, str, str, str]],
+        excluded_users: set[str] | None = None,
+        batch_size: int = 10,
+    ):
+        """Progressive scene finder that yields batches of results.
+        
+        Args:
+            shot_tuples: List of (workspace_path, show, sequence, shot) tuples
+            excluded_users: Set of usernames to exclude
+            batch_size: Number of scenes per batch
+            
+        Yields:
+            Tuple of (scene_batch, current_shot, total_shots, status_message)
+        """
+        if not shot_tuples:
+            return
+            
+        total_shots = len(shot_tuples)
+        current_batch = []
+        
+        for current_shot_idx, (workspace_path, show, sequence, shot) in enumerate(shot_tuples, 1):
+            status_msg = f"Scanning {show}/{sequence}/{shot}"
+            
+            try:
+                # Find scenes for this shot
+                scenes = OptimizedThreeDESceneFinder.find_scenes_for_shot(
+                    workspace_path, show, sequence, shot, excluded_users
+                )
+                
+                # Add to current batch
+                current_batch.extend(scenes)
+                
+                # Yield batch when it reaches the target size
+                if len(current_batch) >= batch_size:
+                    yield current_batch, current_shot_idx, total_shots, status_msg
+                    current_batch = []
+                else:
+                    # Yield empty batch with progress update
+                    yield [], current_shot_idx, total_shots, status_msg
+                    
+            except Exception as e:
+                logger.warning(f"Error scanning shot {workspace_path}: {e}")
+                # Yield empty batch to maintain progress
+                yield [], current_shot_idx, total_shots, f"Error: {status_msg}"
+                
+        # Yield any remaining scenes in the final batch
+        if current_batch:
+            yield current_batch, total_shots, total_shots, "Scan complete"
 
 
 # Backward compatibility: provide the same interface as original

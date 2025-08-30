@@ -406,7 +406,7 @@ class ShotModel(BaseShotModel):
         metrics = super().get_performance_metrics()
         # Add process pool metrics
         pool_metrics = self._process_pool.get_metrics()
-        metrics.update(pool_metrics)  # type: ignore[typeddict-item]
+        metrics.update(pool_metrics)
         return metrics
 
     # ================================================================

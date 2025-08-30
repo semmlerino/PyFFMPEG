@@ -55,7 +55,7 @@ class PreviousShotsGrid(QWidget):
         self._cache_manager = cache_manager or CacheManager()
         self._thumbnail_widgets: dict[str, ThumbnailWidget] = {}
         self._selected_shot: Shot | None = None
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE  # type: ignore[attr-defined]
+        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
 
         # PERFORMANCE: Resize debouncing timer
         self._resize_timer = QTimer()
@@ -79,7 +79,7 @@ class PreviousShotsGrid(QWidget):
         Returns:
             Current thumbnail size in pixels
         """
-        return self._thumbnail_size  # type: ignore[attr-defined]
+        return self._thumbnail_size
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
@@ -212,7 +212,7 @@ class PreviousShotsGrid(QWidget):
         self._grid_widget.show()
 
         # Calculate grid dimensions
-        columns = max(1, self.width() // (self._thumbnail_size + 20))  # type: ignore[attr-defined]
+        columns = max(1, self.width() // (self._thumbnail_size + 20))
 
         # Add thumbnails to grid
         for index, shot in enumerate(shots):
@@ -239,7 +239,7 @@ class PreviousShotsGrid(QWidget):
             ThumbnailWidget instance.
         """
         # FIX: ThumbnailWidget takes (shot, size) not (shot, cache_manager)
-        thumbnail = ThumbnailWidget(shot, self._thumbnail_size)  # type: ignore[attr-defined]
+        thumbnail = ThumbnailWidget(shot, self._thumbnail_size)
 
         # Set the cache manager for the widget class if needed
         if self._cache_manager:

@@ -232,7 +232,7 @@ class ApplicationBundler:
         Returns:
             List of (source_path, relative_path) tuples
         """
-        files_to_bundle: list[Path] = []
+        files_to_bundle: list[tuple[str, str]] = []
         source_dir = os.path.abspath(source_dir)
         max_size_bytes = self.config["max_file_size_mb"] * 1024 * 1024
 
