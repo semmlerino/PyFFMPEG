@@ -33,7 +33,16 @@
     "count_*.py",
     "fix_*.py",
     "test_startup_fix.py",
-    "*_backup.py"
+    "*_backup.py",
+    "shotbot_latest.txt",
+    "venv_py311/*",
+    "test_venv/*",
+    "*AGENT*.md",
+    "*WEEK*.md",
+    "*REVIEW*.md",
+    "*COMPLETE*.md",
+    "*GUIDE*.md",
+    "*PROGRESS*.md"
   ],
   "exclude_dirs": [
     "tests",
@@ -42,6 +51,8 @@
     ".git",
     ".pytest_cache",
     "venv",
+    "venv_py311",
+    "test_venv",
     "env",
     ".venv",
     ".env",
@@ -58,7 +69,10 @@
     "node_modules",
     "dist",
     "build",
-    ".eggs"
+    ".eggs",
+    "docs",
+    ".post-commit-output",
+    ".github"
   ],
   "max_file_size_mb": 10,
   "chunk_size_kb": 5120,
