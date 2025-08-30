@@ -5,16 +5,12 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from config import Config
+from type_definitions import CacheDataDict, CacheInfoDict, ThreeDESceneDict
 
 from .storage_backend import StorageBackend
-
-if TYPE_CHECKING:
-    pass
-
-from type_definitions import CacheDataDict, CacheInfoDict, ThreeDESceneDict
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +29,7 @@ class ThreeDECache:
         cache_file: Path,
         storage_backend: StorageBackend | None = None,
         expiry_minutes: int | None = None,
-    ):
+    ) -> None:
         """Initialize 3DE scene cache.
 
         Args:
@@ -56,7 +52,7 @@ class ThreeDECache:
         self._expiry_minutes = expiry_minutes
         logger.debug(f"ThreeDECache TTL updated to {expiry_minutes} minutes")
 
-    def get_cached_scenes(self) -> list["ThreeDESceneDict"] | None:
+    def get_cached_scenes(self) -> list[ThreeDESceneDict] | None:
         """Get cached 3DE scene list if valid and not expired.
 
         Returns:
@@ -85,7 +81,7 @@ class ThreeDECache:
 
     def cache_scenes(
         self,
-        scenes: list["ThreeDESceneDict"],
+        scenes: list[ThreeDESceneDict],
         metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Cache 3DE scene list with optional scan metadata.
@@ -298,6 +294,11 @@ class ThreeDECache:
         Returns:
             True if expired, False if still valid
         """
+        # If expiry_minutes is 0, never expire (manual refresh only)
+        if self._expiry_minutes == 0:
+            logger.debug("3DE cache: manual refresh mode, never expires")
+            return False
+
         try:
             cache_time = datetime.fromisoformat(
                 cache_data.get("timestamp", "1970-01-01")

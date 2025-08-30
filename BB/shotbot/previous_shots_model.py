@@ -91,6 +91,9 @@ class PreviousShotsModel(QObject):
 
         self.scan_started.emit()
 
+        # Clear caches for manual refresh
+        self._clear_caches_for_refresh()
+
         try:
             # Stop any existing worker
             if self._worker is not None:
@@ -282,6 +285,32 @@ class PreviousShotsModel(QObject):
             logger.info("Cleared previous shots cache")
         except Exception as e:
             logger.error(f"Error clearing previous shots cache: {e}")
+
+    def _clear_caches_for_refresh(self) -> None:
+        """Clear all relevant caches for manual refresh.
+        
+        This method clears directory caches, path caches, and filesystem caches
+        to ensure fresh data when manually refreshing.
+        """
+        try:
+            # Clear our own cache
+            self.clear_cache()
+            
+            # Clear directory cache in 3DE scene finder
+            from threede_scene_finder import ThreeDESceneFinder
+            if hasattr(ThreeDESceneFinder, 'refresh_cache'):
+                cleared_count = ThreeDESceneFinder.refresh_cache()
+                logger.debug(f"Cleared {cleared_count} directory cache entries")
+            
+            # Clear path cache in utils
+            from utils import clear_all_caches
+            clear_all_caches()
+            logger.debug("Cleared path validation caches")
+            
+            logger.info("Successfully cleared all caches for manual refresh")
+            
+        except Exception as e:
+            logger.error(f"Error clearing caches for refresh: {e}")
 
     def cleanup(self) -> None:
         """Clean up resources and stop worker thread."""

@@ -26,7 +26,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import List
+from typing import Generator
 
 # Import original components we'll keep
 # Performance monitoring removed - was using archived module
@@ -39,8 +39,15 @@ logger = logging.getLogger(__name__)
 class DirectoryCache:
     """Thread-safe directory listing cache with TTL."""
 
-    def __init__(self, ttl_seconds: int = 300):  # 5 minute default TTL
+    def __init__(self, ttl_seconds: int = 300, enable_auto_expiry: bool = False) -> None:
+        """Initialize directory cache.
+        
+        Args:
+            ttl_seconds: TTL for automatic expiration (only used if enable_auto_expiry=True)
+            enable_auto_expiry: If True, entries expire automatically. If False, manual refresh only.
+        """
         self.ttl = ttl_seconds
+        self.enable_auto_expiry = enable_auto_expiry
         self.cache = {}
         self.timestamps = {}
         self.lock = threading.RLock()
@@ -52,20 +59,25 @@ class DirectoryCache:
 
         with self.lock:
             if path_str in self.cache:
-                # Check TTL
-                if time.time() - self.timestamps[path_str] < self.ttl:
+                # Check TTL only if auto-expiry is enabled
+                if self.enable_auto_expiry:
+                    if time.time() - self.timestamps[path_str] < self.ttl:
+                        self.stats["hits"] += 1
+                        return self.cache[path_str]
+                    else:
+                        # Expired
+                        del self.cache[path_str]
+                        del self.timestamps[path_str]
+                        self.stats["evictions"] += 1
+                else:
+                    # No auto-expiry, return cached entry
                     self.stats["hits"] += 1
                     return self.cache[path_str]
-                else:
-                    # Expired
-                    del self.cache[path_str]
-                    del self.timestamps[path_str]
-                    self.stats["evictions"] += 1
 
             self.stats["misses"] += 1
             return None
 
-    def set_listing(self, path: Path, listing: list[tuple[str, bool, bool]]):
+    def set_listing(self, path: Path, listing: list[tuple[str, bool, bool]]) -> None:
         """Cache directory listing."""
         path_str = str(path)
 
@@ -73,8 +85,8 @@ class DirectoryCache:
             self.cache[path_str] = listing
             self.timestamps[path_str] = time.time()
 
-            # Simple cleanup: remove expired entries if cache gets large
-            if len(self.cache) > 1000:
+            # Simple cleanup: remove expired entries if cache gets large (only if auto-expiry enabled)
+            if self.enable_auto_expiry and len(self.cache) > 1000:
                 current_time = time.time()
                 expired_keys = [
                     k
@@ -98,6 +110,29 @@ class DirectoryCache:
                 "total_entries": len(self.cache),
                 **self.stats,
             }
+
+    def clear_cache(self) -> int:
+        """Manually clear all cache entries.
+        
+        Returns:
+            Number of entries cleared
+        """
+        with self.lock:
+            count = len(self.cache)
+            self.cache.clear()
+            self.timestamps.clear()
+            self.stats["evictions"] += count
+            return count
+
+    def refresh_cache(self) -> int:
+        """Manually refresh the cache by clearing all entries.
+        
+        This forces fresh filesystem lookups on next access.
+        
+        Returns:
+            Number of entries cleared
+        """
+        return self.clear_cache()
 
 
 class OptimizedThreeDESceneFinder:
@@ -148,8 +183,8 @@ class OptimizedThreeDESceneFinder:
         "tmp",
     }
 
-    # Class-level cache (shared across instances)
-    _dir_cache = DirectoryCache(ttl_seconds=300)
+    # Class-level cache (shared across instances) - manual refresh only
+    _dir_cache = DirectoryCache(ttl_seconds=300, enable_auto_expiry=False)
 
     # Workload size thresholds for strategy selection
     SMALL_WORKLOAD_THRESHOLD = 100  # Use Python-only below this
@@ -162,10 +197,19 @@ class OptimizedThreeDESceneFinder:
         return cls._dir_cache.get_stats()
 
     @classmethod
-    def clear_cache(cls):
+    def clear_cache(cls) -> None:
         """Clear directory cache."""
         cls._dir_cache.cache.clear()
         cls._dir_cache.timestamps.clear()
+
+    @classmethod
+    def refresh_cache(cls) -> int:
+        """Manually refresh the directory cache.
+        
+        Returns:
+            Number of cache entries cleared
+        """
+        return cls._dir_cache.refresh_cache()
 
     @staticmethod
     def _get_directory_listing_cached(path: Path) -> list[tuple[str, bool, bool]]:
@@ -188,33 +232,6 @@ class OptimizedThreeDESceneFinder:
         OptimizedThreeDESceneFinder._dir_cache.set_listing(path, listing)
         return listing
 
-    @staticmethod
-    def _estimate_workload_size(shot_workspace_path: str) -> int:
-        """Estimate workload size to choose optimal strategy."""
-        try:
-            shot_path = Path(shot_workspace_path)
-            user_dir = shot_path / "user"
-
-            if not user_dir.exists():
-                return 0
-
-            # Quick count of user directories
-            user_count = 0
-            with os.scandir(user_dir) as entries:
-                for entry in entries:
-                    if entry.is_dir():
-                        user_count += 1
-                        if user_count > 20:  # Stop counting after reasonable threshold
-                            break
-
-            # Estimate based on typical VFX structure
-            # Each user might have 1-5 .3de files in nested directories
-            estimated_files = user_count * 3  # Conservative estimate
-
-            return estimated_files
-
-        except (OSError, PermissionError):
-            return 0
 
     @staticmethod
     def _find_3de_files_python_optimized(
@@ -325,6 +342,56 @@ class OptimizedThreeDESceneFinder:
         return files
 
     @staticmethod
+    def _find_3de_files_progressive(
+        user_dir: Path, excluded_users: set[str] | None
+    ) -> list[tuple[str, Path]]:
+        """Progressive discovery that starts with Python method and adapts based on findings.
+
+        This method eliminates the need for workload estimation by using adaptive discovery.
+        It starts with the Python approach and switches strategies if needed.
+
+        Args:
+            user_dir: User directory to search
+            excluded_users: Set of usernames to exclude
+
+        Returns:
+            List of (username, file_path) tuples
+        """
+        files: list[tuple[str, Path]] = []
+
+        try:
+            # Use cached directory listing to get user count quickly
+            user_entries = OptimizedThreeDESceneFinder._get_directory_listing_cached(
+                user_dir
+            )
+            
+            user_count = sum(1 for _, is_dir, _ in user_entries if is_dir)
+            
+            # Adaptive strategy based on user count (no double traversal)
+            if user_count <= OptimizedThreeDESceneFinder.SMALL_WORKLOAD_THRESHOLD:
+                # Small workload: use Python approach
+                logger.debug(f"Using Python method for {user_count} users")
+                files = OptimizedThreeDESceneFinder._find_3de_files_python_optimized(
+                    user_dir, excluded_users
+                )
+            else:
+                # Larger workload: use subprocess approach
+                logger.debug(f"Using subprocess method for {user_count} users")
+                files = OptimizedThreeDESceneFinder._find_3de_files_subprocess_optimized(
+                    user_dir, excluded_users
+                )
+
+        except Exception as e:
+            logger.warning(f"Error in progressive discovery: {e}")
+            # Fallback to Python method
+            logger.debug("Falling back to Python method due to error")
+            files = OptimizedThreeDESceneFinder._find_3de_files_python_optimized(
+                user_dir, excluded_users
+            )
+
+        return files
+
+    @staticmethod
     def extract_plate_from_path(file_path: Path, user_path: Path) -> str:
         """Optimized plate extraction with fast path lookup."""
         try:
@@ -400,27 +467,13 @@ class OptimizedThreeDESceneFinder:
         logger.debug(f"User directory exists: {user_dir}")
         logger.debug(f"User directory is accessible: {os.access(user_dir, os.R_OK)}")
 
-        # Estimate workload and choose strategy
-        workload_size = OptimizedThreeDESceneFinder._estimate_workload_size(
-            shot_workspace_path
+        # Use progressive discovery instead of workload estimation
+        # Start with Python approach for efficiency, fallback to subprocess if needed
+        file_pairs = OptimizedThreeDESceneFinder._find_3de_files_progressive(
+            user_dir, excluded_users
         )
 
-        if workload_size <= OptimizedThreeDESceneFinder.SMALL_WORKLOAD_THRESHOLD:
-            # Use Python-only approach (proven fastest for small workloads)
-            file_pairs = OptimizedThreeDESceneFinder._find_3de_files_python_optimized(
-                user_dir, excluded_users
-            )
-        else:
-            # Use subprocess approach for larger workloads
-            file_pairs = (
-                OptimizedThreeDESceneFinder._find_3de_files_subprocess_optimized(
-                    user_dir, excluded_users
-                )
-            )
-
-        logger.debug(
-            f"Found {len(file_pairs)} .3de files using {'Python' if workload_size <= OptimizedThreeDESceneFinder.SMALL_WORKLOAD_THRESHOLD else 'subprocess'} method"
-        )
+        logger.debug(f"Found {len(file_pairs)} .3de files using progressive discovery")
 
         # Convert file pairs to ThreeDEScene objects
         for username, threede_file in file_pairs:
@@ -457,41 +510,9 @@ class OptimizedThreeDESceneFinder:
         publish_dir = shot_path / "publish"
         if publish_dir.exists():
             try:
-                # Use same strategy as user directory
-                if (
-                    workload_size
-                    <= OptimizedThreeDESceneFinder.SMALL_WORKLOAD_THRESHOLD
-                ):
-                    publish_files = list(publish_dir.rglob("*.3de"))
-                    publish_files.extend(list(publish_dir.rglob("*.3DE")))
-                else:
-                    # Use find command for publish
-                    result = subprocess.run(
-                        [
-                            "find",
-                            str(publish_dir),
-                            "-maxdepth",
-                            "10",
-                            "-type",
-                            "f",
-                            "(",
-                            "-name",
-                            "*.3de",
-                            "-o",
-                            "-name",
-                            "*.3DE",
-                            ")",
-                        ],
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-
-                    publish_files = []
-                    if result.returncode == 0 and result.stdout:
-                        publish_files = [
-                            Path(p) for p in result.stdout.strip().split("\n") if p
-                        ]
+                # Use progressive discovery approach (eliminates need for workload estimation)
+                publish_files = list(publish_dir.rglob("*.3de"))
+                publish_files.extend(list(publish_dir.rglob("*.3DE")))
 
                 # Process published files
                 for threede_file in publish_files:
@@ -651,7 +672,7 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def find_all_scenes_in_shows_efficient(
-        user_shots: List,  # List of Shot objects
+        user_shots: list,  # List of Shot objects
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Efficient version that finds scenes across ALL shots in the shows.
@@ -782,7 +803,7 @@ class OptimizedThreeDESceneFinder:
         shot_tuples: list[tuple[str, str, str, str]],
         excluded_users: set[str] | None = None,
         batch_size: int = 10,
-    ):
+    ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
         """Progressive scene finder that yields batches of results.
         
         Args:

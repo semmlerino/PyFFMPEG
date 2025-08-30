@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QObject, Signal
 
 from previous_shots_finder import ParallelShotsFinder
 from shot_model import Shot
@@ -38,7 +38,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         active_shots: list[Shot],
         username: str | None = None,
         shows_root: Path = Path("/shows"),
-        parent: Any = None,
+        parent: QObject | None = None,
     ) -> None:
         """Initialize the worker thread.
 
@@ -98,33 +98,49 @@ class PreviousShotsWorker(ThreadSafeWorker):
             # Emit initial progress
             self.scan_progress.emit(0, 100, "Initializing scan...")
 
-            # Use new parallel finder with incremental loading
-            # Progress will be reported via the callback
-            all_user_shots = []
-            
-            # Collect shots incrementally from the generator
-            if hasattr(self._finder, 'find_user_shots_parallel'):
-                # Use generator for incremental results
-                for shot in self._finder.find_user_shots_parallel(self._shows_root):
+            # Use new targeted search for maximum performance
+            # This searches only in shows where user has active shots
+            if hasattr(self._finder, 'find_approved_shots_targeted'):
+                logger.info("Using targeted search approach")
+                approved_shots = self._finder.find_approved_shots_targeted(
+                    self._active_shots, self._shows_root
+                )
+                
+                # Emit individual shots as found for UI updates
+                for shot in approved_shots:
                     if self.should_stop():
                         break
-                    all_user_shots.append(shot)
-                    # Emit individual shot as it's found
                     self.shot_found.emit(shot.to_dict())
             else:
-                # Fallback to regular method
-                self.scan_progress.emit(10, 100, "Scanning filesystem...")
-                all_user_shots = self._finder.find_user_shots(self._shows_root)
+                # Fallback to original two-step process
+                logger.info("Using fallback two-step approach")
+                
+                # Use parallel finder with incremental loading
+                all_user_shots = []
+                
+                # Collect shots incrementally from the generator
+                if hasattr(self._finder, 'find_user_shots_parallel'):
+                    # Use generator for incremental results
+                    for shot in self._finder.find_user_shots_parallel(self._shows_root):
+                        if self.should_stop():
+                            break
+                        all_user_shots.append(shot)
+                        # Emit individual shot as it's found
+                        self.shot_found.emit(shot.to_dict())
+                else:
+                    # Fallback to regular method
+                    self.scan_progress.emit(10, 100, "Scanning filesystem...")
+                    all_user_shots = self._finder.find_user_shots(self._shows_root)
 
-            if self.should_stop():
-                logger.info("Scan stopped by user request")
-                return
+                if self.should_stop():
+                    logger.info("Scan stopped by user request")
+                    return
 
-            self.scan_progress.emit(50, 100, "Filtering approved shots...")
-            # Filter to get only approved shots
-            approved_shots = self._finder.filter_approved_shots(
-                all_user_shots, self._active_shots
-            )
+                self.scan_progress.emit(50, 100, "Filtering approved shots...")
+                # Filter to get only approved shots
+                approved_shots = self._finder.filter_approved_shots(
+                    all_user_shots, self._active_shots
+                )
 
             # Convert to dictionaries for signal emission
             shot_dicts = []

@@ -128,9 +128,9 @@ class Config:
     )
 
     # Enhanced cache settings
-    PATH_CACHE_TTL_SECONDS = 300  # 5 minutes for path validation (10x improvement)
-    DIR_CACHE_TTL_SECONDS = 60  # 1 minute for directory listings
-    SCENE_CACHE_TTL_SECONDS = 1800  # 30 minutes for 3DE scenes
+    PATH_CACHE_TTL_SECONDS = 0  # Path validation (0 = no automatic expiry, manual refresh only)
+    DIR_CACHE_TTL_SECONDS = 0  # Directory listings (0 = no automatic expiry, manual refresh only) 
+    SCENE_CACHE_TTL_SECONDS = 0  # 3DE scenes (0 = no automatic expiry, manual refresh only)
 
     # Cache size limits
     PATH_CACHE_MAX_SIZE = 5000  # Maximum path cache entries
@@ -361,4 +361,4 @@ class ThreadingConfig:
     # Previous shots parallel scanning
     PREVIOUS_SHOTS_PARALLEL_WORKERS = 4  # Number of parallel workers for shot scanning
     PREVIOUS_SHOTS_SCAN_TIMEOUT = 30  # Timeout per show (seconds)
-    PREVIOUS_SHOTS_CACHE_TTL = 300  # Cache time-to-live (5 minutes)
+    PREVIOUS_SHOTS_CACHE_TTL = 0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)

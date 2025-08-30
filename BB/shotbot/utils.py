@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 # Cache for path existence checks (with TTL)
 _path_cache: dict[str, tuple[bool, float]] = {}
-_PATH_CACHE_TTL = 300.0  # seconds - increased from 30 to 300 for better performance
+_PATH_CACHE_TTL = 0.0  # seconds - 0 = no automatic expiry, manual refresh only
 _cache_disabled = False  # Test isolation flag
 
 
-def clear_all_caches():
+def clear_all_caches() -> None:
     """Clear all utility caches - useful for testing or debugging."""
     global _path_cache
     _path_cache.clear()
@@ -52,12 +52,12 @@ def enable_caching() -> None:
 class CacheIsolation:
     """Context manager for cache isolation in tests."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.original_cache_state: dict[str, tuple[bool, float]] | None = None
         self.original_disabled_state: bool | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> CacheTestContext:
         """Enter context with isolated cache."""
         global _path_cache, _cache_disabled
         # Save original state
@@ -374,7 +374,7 @@ class PathUtils:
         # Check cache first
         if path_str in _path_cache:
             cached_exists, timestamp = _path_cache[path_str]
-            if current_time - timestamp < _PATH_CACHE_TTL:
+            if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:
                 # Return cached result without verification to avoid performance issues
                 if not cached_exists:
                     logger.debug(f"{description} does not exist (cached): {path_str}")
@@ -397,7 +397,7 @@ class PathUtils:
         return exists
 
     @staticmethod
-    def _cleanup_path_cache():
+    def _cleanup_path_cache() -> None:
         """Clean expired entries from path cache.
 
         Optimized to only clean when cache is getting large,
@@ -440,7 +440,7 @@ class PathUtils:
             path_str = str(path)
             if path_str in _path_cache:
                 cached_exists, timestamp = _path_cache[path_str]
-                if current_time - timestamp < _PATH_CACHE_TTL:
+                if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:
                     # Use cached result without verification
                     results[path_str] = cached_exists
                     continue
@@ -673,7 +673,7 @@ class VersionUtils:
         # Check cache first - use the longer TTL for version cache too
         if path_str in VersionUtils._version_cache:
             version_dirs, timestamp = VersionUtils._version_cache[path_str]
-            if current_time - timestamp < _PATH_CACHE_TTL:  # Use same TTL as path cache
+            if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:  # Use same TTL as path cache
                 return version_dirs.copy()  # Return a copy to prevent modification
 
         path_obj = Path(base_path) if isinstance(base_path, str) else base_path
@@ -703,7 +703,7 @@ class VersionUtils:
         return version_dirs
 
     @staticmethod
-    def _cleanup_version_cache():
+    def _cleanup_version_cache() -> None:
         """Clean expired entries from version cache.
 
         Optimized to keep frequently accessed version directories.
@@ -932,7 +932,7 @@ class FileUtils:
                 return False
 
             return True
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.warning(f"Error checking file size for {path_obj}: {e}")
             return False
 
