@@ -33,7 +33,6 @@ from PySide6.QtCore import QCoreApplication, QTimer
 from PySide6.QtWidgets import QApplication
 
 # Import protocols for type safety
-from tests.unit.test_protocols import TestConfigDir
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))

@@ -44,7 +44,8 @@ class MainWindowProtocol(Protocol):
     def focusWidget(self) -> QWidget | None: ...
     def setStyleSheet(self, stylesheet: str) -> None: ...
     def styleSheet(self) -> str: ...
-    def _launch_app(self, app: str) -> None: ...  # method for launching apps
+
+    # method for launching apps - will be accessed via getattr
 
     # Main window attributes - checked with hasattr at runtime
     tab_widget: QTabWidget | None
@@ -100,64 +101,75 @@ class KeyboardNavigationManager:
         shortcuts = {
             # Navigation
             "Ctrl+1": lambda: (
-                lambda w=cast(
-                    "MainWindowProtocol", window
-                ): w.tab_widget.setCurrentIndex(0)
-                if hasattr(window, "tab_widget") and w.tab_widget is not None
+                getattr(window, "tab_widget").setCurrentIndex(0)
+                if hasattr(window, "tab_widget")
+                and getattr(window, "tab_widget") is not None
                 else None
-            )(),  # My Shots
+            ),  # My Shots
             "Ctrl+2": lambda: (
-                lambda w=cast(
-                    "MainWindowProtocol", window
-                ): w.tab_widget.setCurrentIndex(1)
-                if hasattr(window, "tab_widget") and w.tab_widget is not None
+                getattr(window, "tab_widget").setCurrentIndex(1)
+                if hasattr(window, "tab_widget")
+                and getattr(window, "tab_widget") is not None
                 else None
-            )(),  # 3DE Scenes
+            ),  # 3DE Scenes
             "Ctrl+3": lambda: (
-                lambda w=cast(
-                    "MainWindowProtocol", window
-                ): w.tab_widget.setCurrentIndex(2)
-                if hasattr(window, "tab_widget") and w.tab_widget is not None
+                getattr(window, "tab_widget").setCurrentIndex(2)
+                if hasattr(window, "tab_widget")
+                and getattr(window, "tab_widget") is not None
                 else None
-            )(),  # Previous Shots
+            ),  # Previous Shots
             "Ctrl+4": lambda: (
-                lambda w=cast(
-                    "MainWindowProtocol", window
-                ): w.tab_widget.setCurrentIndex(3)
-                if hasattr(window, "tab_widget") and w.tab_widget is not None
+                getattr(window, "tab_widget").setCurrentIndex(3)
+                if hasattr(window, "tab_widget")
+                and getattr(window, "tab_widget") is not None
                 else None
-            )(),  # Command History
+            ),  # Command History
             # Grid navigation
-            "Ctrl+G": lambda: cast("MainWindowProtocol", window).shot_grid.setFocus()
-            if hasattr(window, "shot_grid")
-            and cast("MainWindowProtocol", window).shot_grid is not None
-            else None,  # Focus grid
-            "Ctrl+L": lambda: cast(
-                "MainWindowProtocol", window
-            ).launcher_group.setFocus()
-            if hasattr(window, "launcher_group")
-            else None,  # Focus launchers
+            "Ctrl+G": lambda: (
+                getattr(window, "shot_grid").setFocus()
+                if hasattr(window, "shot_grid")
+                and getattr(window, "shot_grid") is not None
+                else None
+            ),  # Focus grid
+            "Ctrl+L": lambda: (
+                getattr(window, "launcher_group").setFocus()
+                if hasattr(window, "launcher_group")
+                and getattr(window, "launcher_group") is not None
+                else None
+            ),  # Focus launchers
             # Quick actions
-            "Alt+3": lambda: cast("MainWindowProtocol", window)._launch_app("3de")
-            if hasattr(window, "_launch_app")
-            and hasattr(window, "app_buttons")
-            and cast("MainWindowProtocol", window).app_buttons["3de"].isEnabled()
-            else None,
-            "Alt+N": lambda: cast("MainWindowProtocol", window)._launch_app("nuke")
-            if hasattr(window, "_launch_app")
-            and hasattr(window, "app_buttons")
-            and cast("MainWindowProtocol", window).app_buttons["nuke"].isEnabled()
-            else None,
-            "Alt+M": lambda: cast("MainWindowProtocol", window)._launch_app("maya")
-            if hasattr(window, "_launch_app")
-            and hasattr(window, "app_buttons")
-            and cast("MainWindowProtocol", window).app_buttons["maya"].isEnabled()
-            else None,
-            "Alt+R": lambda: cast("MainWindowProtocol", window)._launch_app("rv")
-            if hasattr(window, "_launch_app")
-            and hasattr(window, "app_buttons")
-            and cast("MainWindowProtocol", window).app_buttons["rv"].isEnabled()
-            else None,
+            "Alt+3": lambda: (
+                getattr(window, "_launch_app")("3de")
+                if hasattr(window, "_launch_app")
+                and hasattr(window, "app_buttons")
+                and getattr(window, "app_buttons", {}).get("3de") is not None
+                and getattr(window, "app_buttons")["3de"].isEnabled()
+                else None
+            ),
+            "Alt+N": lambda: (
+                getattr(window, "_launch_app")("nuke")
+                if hasattr(window, "_launch_app")
+                and hasattr(window, "app_buttons")
+                and getattr(window, "app_buttons", {}).get("nuke") is not None
+                and getattr(window, "app_buttons")["nuke"].isEnabled()
+                else None
+            ),
+            "Alt+M": lambda: (
+                getattr(window, "_launch_app")("maya")
+                if hasattr(window, "_launch_app")
+                and hasattr(window, "app_buttons")
+                and getattr(window, "app_buttons", {}).get("maya") is not None
+                and getattr(window, "app_buttons")["maya"].isEnabled()
+                else None
+            ),
+            "Alt+R": lambda: (
+                getattr(window, "_launch_app")("rv")
+                if hasattr(window, "_launch_app")
+                and hasattr(window, "app_buttons")
+                and getattr(window, "app_buttons", {}).get("rv") is not None
+                and getattr(window, "app_buttons")["rv"].isEnabled()
+                else None
+            ),
             # Accessibility
             "F2": lambda: AccessibilityAnnouncer.announce_current_context(window),
             "F3": lambda: AccessibilityAnnouncer.announce_selection(window),
@@ -280,10 +292,12 @@ class AccessibilityAnnouncer:
         # Qt doesn't have direct screen reader API, but we can use tooltips
         # and status messages which screen readers pick up
         app = QApplication.instance()
-        if app and hasattr(app, "activeWindow"):
-            window = app.activeWindow()
+        if app:
+            window = QApplication.activeWindow()
             if window and hasattr(window, "status_bar"):
-                cast("MainWindowProtocol", window).status_bar.showMessage(message, 3000)
+                status_bar = getattr(window, "status_bar", None)
+                if status_bar and hasattr(status_bar, "showMessage"):
+                    status_bar.showMessage(message, 3000)
 
     @staticmethod
     def announce_current_context(window: QWidget) -> None:
@@ -296,31 +310,31 @@ class AccessibilityAnnouncer:
 
         # Current tab
         if hasattr(window, "tab_widget"):
-            current_tab = cast("MainWindowProtocol", window).tab_widget.currentIndex()
-            tab_text = cast("MainWindowProtocol", window).tab_widget.tabText(
-                current_tab
-            )
-            messages.append(f"Current tab: {tab_text}")
+            tab_widget = getattr(window, "tab_widget", None)
+            if tab_widget and hasattr(tab_widget, "currentIndex"):
+                current_tab = tab_widget.currentIndex()
+                tab_text = tab_widget.tabText(current_tab)
+                messages.append(f"Current tab: {tab_text}")
 
         # Selected shot
-        if (
-            hasattr(window, "command_launcher")
-            and cast("MainWindowProtocol", window).command_launcher.current_shot
-        ):
-            shot = cast("MainWindowProtocol", window).command_launcher.current_shot
-            messages.append(f"Selected shot: {shot.full_name}")
+        if hasattr(window, "command_launcher"):
+            command_launcher = getattr(window, "command_launcher", None)
+            if command_launcher and hasattr(command_launcher, "current_shot"):
+                shot = command_launcher.current_shot
+                if shot and hasattr(shot, "full_name"):
+                    messages.append(f"Selected shot: {shot.full_name}")
 
         # Enabled applications
         if hasattr(window, "app_buttons"):
-            enabled_apps = [
-                name
-                for name, button in cast(
-                    "MainWindowProtocol", window
-                ).app_buttons.items()
-                if button.isEnabled()
-            ]
-            if enabled_apps:
-                messages.append(f"Available apps: {', '.join(enabled_apps)}")
+            app_buttons = getattr(window, "app_buttons", {})
+            if isinstance(app_buttons, dict):
+                enabled_apps = [
+                    name
+                    for name, button in app_buttons.items()
+                    if button and hasattr(button, "isEnabled") and button.isEnabled()
+                ]
+                if enabled_apps:
+                    messages.append(f"Available apps: {', '.join(enabled_apps)}")
 
         AccessibilityAnnouncer.announce(". ".join(messages))
 
