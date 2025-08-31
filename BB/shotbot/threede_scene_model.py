@@ -11,7 +11,7 @@ from typing import Any
 from cache_manager import CacheManager
 from config import Config
 from shot_model import Shot
-from utils import FileUtils, PathUtils, ValidationUtils
+from utils import PathUtils, ValidationUtils
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +61,8 @@ class ThreeDEScene:
     def get_thumbnail_path(self) -> Path | None:
         """Get first available thumbnail or None.
 
-        Tries three fallback options:
-        1. Editorial directory thumbnails
-        2. Turnover plate thumbnails
-        3. Any EXR file containing '1001' in publish folder
+        Uses the unified thumbnail discovery logic from PathUtils.find_shot_thumbnail()
+        to ensure consistent thumbnails across all views.
 
         Results are cached after the first search to avoid repeated
         expensive filesystem operations.
@@ -73,30 +71,8 @@ class ThreeDEScene:
         if self._cached_thumbnail_path is not _NOT_SEARCHED:
             return self._cached_thumbnail_path
 
-        # Perform the search and cache the result
-        thumbnail = None
-
-        # Try editorial thumbnail first
-        if PathUtils.validate_path_exists(self.thumbnail_dir, "Thumbnail directory"):
-            # Use utility to find first image file
-            thumbnail = FileUtils.get_first_image_file(self.thumbnail_dir)
-            if thumbnail:
-                self._cached_thumbnail_path = thumbnail
-                return thumbnail
-
-        # Fall back to turnover plate thumbnails
-        thumbnail = PathUtils.find_turnover_plate_thumbnail(
-            Config.SHOWS_ROOT,
-            self.show,
-            self.sequence,
-            self.shot,
-        )
-        if thumbnail:
-            self._cached_thumbnail_path = thumbnail
-            return thumbnail
-
-        # Third fallback: any EXR with 1001 in publish folder
-        thumbnail = PathUtils.find_any_publish_thumbnail(
+        # Use the unified thumbnail discovery method
+        thumbnail = PathUtils.find_shot_thumbnail(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,
@@ -186,9 +162,10 @@ class ThreeDESceneModel:
                 for scene in self.scenes
             }
 
-            # Use the new efficient discovery method
-            # This finds .3de files first, then extracts shots - much faster!
-            new_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_efficient(
+            # Use the truly efficient file-first discovery method
+            # This finds .3de files FIRST with a single recursive search,
+            # then extracts shot info from paths - much faster!
+            new_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient(
                 shots,  # User's shots are used to determine which shows to search
                 self._excluded_users,
             )

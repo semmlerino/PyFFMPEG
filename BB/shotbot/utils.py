@@ -599,6 +599,67 @@ class PathUtils:
         return result
 
     @staticmethod
+    def find_shot_thumbnail(
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
+    ) -> Path | None:
+        """Find thumbnail for a shot using standard fallback locations.
+
+        This is the single source of truth for shot thumbnail discovery,
+        ensuring consistent thumbnails across "My Shots" and "Other 3DE scenes".
+
+        Tries three fallback options in order:
+        1. Editorial directory thumbnails
+        2. Turnover plate thumbnails
+        3. Any EXR file containing '1001' in publish folder
+
+        Args:
+            shows_root: Root path for shows
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
+
+        Returns:
+            Path to thumbnail file or None if not found
+        """
+        # Build thumbnail directory path
+        thumbnail_dir = PathUtils.build_thumbnail_path(
+            shows_root,
+            show,
+            sequence,
+            shot,
+        )
+
+        # Try editorial thumbnail first
+        if PathUtils.validate_path_exists(thumbnail_dir, "Thumbnail directory"):
+            # Use utility to find first image file
+            thumbnail = FileUtils.get_first_image_file(thumbnail_dir)
+            if thumbnail:
+                return thumbnail
+
+        # Fall back to turnover plate thumbnails
+        thumbnail = PathUtils.find_turnover_plate_thumbnail(
+            shows_root,
+            show,
+            sequence,
+            shot,
+        )
+        if thumbnail:
+            return thumbnail
+
+        # Third fallback: any EXR with 1001 in publish folder
+        thumbnail = PathUtils.find_any_publish_thumbnail(
+            shows_root,
+            show,
+            sequence,
+            shot,
+        )
+
+        return thumbnail
+
+    @staticmethod
     def discover_plate_directories(
         base_path: str | Path,
     ) -> list[tuple[str, int]]:

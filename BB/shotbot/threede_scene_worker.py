@@ -434,17 +434,17 @@ class ThreeDESceneWorker(ThreadSafeWorker):
     def _discover_all_scenes_in_shows(self) -> list[ThreeDEScene]:
         """Discover ALL 3DE scenes in the shows (not just user's shots).
 
-        This uses the efficient file-first discovery to find ALL 3DE files,
+        This uses the truly efficient file-first discovery to find ALL 3DE files,
         then filters out the user's own shots for "Other 3DE scenes" display.
 
         Returns:
             List of all discovered ThreeDEScene objects
         """
-        logger.info("Discovering ALL 3DE scenes in shows (not just user's shots)")
+        logger.info("Discovering ALL 3DE scenes in shows using file-first strategy")
 
-        # Use the efficient file-first discovery
-        # This finds ALL .3de files in the shows, not just user's shots
-        all_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_efficient(
+        # Use the truly efficient file-first discovery
+        # This now finds .3de files FIRST, then extracts shot info from paths
+        all_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient(
             self.user_shots,  # Used to determine which shows to search
             self.excluded_users,
         )

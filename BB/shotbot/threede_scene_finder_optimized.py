@@ -687,21 +687,140 @@ class OptimizedThreeDESceneFinder:
         return shots
 
     @staticmethod
-    def find_all_scenes_in_shows_efficient(
+    def find_all_3de_files_in_show(
+        show_root: str, show: str, excluded_users: set[str] | None = None
+    ) -> list[tuple[Path, str, str, str, str, str]]:
+        """Find all .3de files in a show using file-first discovery.
+
+        This is the truly efficient method that finds files first, then extracts
+        shot information from their paths.
+
+        Args:
+            show_root: Root path for shows (e.g., '/shows')
+            show: Show name
+            excluded_users: Set of usernames to exclude
+
+        Returns:
+            List of tuples: (file_path, show, sequence, shot, user, plate)
+        """
+        show_path = Path(show_root) / show
+        if not show_path.exists():
+            logger.warning(f"Show path does not exist: {show_path}")
+            return []
+
+        results = []
+        excluded_users = excluded_users or set()
+
+        # Use single recursive search for all .3de files
+        logger.info(f"Searching for all .3de files in {show_path}")
+
+        try:
+            # Use rglob for efficient recursive search
+            for threede_file in show_path.rglob("*.3de"):
+                try:
+                    # Parse the path to extract shot information
+                    parts = threede_file.relative_to(show_path).parts
+
+                    # Expected structure: shots/sequence/shot/user/username/.../file.3de
+                    # or: shots/sequence/shot/publish/.../file.3de
+                    if len(parts) < 4 or parts[0] != "shots":
+                        continue
+
+                    sequence = parts[1]
+                    shot = parts[2]
+
+                    # Determine user and plate
+                    if parts[3] == "user" and len(parts) > 4:
+                        user = parts[4]
+                        if user in excluded_users:
+                            continue
+                    elif parts[3] == "publish":
+                        # For published files, create a pseudo-user
+                        department = parts[4] if len(parts) > 4 else "unknown"
+                        user = f"published-{department}"
+                    else:
+                        continue  # Skip non-standard paths
+
+                    # Extract plate from path
+                    workspace_path = show_path / "shots" / sequence / shot
+                    user_path = (
+                        workspace_path / "user" / user
+                        if parts[3] == "user"
+                        else workspace_path / "publish"
+                    )
+                    plate = OptimizedThreeDESceneFinder.extract_plate_from_path(
+                        threede_file, user_path
+                    )
+
+                    results.append((threede_file, show, sequence, shot, user, plate))
+
+                except (ValueError, IndexError) as e:
+                    logger.debug(f"Could not parse path {threede_file}: {e}")
+                    continue
+
+            # Also search for .3DE (uppercase) files
+            for threede_file in show_path.rglob("*.3DE"):
+                try:
+                    parts = threede_file.relative_to(show_path).parts
+
+                    if len(parts) < 4 or parts[0] != "shots":
+                        continue
+
+                    sequence = parts[1]
+                    shot = parts[2]
+
+                    if parts[3] == "user" and len(parts) > 4:
+                        user = parts[4]
+                        if user in excluded_users:
+                            continue
+                    elif parts[3] == "publish":
+                        department = parts[4] if len(parts) > 4 else "unknown"
+                        user = f"published-{department}"
+                    else:
+                        continue
+
+                    workspace_path = show_path / "shots" / sequence / shot
+                    user_path = (
+                        workspace_path / "user" / user
+                        if parts[3] == "user"
+                        else workspace_path / "publish"
+                    )
+                    plate = OptimizedThreeDESceneFinder.extract_plate_from_path(
+                        threede_file, user_path
+                    )
+
+                    results.append((threede_file, show, sequence, shot, user, plate))
+
+                except (ValueError, IndexError) as e:
+                    logger.debug(f"Could not parse path {threede_file}: {e}")
+                    continue
+
+        except Exception as e:
+            logger.error(f"Error searching for 3DE files in {show}: {e}")
+
+        logger.info(f"Found {len(results)} .3de files in {show}")
+        return results
+
+    @staticmethod
+    def find_all_scenes_in_shows_truly_efficient(
         user_shots: list,  # List of Shot objects
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
-        """Efficient version that finds scenes across ALL shots in the shows.
+        """Truly efficient version using file-first discovery.
 
-        This method discovers ALL shots in the shows (not just user's active shots)
-        and searches them for 3DE scenes.
+        Instead of discovering all shots then searching each one, this method:
+        1. Finds ALL .3de files in the show with a single search
+        2. Extracts shot information from the file paths
+        3. Creates ThreeDEScene objects
+
+        This avoids visiting directories that don't contain .3de files.
 
         Args:
             user_shots: List of Shot objects to determine which shows to search
             excluded_users: Set of usernames to exclude
 
         Returns:
-            List of all ThreeDEScene objects found across all shots in the shows
+            List of all ThreeDEScene objects found
         """
         if not user_shots:
             logger.info("No user shots provided for scene discovery")
@@ -710,7 +829,7 @@ class OptimizedThreeDESceneFinder:
         if excluded_users is None:
             excluded_users = ValidationUtils.get_excluded_users()
 
-        # Extract unique shows from user's shots
+        # Extract unique shows and roots from user's shots
         shows_to_search = set()
         show_roots = set()
 
@@ -728,45 +847,65 @@ class OptimizedThreeDESceneFinder:
 
         all_scenes = []
 
-        logger.info(f"Searching for 3DE scenes in shows: {', '.join(shows_to_search)}")
+        logger.info(
+            f"File-first search for 3DE scenes in shows: {', '.join(shows_to_search)}"
+        )
 
-        # Discover ALL shots in each show (not just user's active shots)
+        # Search each show using file-first approach
         for show_root in show_roots:
             for show in shows_to_search:
-                logger.info(f"Discovering all shots in show {show}")
-
-                # Discover ALL shots in this show
-                all_shots_in_show = (
-                    OptimizedThreeDESceneFinder.discover_all_shots_in_show(
-                        show_root, show
-                    )
+                # Find all .3de files in this show
+                file_results = OptimizedThreeDESceneFinder.find_all_3de_files_in_show(
+                    show_root, show, excluded_users
                 )
 
-                logger.info(f"Found {len(all_shots_in_show)} total shots in {show}")
+                # Convert to ThreeDEScene objects
+                for (
+                    file_path,
+                    show_name,
+                    sequence,
+                    shot_name,
+                    user,
+                    plate,
+                ) in file_results:
+                    workspace_path = (
+                        Path(show_root) / show_name / "shots" / sequence / shot_name
+                    )
 
-                # Search each shot for 3DE scenes
-                for workspace_path, show_name, sequence, shot_name in all_shots_in_show:
-                    try:
-                        shot_scenes = OptimizedThreeDESceneFinder.find_scenes_for_shot(
-                            shot_workspace_path=workspace_path,
-                            show=show_name,
-                            sequence=sequence,
-                            shot=shot_name,
-                            excluded_users=excluded_users,
-                        )
+                    scene = ThreeDEScene(
+                        show=show_name,
+                        sequence=sequence,
+                        shot=shot_name,
+                        workspace_path=str(workspace_path),
+                        user=user,
+                        plate=plate,
+                        scene_path=file_path,
+                    )
+                    all_scenes.append(scene)
 
-                        if shot_scenes:
-                            all_scenes.extend(shot_scenes)
-                            logger.debug(
-                                f"Found {len(shot_scenes)} scenes in {show_name}/{sequence}/{shot_name}"
-                            )
-
-                    except Exception as e:
-                        logger.debug(f"Error searching shot {workspace_path}: {e}")
-                        continue
-
-        logger.info(f"Found {len(all_scenes)} total scenes across all shots in shows")
+        logger.info(f"Found {len(all_scenes)} total scenes using file-first discovery")
         return all_scenes
+
+    @staticmethod
+    def find_all_scenes_in_shows_efficient(
+        user_shots: list,  # List of Shot objects
+        excluded_users: set[str] | None = None,
+    ) -> list[ThreeDEScene]:
+        """Efficient version that finds scenes across ALL shots in the shows.
+
+        This method now uses the truly efficient file-first discovery.
+
+        Args:
+            user_shots: List of Shot objects to determine which shows to search
+            excluded_users: Set of usernames to exclude
+
+        Returns:
+            List of all ThreeDEScene objects found across all shots in the shows
+        """
+        # Redirect to the truly efficient implementation
+        return OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient(
+            user_shots, excluded_users
+        )
 
     @staticmethod
     def estimate_scan_size(
