@@ -136,7 +136,7 @@ class Shot:
             return self._cached_thumbnail_path
 
         # Use the unified thumbnail discovery method
-        thumbnail = PathUtils.find_shot_thumbnail(
+        thumbnail = PathUtils.find_shot_thumbnail(  # type: ignore[attr-defined]
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,

@@ -57,7 +57,7 @@ class CacheIsolation:
         self.original_cache_state: dict[str, tuple[bool, float]] | None = None
         self.original_disabled_state: bool | None = None
 
-    def __enter__(self) -> CacheTestContext:
+    def __enter__(self) -> CacheIsolation:
         """Enter context with isolated cache."""
         global _path_cache, _cache_disabled
         # Save original state

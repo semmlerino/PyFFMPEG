@@ -50,12 +50,12 @@ class DirectoryCache:
         """
         self.ttl = ttl_seconds
         self.enable_auto_expiry = enable_auto_expiry
-        self.cache = {}
-        self.timestamps = {}
+        self.cache: dict[str, list[tuple[str, bool, bool]]] = {}
+        self.timestamps: dict[str, float] = {}
         self.lock = threading.RLock()
         self.stats = {"hits": 0, "misses": 0, "evictions": 0}
 
-    def get_listing(self, path: Path) -> list[tuple[str, bool, bool | None]]:
+    def get_listing(self, path: Path) -> list[tuple[str, bool, bool]] | None:
         """Get cached directory listing or None if not cached/expired."""
         path_str = str(path)
 
@@ -244,7 +244,7 @@ class OptimizedThreeDESceneFinder:
 
         Returns list of (username, file_path) tuples.
         """
-        files = []
+        files: list[tuple[str, Path]] = []
 
         try:
             # Use cached directory listing
@@ -294,7 +294,7 @@ class OptimizedThreeDESceneFinder:
         user_dir: Path, excluded_users: set[str] | None
     ) -> list[tuple[str, Path]]:
         """Optimized subprocess-based .3de file discovery for large workloads."""
-        files = []
+        files: list[tuple[str, Path]] = []
 
         try:
             # Build exclusion patterns for find command
@@ -646,7 +646,7 @@ class OptimizedThreeDESceneFinder:
         Returns:
             List of tuples (workspace_path, show, sequence, shot)
         """
-        shots = []
+        shots: list[tuple[str, str, str, str]] = []
         show_path = Path(show_root) / show
 
         if not show_path.exists():
@@ -701,14 +701,14 @@ class OptimizedThreeDESceneFinder:
             excluded_users: Set of usernames to exclude
 
         Returns:
-            List of tuples: (file_path, show, sequence, shot, user, plate)
+            List of tuples: (file_path, show, sequence, shot, shot_dir_name, user, plate)
         """
         show_path = Path(show_root) / show
         if not show_path.exists():
             logger.warning(f"Show path does not exist: {show_path}")
             return []
 
-        results = []
+        results: list[tuple[Path, str, str, str, str, str]] = []
         excluded_users = excluded_users or set()
 
         # Use single recursive search for all .3de files
@@ -727,17 +727,21 @@ class OptimizedThreeDESceneFinder:
                         continue
 
                     sequence = parts[1]
-                    shot_dir_name = parts[2]
+                    shot_dir = parts[2]
                     
-                    # Extract shot number from directory name
-                    # Shot directory names are like "012_DC_1070" where:
-                    # - "012_DC" is the sequence 
-                    # - "1070" is the shot number
-                    # We need to remove the sequence prefix to get just the shot number
-                    shot = shot_dir_name
-                    if shot_dir_name.startswith(f"{sequence}_"):
-                        # Remove sequence prefix to get just the shot number
-                        shot = shot_dir_name[len(sequence) + 1:]
+                    # Extract shot number from directory name to match ws -sg parsing
+                    # The shot directory format is {sequence}_{shot}
+                    if shot_dir.startswith(f"{sequence}_"):
+                        # Remove the sequence prefix to get the shot number
+                        shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
+                    else:
+                        # Fallback: use the last part after underscore
+                        shot_parts = shot_dir.rsplit("_", 1)
+                        if len(shot_parts) == 2:
+                            shot = shot_parts[1]
+                        else:
+                            # No underscore found, use whole name as shot
+                            shot = shot_dir
 
                     # Determine user and plate
                     if parts[3] == "user" and len(parts) > 4:
@@ -752,7 +756,7 @@ class OptimizedThreeDESceneFinder:
                         continue  # Skip non-standard paths
 
                     # Extract plate from path
-                    workspace_path = show_path / "shots" / sequence / shot_dir_name
+                    workspace_path = show_path / "shots" / sequence / shot_dir
                     user_path = (
                         workspace_path / "user" / user
                         if parts[3] == "user"
@@ -762,8 +766,7 @@ class OptimizedThreeDESceneFinder:
                         threede_file, user_path
                     )
 
-                    # Return both the shot number and the full directory name
-                    results.append((threede_file, show, sequence, shot, shot_dir_name, user, plate))
+                    results.append((threede_file, show, sequence, shot, user, plate))
 
                 except (ValueError, IndexError) as e:
                     logger.debug(f"Could not parse path {threede_file}: {e}")
@@ -778,17 +781,21 @@ class OptimizedThreeDESceneFinder:
                         continue
 
                     sequence = parts[1]
-                    shot_dir_name = parts[2]
+                    shot_dir = parts[2]
                     
-                    # Extract shot number from directory name
-                    # Shot directory names are like "012_DC_1070" where:
-                    # - "012_DC" is the sequence 
-                    # - "1070" is the shot number
-                    # We need to remove the sequence prefix to get just the shot number
-                    shot = shot_dir_name
-                    if shot_dir_name.startswith(f"{sequence}_"):
-                        # Remove sequence prefix to get just the shot number
-                        shot = shot_dir_name[len(sequence) + 1:]
+                    # Extract shot number from directory name to match ws -sg parsing
+                    # The shot directory format is {sequence}_{shot}
+                    if shot_dir.startswith(f"{sequence}_"):
+                        # Remove the sequence prefix to get the shot number
+                        shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
+                    else:
+                        # Fallback: use the last part after underscore
+                        shot_parts = shot_dir.rsplit("_", 1)
+                        if len(shot_parts) == 2:
+                            shot = shot_parts[1]
+                        else:
+                            # No underscore found, use whole name as shot
+                            shot = shot_dir
 
                     if parts[3] == "user" and len(parts) > 4:
                         user = parts[4]
@@ -800,7 +807,7 @@ class OptimizedThreeDESceneFinder:
                     else:
                         continue
 
-                    workspace_path = show_path / "shots" / sequence / shot_dir_name
+                    workspace_path = show_path / "shots" / sequence / shot_dir
                     user_path = (
                         workspace_path / "user" / user
                         if parts[3] == "user"
@@ -810,8 +817,7 @@ class OptimizedThreeDESceneFinder:
                         threede_file, user_path
                     )
 
-                    # Return both the shot number and the full directory name
-                    results.append((threede_file, show, sequence, shot, shot_dir_name, user, plate))
+                    results.append((threede_file, show, sequence, shot, user, plate))
 
                 except (ValueError, IndexError) as e:
                     logger.debug(f"Could not parse path {threede_file}: {e}")
@@ -867,7 +873,7 @@ class OptimizedThreeDESceneFinder:
         if not show_roots:
             show_roots = {"/shows"}  # Fallback to default
 
-        all_scenes = []
+        all_scenes: list[ThreeDEScene] = []
 
         logger.info(
             f"File-first search for 3DE scenes in shows: {', '.join(shows_to_search)}"
@@ -886,20 +892,18 @@ class OptimizedThreeDESceneFinder:
                     file_path,
                     show_name,
                     sequence,
-                    shot_number,  # The extracted shot number (e.g., "1070")
-                    shot_dir_name,  # The full directory name (e.g., "012_DC_1070")
+                    shot_name,
                     user,
                     plate,
                 ) in file_results:
-                    # Use the full directory name for the workspace path
                     workspace_path = (
-                        Path(show_root) / show_name / "shots" / sequence / shot_dir_name
+                        Path(show_root) / show_name / "shots" / sequence / shot_name
                     )
 
                     scene = ThreeDEScene(
                         show=show_name,
                         sequence=sequence,
-                        shot=shot_number,  # Use the extracted shot number
+                        shot=shot_name,
                         workspace_path=str(workspace_path),
                         user=user,
                         plate=plate,

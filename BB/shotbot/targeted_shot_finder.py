@@ -115,7 +115,7 @@ class TargetedShotsFinder:
         Returns:
             List of Shot objects found in this show
         """
-        shots = []
+        shots: list[Shot] = []
 
         if self._stop_requested:
             return shots
@@ -179,26 +179,30 @@ class TargetedShotsFinder:
         """
         match = self._shot_pattern.search(path)
         if match:
-            show, sequence, shot_dir_name = match.groups()
+            show, sequence, shot_dir = match.groups()
 
-            # Extract shot number from directory name
-            # Shot directory names are like "012_DC_1070" where:
-            # - "012_DC" is the sequence 
-            # - "1070" is the shot number
-            # We need to remove the sequence prefix to get just the shot number
-            shot_number = shot_dir_name
-            if shot_dir_name.startswith(f"{sequence}_"):
-                # Remove sequence prefix to get just the shot number
-                shot_number = shot_dir_name[len(sequence) + 1:]
+            # Extract shot number from directory name to match ws -sg parsing
+            # The shot directory format is {sequence}_{shot}
+            if shot_dir.startswith(f"{sequence}_"):
+                # Remove the sequence prefix to get the shot number
+                shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
+            else:
+                # Fallback: use the last part after underscore
+                shot_parts = shot_dir.rsplit("_", 1)
+                if len(shot_parts) == 2:
+                    shot = shot_parts[1]
+                else:
+                    # No underscore found, use whole name as shot
+                    shot = shot_dir
             
-            # Build the workspace path (using full directory name)
-            workspace_path = f"/shows/{show}/shots/{sequence}/{shot_dir_name}"
+            # Build the workspace path using the full directory name
+            workspace_path = f"/shows/{show}/shots/{sequence}/{shot_dir}"
 
             try:
                 return Shot(
                     show=show,
                     sequence=sequence,
-                    shot=shot_number,  # Use extracted shot number, not full directory name
+                    shot=shot,  # Use extracted shot number to match ws -sg
                     workspace_path=workspace_path,
                 )
             except Exception as e:

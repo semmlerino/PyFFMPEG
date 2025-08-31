@@ -342,7 +342,7 @@ class TestThreeDEScannerIntegration:
             found_scene = scene_model.scenes[0]
             assert found_scene.show == "testshow"
             assert found_scene.sequence == "seq01"
-            assert found_scene.shot == "seq01_0070"
+            assert found_scene.shot == "0070"
             assert found_scene.user == "artist1"
             # Normalize paths for comparison
             actual_path = Path(str(found_scene.scene_path)).resolve()
