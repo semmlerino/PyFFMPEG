@@ -142,6 +142,11 @@ class PreviousShotsFinder:
                     # No underscore found, use whole name as shot
                     shot = shot_dir
             
+            # Validate shot is not empty
+            if not shot:
+                logger.debug(f"Empty shot extracted from path {path}")
+                return None
+            
             # Build the workspace path using the full directory name
             workspace_path = f"/shows/{show}/shots/{sequence}/{shot_dir}"
 

@@ -742,6 +742,10 @@ class OptimizedThreeDESceneFinder:
                         else:
                             # No underscore found, use whole name as shot
                             shot = shot_dir
+                    
+                    # Validate shot is not empty
+                    if not shot:
+                        continue
 
                     # Determine user and plate
                     if parts[3] == "user" and len(parts) > 4:
@@ -796,6 +800,10 @@ class OptimizedThreeDESceneFinder:
                         else:
                             # No underscore found, use whole name as shot
                             shot = shot_dir
+                    
+                    # Validate shot is not empty
+                    if not shot:
+                        continue
 
                     if parts[3] == "user" and len(parts) > 4:
                         user = parts[4]
