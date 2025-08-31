@@ -126,16 +126,26 @@ class PreviousShotsFinder:
         """
         match = self._shot_pattern.search(path)
         if match:
-            show, sequence, shot_name = match.groups()
+            show, sequence, shot_dir_name = match.groups()
 
-            # Build the workspace path
-            workspace_path = f"/shows/{show}/shots/{sequence}/{shot_name}"
+            # Extract shot number from directory name
+            # Shot directory names are like "012_DC_1070" where:
+            # - "012_DC" is the sequence 
+            # - "1070" is the shot number
+            # We need to remove the sequence prefix to get just the shot number
+            shot_number = shot_dir_name
+            if shot_dir_name.startswith(f"{sequence}_"):
+                # Remove sequence prefix to get just the shot number
+                shot_number = shot_dir_name[len(sequence) + 1:]
+            
+            # Build the workspace path (using full directory name)
+            workspace_path = f"/shows/{show}/shots/{sequence}/{shot_dir_name}"
 
             try:
                 return Shot(
                     show=show,
                     sequence=sequence,
-                    shot=shot_name,
+                    shot=shot_number,  # Use extracted shot number, not full directory name
                     workspace_path=workspace_path,
                 )
             except Exception as e:

@@ -727,7 +727,17 @@ class OptimizedThreeDESceneFinder:
                         continue
 
                     sequence = parts[1]
-                    shot = parts[2]
+                    shot_dir_name = parts[2]
+                    
+                    # Extract shot number from directory name
+                    # Shot directory names are like "012_DC_1070" where:
+                    # - "012_DC" is the sequence 
+                    # - "1070" is the shot number
+                    # We need to remove the sequence prefix to get just the shot number
+                    shot = shot_dir_name
+                    if shot_dir_name.startswith(f"{sequence}_"):
+                        # Remove sequence prefix to get just the shot number
+                        shot = shot_dir_name[len(sequence) + 1:]
 
                     # Determine user and plate
                     if parts[3] == "user" and len(parts) > 4:
@@ -742,7 +752,7 @@ class OptimizedThreeDESceneFinder:
                         continue  # Skip non-standard paths
 
                     # Extract plate from path
-                    workspace_path = show_path / "shots" / sequence / shot
+                    workspace_path = show_path / "shots" / sequence / shot_dir_name
                     user_path = (
                         workspace_path / "user" / user
                         if parts[3] == "user"
@@ -752,7 +762,8 @@ class OptimizedThreeDESceneFinder:
                         threede_file, user_path
                     )
 
-                    results.append((threede_file, show, sequence, shot, user, plate))
+                    # Return both the shot number and the full directory name
+                    results.append((threede_file, show, sequence, shot, shot_dir_name, user, plate))
 
                 except (ValueError, IndexError) as e:
                     logger.debug(f"Could not parse path {threede_file}: {e}")
@@ -767,7 +778,17 @@ class OptimizedThreeDESceneFinder:
                         continue
 
                     sequence = parts[1]
-                    shot = parts[2]
+                    shot_dir_name = parts[2]
+                    
+                    # Extract shot number from directory name
+                    # Shot directory names are like "012_DC_1070" where:
+                    # - "012_DC" is the sequence 
+                    # - "1070" is the shot number
+                    # We need to remove the sequence prefix to get just the shot number
+                    shot = shot_dir_name
+                    if shot_dir_name.startswith(f"{sequence}_"):
+                        # Remove sequence prefix to get just the shot number
+                        shot = shot_dir_name[len(sequence) + 1:]
 
                     if parts[3] == "user" and len(parts) > 4:
                         user = parts[4]
@@ -779,7 +800,7 @@ class OptimizedThreeDESceneFinder:
                     else:
                         continue
 
-                    workspace_path = show_path / "shots" / sequence / shot
+                    workspace_path = show_path / "shots" / sequence / shot_dir_name
                     user_path = (
                         workspace_path / "user" / user
                         if parts[3] == "user"
@@ -789,7 +810,8 @@ class OptimizedThreeDESceneFinder:
                         threede_file, user_path
                     )
 
-                    results.append((threede_file, show, sequence, shot, user, plate))
+                    # Return both the shot number and the full directory name
+                    results.append((threede_file, show, sequence, shot, shot_dir_name, user, plate))
 
                 except (ValueError, IndexError) as e:
                     logger.debug(f"Could not parse path {threede_file}: {e}")
@@ -864,18 +886,20 @@ class OptimizedThreeDESceneFinder:
                     file_path,
                     show_name,
                     sequence,
-                    shot_name,
+                    shot_number,  # The extracted shot number (e.g., "1070")
+                    shot_dir_name,  # The full directory name (e.g., "012_DC_1070")
                     user,
                     plate,
                 ) in file_results:
+                    # Use the full directory name for the workspace path
                     workspace_path = (
-                        Path(show_root) / show_name / "shots" / sequence / shot_name
+                        Path(show_root) / show_name / "shots" / sequence / shot_dir_name
                     )
 
                     scene = ThreeDEScene(
                         show=show_name,
                         sequence=sequence,
-                        shot=shot_name,
+                        shot=shot_number,  # Use the extracted shot number
                         workspace_path=str(workspace_path),
                         user=user,
                         plate=plate,
