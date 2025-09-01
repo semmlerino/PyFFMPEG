@@ -777,9 +777,10 @@ class OptimizedThreeDESceneFinder:
     def find_all_3de_files_in_show_targeted(
         show_root: str, show: str, excluded_users: set[str] | None = None
     ) -> list[tuple[Path, str, str, str, str, str]]:
-        """Find all .3de files using targeted search in shots/*/*/user and shots/*/*/publish.
+        """Find all .3de files using a single efficient search.
 
-        This is much faster than rglob on the entire show directory.
+        Uses a single find command to locate all .3de files in user and publish
+        directories, avoiding unnecessary iteration through empty shot directories.
 
         Args:
             show_root: Root path for shows (e.g., '/shows')
@@ -791,7 +792,7 @@ class OptimizedThreeDESceneFinder:
         """
         import traceback
 
-        logger.info("=== STARTING find_all_3de_files_in_show_targeted ===")
+        logger.info("=== STARTING find_all_3de_files_in_show_targeted (optimized) ===")
         logger.info(f"  show_root: {show_root}")
         logger.info(f"  show: {show}")
 
@@ -806,77 +807,171 @@ class OptimizedThreeDESceneFinder:
         excluded_users = excluded_users or set()
 
         start_time = time.time()
-        shot_count = 0
         file_count = 0
+        parsed_count = 0
+        unique_shots = set()
 
         try:
-            # Iterate through sequence directories
-            sequences = [d for d in shots_dir.iterdir() if d.is_dir()]
-            logger.info(f"Found {len(sequences)} sequences in {shots_dir}")
+            logger.info("Using single-search strategy to find all .3de files")
 
-            for seq_idx, seq_dir in enumerate(sequences, 1):
-                sequence = seq_dir.name
-                logger.debug(
-                    f"Processing sequence {seq_idx}/{len(sequences)}: {sequence}"
+            # Build find command to search only in user and publish directories
+            # This avoids checking every shot directory
+            find_cmd = [
+                "find",
+                str(shots_dir),
+                "-type",
+                "f",
+                "(",
+                "-path",
+                "*/user/*",
+                "-o",
+                "-path",
+                "*/publish/*",
+                ")",
+                "(",
+                "-name",
+                "*.3de",
+                "-o",
+                "-name",
+                "*.3DE",
+                ")",
+                "-print",
+            ]
+
+            logger.debug(f"Running find command: {' '.join(find_cmd)}")
+
+            try:
+                # Run find command with timeout
+                result = subprocess.run(
+                    find_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,  # 60 second timeout
                 )
 
-                # Iterate through shot directories
-                shots = [d for d in seq_dir.iterdir() if d.is_dir()]
+                if result.returncode == 0 and result.stdout:
+                    # Process each found file
+                    for line in result.stdout.strip().split("\n"):
+                        if not line:
+                            continue
 
-                for shot_dir in shots:
-                    shot_count += 1
+                        file_count += 1
+                        threede_file = Path(line)
 
-                    if shot_count % 50 == 0:
-                        elapsed = time.time() - start_time
-                        logger.info(
-                            f"Progress: Processed {shot_count} shots, found {file_count} .3de files ({elapsed:.1f}s)"
-                        )
-
-                    # Search in user directory
-                    user_dir = shot_dir / "user"
-                    if user_dir.exists():
-                        try:
-                            for pattern in ["*.3de", "*.3DE"]:
-                                for threede_file in user_dir.rglob(pattern):
-                                    file_count += 1
-                                    parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
-                                        threede_file, show_path, show, excluded_users
-                                    )
-                                    if parsed:
-                                        results.append(parsed)
-                                        if len(results) <= 3:
-                                            logger.debug(
-                                                f"  Found: {threede_file.relative_to(show_path)}"
-                                            )
-                        except Exception as e:
-                            logger.debug(f"Error searching user dir {user_dir}: {e}")
-
-                    # Search in publish directory
-                    publish_dir = shot_dir / "publish"
-                    if publish_dir.exists():
-                        try:
-                            for pattern in ["*.3de", "*.3DE"]:
-                                for threede_file in publish_dir.rglob(pattern):
-                                    file_count += 1
-                                    parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
-                                        threede_file, show_path, show, excluded_users
-                                    )
-                                    if parsed:
-                                        results.append(parsed)
-                        except Exception as e:
-                            logger.debug(
-                                f"Error searching publish dir {publish_dir}: {e}"
+                        # Log progress
+                        if file_count <= 5 or file_count % 50 == 0:
+                            elapsed = time.time() - start_time
+                            logger.info(
+                                f"Progress: Found {file_count} .3de files, "
+                                f"parsed {parsed_count} valid scenes from {len(unique_shots)} shots "
+                                f"({elapsed:.1f}s)"
                             )
 
+                        # Parse the file path
+                        parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
+                            threede_file, show_path, show, excluded_users
+                        )
+
+                        if parsed:
+                            results.append(parsed)
+                            parsed_count += 1
+
+                            # Track unique shots
+                            _, _, sequence, shot, _, _ = parsed
+                            unique_shots.add(f"{sequence}/{shot}")
+
+                            if parsed_count <= 3:
+                                logger.debug(
+                                    f"  Parsed: {threede_file.relative_to(show_path)}"
+                                )
+
+                elif result.returncode != 0:
+                    logger.warning(
+                        f"Find command failed with return code {result.returncode}"
+                    )
+                    logger.warning(f"stderr: {result.stderr}")
+                    # Fall back to Python-based search
+                    logger.info("Falling back to Python-based search")
+                    return OptimizedThreeDESceneFinder._fallback_python_search(
+                        shots_dir, show_path, show, excluded_users
+                    )
+
+            except subprocess.TimeoutExpired:
+                logger.error("Find command timed out after 60 seconds")
+                logger.info("Falling back to Python-based search")
+                return OptimizedThreeDESceneFinder._fallback_python_search(
+                    shots_dir, show_path, show, excluded_users
+                )
+            except FileNotFoundError:
+                logger.warning(
+                    "'find' command not available, using Python-based search"
+                )
+                return OptimizedThreeDESceneFinder._fallback_python_search(
+                    shots_dir, show_path, show, excluded_users
+                )
+
         except Exception as e:
-            logger.error(f"Error in targeted search: {e}")
+            logger.error(f"Error in optimized search: {e}")
             logger.error(f"Traceback: {traceback.format_exc()}")
 
         elapsed = time.time() - start_time
-        logger.info("=== COMPLETED find_all_3de_files_in_show_targeted ===")
-        logger.info(f"  Processed {shot_count} shots in {elapsed:.2f}s")
-        logger.info(f"  Found {file_count} .3de files total")
-        logger.info(f"  Parsed {len(results)} valid scenes")
+        logger.info("=== COMPLETED find_all_3de_files_in_show_targeted (optimized) ===")
+        logger.info(f"  Found {file_count} .3de files in {elapsed:.2f}s")
+        logger.info(f"  Parsed {parsed_count} valid scenes")
+        logger.info(f"  Unique shots with 3DE files: {len(unique_shots)}")
+
+        # Log sample of unique shots
+        if unique_shots:
+            sample_shots = list(unique_shots)[:5]
+            logger.debug(f"  Sample shots: {', '.join(sample_shots)}")
+
+        return results
+
+    @staticmethod
+    def _fallback_python_search(
+        shots_dir: Path,
+        show_path: Path,
+        show: str,
+        excluded_users: set[str] | None,
+    ) -> list[tuple[Path, str, str, str, str, str]]:
+        """Fallback Python-based search when find command is not available.
+
+        This uses a more efficient approach than the original by using
+        glob patterns directly on the shots directory.
+        """
+        results: list[tuple[Path, str, str, str, str, str]] = []
+        excluded_users = excluded_users or set()
+
+        logger.info("Using Python-based fallback search")
+        start_time = time.time()
+        file_count = 0
+
+        try:
+            # Search for .3de files in user directories
+            for pattern in ["*/*/user/**/*.3de", "*/*/user/**/*.3DE"]:
+                for threede_file in shots_dir.glob(pattern):
+                    file_count += 1
+                    parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
+                        threede_file, show_path, show, excluded_users
+                    )
+                    if parsed:
+                        results.append(parsed)
+
+            # Search for .3de files in publish directories
+            for pattern in ["*/*/publish/**/*.3de", "*/*/publish/**/*.3DE"]:
+                for threede_file in shots_dir.glob(pattern):
+                    file_count += 1
+                    parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
+                        threede_file, show_path, show, excluded_users
+                    )
+                    if parsed:
+                        results.append(parsed)
+
+        except Exception as e:
+            logger.error(f"Error in Python fallback search: {e}")
+
+        elapsed = time.time() - start_time
+        logger.info(f"Python search found {file_count} files in {elapsed:.2f}s")
 
         return results
 
