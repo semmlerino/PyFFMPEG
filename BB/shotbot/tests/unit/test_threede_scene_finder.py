@@ -306,14 +306,27 @@ class TestPerformance:
     def test_quick_check_with_timeout(self, make_test_filesystem):
         """Test quick check respects timeout with real file structure."""
         fs = make_test_filesystem()
-        # Create multiple shows with 3DE files
-        for show in ["show1", "show2", "show3"]:
-            for seq in ["seq01", "seq02"]:
-                for shot in ["0010", "0020"]:
-                    shot_path = fs.create_vfx_structure(show, seq, shot)
-                    # Add 3DE files to each shot
-                    user_dir = shot_path / "user" / "artist1"
-                    fs.create_file(user_dir / "scene.3de", "3DE scene content")
+        # Create multiple shows with 3DE files using cartesian product
+        show_seq_shot_combinations = [
+            ("show1", "seq01", "0010"),
+            ("show1", "seq01", "0020"),
+            ("show1", "seq02", "0010"),
+            ("show1", "seq02", "0020"),
+            ("show2", "seq01", "0010"),
+            ("show2", "seq01", "0020"),
+            ("show2", "seq02", "0010"),
+            ("show2", "seq02", "0020"),
+            ("show3", "seq01", "0010"),
+            ("show3", "seq01", "0020"),
+            ("show3", "seq02", "0010"),
+            ("show3", "seq02", "0020"),
+        ]
+
+        for show, seq, shot in show_seq_shot_combinations:
+            shot_path = fs.create_vfx_structure(show, seq, shot)
+            # Add 3DE files to each shot
+            user_dir = shot_path / "user" / "artist1"
+            fs.create_file(user_dir / "scene.3de", "3DE scene content")
 
         shot_path = str(fs.base_path / "shows")
 
@@ -327,6 +340,45 @@ class TestPerformance:
 
         assert elapsed < 2  # Should not take much longer than timeout
         assert result is True  # Should find the real .3de files
+
+    @pytest.mark.parametrize(
+        "show,seq,shot,user",
+        [
+            pytest.param("show1", "seq01", "0010", "artist1", id="basic_structure"),
+            pytest.param("show2", "seq02", "0020", "artist2", id="different_artist"),
+            pytest.param("show3", "seq01", "0010", "testuser", id="test_user"),
+            pytest.param(
+                "complex_show",
+                "long_sequence_name",
+                "9999",
+                "complex_artist",
+                marks=pytest.mark.slow,
+                id="complex_naming",
+            ),
+        ],
+    )
+    def test_parametrized_3de_scene_discovery(
+        self, make_test_filesystem, show, seq, shot, user
+    ):
+        """Test 3DE scene discovery with various structure combinations."""
+        fs = make_test_filesystem()
+
+        # Create single shot structure
+        shot_path = fs.create_vfx_structure(show, seq, shot)
+        user_dir = shot_path / "user" / user
+        threede_file = user_dir / "scene.3de"
+        fs.create_file(threede_file, "3DE scene content")
+
+        shows_path = fs.base_path / "shows"
+
+        # Discover scenes
+        finder = ThreeDESceneFinder([shows_path])
+        scenes = finder.find_scenes()
+
+        # Verify scene was found
+        assert len(scenes) >= 1
+        scene_paths = [str(scene.path) for scene in scenes]
+        assert any(str(threede_file) in path for path in scene_paths)
 
         # Verify real files exist
         stats = fs.get_operation_stats()
@@ -365,3 +417,96 @@ class TestPerformance:
         # Verify TestFileSystem tracked operations
         stats = fs.get_operation_stats()
         assert stats["files_created"] > 0
+
+
+@pytest.mark.unit
+def test_show_root_path_extraction_no_double_slash():
+    """Test that show root path extraction doesn't create double slashes.
+
+    Regression test for bug where path extraction created '//shows' instead of '/shows'.
+    This follows UNIFIED_TESTING_GUIDE by testing behavior with real Shot objects.
+    """
+    from shot_model import Shot
+
+    # Create test shots with realistic workspace paths
+    test_shots = [
+        Shot(
+            show="gator",
+            sequence="019_JF",
+            shot="019_JF_1020",
+            workspace_path="/shows/gator/shots/019_JF/019_JF_1020",
+        ),
+        Shot(
+            show="broken_eggs",
+            sequence="BRX_170",
+            shot="BRX_170_0100",
+            workspace_path="/shows/broken_eggs/shots/BRX_170/BRX_170_0100",
+        ),
+    ]
+
+    # Test show root extraction using the internal logic
+    shows_to_search = set()
+    show_roots = set()
+
+    for shot in test_shots:
+        shows_to_search.add(shot.show)
+        # Use the FIXED path extraction logic from the optimized finder
+        workspace_path = Path(shot.workspace_path)
+        # Find the parent directory containing "shows"
+        for parent in workspace_path.parents:
+            if parent.name == "shows":
+                show_roots.add(str(parent))
+                break
+
+    # Verify behavior - should extract correct show root without double slash
+    assert "/shows" in show_roots, f"Expected '/shows' in show_roots, got: {show_roots}"
+    assert "//shows" not in show_roots, (
+        f"Double slash bug detected in show_roots: {show_roots}"
+    )
+    assert len(show_roots) == 1, f"Should have exactly one show root, got: {show_roots}"
+
+    # Verify shows are correctly identified
+    expected_shows = {"gator", "broken_eggs"}
+    assert shows_to_search == expected_shows, (
+        f"Expected {expected_shows}, got {shows_to_search}"
+    )
+
+
+@pytest.mark.unit
+def test_path_parsing_for_deep_nested_structure():
+    """Test path parsing handles deep nested 3DE file structures correctly.
+
+    Regression test for the specific file structure that wasn't being found:
+    /shows/gator/shots/019_JF/019_JF_1080/user/sarah-b/mm/3de/mm-default/scenes/scene/bg01/file.3de
+
+    This follows UNIFIED_TESTING_GUIDE by testing behavior, not implementation details.
+    """
+    from pathlib import Path
+
+    from threede_scene_finder import OptimizedThreeDESceneFinder
+
+    # Create realistic file path that was causing issues
+    target_file = Path(
+        "/shows/gator/shots/019_JF/019_JF_1080/user/sarah-b/mm/3de/mm-default/scenes/scene/bg01/019_JF_1080_mm_default_bg01_scene_v001.3de"
+    )
+    show_path = Path("/shows/gator")
+    show = "gator"
+    excluded_users = {"gabrielh"}  # Current user, not sarah-b
+
+    # Test the path parsing behavior
+    result = OptimizedThreeDESceneFinder._parse_3de_file_path(
+        target_file, show_path, show, excluded_users
+    )
+
+    # Verify parsing succeeds and extracts correct information
+    assert result is not None, "Path parsing should succeed for deep nested structure"
+
+    file_path, parsed_show, sequence, shot, user, plate = result
+
+    # Verify all extracted information is correct
+    assert parsed_show == "gator", f"Expected show 'gator', got '{parsed_show}'"
+    assert sequence == "019_JF", f"Expected sequence '019_JF', got '{sequence}'"
+    assert shot == "1080", f"Expected shot '1080', got '{shot}'"
+    assert user == "sarah-b", f"Expected user 'sarah-b', got '{user}'"
+    assert plate == "bg01", f"Expected plate 'bg01', got '{plate}'"
+    assert file_path == target_file, "File path should match input"

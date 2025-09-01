@@ -26,7 +26,10 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
+
+if TYPE_CHECKING:
+    from shot_model import Shot
 
 # Import original components we'll keep
 # Performance monitoring removed - was using archived module
@@ -687,6 +690,90 @@ class OptimizedThreeDESceneFinder:
         return shots
 
     @staticmethod
+    def _parse_3de_file_path(
+        threede_file: Path,
+        show_path: Path,
+        show: str,
+        excluded_users: set[str],
+    ) -> tuple[Path, str, str, str, str, str] | None:
+        """Parse a 3DE file path to extract shot information.
+
+        Args:
+            threede_file: Path to the .3de file
+            show_path: Path to the show directory
+            show: Show name
+            excluded_users: Set of usernames to exclude
+
+        Returns:
+            Tuple of (file_path, show, sequence, shot, user, plate) or None if invalid
+        """
+        try:
+            # Parse the path to extract shot information
+            parts = threede_file.relative_to(show_path).parts
+
+            # Expected structure: shots/sequence/shot/user/username/.../file.3de
+            # or: shots/sequence/shot/publish/.../file.3de
+            if len(parts) < 4 or parts[0] != "shots":
+                return None
+
+            sequence = parts[1]
+            shot_dir = parts[2]
+
+            # Validate sequence and shot_dir are not empty
+            if not sequence or not shot_dir:
+                return None
+
+            # Extract shot number from directory name to match ws -sg parsing
+            # The shot directory format is {sequence}_{shot}
+            if shot_dir.startswith(f"{sequence}_"):
+                # Remove the sequence prefix to get the shot number
+                shot = shot_dir[len(sequence) + 1 :]  # +1 for the underscore
+            else:
+                # Fallback: use the last part after underscore
+                shot_parts = shot_dir.rsplit("_", 1)
+                if len(shot_parts) == 2:
+                    shot = shot_parts[1]
+                else:
+                    # No underscore found, use whole name as shot
+                    shot = shot_dir
+
+            # Validate shot is not empty
+            if not shot:
+                return None
+
+            # Determine user and plate
+            if parts[3] == "user" and len(parts) > 4:
+                user = parts[4]
+                # Validate user is not empty
+                if not user or user in excluded_users:
+                    return None
+            elif parts[3] == "publish":
+                # For published files, create a pseudo-user
+                department = parts[4] if len(parts) > 4 else "unknown"
+                if not department:
+                    department = "unknown"
+                user = f"published-{department}"
+            else:
+                return None  # Skip non-standard paths
+
+            # Extract plate from path
+            workspace_path = show_path / "shots" / sequence / shot_dir
+            user_path = (
+                workspace_path / "user" / user
+                if parts[3] == "user"
+                else workspace_path / "publish"
+            )
+            plate = OptimizedThreeDESceneFinder.extract_plate_from_path(
+                threede_file, user_path
+            )
+
+            return (threede_file, show, sequence, shot, user, plate)
+
+        except (ValueError, IndexError) as e:
+            logger.debug(f"Could not parse path {threede_file}: {e}")
+            return None
+
+    @staticmethod
     def find_all_3de_files_in_show(
         show_root: str, show: str, excluded_users: set[str] | None = None
     ) -> list[tuple[Path, str, str, str, str, str]]:
@@ -701,7 +788,7 @@ class OptimizedThreeDESceneFinder:
             excluded_users: Set of usernames to exclude
 
         Returns:
-            List of tuples: (file_path, show, sequence, shot, shot_dir_name, user, plate)
+            List of tuples: (file_path, show, sequence, shot, user, plate)
         """
         show_path = Path(show_root) / show
         if not show_path.exists():
@@ -715,121 +802,14 @@ class OptimizedThreeDESceneFinder:
         logger.info(f"Searching for all .3de files in {show_path}")
 
         try:
-            # Use rglob for efficient recursive search
-            for threede_file in show_path.rglob("*.3de"):
-                try:
-                    # Parse the path to extract shot information
-                    parts = threede_file.relative_to(show_path).parts
-
-                    # Expected structure: shots/sequence/shot/user/username/.../file.3de
-                    # or: shots/sequence/shot/publish/.../file.3de
-                    if len(parts) < 4 or parts[0] != "shots":
-                        continue
-
-                    sequence = parts[1]
-                    shot_dir = parts[2]
-                    
-                    # Extract shot number from directory name to match ws -sg parsing
-                    # The shot directory format is {sequence}_{shot}
-                    if shot_dir.startswith(f"{sequence}_"):
-                        # Remove the sequence prefix to get the shot number
-                        shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
-                    else:
-                        # Fallback: use the last part after underscore
-                        shot_parts = shot_dir.rsplit("_", 1)
-                        if len(shot_parts) == 2:
-                            shot = shot_parts[1]
-                        else:
-                            # No underscore found, use whole name as shot
-                            shot = shot_dir
-                    
-                    # Validate shot is not empty
-                    if not shot:
-                        continue
-
-                    # Determine user and plate
-                    if parts[3] == "user" and len(parts) > 4:
-                        user = parts[4]
-                        if user in excluded_users:
-                            continue
-                    elif parts[3] == "publish":
-                        # For published files, create a pseudo-user
-                        department = parts[4] if len(parts) > 4 else "unknown"
-                        user = f"published-{department}"
-                    else:
-                        continue  # Skip non-standard paths
-
-                    # Extract plate from path
-                    workspace_path = show_path / "shots" / sequence / shot_dir
-                    user_path = (
-                        workspace_path / "user" / user
-                        if parts[3] == "user"
-                        else workspace_path / "publish"
+            # Search for both .3de and .3DE files
+            for pattern in ["*.3de", "*.3DE"]:
+                for threede_file in show_path.rglob(pattern):
+                    parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
+                        threede_file, show_path, show, excluded_users
                     )
-                    plate = OptimizedThreeDESceneFinder.extract_plate_from_path(
-                        threede_file, user_path
-                    )
-
-                    results.append((threede_file, show, sequence, shot, user, plate))
-
-                except (ValueError, IndexError) as e:
-                    logger.debug(f"Could not parse path {threede_file}: {e}")
-                    continue
-
-            # Also search for .3DE (uppercase) files
-            for threede_file in show_path.rglob("*.3DE"):
-                try:
-                    parts = threede_file.relative_to(show_path).parts
-
-                    if len(parts) < 4 or parts[0] != "shots":
-                        continue
-
-                    sequence = parts[1]
-                    shot_dir = parts[2]
-                    
-                    # Extract shot number from directory name to match ws -sg parsing
-                    # The shot directory format is {sequence}_{shot}
-                    if shot_dir.startswith(f"{sequence}_"):
-                        # Remove the sequence prefix to get the shot number
-                        shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
-                    else:
-                        # Fallback: use the last part after underscore
-                        shot_parts = shot_dir.rsplit("_", 1)
-                        if len(shot_parts) == 2:
-                            shot = shot_parts[1]
-                        else:
-                            # No underscore found, use whole name as shot
-                            shot = shot_dir
-                    
-                    # Validate shot is not empty
-                    if not shot:
-                        continue
-
-                    if parts[3] == "user" and len(parts) > 4:
-                        user = parts[4]
-                        if user in excluded_users:
-                            continue
-                    elif parts[3] == "publish":
-                        department = parts[4] if len(parts) > 4 else "unknown"
-                        user = f"published-{department}"
-                    else:
-                        continue
-
-                    workspace_path = show_path / "shots" / sequence / shot_dir
-                    user_path = (
-                        workspace_path / "user" / user
-                        if parts[3] == "user"
-                        else workspace_path / "publish"
-                    )
-                    plate = OptimizedThreeDESceneFinder.extract_plate_from_path(
-                        threede_file, user_path
-                    )
-
-                    results.append((threede_file, show, sequence, shot, user, plate))
-
-                except (ValueError, IndexError) as e:
-                    logger.debug(f"Could not parse path {threede_file}: {e}")
-                    continue
+                    if parsed:
+                        results.append(parsed)
 
         except Exception as e:
             logger.error(f"Error searching for 3DE files in {show}: {e}")
@@ -839,7 +819,7 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def find_all_scenes_in_shows_truly_efficient(
-        user_shots: list,  # List of Shot objects
+        user_shots: list[Shot],
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Truly efficient version using file-first discovery.
@@ -872,11 +852,12 @@ class OptimizedThreeDESceneFinder:
         for shot in user_shots:
             shows_to_search.add(shot.show)
             # Extract show root from workspace path
-            workspace_parts = Path(shot.workspace_path).parts
-            if "shows" in workspace_parts:
-                shows_idx = workspace_parts.index("shows")
-                show_root = "/".join(workspace_parts[: shows_idx + 1])
-                show_roots.add(show_root)
+            workspace_path = Path(shot.workspace_path)
+            # Find the parent directory containing "shows"
+            for parent in workspace_path.parents:
+                if parent.name == "shows":
+                    show_roots.add(str(parent))
+                    break
 
         if not show_roots:
             show_roots = {"/shows"}  # Fallback to default
@@ -924,7 +905,7 @@ class OptimizedThreeDESceneFinder:
 
     @staticmethod
     def find_all_scenes_in_shows_efficient(
-        user_shots: list,  # List of Shot objects
+        user_shots: list[Shot],
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
         """Efficient version that finds scenes across ALL shots in the shows.
