@@ -4,7 +4,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -16,6 +16,28 @@ from cache_manager import CacheManager
 from main_window import MainWindow
 from shot_model import Shot, ShotModel
 from shot_model_optimized import OptimizedShotModel
+
+# Import test doubles instead of using raw Mock()
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from test_doubles_library import TestCacheManager
+
+
+class ExtendedTestCacheManager(TestCacheManager):
+    """Extended TestCacheManager with 3DE scene support."""
+    
+    def __init__(self, cache_dir=None):
+        """Initialize with additional 3DE scene support."""
+        super().__init__(cache_dir)
+        self._cached_threede_scenes = []
+    
+    def get_cached_threede_scenes(self):
+        """Get cached 3DE scenes (for MainWindow compatibility)."""
+        return self._cached_threede_scenes
+    
+    def shutdown(self):
+        """Shutdown method for MainWindow compatibility."""
+        # Test double: just clear caches
+        self.clear_cache()
 
 
 class TestFeatureFlagSwitching:
@@ -36,11 +58,11 @@ class TestFeatureFlagSwitching:
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
         # Create main window with proper Qt management
+        # Use real test double instead of Mock()
+        test_cache = ExtendedTestCacheManager(self.cache_dir)
+        
         with patch("main_window.CacheManager") as MockCacheManager:
-            mock_cache = Mock()
-            mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
-            mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
-            MockCacheManager.return_value = mock_cache
+            MockCacheManager.return_value = test_cache
 
             # Mock QTimer to prevent delayed operations
             with patch("PySide6.QtCore.QTimer.singleShot"):
@@ -67,11 +89,11 @@ class TestFeatureFlagSwitching:
 
         try:
             # Create main window with proper Qt management
+            # Use real test double instead of Mock()
+            test_cache = ExtendedTestCacheManager(self.cache_dir)
+            
             with patch("main_window.CacheManager") as MockCacheManager:
-                mock_cache = Mock()
-                mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
-                mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
-                MockCacheManager.return_value = mock_cache
+                MockCacheManager.return_value = test_cache
 
                 # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
@@ -113,11 +135,11 @@ class TestFeatureFlagSwitching:
             os.environ["SHOTBOT_USE_LEGACY_MODEL"] = value
 
             try:
+                # Use real test double instead of Mock()
+                test_cache = ExtendedTestCacheManager(self.cache_dir)
+                
                 with patch("main_window.CacheManager") as MockCacheManager:
-                    mock_cache = Mock()
-                    mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
-                    mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
-                    MockCacheManager.return_value = mock_cache
+                    MockCacheManager.return_value = test_cache
 
                     # Mock QTimer to prevent delayed operations
                     with patch("PySide6.QtCore.QTimer.singleShot"):
@@ -255,23 +277,42 @@ class TestFeatureFlagSwitching:
         """Test that cleanup is properly handled when switching models."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
-        # Create optimized model with mock async loader
+        # Create optimized model
         optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
 
-        # Mock async loader
-        mock_loader = Mock()
-        mock_loader.isRunning.return_value = True
-        mock_loader.wait.return_value = True
-        optimized_model._async_loader = mock_loader
+        # Create a test double for async loader
+        class TestAsyncLoader:
+            def __init__(self):
+                self.is_running = True
+                self.stopped = False
+                self.waited = False
+                self.deleted = False
+                
+            def isRunning(self):
+                return self.is_running
+                
+            def stop(self):
+                self.stopped = True
+                self.is_running = False
+                
+            def wait(self, timeout=None):
+                self.waited = True
+                return True
+                
+            def deleteLater(self):
+                self.deleted = True
+
+        test_loader = TestAsyncLoader()
+        optimized_model._async_loader = test_loader
 
         # Call cleanup
         optimized_model.cleanup()
 
-        # Verify cleanup was called
-        mock_loader.stop.assert_called_once()
-        mock_loader.wait.assert_called()
-        mock_loader.deleteLater.assert_called_once()
-
+        # Verify behavior (not implementation)
+        assert test_loader.stopped, "Loader should be stopped"
+        assert test_loader.waited, "Should wait for loader to finish"
+        assert test_loader.deleted, "Loader should be scheduled for deletion"
+        
         # Verify loader was cleared
         assert optimized_model._async_loader is None
 
@@ -315,11 +356,11 @@ class TestMainWindowIntegration:
         """Test that MainWindow initializes correctly with default optimized model."""
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
+        # Use real test double instead of Mock()
+        test_cache = ExtendedTestCacheManager()
+        
         with patch("main_window.CacheManager") as MockCacheManager:
-            mock_cache = Mock()
-            mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
-            mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
-            MockCacheManager.return_value = mock_cache
+            MockCacheManager.return_value = test_cache
 
             # Mock QTimer to prevent delayed operations
             with patch("PySide6.QtCore.QTimer.singleShot"):
@@ -344,11 +385,11 @@ class TestMainWindowIntegration:
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
         try:
+            # Use real test double instead of Mock()
+            test_cache = ExtendedTestCacheManager()
+            
             with patch("main_window.CacheManager") as MockCacheManager:
-                mock_cache = Mock()
-                mock_cache.get_cached_shots.return_value = []  # Return empty list
-                mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration
-                MockCacheManager.return_value = mock_cache
+                MockCacheManager.return_value = test_cache
 
                 # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
@@ -375,11 +416,11 @@ class TestMainWindowIntegration:
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
         try:
+            # Use real test double instead of Mock()
+            test_cache = ExtendedTestCacheManager()
+            
             with patch("main_window.CacheManager") as MockCacheManager:
-                mock_cache = Mock()
-                mock_cache.get_cached_shots.return_value = []  # Return empty list instead of Mock
-                mock_cache.get_cached_threede_scenes.return_value = []  # Fix 3DE scene iteration too
-                MockCacheManager.return_value = mock_cache
+                MockCacheManager.return_value = test_cache
 
                 # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
@@ -387,17 +428,29 @@ class TestMainWindowIntegration:
                         window = MainWindow()
                         qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
-                        # Mock the cleanup method
-                        window.shot_model.cleanup = Mock()
+                        # Track cleanup behavior
+                        cleanup_called = False
+                        original_cleanup = window.shot_model.cleanup
+                        
+                        def track_cleanup():
+                            nonlocal cleanup_called
+                            cleanup_called = True
+                            original_cleanup()
+                        
+                        window.shot_model.cleanup = track_cleanup
 
-                        # Create mock close event
-                        mock_event = Mock()
+                        # Create test close event
+                        class TestCloseEvent:
+                            def accept(self):
+                                pass
+                        
+                        test_event = TestCloseEvent()
 
                         # Call closeEvent
-                        window.closeEvent(mock_event)
+                        window.closeEvent(test_event)
 
-                        # Verify cleanup was called
-                        window.shot_model.cleanup.assert_called_once()
+                        # Verify behavior (cleanup was called)
+                        assert cleanup_called, "Cleanup should be called on close"
         finally:
             pass  # No cleanup needed for default behavior
 

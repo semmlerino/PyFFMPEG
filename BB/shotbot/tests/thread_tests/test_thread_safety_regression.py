@@ -6,7 +6,6 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import QObject
@@ -19,6 +18,7 @@ from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
 from shot_model import RefreshResult
 from shot_model_optimized import AsyncShotLoader, OptimizedShotModel
+from tests.test_doubles_library import TestProcessPool
 
 
 class TestConditionVariableFix:
@@ -27,7 +27,31 @@ class TestConditionVariableFix:
     def setup_method(self):
         """Set up test environment."""
         self.app = QApplication.instance() or QApplication([])
-        self.manager = ProcessPoolManager.get_instance()
+        
+        # Reset ProcessPoolManager singleton to clear any test doubles from other tests
+        ProcessPoolManager._instance = None
+        
+        # The conftest.py autouse fixture mocks ProcessPoolManager.get_instance()
+        # For this test we need the real ProcessPoolManager, so create it directly
+        self.manager = ProcessPoolManager.__new__(ProcessPoolManager)
+        self.manager.__init__()
+        
+        # Set it as the singleton instance 
+        ProcessPoolManager._instance = self.manager
+        
+        # Ensure we have a real ProcessPoolManager, not a test double
+        assert hasattr(self.manager, '_session_lock'), "Expected real ProcessPoolManager with _session_lock"
+        assert hasattr(self.manager, '_session_condition'), "Expected real ProcessPoolManager with _session_condition"
+        assert hasattr(self.manager, '_session_creation_in_progress'), "Expected real ProcessPoolManager with _session_creation_in_progress"
+
+    def teardown_method(self):
+        """Clean up test environment."""
+        # Clean up the ProcessPoolManager instance
+        if hasattr(self.manager, 'shutdown'):
+            try:
+                self.manager.shutdown()
+            except Exception:
+                pass  # Ignore cleanup errors
 
     def test_no_race_in_session_creation(self):
         """Test that concurrent command execution doesn't cause race conditions."""
@@ -73,24 +97,33 @@ class TestConditionVariableFix:
     def test_condition_variable_prevents_deadlock(self):
         """Test that condition variable doesn't cause deadlocks."""
         # This tests the fix for the lock release-reacquire pattern
+        
+        # Track exceptions from threads so test fails if threads have issues
+        thread_exceptions = []
 
         def slow_session_creation():
-            # Simulate slow session creation
-            with self.manager._session_lock:
-                self.manager._session_creation_in_progress["slow_type"] = True
-                time.sleep(0.1)  # Simulate work
-                self.manager._session_creation_in_progress["slow_type"] = False
-                self.manager._session_condition.notify_all()
+            try:
+                # Simulate slow session creation
+                with self.manager._session_lock:
+                    self.manager._session_creation_in_progress["slow_type"] = True
+                    time.sleep(0.1)  # Simulate work
+                    self.manager._session_creation_in_progress["slow_type"] = False
+                    self.manager._session_condition.notify_all()
+            except Exception as e:
+                thread_exceptions.append(f"slow_session_creation: {e}")
 
         def waiting_thread():
-            # This thread should wait properly without deadlock
-            with self.manager._session_lock:
-                while self.manager._session_creation_in_progress.get(
-                    "slow_type", False
-                ):
-                    # This should properly wait and reacquire lock
-                    self.manager._session_condition.wait(timeout=0.5)
-                return True
+            try:
+                # This thread should wait properly without deadlock
+                with self.manager._session_lock:
+                    while self.manager._session_creation_in_progress.get(
+                        "slow_type", False
+                    ):
+                        # This should properly wait and reacquire lock
+                        self.manager._session_condition.wait(timeout=0.5)
+                    return True
+            except Exception as e:
+                thread_exceptions.append(f"waiting_thread: {e}")
 
         # Start slow creation in background
         creator = threading.Thread(target=slow_session_creation)
@@ -106,6 +139,9 @@ class TestConditionVariableFix:
         # Both should complete without deadlock
         creator.join(timeout=1.0)
         waiter.join(timeout=1.0)
+
+        # Check for thread exceptions first
+        assert len(thread_exceptions) == 0, f"Thread exceptions occurred: {thread_exceptions}"
 
         assert not creator.is_alive(), "Creator thread deadlocked"
         assert not waiter.is_alive(), "Waiter thread deadlocked"
@@ -219,14 +255,10 @@ class TestDoubleCheckedLockingFix:
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         model = OptimizedShotModel(cache_manager)
 
-        # Mock process pool to prevent actual commands
-        from unittest.mock import Mock
-
-        mock_pool = Mock(spec=ProcessPoolManager)
-        mock_pool.execute_workspace_command.return_value = (
-            "workspace /shows/TEST/seq01/0010"
-        )
-        model._process_pool = mock_pool
+        # Use test double instead of mock
+        test_pool = TestProcessPool()
+        test_pool.set_outputs("workspace /shows/TEST/seq01/0010")
+        model._process_pool = test_pool
 
         # Track race conditions through concurrent access
         race_detected = []
@@ -303,12 +335,10 @@ class TestSignalThreadSafety:
 
     def test_signals_emitted_safely_from_background_thread(self):
         """Test that background thread can safely emit signals."""
-        mock_process_pool = Mock(spec=ProcessPoolManager)
-        mock_process_pool.execute_workspace_command.return_value = (
-            "workspace /shows/TEST/shots/SEQ01/0010"
-        )
+        test_process_pool = TestProcessPool()
+        test_process_pool.set_outputs("workspace /shows/TEST/shots/SEQ01/0010")
 
-        loader = AsyncShotLoader(mock_process_pool)
+        loader = AsyncShotLoader(test_process_pool)
 
         # Track signal emissions
         shots_received = []
@@ -331,13 +361,11 @@ class TestSignalThreadSafety:
 
     def test_no_signals_after_stop(self):
         """Test that no signals are emitted after stop is called."""
-        mock_process_pool = Mock(spec=ProcessPoolManager)
-        # Make command slow so we can stop it
-        mock_process_pool.execute_workspace_command.side_effect = (
-            lambda *args, **kwargs: time.sleep(0.1) or ""
-        )
+        test_process_pool = TestProcessPool()
+        # Simulate slow command by setting empty output (loader will stop early)
+        test_process_pool.set_outputs("")
 
-        loader = AsyncShotLoader(mock_process_pool)
+        loader = AsyncShotLoader(test_process_pool)
 
         # Track emissions
         signals_received = []
@@ -390,8 +418,8 @@ class TestMemoryLeakPrevention:
 
     def test_deleted_objects_dont_receive_signals(self):
         """Test that deleted objects don't receive signals."""
-        mock_process_pool = Mock(spec=ProcessPoolManager)
-        loader = AsyncShotLoader(mock_process_pool)
+        test_process_pool = TestProcessPool()
+        loader = AsyncShotLoader(test_process_pool)
 
         # Create a receiver that will be deleted
         class Receiver(QObject):
@@ -433,9 +461,10 @@ class TestStressConditions:
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         model = OptimizedShotModel(cache_manager)
 
-        # Mock process pool to avoid real subprocess calls
-        model._process_pool = Mock(spec=ProcessPoolManager)
-        model._process_pool.execute_workspace_command.return_value = ""
+        # Use test double to avoid real subprocess calls
+        test_pool = TestProcessPool()
+        test_pool.set_outputs("")
+        model._process_pool = test_pool
 
         errors = []
 

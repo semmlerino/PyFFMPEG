@@ -10,7 +10,6 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock
 
 import pytest
 
@@ -20,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from cache_manager import CacheManager
 from shot_model import Shot, ShotModel
 from shot_model_optimized import OptimizedShotModel
+from PySide6.QtCore import QThread, Signal
 
 
 class TestFeatureFlagBehavior:
@@ -150,19 +150,47 @@ class TestFeatureFlagBehavior:
         cache_manager = CacheManager(cache_dir=self.cache_dir)
         optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
 
-        # Mock async loader
-        mock_loader = Mock()
-        mock_loader.isRunning.return_value = True
-        mock_loader.wait.return_value = True
-        optimized_model._async_loader = mock_loader
+        # Create a test double for async loader that has real Qt behavior
+        class TestAsyncLoader(QThread):
+            """Test double for AsyncShotLoader with real Qt thread behavior."""
+            shots_loaded = Signal(list)
+            load_failed = Signal(str)
+            
+            def __init__(self):
+                super().__init__()
+                self.stop_called = False
+                self.wait_called = False
+                self.delete_later_called = False
+                self._running = True
+            
+            def isRunning(self):
+                return self._running
+            
+            def stop(self):
+                self.stop_called = True
+                self.requestInterruption()
+                self._running = False
+            
+            def wait(self, timeout=None):
+                self.wait_called = True
+                self._running = False
+                return True
+            
+            def deleteLater(self):
+                self.delete_later_called = True
+                super().deleteLater()
+        
+        # Use the test double
+        test_loader = TestAsyncLoader()
+        optimized_model._async_loader = test_loader
 
         # Call cleanup
         optimized_model.cleanup()
 
-        # Verify cleanup was called
-        mock_loader.stop.assert_called_once()
-        mock_loader.wait.assert_called()
-        mock_loader.deleteLater.assert_called_once()
+        # Verify cleanup behavior occurred
+        assert test_loader.stop_called, "stop() should have been called"
+        assert test_loader.wait_called, "wait() should have been called"
+        assert test_loader.delete_later_called, "deleteLater() should have been called"
         assert optimized_model._async_loader is None
 
     def test_performance_metrics_available(self):

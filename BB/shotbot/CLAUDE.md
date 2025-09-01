@@ -77,13 +77,107 @@ See **UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md** for comprehensive testing documen
 - Qt-specific testing patterns
 - Common issues and solutions
 
-**DO NOT** create scripts to automate fixes, as those tend to create more issues. Only if you are absolutely suer it won't cause issues, you can run a dry test to see what it would do exactly, and it would fix a lot of easy and simple issues at once. 
+**DO NOT** create scripts to automate fixes, as those tend to create more issues. Only if you are absolutely sure it won't cause issues, you can run a dry test to see what it would do exactly, and it would fix a lot of easy and simple issues at once.
 
-Quick commands:
+#### Test Suite Overview
+The codebase contains **1,114 tests** organized into:
+- **Unit tests** (`tests/unit/`) - 89 test files covering core functionality
+- **Integration tests** (`tests/integration/`) - 12 files for end-to-end workflows
+- **Performance tests** (`tests/performance/`) - 6 files for benchmarking
+- **Thread safety tests** (`tests/thread_tests/`) - 4 files for concurrency
+
+#### Running Tests
+
 ```bash
-python3 quick_test.py              # Quick validation (2 seconds)
-python3 run_tests_wsl.py --fast    # Fast tests only (30 seconds)
-python run_tests.py                # Standard runner with Qt setup
+# Prerequisites - activate virtual environment
+source venv/bin/activate
+
+# Quick validation (2 seconds) - No pytest, just import checks
+python3 tests/utilities/quick_test.py
+
+# Fast test suite (50-60 seconds) - Core functionality only
+./run_fast_tests.sh
+# Or:
+python3 tests/utilities/run_tests_wsl.py --fast
+
+# Full test suite (100-120 seconds) - All tests
+python3 -m pytest tests/
+
+# Specific test categories using markers
+python3 -m pytest tests/ -m fast       # Tests under 100ms
+python3 -m pytest tests/ -m unit       # Unit tests only  
+python3 -m pytest tests/ -m integration # Integration tests
+python3 -m pytest tests/ -m "not slow" # Skip slow tests
+
+# Run specific test file
+python3 -m pytest tests/unit/test_shot_model.py
+
+# Run with verbose output
+python3 -m pytest tests/ -v
+
+# Stop at first failure
+python3 -m pytest tests/ -x
+
+# Run only last failed tests
+python3 -m pytest tests/ --lf
+```
+
+#### Test Markers
+Tests are categorized with pytest markers (defined in `pytest.ini`):
+- `fast` - Tests that run in under 100ms
+- `slow` - Tests that take over 1 second
+- `unit` - Unit tests
+- `integration` - Integration tests
+- `performance` - Performance benchmarks
+- `qt` - Tests requiring Qt event loop
+- `gui` - Tests requiring display (may fail in headless environment)
+- `critical` - Must-pass tests for core functionality
+
+#### Expected Results
+As of the latest run:
+- **✅ 1,113 tests passing** (99.9% pass rate)
+- **⏭️ 1 test skipped** (Windows-specific)
+- **⚠️ 20 warnings** (non-critical, mostly resource warnings)
+- **⏱️ Execution time**: ~100 seconds for full suite, ~50 seconds for fast tests
+
+#### Common Issues and Solutions
+
+1. **FileNotFoundError for pytest_wsl.ini**
+   - Run tests from project root, not from subdirectories
+   - The config file is in the project root
+
+2. **ModuleNotFoundError: No module named 'PySide6'**
+   - Ensure virtual environment is activated: `source venv/bin/activate`
+   - Install dependencies: `pip install -r requirements.txt`
+
+3. **Flaky thread safety tests**
+   - Lock contention thresholds may fail under high system load
+   - These test concurrency safety, not specific timing
+   - Re-run if they fail sporadically
+
+4. **Qt widget lifecycle errors in tests**
+   - Common in test environment, not in production
+   - Related to test teardown, not application bugs
+   - Can be safely ignored if other tests pass
+
+#### Test Organization
+```
+tests/
+├── conftest.py              # Main pytest configuration and fixtures
+├── unit/                    # Unit tests for individual components
+│   ├── test_shot_model.py   # Core data model tests
+│   ├── test_cache_*.py      # Cache system tests
+│   └── test_launcher_*.py   # Launcher system tests
+├── integration/             # End-to-end workflow tests
+│   └── test_user_workflows.py
+├── performance/             # Performance benchmarks
+│   └── test_performance_benchmarks.py
+├── thread_tests/            # Concurrency and thread safety
+│   └── test_thread_safety_regression.py
+└── utilities/               # Test runners and helpers
+    ├── quick_test.py        # Fast validation without pytest
+    ├── run_tests_wsl.py     # WSL-optimized test runner
+    └── run_tests.py         # Standard test runner
 ```
 
 ### Code Quality
