@@ -774,6 +774,113 @@ class OptimizedThreeDESceneFinder:
             return None
 
     @staticmethod
+    def find_all_3de_files_in_show_targeted(
+        show_root: str, show: str, excluded_users: set[str] | None = None
+    ) -> list[tuple[Path, str, str, str, str, str]]:
+        """Find all .3de files using targeted search in shots/*/*/user and shots/*/*/publish.
+
+        This is much faster than rglob on the entire show directory.
+
+        Args:
+            show_root: Root path for shows (e.g., '/shows')
+            show: Show name
+            excluded_users: Set of usernames to exclude
+
+        Returns:
+            List of tuples: (file_path, show, sequence, shot, user, plate)
+        """
+        import traceback
+
+        logger.info("=== STARTING find_all_3de_files_in_show_targeted ===")
+        logger.info(f"  show_root: {show_root}")
+        logger.info(f"  show: {show}")
+
+        show_path = Path(show_root) / show
+        shots_dir = show_path / "shots"
+
+        if not shots_dir.exists():
+            logger.warning(f"No shots directory found: {shots_dir}")
+            return []
+
+        results: list[tuple[Path, str, str, str, str, str]] = []
+        excluded_users = excluded_users or set()
+
+        start_time = time.time()
+        shot_count = 0
+        file_count = 0
+
+        try:
+            # Iterate through sequence directories
+            sequences = [d for d in shots_dir.iterdir() if d.is_dir()]
+            logger.info(f"Found {len(sequences)} sequences in {shots_dir}")
+
+            for seq_idx, seq_dir in enumerate(sequences, 1):
+                sequence = seq_dir.name
+                logger.debug(
+                    f"Processing sequence {seq_idx}/{len(sequences)}: {sequence}"
+                )
+
+                # Iterate through shot directories
+                shots = [d for d in seq_dir.iterdir() if d.is_dir()]
+
+                for shot_dir in shots:
+                    shot_count += 1
+
+                    if shot_count % 50 == 0:
+                        elapsed = time.time() - start_time
+                        logger.info(
+                            f"Progress: Processed {shot_count} shots, found {file_count} .3de files ({elapsed:.1f}s)"
+                        )
+
+                    # Search in user directory
+                    user_dir = shot_dir / "user"
+                    if user_dir.exists():
+                        try:
+                            for pattern in ["*.3de", "*.3DE"]:
+                                for threede_file in user_dir.rglob(pattern):
+                                    file_count += 1
+                                    parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
+                                        threede_file, show_path, show, excluded_users
+                                    )
+                                    if parsed:
+                                        results.append(parsed)
+                                        if len(results) <= 3:
+                                            logger.debug(
+                                                f"  Found: {threede_file.relative_to(show_path)}"
+                                            )
+                        except Exception as e:
+                            logger.debug(f"Error searching user dir {user_dir}: {e}")
+
+                    # Search in publish directory
+                    publish_dir = shot_dir / "publish"
+                    if publish_dir.exists():
+                        try:
+                            for pattern in ["*.3de", "*.3DE"]:
+                                for threede_file in publish_dir.rglob(pattern):
+                                    file_count += 1
+                                    parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
+                                        threede_file, show_path, show, excluded_users
+                                    )
+                                    if parsed:
+                                        results.append(parsed)
+                        except Exception as e:
+                            logger.debug(
+                                f"Error searching publish dir {publish_dir}: {e}"
+                            )
+
+        except Exception as e:
+            logger.error(f"Error in targeted search: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
+        elapsed = time.time() - start_time
+        logger.info("=== COMPLETED find_all_3de_files_in_show_targeted ===")
+        logger.info(f"  Processed {shot_count} shots in {elapsed:.2f}s")
+        logger.info(f"  Found {file_count} .3de files total")
+        logger.info(f"  Parsed {len(results)} valid scenes")
+
+        return results
+
+    @staticmethod
     def find_all_3de_files_in_show(
         show_root: str, show: str, excluded_users: set[str] | None = None
     ) -> list[tuple[Path, str, str, str, str, str]]:
@@ -790,32 +897,32 @@ class OptimizedThreeDESceneFinder:
         Returns:
             List of tuples: (file_path, show, sequence, shot, user, plate)
         """
+
+        logger.info("=== STARTING find_all_3de_files_in_show ===")
+        logger.info(f"  show_root: {show_root}")
+        logger.info(f"  show: {show}")
+        logger.info(f"  excluded_users: {excluded_users}")
+
         show_path = Path(show_root) / show
+        logger.info(f"  Full show_path: {show_path}")
+        logger.info(f"  show_path exists: {show_path.exists()}")
+
         if not show_path.exists():
             logger.warning(f"Show path does not exist: {show_path}")
             return []
 
-        results: list[tuple[Path, str, str, str, str, str]] = []
-        excluded_users = excluded_users or set()
+        # Use targeted search approach for better performance
+        logger.info(
+            "Using targeted search approach (shots/*/*/user/* and shots/*/*/publish/*)"
+        )
+        logger.info(
+            "WARNING: Switching from slow rglob to targeted search due to performance issues"
+        )
 
-        # Use single recursive search for all .3de files
-        logger.info(f"Searching for all .3de files in {show_path}")
-
-        try:
-            # Search for both .3de and .3DE files
-            for pattern in ["*.3de", "*.3DE"]:
-                for threede_file in show_path.rglob(pattern):
-                    parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
-                        threede_file, show_path, show, excluded_users
-                    )
-                    if parsed:
-                        results.append(parsed)
-
-        except Exception as e:
-            logger.error(f"Error searching for 3DE files in {show}: {e}")
-
-        logger.info(f"Found {len(results)} .3de files in {show}")
-        return results
+        # Delegate to the targeted search method
+        return OptimizedThreeDESceneFinder.find_all_3de_files_in_show_targeted(
+            show_root, show, excluded_users
+        )
 
     @staticmethod
     def find_all_scenes_in_shows_truly_efficient(
@@ -838,12 +945,18 @@ class OptimizedThreeDESceneFinder:
         Returns:
             List of all ThreeDEScene objects found
         """
+        logger.info("=== STARTING find_all_scenes_in_shows_truly_efficient ===")
+
         if not user_shots:
             logger.info("No user shots provided for scene discovery")
             return []
 
+        logger.info(f"Processing {len(user_shots)} user shots")
+
         if excluded_users is None:
             excluded_users = ValidationUtils.get_excluded_users()
+
+        logger.info(f"Excluded users: {excluded_users}")
 
         # Extract unique shows and roots from user's shots
         shows_to_search = set()
@@ -851,30 +964,47 @@ class OptimizedThreeDESceneFinder:
 
         for shot in user_shots:
             shows_to_search.add(shot.show)
+            logger.debug(
+                f"  Shot: {shot.show}/{shot.sequence}/{shot.shot} - workspace: {shot.workspace_path}"
+            )
+
             # Extract show root from workspace path
             workspace_path = Path(shot.workspace_path)
             # Find the parent directory containing "shows"
             for parent in workspace_path.parents:
                 if parent.name == "shows":
                     show_roots.add(str(parent))
+                    logger.debug(f"    Found show root: {parent}")
                     break
 
         if not show_roots:
+            logger.warning(
+                "No show roots found from workspace paths, using default /shows"
+            )
             show_roots = {"/shows"}  # Fallback to default
+
+        logger.info(f"Shows to search: {shows_to_search}")
+        logger.info(f"Show roots: {show_roots}")
 
         all_scenes: list[ThreeDEScene] = []
 
         logger.info(
-            f"File-first search for 3DE scenes in shows: {', '.join(shows_to_search)}"
+            f"Starting file-first search for 3DE scenes in shows: {', '.join(shows_to_search)}"
         )
 
         # Search each show using file-first approach
         for show_root in show_roots:
+            logger.info(f"Processing show root: {show_root}")
+
             for show in shows_to_search:
+                logger.info(f"  Searching show: {show}")
+
                 # Find all .3de files in this show
                 file_results = OptimizedThreeDESceneFinder.find_all_3de_files_in_show(
                     show_root, show, excluded_users
                 )
+
+                logger.info(f"  Found {len(file_results)} .3de files in {show}")
 
                 # Convert to ThreeDEScene objects
                 for (
@@ -900,7 +1030,13 @@ class OptimizedThreeDESceneFinder:
                     )
                     all_scenes.append(scene)
 
-        logger.info(f"Found {len(all_scenes)} total scenes using file-first discovery")
+                    if len(all_scenes) <= 3:
+                        logger.debug(
+                            f"    Created scene {len(all_scenes)}: {show_name}/{sequence}/{shot_name} - {user}/{plate}"
+                        )
+
+        logger.info("=== COMPLETED find_all_scenes_in_shows_truly_efficient ===")
+        logger.info(f"  Total scenes found: {len(all_scenes)}")
         return all_scenes
 
     @staticmethod
