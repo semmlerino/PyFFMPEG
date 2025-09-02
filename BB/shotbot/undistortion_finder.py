@@ -101,7 +101,7 @@ class UndistortionFinder:
                 # Check if directory name matches plate pattern (case-insensitive)
                 plate_name_upper = potential_plate.name.upper()
                 if any(
-                    plate_name_upper.startswith(prefix) for prefix in ["FG", "BG", "BC"]
+                    plate_name_upper.startswith(prefix) for prefix in Config.UNDISTORTION_PLATE_PREFIXES
                 ):
                     undist_base = potential_plate / "nuke_lens_distortion"
 
@@ -150,26 +150,26 @@ class UndistortionFinder:
             logger.debug(f"No undistortion files found for shot {shot_name}")
             return None
 
-        # Sort by version (newest first) and plate preference (FG > BG > BC)
+        # Sort by version (newest first) and plate preference (FG > PL > BG > BC)
         def sort_key(item: tuple[Path, str, str]) -> tuple[int, int]:
             file_path, version, plate = item
             # Extract version number for sorting (v001 or V001 -> 1)
             version_lower = version.lower()
             version_num = int(version_lower[1:]) if version_lower[1:].isdigit() else 0
-            # Plate priority: FG (foreground) > BG (background) > BC (background clean)
+            # Plate priority using configuration
             plate_upper = plate.upper()
-            if plate_upper.startswith("FG"):
-                plate_priority = 0
-            elif plate_upper.startswith("BG"):
-                plate_priority = 1
-            elif plate_upper.startswith("BC"):
-                plate_priority = 2
-            else:
-                plate_priority = 3
+            plate_priority = 999  # Default for unknown plates
+            
+            # Find matching prefix in configuration
+            for prefix, priority in Config.UNDISTORTION_PLATE_PRIORITY.items():
+                if plate_upper.startswith(prefix):
+                    plate_priority = priority
+                    break
+            
             return (
-                -version_num,
                 plate_priority,
-            )  # Negative for descending version order
+                -version_num,
+            )  # Plate priority first, then version (negative for descending)
 
         found_files.sort(key=sort_key)
         latest_file, version, plate = found_files[0]

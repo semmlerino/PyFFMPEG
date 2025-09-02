@@ -199,10 +199,13 @@ class Config:
         "FG02",
         "BG01",
         "BG02",
+        "PL01",  # Primary turnover plate
+        "PL02",  # Secondary turnover plate
+        "PL03",  # Tertiary turnover plate
         "bg01",
         "fg01",
         "plate",
-    ]  # Common plate naming
+    ]  # Common plate naming including PL## turnover patterns
 
     # Turnover plate preferences (lower value = higher priority)
     TURNOVER_PLATE_PRIORITY = {
@@ -217,13 +220,28 @@ class Config:
         "FG01": 10,
         "fg01": 9,
         "FG02": 8,
-        "BG01": 7,
-        "bg01": 6,
-        "BG02": 5,
+        "PL01": 7,  # Primary turnover plate - high priority
+        "PL02": 6,  # Secondary turnover plate  
+        "PL03": 5,  # Tertiary turnover plate
+        "BG01": 4,
+        "bg01": 3,
+        "BG02": 2,
     }  # Higher value = higher priority
 
     # Common color space patterns in plate names
-    COLOR_SPACE_PATTERNS = ["aces", "lin_sgamut3cine", "lin_rec709", "rec709", "srgb"]
+    COLOR_SPACE_PATTERNS = ["aces", "lin_sgamut3cine", "lin_rec709", "rec709", "srgb", "film_lin"]
+    
+    # Undistortion plate discovery configuration
+    UNDISTORTION_PLATE_PREFIXES = ["FG", "BG", "BC", "PL"]  # Plate prefixes to search for undistortion files
+    
+    # Undistortion plate priorities (lower value = higher priority)
+    UNDISTORTION_PLATE_PRIORITY = {
+        "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
+        "PL": 1,  # PL plates second priority (PL01, PL02, PL03 - primary turnover plates)
+        "BG": 2,  # BG plates third priority (BG01, BG02, etc.)
+        "BC": 3,  # BC plates lowest priority (BC01 - background clean plates)
+    }
+    
     UNDISTORTION_BASE_SEGMENTS = [
         "user",
         "mm",
@@ -370,3 +388,9 @@ class ThreadingConfig:
     PREVIOUS_SHOTS_CACHE_TTL = (
         0  # Cache time-to-live (0 = no automatic expiry, manual refresh only)
     )
+
+    # 3DE scene discovery parallel scanning
+    THREEDE_PARALLEL_WORKERS = 4  # Number of parallel workers for 3DE file discovery
+    THREEDE_PROGRESS_INTERVAL = 10  # Number of files between progress updates
+    THREEDE_SCAN_CHUNK_SIZE = 100  # Files per batch for processing
+    THREEDE_SCAN_TIMEOUT = 60  # Timeout per directory scan (seconds)

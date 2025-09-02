@@ -336,10 +336,10 @@ class TestUndistortionFinder:
             mock_username,
         )
 
-        # Should find BG01 v003 (highest version trumps plate priority)
+        # Should find FG01 v001 (plate priority trumps version)
         assert result is not None
-        assert "BG01" in str(result)
-        assert "v003" in str(result)
+        assert "FG01" in str(result)
+        assert "v001" in str(result)
 
     def test_find_latest_undistortion_case_insensitive_scene(
         self,
@@ -473,10 +473,10 @@ class TestUndistortionFinder:
             mock_username,
         )
 
-        # Should get BG01 v003 (highest version)
+        # Should get FG01 v002 (highest priority plate, then highest version within that plate)
         assert result is not None
-        assert "BG01" in str(result)
-        assert "v003" in str(result)
+        assert "FG01" in str(result)
+        assert "v002" in str(result)
 
     def test_find_latest_undistortion_subdirectory_search(
         self,
@@ -629,3 +629,130 @@ class TestUndistortionFinder:
 
         # Should return None instead of crashing
         assert result is None
+
+    def test_find_latest_undistortion_pl01_plate(
+        self,
+        tmp_path,
+    ):
+        """Test finding PL01 undistortion files with production structure.
+        
+        Tests the exact structure from the user's production environment:
+        /shows/broken_eggs/shots/BRX_170/BRX_170_0100/user/gabriel-h/mm/3de/mm-default/exports/
+        scene/PL01/nuke_lens_distortion/v004/BRX_170_0100_turnover-plate_PL01_film_lin_v001/
+        BRX_170_0100_mm_default_PL01_LD_v004.nk
+        """
+        shot_name = "BRX_170_0100"
+        username = "gabriel-h"
+
+        # Create exact production structure matching the user's path
+        base_path = (
+            tmp_path / "user" / username / "mm" / "3de" / "mm-default" / "exports"
+        )
+        scene_dir = base_path / "scene"
+
+        # Create PL01 plate structure matching production
+        plate_subdir = "BRX_170_0100_turnover-plate_PL01_film_lin_v001"
+        pl01_path = scene_dir / "PL01" / "nuke_lens_distortion" / "v004" / plate_subdir
+        pl01_path.mkdir(parents=True)
+
+        # Create the exact file from production
+        nk_file = pl01_path / "BRX_170_0100_mm_default_PL01_LD_v004.nk"
+        nk_file.write_text("# PL01 undistortion script\nroot {\n  inputs 0\n}")
+
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path),
+            shot_name,
+            username,
+        )
+
+        # Verify PL01 plate was found
+        assert result is not None, "PL01 undistortion file should be discoverable"
+        assert result.name == "BRX_170_0100_mm_default_PL01_LD_v004.nk"
+        assert "PL01" in str(result), "Result should contain PL01 plate identifier"
+        assert "v004" in str(result), "Result should contain version v004"
+        assert plate_subdir in str(result), "Result should contain plate subdirectory"
+
+        # Verify the full expected path structure
+        expected_parts = [
+            "scene",
+            "PL01", 
+            "nuke_lens_distortion",
+            "v004",
+            plate_subdir,
+            "BRX_170_0100_mm_default_PL01_LD_v004.nk",
+        ]
+        result_path = str(result)
+        for part in expected_parts:
+            assert part in result_path, f"Missing {part} in {result_path}"
+
+    def test_pl01_priority_over_bg01(
+        self,
+        tmp_path,
+        mock_shot_name,
+        mock_username,
+    ):
+        """Test that PL01 plates have higher priority than BG01 but lower than FG01."""
+        base_path = (
+            tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        )
+        scene_dir = base_path / "scene"
+
+        # Create BG01 with higher version (v005)
+        bg01_v005 = scene_dir / "BG01" / "nuke_lens_distortion" / "v005"
+        bg01_v005.mkdir(parents=True)
+        bg_nk = bg01_v005 / f"{mock_shot_name}_BG01_LD_v005.nk"
+        bg_nk.write_text("# BG01 v005")
+
+        # Create PL01 with lower version (v003) 
+        pl01_v003 = scene_dir / "PL01" / "nuke_lens_distortion" / "v003"
+        pl01_v003.mkdir(parents=True)
+        pl_nk = pl01_v003 / f"{mock_shot_name}_PL01_LD_v003.nk"
+        pl_nk.write_text("# PL01 v003")
+
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path),
+            mock_shot_name,
+            mock_username,
+        )
+
+        # PL01 should be chosen over BG01 despite lower version due to higher priority
+        assert result is not None
+        assert "PL01" in str(result), "PL01 should be chosen over BG01 due to higher priority"
+        assert "v003" in str(result), "Should find PL01 v003"
+        assert "BG01" not in str(result), "BG01 should not be chosen when PL01 is available"
+
+    def test_fg01_priority_over_pl01(
+        self,
+        tmp_path,
+        mock_shot_name, 
+        mock_username,
+    ):
+        """Test that FG01 plates have higher priority than PL01."""
+        base_path = (
+            tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
+        )
+        scene_dir = base_path / "scene"
+
+        # Create FG01 with lower version (v001)
+        fg01_v001 = scene_dir / "FG01" / "nuke_lens_distortion" / "v001"
+        fg01_v001.mkdir(parents=True)
+        fg_nk = fg01_v001 / f"{mock_shot_name}_FG01_LD_v001.nk"
+        fg_nk.write_text("# FG01 v001")
+
+        # Create PL01 with higher version (v005)
+        pl01_v005 = scene_dir / "PL01" / "nuke_lens_distortion" / "v005"
+        pl01_v005.mkdir(parents=True)
+        pl_nk = pl01_v005 / f"{mock_shot_name}_PL01_LD_v005.nk"
+        pl_nk.write_text("# PL01 v005")
+
+        result = UndistortionFinder.find_latest_undistortion(
+            str(tmp_path),
+            mock_shot_name,
+            mock_username,
+        )
+
+        # FG01 should be chosen over PL01 despite lower version due to highest priority
+        assert result is not None
+        assert "FG01" in str(result), "FG01 should be chosen over PL01 due to highest priority"
+        assert "v001" in str(result), "Should find FG01 v001"
+        assert "PL01" not in str(result), "PL01 should not be chosen when FG01 is available"
