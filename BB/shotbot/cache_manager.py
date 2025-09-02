@@ -248,59 +248,71 @@ class CacheManager(QObject):
             result = ThumbnailCacheResult()
             self._active_loaders[cache_key] = result
 
-        # Determine processing approach
-        app = QApplication.instance()
-        is_main_thread = app is not None and QThread.currentThread() == app.thread()
+        # Process thumbnail with proper exception handling to prevent memory leaks
+        try:
+            # Determine processing approach
+            app = QApplication.instance()
+            is_main_thread = app is not None and QThread.currentThread() == app.thread()
 
-        if not is_main_thread:
-            # Background thread - use ThumbnailLoader
-            loader: ThumbnailLoader = ThumbnailLoader(
-                self._thumbnail_processor,
-                self._failure_tracker,
-                source_path_obj,
-                cache_path,
-                show,
-                sequence,
-                shot,
-                result,
-            )
-
-            # Connect cleanup
-            # Use proper typed functions instead of lambdas to avoid type issues
-            def on_loaded(show: str, sequence: str, shot: str, path: Path) -> None:
-                self._on_thumbnail_loaded(cache_key, cache_path)
-
-            def on_failed(show: str, sequence: str, shot: str, error: str) -> None:
-                self._cleanup_loader(cache_key)
-
-            _ = loader.signals.loaded.connect(on_loaded)
-            _ = loader.signals.failed.connect(on_failed)
-
-            pool = QThreadPool.globalInstance()
-            pool.start(loader)  # type: ignore[arg-type]
-
-            if wait:
-                return result.get_result(timeout)
-            return result
-        else:
-            # Main thread - process directly
-            success = self._thumbnail_processor.process_thumbnail(
-                source_path_obj, cache_path
-            )
-
-            if success and cache_path.exists():
-                result.set_result(cache_path)
-                self._on_thumbnail_loaded(cache_key, cache_path)
-                self._cleanup_loader(cache_key)
-                return cache_path if wait else result
-            else:
-                error_msg = "Failed to cache thumbnail"
-                result.set_error(error_msg)
-                self._failure_tracker.record_failure(
-                    cache_key, error_msg, source_path_obj
+            if not is_main_thread:
+                # Background thread - use ThumbnailLoader
+                loader: ThumbnailLoader = ThumbnailLoader(
+                    self._thumbnail_processor,
+                    self._failure_tracker,
+                    source_path_obj,
+                    cache_path,
+                    show,
+                    sequence,
+                    shot,
+                    result,
                 )
-                self._cleanup_loader(cache_key)
-                return None if wait else result
+
+                # Connect cleanup
+                # Use proper typed functions instead of lambdas to avoid type issues
+                def on_loaded(show: str, sequence: str, shot: str, path: Path) -> None:
+                    self._on_thumbnail_loaded(cache_key, cache_path)
+
+                def on_failed(show: str, sequence: str, shot: str, error: str) -> None:
+                    self._cleanup_loader(cache_key)
+
+                _ = loader.signals.loaded.connect(on_loaded)
+                _ = loader.signals.failed.connect(on_failed)
+
+                pool = QThreadPool.globalInstance()
+                pool.start(loader)  # type: ignore[arg-type]
+
+                if wait:
+                    return result.get_result(timeout)
+                return result
+            else:
+                # Main thread - process directly
+                success = self._thumbnail_processor.process_thumbnail(
+                    source_path_obj, cache_path
+                )
+
+                if success and cache_path.exists():
+                    result.set_result(cache_path)
+                    self._on_thumbnail_loaded(cache_key, cache_path)
+                    self._cleanup_loader(cache_key)
+                    return cache_path if wait else result
+                else:
+                    error_msg = "Failed to cache thumbnail"
+                    result.set_error(error_msg)
+                    self._failure_tracker.record_failure(
+                        cache_key, error_msg, source_path_obj
+                    )
+                    self._cleanup_loader(cache_key)
+                    return None if wait else result
+        except Exception as e:
+            # Ensure cleanup happens even on exception to prevent memory leak
+            logger.error(f"Exception during thumbnail caching: {e}")
+            self._cleanup_loader(cache_key)
+            # Record failure for exponential backoff
+            self._failure_tracker.record_failure(
+                cache_key, str(e), source_path_obj
+            )
+            # Re-raise to maintain existing error handling behavior
+            raise
 
     def cache_thumbnail_direct(
         self, source_path: Path, show: str, sequence: str, shot: str

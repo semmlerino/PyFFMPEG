@@ -11,6 +11,8 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any
 
+from PySide6.QtCore import QSize
+
 from config import Config
 
 # Performance monitoring removed - was using archived module
@@ -1060,6 +1062,31 @@ class ImageUtils:
         if max_size is None:
             max_size = Config.CACHE_THUMBNAIL_SIZE
         return (max_size, max_size)
+
+    @staticmethod
+    def is_image_too_large_for_thumbnail(
+        size: QSize,
+        max_dimension: int,
+    ) -> bool:
+        """Check if an image is too large for thumbnail processing.
+        
+        Args:
+            size: QSize object with width() and height() methods
+            max_dimension: Maximum allowed dimension in pixels
+            
+        Returns:
+            True if image is too large, False if it's acceptable
+        """
+        width = size.width()
+        height = size.height()
+        
+        # Return True if image is too large (inverse of validate_image_dimensions)
+        return not ImageUtils.validate_image_dimensions(
+            width=width,
+            height=height, 
+            max_dimension=max_dimension,
+            max_memory_mb=Config.MAX_THUMBNAIL_MEMORY_MB
+        )
 
 
 class ValidationUtils:

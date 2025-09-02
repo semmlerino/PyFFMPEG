@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThreadPool
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtCore import Qt, QThreadPool, QRunnable, QObject, Signal
+from PySide6.QtGui import QFont, QPixmap, QImage
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from cache_manager import CacheManager, ThumbnailCacheLoader
 from shot_model import Shot
+from utils import ImageUtils
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -133,13 +134,13 @@ class ShotInfoPanel(QWidget):
         )
 
         if cache_path and cache_path.exists():
-            # Load from cache
-            self._load_pixmap_from_path(cache_path)
+            # Load from cache asynchronously
+            self._load_pixmap_async(cache_path)
         else:
             # Try to load from source
             thumb_path = self._current_shot.get_thumbnail_path()
             if thumb_path and thumb_path.exists():
-                self._load_pixmap_from_path(thumb_path)
+                self._load_pixmap_async(thumb_path)
 
                 # Also cache it for next time
                 cache_loader = ThumbnailCacheLoader(
@@ -180,7 +181,6 @@ class ShotInfoPanel(QWidget):
 
             # Use utility for memory bounds checking (with smaller limits for info panel)
             from config import Config
-            from utils import ImageUtils
 
             if not ImageUtils.validate_image_dimensions(
                 pixmap.width(),
@@ -240,7 +240,7 @@ class ShotInfoPanel(QWidget):
             and self._current_shot.sequence == sequence
             and self._current_shot.shot == shot
         ):
-            self._load_pixmap_from_path(cache_path)
+            self._load_pixmap_async(cache_path)
 
     def _set_placeholder_thumbnail(self):
         """Set placeholder thumbnail."""
@@ -256,3 +256,84 @@ class ShotInfoPanel(QWidget):
                 color: #666;
             }
         """)
+
+    def _load_pixmap_async(self, path: str | Path):
+        """Load pixmap asynchronously to avoid blocking UI."""
+        # Create and start async loader
+        loader = InfoPanelPixmapLoader(self, path)
+        loader.signals.loaded.connect(self._on_pixmap_loaded)
+        loader.signals.failed.connect(self._on_pixmap_failed)
+        QThreadPool.globalInstance().start(loader)
+
+    def _on_pixmap_loaded(self, image: QImage):
+        """Handle successful image loading - convert to pixmap in main thread."""
+        pixmap = QPixmap.fromImage(image)
+        self.thumbnail_label.setPixmap(pixmap)
+
+    def _on_pixmap_failed(self):
+        """Handle failed pixmap loading."""
+        self._set_placeholder_thumbnail()
+
+
+class InfoPanelPixmapLoader(QRunnable):
+    """Async loader for info panel thumbnails."""
+
+    class Signals(QObject):
+        loaded = Signal(QImage)
+        failed = Signal()
+
+    def __init__(self, panel, path: str | Path):
+        super().__init__()
+        self.panel = panel  # Keep reference to prevent GC
+        self.path = path
+        self.signals = self.Signals()
+
+    def run(self):
+        """Load pixmap in background thread."""
+        try:
+            from config import Config
+            
+            path_obj = Path(self.path) if isinstance(self.path, str) else self.path
+            
+            if not path_obj.exists():
+                logger.debug(f"Thumbnail path does not exist: {self.path}")
+                self.signals.failed.emit()
+                return
+
+            # Load the image (using QImage for thread safety)
+            image = QImage(str(path_obj))
+            if image.isNull():
+                logger.debug(f"Failed to load thumbnail: {self.path}")
+                self.signals.failed.emit()
+                return
+
+            # Use utility for memory bounds checking (smaller limits for info panel)
+            if ImageUtils.is_image_too_large_for_thumbnail(  # type: ignore[attr-defined]
+                image.size(),
+                Config.MAX_INFO_PANEL_DIMENSION_PX
+            ):
+                logger.warning(f"Image too large for info panel: {image.size()}")
+                self.signals.failed.emit()
+                return
+
+            # Scale to appropriate size for info panel (larger than grid thumbnails)
+            max_size = 256  # Info panel can be larger than grid thumbnails
+            if image.width() > max_size or image.height() > max_size:
+                scaled = image.scaled(
+                    max_size,
+                    max_size,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                if scaled.isNull():
+                    logger.warning(f"Failed to scale thumbnail: {self.path}")
+                    self.signals.failed.emit()
+                    return
+                image = scaled
+
+            self.signals.loaded.emit(image)
+            logger.debug(f"Successfully loaded info panel thumbnail: {self.path}")
+
+        except Exception as e:
+            logger.error(f"Error loading info panel thumbnail {self.path}: {e}")
+            self.signals.failed.emit()
