@@ -341,10 +341,8 @@ Viewer {{
                     break
 
             if not is_copy_paste_format:
-                logger.debug("Not copy/paste format, falling back to standard parser")
-                return NukeScriptGenerator._import_undistortion_nodes(
-                    undistortion_path, ypos_offset
-                )
+                logger.debug("Not copy/paste format, returning empty (main method will handle fallback)")
+                return ""
 
             # Process copy/paste format
             imported_nodes = []
@@ -482,18 +480,23 @@ Viewer {{
             logger.debug(f"Starting undistortion import from: {undistortion_path}")
 
             # Check if file exists
-            if not Path(undistortion_path).exists():
+            undistortion_file = Path(undistortion_path)
+            if not undistortion_file.exists():
                 logger.error(f"Undistortion file not found: {undistortion_path}")
                 return ""
+            
+            logger.debug(f"File exists, size: {undistortion_file.stat().st_size} bytes")
 
             with open(undistortion_path, encoding="utf-8") as f:
                 content = f.read()
+            
+            logger.debug(f"Successfully read file, content length: {len(content)} characters")
 
             if not content.strip():
                 logger.error(f"Undistortion file is empty: {undistortion_path}")
                 return ""
 
-            logger.debug(f"File content length: {len(content)} characters")
+            logger.debug(f"File content preview (first 100 chars): {content[:100]}")
 
             # Parse nodes from the file
             imported_nodes: list[str] = []
@@ -933,6 +936,15 @@ Read {{
                         ypos_offset=-200,
                     )
                 )
+                
+                # If copy/paste format failed, try the standard parser
+                if not imported_nodes:
+                    logger.info("Copy/paste format parser returned empty result, trying standard parser as fallback")
+                    imported_nodes = NukeScriptGenerator._import_undistortion_nodes(
+                        undistortion_path,
+                        ypos_offset=-200,
+                    )
+
                 if imported_nodes:
                     logger.info("Successfully imported undistortion nodes into script")
                     # Fix the first node to connect to Read_Plate (if it exists)
