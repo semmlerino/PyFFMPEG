@@ -375,22 +375,29 @@ Viewer {{
                     i += 1
                     continue
 
-                # Check for node definitions
+                # Check for node definitions (ANY node except Root and TCL commands)
                 # Nuke nodes typically look like: NodeName { ... }
                 node_match = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", stripped)
                 if node_match:
                     node_type = node_match.group(1)
 
-                    # Skip Root node
-                    if node_type == "Root":
-                        logger.debug("Skipping Root node")
-                        brace_count = 1
-                        i += 1
-                        while i < len(lines) and brace_count > 0:
-                            if "{" in lines[i]:
-                                brace_count += lines[i].count("{")
-                            if "}" in lines[i]:
-                                brace_count -= lines[i].count("}")
+                    # Skip Root and TCL commands - import everything else
+                    excluded_patterns = ["Root", "set", "push", "if", "else", "for", "while"]
+                    
+                    if node_type in excluded_patterns:
+                        logger.debug(f"Skipping {node_type} (excluded)")
+                        if node_type == "Root":
+                            # Skip entire Root node block
+                            brace_count = 1
+                            i += 1
+                            while i < len(lines) and brace_count > 0:
+                                if "{" in lines[i]:
+                                    brace_count += lines[i].count("{")
+                                if "}" in lines[i]:
+                                    brace_count -= lines[i].count("}")
+                                i += 1
+                        else:
+                            # For other excluded patterns, just skip the line
                             i += 1
                         continue
 
@@ -538,81 +545,34 @@ Viewer {{
                         i += 1
                     continue
 
-                # Check if this line starts a node we want to import
-                known_node_types = [
-                    "Group",  # Group nodes for undistortion
-                    "Undistort",  # Direct undistort nodes
-                    "LensDistortion",
-                    "UVTile2",
-                    "Crop",
-                    "Switch",
-                    "Expression",
-                    "NoOp",
-                    "Dot",
-                    "Reformat",
-                    "Input",  # Often part of Group nodes
-                    "Output",  # Often part of Group nodes
-                    "StickyNote",  # Sometimes contains metadata
-                    "Bezier",  # Distortion curves
-                    "Roto",  # Distortion masks
-                    # Additional common Nuke nodes that might be in undistortion files
-                    "Transform",
-                    "CornerPin2D",
-                    "Tracker4",
-                    "GridWarp2",
-                    "SplineWarp3",
-                    "IDistort",
-                    "LensDistortion2",
-                    "VectorDistort",
-                    "Constant",
-                    "Blur",
-                    "Grade",
-                    "ColorCorrect",
-                    "Shuffle",
-                    "Copy",
-                    "Merge",
-                    "Merge2",
-                    "Read",
-                    "Write",
-                ]
-
+                # Check if this line starts a node (ANY node except Root and TCL commands)
+                # Simple pattern: Word characters followed by optional space and opening brace
+                import re
+                
                 is_node_start = False
                 matched_node_type = None
-
-                # First try known node types
-                for node_type in known_node_types:
-                    if line.startswith(node_type + " {"):
+                
+                node_pattern = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", line)
+                if node_pattern:
+                    node_type = node_pattern.group(1)
+                    
+                    # Only exclude Root and TCL commands - import everything else
+                    excluded_patterns = [
+                        "Root",  # Would conflict with main script
+                        "set",   # TCL command
+                        "push",  # TCL stack command
+                        "if",    # TCL control flow
+                        "else",  # TCL control flow
+                        "for",   # TCL loop
+                        "while", # TCL loop
+                    ]
+                    
+                    if node_type not in excluded_patterns:
                         is_node_start = True
                         matched_node_type = node_type
-                        break
-
-                # If no match, try a more flexible pattern for any node-like structure
-                # Pattern: Word characters followed by optional space and opening brace
-                if not is_node_start:
-                    import re
-
-                    node_pattern = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", line)
-                    if node_pattern:
-                        potential_node_type = node_pattern.group(1)
-                        # Exclude common non-node patterns
-                        excluded_patterns = [
-                            "set",
-                            "push",
-                            "if",
-                            "else",
-                            "for",
-                            "while",
-                        ]
-                        if potential_node_type not in excluded_patterns:
-                            is_node_start = True
-                            matched_node_type = potential_node_type
-                            logger.debug(
-                                f"Found unknown node type: {matched_node_type}"
-                            )
-                        else:
-                            logger.debug(
-                                f"Skipping excluded pattern: {potential_node_type}"
-                            )
+                        logger.debug(f"Found {matched_node_type} node")
+                    else:
+                        logger.debug(f"Skipping {node_type} (excluded)")
 
                 # Special handling for end_group which doesn't have braces
                 if line == "end_group":
