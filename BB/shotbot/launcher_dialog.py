@@ -424,7 +424,7 @@ class LauncherManagerDialog(QDialog):
     def __init__(self, launcher_manager: LauncherManager, parent=None):
         super().__init__(parent)
         self.launcher_manager = launcher_manager
-        self._launchers_cache = {}
+        self._launchers_cache: dict[str, CustomLauncher] = {}
         self._setup_ui()
         self._setup_shortcuts()
         self._connect_signals()
@@ -656,7 +656,7 @@ class LauncherManagerDialog(QDialog):
         for i in range(self.launcher_list.count()):
             item = self.launcher_list.item(i)
             launcher_id = item.data(Qt.ItemDataRole.UserRole)
-            launcher = self._launchers_cache.get(launcher_id)
+            launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
 
             if launcher:
                 # Search in name and command
@@ -671,7 +671,7 @@ class LauncherManagerDialog(QDialog):
         current_item = self.launcher_list.currentItem()
         if current_item:
             launcher_id = current_item.data(Qt.ItemDataRole.UserRole)
-            launcher = self._launchers_cache.get(launcher_id)
+            launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
             self.preview_panel.set_launcher(launcher)
         else:
             self.preview_panel.set_launcher(None)
@@ -688,14 +688,14 @@ class LauncherManagerDialog(QDialog):
 
     def _edit_launcher(self, launcher_id: str):
         """Show dialog to edit launcher."""
-        launcher = self._launchers_cache.get(launcher_id)
+        launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if launcher:
             dialog = LauncherEditDialog(self.launcher_manager, launcher, parent=self)
             dialog.exec()
 
     def _delete_launcher(self, launcher_id: str):
         """Delete launcher with confirmation."""
-        launcher = self._launchers_cache.get(launcher_id)
+        launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if not launcher:
             return
 
@@ -718,7 +718,7 @@ class LauncherManagerDialog(QDialog):
 
     def _launch_launcher(self, launcher_id: str):
         """Launch the specified launcher."""
-        launcher = self._launchers_cache.get(launcher_id)
+        launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if not launcher:
             return
 
@@ -752,13 +752,13 @@ class LauncherManagerDialog(QDialog):
 
     def _on_execution_started(self, launcher_id: str):
         """Handle launcher execution start."""
-        launcher = self._launchers_cache.get(launcher_id)
+        launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if launcher:
             logger.info(f"Launching: {launcher.name}")
 
     def _on_execution_finished(self, launcher_id: str, success: bool):
         """Handle launcher execution finish."""
-        launcher = self._launchers_cache.get(launcher_id)
+        launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if launcher:
             if success:
                 logger.info(f"Successfully launched: {launcher.name}")

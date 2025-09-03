@@ -232,7 +232,7 @@ class ProcessPoolManager(QObject):
             # Replace session pools with secure executor
             self._secure_executor = get_secure_executor()
             self._session_pools: dict[
-                str, List
+                str, List[PersistentBashSession]
             ] = {}  # Deprecated, kept for compatibility
             self._session_round_robin: dict[str, int] = {}  # Track next session to use
             self._session_creation_in_progress: dict[

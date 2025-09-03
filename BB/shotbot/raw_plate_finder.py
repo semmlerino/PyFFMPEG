@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from re import Match
 from pathlib import Path
 
 from config import Config
@@ -22,7 +23,7 @@ class RawPlateFinder:
     # Pattern 1: {shot_name}_turnover-plate_{plate_name}_{color_space}_{version}.####.exr
     # Pattern 2: {shot_name}_turnover-plate_{plate_name}{color_space}_{version}.####.exr
     # These will be compiled dynamically in _get_plate_patterns() method
-    _pattern_cache = {}  # Cache for compiled patterns keyed by (shot_name, plate_name, version)
+    _pattern_cache: dict[tuple[str, str, str], tuple[re.Pattern[str], re.Pattern[str]]] = {}  # Cache for compiled patterns keyed by (shot_name, plate_name, version)
 
     @staticmethod
     def find_latest_raw_plate(
@@ -150,7 +151,7 @@ class RawPlateFinder:
                     filename = file_path.name
 
                     # Try to match the pattern and extract color space
-                    match = pattern1.match(filename)
+                    match: Match[str] | None = pattern1.match(filename)
                     if match:
                         color_space = match.group(1)
                         # Construct the pattern with #### for frame numbers
@@ -160,7 +161,7 @@ class RawPlateFinder:
                         return full_path
 
                     # Try alternative pattern without underscore before color space
-                    match2 = pattern2.match(filename)
+                    match2: Match[str] | None = pattern2.match(filename)
                     if match2:
                         color_space = match2.group(1)
                         plate_pattern = f"{shot_name}_turnover-plate_{plate_name}{color_space}_{version}.####.exr"
