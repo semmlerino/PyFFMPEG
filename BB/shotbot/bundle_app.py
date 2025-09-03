@@ -73,7 +73,8 @@ class GitIgnoreParser:
         for pattern in self.always_exclude:
             if pattern.startswith("*."):
                 # File extension pattern
-                if path.endswith(pattern[1:]):
+                extension = pattern[1:]
+                if path.endswith(extension) or path_name.endswith(extension):
                     return True
             elif pattern in path_parts or path_name == pattern:
                 return True
@@ -131,9 +132,19 @@ class ApplicationBundler:
                 "*.txt",
                 "*.ini",
                 "*.cfg",
+                "*.sh",
                 "requirements*.txt",
                 "Dockerfile",
                 ".dockerignore",
+                "terminal_dispatcher.sh",
+                "convert_exr_to_jpeg.sh",
+                "install.sh",
+                "run_debug.sh",
+                "run_fast_tests.sh",
+                "run_full_tests.sh",
+                "run_tests.sh",
+                "test_health_check.sh",
+                "typecheck.sh",
             ],
             "exclude_patterns": [
                 "test_*.py",
@@ -155,12 +166,19 @@ class ApplicationBundler:
                 ".git",
                 ".pytest_cache",
                 "venv",
+                "venv_py311",
+                "test_venv",
                 "env",
                 ".venv",
                 "archive",
                 "archived",
                 "copy",
                 ".shotbot",
+                "htmlcov",
+                "test_bundle*",
+                "debug_bundle*",
+                "final_test*",
+                "shotbot_bundle_temp",
             ],
             "max_file_size_mb": 10,
             "chunk_size_kb": 5120,  # 5MB chunks
@@ -200,24 +218,38 @@ class ApplicationBundler:
         # Check exclude patterns from config
         for pattern in self.config["exclude_patterns"]:
             if "*" in pattern:
-                regex_pattern = pattern.replace(".", r"\.").replace("*", ".*")
-                if re.match(regex_pattern, file_path) or re.match(
-                    regex_pattern,
-                    file_name,
-                ):
-                    return False
+                # Handle file extension patterns like *.log, *.pyc
+                if pattern.startswith("*."):
+                    extension = pattern[1:]  # Get .log, .pyc, etc.
+                    if file_path.endswith(extension) or file_name.endswith(extension):
+                        return False
+                else:
+                    # General wildcard pattern
+                    regex_pattern = pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                    if re.search(regex_pattern, file_path) or re.search(
+                        regex_pattern,
+                        file_name,
+                    ):
+                        return False
             elif pattern in file_path or file_name == pattern:
                 return False
 
         # Check include patterns
         for pattern in self.config["include_patterns"]:
             if "*" in pattern:
-                regex_pattern = pattern.replace(".", r"\.").replace("*", ".*")
-                if re.match(regex_pattern, file_path) or re.match(
-                    regex_pattern,
-                    file_name,
-                ):
-                    return True
+                # Handle file extension patterns like *.py, *.sh
+                if pattern.startswith("*."):
+                    extension = pattern[1:]  # Get .py, .sh, etc.
+                    if file_path.endswith(extension) or file_name.endswith(extension):
+                        return True
+                else:
+                    # General wildcard pattern
+                    regex_pattern = pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                    if re.search(regex_pattern, file_path) or re.search(
+                        regex_pattern,
+                        file_name,
+                    ):
+                        return True
             elif file_name == pattern:
                 return True
 
