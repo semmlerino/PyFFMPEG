@@ -963,36 +963,6 @@ Root {{
  int16Lut "Rec.709 (ACES)"
  logLut "Log film emulation (ACES)"
  floatLut "linear"
- onCreate {{
-  # Import undistortion when script loads (onCreate callback)
-  import nuke
-  import os
-  
-  undist_file = r"{nuke_undist_path}"
-  
-  if os.path.exists(undist_file):
-      try:
-          nuke.scriptSource(undist_file)
-          
-          # Connect imported nodes to Read_Plate
-          imported_nodes = nuke.selectedNodes()
-          read_plate = nuke.toNode("Read_Plate")
-          
-          if imported_nodes and read_plate:
-              for node in imported_nodes:
-                  if node.maxInputs() > 0 and node.input(0) is None:
-                      try:
-                          node.setInput(0, read_plate)
-                          break
-                      except:
-                          pass
-                          
-          print(f"Undistortion imported from: {{undist_file}}")
-      except Exception as e:
-          print(f"Error importing undistortion: {{e}}")
-  else:
-      print(f"Undistortion file not found: {{undist_file}}")
- }}
 }}
 
 # Create plate Read node
@@ -1018,6 +988,17 @@ Read {{
  label "Raw Plate\\n\\[value colorspace]\\nframes: {first_frame}-{last_frame}"
  selected true
  xpos 0
+ ypos -300
+}}
+
+# NoOp node to execute Python code when script loads
+NoOp {{
+ inputs 0
+ name PythonExecutor
+ tile_color 0xff000001
+ label "Python Script Loader\\nImports undistortion nodes"
+ onCreate "import nuke\\nimport os\\nimport sys\\n\\ntry:\\n    print('DEBUG: Starting undistortion import...')\\n    print(f'DEBUG: Python version: {{sys.version}}')\\n    \\n    undist_file = r\\"{nuke_undist_path}\\"\\n    print(f'DEBUG: Looking for undistortion file: {{undist_file}}')\\n    \\n    if os.path.exists(undist_file):\\n        print('DEBUG: File exists, attempting to source...')\\n        try:\\n            nuke.scriptSource(undist_file)\\n            print('DEBUG: Successfully sourced undistortion file')\\n            \\n            # Try to connect imported nodes to Read_Plate\\n            imported_nodes = nuke.selectedNodes()\\n            print(f'DEBUG: Found {{len(imported_nodes)}} imported nodes')\\n            \\n            read_plate = nuke.toNode('Read_Plate')\\n            if imported_nodes and read_plate:\\n                for node in imported_nodes:\\n                    if node.maxInputs() > 0 and node.input(0) is None:\\n                        try:\\n                            node.setInput(0, read_plate)\\n                            print(f'DEBUG: Connected {{node.name()}} to Read_Plate')\\n                            break\\n                        except Exception as ex:\\n                            print(f'DEBUG: Could not connect {{node.name()}}: {{ex}}')\\n            else:\\n                print('DEBUG: No nodes to connect or Read_Plate not found')\\n                            \\n            nuke.message(f'Undistortion imported from:\\\\n{{undist_file}}')\\n        except Exception as e:\\n            print(f'ERROR: Failed to source undistortion: {{e}}')\\n            import traceback\\n            traceback.print_exc()\\n            nuke.message(f'Error importing undistortion:\\\\n{{str(e)}}')\\n    else:\\n        print(f'WARNING: Undistortion file not found: {{undist_file}}')\\n        nuke.message(f'Undistortion file not found:\\\\n{{undist_file}}')\\nexcept Exception as e:\\n    print(f'ERROR: Unexpected error in Python executor: {{e}}')\\n    import traceback\\n    traceback.print_exc()"
+ xpos 200
  ypos -300
 }}
 
