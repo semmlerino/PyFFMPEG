@@ -352,6 +352,8 @@ Viewer {{
             i = 0
             inside_root = False
             root_brace_count = 0
+            inside_python = False
+            python_brace_count = 0
 
             while i < len(lines):
                 line = lines[i]
@@ -414,7 +416,55 @@ Viewer {{
                         logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
                         line = adjusted_line
 
-                # Import this line
+                # Handle Python blocks - strip indentation from Python code
+                if not inside_python and stripped.startswith("python {"):
+                    inside_python = True
+                    python_brace_count = 1
+                    # Import the python block opening WITHOUT indentation
+                    imported_lines.append("python {")
+                    logger.debug("Entering Python block in copy/paste format")
+                    i += 1
+                    continue
+
+                # If inside Python block, handle Python code properly
+                if inside_python:
+                    if "{" in line:
+                        python_brace_count += line.count("{")
+                    if "}" in line:
+                        python_brace_count -= line.count("}")
+                    
+                    if python_brace_count <= 0:
+                        inside_python = False
+                        logger.debug("Exiting Python block in copy/paste format")
+                        # Import the closing brace with no indentation
+                        imported_lines.append("}")
+                    else:
+                        # For Python code, use same logic as standard format
+                        if stripped:  # Non-empty line
+                            indent_count = len(line) - len(line.lstrip())
+                            
+                            # Top-level Python statements should have NO indentation
+                            if stripped.startswith(('import ', 'from ', 'def ', 'class ')):
+                                imported_lines.append(stripped)
+                            else:
+                                # Preserve relative indentation for nested blocks
+                                if indent_count >= 5:
+                                    dedented = line[5:] if len(line) > 5 else line.lstrip()
+                                elif indent_count == 4:
+                                    dedented = line[4:]
+                                else:
+                                    dedented = line.lstrip()
+                                imported_lines.append(dedented)
+                            
+                            if imported_lines[-1] != line:
+                                logger.debug(f"Dedented Python line in copy/paste: {imported_lines[-1][:50]}...")
+                        else:
+                            # Empty line in Python block
+                            imported_lines.append("")
+                    i += 1
+                    continue
+
+                # Import this line normally (not in Python block)
                 imported_lines.append(line)
                 i += 1
 
@@ -497,6 +547,8 @@ Viewer {{
             i = 0
             inside_root = False
             root_brace_count = 0
+            inside_python = False
+            python_brace_count = 0
 
             logger.debug(f"Processing {len(lines)} lines")
 
@@ -582,7 +634,70 @@ Viewer {{
                     i += 1
                     continue
 
-                # Import this line
+                # Handle Python blocks - strip indentation from Python code
+                if not inside_python and stripped.startswith("python {"):
+                    inside_python = True
+                    python_brace_count = 1
+                    # Import the python block opening WITHOUT indentation
+                    imported_lines.append("python {")
+                    logger.debug("Entering Python block")
+                    i += 1
+                    continue
+
+                # If inside Python block, handle Python code properly
+                if inside_python:
+                    if "{" in line:
+                        python_brace_count += line.count("{")
+                    if "}" in line:
+                        python_brace_count -= line.count("}")
+                    
+                    if python_brace_count <= 0:
+                        inside_python = False
+                        logger.debug("Exiting Python block")
+                        # Import the closing brace with no indentation 
+                        imported_lines.append("}")
+                    else:
+                        # For Python code, we need to intelligently strip base indentation
+                        if stripped:  # Non-empty line
+                            # Find how much the line is indented
+                            indent_count = len(line) - len(line.lstrip())
+                            
+                            # For the first non-comment Python line (like 'import'), 
+                            # ALL indentation should be removed since Python code starts at column 0
+                            if stripped.startswith(('import ', 'from ', 'def ', 'class ')):
+                                # This is a top-level Python statement - remove ALL leading whitespace
+                                imported_lines.append(stripped)
+                            else:
+                                # For other lines, try to preserve relative indentation
+                                # Detect the base indentation (usually the amount before 'import')
+                                # and remove that amount from all lines
+                                
+                                # Common patterns: lines might have 4, 5, 8, or 9+ spaces
+                                # We want to strip the "base" amount but keep Python indentation
+                                if indent_count > 0:
+                                    # Remove spaces up to the first Python content
+                                    # Heuristic: if it has 5+ spaces, first 5 are Nuke indent
+                                    if indent_count >= 5:
+                                        # Likely pattern: 1 space (Group) + 4 spaces (python block)
+                                        dedented = line[5:] if len(line) > 5 else line.lstrip()
+                                    elif indent_count == 4:
+                                        # Standard 4-space indent - remove it
+                                        dedented = line[4:]
+                                    else:
+                                        # Less indentation - just strip it
+                                        dedented = line.lstrip()
+                                    imported_lines.append(dedented)
+                                else:
+                                    imported_lines.append(stripped)
+                            
+                            logger.debug(f"Processed Python line: {imported_lines[-1][:50]}...")
+                        else:
+                            # Empty line in Python block
+                            imported_lines.append("")
+                    i += 1
+                    continue
+
+                # Import this line normally (not in Python block)
                 imported_lines.append(line)
                 i += 1
 
