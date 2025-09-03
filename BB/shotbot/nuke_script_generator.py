@@ -227,7 +227,7 @@ Root {{
  int8Lut "Rec.709 (ACES)"
  int16Lut "Rec.709 (ACES)"
  logLut "Log film emulation (ACES)"
- floatLut linear
+ floatLut "linear"
 }}
 Read {{
  inputs 0
@@ -962,7 +962,37 @@ Root {{
  int8Lut "Rec.709 (ACES)"
  int16Lut "Rec.709 (ACES)"
  logLut "Log film emulation (ACES)"
- floatLut linear
+ floatLut "linear"
+ onCreate {{
+  # Import undistortion when script loads (onCreate callback)
+  import nuke
+  import os
+  
+  undist_file = r"{nuke_undist_path}"
+  
+  if os.path.exists(undist_file):
+      try:
+          nuke.scriptSource(undist_file)
+          
+          # Connect imported nodes to Read_Plate
+          imported_nodes = nuke.selectedNodes()
+          read_plate = nuke.toNode("Read_Plate")
+          
+          if imported_nodes and read_plate:
+              for node in imported_nodes:
+                  if node.maxInputs() > 0 and node.input(0) is None:
+                      try:
+                          node.setInput(0, read_plate)
+                          break
+                      except:
+                          pass
+                          
+          print(f"Undistortion imported from: {{undist_file}}")
+      except Exception as e:
+          print(f"Error importing undistortion: {{e}}")
+  else:
+      print(f"Undistortion file not found: {{undist_file}}")
+ }}
 }}
 
 # Create plate Read node
@@ -989,41 +1019,6 @@ Read {{
  selected true
  xpos 0
  ypos -300
-}}
-
-# Python script to source the undistortion file
-# This executes when the script loads
-python {{
-import nuke
-import os
-
-# Path to undistortion file
-undist_file = r"{nuke_undist_path}"
-
-# Check if file exists before sourcing
-if os.path.exists(undist_file):
-    try:
-        # Source the undistortion file - this properly imports all nodes
-        nuke.scriptSource(undist_file)
-        
-        # Connect the first imported node to Read_Plate if possible
-        # The imported nodes will be selected after scriptSource
-        imported_nodes = nuke.selectedNodes()
-        if imported_nodes:
-            # Find the first node that can accept inputs
-            for node in imported_nodes:
-                if node.maxInputs() > 0 and node.input(0) is None:
-                    try:
-                        node.setInput(0, nuke.toNode("Read_Plate"))
-                        break
-                    except:
-                        pass
-                        
-        nuke.message("Undistortion imported from:\\n" + undist_file)
-    except Exception as e:
-        nuke.message("Error importing undistortion:\\n" + str(e))
-else:
-    nuke.message("Undistortion file not found:\\n" + undist_file)
 }}
 
 # Add a note about the undistortion source
@@ -1156,7 +1151,7 @@ Root {{
  int8Lut "Rec.709 (ACES)"
  int16Lut "Rec.709 (ACES)"
  logLut "Log film emulation (ACES)"
- floatLut linear
+ floatLut "linear"
 }}
 """
 
