@@ -297,17 +297,18 @@ Viewer {{
         undistortion_path: str,
         ypos_offset: int = -200,
     ) -> str:
-        """Import nodes from a copy/paste format undistortion .nk file.
+        """Import content from a copy/paste format undistortion .nk file.
 
         This handles files that start with 'set cut_paste_input [stack 0]'
-        which is Nuke's standard copy/paste format.
+        which is Nuke's standard copy/paste format. It imports all content
+        except the copy/paste specific boilerplate.
 
         Args:
             undistortion_path: Path to the undistortion .nk file
             ypos_offset: Y position offset for imported nodes
 
         Returns:
-            String containing the processed nodes to insert
+            String containing the processed content to insert
         """
         import logging
         import re
@@ -344,118 +345,93 @@ Viewer {{
                 logger.debug("Not copy/paste format, returning empty (main method will handle fallback)")
                 return ""
 
-            # Process copy/paste format
-            imported_nodes = []
+            # Process copy/paste format - import everything except boilerplate
+            imported_lines = []
             i = 0
-            nodes_found = 0
+            inside_root = False
+            root_brace_count = 0
 
             while i < len(lines):
                 line = lines[i]
                 stripped = line.strip()
 
-                # Skip copy/paste specific lines
+                # Skip copy/paste boilerplate
                 if "set cut_paste_input" in line:
-                    logger.debug(f"Skipping copy/paste init: {line}")
+                    logger.debug(f"Skipping copy/paste boilerplate: {line[:50]}")
                     i += 1
                     continue
 
-                # Handle push commands - these manage the connection stack
+                # Skip certain push commands that are copy/paste specific
                 if stripped.startswith("push"):
-                    if "push $cut_paste_input" in line or "push 0" in line:
-                        # Skip these as they're copy/paste specific
-                        logger.debug(f"Skipping push command: {line}")
+                    if "push $cut_paste_input" in line or "push 0" in stripped:
+                        logger.debug(f"Skipping copy/paste push: {line[:50]}")
                         i += 1
                         continue
-                    # Keep other push commands as they might be important
-                    logger.debug(f"Keeping push command: {line}")
+                    # Keep other push commands as they might be connection management
 
                 # Skip version line (will be in main script already)
                 if stripped.startswith("version "):
-                    logger.debug(f"Skipping version line: {line}")
+                    logger.debug(f"Skipping version line: {stripped[:50]}")
                     i += 1
                     continue
 
-                # Check for node definitions (ANY node except Root and TCL commands)
-                # Nuke nodes typically look like: NodeName { ... }
-                node_match = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", stripped)
-                if node_match:
-                    node_type = node_match.group(1)
-
-                    # Skip Root and TCL commands - import everything else
-                    excluded_patterns = ["Root", "set", "push", "if", "else", "for", "while"]
+                # Skip Root node and its contents (would conflict)
+                if not inside_root and (stripped.startswith("Root {") or stripped == "Root {"):
+                    logger.debug("Found Root node, skipping its contents")
+                    inside_root = True
+                    root_brace_count = 1
+                    i += 1
+                    continue
+                
+                # If inside Root node, track braces and skip content
+                if inside_root:
+                    if "{" in line:
+                        root_brace_count += line.count("{")
+                    if "}" in line:
+                        root_brace_count -= line.count("}")
                     
-                    if node_type in excluded_patterns:
-                        logger.debug(f"Skipping {node_type} (excluded)")
-                        if node_type == "Root":
-                            # Skip entire Root node block
-                            brace_count = 1
-                            i += 1
-                            while i < len(lines) and brace_count > 0:
-                                if "{" in lines[i]:
-                                    brace_count += lines[i].count("{")
-                                if "}" in lines[i]:
-                                    brace_count -= lines[i].count("}")
-                                i += 1
-                        else:
-                            # For other excluded patterns, just skip the line
-                            i += 1
-                        continue
-
-                    # Collect the complete node definition
-                    logger.debug(f"Found {node_type} node at line {i + 1}")
-                    nodes_found += 1
-
-                    node_lines = [lines[i]]
-                    brace_count = lines[i].count("{") - lines[i].count("}")
+                    if root_brace_count <= 0:
+                        inside_root = False
+                        logger.debug("Finished skipping Root node")
                     i += 1
+                    continue
 
-                    while i < len(lines) and brace_count > 0:
-                        node_lines.append(lines[i])
-                        brace_count += lines[i].count("{") - lines[i].count("}")
-                        i += 1
+                # Apply ypos offset if this line contains ypos
+                if "ypos" in line and ypos_offset != 0:
+                    ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
+                    
+                    def adjust_ypos(match):
+                        old_ypos = int(match.group(1))
+                        new_ypos = old_ypos + ypos_offset
+                        return f"ypos {new_ypos}"
+                    
+                    adjusted_line = ypos_pattern.sub(adjust_ypos, line)
+                    if adjusted_line != line:
+                        logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
+                        line = adjusted_line
 
-                    # Join the node definition
-                    node_text = "\n".join(node_lines)
+                # Import this line
+                imported_lines.append(line)
+                i += 1
 
-                    # Adjust ypos if present
-                    if "ypos" in node_text:
-                        ypos_matches = re.findall(r"ypos\s+(-?\d+)", node_text)
-                        for match in ypos_matches:
-                            old_ypos = int(match)
-                            new_ypos = old_ypos + ypos_offset
-                            node_text = node_text.replace(
-                                f"ypos {old_ypos}", f"ypos {new_ypos}", 1
-                            )
-                            logger.debug(f"Adjusted ypos from {old_ypos} to {new_ypos}")
+            # Join the imported content
+            imported_content = "\n".join(imported_lines).strip()
 
-                    # For the first node, ensure it connects properly
-                    if nodes_found == 1 and "inputs 0" not in node_text:
-                        # First undistortion node should connect to plate if available
-                        node_text = re.sub(
-                            r"inputs\s+\d+", "inputs 1", node_text, count=1
-                        )
-                        logger.debug("Set first node to connect to input")
-
-                    imported_nodes.append(node_text)
-                else:
-                    i += 1
-
-            logger.info(
-                f"Successfully imported {nodes_found} nodes from copy/paste format"
-            )
-
-            if imported_nodes:
+            if imported_content:
                 result = (
-                    "\n# Imported undistortion nodes from copy/paste format\n"
+                    "\n# Imported undistortion content from copy/paste format\n"
                     + "# "
                     + undistortion_path
                     + "\n"
-                    + "\n".join(imported_nodes)
+                    + imported_content
                     + "\n"
+                )
+                logger.info(
+                    f"Successfully imported copy/paste content ({len(result)} characters)"
                 )
                 return result
 
-            logger.warning("No nodes found to import")
+            logger.warning("No content found to import")
             return ""
 
         except Exception as e:
@@ -470,16 +446,20 @@ Viewer {{
         undistortion_path: str,
         ypos_offset: int = -200,
     ) -> str:
-        """Import nodes from an undistortion .nk file.
+        """Import ALL content from an undistortion .nk file.
+
+        This method imports the entire content of the .nk file, excluding only
+        the parts that would conflict with the main script (Root node, version, etc).
 
         Args:
             undistortion_path: Path to the undistortion .nk file
             ypos_offset: Y position offset for imported nodes
 
         Returns:
-            String containing the processed nodes to insert
+            String containing the processed content to insert
         """
         import logging
+        import re
 
         logger = logging.getLogger(__name__)
 
@@ -503,37 +483,36 @@ Viewer {{
                 logger.error(f"Undistortion file is empty: {undistortion_path}")
                 return ""
 
-            logger.debug(f"File content preview (first 100 chars): {content[:100]}")
+            logger.debug(f"File content preview (first 200 chars): {content[:200]}")
 
-            # Parse nodes from the file
-            imported_nodes: list[str] = []
+            # Process the file content - we'll import everything except conflicting sections
             lines = content.split("\n")
+            imported_lines: list[str] = []
             i = 0
-            nodes_found = 0
+            inside_root = False
+            root_brace_count = 0
 
             logger.debug(f"Processing {len(lines)} lines")
 
             while i < len(lines):
-                line = lines[i].strip()
+                line = lines[i]
+                stripped = line.strip()
 
-                # Skip empty lines
-                if not line:
+                # Skip version line (will be in main script already)
+                if stripped.startswith("version "):
+                    logger.debug(f"Skipping version line: {stripped[:50]}")
                     i += 1
                     continue
-
-                # Skip comment lines, version, and window layout
-                if (
-                    line.startswith("#")
-                    or line.startswith("version")
-                    or line.startswith("define_window_layout")
-                ):
-                    logger.debug(f"Skipping header line: {line[:50]}...")
+                
+                # Skip shebang line
+                if stripped.startswith("#!"):
+                    logger.debug("Skipping shebang line")
                     i += 1
                     continue
-
-                # Skip Root node and its contents
-                if line.startswith("Root {") or line == "Root {":
-                    logger.debug("Skipping Root node")
+                
+                # Skip window layout definition (conflicts with main script)
+                if stripped.startswith("define_window_layout"):
+                    logger.debug("Skipping window layout definition")
                     # Skip until we find the closing brace
                     brace_count = 1
                     i += 1
@@ -545,97 +524,75 @@ Viewer {{
                         i += 1
                     continue
 
-                # Check if this line starts a node (ANY node except Root and TCL commands)
-                # Simple pattern: Word characters followed by optional space and opening brace
-                import re
+                # Handle Root node - skip it and its contents
+                if not inside_root and (stripped.startswith("Root {") or stripped == "Root {"):
+                    logger.debug("Found Root node, skipping its contents")
+                    inside_root = True
+                    root_brace_count = 1
+                    i += 1
+                    continue
                 
-                is_node_start = False
-                matched_node_type = None
-                
-                node_pattern = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", line)
-                if node_pattern:
-                    node_type = node_pattern.group(1)
+                # If inside Root node, track braces and skip content
+                if inside_root:
+                    if "{" in line:
+                        root_brace_count += line.count("{")
+                    if "}" in line:
+                        root_brace_count -= line.count("}")
                     
-                    # Only exclude Root and TCL commands - import everything else
-                    excluded_patterns = [
-                        "Root",  # Would conflict with main script
-                        "set",   # TCL command
-                        "push",  # TCL stack command
-                        "if",    # TCL control flow
-                        "else",  # TCL control flow
-                        "for",   # TCL loop
-                        "while", # TCL loop
-                    ]
-                    
-                    if node_type not in excluded_patterns:
-                        is_node_start = True
-                        matched_node_type = node_type
-                        logger.debug(f"Found {matched_node_type} node")
-                    else:
-                        logger.debug(f"Skipping {node_type} (excluded)")
-
-                # Special handling for end_group which doesn't have braces
-                if line == "end_group":
-                    logger.debug("Found end_group directive")
-                    imported_nodes.append(line)
+                    if root_brace_count <= 0:
+                        inside_root = False
+                        logger.debug("Finished skipping Root node")
                     i += 1
                     continue
 
-                if is_node_start:
-                    logger.debug(f"Found {matched_node_type} node at line {i + 1}")
-                    nodes_found += 1
+                # Apply ypos offset if this line contains ypos
+                if "ypos" in line and ypos_offset != 0:
+                    # Find all ypos values in the line and adjust them
+                    ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
+                    
+                    def adjust_ypos(match):
+                        old_ypos = int(match.group(1))
+                        new_ypos = old_ypos + ypos_offset
+                        return f"ypos {new_ypos}"
+                    
+                    adjusted_line = ypos_pattern.sub(adjust_ypos, line)
+                    if adjusted_line != line:
+                        logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
+                        line = adjusted_line
 
-                    # Collect the entire node
-                    node_lines = [lines[i]]  # Use original line with whitespace
-                    brace_count = lines[i].count("{") - lines[i].count("}")
+                # Skip copy/paste specific lines even in standard format
+                # (sometimes files contain these without being full copy/paste format)
+                if "set cut_paste_input" in line:
+                    logger.debug(f"Skipping copy/paste init line: {stripped[:50]}...")
                     i += 1
-
-                    while i < len(lines) and brace_count > 0:
-                        node_lines.append(lines[i])
-                        brace_count += lines[i].count("{") - lines[i].count("}")
-                        i += 1
-
-                    # Process the node
-                    node_text = "\n".join(node_lines)
-
-                    # Adjust ypos values if present
-                    if "ypos" in node_text:
-                        ypos_match = re.search(r"ypos\s+(-?\d+)", node_text)
-                        if ypos_match:
-                            old_ypos = int(ypos_match.group(1))
-                            new_ypos = old_ypos + ypos_offset
-                            node_text = re.sub(
-                                r"ypos\s+" + str(old_ypos),
-                                f"ypos {new_ypos}",
-                                node_text,
-                            )
-                            logger.debug(f"Adjusted ypos from {old_ypos} to {new_ypos}")
-
-                    imported_nodes.append(node_text)
-                else:
-                    # Log unrecognized lines for debugging
-                    if line and not line.startswith(" ") and not line.startswith("\t"):
-                        logger.debug(f"Unrecognized line: {line[:50]}...")
+                    continue
+                
+                if stripped.startswith("push") and ("push $cut_paste_input" in line or "push 0" in stripped):
+                    logger.debug(f"Skipping copy/paste push: {stripped[:50]}...")
                     i += 1
+                    continue
 
-            logger.info(
-                f"Import results: found {nodes_found} nodes, imported {len(imported_nodes)} items"
-            )
+                # Import this line
+                imported_lines.append(line)
+                i += 1
 
-            if imported_nodes:
+            # Join the imported lines
+            imported_content = "\n".join(imported_lines).strip()
+
+            if imported_content:
                 result = (
-                    "\n# Imported undistortion nodes from "
+                    "\n# Imported undistortion content from "
                     + undistortion_path
                     + "\n"
-                    + "\n".join(imported_nodes)
+                    + imported_content
                     + "\n"
                 )
                 logger.info(
-                    f"Successfully imported undistortion nodes ({len(result)} characters)"
+                    f"Successfully imported undistortion content ({len(result)} characters)"
                 )
                 return result
 
-            logger.warning("No importable nodes found in undistortion file")
+            logger.warning("No content to import after filtering")
             return ""
 
         except FileNotFoundError:
@@ -646,7 +603,7 @@ Viewer {{
             return ""
         except Exception as e:
             logger.error(
-                f"Unexpected error importing undistortion nodes from {undistortion_path}: {e}"
+                f"Unexpected error importing undistortion from {undistortion_path}: {e}"
             )
             import traceback
 
@@ -657,8 +614,8 @@ Viewer {{
     def debug_undistortion_file(undistortion_path: str) -> None:
         """Debug function to analyze undistortion .nk file structure.
 
-        This function analyzes an undistortion file and reports what it finds,
-        which is useful for troubleshooting import failures.
+        This function analyzes an undistortion file and reports what will be imported,
+        which is useful for troubleshooting import issues.
 
         Args:
             undistortion_path: Path to the undistortion .nk file to analyze
@@ -680,83 +637,117 @@ Viewer {{
             lines = content.split("\n")
             print(f"File has {len(lines)} lines, {len(content)} characters")
 
-            # Analyze line types
-            header_lines = 0
+            # Analyze what will be skipped vs imported
+            skipped_lines = 0
+            imported_lines = 0
             root_lines = 0
-            node_lines = 0
-            empty_lines = 0
-            other_lines = 0
+            version_lines = 0
+            shebang_lines = 0
+            window_layout_lines = 0
+            
+            # Track if file is copy/paste format
+            is_copy_paste = False
+            for line in lines[:10]:
+                if "set cut_paste_input" in line:
+                    is_copy_paste = True
+                    break
+            
+            if is_copy_paste:
+                print("\nFile Format: Copy/Paste format (contains 'set cut_paste_input')")
+            else:
+                print("\nFile Format: Standard .nk format")
 
-            found_node_types = set()
-            sample_lines = []
+            # Simulate the import logic
+            inside_root = False
+            root_brace_count = 0
+            inside_window_layout = False
+            window_brace_count = 0
 
             for i, line in enumerate(lines):
                 stripped = line.strip()
 
-                if not stripped:
-                    empty_lines += 1
-                elif (
-                    stripped.startswith("#")
-                    or stripped.startswith("version")
-                    or stripped.startswith("define_window_layout")
-                ):
-                    header_lines += 1
-                elif stripped.startswith("Root {") or stripped == "Root {":
+                # Track what would be skipped
+                if stripped.startswith("#!"):
+                    shebang_lines += 1
+                    skipped_lines += 1
+                elif stripped.startswith("version "):
+                    version_lines += 1
+                    skipped_lines += 1
+                elif stripped.startswith("define_window_layout"):
+                    inside_window_layout = True
+                    window_brace_count = 1
+                    window_layout_lines += 1
+                    skipped_lines += 1
+                elif inside_window_layout:
+                    window_layout_lines += 1
+                    skipped_lines += 1
+                    if "{" in line:
+                        window_brace_count += line.count("{")
+                    if "}" in line:
+                        window_brace_count -= line.count("}")
+                    if window_brace_count <= 0:
+                        inside_window_layout = False
+                elif not inside_root and (stripped.startswith("Root {") or stripped == "Root {"):
+                    inside_root = True
+                    root_brace_count = 1
                     root_lines += 1
+                    skipped_lines += 1
+                elif inside_root:
+                    root_lines += 1
+                    skipped_lines += 1
+                    if "{" in line:
+                        root_brace_count += line.count("{")
+                    if "}" in line:
+                        root_brace_count -= line.count("}")
+                    if root_brace_count <= 0:
+                        inside_root = False
+                elif is_copy_paste and "set cut_paste_input" in line:
+                    skipped_lines += 1
+                elif is_copy_paste and stripped.startswith("push") and ("push $cut_paste_input" in line or "push 0" in stripped):
+                    skipped_lines += 1
                 else:
-                    # Check for node-like patterns using the same logic as the parser
-                    import re
+                    # This line would be imported
+                    imported_lines += 1
 
-                    node_pattern = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", stripped)
-                    if node_pattern:
-                        node_type = node_pattern.group(1)
-                        excluded_patterns = [
-                            "set",
-                            "push",
-                            "if",
-                            "else",
-                            "for",
-                            "while",
-                        ]
-                        if node_type not in excluded_patterns:
-                            node_lines += 1
-                            found_node_types.add(node_type)
-                        else:
-                            other_lines += 1
-                            if len(sample_lines) < 10:
-                                sample_lines.append(
-                                    f"  Line {i + 1}: {stripped[:100]} (excluded pattern)"
-                                )
-                    else:
-                        other_lines += 1
-                        if len(sample_lines) < 10:
-                            sample_lines.append(f"  Line {i + 1}: {stripped[:100]}")
-
-            print("\nLine Analysis:")
-            print(f"  Header lines: {header_lines}")
-            print(f"  Root node lines: {root_lines}")
-            print(f"  Recognized node lines: {node_lines}")
-            print(f"  Empty lines: {empty_lines}")
-            print(f"  Other/unrecognized lines: {other_lines}")
-
-            print(
-                f"\nFound Node Types: {', '.join(sorted(found_node_types)) if found_node_types else 'None'}"
-            )
-
-            if sample_lines:
-                print("\nSample unrecognized lines:")
-                for line in sample_lines:
-                    print(line)
+            print("\nImport Analysis:")
+            print(f"  Lines to import: {imported_lines}")
+            print(f"  Lines to skip: {skipped_lines}")
+            print(f"    - Shebang lines: {shebang_lines}")
+            print(f"    - Version lines: {version_lines}")
+            print(f"    - Window layout lines: {window_layout_lines}")
+            print(f"    - Root node lines: {root_lines}")
+            if is_copy_paste:
+                print(f"    - Copy/paste boilerplate: {skipped_lines - shebang_lines - version_lines - window_layout_lines - root_lines}")
 
             # Try the actual import to see what happens
             print("\n=== IMPORT TEST ===")
-            result = NukeScriptGenerator._import_undistortion_nodes(undistortion_path)
+            
+            # Test both parsers
+            if is_copy_paste:
+                print("Testing copy/paste format parser...")
+                result = NukeScriptGenerator._import_undistortion_nodes_copy_paste_format(undistortion_path)
+            else:
+                print("Testing standard format parser...")
+                result = NukeScriptGenerator._import_undistortion_nodes(undistortion_path)
+            
             if result:
                 print(f"SUCCESS: Import returned {len(result)} characters")
-                print("First 200 characters of result:")
-                print(result[:200] + "..." if len(result) > 200 else result)
+                print("\nFirst 400 characters of imported content:")
+                print("-" * 40)
+                print(result[:400] + "..." if len(result) > 400 else result)
+                print("-" * 40)
             else:
                 print("FAILED: Import returned empty string")
+                print("\nTrying alternate parser as fallback...")
+                if is_copy_paste:
+                    result = NukeScriptGenerator._import_undistortion_nodes(undistortion_path)
+                else:
+                    result = NukeScriptGenerator._import_undistortion_nodes_copy_paste_format(undistortion_path)
+                
+                if result:
+                    print(f"FALLBACK SUCCESS: Got {len(result)} characters")
+                else:
+                    print("FALLBACK FAILED: Still empty")
 
         except Exception as e:
             print(f"ERROR analyzing file: {e}")
