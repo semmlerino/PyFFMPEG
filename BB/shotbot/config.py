@@ -97,6 +97,15 @@ class Config:
     # Nuke Undistortion Handling
     NUKE_UNDISTORTION_MODE = "direct"  # Options: "direct" (open file), "parse" (old method)
     NUKE_USE_LOADER_SCRIPT = True  # Use loader script when combining plate + undistortion
+    
+    # Persistent Terminal Settings
+    USE_PERSISTENT_TERMINAL = True  # Use single terminal for all commands
+    PERSISTENT_TERMINAL_FIFO = "/tmp/shotbot_commands.fifo"  # FIFO path for commands
+    PERSISTENT_TERMINAL_TITLE = "ShotBot Terminal"  # Terminal window title
+    AUTO_BACKGROUND_GUI_APPS = True  # Auto-append & for GUI applications
+    KEEP_TERMINAL_ON_EXIT = False  # Keep terminal open when ShotBot closes
+    CLEAR_TERMINAL_BEFORE_COMMAND = False  # Clear screen before each command
+    TERMINAL_DISPATCHER_SCRIPT = "terminal_dispatcher.sh"  # Dispatcher script name
 
     # Settings file
     SETTINGS_FILE = Path.home() / ".shotbot" / "settings.json"

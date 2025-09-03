@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 from datetime import datetime
@@ -13,6 +14,7 @@ from config import Config
 
 if TYPE_CHECKING:
     from nuke_script_generator import NukeScriptGenerator as NukeScriptGeneratorType
+    from persistent_terminal_manager import PersistentTerminalManager
     from raw_plate_finder import RawPlateFinder as RawPlateFinderType
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
@@ -21,6 +23,8 @@ else:
     # Import at runtime to avoid circular imports
     from shot_model import Shot  # noqa: TC001
     from threede_scene_model import ThreeDEScene  # noqa: TC001
+
+logger = logging.getLogger(__name__)
 
 
 class CommandLauncher(QObject):
@@ -39,6 +43,7 @@ class CommandLauncher(QObject):
         raw_plate_finder: type[RawPlateFinderType] | None = None,
         undistortion_finder: type[UndistortionFinderType] | None = None,
         nuke_script_generator: type[NukeScriptGeneratorType] | None = None,
+        persistent_terminal: PersistentTerminalManager | None = None,
     ) -> None:
         """Initialize CommandLauncher with optional dependencies.
         
@@ -46,9 +51,11 @@ class CommandLauncher(QObject):
             raw_plate_finder: Class for finding raw plates (defaults to RawPlateFinder)
             undistortion_finder: Class for finding undistortion files (defaults to UndistortionFinder)
             nuke_script_generator: Class for generating Nuke scripts (defaults to NukeScriptGenerator)
+            persistent_terminal: Optional persistent terminal manager for single terminal mode
         """
         super().__init__()
         self.current_shot: Shot | None = None
+        self.persistent_terminal = persistent_terminal
         
         # Use injected dependencies or fall back to defaults
         if raw_plate_finder is None:
@@ -364,6 +371,17 @@ class CommandLauncher(QObject):
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.command_executed.emit(timestamp, full_command)
 
+        # Use persistent terminal if available and enabled
+        if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
+            logger.debug(f"Using persistent terminal for command: {full_command}")
+            success = self.persistent_terminal.send_command(full_command)
+            if success:
+                return True
+            else:
+                logger.warning("Failed to send command to persistent terminal, falling back to new terminal")
+                # Fall through to launch new terminal
+        
+        # Launch in new terminal (original behavior)
         try:
             # Execute in a new terminal
             # This will work on Linux with common terminal emulators
@@ -444,6 +462,17 @@ class CommandLauncher(QObject):
             f"{full_command} (Scene by: {scene.user}, Plate: {scene.plate})",
         )
 
+        # Use persistent terminal if available and enabled
+        if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
+            logger.debug(f"Using persistent terminal for scene command: {full_command}")
+            success = self.persistent_terminal.send_command(full_command)
+            if success:
+                return True
+            else:
+                logger.warning("Failed to send command to persistent terminal, falling back to new terminal")
+                # Fall through to launch new terminal
+        
+        # Launch in new terminal (original behavior)
         try:
             # Execute in a new terminal
             terminal_commands = [

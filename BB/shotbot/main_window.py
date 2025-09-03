@@ -90,6 +90,7 @@ from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
 from launcher_manager import LauncherManager  # Need at runtime
 from log_viewer import LogViewer
 from notification_manager import NotificationManager, NotificationType
+from persistent_terminal_manager import PersistentTerminalManager
 from previous_shots_grid import PreviousShotsGrid
 from previous_shots_model import PreviousShotsModel
 from process_pool_manager import ProcessPoolManager
@@ -210,7 +211,14 @@ class MainWindow(QMainWindow):
         self.previous_shots_model = PreviousShotsModel(
             self.shot_model, self.cache_manager
         )
-        self.command_launcher = CommandLauncher()
+        # Create persistent terminal manager if enabled
+        self.persistent_terminal: PersistentTerminalManager | None = None
+        if Config.USE_PERSISTENT_TERMINAL:
+            self.persistent_terminal = PersistentTerminalManager(
+                fifo_path=Config.PERSISTENT_TERMINAL_FIFO
+            )
+        
+        self.command_launcher = CommandLauncher(persistent_terminal=self.persistent_terminal)
         self.launcher_manager = LauncherManager()
         self._current_scene: ThreeDEScene | None = None
         self._threede_worker: ThreeDESceneWorker | None = None
@@ -783,7 +791,7 @@ class MainWindow(QMainWindow):
         percentage: float,
         description: str,
         eta: str,
-    ):
+    ) -> None:
         """Handle enhanced 3DE discovery progress updates.
 
         Args:
@@ -915,7 +923,7 @@ class MainWindow(QMainWindow):
         current_shot: int,
         total_shots: int,
         status: str,
-    ):
+    ) -> None:
         """Handle fine-grained scan progress updates.
 
         Args:
@@ -1790,6 +1798,18 @@ class MainWindow(QMainWindow):
         # Shutdown cache manager
         self.cache_manager.shutdown()
 
+        # Clean up persistent terminal if it exists
+        if hasattr(self, "persistent_terminal") and self.persistent_terminal:
+            logger.debug("Cleaning up persistent terminal")
+            # Check if we should keep terminal open after exit
+            if not getattr(Config, "KEEP_TERMINAL_ON_EXIT", False):
+                self.persistent_terminal.cleanup()
+            else:
+                # Just cleanup FIFO but leave terminal running
+                logger.info("Keeping terminal open after application exit")
+                if hasattr(self.persistent_terminal, "cleanup_fifo_only"):
+                    self.persistent_terminal.cleanup_fifo_only()
+
         self._save_settings()
         event.accept()
 
@@ -1867,7 +1887,7 @@ class MainWindow(QMainWindow):
 
         logger.info("Settings applied successfully")
 
-    def _import_settings(self):
+    def _import_settings(self) -> None:
         """Import settings from file."""
         from PySide6.QtWidgets import QFileDialog
 
@@ -1890,7 +1910,7 @@ class MainWindow(QMainWindow):
                     "Failed to import settings. Check the file format.",
                 )
 
-    def _export_settings(self):
+    def _export_settings(self) -> None:
         """Export settings to file."""
         from PySide6.QtWidgets import QFileDialog
 
@@ -1911,7 +1931,7 @@ class MainWindow(QMainWindow):
                     self, "Export Error", "Failed to export settings."
                 )
 
-    def _reset_layout(self):
+    def _reset_layout(self) -> None:
         """Reset window layout to defaults."""
         reply = QMessageBox.question(
             self,
