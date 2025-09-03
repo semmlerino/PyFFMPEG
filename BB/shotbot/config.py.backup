@@ -202,9 +202,6 @@ class Config:
         "PL01",  # Primary turnover plate
         "PL02",  # Secondary turnover plate
         "PL03",  # Tertiary turnover plate
-        "COMP01",  # Composite plate 01
-        "COMP02",  # Composite plate 02
-        "COMP03",  # Composite plate 03
         "bg01",
         "fg01",
         "plate",
@@ -214,7 +211,6 @@ class Config:
     TURNOVER_PLATE_PRIORITY = {
         "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
         "BG": 1,  # BG plates second priority (BG01, BG02, etc.)
-        "COMP": 1.5,  # Composite plates - between BG and EL
         "EL": 2,  # Element plates third
         "*": 3,  # All others lowest priority
     }
@@ -227,11 +223,8 @@ class Config:
         "PL01": 7,  # Primary turnover plate - high priority
         "PL02": 6,  # Secondary turnover plate  
         "PL03": 5,  # Tertiary turnover plate
-        "COMP01": 4.5,  # Composite plates - between PL and BG
-        "COMP02": 4.4,
-        "COMP03": 4.3,
-        "BG01": 4.0,
-        "bg01": 3.5,
+        "BG01": 4,
+        "bg01": 3,
         "BG02": 2,
     }  # Higher value = higher priority
 
@@ -239,13 +232,12 @@ class Config:
     COLOR_SPACE_PATTERNS = ["aces", "lin_sgamut3cine", "lin_rec709", "rec709", "srgb", "film_lin"]
     
     # Undistortion plate discovery configuration
-    UNDISTORTION_PLATE_PREFIXES = ["FG", "BG", "BC", "PL", "COMP"]  # Plate prefixes to search for undistortion files
+    UNDISTORTION_PLATE_PREFIXES = ["FG", "BG", "BC", "PL"]  # Plate prefixes to search for undistortion files
     
     # Undistortion plate priorities (lower value = higher priority)
     UNDISTORTION_PLATE_PRIORITY = {
         "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
         "PL": 1,  # PL plates second priority (PL01, PL02, PL03 - primary turnover plates)
-        "COMP": 1.5,  # COMP plates - between PL and BG
         "BG": 2,  # BG plates third priority (BG01, BG02, etc.)
         "BC": 3,  # BC plates lowest priority (BC01 - background clean plates)
     }
