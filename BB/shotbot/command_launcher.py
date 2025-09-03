@@ -375,8 +375,19 @@ class CommandLauncher(QObject):
 
         # Use persistent terminal if available and enabled
         if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            logger.info(f"Sending command to persistent terminal: {full_command}")
-            success = self.persistent_terminal.send_command(full_command)
+            # For GUI apps, append & to run in background if configured
+            terminal_command = full_command
+            if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
+                # Check if command already ends with &
+                if not terminal_command.rstrip().endswith('&'):
+                    terminal_command = f"{terminal_command} &"
+                    logger.debug(f"Added & for GUI app {app_name} to run in background")
+            
+            logger.info(f"Sending command to persistent terminal: {terminal_command}")
+            logger.debug(f"Original command: {full_command}")
+            logger.debug(f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}")
+            
+            success = self.persistent_terminal.send_command(terminal_command)
             if success:
                 logger.debug("Command successfully sent to persistent terminal")
                 return True
@@ -469,8 +480,19 @@ class CommandLauncher(QObject):
 
         # Use persistent terminal if available and enabled
         if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            logger.info(f"Sending scene command to persistent terminal: {full_command}")
-            success = self.persistent_terminal.send_command(full_command)
+            # For GUI apps, append & to run in background if configured
+            terminal_command = full_command
+            if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
+                # Check if command already ends with &
+                if not terminal_command.rstrip().endswith('&'):
+                    terminal_command = f"{terminal_command} &"
+                    logger.debug(f"Added & for GUI app {app_name} with scene to run in background")
+            
+            logger.info(f"Sending scene command to persistent terminal: {terminal_command}")
+            logger.debug(f"Original command: {full_command}")
+            logger.debug(f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}")
+            
+            success = self.persistent_terminal.send_command(terminal_command)
             if success:
                 logger.debug("Scene command successfully sent to persistent terminal")
                 return True
@@ -649,6 +671,19 @@ class CommandLauncher(QObject):
             self._emit_error(f"Failed to launch {app_name} in scene context: {str(e)}")
             return False
 
+    def _is_gui_app(self, app_name: str) -> bool:
+        """Check if an application is a GUI application.
+        
+        Args:
+            app_name: Name of the application
+            
+        Returns:
+            True if the app is a GUI application, False otherwise
+        """
+        # List of known GUI applications that should run in background
+        gui_apps = {"3de", "nuke", "maya", "rv", "houdini", "mari", "katana", "clarisse"}
+        return app_name.lower() in gui_apps
+    
     def _emit_error(self, error: str) -> None:
         """Emit error with timestamp."""
         timestamp = datetime.now().strftime("%H:%M:%S")
