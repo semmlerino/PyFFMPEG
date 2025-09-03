@@ -345,7 +345,13 @@ class CommandLauncher(QObject):
             safe_workspace_path = self._validate_path_for_shell(
                 self.current_shot.workspace_path
             )
-            ws_command = f"ws {safe_workspace_path} && {command}"
+            # For GUI apps in persistent terminal, add & inside the command
+            if (self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL 
+                and Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name)):
+                ws_command = f"ws {safe_workspace_path} && {command} &"
+                logger.debug(f"Added & inside command for GUI app {app_name}")
+            else:
+                ws_command = f"ws {safe_workspace_path} && {command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {str(e)}")
             return False
@@ -375,19 +381,10 @@ class CommandLauncher(QObject):
 
         # Use persistent terminal if available and enabled
         if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            # For GUI apps, append & to run in background if configured
-            terminal_command = full_command
-            if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
-                # Check if command already ends with &
-                if not terminal_command.rstrip().endswith('&'):
-                    terminal_command = f"{terminal_command} &"
-                    logger.debug(f"Added & for GUI app {app_name} to run in background")
-            
-            logger.info(f"Sending command to persistent terminal: {terminal_command}")
-            logger.debug(f"Original command: {full_command}")
+            logger.info(f"Sending command to persistent terminal: {full_command}")
             logger.debug(f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}")
             
-            success = self.persistent_terminal.send_command(terminal_command)
+            success = self.persistent_terminal.send_command(full_command)
             if success:
                 logger.debug("Command successfully sent to persistent terminal")
                 return True
@@ -453,7 +450,13 @@ class CommandLauncher(QObject):
         # Validate and escape workspace path to prevent injection
         try:
             safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
-            ws_command = f"ws {safe_workspace_path} && {command}"
+            # For GUI apps in persistent terminal, add & inside the command
+            if (self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL 
+                and Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name)):
+                ws_command = f"ws {safe_workspace_path} && {command} &"
+                logger.debug(f"Added & inside command for GUI app {app_name} with scene")
+            else:
+                ws_command = f"ws {safe_workspace_path} && {command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {str(e)}")
             return False
@@ -480,19 +483,10 @@ class CommandLauncher(QObject):
 
         # Use persistent terminal if available and enabled
         if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            # For GUI apps, append & to run in background if configured
-            terminal_command = full_command
-            if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
-                # Check if command already ends with &
-                if not terminal_command.rstrip().endswith('&'):
-                    terminal_command = f"{terminal_command} &"
-                    logger.debug(f"Added & for GUI app {app_name} with scene to run in background")
-            
-            logger.info(f"Sending scene command to persistent terminal: {terminal_command}")
-            logger.debug(f"Original command: {full_command}")
+            logger.info(f"Sending scene command to persistent terminal: {full_command}")
             logger.debug(f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}")
             
-            success = self.persistent_terminal.send_command(terminal_command)
+            success = self.persistent_terminal.send_command(full_command)
             if success:
                 logger.debug("Scene command successfully sent to persistent terminal")
                 return True
