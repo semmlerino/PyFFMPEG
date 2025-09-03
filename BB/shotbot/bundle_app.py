@@ -25,7 +25,7 @@ class GitIgnoreParser:
 
     def __init__(self, gitignore_path: str | None = None):
         """Initialize with optional .gitignore file path."""
-        self.patterns = []
+        self.patterns: list[str] = []
         self.always_exclude = {
             "__pycache__",
             ".git",
@@ -110,10 +110,10 @@ class ApplicationBundler:
             verbose: Enable verbose output
         """
         self.verbose = verbose
-        self.config = self._load_config(config_path)
+        self.config: dict[str, Any] = self._load_config(config_path)
         self.gitignore_parser = GitIgnoreParser(".gitignore")
 
-    def _load_config(self, config_path: str | None) -> dict:
+    def _load_config(self, config_path: str | None) -> dict[str, Any]:
         """Load configuration from file or use defaults.
 
         Args:
@@ -122,7 +122,7 @@ class ApplicationBundler:
         Returns:
             Configuration dictionary
         """
-        default_config = {
+        default_config: dict[str, Any] = {
             "include_patterns": [
                 "*.py",
                 "*.json",
@@ -216,7 +216,8 @@ class ApplicationBundler:
         file_name = os.path.basename(file_path)
 
         # Check exclude patterns from config
-        for pattern in self.config["exclude_patterns"]:
+        exclude_patterns: list[str] = self.config.get("exclude_patterns", [])
+        for pattern in exclude_patterns:
             if "*" in pattern:
                 # Handle file extension patterns like *.log, *.pyc
                 if pattern.startswith("*."):
@@ -235,7 +236,8 @@ class ApplicationBundler:
                 return False
 
         # Check include patterns
-        for pattern in self.config["include_patterns"]:
+        include_patterns: list[str] = self.config.get("include_patterns", [])
+        for pattern in include_patterns:
             if "*" in pattern:
                 # Handle file extension patterns like *.py, *.sh
                 if pattern.startswith("*."):

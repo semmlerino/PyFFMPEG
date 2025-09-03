@@ -10,7 +10,7 @@ Provides comprehensive accessibility support including:
 
 from __future__ import annotations
 
-from typing import Protocol, cast, runtime_checkable
+from typing import Any, Callable, Protocol, cast, runtime_checkable
 
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QColor, QKeyEvent, QKeySequence, QPalette, QShortcut
@@ -79,6 +79,19 @@ class ShotGridProtocol(Protocol):
 
     size_slider: QWidget | None
     list_view: QWidget | None
+
+
+@runtime_checkable
+class ShotProtocol(Protocol):
+    """Protocol for Shot objects."""
+
+    show: str
+    sequence: str
+    shot: str
+    workspace_path: str
+    
+    @property
+    def full_name(self) -> str: ...
 
 
 @runtime_checkable
@@ -178,7 +191,7 @@ class KeyboardNavigationManager:
 
         for key_sequence, callback in shortcuts.items():
             shortcut = QShortcut(QKeySequence(key_sequence), window)
-            shortcut.activated.connect(callback)
+            shortcut.activated.connect(callback)  # type: ignore[arg-type]
 
     @staticmethod
     def setup_widget_navigation(widget: QWidget) -> None:
@@ -306,7 +319,7 @@ class AccessibilityAnnouncer:
         Args:
             window: Main window
         """
-        messages = []
+        messages: list[str] = []
 
         # Current tab
         if hasattr(window, "tab_widget"):
@@ -322,11 +335,11 @@ class AccessibilityAnnouncer:
             if command_launcher and hasattr(command_launcher, "current_shot"):
                 shot = command_launcher.current_shot
                 if shot and hasattr(shot, "full_name"):
-                    messages.append(f"Selected shot: {shot.full_name}")
+                    messages.append(f"Selected shot: {shot.full_name}")  # type: ignore[attr-defined]
 
         # Enabled applications
         if hasattr(window, "app_buttons"):
-            app_buttons = getattr(window, "app_buttons", {})
+            app_buttons: dict[str, Any] = getattr(window, "app_buttons", {})
             if isinstance(app_buttons, dict):
                 enabled_apps = [
                     name
@@ -350,7 +363,7 @@ class AccessibilityAnnouncer:
             if hasattr(
                 cast("MainWindowProtocol", window).shot_info_panel, "_current_shot"
             ):
-                shot = cast("MainWindowProtocol", window).shot_info_panel._current_shot  # type: ignore[attr-defined]
+                shot: ShotProtocol | None = cast("MainWindowProtocol", window).shot_info_panel._current_shot  # type: ignore[attr-defined]
                 if shot:
                     message = (
                         f"Shot {shot.shot} in sequence {shot.sequence}, "
@@ -512,45 +525,59 @@ class FocusManager:
             window: Main window
         """
         # Define focus chain
-        focus_chain = []
+        focus_chain: list[QWidget] = []
 
         # Tab widget
         if hasattr(window, "tab_widget"):
-            focus_chain.append(cast("MainWindowProtocol", window).tab_widget)
+            widget = cast("MainWindowProtocol", window).tab_widget
+            if widget is not None:
+                focus_chain.append(widget)
 
         # Current grid
         if hasattr(window, "shot_grid"):
-            focus_chain.append(cast("MainWindowProtocol", window).shot_grid)
+            widget = cast("MainWindowProtocol", window).shot_grid
+            if widget is not None:
+                focus_chain.append(widget)
 
         # Size slider
         if hasattr(window, "shot_grid") and hasattr(
             cast("MainWindowProtocol", window).shot_grid, "size_slider"
         ):
-            focus_chain.append(
-                cast(
-                    "ShotGridProtocol", cast("MainWindowProtocol", window).shot_grid
-                ).size_slider
-            )
+            slider = cast(
+                "ShotGridProtocol", cast("MainWindowProtocol", window).shot_grid
+            ).size_slider
+            if slider is not None:
+                focus_chain.append(slider)
 
         # Shot info panel
         if hasattr(window, "shot_info_panel"):
-            focus_chain.append(cast("MainWindowProtocol", window).shot_info_panel)
+            widget = cast("MainWindowProtocol", window).shot_info_panel
+            if widget is not None:
+                focus_chain.append(widget)
 
         # App buttons
         if hasattr(window, "app_buttons"):
-            for button in cast("MainWindowProtocol", window).app_buttons.values():
-                focus_chain.append(button)
+            buttons = cast("MainWindowProtocol", window).app_buttons
+            if buttons is not None:
+                for button in buttons.values():
+                    if button is not None:
+                        focus_chain.append(button)
 
         # Custom launcher buttons
         if hasattr(window, "custom_launcher_buttons"):
-            for button in cast(
+            launcher_buttons = cast(
                 "MainWindowProtocol", window
-            ).custom_launcher_buttons.values():
-                focus_chain.append(button)
+            ).custom_launcher_buttons
+            if launcher_buttons is not None:
+                for button in launcher_buttons.values():
+                    if button is not None:
+                        focus_chain.append(button)
 
         # Log viewer
         if hasattr(window, "log_viewer"):
-            focus_chain.append(cast("MainWindowProtocol", window).log_viewer)
+            widget = cast("MainWindowProtocol", window).log_viewer
+            if widget is not None:
+                focus_chain.append(widget)
 
         # Set tab order
         for i in range(len(focus_chain) - 1):
@@ -671,11 +698,12 @@ class AccessibilityManagerComplete:
         # Apply tooltips
         for attr, tooltip in tooltips.items():
             if attr == "app_buttons" and hasattr(window, attr):
-                for app, tip in tooltip.items():
-                    if app in cast("MainWindowProtocol", window).app_buttons:
-                        cast("MainWindowProtocol", window).app_buttons[app].setToolTip(
-                            tip
-                        )
+                for app, tip in tooltip.items():  # type: ignore[union-attr]
+                    app_buttons = cast("MainWindowProtocol", window).app_buttons
+                    if app_buttons is not None and app in app_buttons:
+                        button = app_buttons[app]
+                        if button is not None:
+                            button.setToolTip(tip)
             elif hasattr(window, attr):
                 widget = getattr(window, attr)
                 if hasattr(widget, "setToolTip"):
@@ -697,7 +725,7 @@ class AccessibilityManagerComplete:
         if hasattr(window, "shot_model"):
             window.shot_model.shot_selected.connect(  # type: ignore[attr-defined]
                 lambda shot: AccessibilityAnnouncer.announce(
-                    f"Selected: {shot.full_name}" if shot else "Selection cleared"
+                    f"Selected: {shot.full_name}" if shot else "Selection cleared"  # type: ignore[attr-defined]
                 )
             )
 

@@ -78,7 +78,7 @@ class Config:
     THUMBNAIL_PATH_PATTERN = "{shows_root}/{show}/shots/{sequence}/{shot}/publish/editorial/cutref/v001/jpg/1920x1080/"
 
     # Commands
-    APPS = {
+    APPS: dict[str, str] = {
         "3de": "3de",
         "nuke": "nuke",
         "maya": "maya",
@@ -235,7 +235,7 @@ class Config:
     ]  # Common plate naming including PL## turnover patterns
 
     # Turnover plate preferences (lower value = higher priority)
-    TURNOVER_PLATE_PRIORITY = {
+    TURNOVER_PLATE_PRIORITY: dict[str, float] = {
         "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
         "BG": 1,  # BG plates second priority (BG01, BG02, etc.)
         "COMP": 1.5,  # Composite plates - between BG and EL
@@ -244,7 +244,7 @@ class Config:
     }
 
     # Legacy plate priority (for backward compatibility)
-    PLATE_PRIORITY_ORDER = {
+    PLATE_PRIORITY_ORDER: dict[str, float] = {
         "FG01": 10,
         "fg01": 9,
         "FG02": 8,
@@ -279,7 +279,7 @@ class Config:
     ]  # Plate prefixes to search for undistortion files
 
     # Undistortion plate priorities (lower value = higher priority)
-    UNDISTORTION_PLATE_PRIORITY = {
+    UNDISTORTION_PLATE_PRIORITY: dict[str, float] = {
         "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
         "PL": 1,  # PL plates second priority (PL01, PL02, PL03 - primary turnover plates)
         "COMP": 1.5,  # COMP plates - between PL and BG
