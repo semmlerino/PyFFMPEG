@@ -18,9 +18,11 @@ from pathlib import Path
 import pytest
 from PySide6.QtTest import QSignalSpy
 
+import subprocess
+
 import command_launcher
 from command_launcher import CommandLauncher
-from tests.test_doubles_library import TestShot, TestSubprocess
+from tests.test_doubles_library import TestShot, TestSubprocess, SubprocessModuleDouble
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
@@ -30,16 +32,19 @@ class TestCommandLauncherCore:
     """Core command launcher functionality tests."""
 
     def setup_method(self):
-        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
-        self.test_subprocess = TestSubprocess()
         """Setup with test double at system boundary only."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+        
+        # Configure test subprocess to make rez unavailable
+        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
 
         # Replace subprocess at system boundary only
-
-        self.original_popen = command_launcher.subprocess.Popen
-        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        self.original_run = subprocess.run
+        self.original_popen = subprocess.Popen
+        subprocess.run = self.subprocess_double.run
+        subprocess.Popen = self.subprocess_double.Popen
 
         # Track emitted signals for behavior testing
         self.emitted_commands = []
@@ -55,8 +60,8 @@ class TestCommandLauncherCore:
 
     def teardown_method(self):
         """Clean up test doubles."""
-
-        command_launcher.subprocess.Popen = self.original_popen
+        subprocess.run = self.original_run
+        subprocess.Popen = self.original_popen
 
     def test_initialization(self, qtbot):
         """Test launcher initializes with proper signals."""
@@ -114,10 +119,7 @@ class TestCommandLauncherCore:
     def test_launch_failure_behavior(self, qtbot):
         """Test app launch failure behavior."""
         # Arrange: Set up for failure - make Popen raise an exception
-
-        command_launcher.subprocess.Popen = lambda *args, **kwargs: (
-            _ for _ in ()
-        ).throw(FileNotFoundError("Command failed"))
+        self.test_subprocess.side_effect = FileNotFoundError("Command failed")
 
         shot = TestShot(workspace_path="/test/workspace")
         self.launcher.set_current_shot(shot)
@@ -235,21 +237,24 @@ class TestCommandLauncherAdvanced:
     """Advanced command launcher functionality tests."""
 
     def setup_method(self):
-        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
-        self.test_subprocess = TestSubprocess()
         """Setup with test double."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+        
+        # Configure test subprocess to make rez unavailable
+        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
 
         # Replace subprocess at system boundary
-
-        self.original_popen = command_launcher.subprocess.Popen
-        command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        self.original_run = subprocess.run
+        self.original_popen = subprocess.Popen
+        subprocess.run = self.subprocess_double.run
+        subprocess.Popen = self.subprocess_double.Popen
 
     def teardown_method(self):
         """Clean up."""
-
-        command_launcher.subprocess.Popen = self.original_popen
+        subprocess.run = self.original_run
+        subprocess.Popen = self.original_popen
 
     def test_scene_launching_behavior(self, qtbot):
         """Test 3DE scene launching without complex mocking."""

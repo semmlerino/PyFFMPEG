@@ -81,9 +81,32 @@ class TestSubprocess:
         self.stderr: str = ""
         self.side_effect: Exception | None = None
         self.delay: float = 0.0  # Simulate execution time
+        self.args: str | list[str] | None = None  # For subprocess compatibility
 
         # For different commands, different outputs
         self.command_outputs: dict[str, tuple[int, str, str]] = {}
+
+    def __enter__(self) -> TestSubprocess:
+        """Enter context manager."""
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit context manager."""
+        pass
+
+    def communicate(
+        self, input: bytes | None = None, timeout: float | None = None
+    ) -> tuple[str, str]:
+        """Simulate communicate method for subprocess compatibility."""
+        return (self.stdout, self.stderr)
+
+    def kill(self) -> None:
+        """Simulate kill method for subprocess compatibility."""
+        pass
+
+    def poll(self) -> int | None:
+        """Simulate poll method for subprocess compatibility."""
+        return self.return_code if self.return_code != 0 else None
 
     def run(
         self,
@@ -96,6 +119,7 @@ class TestSubprocess:
         **kwargs: Any,
     ) -> TestCompletedProcess:
         """Simulate subprocess.run() with real behavior."""
+        self.args = command  # Set args for subprocess compatibility
         self.executed_commands.append(command)
         self.execution_history.append(
             {
@@ -146,6 +170,11 @@ class TestSubprocess:
     ) -> PopenDouble:
         """Simulate subprocess.Popen() for process management."""
         self.executed_commands.append(command)
+        
+        # Raise exception if configured (for Popen calls)
+        if self.side_effect:
+            raise self.side_effect
+            
         return PopenDouble(command, self.return_code, self.stdout, self.stderr)
 
     def set_command_output(
@@ -191,6 +220,14 @@ class PopenDouble:
         self.pid = 12345  # Fake PID
         self._terminated = False
         self._killed = False
+
+    def __enter__(self) -> PopenDouble:
+        """Enter context manager."""
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit context manager."""
+        pass
 
     def poll(self) -> int | None:
         """Check if process has terminated."""
@@ -893,6 +930,61 @@ class ThreadSafeTestImage:
         return self._image.sizeInBytes()
 
 
+class SubprocessModuleDouble:
+    """Test double for the entire subprocess module.
+    
+    This class can replace the entire subprocess module for testing,
+    providing both run() and Popen() methods that work correctly
+    with the context manager protocol.
+    """
+
+    __test__ = False  # Prevent pytest from collecting this as a test class
+
+    def __init__(self, test_subprocess: TestSubprocess) -> None:
+        """Initialize with a TestSubprocess instance for configuration."""
+        self._test_subprocess = test_subprocess
+
+    def run(
+        self,
+        command: str | list[str],
+        shell: bool = False,
+        capture_output: bool = False,
+        text: bool = False,
+        check: bool = False,
+        timeout: float | None = None,
+        **kwargs: Any,
+    ) -> TestCompletedProcess:
+        """Mock subprocess.run() method."""
+        return self._test_subprocess.run(
+            command, shell=shell, capture_output=capture_output,
+            text=text, check=check, timeout=timeout, **kwargs
+        )
+
+    def Popen(
+        self,
+        command: str | list[str],
+        shell: bool = False,
+        stdout: Any = None,
+        stderr: Any = None,
+        **kwargs: Any,
+    ) -> PopenDouble:
+        """Mock subprocess.Popen() method."""
+        return self._test_subprocess.Popen(
+            command, shell=shell, stdout=stdout, stderr=stderr, **kwargs
+        )
+
+    def __call__(
+        self,
+        command: str | list[str],
+        shell: bool = False,
+        stdout: Any = None,
+        stderr: Any = None,
+        **kwargs: Any,
+    ) -> PopenDouble:
+        """Allow Popen to be called directly on the module double."""
+        return self.Popen(command, shell=shell, stdout=stdout, stderr=stderr, **kwargs)
+
+
 class TestPILImage:
     """Test double for PIL Image with real behavior."""
 
@@ -1246,6 +1338,7 @@ __all__ = [
     "TestSubprocess",
     "PopenDouble",
     "TestCompletedProcess",
+    "SubprocessModuleDouble",
     # Models
     "TestShot",
     "TestShotModel",

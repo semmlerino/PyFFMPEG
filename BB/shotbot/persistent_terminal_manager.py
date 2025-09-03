@@ -6,6 +6,7 @@ eliminating the need to spawn new terminals for each command.
 
 from __future__ import annotations
 
+import errno
 import logging
 import os
 import signal
@@ -150,9 +151,15 @@ class PersistentTerminalManager(QObject):
             # Give terminal time to set up
             time.sleep(0.5)
         
-        # Send command to FIFO
+        # Send command to FIFO using non-blocking I/O
+        fifo_fd = None
         try:
-            with open(self.fifo_path, 'w') as fifo:
+            # Open FIFO in non-blocking mode to prevent hanging
+            fifo_fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
+            
+            # Convert file descriptor to file object for easier writing
+            with os.fdopen(fifo_fd, 'w') as fifo:
+                fifo_fd = None  # File object now owns the descriptor
                 fifo.write(f"{command}\n")
                 fifo.flush()
             
@@ -161,8 +168,20 @@ class PersistentTerminalManager(QObject):
             return True
             
         except OSError as e:
-            logger.error(f"Failed to send command to FIFO: {e}")
+            if e.errno == errno.ENXIO:
+                logger.warning("No reader available for FIFO (terminal_dispatcher.sh not running?)")
+            elif e.errno == errno.EAGAIN:
+                logger.warning("FIFO write would block (buffer full?)")
+            else:
+                logger.error(f"Failed to send command to FIFO: {e}")
             return False
+        finally:
+            # Clean up file descriptor if it wasn't converted to file object
+            if fifo_fd is not None:
+                try:
+                    os.close(fifo_fd)
+                except OSError:
+                    pass
     
     def clear_terminal(self) -> bool:
         """Clear the terminal screen.

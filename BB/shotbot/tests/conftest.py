@@ -1030,6 +1030,7 @@ def mock_gui_blocking_components(monkeypatch):
     2. ProcessPoolManager uses TestProcessPool instead of real subprocesses
     3. MainWindow can be safely created without triggering background threads that call GUI components
     4. NotificationManager calls don't block from worker threads
+    5. PersistentTerminalManager FIFO operations don't block tests
 
     This fixes the MainWindow test hang issue where:
     - MainWindow creates OptimizedShotModel
@@ -1037,6 +1038,11 @@ def mock_gui_blocking_components(monkeypatch):
     - AsyncShotLoader threads may call NotificationManager.error()
     - NotificationManager.error() calls QMessageBox.critical() from worker thread
     - QMessageBox from non-main thread causes Qt to hang/crash
+    
+    Also fixes persistent terminal hangs where:
+    - MainWindow creates PersistentTerminalManager when Config.USE_PERSISTENT_TERMINAL=True
+    - PersistentTerminalManager creates FIFO operations that can block in test environment
+    - Tests hang waiting for FIFO read/write operations to complete
     """
     # Mock QMessageBox methods to prevent blocking dialogs
     from PySide6.QtWidgets import QMessageBox
@@ -1085,6 +1091,32 @@ def mock_gui_blocking_components(monkeypatch):
     monkeypatch.setattr(
         process_pool_manager, "ProcessPoolManager", MockProcessPoolManagerClass
     )
+
+    # CRITICAL FIX: Disable persistent terminal to prevent FIFO hangs
+    # This prevents MainWindow from creating PersistentTerminalManager that uses FIFO operations
+    from config import Config
+    monkeypatch.setattr(Config, "USE_PERSISTENT_TERMINAL", False)
+    
+    # Also mock PersistentTerminalManager to be extra safe
+    class MockPersistentTerminalManager:
+        """Mock PersistentTerminalManager that does nothing."""
+        def __init__(self, *args, **kwargs):
+            pass
+        def send_command(self, command: str, ensure_terminal: bool = True) -> bool:
+            return True  # Always succeed without doing anything
+        def clear_terminal(self) -> bool:
+            return True
+        def close_terminal(self) -> bool:
+            return True
+        def restart_terminal(self) -> bool:
+            return True
+        def cleanup(self) -> None:
+            pass
+        def cleanup_fifo_only(self) -> None:
+            pass
+    
+    # Mock the PersistentTerminalManager import in modules that use it
+    monkeypatch.setattr("persistent_terminal_manager.PersistentTerminalManager", MockPersistentTerminalManager)
 
     # Store reference for tests that need to access it
     return test_pool

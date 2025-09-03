@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -10,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from command_launcher import CommandLauncher
-from tests.test_doubles_library import TestSubprocess
+from tests.test_doubles_library import SubprocessModuleDouble, TestSubprocess
 
 pytestmark = pytest.mark.unit
 
@@ -24,14 +25,24 @@ class TestCommandLauncherImproved:
     """Improved tests using test doubles instead of mocks."""
 
     def setup_method(self):
-        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
-        self.test_subprocess = TestSubprocess()
         """Setup with real components and test doubles."""
-        # Import locally to avoid pytest issues
-
-        # Real component with mocked subprocess calls
-        self.launcher = CommandLauncher()
+        # Set up subprocess double (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+        
+        # Configure default behavior for rez check
+        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
+        
+        # Store original subprocess methods for restoration
+        self.original_subprocess_run = subprocess.run
+        self.original_subprocess_Popen = subprocess.Popen
+        
+        # Replace subprocess methods with doubles
+        subprocess.run = self.subprocess_double.run
+        subprocess.Popen = self.subprocess_double.Popen
+
+        # Real component with doubled subprocess calls
+        self.launcher = CommandLauncher()
 
         # Track emitted signals (behavior)
         self.emitted_commands = []
@@ -47,20 +58,16 @@ class TestCommandLauncherImproved:
             lambda timestamp, error: self.emitted_errors.append((timestamp, error))
         )
 
-        # Mock subprocess.Popen to prevent actual execution
-        self.subprocess_patcher = patch("subprocess.Popen")
-        self.mock_popen = self.subprocess_patcher.start()
-
     def teardown_method(self):
-        """Clean up patches."""
-        if hasattr(self, "subprocess_patcher"):
-            self.subprocess_patcher.stop()
+        """Clean up subprocess doubles."""
+        # Restore original subprocess methods
+        subprocess.run = self.original_subprocess_run
+        subprocess.Popen = self.original_subprocess_Popen
 
     def test_launch_app_success_behavior(self):
         """Test successful app launch BEHAVIOR, not implementation."""
-        # Arrange: Mock successful subprocess execution
-        self.mock_popen.side_effect = None
-        self.mock_popen.return_value = MagicMock()
+        # Arrange: Configure subprocess double for success
+        self.test_subprocess.set_command_output("nuke", 0, "Application started", "")
 
         # Act: Launch the app (real component behavior)
         self.launcher.current_shot = MagicMock(
@@ -75,12 +82,10 @@ class TestCommandLauncherImproved:
         assert "nuke" in command  # Correct app launched
         assert len(self.emitted_errors) == 0  # No errors
 
-        # NOT testing: # Test behavior: verify actual results, implementation details
-
     def test_launch_app_failure_behavior(self):
         """Test app launch failure BEHAVIOR."""
-        # Arrange: Mock subprocess to raise exception
-        self.mock_popen.side_effect = FileNotFoundError("Command not found")
+        # Arrange: Configure subprocess double to raise exception
+        self.test_subprocess.side_effect = FileNotFoundError("Command not found")
 
         # Act: Try to launch app
         self.launcher.current_shot = MagicMock(
@@ -110,13 +115,14 @@ class TestCommandLauncherImproved:
 
     def test_concurrent_launches_behavior(self):
         """Test concurrent app launches (real threading behavior)."""
-        # Arrange: Set up shot context
+        # Arrange: Set up shot context and configure subprocess double for success
         self.launcher.current_shot = MagicMock(
             show="test_show", sequence="seq01", shot="0010", workspace_path="/test/path"
         )
-        # Mock successful subprocess execution - first call always succeeds
-        self.mock_popen.side_effect = None
-        self.mock_popen.return_value = MagicMock()
+        # Configure successful execution for all apps
+        self.test_subprocess.set_command_output("nuke", 0, "nuke started", "")
+        self.test_subprocess.set_command_output("maya", 0, "maya started", "")
+        self.test_subprocess.set_command_output("3de", 0, "3de started", "")
 
         # Act: Launch multiple apps (focus on command logging behavior)
         self.launcher.launch_app("nuke")
@@ -136,7 +142,7 @@ class TestCommandLauncherImproved:
 
     def test_command_formatting_behavior(self):
         """Test command formatting with actual app launch."""
-        # Arrange: Mock shot with test data
+        # Arrange: Configure subprocess double and shot with test data
         self.test_subprocess.set_command_output(
             "nuke", return_code=0, stdout="Application started"
         )
@@ -157,7 +163,7 @@ class TestCommandLauncherImproved:
 
     def test_workspace_change_behavior(self):
         """Test behavior when workspace changes."""
-        # Arrange: Initial shot
+        # Arrange: Initial shot and configure subprocess double
         shot1 = MagicMock(
             show="show1", sequence="seq01", shot="0010", workspace_path="/shows/show1"
         )
@@ -188,8 +194,6 @@ class TestCommandLauncherIntegration:
     """Integration tests with real filesystem."""
 
     def setup_method(self):
-        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
-        self.test_subprocess = TestSubprocess()
         """Setup with real temp directories."""
         self.temp_dir = Path(tempfile.mkdtemp())
         self.workspace = self.temp_dir / "workspace"

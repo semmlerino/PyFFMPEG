@@ -28,7 +28,7 @@ from tests.test_doubles_extended import TestCommand
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestShot, TestSubprocess
+from tests.test_doubles_library import TestShot, TestSubprocess, SubprocessModuleDouble
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
@@ -44,6 +44,10 @@ class TestNukeScriptGenerator:
     def create_plate_script_with_undistortion(self, *args, **kwargs) -> str:
         """Mock create_plate_script_with_undistortion method."""
         return "/tmp/integrated_script.nk"
+
+    def create_loader_script(self, *args, **kwargs) -> str:
+        """Mock create_loader_script method."""
+        return "/tmp/loader_script.nk"
 
 
 class TestCommandLauncherInitialization:
@@ -103,18 +107,24 @@ class TestCommandLauncherInitialization:
         assert self.launcher.current_shot is None
 
 
-class SignalDoubleEmissions:
+class TestSignalEmissions:
     """Test signal emissions for command execution events."""
 
     def setup_method(self):
         """Setup with test doubles."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+
+        # Configure test subprocess to make rez unavailable
+        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
 
         # Replace subprocess at system boundary
-
-        self.original_popen = subprocess.Popen
-        subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        self.original_subprocess_run = subprocess.run
+        self.original_subprocess_popen = subprocess.Popen
+        
+        subprocess.run = self.subprocess_double.run
+        subprocess.Popen = self.subprocess_double.Popen
 
         # Track signals (behavior)
         self.emitted_commands = []
@@ -128,7 +138,8 @@ class SignalDoubleEmissions:
         )
 
     def teardown_method(self):
-        subprocess.Popen = self.original_popen
+        subprocess.run = self.original_subprocess_run
+        subprocess.Popen = self.original_subprocess_popen
 
     def test_command_executed_signal(self, qtbot):
         """Test command_executed signal emission behavior."""
@@ -203,14 +214,21 @@ class TestApplicationLaunching:
         """Setup with test doubles."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+
+        # Configure test subprocess to make rez unavailable
+        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
 
         # Replace subprocess at system boundary
-
-        self.original_popen = subprocess.Popen
-        subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        self.original_subprocess_run = subprocess.run
+        self.original_subprocess_popen = subprocess.Popen
+        
+        subprocess.run = self.subprocess_double.run
+        subprocess.Popen = self.subprocess_double.Popen
 
     def teardown_method(self):
-        subprocess.Popen = self.original_popen
+        subprocess.run = self.original_subprocess_run
+        subprocess.Popen = self.original_subprocess_popen
 
     def test_launch_app_without_shot(self, qtbot):
         """Test launching app without setting current shot."""
@@ -330,12 +348,21 @@ class TestThreeDESceneLaunching:
     def setup_method(self):
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
-        self.original_popen = subprocess.Popen
-        subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+        
+        # Configure test subprocess to make rez unavailable
+        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
+        
+        self.original_subprocess_run = subprocess.run
+        self.original_subprocess_popen = subprocess.Popen
+        
+        subprocess.run = self.subprocess_double.run
+        subprocess.Popen = self.subprocess_double.Popen
 
     def teardown_method(self):
         """Restore original subprocess."""
-        subprocess.Popen = self.original_popen
+        subprocess.run = self.original_subprocess_run
+        subprocess.Popen = self.original_subprocess_popen
 
     def test_launch_app_with_scene(self, qtbot):
         """Test launching application with 3DE scene file."""
@@ -417,12 +444,21 @@ class TestWorkspaceIntegration:
     def setup_method(self):
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
-        self.original_popen = subprocess.Popen
-        subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+        
+        # Configure test subprocess to make rez unavailable
+        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
+        
+        self.original_subprocess_run = subprocess.run
+        self.original_subprocess_popen = subprocess.Popen
+        
+        subprocess.run = self.subprocess_double.run
+        subprocess.Popen = self.subprocess_double.Popen
 
     def teardown_method(self):
         """Restore original subprocess."""
-        subprocess.Popen = self.original_popen
+        subprocess.run = self.original_subprocess_run
+        subprocess.Popen = self.original_subprocess_popen
 
     def test_workspace_command_construction(self, qtbot):
         """Test proper workspace command construction."""
@@ -496,15 +532,35 @@ class TestErrorHandling:
     def setup_method(self):
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
-        self.original_popen = subprocess.Popen
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+        
+        self.original_subprocess_run = subprocess.run
+        self.original_subprocess_popen = subprocess.Popen
 
     def teardown_method(self):
         """Restore original subprocess."""
-        subprocess.Popen = self.original_popen
+        subprocess.run = self.original_subprocess_run
+        subprocess.Popen = self.original_subprocess_popen
 
     def test_subprocess_execution_failure(self, qtbot):
         """Test handling of subprocess execution failures."""
         launcher = CommandLauncher()
+        test_subprocess = TestSubprocess()
+        subprocess_double = SubprocessModuleDouble(test_subprocess)
+
+        # Configure test subprocess to make rez unavailable but allow its check to succeed
+        test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
+        
+        # Replace subprocess at system boundary
+        original_subprocess_run = subprocess.run
+        original_subprocess_popen = subprocess.Popen
+        
+        subprocess.run = subprocess_double.run
+        
+        # Make Popen fail for terminal commands
+        def failing_popen(*args, **kwargs):
+            raise Exception("Process execution failed")
+        subprocess.Popen = failing_popen
 
         # Set test shot
         shot = Shot(
@@ -515,21 +571,19 @@ class TestErrorHandling:
         )
         launcher.set_current_shot(shot)
 
-        # Replace subprocess to raise exception
-        def failing_subprocess(*args, **kwargs):
-            raise Exception("Process execution failed")
-
-        subprocess.Popen = failing_subprocess
-
         # Set up error signal expectation with parameter checking
         def check_error_params(timestamp, error_msg):
             return "Failed to launch nuke" in error_msg
 
-        with qtbot.waitSignal(
-            launcher.command_error, check_params_cb=check_error_params
-        ):
-            result = launcher.launch_app("nuke")
-            assert result is False
+        try:
+            with qtbot.waitSignal(
+                launcher.command_error, check_params_cb=check_error_params
+            ):
+                result = launcher.launch_app("nuke")
+                assert result is False
+        finally:
+            subprocess.run = original_subprocess_run
+            subprocess.Popen = original_subprocess_popen
 
     def test_all_terminals_fail(self, qtbot):
         """Test when all terminal attempts fail but direct execution succeeds."""
@@ -547,7 +601,7 @@ class TestErrorHandling:
         # Track execution attempts
         attempt_count = 0
 
-        def fallback_subprocess(*args, **kwargs):
+        def fallback_popen(*args, **kwargs):
             nonlocal attempt_count
             attempt_count += 1
 
@@ -559,9 +613,9 @@ class TestErrorHandling:
                 success_subprocess = TestSubprocess()
                 success_subprocess.return_code = 0
                 success_subprocess.stdout = "nuke launched successfully"
-                return success_subprocess
+                return success_subprocess.Popen(*args, **kwargs)
 
-        subprocess.Popen = fallback_subprocess
+        subprocess.Popen = fallback_popen
 
         result = launcher.launch_app("nuke")
         assert result is True
@@ -570,6 +624,22 @@ class TestErrorHandling:
     def test_complete_execution_failure(self, qtbot):
         """Test when all execution methods fail."""
         launcher = CommandLauncher()
+        test_subprocess = TestSubprocess()
+        subprocess_double = SubprocessModuleDouble(test_subprocess)
+
+        # Configure test subprocess to make rez unavailable but allow its check to succeed
+        test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
+        
+        # Replace subprocess at system boundary
+        original_subprocess_run = subprocess.run
+        original_subprocess_popen = subprocess.Popen
+        
+        subprocess.run = subprocess_double.run
+        
+        # Make Popen always fail
+        def failing_popen(*args, **kwargs):
+            raise Exception("All execution failed")
+        subprocess.Popen = failing_popen
 
         # Set test shot
         shot = Shot(
@@ -580,16 +650,14 @@ class TestErrorHandling:
         )
         launcher.set_current_shot(shot)
 
-        # Replace subprocess to always fail
-        def failing_subprocess(*args, **kwargs):
-            raise Exception("All execution failed")
-
-        subprocess.Popen = failing_subprocess
-
         # Set up error signal expectation
-        with qtbot.waitSignal(launcher.command_error):
-            result = launcher.launch_app("nuke")
-            assert result is False
+        try:
+            with qtbot.waitSignal(launcher.command_error):
+                result = launcher.launch_app("nuke")
+                assert result is False
+        finally:
+            subprocess.run = original_subprocess_run
+            subprocess.Popen = original_subprocess_popen
 
 
 class TestNukeIntegration:
@@ -600,12 +668,18 @@ class TestNukeIntegration:
         self.test_subprocess = TestSubprocess()
         self.test_subprocess.return_code = 0
         self.test_subprocess.stdout = "nuke launched successfully"
-        self.original_popen = subprocess.Popen
-        subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+        
+        self.original_subprocess_run = subprocess.run
+        self.original_subprocess_popen = subprocess.Popen
+        
+        subprocess.run = self.subprocess_double.run
+        subprocess.Popen = self.subprocess_double.Popen
 
     def teardown_method(self):
         """Restore original subprocess."""
-        subprocess.Popen = self.original_popen
+        subprocess.run = self.original_subprocess_run
+        subprocess.Popen = self.original_subprocess_popen
 
     def test_nuke_with_raw_plate_option(self, qtbot):
         """Test Nuke launching with raw plate integration."""
@@ -766,8 +840,12 @@ class TestTimestampGeneration:
         test_subprocess.return_code = 0
         test_subprocess.stdout = "nuke launched successfully"
 
-        original_popen = subprocess.Popen
-        subprocess.Popen = lambda *args, **kwargs: test_subprocess
+        subprocess_double = SubprocessModuleDouble(test_subprocess)
+        original_subprocess_run = subprocess.run
+        original_subprocess_popen = subprocess.Popen
+        
+        subprocess.run = subprocess_double.run
+        subprocess.Popen = subprocess_double.Popen
 
         try:
             # Check executed signal timestamp format
@@ -790,7 +868,8 @@ class TestTimestampGeneration:
                 # Trigger error
                 launcher.launch_app("unknown_app")
         finally:
-            subprocess.Popen = original_popen
+            subprocess.run = original_subprocess_run
+            subprocess.Popen = original_subprocess_popen
 
 
 class TestEdgeCases:
@@ -801,12 +880,18 @@ class TestEdgeCases:
         self.test_subprocess = TestSubprocess()
         self.test_subprocess.return_code = 0
         self.test_subprocess.stdout = "app launched successfully"
-        self.original_popen = subprocess.Popen
-        subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
+        self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
+        
+        self.original_subprocess_run = subprocess.run
+        self.original_subprocess_popen = subprocess.Popen
+        
+        subprocess.run = self.subprocess_double.run
+        subprocess.Popen = self.subprocess_double.Popen
 
     def teardown_method(self):
         """Restore original subprocess."""
-        subprocess.Popen = self.original_popen
+        subprocess.run = self.original_subprocess_run
+        subprocess.Popen = self.original_subprocess_popen
 
     def test_empty_workspace_path(self, qtbot):
         """Test handling of empty workspace path."""

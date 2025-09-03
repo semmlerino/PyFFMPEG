@@ -219,34 +219,76 @@ class TestApplicationLaunching:
         shot = Shot("test_show", "seq01", "0010", "/shows/test/seq01/0010")
         main_window._on_shot_selected(shot)
 
-        # Mock subprocess.Popen at the system boundary
+        # Mock subprocess at the system boundary
         # This is at the system boundary, so acceptable per UNIFIED_TESTING_GUIDE
         executed_commands = []
 
+        class MockProcess:
+            def __init__(self):
+                self.returncode = 0
+                self.args = None
+                self.stdout = ""
+                self.stderr = ""
+                self.pid = 12345  # Mock PID for persistent terminal
+                
+            def __enter__(self):
+                return self
+                
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                pass
+                
+            def communicate(self, input=None, timeout=None):
+                return (self.stdout, self.stderr)
+                
+            def poll(self):
+                return self.returncode
+                
+            def kill(self):
+                pass
+                
+            def wait(self, timeout=None):
+                return self.returncode
+
         def mock_popen(command, **kwargs):
             executed_commands.append(command)
-
-            # Return a mock process object
-            class MockProcess:
-                def __init__(self):
-                    self.returncode = 0
-
-            return MockProcess()
+            process = MockProcess()
+            process.args = command
+            return process
+            
+        # Mock both subprocess.run and subprocess.Popen
+        import subprocess
+        class CompletedProcessMock:
+            def __init__(self, args, returncode):
+                self.args = args
+                self.returncode = returncode
+                self.stdout = ""
+                self.stderr = ""
+        
+        def mock_run(command, **kwargs):
+            executed_commands.append(command)
+            return CompletedProcessMock(command, 0)
 
         monkeypatch.setattr("subprocess.Popen", mock_popen)
+        monkeypatch.setattr("subprocess.run", mock_run)
 
         # Launch an app - test behavior, not implementation
         result = main_window._launch_app("nuke")
 
         # Test behavior: command should have been executed
         assert len(executed_commands) > 0
-        # Verify the command includes nuke
-        executed_command = executed_commands[0]
-        if isinstance(executed_command, list):
-            command_str = " ".join(executed_command)
-        else:
-            command_str = str(executed_command)
-        assert "nuke" in command_str
+        
+        # Find the nuke command (might not be first due to rez check)
+        nuke_command_found = False
+        for executed_command in executed_commands:
+            if isinstance(executed_command, list):
+                command_str = " ".join(str(c) for c in executed_command)
+            else:
+                command_str = str(executed_command)
+            if "nuke" in command_str.lower():
+                nuke_command_found = True
+                break
+        
+        assert nuke_command_found, f"nuke command not found in: {executed_commands}"
         # Verify launch was successful (returns None for successful subprocess.Popen)
         # Note: launch_app doesn't return True/False, it returns None on success
 
