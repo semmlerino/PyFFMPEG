@@ -355,8 +355,10 @@ class CommandLauncher(QObject):
             rez_packages = self._get_rez_packages_for_app(app_name)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
-                # Use bash -lc for login shell to ensure proper environment
-                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
+                # Use bash -ilc for interactive login shell to ensure shell functions like ws are loaded
+                # The -i flag is crucial for loading shell functions from configuration files
+                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
+                logger.debug(f"Constructed rez command with bash -ilc: {full_command}")
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 self.command_executed.emit(
                     timestamp, 
@@ -373,9 +375,10 @@ class CommandLauncher(QObject):
 
         # Use persistent terminal if available and enabled
         if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            logger.debug(f"Using persistent terminal for command: {full_command}")
+            logger.info(f"Sending command to persistent terminal: {full_command}")
             success = self.persistent_terminal.send_command(full_command)
             if success:
+                logger.debug("Command successfully sent to persistent terminal")
                 return True
             else:
                 logger.warning("Failed to send command to persistent terminal, falling back to new terminal")
@@ -449,7 +452,9 @@ class CommandLauncher(QObject):
             rez_packages = self._get_rez_packages_for_app(app_name)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
-                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
+                # Use bash -ilc for interactive login shell to ensure shell functions are loaded
+                full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
+                logger.debug(f"Constructed rez scene command with bash -ilc: {full_command}")
             else:
                 full_command = ws_command
         else:
@@ -464,9 +469,10 @@ class CommandLauncher(QObject):
 
         # Use persistent terminal if available and enabled
         if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            logger.debug(f"Using persistent terminal for scene command: {full_command}")
+            logger.info(f"Sending scene command to persistent terminal: {full_command}")
             success = self.persistent_terminal.send_command(full_command)
             if success:
+                logger.debug("Scene command successfully sent to persistent terminal")
                 return True
             else:
                 logger.warning("Failed to send command to persistent terminal, falling back to new terminal")

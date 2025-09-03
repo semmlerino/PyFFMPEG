@@ -163,7 +163,8 @@ class PersistentTerminalManager(QObject):
                 fifo.write(f"{command}\n")
                 fifo.flush()
             
-            logger.debug(f"Sent command to terminal: {command}")
+            logger.info(f"Successfully sent command to terminal via FIFO: {command}")
+            logger.debug(f"FIFO path: {self.fifo_path}, Terminal PID: {self.terminal_pid}")
             self.command_sent.emit(command)
             return True
             

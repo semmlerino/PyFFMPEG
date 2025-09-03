@@ -33,6 +33,9 @@ is_gui_app() {
     esac
 }
 
+# Debug mode flag (set SHOTBOT_TERMINAL_DEBUG=1 to enable)
+DEBUG_MODE=${SHOTBOT_TERMINAL_DEBUG:-0}
+
 # Main command loop
 while true; do
     # Read command from FIFO
@@ -40,6 +43,19 @@ while true; do
         # Skip empty commands
         if [ -z "$cmd" ]; then
             continue
+        fi
+        
+        # Debug logging
+        if [ "$DEBUG_MODE" = "1" ]; then
+            echo "[DEBUG] Received command: $cmd" >&2
+            echo "[DEBUG] Shell: $SHELL" >&2
+            echo "[DEBUG] PATH: $PATH" >&2
+            # Check if ws function is available
+            if type ws >/dev/null 2>&1; then
+                echo "[DEBUG] ws function is available" >&2
+            else
+                echo "[DEBUG] WARNING: ws function not found!" >&2
+            fi
         fi
         
         # Check for special commands
@@ -72,6 +88,9 @@ while true; do
             # Check if & is already present
             if [[ "$cmd" != *"&"* ]]; then
                 echo "[Auto-backgrounding GUI application]"
+                if [ "$DEBUG_MODE" = "1" ]; then
+                    echo "[DEBUG] Executing GUI command: $cmd &" >&2
+                fi
                 eval "$cmd &"
                 # Give a moment for the app to start
                 sleep 0.5
@@ -81,6 +100,9 @@ while true; do
             fi
         else
             # Execute command normally (blocking for non-GUI commands)
+            if [ "$DEBUG_MODE" = "1" ]; then
+                echo "[DEBUG] Executing non-GUI command: $cmd" >&2
+            fi
             eval "$cmd"
             exit_code=$?
             if [ $exit_code -eq 0 ]; then
