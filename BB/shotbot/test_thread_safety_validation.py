@@ -295,7 +295,6 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         """Test integration with parallel scanning code (basic import test)."""
         try:
             # Test that the updated parallel scanner can be imported
-            import threading_utils  # Should be available
             from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
 
             # Test that the new parallel method exists

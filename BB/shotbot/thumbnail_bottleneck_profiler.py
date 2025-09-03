@@ -28,9 +28,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from config import Config
-    from previous_shots_finder import PreviousShotsFinder
     from shot_model import Shot
-    from utils import FileUtils, PathUtils, clear_all_caches, get_cache_stats
+    from utils import FileUtils, PathUtils, get_cache_stats
 
     shotbot_available = True
 except ImportError:
@@ -93,7 +92,7 @@ class ThumbnailBottleneckProfiler:
         start_time = time.perf_counter()
         for _ in range(iterations):
             for path in test_paths:
-                result = current_parse_implementation(path)
+                current_parse_implementation(path)
         current_time = time.perf_counter() - start_time
 
         profiler.disable()
@@ -121,7 +120,7 @@ class ThumbnailBottleneckProfiler:
         start_time = time.perf_counter()
         for _ in range(iterations):
             for path in test_paths:
-                result = optimized_parse_implementation(path)
+                optimized_parse_implementation(path)
         optimized_time = time.perf_counter() - start_time
 
         # Calculate per-operation metrics
@@ -207,7 +206,7 @@ class ThumbnailBottleneckProfiler:
 
             # Stage 3: Publish folder fallback
             start = time.perf_counter()
-            publish_thumbnail = PathUtils.find_any_publish_thumbnail(
+            PathUtils.find_any_publish_thumbnail(
                 Config.SHOWS_ROOT, show, sequence, shot, max_depth=3
             )
             filesystem_operations += 5  # Recursive search
@@ -451,7 +450,7 @@ class ThumbnailBottleneckProfiler:
 
         count = 0
         for i in range(10):
-            thumbnail = PathUtils.find_shot_thumbnail(  # type: ignore[reportUnknownMemberType]
+            PathUtils.find_shot_thumbnail(  # type: ignore[reportUnknownMemberType]
                 "/fake/root", f"Show{i}", f"0{i:02d}", f"00{i:02d}"
             )
             count += 1
