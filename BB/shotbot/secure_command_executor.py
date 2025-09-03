@@ -273,6 +273,8 @@ class SecureCommandExecutor:
 
         with self._process_lock:
             try:
+                # For workspace commands, we need to use the current environment
+                # to ensure shell functions are properly loaded from profile scripts
                 result = subprocess.run(
                     bash_command,
                     shell=False,  # Still no shell expansion
@@ -280,7 +282,7 @@ class SecureCommandExecutor:
                     text=True,
                     timeout=timeout,
                     check=True,
-                    env=self._get_safe_environment(),
+                    env=None,  # Use current environment for ws command to work
                 )
                 return result.stdout
             except subprocess.TimeoutExpired:
