@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -67,6 +68,48 @@ class CommandLauncher(QObject):
     def set_current_shot(self, shot: Shot | None):
         """Set the current shot context."""
         self.current_shot = shot
+
+    def _is_rez_available(self) -> bool:
+        """Check if rez environment is available.
+        
+        Returns:
+            True if rez is available and should be used
+        """
+        if not Config.USE_REZ_ENVIRONMENT:
+            return False
+            
+        # Check for REZ_USED environment variable (indicates we're in a rez env)
+        if Config.REZ_AUTO_DETECT and os.environ.get("REZ_USED"):
+            return True
+            
+        # Try to find rez command
+        try:
+            result = subprocess.run(
+                ["which", "rez"], 
+                capture_output=True, 
+                text=True,
+                timeout=2
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False
+            
+    def _get_rez_packages_for_app(self, app_name: str) -> list[str]:
+        """Get rez packages for the specified application.
+        
+        Args:
+            app_name: Name of the application
+            
+        Returns:
+            List of rez packages to load
+        """
+        if app_name == "nuke":
+            return Config.REZ_NUKE_PACKAGES
+        elif app_name == "maya":
+            return Config.REZ_MAYA_PACKAGES
+        elif app_name == "3de":
+            return Config.REZ_3DE_PACKAGES
+        return []
 
     def _validate_path_for_shell(self, path: str) -> str:
         """Validate and escape a path for safe use in shell commands.
@@ -174,38 +217,58 @@ class CommandLauncher(QObject):
                     self.current_shot.full_name,
                 )
 
-            # Generate integrated Nuke script if we have plate or undistortion
+            # Handle different scenarios based on what we have
             if raw_plate_path or undistortion_path:
-                if raw_plate_path and undistortion_path:
-                    # Both plate and undistortion
-                    script_path = (
-                        self._nuke_script_generator.create_plate_script_with_undistortion(
-                            raw_plate_path,
-                            str(undistortion_path),
-                            self.current_shot.full_name,
-                        )
+                if Config.NUKE_UNDISTORTION_MODE == "direct" and undistortion_path and not raw_plate_path:
+                    # Direct mode: Open undistortion file directly (no plate)
+                    safe_undist_path = self._validate_path_for_shell(str(undistortion_path))
+                    command = f"{command} {safe_undist_path}"
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    version = self._undistortion_finder.get_version_from_path(undistortion_path)
+                    self.command_executed.emit(
+                        timestamp,
+                        f"Opening undistortion file directly: {version}",
+                    )
+                elif raw_plate_path and undistortion_path and Config.NUKE_USE_LOADER_SCRIPT:
+                    # Both plate and undistortion - create loader script
+                    script_path = self._nuke_script_generator.create_loader_script(
+                        raw_plate_path,
+                        str(undistortion_path),
+                        self.current_shot.full_name,
                     )
                     if script_path:
-                        # Escape script path to prevent command injection
                         safe_script_path = self._validate_path_for_shell(script_path)
                         command = f"{command} {safe_script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
-                        plate_version = self._raw_plate_finder.get_version_from_path(
-                            raw_plate_path,
-                        )
-                        undist_version = self._undistortion_finder.get_version_from_path(
-                            undistortion_path,
-                        )
+                        plate_version = self._raw_plate_finder.get_version_from_path(raw_plate_path)
+                        undist_version = self._undistortion_finder.get_version_from_path(undistortion_path)
                         self.command_executed.emit(
                             timestamp,
-                            f"Generated Nuke script with plate ({plate_version}) and undistortion ({undist_version})",
+                            f"Created loader script with plate ({plate_version}) and undistortion ({undist_version})",
                         )
                     else:
-                        timestamp = datetime.now().strftime("%H:%M:%S")
-                        self.command_executed.emit(
-                            timestamp,
-                            "Error: Failed to generate integrated Nuke script",
+                        # Fallback to old parsing method if loader script fails
+                        script_path = (
+                            self._nuke_script_generator.create_plate_script_with_undistortion(
+                                raw_plate_path,
+                                str(undistortion_path),
+                                self.current_shot.full_name,
+                            )
                         )
+                        if script_path:
+                            safe_script_path = self._validate_path_for_shell(script_path)
+                            command = f"{command} {safe_script_path}"
+                            timestamp = datetime.now().strftime("%H:%M:%S")
+                            self.command_executed.emit(
+                                timestamp,
+                                "Warning: Using fallback parsing method for undistortion",
+                            )
+                        else:
+                            timestamp = datetime.now().strftime("%H:%M:%S")
+                            self.command_executed.emit(
+                                timestamp,
+                                "Error: Failed to generate Nuke script",
+                            )
                 elif raw_plate_path:
                     # Plate only
                     script_path = self._nuke_script_generator.create_plate_script(
@@ -213,7 +276,6 @@ class CommandLauncher(QObject):
                         self.current_shot.full_name,
                     )
                     if script_path:
-                        # Escape script path to prevent command injection
                         safe_script_path = self._validate_path_for_shell(script_path)
                         command = f"{command} {safe_script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -228,26 +290,23 @@ class CommandLauncher(QObject):
                             timestamp,
                             "Error: Failed to generate plate script",
                         )
-                elif undistortion_path:
-                    # Undistortion only (no plate available)
+                elif undistortion_path and Config.NUKE_UNDISTORTION_MODE != "direct":
+                    # Undistortion only with parse mode (backward compatibility)
                     script_path = (
                         self._nuke_script_generator.create_plate_script_with_undistortion(
                             "",
                             str(undistortion_path),
-                            self.current_shot.full_name,  # Empty plate path
+                            self.current_shot.full_name,
                         )
                     )
                     if script_path:
-                        # Escape script path to prevent command injection
                         safe_script_path = self._validate_path_for_shell(script_path)
                         command = f"{command} {safe_script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
-                        version = self._undistortion_finder.get_version_from_path(
-                            undistortion_path,
-                        )
+                        version = self._undistortion_finder.get_version_from_path(undistortion_path)
                         self.command_executed.emit(
                             timestamp,
-                            f"Generated Nuke script with undistortion: {version}",
+                            f"Generated Nuke script with undistortion (parse mode): {version}",
                         )
                     else:
                         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -275,10 +334,27 @@ class CommandLauncher(QObject):
             safe_workspace_path = self._validate_path_for_shell(
                 self.current_shot.workspace_path
             )
-            full_command = f"ws {safe_workspace_path} && {command}"
+            ws_command = f"ws {safe_workspace_path} && {command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {str(e)}")
             return False
+
+        # Wrap with rez environment if available
+        if self._is_rez_available():
+            rez_packages = self._get_rez_packages_for_app(app_name)
+            if rez_packages:
+                packages_str = " ".join(rez_packages)
+                # Use bash -lc for login shell to ensure proper environment
+                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp, 
+                    f"Using rez environment with packages: {packages_str}"
+                )
+            else:
+                full_command = ws_command
+        else:
+            full_command = ws_command
 
         # Log the command
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -341,10 +417,21 @@ class CommandLauncher(QObject):
         # Validate and escape workspace path to prevent injection
         try:
             safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
-            full_command = f"ws {safe_workspace_path} && {command}"
+            ws_command = f"ws {safe_workspace_path} && {command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {str(e)}")
             return False
+
+        # Wrap with rez environment if available
+        if self._is_rez_available():
+            rez_packages = self._get_rez_packages_for_app(app_name)
+            if rez_packages:
+                packages_str = " ".join(rez_packages)
+                full_command = f'rez env {packages_str} -- bash -lc "{ws_command}"'
+            else:
+                full_command = ws_command
+        else:
+            full_command = ws_command
 
         # Log the command
         timestamp = datetime.now().strftime("%H:%M:%S")

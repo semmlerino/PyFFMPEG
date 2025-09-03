@@ -87,6 +87,17 @@ class Config:
     }
     DEFAULT_APP = "nuke"
 
+    # Rez Environment Configuration
+    USE_REZ_ENVIRONMENT = True  # Enable rez environment wrapper when available
+    REZ_AUTO_DETECT = True  # Automatically detect rez availability via REZ_USED env var
+    REZ_NUKE_PACKAGES = ["nuke"]  # Default rez packages for Nuke (can be overridden)
+    REZ_MAYA_PACKAGES = ["maya"]  # Default rez packages for Maya
+    REZ_3DE_PACKAGES = ["3de"]  # Default rez packages for 3DE
+    
+    # Nuke Undistortion Handling
+    NUKE_UNDISTORTION_MODE = "direct"  # Options: "direct" (open file), "parse" (old method)
+    NUKE_USE_LOADER_SCRIPT = True  # Use loader script when combining plate + undistortion
+
     # Settings file
     SETTINGS_FILE = Path.home() / ".shotbot" / "settings.json"
 

@@ -756,6 +756,177 @@ Viewer {{
             print(traceback.format_exc())
 
     @staticmethod
+    def create_loader_script(
+        plate_path: str,
+        undistortion_path: str,
+        shot_name: str,
+    ) -> str | None:
+        """Create a minimal Nuke loader script that uses Nuke's Python API.
+        
+        This method creates a simple script that loads both the plate and undistortion
+        using Nuke's built-in scriptSource() command, which properly handles all node
+        types and dependencies without parsing.
+        
+        Args:
+            plate_path: Path to the plate sequence
+            undistortion_path: Path to undistortion .nk file
+            shot_name: Name of the shot
+            
+        Returns:
+            Path to the temporary loader script, or None on error
+        """
+        try:
+            # Sanitize shot_name to prevent path traversal
+            safe_shot_name = re.sub(r"[^\w\-_]", "_", shot_name)
+            
+            # Convert paths for Nuke
+            nuke_plate_path = NukeScriptGenerator._escape_path(plate_path)
+            nuke_plate_path = nuke_plate_path.replace("####", "%04d")
+            nuke_undist_path = NukeScriptGenerator._escape_path(undistortion_path)
+            
+            # Detect properties
+            first_frame, last_frame = NukeScriptGenerator._detect_frame_range(plate_path)
+            width, height = NukeScriptGenerator._detect_resolution(plate_path)
+            colorspace, use_raw = NukeScriptGenerator._detect_colorspace(plate_path)
+            raw_str = "true" if use_raw else "false"
+            
+            # Create a minimal loader script that uses Python to import everything
+            script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
+version 16.0 v4
+
+# Loader script for {safe_shot_name}
+# This script loads the plate and sources the undistortion file
+
+Root {{
+ inputs 0
+ name {safe_shot_name}_comp_loader
+ frame {first_frame}
+ first_frame {first_frame}
+ last_frame {last_frame}
+ fps 24
+ format "{width} {height} 0 0 {width} {height} 1 {safe_shot_name}_format"
+ proxy_type scale
+ proxy_format "1920 1080 0 0 1920 1080 1 HD_1080"
+ colorManagement OCIO
+ OCIO_config aces_1.2
+ defaultViewerLUT "OCIO LUTs"
+ workingSpaceLUT "ACES - ACEScg"
+ monitorLut "Rec.709 (ACES)"
+ int8Lut "Rec.709 (ACES)"
+ int16Lut "Rec.709 (ACES)"
+ logLut "Log film emulation (ACES)"
+ floatLut linear
+}}
+
+# Create plate Read node
+Read {{
+ inputs 0
+ file_type exr
+ file "{nuke_plate_path}"
+ format "{width} {height} 0 0 {width} {height} 1 {safe_shot_name}_format"
+ proxy "{nuke_plate_path}"
+ first {first_frame}
+ last {last_frame}
+ origfirst {first_frame}
+ origlast {last_frame}
+ origset true
+ on_error black
+ reload 0
+ auto_alpha true
+ premultiplied true
+ raw {raw_str}
+ colorspace "{colorspace}"
+ name Read_Plate
+ tile_color 0xcccccc01
+ label "Raw Plate\\n\\[value colorspace]\\nframes: {first_frame}-{last_frame}"
+ selected true
+ xpos 0
+ ypos -300
+}}
+
+# Python script to source the undistortion file
+# This executes when the script loads
+python {{
+    import nuke
+    import os
+    
+    # Path to undistortion file
+    undist_file = r"{nuke_undist_path}"
+    
+    # Check if file exists before sourcing
+    if os.path.exists(undist_file):
+        try:
+            # Source the undistortion file - this properly imports all nodes
+            nuke.scriptSource(undist_file)
+            
+            # Connect the first imported node to Read_Plate if possible
+            # The imported nodes will be selected after scriptSource
+            imported_nodes = nuke.selectedNodes()
+            if imported_nodes:
+                # Find the first node that can accept inputs
+                for node in imported_nodes:
+                    if node.maxInputs() > 0 and node.input(0) is None:
+                        try:
+                            node.setInput(0, nuke.toNode("Read_Plate"))
+                            break
+                        except:
+                            pass
+                            
+            nuke.message("Undistortion imported from:\\n" + undist_file)
+        except Exception as e:
+            nuke.message("Error importing undistortion:\\n" + str(e))
+    else:
+        nuke.message("Undistortion file not found:\\n" + undist_file)
+}}
+
+# Add a note about the undistortion source
+StickyNote {{
+ inputs 0
+ name Note_Undistortion_Source
+ label "Undistortion imported from:\\n{nuke_undist_path}"
+ note_font_size 14
+ note_font_color 0x00aa00ff
+ xpos 200
+ ypos -300
+}}
+
+Viewer {{
+ inputs 1
+ frame {first_frame}
+ frame_range {first_frame}-{last_frame}
+ fps 24
+ name Viewer1
+ selected true
+ xpos 0
+ ypos 100
+}}
+"""
+            
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                suffix=".nk",
+                prefix=f"{safe_shot_name}_loader_",
+                delete=False,
+                encoding="utf-8",
+            ) as tmp_file:
+                tmp_file.write(script_content)
+                temp_path = tmp_file.name
+
+            # Track temp file for cleanup
+            NukeScriptGenerator._track_temp_file(temp_path)
+
+            print(f"Created Nuke loader script: {temp_path}")
+            print(f"  Plate: {plate_path}")
+            print(f"  Undistortion: {undistortion_path}")
+            
+            return temp_path
+
+        except Exception as e:
+            print(f"Error creating loader script: {e}")
+            return None
+
+    @staticmethod
     def create_plate_script_with_undistortion(
         plate_path: str,
         undistortion_path: str | None,
