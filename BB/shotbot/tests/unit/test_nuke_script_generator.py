@@ -256,6 +256,57 @@ class TestNukeScriptGenerator:
                 or test_colorspace.replace(" ", "_") in content
             )
 
+    def test_undistortion_node_name_sanitization(self):
+        """Test that import methods sanitize node names with illegal characters.
+        
+        This test verifies the fix for the segmentation fault issue where
+        imported undistortion nodes with hyphens crashed Nuke.
+        """
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            plate_path = temp_path / "test_plate.exr"
+            undist_path = temp_path / "LD_3DE4_BRX_170_0100_turnover-plate_PL01.nk"
+            plate_path.touch()
+            
+            # Create a mock undistortion file with a node containing illegal characters
+            # This node name has hyphens which are illegal in Nuke and would cause segfault
+            original_node_name = "LD_3DE4_BRX_170_0100_turnover-plate_PL01_film_lin_v001"
+            with open(undist_path, "w") as f:
+                f.write(f"""# Mock undistortion node with hyphen in name
+Group {{
+ name {original_node_name}
+ tile_color 0x800080ff
+ addUserKnob {{20 User}}
+}}
+""")
+            
+            # Generate script with undistortion
+            script_path = NukeScriptGenerator.create_plate_script_with_undistortion(
+                plate_path=str(plate_path),
+                undistortion_path=str(undist_path),
+                shot_name="test_shot",
+            )
+            
+            assert script_path is not None
+            assert Path(script_path).exists()
+            
+            with open(script_path) as f:
+                content = f.read()
+            
+            # Test that the node name has been sanitized (hyphens replaced with underscores)
+            # The original name with hyphens should NOT appear
+            assert original_node_name not in content
+            
+            # The sanitized version (with hyphens replaced by underscores) should appear
+            sanitized_name = original_node_name.replace("-", "_")
+            assert sanitized_name in content
+            
+            # Check that the Group node itself is present
+            assert "Group {" in content
+            
+            # Test that the undistortion file path reference is included
+            assert undist_path.name in content
+
     def test_generate_complete_comp_script(self):
         """Test generating complete comp script with Read and Write nodes."""
         with TemporaryDirectory() as temp_dir:

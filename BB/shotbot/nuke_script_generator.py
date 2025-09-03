@@ -416,6 +416,22 @@ Viewer {{
                         logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
                         line = adjusted_line
 
+                # Sanitize node names - replace illegal characters (like hyphens)
+                # Node names in Nuke can only contain letters, numbers, and underscores
+                if " name " in line:
+                    name_pattern = re.compile(r"(\s+name\s+)([^\s]+)")
+                    
+                    def sanitize_name(match: re.Match[str]) -> str:
+                        prefix = match.group(1)
+                        name = match.group(2)
+                        # Replace any character that's not alphanumeric or underscore
+                        sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+                        if sanitized != name:
+                            logger.debug(f"Sanitized node name: {name} -> {sanitized}")
+                        return prefix + sanitized
+                    
+                    line = name_pattern.sub(sanitize_name, line)
+
                 # Handle Python blocks - strip indentation from Python code
                 if not inside_python and stripped.startswith("python {"):
                     inside_python = True
@@ -619,6 +635,22 @@ Viewer {{
                     if adjusted_line != line:
                         logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
                         line = adjusted_line
+
+                # Sanitize node names - replace illegal characters (like hyphens)
+                # Node names in Nuke can only contain letters, numbers, and underscores
+                if " name " in line:
+                    name_pattern = re.compile(r"(\s+name\s+)([^\s]+)")
+                    
+                    def sanitize_name(match: re.Match[str]) -> str:
+                        prefix = match.group(1)
+                        name = match.group(2)
+                        # Replace any character that's not alphanumeric or underscore
+                        sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+                        if sanitized != name:
+                            logger.debug(f"Sanitized node name: {name} -> {sanitized}")
+                        return prefix + sanitized
+                    
+                    line = name_pattern.sub(sanitize_name, line)
 
                 # Skip copy/paste specific lines even in standard format
                 # (sometimes files contain these without being full copy/paste format)
