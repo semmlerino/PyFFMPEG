@@ -9,6 +9,7 @@
     "*.ini",
     "*.cfg",
     "*.pyi",
+    "*.sh",
     "requirements*.txt",
     "Dockerfile",
     ".dockerignore",
