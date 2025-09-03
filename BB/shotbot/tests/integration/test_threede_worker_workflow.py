@@ -1,0 +1,474 @@
+"""Integration tests for complete 3DE worker workflow following UNIFIED_TESTING_GUIDE.
+
+Tests the complete user-triggered workflow from ThreeDESceneWorker through to the
+parallel discovery methods. This represents the actual production workflow that
+triggered the ThreadSafeProgressTracker parameter bug.
+
+UNIFIED_TESTING_GUIDE COMPLIANCE:
+1. Qt Widget Pattern (lines 82-102): Proper qtbot.addWidget for cleanup  
+2. Worker Thread Pattern (lines 104-121): Real QThread testing with signals
+3. Signal Testing Pattern (lines 122-160): waitSignal BEFORE triggering actions
+4. Integration Test Pattern (lines 336-354): Real components with test boundaries
+"""
+
+from __future__ import annotations
+
+import tempfile
+import time
+from pathlib import Path
+from typing import Any
+
+import pytest
+from PySide6.QtCore import QTimer
+
+from shot_model import Shot
+from threede_scene_worker import ThreeDESceneWorker
+
+pytestmark = [pytest.mark.integration, pytest.mark.qt, pytest.mark.slow]
+
+
+class TestThreeDEWorkerWorkflow:
+    """Test complete 3DE worker workflow as triggered by user actions.
+    
+    These tests represent the actual user workflows that would have triggered
+    the ThreadSafeProgressTracker parameter bug in production.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_worker_test_"))
+        self.shows_root = self.temp_dir / "shows"
+
+    def teardown_method(self):
+        """Clean up test directories."""
+        import shutil
+        if self.temp_dir.exists():
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def _create_test_vfx_structure(self) -> list[Shot]:
+        """Create test VFX structure and return list of shots."""
+        test_shots = []
+        
+        for show_name in ["TESTSHOW", "DEMO"]:
+            show_dir = self.shows_root / show_name / "shots"
+            
+            for seq_num in range(1, 3):  # seq001, seq002
+                seq_name = f"seq{seq_num:03d}"
+                for shot_num in [10, 20, 30]:  # 0010, 0020, 0030
+                    shot_name = f"{shot_num:04d}"
+                    shot_path = show_dir / seq_name / f"{seq_name}_{shot_name}"
+                    
+                    # Create user directories with 3DE files
+                    for user in ["artist1", "artist2"]:
+                        for subdir in ["3de/scenes", "matchmove/3de", "tracking"]:
+                            work_dir = shot_path / "user" / user / subdir
+                            work_dir.mkdir(parents=True, exist_ok=True)
+                            
+                            # Create 3DE files
+                            scene_file = work_dir / f"{show_name}_{seq_name}_{shot_name}_BG01.3de"
+                            scene_file.write_text(f"# 3DE Scene\nversion 1.0\nshow: {show_name}")
+                    
+                    # Create Shot object
+                    shot = Shot(show_name, seq_name, shot_name, str(shot_path))
+                    test_shots.append(shot)
+        
+        return test_shots
+
+    def test_worker_full_production_workflow(self, qtbot):
+        """Test complete worker workflow as triggered by user - would catch parameter bug.
+        
+        This test exercises the exact workflow that failed in production:
+        1. User triggers 3DE scan from UI
+        2. Worker starts with progress callbacks
+        3. Worker calls parallel discovery methods
+        4. ThreadSafeProgressTracker receives progress_interval parameter
+        """
+        test_shots = self._create_test_vfx_structure()
+        
+        # Create worker - real component, not mock (UNIFIED_TESTING_GUIDE line 52)
+        # ThreeDESceneWorker requires shots parameter in constructor
+        worker = ThreeDESceneWorker(
+            shots=test_shots[:4],  # Subset for testing
+            excluded_users={"excludeduser"},
+            enable_progressive=True,
+            scan_all_shots=True  # This triggers the parallel discovery path that failed
+        )
+        
+        # Following Qt Widget Pattern (lines 82-102): Register for cleanup
+        # Note: QThread doesn't inherit from QWidget but needs proper cleanup
+        def cleanup_worker():
+            if worker.isRunning():
+                worker.requestInterruption()
+                worker.quit()
+                worker.wait(5000)
+        
+        # Track signals received
+        progress_updates = []
+        error_messages = []
+        final_scenes = None
+        
+        def on_progress(current: int, total: int, percentage: float, status: str, eta: str):
+            progress_updates.append((current, total, percentage, status, eta))
+        
+        def on_error(error_msg: str):
+            error_messages.append(error_msg)
+        
+        def on_finished(scenes: list):
+            nonlocal final_scenes
+            final_scenes = scenes
+        
+        # Connect signals
+        worker.progress.connect(on_progress)
+        worker.error.connect(on_error)
+        worker.finished.connect(on_finished)
+        
+        try:
+            # Following Signal Testing Pattern (lines 375-387): waitSignal BEFORE action
+            with qtbot.waitSignal(worker.finished, timeout=30000) as blocker:
+                worker.start()
+            
+            # Verify workflow completed successfully
+            assert blocker.signal_triggered, "Worker should complete scan"
+            assert len(error_messages) == 0, f"Should not have errors: {error_messages}"
+            
+            # Verify progress was reported
+            assert len(progress_updates) > 0, "Should have progress updates"
+            
+            # Verify final results
+            assert final_scenes is not None, "Should have final scene results"
+            assert isinstance(final_scenes, list), "Results should be a list"
+            
+            # If the original bug existed, we would have gotten an error here
+            # because the parallel discovery would fail with the parameter mismatch
+            
+        finally:
+            cleanup_worker()
+
+    def test_worker_progressive_scan_with_cancellation(self, qtbot):
+        """Test worker cancellation during progressive scan."""
+        test_shots = self._create_test_vfx_structure()
+        
+        worker = ThreeDESceneWorker(
+            shots=test_shots,
+            excluded_users=set(),
+            enable_progressive=True,
+            scan_all_shots=True
+        )
+        
+        progress_updates = []
+        started_signals = []
+        finished_signals = []
+        
+        worker.progress.connect(lambda *args: progress_updates.append(args))
+        worker.started.connect(lambda: started_signals.append(True))
+        worker.finished.connect(lambda scenes: finished_signals.append(len(scenes)))
+        
+        def cleanup_worker():
+            if worker.isRunning():
+                worker.requestInterruption()
+                worker.quit()
+                worker.wait(5000)
+        
+        try:
+            # Start worker and wait for it to actually start processing
+            worker.start()
+            
+            # Wait for worker to start (more reliable than waiting for progress)
+            qtbot.waitUntil(lambda: len(started_signals) >= 1, timeout=5000)
+            
+            # Give it a moment to make some progress
+            qtbot.wait(100)
+            
+            # Cancel the operation
+            worker.requestInterruption()
+            
+            # Wait for cancellation to complete
+            with qtbot.waitSignal(worker.finished, timeout=10000):
+                pass
+            
+            # Should have started and finished
+            assert len(started_signals) >= 1, "Should have started signal"
+            assert len(finished_signals) == 1, "Should have finished signal"
+            
+        finally:
+            cleanup_worker()
+
+    def test_worker_error_handling_workflow(self, qtbot):
+        """Test worker error handling when parallel discovery encounters issues."""
+        # Create invalid shot paths to trigger errors
+        invalid_shots = [
+            Shot("INVALID", "seq001", "0010", "/nonexistent/path"),
+            Shot("TESTSHOW", "invalid", "0010", "/another/invalid/path")
+        ]
+        
+        worker = ThreeDESceneWorker(
+            shots=invalid_shots,
+            excluded_users=set(),
+            enable_progressive=True,
+            scan_all_shots=True
+        )
+        
+        error_messages = []
+        final_scenes = None
+        
+        worker.error.connect(lambda msg: error_messages.append(msg))
+        worker.finished.connect(lambda scenes: globals().update(final_scenes=scenes))
+        
+        def cleanup_worker():
+            if worker.isRunning():
+                worker.requestInterruption()
+                worker.quit()
+                worker.wait(5000)
+        
+        try:
+            # Should complete even with invalid paths - wait for finished signal
+            with qtbot.waitSignal(worker.finished, timeout=15000) as blocker:
+                worker.start()
+            
+            # Should complete even with invalid paths
+            assert blocker.signal_triggered, "Worker should complete"
+            
+            # Either way, should not crash due to parameter issues
+            
+        finally:
+            cleanup_worker()
+
+    def test_worker_signal_emission_patterns(self, qtbot):
+        """Test that worker emits signals correctly throughout the workflow."""
+        test_shots = self._create_test_vfx_structure()
+        
+        worker = ThreeDESceneWorker(
+            shots=test_shots[:2],
+            excluded_users=set(),
+            enable_progressive=True,
+            scan_all_shots=True
+        )
+        
+        # Track all signals
+        started_signals = []
+        progress_signals = []
+        finished_signals = []
+        
+        worker.started.connect(lambda: started_signals.append(time.time()))
+        worker.progress.connect(lambda *args: progress_signals.append((time.time(), args)))
+        worker.finished.connect(lambda scenes: finished_signals.append((time.time(), len(scenes))))
+        
+        def cleanup_worker():
+            if worker.isRunning():
+                worker.requestInterruption() 
+                worker.quit()
+                worker.wait(5000)
+        
+        try:
+            with qtbot.waitSignal(worker.finished, timeout=20000):
+                worker.start()
+            
+            # Verify signal emission order and timing - may get started from base class too
+            assert len(started_signals) >= 1, "Should emit started signal at least once"
+            assert len(progress_signals) > 0, "Should emit progress signals"
+            assert len(finished_signals) == 1, "Should emit finished signal once"
+            
+            # Verify temporal order
+            start_time = started_signals[0]
+            finish_time = finished_signals[0][0]
+            
+            assert finish_time > start_time, "Finished should come after started"
+            
+            # Verify progress signals are between start and finish
+            for progress_time, _ in progress_signals:
+                assert start_time <= progress_time <= finish_time, "Progress should be between start and finish"
+        
+        finally:
+            cleanup_worker()
+
+    def test_worker_memory_and_resource_cleanup(self, qtbot):
+        """Test that worker properly cleans up resources after completion."""
+        test_shots = self._create_test_vfx_structure()
+        
+        worker = ThreeDESceneWorker(
+            shots=test_shots[:3],
+            excluded_users=set(),
+            enable_progressive=True
+        )
+        
+        def cleanup_worker():
+            if worker.isRunning():
+                worker.requestInterruption()
+                worker.quit()
+                worker.wait(5000)
+        
+        try:
+            # Complete a scan
+            with qtbot.waitSignal(worker.finished, timeout=15000):
+                worker.start()
+            
+            # Worker should not be running after completion
+            assert not worker.isRunning(), "Worker should not be running after completion"
+            
+            # Create a new worker for second scan (workers are single-use)
+            worker2 = ThreeDESceneWorker(
+                shots=test_shots[:3],
+                excluded_users=set(),
+                enable_progressive=True
+            )
+            
+            # Should be able to start another scan with new worker
+            with qtbot.waitSignal(worker2.finished, timeout=15000):
+                worker2.start()
+            assert not worker2.isRunning(), "Worker2 should not be running after second scan"
+        
+        finally:
+            cleanup_worker()
+
+    def test_worker_concurrent_signal_handling(self, qtbot):
+        """Test worker signal handling when multiple signals are emitted rapidly."""
+        # Create larger structure to generate more signals
+        test_shots = self._create_test_vfx_structure()
+        
+        worker = ThreeDESceneWorker(
+            shots=test_shots,
+            excluded_users=set(),
+            enable_progressive=True,
+            scan_all_shots=True
+        )
+        
+        # Use thread-safe collections for signal tracking
+        import threading
+        signal_lock = threading.Lock()
+        all_signals = []
+        
+        def track_signal(signal_name: str, *args):
+            with signal_lock:
+                all_signals.append((time.time(), signal_name, args))
+        
+        worker.started.connect(lambda: track_signal("started"))
+        worker.progress.connect(lambda *args: track_signal("progress", *args))
+        worker.finished.connect(lambda scenes: track_signal("finished", len(scenes)))
+        worker.error.connect(lambda msg: track_signal("error", msg))
+        
+        def cleanup_worker():
+            if worker.isRunning():
+                worker.requestInterruption()
+                worker.quit()
+                worker.wait(5000)
+        
+        try:
+            with qtbot.waitSignal(worker.finished, timeout=30000):
+                worker.start()
+            
+            # Verify all signals were captured without race conditions
+            with signal_lock:
+                signal_types = [sig[1] for sig in all_signals]
+            
+            assert "started" in signal_types, "Should have started signal"
+            assert "finished" in signal_types, "Should have finished signal"
+            assert "progress" in signal_types, "Should have progress signals"
+            assert "error" not in signal_types, "Should not have error signals"
+            
+            # Verify no signal was lost due to concurrent emission
+            progress_count = signal_types.count("progress")
+            assert progress_count > 0, "Should have multiple progress signals"
+        
+        finally:
+            cleanup_worker()
+
+    def test_worker_timeout_handling(self, qtbot):
+        """Test worker behavior with realistic timeouts."""
+        test_shots = self._create_test_vfx_structure()
+        
+        worker = ThreeDESceneWorker(
+            shots=test_shots[:1],  # Small dataset for quick test
+            excluded_users=set(),
+            enable_progressive=True
+        )
+        
+        completed = []
+        worker.finished.connect(lambda scenes: completed.append(len(scenes)))
+        
+        def cleanup_worker():
+            if worker.isRunning():
+                worker.requestInterruption()
+                worker.quit()
+                worker.wait(5000)
+        
+        try:
+            # Should complete well within timeout
+            with qtbot.waitSignal(worker.finished, timeout=10000):
+                worker.start()
+            
+            assert len(completed) == 1, "Should complete within timeout"
+            
+        finally:
+            cleanup_worker()
+
+    def test_production_simulation_workflow(self, qtbot):
+        """Simulate the exact production workflow that triggered the bug.
+        
+        This test simulates:
+        1. User opens "Other 3DE scenes" tab
+        2. System triggers background scan 
+        3. Worker uses progressive scan with parallel discovery
+        4. Parallel discovery creates ThreadSafeProgressTracker with progress_interval
+        """
+        # Create realistic production-scale test data
+        test_shots = self._create_test_vfx_structure()
+        
+        # Simulate user's current shots (for filtering in "Other" scenes)
+        user_shots = test_shots[:3]
+        
+        worker = ThreeDESceneWorker(
+            shots=user_shots,
+            excluded_users={"system", "pipeline"},  # Typical excluded users
+            enable_progressive=True,
+            scan_all_shots=True  # This triggers the parallel path that failed
+        )
+        
+        # Track the complete workflow
+        workflow_events = []
+        
+        def track_event(event: str, *args):
+            workflow_events.append((time.time(), event, args))
+        
+        worker.started.connect(lambda: track_event("worker_started"))
+        worker.progress.connect(lambda *args: track_event("progress_update", args))
+        worker.finished.connect(lambda scenes: track_event("scan_completed", len(scenes)))
+        worker.error.connect(lambda msg: track_event("error_occurred", msg))
+        
+        def cleanup_worker():
+            if worker.isRunning():
+                worker.requestInterruption()
+                worker.quit()  
+                worker.wait(5000)
+        
+        try:
+            # This is the exact workflow that failed in production
+            with qtbot.waitSignal(worker.finished, timeout=25000) as blocker:
+                # Simulate user opening "Other 3DE scenes" tab
+                worker.start()
+            
+            # Verify workflow completed without the parameter bug
+            assert blocker.signal_triggered, "Production workflow should complete"
+            
+            # Verify workflow events
+            event_types = [event[1] for event in workflow_events]
+            assert "worker_started" in event_types
+            assert "progress_update" in event_types
+            assert "scan_completed" in event_types
+            assert "error_occurred" not in event_types, "Should not have parameter errors"
+            
+            # Verify scenes were found
+            completion_events = [e for e in workflow_events if e[1] == "scan_completed"]
+            assert len(completion_events) == 1
+            scene_count = completion_events[0][2][0]  # First arg of scan_completed
+            assert scene_count >= 0, "Should return valid scene count"
+            
+        finally:
+            cleanup_worker()
+
+        # Log workflow summary for debugging
+        print(f"Production workflow simulation completed:")
+        print(f"  Total events: {len(workflow_events)}")
+        print(f"  Progress updates: {len([e for e in workflow_events if e[1] == 'progress_update'])}")
+        if workflow_events:
+            total_time = workflow_events[-1][0] - workflow_events[0][0]
+            print(f"  Total time: {total_time:.2f}s")

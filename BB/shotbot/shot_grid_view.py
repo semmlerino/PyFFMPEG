@@ -371,8 +371,9 @@ class ShotGridView(QWidget):
             Qt.Key.Key_P: "publish",
         }
 
-        if event.key() in key_map:
-            self.app_launch_requested.emit(key_map[event.key()])
+        key = Qt.Key(event.key())
+        if key in key_map:
+            self.app_launch_requested.emit(key_map[key])
             event.accept()
         else:
             # Let QListView handle navigation

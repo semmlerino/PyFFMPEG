@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import QModelIndex, QRect, QRectF, QSize, Qt, Signal
+from typing_extensions import override
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QRect, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -88,11 +89,12 @@ class ShotGridDelegate(QStyledItemDelegate):
 
         logger.debug("ShotGridDelegate initialized with optimized painting")
 
+    @override
     def paint(
         self,
         painter: QPainter,
         option: QStyleOptionViewItem,
-        index: QModelIndex,
+        index: QModelIndex | QPersistentModelIndex,
     ) -> None:
         """Paint the shot thumbnail with custom rendering.
 
@@ -155,7 +157,8 @@ class ShotGridDelegate(QStyledItemDelegate):
         finally:
             painter.restore()
 
-    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
+    @override
+    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex) -> QSize:
         """Provide size hint for the item.
 
         Args:

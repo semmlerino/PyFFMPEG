@@ -210,7 +210,8 @@ class SettingsManager(QObject):
     # Window Settings
     def get_window_geometry(self) -> QByteArray:
         """Get window geometry."""
-        return self.settings.value("window/geometry", QByteArray(), type=QByteArray)
+        value = self.settings.value("window/geometry", QByteArray(), type=QByteArray)
+        return value if isinstance(value, QByteArray) else QByteArray()
 
     def set_window_geometry(self, geometry: QByteArray) -> None:
         """Set window geometry."""
@@ -219,7 +220,8 @@ class SettingsManager(QObject):
 
     def get_window_state(self) -> QByteArray:
         """Get window state (dock widgets, toolbars)."""
-        return self.settings.value("window/state", QByteArray(), type=QByteArray)
+        value = self.settings.value("window/state", QByteArray(), type=QByteArray)
+        return value if isinstance(value, QByteArray) else QByteArray()
 
     def set_window_state(self, state: QByteArray) -> None:
         """Set window state."""
@@ -229,7 +231,8 @@ class SettingsManager(QObject):
     def get_window_size(self) -> QSize:
         """Get window size."""
         default_size = QSize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
-        return self.settings.value("window/size", default_size, type=QSize)
+        value = self.settings.value("window/size", default_size, type=QSize)
+        return value if isinstance(value, QSize) else default_size
 
     def set_window_size(self, size: QSize) -> None:
         """Set window size."""
@@ -244,7 +247,8 @@ class SettingsManager(QObject):
     def get_splitter_state(self, splitter_name: str) -> QByteArray:
         """Get splitter state by name."""
         key = f"window/splitter_{splitter_name}"
-        return self.settings.value(key, QByteArray(), type=QByteArray)
+        value = self.settings.value(key, QByteArray(), type=QByteArray)
+        return value if isinstance(value, QByteArray) else QByteArray()
 
     def set_splitter_state(self, splitter_name: str, state: QByteArray) -> None:
         """Set splitter state by name."""
@@ -254,7 +258,8 @@ class SettingsManager(QObject):
 
     def get_current_tab(self) -> int:
         """Get current tab index."""
-        return self.settings.value("window/current_tab", 0, type=int)
+        value = self.settings.value("window/current_tab", 0, type=int)
+        return value if isinstance(value, int) else 0
 
     def set_current_tab(self, index: int) -> None:
         """Set current tab index."""
@@ -264,7 +269,8 @@ class SettingsManager(QObject):
 
     def is_window_maximized(self) -> bool:
         """Check if window was maximized."""
-        return self.settings.value("window/maximized", False, type=bool)
+        value = self.settings.value("window/maximized", False, type=bool)
+        return value if isinstance(value, bool) else False
 
     def set_window_maximized(self, maximized: bool) -> None:
         """Set window maximized state."""
@@ -274,11 +280,12 @@ class SettingsManager(QObject):
     # Preference Settings
     def get_refresh_interval(self) -> int:
         """Get refresh interval in minutes."""
-        return self.settings.value(
+        value = self.settings.value(
             "preferences/refresh_interval",
             Config.CACHE_REFRESH_INTERVAL_MINUTES,
             type=int,
         )
+        return value if isinstance(value, int) else Config.CACHE_REFRESH_INTERVAL_MINUTES
 
     def set_refresh_interval(self, minutes: int) -> None:
         """Set refresh interval in minutes."""
@@ -289,11 +296,12 @@ class SettingsManager(QObject):
 
     def get_background_refresh(self) -> bool:
         """Get background refresh enabled state."""
-        return self.settings.value(
+        value = self.settings.value(
             "preferences/background_refresh",
             Config.ENABLE_BACKGROUND_REFRESH,
             type=bool,
         )
+        return value if isinstance(value, bool) else Config.ENABLE_BACKGROUND_REFRESH
 
     def set_background_refresh(self, enabled: bool) -> None:
         """Set background refresh enabled state."""
@@ -302,9 +310,10 @@ class SettingsManager(QObject):
 
     def get_thumbnail_size(self) -> int:
         """Get thumbnail size."""
-        return self.settings.value(
+        value = self.settings.value(
             "preferences/thumbnail_size", Config.DEFAULT_THUMBNAIL_SIZE, type=int
         )
+        return value if isinstance(value, int) else Config.DEFAULT_THUMBNAIL_SIZE
 
     def set_thumbnail_size(self, size: int) -> None:
         """Set thumbnail size with validation."""
@@ -317,9 +326,10 @@ class SettingsManager(QObject):
 
     def get_last_directory(self) -> str:
         """Get last used directory."""
-        return self.settings.value(
+        value = self.settings.value(
             "preferences/last_directory", str(Config.SHOWS_ROOT), type=str
         )
+        return value if isinstance(value, str) else str(Config.SHOWS_ROOT)
 
     def set_last_directory(self, directory: str) -> None:
         """Set last used directory."""
@@ -330,9 +340,10 @@ class SettingsManager(QObject):
 
     def get_preferred_terminal(self) -> str:
         """Get preferred terminal emulator."""
-        return self.settings.value(
+        value = self.settings.value(
             "preferences/preferred_terminal", "gnome-terminal", type=str
         )
+        return value if isinstance(value, str) else "gnome-terminal"
 
     def set_preferred_terminal(self, terminal: str) -> None:
         """Set preferred terminal emulator."""
@@ -341,9 +352,10 @@ class SettingsManager(QObject):
 
     def get_double_click_action(self) -> str:
         """Get double click action."""
-        return self.settings.value(
+        value = self.settings.value(
             "preferences/double_click_action", "launch_default", type=str
         )
+        return value if isinstance(value, str) else "launch_default"
 
     def set_double_click_action(self, action: str) -> None:
         """Set double click action."""
@@ -355,9 +367,10 @@ class SettingsManager(QObject):
     # Performance Settings
     def get_max_thumbnail_threads(self) -> int:
         """Get maximum thumbnail loading threads."""
-        return self.settings.value(
+        value = self.settings.value(
             "performance/max_thumbnail_threads", Config.MAX_THUMBNAIL_THREADS, type=int
         )
+        return value if isinstance(value, int) else Config.MAX_THUMBNAIL_THREADS
 
     def set_max_thumbnail_threads(self, threads: int) -> None:
         """Set maximum thumbnail loading threads."""
@@ -370,9 +383,10 @@ class SettingsManager(QObject):
 
     def get_max_cache_memory_mb(self) -> int:
         """Get maximum cache memory in MB."""
-        return self.settings.value(
+        value = self.settings.value(
             "performance/max_cache_memory_mb", Config.MAX_THUMBNAIL_MEMORY_MB, type=int
         )
+        return value if isinstance(value, int) else Config.MAX_THUMBNAIL_MEMORY_MB
 
     def set_max_cache_memory_mb(self, memory_mb: int) -> None:
         """Set maximum cache memory in MB."""
@@ -383,9 +397,10 @@ class SettingsManager(QObject):
 
     def get_cache_expiry_minutes(self) -> int:
         """Get cache expiry time in minutes."""
-        return self.settings.value(
+        value = self.settings.value(
             "performance/cache_expiry_minutes", Config.CACHE_EXPIRY_MINUTES, type=int
         )
+        return value if isinstance(value, int) else Config.CACHE_EXPIRY_MINUTES
 
     def set_cache_expiry_minutes(self, minutes: int) -> None:
         """Set cache expiry time in minutes."""
@@ -398,7 +413,8 @@ class SettingsManager(QObject):
 
     def get_enable_animations(self) -> bool:
         """Get animation enabled state."""
-        return self.settings.value("performance/enable_animations", True, type=bool)
+        value = self.settings.value("performance/enable_animations", True, type=bool)
+        return value if isinstance(value, bool) else True
 
     def set_enable_animations(self, enabled: bool) -> None:
         """Set animation enabled state."""
@@ -408,9 +424,10 @@ class SettingsManager(QObject):
     # Application Settings
     def get_default_app(self) -> str:
         """Get default application."""
-        return self.settings.value(
+        value = self.settings.value(
             "applications/default_app", Config.DEFAULT_APP, type=str
         )
+        return value if isinstance(value, str) else Config.DEFAULT_APP
 
     def set_default_app(self, app: str) -> None:
         """Set default application."""
@@ -426,7 +443,7 @@ class SettingsManager(QObject):
         stored_associations = self.settings.value(
             "applications/file_associations", default_associations, type=dict
         )
-        return stored_associations if stored_associations else default_associations
+        return stored_associations if isinstance(stored_associations, dict) else default_associations
 
     def set_file_associations(self, associations: dict[str, str]) -> None:
         """Set file type associations."""
@@ -435,7 +452,8 @@ class SettingsManager(QObject):
 
     def get_custom_launchers(self) -> list[dict[str, Any]]:
         """Get custom launcher definitions."""
-        return self.settings.value("applications/custom_launchers", [], type=list)
+        value = self.settings.value("applications/custom_launchers", [], type=list)
+        return value if isinstance(value, list) else []
 
     def set_custom_launchers(self, launchers: list[dict[str, Any]]) -> None:
         """Set custom launcher definitions."""
@@ -445,7 +463,8 @@ class SettingsManager(QObject):
     # UI Settings
     def get_grid_columns(self) -> int:
         """Get grid column count."""
-        return self.settings.value("ui/grid_columns", Config.GRID_COLUMNS, type=int)
+        value = self.settings.value("ui/grid_columns", Config.GRID_COLUMNS, type=int)
+        return value if isinstance(value, int) else Config.GRID_COLUMNS
 
     def set_grid_columns(self, columns: int) -> None:
         """Set grid column count."""
@@ -455,7 +474,8 @@ class SettingsManager(QObject):
 
     def get_show_tooltips(self) -> bool:
         """Get tooltip visibility."""
-        return self.settings.value("ui/show_tooltips", True, type=bool)
+        value = self.settings.value("ui/show_tooltips", True, type=bool)
+        return value if isinstance(value, bool) else True
 
     def set_show_tooltips(self, show: bool) -> None:
         """Set tooltip visibility."""
@@ -464,7 +484,8 @@ class SettingsManager(QObject):
 
     def get_dark_theme(self) -> bool:
         """Get dark theme enabled state."""
-        return self.settings.value("ui/dark_theme", False, type=bool)
+        value = self.settings.value("ui/dark_theme", False, type=bool)
+        return value if isinstance(value, bool) else False
 
     def set_dark_theme(self, enabled: bool) -> None:
         """Set dark theme enabled state."""
@@ -474,7 +495,8 @@ class SettingsManager(QObject):
     # Advanced Settings
     def get_debug_mode(self) -> bool:
         """Get debug mode state."""
-        return self.settings.value("advanced/debug_mode", False, type=bool)
+        value = self.settings.value("advanced/debug_mode", False, type=bool)
+        return value if isinstance(value, bool) else False
 
     def set_debug_mode(self, enabled: bool) -> None:
         """Set debug mode state."""
@@ -483,7 +505,8 @@ class SettingsManager(QObject):
 
     def get_log_level(self) -> str:
         """Get logging level."""
-        return self.settings.value("advanced/log_level", "INFO", type=str)
+        value = self.settings.value("advanced/log_level", "INFO", type=str)
+        return value if isinstance(value, str) else "INFO"
 
     def set_log_level(self, level: str) -> None:
         """Set logging level."""

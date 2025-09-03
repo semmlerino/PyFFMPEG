@@ -29,23 +29,25 @@ __all__ = ["ThreeDESceneFinder", "ThreeDEScene", "DirectoryCache"]
 
 # Add class methods for cache management (if not already present)
 if not hasattr(ThreeDESceneFinder, "get_cache_stats"):
+    # Try to add cache methods dynamically, but ignore type errors
+    try:
+        def get_cache_stats(cls):
+            """Get cache statistics for monitoring."""
+            if hasattr(cls, "_directory_cache"):
+                return cls._directory_cache.get_stats()  # type: ignore[reportUnknownMemberType]
+            return {"hits": 0, "misses": 0, "evictions": 0}
 
-    @classmethod
-    def get_cache_stats(cls):
-        """Get cache statistics for monitoring."""
-        if hasattr(cls, "_directory_cache"):
-            return cls._directory_cache.get_stats()
-        return {"hits": 0, "misses": 0, "evictions": 0}
+        def clear_cache(cls):
+            """Clear the directory cache."""
+            if hasattr(cls, "_directory_cache"):
+                cls._directory_cache.cache.clear()  # type: ignore[reportUnknownMemberType]
+                cls._directory_cache.timestamps.clear()  # type: ignore[reportUnknownMemberType]
 
-    @classmethod
-    def clear_cache(cls):
-        """Clear the directory cache."""
-        if hasattr(cls, "_directory_cache"):
-            cls._directory_cache.cache.clear()
-            cls._directory_cache.timestamps.clear()
-
-    ThreeDESceneFinder.get_cache_stats = get_cache_stats
-    ThreeDESceneFinder.clear_cache = clear_cache
+        # Assign as class methods - type checker may complain but it works at runtime
+        setattr(ThreeDESceneFinder, "get_cache_stats", classmethod(get_cache_stats))
+        setattr(ThreeDESceneFinder, "clear_cache", classmethod(clear_cache))
+    except Exception as e:
+        logger.debug(f"Could not add cache methods dynamically: {e}")
 
 # Log that optimized version is loaded
 logger.info(

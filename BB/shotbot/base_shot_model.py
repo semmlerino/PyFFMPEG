@@ -105,7 +105,7 @@ class BaseShotModel(QObject):
         self._cache_misses += 1
         return False
 
-    def _parse_ws_output(self, output: str) -> list[Shot]:
+    def _parse_ws_output(self, output: str) -> "list[Shot]":
         """Parse ws -sg output to extract shots.
 
         Args:
@@ -227,7 +227,7 @@ class BaseShotModel(QObject):
         new_shot_data = {(shot.full_name, shot.workspace_path) for shot in new_shots}
         return old_shot_data != new_shot_data
 
-    def get_shots(self) -> list[Shot]:
+    def get_shots(self) -> "list[Shot]":
         """Get current list of shots.
 
         Returns:
@@ -252,7 +252,7 @@ class BaseShotModel(QObject):
         self._selected_shot = shot
         self.shot_selected.emit(shot)
 
-    def get_selected_shot(self) -> Shot | None:
+    def get_selected_shot(self) -> "Shot | None":
         """Get currently selected shot.
 
         Returns:
@@ -260,7 +260,7 @@ class BaseShotModel(QObject):
         """
         return self._selected_shot
 
-    def find_shot_by_name(self, full_name: str) -> Shot | None:
+    def find_shot_by_name(self, full_name: str) -> "Shot | None":
         """Find a shot by its full name.
 
         Args:

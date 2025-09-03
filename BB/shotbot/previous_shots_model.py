@@ -11,7 +11,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 
 from base_shot_model import BaseShotModel
 from cache_manager import CacheManager
-from previous_shots_finder import PreviousShotsFinder
+from previous_shots_finder import ParallelShotsFinder
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
 
@@ -48,7 +48,7 @@ class PreviousShotsModel(QObject):
 
         self._shot_model = shot_model
         self._cache_manager = cache_manager or CacheManager()
-        self._finder = PreviousShotsFinder()
+        self._finder = ParallelShotsFinder()
         self._previous_shots: list[Shot] = []
         self._is_scanning = False
         self._worker: PreviousShotsWorker | None = None

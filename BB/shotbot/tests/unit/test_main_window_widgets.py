@@ -21,7 +21,8 @@ from __future__ import annotations
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
-from PySide6.QtTest import QSignalSpy, QTest
+from PySide6.QtTest import QTest
+from pytestqt.qtbot import QtBot
 from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
@@ -225,18 +226,20 @@ class TestMainWindowTabFunctionality:
         tab_widget = window.findChild(QTabWidget)
 
         if tab_widget and tab_widget.count() > 1:
-            # Set up signal spy
-            current_changed_spy = QSignalSpy(tab_widget.currentChanged)
-
-            # Switch tabs
+            # Switch tabs with signal expectation
             original_index = tab_widget.currentIndex()
             new_index = (original_index + 1) % tab_widget.count()
-            tab_widget.setCurrentIndex(new_index)
-            qtbot.wait(10)
+            
+            # Set up signal expectation with parameter checking
+            def check_tab_change(index):
+                return index == new_index
 
-            # Verify signal emission
-            assert current_changed_spy.count() == 1
-            assert current_changed_spy.at(0)[0] == new_index
+            with qtbot.waitSignal(
+                tab_widget.currentChanged, check_params_cb=check_tab_change
+            ):
+                tab_widget.setCurrentIndex(new_index)
+            
+            qtbot.wait(10)  # Allow UI processing after signal
 
 
 class TestMainWindowSignalConnections:

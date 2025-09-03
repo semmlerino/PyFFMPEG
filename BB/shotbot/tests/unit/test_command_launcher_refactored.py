@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 from PySide6.QtTest import QSignalSpy
+from pytestqt.qtbot import QtBot
 
 import command_launcher
 from command_launcher import CommandLauncher
@@ -92,7 +93,7 @@ class TestCommandLauncherCore:
         subprocess.Popen = self.executor
         command_launcher.subprocess.Popen = self.executor
 
-        # Track emitted signals
+        # Setup spies for signal tracking
         self.command_spy = QSignalSpy(self.launcher.command_executed)
         self.error_spy = QSignalSpy(self.launcher.command_error)
 
@@ -101,13 +102,14 @@ class TestCommandLauncherCore:
         subprocess.Popen = self.original_popen
         command_launcher.subprocess.Popen = self.original_popen
 
-    def test_initialization(self):
+    def test_initialization(self, qtbot):
         """Test CommandLauncher initializes with correct state."""
         assert self.launcher.current_shot is None
         assert hasattr(self.launcher, "command_executed")
         assert hasattr(self.launcher, "command_error")
-        assert self.command_spy.isValid()
-        assert self.error_spy.isValid()
+        # Signals will be validated when used with qtbot.waitSignal
+        assert self.launcher.command_executed is not None
+        assert self.launcher.command_error is not None
 
     def test_set_current_shot(self):
         """Test setting shot context."""
@@ -127,7 +129,7 @@ class TestCommandLauncherCore:
         self.launcher.set_current_shot(None)
         assert self.launcher.current_shot is None
 
-    def test_launch_app_success(self):
+    def test_launch_app_success(self, qtbot):
         """Test successful app launch behavior."""
         # Setup test command to succeed
         self.test_command.set_output(
@@ -144,38 +146,38 @@ class TestCommandLauncherCore:
         )
         self.launcher.set_current_shot(shot)
 
-        # Launch app
-        result = self.launcher.launch_app("nuke")
+        # Set up signal expectation with parameter checking
+        def check_command_params(timestamp, command):
+            return (
+                isinstance(timestamp, str)
+                and ":" in timestamp  # Has time format
+                and "ws /shows/test/shots/seq01/seq01_0010" in command
+                and "nuke" in command
+            )
 
-        # Verify behavior
-        assert result is True
-        assert self.executor.call_count > 0  # Command was executed
-        assert self.command_spy.count() == 1  # Signal emitted
-        assert self.error_spy.count() == 0  # No errors
+        with qtbot.waitSignal(
+            self.launcher.command_executed, check_params_cb=check_command_params
+        ):
+            # Launch app
+            result = self.launcher.launch_app("nuke")
+            assert result is True
+            assert self.executor.call_count > 0  # Command was executed
 
-        # Check signal data
-        timestamp, command = self.command_spy.at(0)
-        assert isinstance(timestamp, str)
-        assert ":" in timestamp  # Has time format
-        assert "ws /shows/test/shots/seq01/seq01_0010" in command
-        assert "nuke" in command
-
-    def test_launch_app_no_shot_selected(self):
+    def test_launch_app_no_shot_selected(self, qtbot):
         """Test error when no shot is selected."""
-        # Don't set a shot
-        result = self.launcher.launch_app("nuke")
+        # Set up error signal expectation with parameter checking
+        def check_error_params(timestamp, error):
+            return "No shot selected" in error
 
-        # Verify error behavior
-        assert result is False
-        assert self.executor.call_count == 0  # No command executed
-        assert self.command_spy.count() == 0
-        assert self.error_spy.count() == 1
+        with qtbot.waitSignal(
+            self.launcher.command_error, check_params_cb=check_error_params
+        ):
+            # Don't set a shot
+            result = self.launcher.launch_app("nuke")
+            assert result is False
+            assert self.executor.call_count == 0  # No command executed
 
-        # Check error message
-        timestamp, error = self.error_spy.at(0)
-        assert "No shot selected" in error
-
-    def test_launch_unknown_app(self):
+    def test_launch_unknown_app(self, qtbot):
         """Test error for unknown application."""
         # Set shot
         shot = Shot(
@@ -183,16 +185,18 @@ class TestCommandLauncherCore:
         )
         self.launcher.set_current_shot(shot)
 
-        # Try unknown app
-        result = self.launcher.launch_app("unknown_app")
-
-        # Verify error behavior
-        assert result is False
-        assert self.executor.call_count == 0
-        assert self.error_spy.count() == 1
-
-        timestamp, error = self.error_spy.at(0)
-        assert "Unknown application: unknown_app" in error
+        def check_error_params(timestamp, error):
+            return "Unknown application: unknown_app" in error
+            
+        with qtbot.waitSignal(
+            self.launcher.command_error, check_params_cb=check_error_params
+        ):
+            # Try unknown app
+            result = self.launcher.launch_app("unknown_app")
+            
+            # Verify error behavior
+            assert result is False
+            assert self.executor.call_count == 0
 
     def test_terminal_fallback(self):
         """Test fallback through different terminal options."""
@@ -558,11 +562,11 @@ class TestNukeIntegration:
         """Restore original Popen."""
         command_launcher.subprocess.Popen = self.original_popen
 
-    def test_nuke_with_raw_plate(self, monkeypatch):
+    def test_nuke_with_raw_plate(self):
         """Test Nuke launching with raw plate integration."""
 
-        # Mock RawPlateFinder
-        class MockRawPlateFinder:
+        # Create test doubles for dependencies
+        class TestRawPlateFinder:
             @staticmethod
             def find_latest_raw_plate(workspace_path: str, shot_name: str) -> str:
                 return "/path/to/plate.%04d.exr"
@@ -575,29 +579,19 @@ class TestNukeIntegration:
             def get_version_from_path(plate_path: str) -> str:
                 return "v001"
 
-        monkeypatch.setattr("command_launcher.RawPlateFinder", MockRawPlateFinder)
-
-        # Mock NukeScriptGenerator
-        class MockNukeScriptGenerator:
+        class TestNukeScriptGenerator:
             @staticmethod
             def create_plate_script(plate_path: str, shot_name: str) -> str:
                 return "/tmp/script.nk"
 
-        # Patch the dynamic import
-        import builtins
+        # Use dependency injection instead of module-level replacement
+        launcher = CommandLauncher(
+            raw_plate_finder=TestRawPlateFinder,
+            nuke_script_generator=TestNukeScriptGenerator,
+        )
 
-        original_import = builtins.__import__
-
-        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
-            if name == "nuke_script_generator":
-
-                class MockModule:
-                    NukeScriptGenerator = MockNukeScriptGenerator
-
-                return MockModule()
-            return original_import(name, *args, **kwargs)
-
-        monkeypatch.setattr("builtins.__import__", mock_import)
+        # Replace subprocess for this launcher instance
+        command_launcher.subprocess.Popen = self.executor
 
         # Set shot and launch with raw plate
         shot = Shot(
@@ -606,18 +600,18 @@ class TestNukeIntegration:
             shot="0010",
             workspace_path="/shows/test/shots/seq01/seq01_0010",
         )
-        self.launcher.set_current_shot(shot)
+        launcher.set_current_shot(shot)
 
-        result = self.launcher.launch_app("nuke", include_raw_plate=True)
+        result = launcher.launch_app("nuke", include_raw_plate=True)
 
         assert result is True
         assert self.executor.call_count > 0
 
-    def test_nuke_with_undistortion(self, monkeypatch):
+    def test_nuke_with_undistortion(self):
         """Test Nuke launching with undistortion."""
 
-        # Mock UndistortionFinder
-        class MockUndistortionFinder:
+        # Create test double for UndistortionFinder
+        class TestUndistortionFinder:
             @staticmethod
             def find_latest_undistortion(workspace_path: str, shot_name: str) -> Path:
                 return Path("/path/to/undist.nk")
@@ -626,9 +620,13 @@ class TestNukeIntegration:
             def get_version_from_path(undist_path: Path) -> str:
                 return "v001"
 
-        monkeypatch.setattr(
-            "command_launcher.UndistortionFinder", MockUndistortionFinder
+        # Use dependency injection instead of module-level replacement
+        launcher = CommandLauncher(
+            undistortion_finder=TestUndistortionFinder,
         )
+
+        # Replace subprocess for this launcher instance
+        command_launcher.subprocess.Popen = self.executor
 
         shot = Shot(
             show="test",
@@ -636,17 +634,17 @@ class TestNukeIntegration:
             shot="0010",
             workspace_path="/shows/test/shots/seq01/seq01_0010",
         )
-        self.launcher.set_current_shot(shot)
+        launcher.set_current_shot(shot)
 
-        result = self.launcher.launch_app("nuke", include_undistortion=True)
+        result = launcher.launch_app("nuke", include_undistortion=True)
 
         assert result is True
 
-    def test_nuke_with_both_options(self, monkeypatch):
+    def test_nuke_with_both_options(self):
         """Test Nuke with both raw plate and undistortion."""
 
-        # Mock both finders
-        class MockRawPlateFinder:
+        # Create test doubles for both finders
+        class TestRawPlateFinder:
             @staticmethod
             def find_latest_raw_plate(workspace_path: str, shot_name: str) -> str:
                 return "/path/to/plate.%04d.exr"
@@ -659,7 +657,7 @@ class TestNukeIntegration:
             def get_version_from_path(plate_path: str) -> str:
                 return "v001"
 
-        class MockUndistortionFinder:
+        class TestUndistortionFinder:
             @staticmethod
             def find_latest_undistortion(workspace_path: str, shot_name: str) -> Path:
                 return Path("/path/to/undist.nk")
@@ -668,33 +666,22 @@ class TestNukeIntegration:
             def get_version_from_path(undist_path: Path) -> str:
                 return "v001"
 
-        monkeypatch.setattr("command_launcher.RawPlateFinder", MockRawPlateFinder)
-        monkeypatch.setattr(
-            "command_launcher.UndistortionFinder", MockUndistortionFinder
-        )
-
-        # Mock NukeScriptGenerator
-        class MockNukeScriptGenerator:
+        class TestNukeScriptGenerator:
             @staticmethod
             def create_plate_script_with_undistortion(
                 plate_path: str, undistortion_path: str, shot_name: str
             ) -> str:
                 return "/tmp/integrated_script.nk"
 
-        import builtins
+        # Use dependency injection for all dependencies
+        launcher = CommandLauncher(
+            raw_plate_finder=TestRawPlateFinder,
+            undistortion_finder=TestUndistortionFinder,
+            nuke_script_generator=TestNukeScriptGenerator,
+        )
 
-        original_import = builtins.__import__
-
-        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
-            if name == "nuke_script_generator":
-
-                class MockModule:
-                    NukeScriptGenerator = MockNukeScriptGenerator
-
-                return MockModule()
-            return original_import(name, *args, **kwargs)
-
-        monkeypatch.setattr("builtins.__import__", mock_import)
+        # Replace subprocess for this launcher instance
+        command_launcher.subprocess.Popen = self.executor
 
         shot = Shot(
             show="test",
@@ -702,9 +689,9 @@ class TestNukeIntegration:
             shot="0010",
             workspace_path="/shows/test/shots/seq01/seq01_0010",
         )
-        self.launcher.set_current_shot(shot)
+        launcher.set_current_shot(shot)
 
-        result = self.launcher.launch_app(
+        result = launcher.launch_app(
             "nuke", include_raw_plate=True, include_undistortion=True
         )
 

@@ -389,6 +389,14 @@ class TestCacheManager(QObject):
         self._cached_previous_shots: list[dict[str, Any]] | None = None
         self._memory_usage_bytes: int = 0
         self._cache_operations: list[dict[str, Any]] = []
+        self.thumbnails_dir = self.cache_dir / "thumbnails"
+        
+        # Initialize required dependencies with test doubles
+        from cache.thumbnail_processor import ThumbnailProcessor
+        from cache.failure_tracker import FailureTracker
+        
+        self._thumbnail_processor = ThumbnailProcessor()
+        self._failure_tracker = FailureTracker()
 
     def cache_thumbnail(
         self,

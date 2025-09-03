@@ -133,23 +133,6 @@ class PreviousShotsGrid(QWidget):
         self._model.scan_finished.connect(self._on_scan_finished)
         self._model.scan_progress.connect(self._on_scan_progress)
 
-    @Slot(int, int, str)
-    def _on_scan_progress(self, current: int, total: int, operation: str) -> None:
-        """Handle scan progress updates.
-
-        Args:
-            current: Current progress value
-            total: Total progress value
-            operation: Current operation description
-        """
-        # Update progress operation if active
-        operation_obj = ProgressManager.get_current_operation()
-        if operation_obj:
-            operation_obj.set_total(total)
-            operation_obj.update(current, operation)
-
-        # Update status label
-        self._status_label.setText(f"Scanning: {operation}")
 
     @Slot()
     def _on_refresh_clicked(self) -> None:
@@ -262,9 +245,8 @@ class PreviousShotsGrid(QWidget):
         thumbnail.clicked.connect(self._on_shot_selected)
         thumbnail.double_clicked.connect(self._on_shot_double_clicked)
 
-        # Add approved indicator if method exists
-        if hasattr(thumbnail, "set_status_text"):
-            thumbnail.set_status_text("APPROVED")
+        # TODO: Add approved indicator when ThumbnailWidget supports it
+        # Currently ThumbnailWidget doesn't have set_status_text method
 
         return thumbnail
 
@@ -278,7 +260,7 @@ class PreviousShotsGrid(QWidget):
         self._thumbnail_widgets.clear()
         self._selected_shot = None
 
-    @Slot(object)
+    @Slot()
     def _on_shot_selected(self, shot: Shot) -> None:
         """Handle shot selection.
 
@@ -297,7 +279,7 @@ class PreviousShotsGrid(QWidget):
 
         logger.debug(f"Selected approved shot: {shot.shot}")
 
-    @Slot(object)
+    @Slot()
     def _on_shot_double_clicked(self, shot: Shot) -> None:
         """Handle shot double-click.
 

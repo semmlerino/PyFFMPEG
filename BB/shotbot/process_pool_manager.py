@@ -31,9 +31,11 @@ try:
         timing_profiler,
     )
 
-    HAS_DEBUG_UTILS = True
+    _has_debug_utils = True
 except ImportError:
-    HAS_DEBUG_UTILS = False
+    _has_debug_utils = False
+
+HAS_DEBUG_UTILS = _has_debug_utils
 
 # Note: fcntl is not currently used, setting HAS_FCNTL to False
 HAS_FCNTL = False
@@ -192,7 +194,7 @@ class ProcessPoolManager(QObject):
 
     # Singleton instance
     _instance = None
-    _lock = threading.Lock()
+    _lock = threading.RLock()  # Use reentrant lock to prevent deadlock in nested calls
 
     # Qt signals
     command_completed = Signal(str, object)  # command_id, result
@@ -250,10 +252,12 @@ class ProcessPoolManager(QObject):
     def get_instance(cls) -> ProcessPoolManager:
         """Get singleton instance.
 
+        Thread safety is handled by __new__ method.
+
         Returns:
             ProcessPoolManager singleton
         """
-        if not cls._instance:
+        if cls._instance is None:
             cls._instance = cls()
         return cls._instance
 
@@ -582,12 +586,23 @@ class ProcessPoolManager(QObject):
             Performance metrics dictionary
         """
         metrics = self._metrics.get_report()
-        metrics["cache_stats"] = self._cache.get_stats()
-
-        # Add secure executor status
-        metrics["secure_executor"] = {"active": True, "type": "SecureCommandExecutor"}
-
-        return metrics
+        
+        # Build proper PerformanceMetricsDict structure
+        # Use defaults for any missing required fields
+        result: PerformanceMetricsDict = {
+            "total_shots": metrics.get("total_shots", 0),
+            "total_refreshes": metrics.get("total_refreshes", 0),
+            "last_refresh_time": metrics.get("last_refresh_time", 0.0),
+            "cache_hits": metrics.get("cache_hits", 0),
+            "cache_misses": metrics.get("cache_misses", 0),
+            "cache_hit_rate": metrics.get("cache_hit_rate", 0.0),
+            "cache_hit_count": metrics.get("cache_hit_count", 0),
+            "cache_miss_count": metrics.get("cache_miss_count", 0),
+            "loading_in_progress": metrics.get("loading_in_progress", False),
+            "session_warmed": metrics.get("session_warmed", False),
+        }
+        
+        return result
 
     def shutdown(self):
         """Shutdown the process pool manager."""
@@ -637,6 +652,14 @@ class ProcessMetrics:
         )
 
         uptime = time.time() - self.start_time
+        
+        # Calculate cache hit rate
+        total_cache_requests = self.cache_hits + self.cache_misses
+        cache_hit_rate = (
+            (self.cache_hits / total_cache_requests * 100)
+            if total_cache_requests > 0
+            else 0.0
+        )
 
         return {
             "subprocess_calls": self.subprocess_calls,
@@ -646,6 +669,9 @@ class ProcessMetrics:
             "calls_per_minute": (self.subprocess_calls / uptime * 60)
             if uptime > 0
             else 0,
+            "cache_hits": self.cache_hits,
+            "cache_misses": self.cache_misses,
+            "cache_hit_rate": cache_hit_rate,
         }
 
 

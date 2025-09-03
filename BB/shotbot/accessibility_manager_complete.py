@@ -54,9 +54,9 @@ class MainWindowProtocol(Protocol):
     previous_shots_grid: QWidget | None
     app_buttons: dict[str, QPushButton] | None
     launcher_group: QGroupBox | None
+    shot_info_panel: QWidget | None  # Has _current_shot attribute
     custom_launcher_buttons: dict[str, QPushButton] | None
     log_viewer: QWidget | None
-    shot_info_panel: QWidget | None
     command_launcher: QWidget | None
     status_bar: QWidget | None
 
@@ -350,7 +350,7 @@ class AccessibilityAnnouncer:
             if hasattr(
                 cast("MainWindowProtocol", window).shot_info_panel, "_current_shot"
             ):
-                shot = cast("MainWindowProtocol", window).shot_info_panel._current_shot
+                shot = cast("MainWindowProtocol", window).shot_info_panel._current_shot  # type: ignore[attr-defined]
                 if shot:
                     message = (
                         f"Shot {shot.shot} in sequence {shot.sequence}, "
@@ -388,7 +388,7 @@ class HighContrastMode:
             window: Main window
         """
         app = QApplication.instance()
-        if not app:
+        if not app or not isinstance(app, QApplication):
             return
 
         # Save original palette
@@ -484,7 +484,7 @@ class HighContrastMode:
             window: Main window
         """
         app = QApplication.instance()
-        if not app or not cls._original_palette:
+        if not app or not isinstance(app, QApplication) or not cls._original_palette:
             return
 
         # Restore original palette
@@ -598,21 +598,17 @@ class AccessibilityManagerComplete:
 
         # Grid navigation
         if hasattr(window, "shot_grid"):
-            KeyboardNavigationManager.setup_widget_navigation(
-                cast("MainWindowProtocol", window).shot_grid
-            ) if cast("MainWindowProtocol", window).shot_grid is not None else None
+            shot_grid = cast("MainWindowProtocol", window).shot_grid
+            if shot_grid is not None:
+                KeyboardNavigationManager.setup_widget_navigation(shot_grid)
         if hasattr(window, "threede_shot_grid"):
-            KeyboardNavigationManager.setup_widget_navigation(
-                cast("MainWindowProtocol", window).threede_shot_grid
-            ) if cast(
-                "MainWindowProtocol", window
-            ).threede_shot_grid is not None else None
+            threede_grid = cast("MainWindowProtocol", window).threede_shot_grid
+            if threede_grid is not None:
+                KeyboardNavigationManager.setup_widget_navigation(threede_grid)
         if hasattr(window, "previous_shots_grid"):
-            KeyboardNavigationManager.setup_widget_navigation(
-                cast("MainWindowProtocol", window).previous_shots_grid
-            ) if cast(
-                "MainWindowProtocol", window
-            ).previous_shots_grid is not None else None
+            prev_grid = cast("MainWindowProtocol", window).previous_shots_grid
+            if prev_grid is not None:
+                KeyboardNavigationManager.setup_widget_navigation(prev_grid)
 
         # Enhanced tooltips
         AccessibilityManagerComplete.setup_enhanced_tooltips(window)

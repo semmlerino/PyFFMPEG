@@ -50,7 +50,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer, Slot
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
@@ -151,6 +151,8 @@ class MainWindow(QMainWindow):
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
         super().__init__()
+        
+        # Initialize shot_model attribute (will be set later based on feature flag)
 
         # Initialize ProcessPoolManager singleton on main thread first
         # This prevents race conditions if SessionWarmer tries to create it from a thread
@@ -186,20 +188,25 @@ class MainWindow(QMainWindow):
             use_legacy = False
 
         # Pass to models - OptimizedShotModel is now the default
-        self.shot_model: BaseShotModel | ShotModel | OptimizedShotModel
         if use_legacy:
             logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
-            self.shot_model = ShotModel(self.cache_manager)
+            # ShotModel inherits from BaseShotModel  
+            shot_model_instance = cast(BaseShotModel, ShotModel(self.cache_manager))
+            self.shot_model = shot_model_instance
         else:
             logger.info("Using OptimizedShotModel with 366x faster startup")
-            self.shot_model = OptimizedShotModel(self.cache_manager)
+            # OptimizedShotModel inherits from BaseShotModel
+            optimized_model = OptimizedShotModel(self.cache_manager)
+            self.shot_model = cast(BaseShotModel, optimized_model)
             # Initialize async loading for immediate UI display
-            init_result = self.shot_model.initialize_async()
+            init_result = optimized_model.initialize_async()
             if init_result.success:
                 logger.debug(
                     f"Optimized model initialized with {len(self.shot_model.shots)} cached shots"
                 )
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
+        # At this point shot_model is guaranteed to be set
+        assert self.shot_model is not None, "shot_model must be initialized"
         self.previous_shots_model = PreviousShotsModel(
             self.shot_model, self.cache_manager
         )
@@ -762,6 +769,10 @@ class MainWindow(QMainWindow):
 
     def _on_threede_discovery_started(self) -> None:
         """Handle 3DE discovery worker started signal."""
+        # Check if we're closing to avoid accessing deleted widgets
+        if hasattr(self, "_closing") and self._closing:
+            return
+            
         # Start progress for 3DE discovery
         _ = ProgressManager.start_operation("Scanning for 3DE scenes")
 
@@ -782,6 +793,10 @@ class MainWindow(QMainWindow):
             description: Progress description
             eta: Estimated time to completion
         """
+        # Check if we're closing to avoid accessing deleted widgets
+        if hasattr(self, "_closing") and self._closing:
+            return
+            
         # Update progress operation if active
         operation = ProgressManager.get_current_operation()
         if operation:
@@ -794,11 +809,16 @@ class MainWindow(QMainWindow):
         Args:
             scenes: List of discovered ThreeDEScene objects
         """
+        # Check if we're closing to avoid accessing deleted widgets
+        if hasattr(self, "_closing") and self._closing:
+            return
+            
         # Finish progress operation
         ProgressManager.finish_operation(success=True)
 
         # Hide loading state
-        self.threede_shot_grid.set_loading(False)
+        if self.threede_shot_grid is not None:
+            self.threede_shot_grid.set_loading(False)
 
         # Update model with discovered scenes (compare with existing)
         old_scene_data = {
@@ -1696,38 +1716,53 @@ class MainWindow(QMainWindow):
         # No background refresh worker needed anymore - using signals
 
         # Mark that we're closing to prevent new operations
+        # Extract worker reference safely while holding lock
+        worker_to_cleanup = None
+        
         with QMutexLocker(self._worker_mutex):
             self._closing = True
-
-            # Stop and cleanup worker if running
+            
+            # Extract worker reference and clear it atomically
             if self._threede_worker:
-                # Check if it's a real worker (not a Mock in tests)
-                # Use isinstance check for better type safety
-                from threede_scene_worker import ThreeDESceneWorker
-
-                if isinstance(self._threede_worker, ThreeDESceneWorker):
-                    # Only stop if not already finished
-                    if not self._threede_worker.isFinished():
-                        logger.debug("Stopping 3DE worker during shutdown")
-                        self._threede_worker.stop()
-
-                        # Release mutex while waiting to avoid deadlock
-                        self._worker_mutex.unlock()
-                        try:
-                            if not self._threede_worker.wait(
-                                3000,
-                            ):  # Wait up to 3 seconds
-                                logger.warning(
-                                    "3DE worker didn't stop gracefully, using safe termination",
-                                )
-                                # Use safe_terminate which avoids dangerous terminate() call
-                                self._threede_worker.safe_terminate()
-                        finally:
-                            self._worker_mutex.lock()  # Re-acquire for cleanup
-
-                    # Clean up the worker reference
-                    self._threede_worker.deleteLater()
-                    self._threede_worker = None
+                worker_to_cleanup = self._threede_worker
+                self._threede_worker = None
+        
+        # Handle worker cleanup outside of mutex to avoid deadlock
+        if worker_to_cleanup:
+            # Check if it's a real worker (not a Mock in tests)
+            # Use isinstance check for better type safety
+            from threede_scene_worker import ThreeDESceneWorker
+            
+            if isinstance(worker_to_cleanup, ThreeDESceneWorker):
+                # Disconnect all signals first to prevent callbacks on deleted widgets
+                try:
+                    worker_to_cleanup.started.disconnect()
+                    worker_to_cleanup.batch_ready.disconnect()
+                    worker_to_cleanup.progress.disconnect()
+                    worker_to_cleanup.scan_progress.disconnect()
+                    worker_to_cleanup.finished.disconnect()
+                    worker_to_cleanup.error.disconnect()
+                    worker_to_cleanup.paused.disconnect()
+                    worker_to_cleanup.resumed.disconnect()
+                except (RuntimeError, TypeError):
+                    # Signals may already be disconnected or deleted
+                    pass
+                
+                # Only stop if not already finished
+                if not worker_to_cleanup.isFinished():
+                    logger.debug("Stopping 3DE worker during shutdown")
+                    worker_to_cleanup.stop()
+                    
+                    # Wait for worker to finish without holding mutex
+                    if not worker_to_cleanup.wait(3000):  # Wait up to 3 seconds
+                        logger.warning(
+                            "3DE worker didn't stop gracefully, using safe termination",
+                        )
+                        # Use safe_terminate which avoids dangerous terminate() call
+                        worker_to_cleanup.safe_terminate()
+                
+                # Clean up the worker
+                worker_to_cleanup.deleteLater()
 
             # Clean up session warmer if it exists
             if hasattr(self, "_session_warmer") and self._session_warmer:

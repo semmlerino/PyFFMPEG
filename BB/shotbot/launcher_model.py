@@ -94,14 +94,18 @@ class LauncherParameter:
         # Validate numeric ranges
         if self.param_type in (ParameterType.INTEGER, ParameterType.FLOAT):
             if self.min_value is not None and self.max_value is not None:
-                if self.min_value > self.max_value:
-                    raise ValueError("min_value cannot be greater than max_value")
+                # Type narrowing: for numeric types, min/max should be numeric
+                if isinstance(self.min_value, (int, float)) and isinstance(self.max_value, (int, float)):
+                    if self.min_value > self.max_value:
+                        raise ValueError("min_value cannot be greater than max_value")
 
             if self.default_value is not None:
-                if self.min_value is not None and self.default_value < self.min_value:
-                    raise ValueError("Default value is below minimum")
-                if self.max_value is not None and self.default_value > self.max_value:
-                    raise ValueError("Default value is above maximum")
+                if self.min_value is not None and isinstance(self.default_value, (int, float)) and isinstance(self.min_value, (int, float)):
+                    if self.default_value < self.min_value:
+                        raise ValueError("Default value is below minimum")
+                if self.max_value is not None and isinstance(self.default_value, (int, float)) and isinstance(self.max_value, (int, float)):
+                    if self.default_value > self.max_value:
+                        raise ValueError("Default value is above maximum")
 
     def validate_value(self, value: Any) -> bool:
         """Validate a value against this parameter's constraints.
@@ -271,7 +275,7 @@ class Launcher:
 
         return errors
 
-    def build_command(self, param_values: dict[str, Any] = None) -> list[str]:
+    def build_command(self, param_values: dict[str, Any] | None = None) -> list[str]:
         """Build command line arguments from template and parameters.
 
         Args:
@@ -347,7 +351,7 @@ class Launcher:
         except (TypeError, ValueError) as e:
             raise ValueError(f"Invalid launcher data: {e}")
 
-    def clone(self, new_id: str = None, new_name: str = None) -> "Launcher":
+    def clone(self, new_id: str | None = None, new_name: str | None = None) -> "Launcher":
         """Create a copy of this launcher with optional new ID/name.
 
         Args:

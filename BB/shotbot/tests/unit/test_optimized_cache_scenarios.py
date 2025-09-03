@@ -157,10 +157,12 @@ class TestCacheScenarios:
         """Test that session pre-warming improves subsequent performance."""
         model = optimized_model_with_cache
 
-        # Mock process pool to track calls
-        mock_pool = Mock()
-        mock_pool.execute_workspace_command.return_value = "warming"
-        model._process_pool = mock_pool
+        # Use test double instead of mock to track behavior
+        from tests.test_doubles_library import TestProcessPool
+        
+        test_pool = TestProcessPool()
+        test_pool.default_output = "warming"
+        model._process_pool = test_pool
 
         # Measure pre-warming
         start_time = time.perf_counter()
@@ -173,10 +175,9 @@ class TestCacheScenarios:
         metrics = model.get_performance_metrics()
         assert metrics["session_warmed"] is True
 
-        # Verify warm command was called
-        mock_pool.execute_workspace_command.assert_called_with(
-            "echo warming", cache_ttl=1, timeout=5
-        )
+        # Test behavior: verify warming command was executed
+        assert len(test_pool.commands) == 1
+        assert test_pool.commands[0] == "echo warming"
 
     def test_concurrent_cache_access(self, optimized_model_with_cache):
         """Test cache behavior with concurrent access (thread safety)."""

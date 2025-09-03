@@ -15,7 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtGui import QColor
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
@@ -93,7 +93,7 @@ class MockCacheManager:
             cache_dir: Optional cache directory path
         """
         self.cache_dir = cache_dir or Path("/tmp/test_cache")
-        self._cache: dict[str, QPixmap] = {}
+        self._cache: dict[str, ThreadSafeTestImage] = {}
         self._call_count = 0
         self._last_cached_path: Path | None = None
 
@@ -111,7 +111,7 @@ class MockCacheManager:
         show: str,
         sequence: str,
         shot: str,
-    ) -> QPixmap | None:
+    ) -> ThreadSafeTestImage | None:
         """Mock thumbnail caching.
 
         Args:
@@ -121,7 +121,7 @@ class MockCacheManager:
             shot: Shot name
 
         Returns:
-            Mock QPixmap if successful, None otherwise
+            Mock ThreadSafeTestImage if successful, None otherwise
         """
         self._call_count += 1
         self._last_cached_path = Path(source_path)
@@ -131,14 +131,14 @@ class MockCacheManager:
 
         # Return existing or create new mock pixmap
         if cache_key not in self._cache:
-            self._cache[cache_key] = QPixmap(100, 100)
+            self._cache[cache_key] = ThreadSafeTestImage(100, 100)
             self._cache[cache_key].fill(QColor(100, 100, 100))
 
         return self._cache[cache_key]
 
     def get_cached_thumbnail(
         self, show: str, sequence: str, shot: str
-    ) -> QPixmap | None:
+    ) -> ThreadSafeTestImage | None:
         """Get cached thumbnail.
 
         Args:
@@ -147,7 +147,7 @@ class MockCacheManager:
             shot: Shot name
 
         Returns:
-            Cached QPixmap if exists, None otherwise
+            Cached ThreadSafeTestImage if exists, None otherwise
         """
         cache_key = f"{show}_{sequence}_{shot}"
         return self._cache.get(cache_key)

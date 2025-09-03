@@ -114,9 +114,9 @@ def profile_shot_model_refresh() -> dict[str, Any]:
 
         # Extract top time consumers
         top_functions = []
-        for (file, line, func), (cc, nc, tt, ct, callers) in list(stats.stats.items())[
-            :10
-        ]:
+        # Type checker doesn't know about stats.stats attribute
+        stats_items = list(stats.stats.items()) if hasattr(stats, 'stats') else []  # type: ignore[attr-defined]
+        for (file, line, func), (cc, nc, tt, ct, callers) in stats_items[:10]:
             top_functions.append(
                 {
                     "function": f"{func}:{line}",

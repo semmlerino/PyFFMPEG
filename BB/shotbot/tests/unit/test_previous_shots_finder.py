@@ -72,6 +72,33 @@ class TestPreviousShotsFinder:
 
         return fs.base_path / "shows"
 
+    @pytest.mark.parametrize("show,seq,shot", [
+        pytest.param("testshow", "101_ABC", "0010", id="standard_naming"),
+        pytest.param("anothershow", "102_DEF", "0020", id="different_sequence"), 
+        pytest.param("testshow", "101_ABC", "0030", id="higher_shot_number"),
+        pytest.param("anothershow", "101_ABC", "0010", marks=pytest.mark.slow, id="cross_show_sequence"),
+    ])
+    def test_individual_shot_structure_validation(self, make_test_filesystem, finder, show, seq, shot):
+        """Test individual shot structures with parametrized data."""
+        fs = make_test_filesystem()
+        
+        # Create individual shot structure
+        shot_path = fs.create_vfx_structure(show, seq, shot)
+        user_path = shot_path / "user" / "testuser"
+        fs.create_file(user_path / "work.3de", "3DE scene content")
+        fs.create_file(user_path / "comp.nk", "Nuke script content")
+        
+        shows_path = fs.base_path / "shows"
+        
+        # Should find the shot we created
+        shots = finder.find_user_shots(shows_path)
+        assert len(shots) >= 1
+        
+        # Verify the shot structure is as expected
+        found_shots = [(s.show, s.sequence, s.shot) for s in shots]
+        expected_shot = (show, seq, shot)
+        assert expected_shot in found_shots
+
     def test_finder_initialization_with_username(self):
         """Test finder initialization with specific username."""
         finder = PreviousShotsFinder(username="customuser")
@@ -111,24 +138,28 @@ class TestPreviousShotsFinder:
             elif "USER" in os.environ:
                 del os.environ["USER"]
 
-    @pytest.mark.parametrize(
-        "path,expected_shot",
-        [
-            (
-                "/shows/testshow/shots/101_ABC/0010/user/testuser",
-                ("testshow", "101_ABC", "0010"),
-            ),
-            (
-                "/shows/feature/shots/seq01/shot01/user/artist",
-                ("feature", "seq01", "shot01"),
-            ),
-            ("/invalid/path/structure", None),
-            (
-                "/shows/test/shots/",  # Incomplete path
-                None,
-            ),
-        ],
-    )
+    @pytest.mark.parametrize("path,expected_shot", [
+        pytest.param(
+            "/shows/testshow/shots/101_ABC/0010/user/testuser",
+            ("testshow", "101_ABC", "0010"),
+            id="standard_vfx_structure"
+        ),
+        pytest.param(
+            "/shows/feature/shots/seq01/shot01/user/artist",
+            ("feature", "seq01", "shot01"),
+            id="feature_structure"
+        ),
+        pytest.param(
+            "/invalid/path/structure", 
+            None,
+            id="invalid_structure"
+        ),
+        pytest.param(
+            "/shows/test/shots/",  # Incomplete path
+            None,
+            id="incomplete_path"
+        ),
+    ])
     def test_parse_shot_from_path(self, finder, path, expected_shot):
         """Test shot parsing from various path structures.
 

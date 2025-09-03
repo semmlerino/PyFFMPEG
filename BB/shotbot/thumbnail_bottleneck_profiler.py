@@ -19,7 +19,6 @@ import psutil
 import re
 import sys
 import time
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -31,10 +30,12 @@ try:
     from utils import PathUtils, FileUtils, get_cache_stats, clear_all_caches
     from shot_model import Shot
     from config import Config
-    SHOTBOT_AVAILABLE = True
+    shotbot_available = True
 except ImportError:
     print("Warning: ShotBot modules not available - using mock implementations")
-    SHOTBOT_AVAILABLE = False
+    shotbot_available = False
+
+SHOTBOT_AVAILABLE = shotbot_available
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +106,14 @@ class ThumbnailBottleneckProfiler:
         # Test optimized implementation with single regex
         optimized_pattern = re.compile(r"/shows/([^/]+)/shots/([^/]+)/\2_(.+)/")
         
-        def optimized_parse_implementation(path: str) -> Tuple[str, str, str] | None:
+        def optimized_parse_implementation(path: str) -> tuple[str, str, str] | None:
             """Optimized implementation with better regex."""
             match = optimized_pattern.search(path)
             if match:
-                return match.groups()
+                groups = match.groups()
+                if len(groups) == 3:
+                    return (groups[0], groups[1], groups[2])
+                return None
             return None
         
         start_time = time.perf_counter()
@@ -380,7 +384,7 @@ class ThumbnailBottleneckProfiler:
     
     def _test_path_validation_batch(self):
         """Test batch path validation performance."""
-        paths = [f"/fake/path/{i}/test" for i in range(100)]
+        paths: list[str | Path] = [f"/fake/path/{i}/test" for i in range(100)]
         if SHOTBOT_AVAILABLE:
             results = PathUtils.batch_validate_paths(paths)
         else:
@@ -394,7 +398,7 @@ class ThumbnailBottleneckProfiler:
         
         count = 0
         for i in range(10):
-            thumbnail = PathUtils.find_shot_thumbnail(
+            thumbnail = PathUtils.find_shot_thumbnail(  # type: ignore[reportUnknownMemberType]
                 "/fake/root", f"Show{i}", f"0{i:02d}", f"00{i:02d}"
             )
             count += 1

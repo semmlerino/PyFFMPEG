@@ -287,6 +287,8 @@ class ShotItemModel(QAbstractListModel):
             shots: List of Shot objects
         """
         self.beginResetModel()
+        # Stop thumbnail loading timer to prevent loading for old shots
+        self._thumbnail_timer.stop()
 
         self._shots = shots
         self._thumbnail_cache.clear()
@@ -442,7 +444,7 @@ class ShotItemModel(QAbstractListModel):
                     self, "_handle_thumbnail_success_atomically",
                     Qt.ConnectionType.QueuedConnection,
                     Q_ARG(str, shot_full_name),  # Immutable identifier
-                    Q_ARG(object, cached_path)   # Result data
+                    Q_ARG(str, str(cached_path))   # Convert Path to string for Qt
                 )
             else:
                 # Caching failed - pass only immutable identifier
@@ -468,8 +470,8 @@ class ShotItemModel(QAbstractListModel):
         return None
 
 
-    @Slot(str, object)  # shot_full_name: str, cached_path: object (Path)
-    def _handle_thumbnail_success_atomically(self, shot_full_name: str, cached_path: object) -> None:
+    @Slot(str, str)  # shot_full_name: str, cached_path: str
+    def _handle_thumbnail_success_atomically(self, shot_full_name: str, cached_path: str) -> None:
         """Atomically handle thumbnail success in main thread - prevents race conditions.
         
         This method does validation and processing atomically in the main thread,
@@ -478,10 +480,10 @@ class ShotItemModel(QAbstractListModel):
         
         Args:
             shot_full_name: Immutable identifier for the shot
-            cached_path: Path to the cached thumbnail (passed as object for Qt compatibility)
+            cached_path: Path to the cached thumbnail (passed as string for Qt compatibility)
         """
-        # Assert type for runtime safety
-        assert isinstance(cached_path, Path), f"Expected Path, got {type(cached_path)}"
+        # Convert string back to Path for internal use
+        cached_path = Path(cached_path)
         
         # Validation and processing happen atomically in main thread
         shot_data = self._find_shot_by_full_name(shot_full_name)

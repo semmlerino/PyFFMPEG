@@ -6,24 +6,100 @@ import logging
 import time
 from collections import deque
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QMutex, QThread, QWaitCondition, Signal
+from PySide6.QtCore import QMutex, QThread, QWaitCondition, Signal, QObject, QMetaObject, Qt, Slot, QTimer
 
 from config import Config
-from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
 from threede_scene_finder import ThreeDESceneFinder
-from threede_scene_model import ThreeDEScene
 from utils import ValidationUtils
+
+if TYPE_CHECKING:
+    from shot_model import Shot
+    from threede_scene_model import ThreeDEScene
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 
 
+class QtThreadSafeEmitter(QObject):
+    """Thread-safe signal emitter for cross-thread Qt signal emission.
+    
+    This class solves Qt thread affinity violations by providing a safe way
+    to emit Qt signals from ThreadPoolExecutor worker threads. It defines
+    its own signals that can be connected with QueuedConnection to the
+    worker's signals, ensuring proper thread-safe delivery.
+    
+    The emitter must be created in the target thread (worker's QThread) to
+    have proper thread affinity for signal emission.
+    """
+    
+    # Internal signals for thread-safe communication
+    _progress_signal = Signal(int, str)  # files_found, status
+
+    def __init__(self, worker_instance: 'ThreeDESceneWorker') -> None:
+        """Initialize the thread-safe emitter.
+        
+        Args:
+            worker_instance: The worker whose signals will be emitted
+        """
+        super().__init__()
+        self.worker = worker_instance
+        
+        # Connect our internal signal to the worker's actual signals
+        # Use QueuedConnection to ensure thread-safe delivery
+        self._progress_signal.connect(
+            self._emit_progress_safe,
+            Qt.ConnectionType.QueuedConnection
+        )
+        
+        logger.debug("QtThreadSafeEmitter created in thread: %s", self.thread())
+
+    def emit_from_thread(self, files_found: int, status: str) -> None:
+        """Safely emit progress signals from any thread.
+        
+        This method can be called from ThreadPoolExecutor threads or any
+        other thread. It emits our internal signal which is connected
+        with QueuedConnection to ensure thread-safe delivery.
+        
+        Args:
+            files_found: Number of files found so far
+            status: Current status message
+        """
+        # Emit our internal signal - Qt handles the thread-safe delivery
+        self._progress_signal.emit(files_found, status)
+
+    @Slot(int, str)
+    def _emit_progress_safe(self, files_found: int, status: str) -> None:
+        """Internal slot that emits signals in the correct thread.
+        
+        This slot runs in the worker's QThread and can safely emit Qt signals.
+        It's connected to our internal signal with QueuedConnection.
+        
+        Args:
+            files_found: Number of files found so far
+            status: Current status message
+        """
+        # Check if worker is still valid and not stopped
+        if self.worker and not self.worker.is_stop_requested():
+            # Emit the signals that were being called directly before
+            self.worker.progress.emit(
+                files_found,  # current files found
+                0,           # total unknown during scanning
+                0.0,         # percentage unknown during scanning  
+                status,      # current status message
+                "",          # ETA not available during parallel scan
+            )
+            
+            # Also emit scan progress for compatibility
+            self.worker.scan_progress.emit(files_found, 0, status)
+
+
 class ProgressCalculator:
     """Helper class for calculating progress and ETA during file scanning."""
 
-    def __init__(self, smoothing_window: int | None = None):
+    def __init__(self, smoothing_window: int | None = None) -> None:
         """Initialize progress calculator.
 
         Args:
@@ -155,7 +231,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         batch_size: int | None = None,
         enable_progressive: bool = True,
         scan_all_shots: bool = False,
-    ):
+    ) -> None:
         """Initialize the enhanced worker with shots to search.
 
         Args:
@@ -197,7 +273,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             QThread.Priority.NormalPriority,
         )
 
-    def stop(self):
+    def stop(self) -> None:
         """Request the worker to stop processing.
 
         Uses the thread-safe base class stop mechanism.
@@ -208,7 +284,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         # Use base class thread-safe stop
         self.request_stop()
 
-    def pause(self):
+    def pause(self) -> None:
         """Request the worker to pause processing."""
         logger.debug("Pause requested for 3DE scene worker")
         should_emit = False
@@ -224,7 +300,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         if should_emit:
             self.paused.emit()
 
-    def resume(self):
+    def resume(self) -> None:
         """Resume processing if paused."""
         logger.debug("Resume requested for 3DE scene worker")
         should_emit = False
@@ -275,7 +351,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         # Check cancellation again after pause
         return not self.is_stop_requested()
 
-    def do_work(self):
+    def do_work(self) -> None:
         """Enhanced main worker thread execution with progressive scanning.
 
         This replaces the run() method to follow ThreadSafeWorker pattern.
@@ -285,6 +361,11 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             # Set thread priority now that thread is running
             if hasattr(self, "_desired_priority"):
                 self.setPriority(self._desired_priority)
+
+            # Create thread-safe emitter now that we're in the worker thread
+            # This ensures proper Qt thread affinity for signal emission
+            self.thread_safe_emitter = QtThreadSafeEmitter(self)
+            logger.debug("Thread-safe emitter created in worker thread")
 
             logger.info("Starting enhanced 3DE scene discovery")
             self.started.emit()
@@ -432,22 +513,48 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         return self._all_scenes
 
     def _discover_all_scenes_in_shows(self) -> list[ThreeDEScene]:
-        """Discover ALL 3DE scenes in the shows (not just user's shots).
+        """Discover ALL 3DE scenes in the shows using parallel scanning.
 
-        This uses the truly efficient file-first discovery to find ALL 3DE files,
-        then filters out the user's own shots for "Other 3DE scenes" display.
+        This uses the new parallel file-first discovery to find ALL 3DE files
+        with frequent progress updates, then filters out user's shots.
 
         Returns:
             List of all discovered ThreeDEScene objects
         """
-        logger.info("Discovering ALL 3DE scenes in shows using file-first strategy")
+        logger.info("Discovering ALL 3DE scenes in shows using parallel file-first strategy")
 
-        # Use the truly efficient file-first discovery
-        # This now finds .3de files FIRST, then extracts shot info from paths
-        all_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient(
+        # Create progress callback that emits signals to UI using thread-safe emitter
+        def progress_callback(files_found: int, status: str) -> None:
+            """Forward progress updates to UI with cancellation check.
+            
+            This callback runs in ThreadPoolExecutor worker threads, so it uses
+            the thread-safe emitter to avoid Qt thread affinity violations.
+            """
+            if self.is_stop_requested():
+                return
+                
+            # Use thread-safe emitter instead of direct signal emission
+            # This prevents Qt thread affinity violations when called from ThreadPoolExecutor
+            self.thread_safe_emitter.emit_from_thread(files_found, status)
+
+        # Create cancel flag callback
+        def cancel_flag() -> bool:
+            """Check if scan should be cancelled."""
+            return self.is_stop_requested()
+
+        # Use the new parallel file-first discovery
+        logger.info("Using parallel discovery with progress reporting")
+        all_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
             self.user_shots,  # Used to determine which shows to search
             self.excluded_users,
+            progress_callback=progress_callback,
+            cancel_flag=cancel_flag,
         )
+
+        # Check for cancellation after scan
+        if self.is_stop_requested():
+            logger.info("3DE scene discovery cancelled during parallel scan")
+            return []
 
         # Create a set of user's shot identifiers for filtering
         user_shot_ids = set()
@@ -458,22 +565,26 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         # Filter out user's shots from the results (for "Other 3DE scenes")
         other_scenes = []
         for scene in all_scenes:
+            if self.is_stop_requested():
+                break
+                
             scene_id = f"{scene.show}/{scene.sequence}/{scene.shot}"
             if scene_id not in user_shot_ids:
                 other_scenes.append(scene)
 
         logger.info(
-            f"Found {len(all_scenes)} total scenes, {len(other_scenes)} are from other shots",
+            f"Found {len(all_scenes)} total scenes using parallel scan, {len(other_scenes)} are from other shots",
         )
 
-        # Emit progress updates
-        self.progress.emit(
-            len(other_scenes),
-            len(all_scenes),
-            100.0,
-            f"Found {len(other_scenes)} scenes from other shots",
-            "",
-        )
+        # Emit final progress update
+        if not self.is_stop_requested():
+            self.progress.emit(
+                len(other_scenes),
+                len(all_scenes),
+                100.0,
+                f"Completed: Found {len(other_scenes)} scenes from other shots",
+                "",
+            )
 
         return other_scenes
 

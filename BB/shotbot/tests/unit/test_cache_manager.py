@@ -16,6 +16,7 @@ import pytest
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QSignalSpy
+from pytestqt.qtbot import QtBot
 
 from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
 from config import ThreadingConfig
@@ -376,7 +377,11 @@ class TestCacheManager:
         # Should return None for corrupted cache
         assert manager.get_cached_shots() is None
 
-    @pytest.mark.parametrize("shot_count", [50, 100])
+    @pytest.mark.parametrize("shot_count", [
+        pytest.param(50, id="medium_load"),
+        pytest.param(100, marks=pytest.mark.slow, id="high_load_performance"),
+        pytest.param(250, marks=pytest.mark.slow, id="stress_test"),
+    ])
     def test_cache_size_limit(self, cache_manager, shot_count):
         """Test cache respects size limits."""
         # Create a reasonable number of shots for testing

@@ -72,7 +72,7 @@ class ThreeDEScene:
             return self._cached_thumbnail_path
 
         # Use the unified thumbnail discovery method
-        thumbnail = PathUtils.find_shot_thumbnail(
+        thumbnail = PathUtils.find_shot_thumbnail(  # type: ignore[reportUnknownMemberType]
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,

@@ -19,6 +19,8 @@ import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
+from typing_extensions import override
+
 from PySide6.QtCore import Qt, QThread, Signal, Slot
 
 if TYPE_CHECKING:
@@ -27,6 +29,7 @@ if TYPE_CHECKING:
 from base_shot_model import BaseShotModel
 from process_pool_manager import ProcessPoolManager
 from shot_model import RefreshResult, Shot
+from type_definitions import PerformanceMetricsDict
 
 logger = logging.getLogger(__name__)
 
@@ -340,7 +343,8 @@ class OptimizedShotModel(BaseShotModel):
         except Exception as e:
             logger.warning(f"Session pre-warming failed: {e}")
 
-    def get_performance_metrics(self) -> dict[str, Any]:
+    @override
+    def get_performance_metrics(self) -> PerformanceMetricsDict:
         """Get performance metrics including cache statistics."""
         metrics = super().get_performance_metrics()
         # Read loading state with lock held

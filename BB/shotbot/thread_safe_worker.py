@@ -80,7 +80,7 @@ class ThreadSafeWorker(QThread):
         self._state_condition = QWaitCondition()
         self._stop_requested = False
         self._force_stop = False
-        self._connections: list[tuple[weakref.ref, weakref.ref]] = []
+        self._connections: list[tuple[Any, Any]] = []
         self._zombie = False  # Track abandoned threads
 
         # Set up cleanup on thread finished

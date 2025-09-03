@@ -8,7 +8,7 @@ import platform
 import shlex
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
@@ -37,7 +37,7 @@ class Launcher:
     description: str = ""
     category: str = "custom"
     working_directory: str | None = None
-    environment_vars: dict[str, str | None] = None
+    environment_vars: dict[str, str | None] = field(default_factory=dict)
     terminal_title: str | None = None
     terminal_geometry: str | None = None
     persist_terminal: bool = False
@@ -139,7 +139,7 @@ class TerminalLauncher(QObject):
     def execute_launcher(
         self,
         launcher: Launcher,
-        variables: dict[str, str | None] = None,
+        variables: dict[str, str | None] | None = None,
     ) -> LaunchResult:
         """Execute a launcher with variable substitution."""
         try:
@@ -160,10 +160,13 @@ class TerminalLauncher(QObject):
                     )
 
             # Build environment variables
-            env = os.environ.copy()
+            env: dict[str, str | None] = dict(os.environ.copy())
             if launcher.environment_vars:
                 for key, value in launcher.environment_vars.items():
-                    env[key] = self._substitute_variables(value, variables or {})
+                    if value is not None:
+                        env[key] = self._substitute_variables(value, variables or {})
+                    else:
+                        env[key] = None
 
             # Execute in terminal
             result = self._execute_in_terminal(
@@ -206,8 +209,10 @@ class TerminalLauncher(QObject):
                 error_message=error_msg,
             )
 
-    def _substitute_variables(self, text: str, variables: dict[str, str]) -> str:
+    def _substitute_variables(self, text: str | None, variables: dict[str, str | None]) -> str:
         """Substitute variables in text using {variable_name} syntax."""
+        if text is None:
+            return ""
         try:
             # Built-in variables
             builtin_vars = {
@@ -219,7 +224,9 @@ class TerminalLauncher(QObject):
             }
 
             # Merge variables (user variables override built-ins)
-            all_vars = {**builtin_vars, **variables}
+            # Filter out None values from variables
+            filtered_vars = {k: v for k, v in variables.items() if v is not None}
+            all_vars = {**builtin_vars, **filtered_vars}
 
             # Perform substitution
             result = text
@@ -268,7 +275,7 @@ class TerminalLauncher(QObject):
         self,
         command: str,
         working_directory: str | None = None,
-        environment: dict[str, str | None] = None,
+        environment: dict[str, str | None] | None = None,
         terminal_title: str | None = None,
         terminal_geometry: str | None = None,
         persist: bool = False,
@@ -304,9 +311,11 @@ class TerminalLauncher(QObject):
 
             # Execute the terminal command
             # Use DEVNULL to prevent pipe buffer deadlocks when apps close
+            # Filter out None values from environment for subprocess compatibility
+            clean_env = {k: v for k, v in (environment or {}).items() if v is not None} if environment else None
             process = subprocess.Popen(
                 terminal_cmd,
-                env=environment,
+                env=clean_env,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 cwd=working_directory,
@@ -338,7 +347,7 @@ class TerminalLauncher(QObject):
         terminal_title: str | None = None,
         terminal_geometry: str | None = None,
         persist: bool = False,
-    ) -> list[str | None]:
+    ) -> list[str]:
         """Build terminal-specific command."""
         try:
             # Prepare command with persistence if requested
@@ -406,11 +415,11 @@ class TerminalLauncher(QObject):
                     terminal_title,
                 )
             logger.warning(f"Unsupported terminal type: {terminal_type}")
-            return None
+            return []
 
         except Exception as e:
             logger.error(f"Error building terminal command: {e}")
-            return None
+            return []
 
     def _build_gnome_terminal_command(
         self,

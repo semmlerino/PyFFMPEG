@@ -32,6 +32,7 @@ from pathlib import Path
 import pytest
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtTest import QSignalSpy
+from pytestqt.qtbot import QtBot
 
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
@@ -149,11 +150,6 @@ class TestPreviousShotsWorkerWorkflow:
             args=[], returncode=0, stdout="\n".join(find_output) + "\n"
         )
 
-        # Set up signal spies
-        shot_found_spy = QSignalSpy(worker.shot_found)
-        scan_finished_spy = QSignalSpy(worker.scan_finished)
-        error_spy = QSignalSpy(worker.error_occurred)
-
         # Replace finder with base class that uses subprocess.run for testing
         from previous_shots_finder import PreviousShotsFinder
 
@@ -162,28 +158,33 @@ class TestPreviousShotsWorkerWorkflow:
         # FIX: Use monkeypatch for cleaner subprocess mocking
         monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: test_result)
 
-        try:
-            with qtbot.waitSignal(worker.scan_finished, timeout=5000):
+        # Collect shot_found signals to verify count
+        shot_found_signals = []
+        def collect_shot_found(shot_dict):
+            shot_found_signals.append(shot_dict)
+        
+        worker.shot_found.connect(collect_shot_found)
+        
+        # Set up expectation for scan_finished with result validation
+        def check_scan_result(final_result):
+            return isinstance(final_result, list) and len(final_result) == 3
+        
+        with qtbot.waitSignal(
+            worker.scan_finished, 
+            check_params_cb=check_scan_result,
+            timeout=5000
+        ):
+            # Ensure no error signals are emitted
+            with qtbot.assertNotEmitted(worker.error_occurred, wait=100):
                 # Start worker after signal waiter is ready
                 worker.start()
-        finally:
-            pass  # monkeypatch automatically restores
 
         # Ensure thread has finished
         worker.wait(2000)
 
-        # Verify signals were emitted (PySide6 style)
-        assert scan_finished_spy.count() == 1
-        assert error_spy.count() == 0  # No errors
-
-        # Should emit shot_found for each shot (excluding active ones)
+        # Verify shot_found was called for each shot (excluding active ones)
         # 3 found shots - 0 matching active shots = 3 approved shots
-        # (active_show != show1 or show2, so no filtering occurs)
-        assert shot_found_spy.count() == 3
-
-        # Verify final result
-        final_result = scan_finished_spy.at(0)[0]
-        assert len(final_result) == 3
+        assert len(shot_found_signals) == 3
 
     def test_workflow_with_no_results(self, worker_with_cleanup, qtbot, monkeypatch):
         """Test workflow when no shots are found."""
@@ -401,11 +402,13 @@ class TestPreviousShotsWorkerIntegration:
         """Test integration using real PreviousShotsFinder with mocked subprocess."""
 
         # Create active shots (some overlap with user work)
+        # Note: shot name must match what finder extracts from "shot_000" directory
+        # The finder will extract "000" from "shot_000" (takes part after last underscore)
         active_shots = [
             Shot(
                 "feature_film",
                 "010_opening",
-                "shot_000",
+                "000",  # Matches what finder extracts from "shot_000" directory
                 str(
                     real_shows_structure
                     / "feature_film"

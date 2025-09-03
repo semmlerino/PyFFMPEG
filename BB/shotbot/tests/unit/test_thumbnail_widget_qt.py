@@ -24,7 +24,8 @@ from __future__ import annotations
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtTest import QSignalSpy, QTest
+from PySide6.QtTest import QTest, QSignalSpy
+from pytestqt.qtbot import QtBot
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from config import Config
@@ -106,31 +107,31 @@ class TestThumbnailWidgetBase:
         """Test mouse clicks emit correct signals."""
         widget = thumbnail_widget_base
 
-        # Set up signal spies
-        clicked_spy = QSignalSpy(widget.clicked)
+        # Set up signal expectation with parameter checking
+        def check_click_data(data):
+            return data == widget.data
 
-        # Simulate left mouse click
-        QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
-        qtbot.wait(10)
-
-        # Verify signal emission
-        assert clicked_spy.count() == 1
-        assert clicked_spy.at(0)[0] == widget.data
+        with qtbot.waitSignal(widget.clicked, check_params_cb=check_click_data):
+            # Simulate left mouse click
+            QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
+        
+        qtbot.wait(10)  # Allow UI processing after signal
 
     def test_mouse_double_click_signal_emission(self, qtbot, thumbnail_widget_base):
         """Test mouse double clicks emit correct signals."""
         widget = thumbnail_widget_base
 
-        # Set up signal spy
-        double_clicked_spy = QSignalSpy(widget.double_clicked)
+        # Set up signal expectation with parameter checking
+        def check_double_click_data(data):
+            return data == widget.data
 
-        # Simulate double click
-        QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
-        qtbot.wait(10)
-
-        # Verify signal emission
-        assert double_clicked_spy.count() == 1
-        assert double_clicked_spy.at(0)[0] == widget.data
+        with qtbot.waitSignal(
+            widget.double_clicked, check_params_cb=check_double_click_data
+        ):
+            # Simulate double click
+            QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
+        
+        qtbot.wait(10)  # Allow UI processing after signal
 
     def test_thumbnail_size_property(self, thumbnail_widget_base):
         """Test thumbnail size property works correctly."""

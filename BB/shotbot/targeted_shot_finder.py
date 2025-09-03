@@ -185,7 +185,7 @@ class TargetedShotsFinder:
             # The shot directory format is {sequence}_{shot}
             if shot_dir.startswith(f"{sequence}_"):
                 # Remove the sequence prefix to get the shot number
-                shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
+                shot = shot_dir[len(sequence) + 1 :]  # +1 for the underscore
             else:
                 # Fallback: use the last part after underscore
                 shot_parts = shot_dir.rsplit("_", 1)
@@ -194,12 +194,12 @@ class TargetedShotsFinder:
                 else:
                     # No underscore found, use whole name as shot
                     shot = shot_dir
-            
+
             # Validate shot is not empty
             if not shot:
                 logger.debug(f"Empty shot extracted from path {path}")
                 return None
-            
+
             # Build the workspace path using the full directory name
             workspace_path = f"/shows/{show}/shots/{sequence}/{shot_dir}"
 

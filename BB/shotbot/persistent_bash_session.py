@@ -19,10 +19,12 @@ from typing import Any
 try:
     import fcntl
 
-    HAS_FCNTL = True
+    _has_fcntl = True
 except ImportError:
-    HAS_FCNTL = False
+    _has_fcntl = False
     logging.warning("fcntl module not available - will use blocking I/O")
+
+HAS_FCNTL = _has_fcntl
 
 from config import ThreadingConfig
 
@@ -34,9 +36,11 @@ try:
         state_tracker,
     )
 
-    HAS_DEBUG_UTILS = True
+    _has_debug_utils = True
 except ImportError:
-    HAS_DEBUG_UTILS = False
+    _has_debug_utils = False
+
+HAS_DEBUG_UTILS = _has_debug_utils
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +77,7 @@ class PersistentBashSession:
         """
         super().__init__()
         self.session_id = session_id
-        self._process: subprocess.Popen[str | None] = None
+        self._process: subprocess.Popen[str] | None = None
         self._lock = threading.Lock()
         self._command_count = 0
         self._start_time = time.time()

@@ -247,23 +247,27 @@ class ProgressOperation:
 
             self.progress_dialog.setLabelText(display_message)
 
-        # Update status bar if present
-        if self.status_bar:
-            display_message = self.current_message
+        # Update status bar if present - check it's not None (Qt lifecycle safety)
+        if self.status_bar is not None:
+            try:
+                display_message = self.current_message
 
-            if not self.is_indeterminate:
-                percentage = (
-                    (self.current_value / self.total_value) * 100
-                    if self.total_value > 0
-                    else 0
-                )
-                display_message += f" ({percentage:.1f}%)"
+                if not self.is_indeterminate:
+                    percentage = (
+                        (self.current_value / self.total_value) * 100
+                        if self.total_value > 0
+                        else 0
+                    )
+                    display_message += f" ({percentage:.1f}%)"
 
-            eta = self.get_eta_string()
-            if eta:
-                display_message += f" - {eta}"
+                eta = self.get_eta_string()
+                if eta:
+                    display_message += f" - {eta}"
 
-            self.status_bar.showMessage(display_message)
+                self.status_bar.showMessage(display_message)
+            except RuntimeError:
+                # Status bar was deleted - clear reference
+                self.status_bar = None
 
 
 class ProgressManager:
@@ -401,8 +405,13 @@ class ProgressManager:
             )
         elif progress_type == ProgressType.STATUS_BAR:
             operation.status_bar = instance._status_bar
-            if operation.status_bar:
-                operation.status_bar.showMessage(config.title)
+            if operation.status_bar is not None:
+                try:
+                    operation.status_bar.showMessage(config.title)
+                except RuntimeError:
+                    # Status bar was deleted - clear reference
+                    operation.status_bar = None
+                    instance._status_bar = None
 
         logger.debug(
             f"Started progress operation: {config.title} (type: {progress_type.name})"

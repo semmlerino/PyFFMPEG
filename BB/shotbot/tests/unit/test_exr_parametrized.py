@@ -67,19 +67,19 @@ class TestParametrizedPriority:
             assert result is not None
             assert result.suffix == expected
 
-    @pytest.mark.parametrize(
-        "plate_name,priority",
-        [
-            ("FG01", 0),  # Highest priority
-            ("FG02", 0),
-            ("FG99", 0),
-            ("BG01", 1),  # Second priority
-            ("BG02", 1),
-            ("EL01", 2),  # Lower priority
-            ("COMP01", 2),
-            ("random", 2),
-        ],
-    )
+    @pytest.mark.parametrize("plate_name,priority", [
+        # Highest priority plates
+        pytest.param("FG01", 0, id="fg01_highest_priority"),
+        pytest.param("FG02", 0, id="fg02_highest_priority"),
+        pytest.param("FG99", 0, id="fg99_highest_priority"),
+        # Second priority plates
+        pytest.param("BG01", 1, id="bg01_second_priority"),
+        pytest.param("BG02", 1, id="bg02_second_priority"),
+        # Lower priority plates
+        pytest.param("EL01", 2, id="el01_lower_priority"),
+        pytest.param("COMP01", 2, id="comp01_lower_priority"),
+        pytest.param("random", 2, marks=pytest.mark.slow, id="random_plate_slow"),
+    ])
     def test_plate_priority_ordering(self, tmp_path, plate_name, priority):
         """Test plate priority calculation for different plate names."""
         shows_root = tmp_path / "shows"

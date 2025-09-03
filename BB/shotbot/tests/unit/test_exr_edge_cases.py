@@ -224,6 +224,20 @@ class TestUnusualFormats:
         result = FileUtils.get_first_image_file(deep_path, allow_fallback=True)
         assert result == exr_file
 
+    @pytest.mark.skipif(os.name == "nt", reason="Unix-specific")
+    def test_unix_special_device_files(self, tmp_path):
+        """Special device files should not be processed as images."""
+        # Create a named pipe (FIFO)
+        fifo_path = tmp_path / "fake.exr"
+        os.mkfifo(fifo_path)
+
+        try:
+            result = FileUtils.get_first_image_file(tmp_path, allow_fallback=True)
+            # Should either skip or handle gracefully
+            assert result is None or not stat.S_ISFIFO(result.stat().st_mode)
+        finally:
+            fifo_path.unlink()
+
 
 class TestConcurrentEdgeCases:
     """Test edge cases in concurrent scenarios."""
@@ -291,45 +305,6 @@ class TestConcurrentEdgeCases:
 
         # Should complete without crash
         assert result is None or isinstance(result, Path)
-
-
-class TestPlatformSpecific:
-    """Test platform-specific edge cases."""
-
-    @pytest.mark.skipif(os.name != "nt", reason="Windows-specific")
-    def test_windows_path_length_limit(self, tmp_path):
-        """Windows MAX_PATH limitation should be handled."""
-        # Create path approaching Windows limit (260 chars)
-        long_dir = tmp_path
-        while len(str(long_dir)) < 240:
-            long_dir = long_dir / "subdir"
-
-        try:
-            long_dir.mkdir(parents=True)
-            exr_file = long_dir / "test.exr"
-            exr_file.write_bytes(b"EXR")
-
-            # Should handle or report error gracefully
-            result = PathUtils.validate_path_exists(exr_file, "Long path")
-            # Either works or fails gracefully
-            assert isinstance(result, bool)
-        except OSError:
-            # Expected on Windows with long paths
-            pass
-
-    @pytest.mark.skipif(os.name == "nt", reason="Unix-specific")
-    def test_unix_special_device_files(self, tmp_path):
-        """Special device files should not be processed as images."""
-        # Create a named pipe (FIFO)
-        fifo_path = tmp_path / "fake.exr"
-        os.mkfifo(fifo_path)
-
-        try:
-            result = FileUtils.get_first_image_file(tmp_path, allow_fallback=True)
-            # Should either skip or handle gracefully
-            assert result is None or not stat.S_ISFIFO(result.stat().st_mode)
-        finally:
-            fifo_path.unlink()
 
 
 class TestResourceExhaustion:

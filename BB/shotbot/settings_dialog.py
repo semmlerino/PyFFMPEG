@@ -142,7 +142,7 @@ class SettingsDialog(QDialog):
 
         # Create button box
         self.button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel | QDialogButtonBox.Apply
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Apply
         )
         layout.addWidget(self.button_box)
 
@@ -165,11 +165,11 @@ class SettingsDialog(QDialog):
         ui_layout = QFormLayout(ui_group)
 
         # Thumbnail size
-        self.thumbnail_size_slider = QSlider(Qt.Horizontal)
+        self.thumbnail_size_slider = QSlider(Qt.Orientation.Horizontal)
         self.thumbnail_size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
         self.thumbnail_size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
         self.thumbnail_size_slider.setTickInterval(50)
-        self.thumbnail_size_slider.setTickPosition(QSlider.TicksBelow)
+        self.thumbnail_size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
 
         self.thumbnail_size_label = QLabel()
         thumbnail_layout = QHBoxLayout()
@@ -494,16 +494,16 @@ class SettingsDialog(QDialog):
         """Create additional buttons for import/export and reset."""
         # Add custom buttons to button box
         self.import_btn = self.button_box.addButton(
-            "Import...", QDialogButtonBox.ActionRole
+            "Import...", QDialogButtonBox.ButtonRole.ActionRole
         )
         self.export_btn = self.button_box.addButton(
-            "Export...", QDialogButtonBox.ActionRole
+            "Export...", QDialogButtonBox.ButtonRole.ActionRole
         )
         self.reset_btn = self.button_box.addButton(
-            "Reset to Defaults", QDialogButtonBox.ResetRole
+            "Reset to Defaults", QDialogButtonBox.ButtonRole.ResetRole
         )
         self.reset_category_btn = self.button_box.addButton(
-            "Reset Current Tab", QDialogButtonBox.ResetRole
+            "Reset Current Tab", QDialogButtonBox.ButtonRole.ResetRole
         )
 
     def connect_signals(self) -> None:
@@ -628,7 +628,7 @@ class SettingsDialog(QDialog):
             self.reset_all_settings()
         elif button == self.reset_category_btn:
             self.reset_current_category()
-        elif button == self.button_box.button(QDialogButtonBox.Apply):
+        elif button == self.button_box.button(QDialogButtonBox.StandardButton.Apply):
             self.apply_settings()
 
     def import_settings(self) -> None:
@@ -674,11 +674,11 @@ class SettingsDialog(QDialog):
             "Reset All Settings",
             "Are you sure you want to reset all settings to defaults?\n"
             "This action cannot be undone.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
 
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             self.settings_manager.reset_to_defaults()
             self.load_current_settings()
             QMessageBox.information(
@@ -702,11 +702,11 @@ class SettingsDialog(QDialog):
                 self,
                 "Reset Category",
                 f"Reset all {category} settings to defaults?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
 
-            if reply == QMessageBox.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
                 self.settings_manager.reset_category(category)
                 self.load_current_settings()
                 QMessageBox.information(
@@ -775,7 +775,15 @@ class SettingsDialog(QDialog):
         try:
             text = self.launchers_edit.toPlainText().strip()
             if text:
-                launchers: dict[str, Any] = json.loads(text)
+                parsed_data = json.loads(text)
+                # Handle both dict and list formats
+                if isinstance(parsed_data, list):
+                    launchers = parsed_data
+                elif isinstance(parsed_data, dict):
+                    # Convert dict to list format expected by settings manager
+                    launchers = [parsed_data] if parsed_data else []
+                else:
+                    launchers = []
                 self.settings_manager.set_custom_launchers(launchers)
         except json.JSONDecodeError:
             logger.warning("Invalid custom launchers JSON, keeping existing settings")

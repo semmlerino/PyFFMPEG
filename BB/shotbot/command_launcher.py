@@ -4,26 +4,65 @@ from __future__ import annotations
 
 import subprocess
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
 
 from config import Config
-from raw_plate_finder import RawPlateFinder
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
-from undistortion_finder import UndistortionFinder
+
+if TYPE_CHECKING:
+    from raw_plate_finder import RawPlateFinder as RawPlateFinderType
+    from undistortion_finder import UndistortionFinder as UndistortionFinderType
+    from nuke_script_generator import NukeScriptGenerator as NukeScriptGeneratorType
 
 
 class CommandLauncher(QObject):
-    """Handles launching applications in shot context."""
+    """Handles launching applications in shot context.
+    
+    This class uses dependency injection for better testability and following SOLID principles.
+    Dependencies are passed as constructor parameters rather than imported directly.
+    """
 
     # Signals
     command_executed = Signal(str, str)  # timestamp, command
     command_error = Signal(str, str)  # timestamp, error
 
-    def __init__(self):
+    def __init__(
+        self,
+        raw_plate_finder: type[RawPlateFinderType] | None = None,
+        undistortion_finder: type[UndistortionFinderType] | None = None,
+        nuke_script_generator: type[NukeScriptGeneratorType] | None = None,
+    ):
+        """Initialize CommandLauncher with optional dependencies.
+        
+        Args:
+            raw_plate_finder: Class for finding raw plates (defaults to RawPlateFinder)
+            undistortion_finder: Class for finding undistortion files (defaults to UndistortionFinder)
+            nuke_script_generator: Class for generating Nuke scripts (defaults to NukeScriptGenerator)
+        """
         super().__init__()
         self.current_shot: Shot | None = None
+        
+        # Use injected dependencies or fall back to defaults
+        if raw_plate_finder is None:
+            from raw_plate_finder import RawPlateFinder
+            self._raw_plate_finder = RawPlateFinder
+        else:
+            self._raw_plate_finder = raw_plate_finder
+            
+        if undistortion_finder is None:
+            from undistortion_finder import UndistortionFinder
+            self._undistortion_finder = UndistortionFinder
+        else:
+            self._undistortion_finder = undistortion_finder
+            
+        if nuke_script_generator is None:
+            from nuke_script_generator import NukeScriptGenerator
+            self._nuke_script_generator = NukeScriptGenerator
+        else:
+            self._nuke_script_generator = nuke_script_generator
 
     def set_current_shot(self, shot: Shot | None):
         """Set the current shot context."""
@@ -118,31 +157,29 @@ class CommandLauncher(QObject):
 
             # Get raw plate if requested
             if include_raw_plate:
-                raw_plate_path = RawPlateFinder.find_latest_raw_plate(
+                raw_plate_path = self._raw_plate_finder.find_latest_raw_plate(
                     self.current_shot.workspace_path,
                     self.current_shot.full_name,
                 )
                 # Verify plate exists
-                if raw_plate_path and not RawPlateFinder.verify_plate_exists(
+                if raw_plate_path and not self._raw_plate_finder.verify_plate_exists(
                     raw_plate_path,
                 ):
                     raw_plate_path = None
 
             # Get undistortion if requested
             if include_undistortion:
-                undistortion_path = UndistortionFinder.find_latest_undistortion(
+                undistortion_path = self._undistortion_finder.find_latest_undistortion(
                     self.current_shot.workspace_path,
                     self.current_shot.full_name,
                 )
 
             # Generate integrated Nuke script if we have plate or undistortion
             if raw_plate_path or undistortion_path:
-                from nuke_script_generator import NukeScriptGenerator
-
                 if raw_plate_path and undistortion_path:
                     # Both plate and undistortion
                     script_path = (
-                        NukeScriptGenerator.create_plate_script_with_undistortion(
+                        self._nuke_script_generator.create_plate_script_with_undistortion(
                             raw_plate_path,
                             str(undistortion_path),
                             self.current_shot.full_name,
@@ -153,10 +190,10 @@ class CommandLauncher(QObject):
                         safe_script_path = self._validate_path_for_shell(script_path)
                         command = f"{command} {safe_script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
-                        plate_version = RawPlateFinder.get_version_from_path(
+                        plate_version = self._raw_plate_finder.get_version_from_path(
                             raw_plate_path,
                         )
-                        undist_version = UndistortionFinder.get_version_from_path(
+                        undist_version = self._undistortion_finder.get_version_from_path(
                             undistortion_path,
                         )
                         self.command_executed.emit(
@@ -171,7 +208,7 @@ class CommandLauncher(QObject):
                         )
                 elif raw_plate_path:
                     # Plate only
-                    script_path = NukeScriptGenerator.create_plate_script(
+                    script_path = self._nuke_script_generator.create_plate_script(
                         raw_plate_path,
                         self.current_shot.full_name,
                     )
@@ -180,7 +217,7 @@ class CommandLauncher(QObject):
                         safe_script_path = self._validate_path_for_shell(script_path)
                         command = f"{command} {safe_script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
-                        version = RawPlateFinder.get_version_from_path(raw_plate_path)
+                        version = self._raw_plate_finder.get_version_from_path(raw_plate_path)
                         self.command_executed.emit(
                             timestamp,
                             f"Generated Nuke script with plate: {version}",
@@ -194,7 +231,7 @@ class CommandLauncher(QObject):
                 elif undistortion_path:
                     # Undistortion only (no plate available)
                     script_path = (
-                        NukeScriptGenerator.create_plate_script_with_undistortion(
+                        self._nuke_script_generator.create_plate_script_with_undistortion(
                             "",
                             str(undistortion_path),
                             self.current_shot.full_name,  # Empty plate path
@@ -205,7 +242,7 @@ class CommandLauncher(QObject):
                         safe_script_path = self._validate_path_for_shell(script_path)
                         command = f"{command} {safe_script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
-                        version = UndistortionFinder.get_version_from_path(
+                        version = self._undistortion_finder.get_version_from_path(
                             undistortion_path,
                         )
                         self.command_executed.emit(
@@ -369,18 +406,16 @@ class CommandLauncher(QObject):
 
         # Handle raw plate for Nuke
         if app_name == "nuke" and include_raw_plate:
-            raw_plate_path = RawPlateFinder.find_latest_raw_plate(
+            raw_plate_path = self._raw_plate_finder.find_latest_raw_plate(
                 scene.workspace_path,
                 scene.full_name,
             )
 
             if raw_plate_path:
                 # Verify at least one frame exists
-                if RawPlateFinder.verify_plate_exists(raw_plate_path):
+                if self._raw_plate_finder.verify_plate_exists(raw_plate_path):
                     # Create a Nuke script with the plate loaded
-                    from nuke_script_generator import NukeScriptGenerator
-
-                    script_path = NukeScriptGenerator.create_plate_script(
+                    script_path = self._nuke_script_generator.create_plate_script(
                         raw_plate_path,
                         scene.full_name,
                     )
@@ -389,7 +424,7 @@ class CommandLauncher(QObject):
                         # Launch Nuke with the generated script
                         command = f"{command} {script_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
-                        version = RawPlateFinder.get_version_from_path(raw_plate_path)
+                        version = self._raw_plate_finder.get_version_from_path(raw_plate_path)
                         self.command_executed.emit(
                             timestamp,
                             f"Created Nuke script with plate: {version}/{raw_plate_path.split('/')[-1]}",
@@ -399,7 +434,7 @@ class CommandLauncher(QObject):
                         safe_plate_path = self._validate_path_for_shell(raw_plate_path)
                         command = f"{command} {safe_plate_path}"
                         timestamp = datetime.now().strftime("%H:%M:%S")
-                        version = RawPlateFinder.get_version_from_path(raw_plate_path)
+                        version = self._raw_plate_finder.get_version_from_path(raw_plate_path)
                         self.command_executed.emit(
                             timestamp,
                             f"Found raw plate: {version}/{raw_plate_path.split('/')[-1]}",
@@ -421,7 +456,7 @@ class CommandLauncher(QObject):
 
         # Handle undistortion for Nuke
         if app_name == "nuke" and include_undistortion:
-            undistortion_path = UndistortionFinder.find_latest_undistortion(
+            undistortion_path = self._undistortion_finder.find_latest_undistortion(
                 scene.workspace_path,
                 scene.full_name,
             )
@@ -433,7 +468,7 @@ class CommandLauncher(QObject):
                 )
                 command = f"{command} {safe_undistortion_path}"
                 timestamp = datetime.now().strftime("%H:%M:%S")
-                version = UndistortionFinder.get_version_from_path(undistortion_path)
+                version = self._undistortion_finder.get_version_from_path(undistortion_path)
                 self.command_executed.emit(
                     timestamp,
                     f"Found undistortion file: {version}/{undistortion_path.name}",

@@ -12,6 +12,7 @@ to ensure type safety without over-specification.
 
 from __future__ import annotations
 
+import pathlib
 from typing import Any, Protocol
 
 import pytest

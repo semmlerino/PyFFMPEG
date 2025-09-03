@@ -384,7 +384,7 @@ class TestProcessPoolManagerBehavior:
         manager1.shutdown()
         ProcessPoolManager._instance = None
 
-    def test_command_execution_with_caching(self):
+    def test_command_execution_with_caching(self, qapp):
         """Test that commands are cached and reused.
 
         CORRECT: Using test double at system boundary, testing behavior.
@@ -411,8 +411,8 @@ class TestProcessPoolManagerBehavior:
 
         # Test BEHAVIOR: Cache statistics reflect usage
         metrics = manager.get_metrics()
-        assert metrics["cache_stats"]["hits"] == 1
-        assert metrics["cache_stats"]["misses"] == 1
+        assert metrics["cache_hits"] == 1
+        assert metrics["cache_misses"] == 1
 
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)
         manager.shutdown()
