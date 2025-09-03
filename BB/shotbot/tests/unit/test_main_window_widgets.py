@@ -228,7 +228,7 @@ class TestMainWindowTabFunctionality:
             # Switch tabs with signal expectation
             original_index = tab_widget.currentIndex()
             new_index = (original_index + 1) % tab_widget.count()
-            
+
             # Set up signal expectation with parameter checking
             def check_tab_change(index):
                 return index == new_index
@@ -237,7 +237,7 @@ class TestMainWindowTabFunctionality:
                 tab_widget.currentChanged, check_params_cb=check_tab_change
             ):
                 tab_widget.setCurrentIndex(new_index)
-            
+
             qtbot.wait(10)  # Allow UI processing after signal
 
 

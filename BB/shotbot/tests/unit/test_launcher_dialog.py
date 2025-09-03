@@ -747,18 +747,17 @@ class TestLauncherManagerDialog:
             # Configure the mock to simulate successful launcher creation
             mock_instance = mock_edit_dialog.return_value
             mock_instance.exec.return_value = QDialog.DialogCode.Accepted
-            
+
             # Simulate the dialog creating a launcher when accepted
             def simulate_create():
                 if mock_instance.exec.return_value == QDialog.DialogCode.Accepted:
                     mock_launcher_manager.create_launcher(
-                        name="New Test Launcher",
-                        command="echo new"
+                        name="New Test Launcher", command="echo new"
                     )
                 return QDialog.DialogCode.Accepted
-            
+
             mock_instance.exec.side_effect = simulate_create
-            
+
             QTest.mouseClick(dialog.add_button, Qt.MouseButton.LeftButton)
             qtbot.wait(10)
 
@@ -799,17 +798,19 @@ class TestLauncherManagerDialog:
         with patch("launcher_dialog.LauncherEditDialog") as mock_edit_dialog:
             mock_instance = mock_edit_dialog.return_value
             mock_instance.exec.return_value = QDialog.DialogCode.Accepted
-            
+
             # Get launcher state before edit
             launcher_before = mock_launcher_manager.get_launcher(launcher_id)
             original_name = launcher_before.name if launcher_before else None
-            
+
             dialog._edit_launcher(launcher_id)
-            
+
             # Test behavior: verify edit dialog would be shown (mock was called)
             # and that it was configured to edit the correct launcher
             assert mock_edit_dialog.called  # Dialog was created
-            assert mock_instance.exec.return_value == QDialog.DialogCode.Accepted  # Would show dialog
+            assert (
+                mock_instance.exec.return_value == QDialog.DialogCode.Accepted
+            )  # Would show dialog
 
         # Test delete signal - would normally show confirmation
         with patch("launcher_dialog.QMessageBox.question") as mock_question:
@@ -857,20 +858,26 @@ class TestLauncherManagerDialog:
         with patch("launcher_dialog.LauncherEditDialog") as mock_edit_dialog:
             mock_instance = mock_edit_dialog.return_value
             mock_instance.exec.return_value = QDialog.DialogCode.Accepted
-            
+
             # Get current selection
             current_item = dialog.launcher_list.currentItem()
-            selected_launcher_id = current_item.data(Qt.ItemDataRole.UserRole) if current_item else None
-            
+            selected_launcher_id = (
+                current_item.data(Qt.ItemDataRole.UserRole) if current_item else None
+            )
+
             dialog._edit_selected()
             qtbot.wait(10)
-            
+
             # Test behavior: verify edit dialog would be shown for selected launcher
             assert mock_edit_dialog.called  # Dialog was created
-            assert mock_instance.exec.return_value == QDialog.DialogCode.Accepted  # Would show dialog
+            assert (
+                mock_instance.exec.return_value == QDialog.DialogCode.Accepted
+            )  # Would show dialog
             # Verify the selected launcher still exists (wasn't deleted)
             if selected_launcher_id:
-                assert mock_launcher_manager.get_launcher(selected_launcher_id) is not None
+                assert (
+                    mock_launcher_manager.get_launcher(selected_launcher_id) is not None
+                )
 
         # Test Delete key (call the shortcut method directly)
         with patch("launcher_dialog.QMessageBox.question") as mock_question:
@@ -888,15 +895,17 @@ class TestLauncherManagerDialog:
         with patch("launcher_dialog.LauncherEditDialog") as mock_edit_dialog:
             mock_instance = mock_edit_dialog.return_value
             mock_instance.exec.return_value = QDialog.DialogCode.Accepted
-            
+
             initial_list_count = dialog.launcher_list.count()
-            
+
             dialog._add_launcher()
             qtbot.wait(10)
-            
+
             # Test behavior: verify dialog would be shown in create mode
             assert mock_edit_dialog.called  # Dialog was created
-            assert mock_instance.exec.return_value == QDialog.DialogCode.Accepted  # Would show dialog
+            assert (
+                mock_instance.exec.return_value == QDialog.DialogCode.Accepted
+            )  # Would show dialog
             # The dialog was called without a launcher parameter (create mode)
             # We can verify this by checking the mock was called with the manager and parent
             call_args = mock_edit_dialog.call_args
@@ -904,7 +913,9 @@ class TestLauncherManagerDialog:
                 # First positional arg should be the manager
                 assert call_args[0][0] == mock_launcher_manager
                 # Check if launcher parameter was NOT provided (create mode)
-                assert len(call_args[0]) == 1 or call_args[0][1] is None  # No launcher = create mode
+                assert (
+                    len(call_args[0]) == 1 or call_args[0][1] is None
+                )  # No launcher = create mode
 
         # Test Ctrl+F focuses search (call the shortcut lambda directly)
         dialog.show()  # Make sure dialog is visible for focus to work

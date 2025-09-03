@@ -1069,23 +1069,23 @@ class ImageUtils:
         max_dimension: int,
     ) -> bool:
         """Check if an image is too large for thumbnail processing.
-        
+
         Args:
             size: QSize object with width() and height() methods
             max_dimension: Maximum allowed dimension in pixels
-            
+
         Returns:
             True if image is too large, False if it's acceptable
         """
         width = size.width()
         height = size.height()
-        
+
         # Return True if image is too large (inverse of validate_image_dimensions)
         return not ImageUtils.validate_image_dimensions(
             width=width,
-            height=height, 
+            height=height,
             max_dimension=max_dimension,
-            max_memory_mb=Config.MAX_THUMBNAIL_MEMORY_MB
+            max_memory_mb=Config.MAX_THUMBNAIL_MEMORY_MB,
         )
 
 

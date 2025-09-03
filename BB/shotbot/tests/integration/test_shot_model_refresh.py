@@ -71,25 +71,25 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
 
         # For this integration test, we expect multiple signals during the refresh operation
         # We'll use a context manager approach that waits for the final signal
-        
+
         # Set up parameter checking for refresh_finished signal
         def check_refresh_finished_params(success, has_changes):
             return success is True and has_changes is True
-        
+
         # Wait for the refresh_finished signal which indicates the operation is complete
         with qtbot.waitSignal(
-            model.refresh_finished, 
+            model.refresh_finished,
             check_params_cb=check_refresh_finished_params,
-            timeout=5000  # Allow sufficient time for the operation
+            timeout=5000,  # Allow sufficient time for the operation
         ):
             # Execute real refresh - this will emit all signals during execution
             result = model.refresh_shots()
-        
-        # Verify behavior, not implementation  
+
+        # Verify behavior, not implementation
         assert isinstance(result, RefreshResult)
         assert result.success is True
         assert result.has_changes is True
-        
+
         # We can also verify that shots_changed was emitted by checking the result
         # The existence of changed shots indicates the signal would have been emitted
 
@@ -131,13 +131,13 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         # Set up error signal expectation with parameter checking
         def check_error_contains_timeout(error_msg):
             return "Timeout" in error_msg
-        
+
         with qtbot.waitSignal(
             model.error_occurred, check_params_cb=check_error_contains_timeout
         ):
             # Execute refresh
             result = model.refresh_shots()
-        
+
         # Verify proper error handling
         assert result.success is False
         assert result.has_changes is False

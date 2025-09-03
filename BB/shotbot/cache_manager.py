@@ -308,9 +308,7 @@ class CacheManager(QObject):
             logger.error(f"Exception during thumbnail caching: {e}")
             self._cleanup_loader(cache_key)
             # Record failure for exponential backoff
-            self._failure_tracker.record_failure(
-                cache_key, str(e), source_path_obj
-            )
+            self._failure_tracker.record_failure(cache_key, str(e), source_path_obj)
             # Re-raise to maintain existing error handling behavior
             raise
 

@@ -1038,7 +1038,7 @@ def mock_gui_blocking_components(monkeypatch):
     - AsyncShotLoader threads may call NotificationManager.error()
     - NotificationManager.error() calls QMessageBox.critical() from worker thread
     - QMessageBox from non-main thread causes Qt to hang/crash
-    
+
     Also fixes persistent terminal hangs where:
     - MainWindow creates PersistentTerminalManager when Config.USE_PERSISTENT_TERMINAL=True
     - PersistentTerminalManager creates FIFO operations that can block in test environment
@@ -1095,28 +1095,39 @@ def mock_gui_blocking_components(monkeypatch):
     # CRITICAL FIX: Disable persistent terminal to prevent FIFO hangs
     # This prevents MainWindow from creating PersistentTerminalManager that uses FIFO operations
     from config import Config
+
     monkeypatch.setattr(Config, "USE_PERSISTENT_TERMINAL", False)
-    
+
     # Also mock PersistentTerminalManager to be extra safe
     class MockPersistentTerminalManager:
         """Mock PersistentTerminalManager that does nothing."""
+
         def __init__(self, *args, **kwargs):
             pass
+
         def send_command(self, command: str, ensure_terminal: bool = True) -> bool:
             return True  # Always succeed without doing anything
+
         def clear_terminal(self) -> bool:
             return True
+
         def close_terminal(self) -> bool:
             return True
+
         def restart_terminal(self) -> bool:
             return True
+
         def cleanup(self) -> None:
             pass
+
         def cleanup_fifo_only(self) -> None:
             pass
-    
+
     # Mock the PersistentTerminalManager import in modules that use it
-    monkeypatch.setattr("persistent_terminal_manager.PersistentTerminalManager", MockPersistentTerminalManager)
+    monkeypatch.setattr(
+        "persistent_terminal_manager.PersistentTerminalManager",
+        MockPersistentTerminalManager,
+    )
 
     # Store reference for tests that need to access it
     return test_pool

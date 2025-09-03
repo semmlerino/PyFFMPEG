@@ -255,23 +255,29 @@ class TestProcessPoolManagerPerformance:
             f"Expected ≥10% improvement, got {result.improvement_percentage:.1f}%"
         )
 
-    @pytest.fixture(params=[
-        pytest.param(1, id="single_command"),
-        pytest.param(3, id="moderate_load"),
-        pytest.param(5, marks=pytest.mark.slow, id="high_load"),
-    ])
+    @pytest.fixture(
+        params=[
+            pytest.param(1, id="single_command"),
+            pytest.param(3, id="moderate_load"),
+            pytest.param(5, marks=pytest.mark.slow, id="high_load"),
+        ]
+    )
     def command_multiplier(self, request):
         """Fixture providing different command load multipliers."""
         return request.param
 
     @pytest.mark.slow
     @pytest.mark.parametrize("workspace_commands", [5], indirect=True)
-    def test_parallel_execution_performance(self, workspace_commands, command_multiplier, qtbot):
+    def test_parallel_execution_performance(
+        self, workspace_commands, command_multiplier, qtbot
+    ):
         """Test parallel execution improvements."""
         result = BenchmarkResult("Parallel Execution")
 
         # Test with simulated workspace commands
-        commands = workspace_commands * command_multiplier  # Run with parametrized multiplier
+        commands = (
+            workspace_commands * command_multiplier
+        )  # Run with parametrized multiplier
 
         # Original - sequential
         original_manager = ProcessPoolManager.get_instance()

@@ -1034,20 +1034,24 @@ class OptimizedThreeDESceneFinder:
             for seq_dir in shots_dir.iterdir():
                 if not seq_dir.is_dir():
                     continue
-                    
+
                 for shot_dir in seq_dir.iterdir():
                     if not shot_dir.is_dir():
                         continue
-                        
+
                     # Check for user and publish directories
                     user_dir = shot_dir / "user"
                     publish_dir = shot_dir / "publish"
-                    
+
                     if user_dir.exists():
-                        work_chunks.append(('user', seq_dir.name, shot_dir.name, user_dir))
+                        work_chunks.append(
+                            ("user", seq_dir.name, shot_dir.name, user_dir)
+                        )
                     if publish_dir.exists():
-                        work_chunks.append(('publish', seq_dir.name, shot_dir.name, publish_dir))
-                        
+                        work_chunks.append(
+                            ("publish", seq_dir.name, shot_dir.name, publish_dir)
+                        )
+
         except Exception as e:
             logger.error(f"Error building work chunks: {e}")
             return []
@@ -1060,68 +1064,73 @@ class OptimizedThreeDESceneFinder:
 
         # Create thread-safe progress tracker and cancellation event
         progress_tracker = ThreadSafeProgressTracker(
-            progress_callback=progress_callback,
-            update_interval=progress_interval
+            progress_callback=progress_callback, update_interval=progress_interval
         )
-        
+
         # Create cancellation event for robust resource management
         cancel_event = CancellationEvent()
-        
+
         # Register cleanup callback to log cancellation
         cancel_event.add_cleanup_callback(
             lambda: logger.info("Parallel 3DE scan cancelled, resources cleaned up")
         )
-        
+
         def check_cancellation() -> bool:
             """Check both external cancel flag and internal cancellation event."""
-            return cancel_event.is_cancelled() or (cancel_flag is not None and cancel_flag())
+            return cancel_event.is_cancelled() or (
+                cancel_flag is not None and cancel_flag()
+            )
 
         def scan_directory_chunk(
-            chunk_info: tuple[str, str, str, Path], 
+            chunk_info: tuple[str, str, str, Path],
             worker_id: str,
             progress_tracker: ThreadSafeProgressTracker,
-            cancel_event: CancellationEvent
+            cancel_event: CancellationEvent,
         ) -> list[tuple[Path, str, str, str, str, str]]:
             """Scan a single directory chunk for .3de files with thread-safe progress reporting."""
             dir_type, sequence, shot_name, directory = chunk_info
-            
+
             if cancel_event.is_cancelled():
-                logger.debug(f"Worker {worker_id} cancelled before starting chunk {sequence}/{shot_name}")
+                logger.debug(
+                    f"Worker {worker_id} cancelled before starting chunk {sequence}/{shot_name}"
+                )
                 return []
 
             local_results: list[tuple[Path, str, str, str, str, str]] = []
             local_count = 0
 
             try:
-                logger.debug(f"Worker {worker_id} scanning {dir_type} directory: {directory}")
+                logger.debug(
+                    f"Worker {worker_id} scanning {dir_type} directory: {directory}"
+                )
 
                 # Use pathlib rglob for this chunk
                 for ext in ("*.3de", "*.3DE"):
                     if cancel_event.is_cancelled():
                         break
-                        
+
                     for threede_file in directory.rglob(ext):
                         if cancel_event.is_cancelled():
                             break
-                            
+
                         if not threede_file.is_file():
                             continue
-                            
+
                         # Parse the file path
                         parsed = OptimizedThreeDESceneFinder._parse_3de_file_path(
                             threede_file, show_path, show, excluded_users
                         )
-                        
+
                         if parsed:
                             local_results.append(parsed)
                             local_count += 1
-                            
+
                             # Update progress using thread-safe tracker
                             if local_count % progress_interval == 0:
                                 progress_tracker.update_worker_progress(
                                     worker_id,
                                     local_count,
-                                    f"Worker {worker_id} scanning {sequence}/{shot_name} ({dir_type})"
+                                    f"Worker {worker_id} scanning {sequence}/{shot_name} ({dir_type})",
                                 )
 
             except Exception as e:
@@ -1131,23 +1140,24 @@ class OptimizedThreeDESceneFinder:
                 progress_tracker.update_worker_progress(
                     worker_id,
                     local_count,
-                    f"Worker {worker_id} completed {sequence}/{shot_name} ({dir_type})"
+                    f"Worker {worker_id} completed {sequence}/{shot_name} ({dir_type})",
                 )
                 progress_tracker.mark_worker_completed(worker_id)
 
-            logger.debug(f"Worker {worker_id} chunk {sequence}/{shot_name} ({dir_type}) found {local_count} files")
+            logger.debug(
+                f"Worker {worker_id} chunk {sequence}/{shot_name} ({dir_type}) found {local_count} files"
+            )
             return local_results
 
         # Process chunks in parallel using ThreadPoolManager
         all_chunk_results = []
-        
+
         try:
             # Use ThreadPoolManager with integrated cancellation support
             pool_manager = ThreadPoolManager(
-                max_workers=num_workers,
-                cancel_event=cancel_event
+                max_workers=num_workers, cancel_event=cancel_event
             )
-            
+
             with pool_manager as executor:
                 # Submit all chunks with worker IDs
                 future_to_chunk = {}
@@ -1155,14 +1165,14 @@ class OptimizedThreeDESceneFinder:
                     if check_cancellation():
                         cancel_event.cancel()
                         break
-                        
+
                     worker_id = f"worker_{i:03d}"
                     future = executor.submit(
-                        scan_directory_chunk, 
-                        chunk, 
+                        scan_directory_chunk,
+                        chunk,
                         worker_id,
                         progress_tracker,
-                        cancel_event
+                        cancel_event,
                     )
                     future_to_chunk[future] = (chunk, worker_id)
 
@@ -1177,13 +1187,17 @@ class OptimizedThreeDESceneFinder:
                     try:
                         chunk_results = future.result()
                         all_chunk_results.extend(chunk_results)
-                        
-                        logger.debug(f"Worker {worker_id} completed with {len(chunk_results)} results")
-                                
+
+                        logger.debug(
+                            f"Worker {worker_id} completed with {len(chunk_results)} results"
+                        )
+
                     except Exception as e:
-                        logger.error(f"Error processing chunk {chunk} by worker {worker_id}: {e}")
+                        logger.error(
+                            f"Error processing chunk {chunk} by worker {worker_id}: {e}"
+                        )
                         continue
-                        
+
             # Force final progress report
             if progress_callback:
                 progress_tracker.force_progress_report(
@@ -1193,7 +1207,7 @@ class OptimizedThreeDESceneFinder:
         except Exception as e:
             logger.error(f"Error in parallel processing: {e}")
             cancel_event.cancel()  # Ensure cleanup on exception
-            
+
             # Fall back to sequential scan
             logger.info("Falling back to sequential scan")
             return OptimizedThreeDESceneFinder._fallback_python_search(
@@ -1202,7 +1216,7 @@ class OptimizedThreeDESceneFinder:
 
         logger.info("=== COMPLETED find_all_3de_files_in_show_parallel ===")
         logger.info(f"  Total files found: {len(all_chunk_results)}")
-        
+
         return all_chunk_results
 
     @staticmethod
@@ -1388,7 +1402,9 @@ class OptimizedThreeDESceneFinder:
         Returns:
             List of all ThreeDEScene objects found
         """
-        logger.info("=== STARTING find_all_scenes_in_shows_truly_efficient_parallel ===")
+        logger.info(
+            "=== STARTING find_all_scenes_in_shows_truly_efficient_parallel ==="
+        )
 
         if not user_shots:
             logger.info("No user shots provided for scene discovery")
@@ -1439,28 +1455,32 @@ class OptimizedThreeDESceneFinder:
         for show_root in show_roots:
             if cancel_flag and cancel_flag():
                 break
-                
+
             logger.info(f"Processing show root: {show_root}")
 
             for show in shows_to_search:
                 if cancel_flag and cancel_flag():
                     break
-                    
+
                 logger.info(f"  Searching show: {show} (parallel)")
 
                 # Use the new parallel discovery method
-                file_results = OptimizedThreeDESceneFinder.find_all_3de_files_in_show_parallel(
-                    show_root, 
-                    show, 
-                    excluded_users,
-                    progress_callback=progress_callback,
-                    cancel_flag=cancel_flag
+                file_results = (
+                    OptimizedThreeDESceneFinder.find_all_3de_files_in_show_parallel(
+                        show_root,
+                        show,
+                        excluded_users,
+                        progress_callback=progress_callback,
+                        cancel_flag=cancel_flag,
+                    )
                 )
 
                 if cancel_flag and cancel_flag():
                     break
 
-                logger.info(f"  Found {len(file_results)} .3de files in {show} using parallel scan")
+                logger.info(
+                    f"  Found {len(file_results)} .3de files in {show} using parallel scan"
+                )
 
                 # Convert to ThreeDEScene objects
                 for (
@@ -1473,7 +1493,7 @@ class OptimizedThreeDESceneFinder:
                 ) in file_results:
                     if cancel_flag and cancel_flag():
                         break
-                        
+
                     workspace_path = (
                         Path(show_root) / show_name / "shots" / sequence / shot_name
                     )
@@ -1494,7 +1514,9 @@ class OptimizedThreeDESceneFinder:
                             f"    Created scene {len(all_scenes)}: {show_name}/{sequence}/{shot_name} - {user}/{plate}"
                         )
 
-        logger.info("=== COMPLETED find_all_scenes_in_shows_truly_efficient_parallel ===")
+        logger.info(
+            "=== COMPLETED find_all_scenes_in_shows_truly_efficient_parallel ==="
+        )
         logger.info(f"  Total scenes found: {len(all_scenes)}")
         return all_scenes
 

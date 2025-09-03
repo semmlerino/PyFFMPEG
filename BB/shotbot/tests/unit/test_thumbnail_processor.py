@@ -591,14 +591,15 @@ class TestThumbnailProcessorResourceManagement:
 
         # Track memory usage pattern instead of gc calls
         import gc
+
         gc_count_before = len(gc.get_objects())
-        
+
         result = processor.process_thumbnail(source, cache_path)
 
-        # Test behavior: processing should complete successfully 
+        # Test behavior: processing should complete successfully
         # Memory management is internal implementation detail
         assert result is True or result is False  # Should complete without exceptions
-        
+
         # Verify no excessive object accumulation (loose check)
         gc_count_after = len(gc.get_objects())
         assert gc_count_after - gc_count_before < 1000  # Reasonable object growth

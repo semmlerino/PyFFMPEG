@@ -113,7 +113,9 @@ class ShotItemModel(QAbstractListModel):
         logger.info("ShotItemModel initialized with Model/View architecture")
 
     @override
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def rowCount(
+        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+    ) -> int:
         """Return number of shots in the model.
 
         Args:
@@ -127,7 +129,11 @@ class ShotItemModel(QAbstractListModel):
         return len(self._shots)
 
     @override
-    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
+    def data(
+        self,
+        index: QModelIndex | QPersistentModelIndex,
+        role: int = Qt.ItemDataRole.DisplayRole,
+    ) -> Any:
         """Get data for the given index and role.
 
         Args:
@@ -204,7 +210,7 @@ class ShotItemModel(QAbstractListModel):
         """
         # Get base roles from parent class
         roles = super().roleNames()
-        
+
         # Add custom roles with QByteArray
         roles.update(
             {
@@ -430,9 +436,11 @@ class ShotItemModel(QAbstractListModel):
             self._loading_states[shot.full_name] = "failed"
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
 
-    def _on_thumbnail_cached_safe(self, future: Future[Path | None], shot_full_name: str) -> None:
+    def _on_thumbnail_cached_safe(
+        self, future: Future[Path | None], shot_full_name: str
+    ) -> None:
         """Handle thumbnail caching completion with race condition protection.
-        
+
         This method is called from background threads and uses QMetaObject.invokeMethod
         to safely queue operations to the main thread with only immutable identifiers.
         """
@@ -441,25 +449,28 @@ class ShotItemModel(QAbstractListModel):
             if cached_path:
                 # Only pass immutable identifiers to main thread - no race conditions
                 QMetaObject.invokeMethod(
-                    self, "_handle_thumbnail_success_atomically",
+                    self,
+                    "_handle_thumbnail_success_atomically",
                     Qt.ConnectionType.QueuedConnection,
                     Q_ARG(str, shot_full_name),  # Immutable identifier
-                    Q_ARG(str, str(cached_path))   # Convert Path to string for Qt
+                    Q_ARG(str, str(cached_path)),  # Convert Path to string for Qt
                 )
             else:
                 # Caching failed - pass only immutable identifier
                 QMetaObject.invokeMethod(
-                    self, "_handle_thumbnail_failure_atomically",
+                    self,
+                    "_handle_thumbnail_failure_atomically",
                     Qt.ConnectionType.QueuedConnection,
-                    Q_ARG(str, shot_full_name)  # Immutable identifier only
+                    Q_ARG(str, shot_full_name),  # Immutable identifier only
                 )
         except Exception as e:
             logger.error(f"Thumbnail caching failed for {shot_full_name}: {e}")
             # Handle failure atomically in main thread
             QMetaObject.invokeMethod(
-                self, "_handle_thumbnail_failure_atomically",
+                self,
+                "_handle_thumbnail_failure_atomically",
                 Qt.ConnectionType.QueuedConnection,
-                Q_ARG(str, shot_full_name)  # Immutable identifier only
+                Q_ARG(str, shot_full_name),  # Immutable identifier only
             )
 
     def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
@@ -469,22 +480,23 @@ class ShotItemModel(QAbstractListModel):
                 return shot, row
         return None
 
-
     @Slot(str, str)  # shot_full_name: str, cached_path: str
-    def _handle_thumbnail_success_atomically(self, shot_full_name: str, cached_path: str) -> None:
+    def _handle_thumbnail_success_atomically(
+        self, shot_full_name: str, cached_path: str
+    ) -> None:
         """Atomically handle thumbnail success in main thread - prevents race conditions.
-        
+
         This method does validation and processing atomically in the main thread,
         preventing race conditions where shot data could become stale between
         validation and processing.
-        
+
         Args:
             shot_full_name: Immutable identifier for the shot
             cached_path: Path to the cached thumbnail (passed as string for Qt compatibility)
         """
         # Convert string back to Path for internal use
         cached_path_obj = Path(cached_path)
-        
+
         # Validation and processing happen atomically in main thread
         shot_data = self._find_shot_by_full_name(shot_full_name)
         if shot_data is not None:
@@ -492,15 +504,17 @@ class ShotItemModel(QAbstractListModel):
             index = self.index(row, 0)
             self._load_cached_pixmap(cached_path_obj, row, shot, index)
         else:
-            logger.debug(f"Shot {shot_full_name} no longer exists in model, ignoring success callback")
-    
+            logger.debug(
+                f"Shot {shot_full_name} no longer exists in model, ignoring success callback"
+            )
+
     @Slot(str)  # shot_full_name: str
     def _handle_thumbnail_failure_atomically(self, shot_full_name: str) -> None:
         """Atomically handle thumbnail failure in main thread - prevents race conditions.
-        
+
         This method does validation and processing atomically in the main thread,
         preventing race conditions where shot data could become stale.
-        
+
         Args:
             shot_full_name: Immutable identifier for the shot
         """
@@ -512,14 +526,21 @@ class ShotItemModel(QAbstractListModel):
             index = self.index(row, 0)
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
         else:
-            logger.debug(f"Shot {shot_full_name} no longer exists in model, ignoring failure callback")
+            logger.debug(
+                f"Shot {shot_full_name} no longer exists in model, ignoring failure callback"
+            )
 
-    @Slot(object, int, object)  # cached_path: object (Path), row: int, shot: object (Shot)
-    def _load_cached_pixmap_safe(self, cached_path: object, row: int, shot: object) -> None:
+    @Slot(
+        object, int, object
+    )  # cached_path: object (Path), row: int, shot: object (Shot)
+    def _load_cached_pixmap_safe(
+        self, cached_path: object, row: int, shot: object
+    ) -> None:
         """Safely load cached pixmap on main thread."""
         # Assert types for runtime safety
         assert isinstance(cached_path, Path), f"Expected Path, got {type(cached_path)}"
         from shot_model import Shot
+
         assert isinstance(shot, Shot), f"Expected Shot, got {type(shot)}"
         index = self.index(row, 0)
         self._load_cached_pixmap(cached_path, row, shot, index)
@@ -531,7 +552,9 @@ class ShotItemModel(QAbstractListModel):
         index = self.index(row, 0)
         self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
 
-    def _load_cached_pixmap(self, cached_path: Path, row: int, shot: Shot, index: QModelIndex) -> None:
+    def _load_cached_pixmap(
+        self, cached_path: Path, row: int, shot: Shot, index: QModelIndex
+    ) -> None:
         """Load pixmap from cached path (main thread only)."""
         # Load the cached JPEG as QPixmap
         pixmap = QPixmap(str(cached_path))

@@ -24,16 +24,16 @@ from test_doubles_library import TestCacheManager
 
 class ExtendedTestCacheManager(TestCacheManager):
     """Extended TestCacheManager with 3DE scene support."""
-    
+
     def __init__(self, cache_dir=None):
         """Initialize with additional 3DE scene support."""
         super().__init__(cache_dir)
         self._cached_threede_scenes = []
-    
+
     def get_cached_threede_scenes(self):
         """Get cached 3DE scenes (for MainWindow compatibility)."""
         return self._cached_threede_scenes
-    
+
     def shutdown(self):
         """Shutdown method for MainWindow compatibility."""
         # Test double: just clear caches
@@ -60,7 +60,7 @@ class TestFeatureFlagSwitching:
         # Create main window with proper Qt management
         # Use real test double instead of Mock()
         test_cache = ExtendedTestCacheManager(self.cache_dir)
-        
+
         with patch("main_window.CacheManager") as MockCacheManager:
             MockCacheManager.return_value = test_cache
 
@@ -91,7 +91,7 @@ class TestFeatureFlagSwitching:
             # Create main window with proper Qt management
             # Use real test double instead of Mock()
             test_cache = ExtendedTestCacheManager(self.cache_dir)
-            
+
             with patch("main_window.CacheManager") as MockCacheManager:
                 MockCacheManager.return_value = test_cache
 
@@ -137,7 +137,7 @@ class TestFeatureFlagSwitching:
             try:
                 # Use real test double instead of Mock()
                 test_cache = ExtendedTestCacheManager(self.cache_dir)
-                
+
                 with patch("main_window.CacheManager") as MockCacheManager:
                     MockCacheManager.return_value = test_cache
 
@@ -287,18 +287,18 @@ class TestFeatureFlagSwitching:
                 self.stopped = False
                 self.waited = False
                 self.deleted = False
-                
+
             def isRunning(self):
                 return self.is_running
-                
+
             def stop(self):
                 self.stopped = True
                 self.is_running = False
-                
+
             def wait(self, timeout=None):
                 self.waited = True
                 return True
-                
+
             def deleteLater(self):
                 self.deleted = True
 
@@ -312,7 +312,7 @@ class TestFeatureFlagSwitching:
         assert test_loader.stopped, "Loader should be stopped"
         assert test_loader.waited, "Should wait for loader to finish"
         assert test_loader.deleted, "Loader should be scheduled for deletion"
-        
+
         # Verify loader was cleared
         assert optimized_model._async_loader is None
 
@@ -358,7 +358,7 @@ class TestMainWindowIntegration:
 
         # Use real test double instead of Mock()
         test_cache = ExtendedTestCacheManager()
-        
+
         with patch("main_window.CacheManager") as MockCacheManager:
             MockCacheManager.return_value = test_cache
 
@@ -387,7 +387,7 @@ class TestMainWindowIntegration:
         try:
             # Use real test double instead of Mock()
             test_cache = ExtendedTestCacheManager()
-            
+
             with patch("main_window.CacheManager") as MockCacheManager:
                 MockCacheManager.return_value = test_cache
 
@@ -418,7 +418,7 @@ class TestMainWindowIntegration:
         try:
             # Use real test double instead of Mock()
             test_cache = ExtendedTestCacheManager()
-            
+
             with patch("main_window.CacheManager") as MockCacheManager:
                 MockCacheManager.return_value = test_cache
 
@@ -431,19 +431,19 @@ class TestMainWindowIntegration:
                         # Track cleanup behavior
                         cleanup_called = False
                         original_cleanup = window.shot_model.cleanup
-                        
+
                         def track_cleanup():
                             nonlocal cleanup_called
                             cleanup_called = True
                             original_cleanup()
-                        
+
                         window.shot_model.cleanup = track_cleanup
 
                         # Create test close event
                         class TestCloseEvent:
                             def accept(self):
                                 pass
-                        
+
                         test_event = TestCloseEvent()
 
                         # Call closeEvent

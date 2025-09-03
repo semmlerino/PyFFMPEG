@@ -121,13 +121,13 @@ class TestNuke3DEUndistortionImport:
         # Create temp undistortion file
         undist_file = tmp_path / "test_undistortion.nk"
         undist_file.write_text(MOCK_3DE_UNDISTORTION)
-        
+
         # Test simple import
         result = NukeScriptGenerator._import_undistortion_nodes(
             str(undist_file),
             ypos_offset=-200,
         )
-        
+
         assert result
         assert "LD_3DE4_Radial_Standard_Degree_4" in result
         assert "UndistortionGroup" in result
@@ -143,13 +143,13 @@ class TestNuke3DEUndistortionImport:
         # Create temp file
         undist_file = tmp_path / "copy_paste.nk"
         undist_file.write_text(MOCK_3DE_COPY_PASTE)
-        
+
         # Test simple import (should handle copy/paste format too)
         result = NukeScriptGenerator._import_undistortion_nodes(
             str(undist_file),
             ypos_offset=-200,
         )
-        
+
         assert result
         assert "LD_3DE4_Anamorphic_Standard_Degree_4" in result
         # Should not have copy/paste markers
@@ -163,12 +163,12 @@ class TestNuke3DEUndistortionImport:
         # Create temp file
         undist_file = tmp_path / "classic.nk"
         undist_file.write_text(MOCK_3DE_CLASSIC)
-        
+
         result = NukeScriptGenerator._import_undistortion_nodes(
             str(undist_file),
             ypos_offset=-200,
         )
-        
+
         assert result
         assert "LD_3DE_Classic_LD_Model" in result
         assert "inputs 0" in result  # Should keep inputs 0 when not connecting
@@ -178,13 +178,13 @@ class TestNuke3DEUndistortionImport:
         # Create an empty file to trigger fallback
         undist_file = tmp_path / "empty.nk"
         undist_file.write_text("")
-        
+
         # This should fail all parsers and return empty
         result = NukeScriptGenerator._import_undistortion_nodes(
             str(undist_file),
             ypos_offset=-200,
         )
-        
+
         assert result == ""
 
     def test_full_script_generation_with_3de_undistortion(self, tmp_path):
@@ -192,24 +192,24 @@ class TestNuke3DEUndistortionImport:
         # Create undistortion file
         undist_file = tmp_path / "undist.nk"
         undist_file.write_text(MOCK_3DE_UNDISTORTION)
-        
+
         # Create mock plate path
         plate_path = "/shows/test/plates/shot_001.####.exr"
-        
+
         # Generate full script
         script_path = NukeScriptGenerator.create_plate_script_with_undistortion(
             plate_path,
             str(undist_file),
             "shot_001",
         )
-        
+
         assert script_path
         assert Path(script_path).exists()
-        
+
         # Read generated script
         with open(script_path) as f:
             content = f.read()
-        
+
         # Verify content
         assert "Read_Plate" in content
         assert "LD_3DE4_Radial_Standard_Degree_4" in content
@@ -220,7 +220,7 @@ class TestNuke3DEUndistortionImport:
     def test_3de_node_types_accepted(self):
         """Verify 3DE node types are accepted by simplified pattern matching."""
         import re
-        
+
         # Test that our simplified pattern accepts all 3DE node types
         test_nodes = [
             "LD_3DE4_Radial_Standard_Degree_4 {",
@@ -229,16 +229,18 @@ class TestNuke3DEUndistortionImport:
             "LD_3DE4_Radial_Fisheye_Degree_8 {",
             "tde4_ldp_classic_3de_mixed {",
         ]
-        
+
         # Pattern from our simplified implementation
         excluded_patterns = ["Root", "set", "push", "if", "else", "for", "while"]
-        
+
         for node_line in test_nodes:
             node_pattern = re.match(r"^([A-Za-z][A-Za-z0-9_]*)\s*\{", node_line)
             assert node_pattern, f"Pattern should match: {node_line}"
-            
+
             node_type = node_pattern.group(1)
-            assert node_type not in excluded_patterns, f"3DE node should not be excluded: {node_type}"
+            assert node_type not in excluded_patterns, (
+                f"3DE node should not be excluded: {node_type}"
+            )
 
     def test_mixed_node_types(self, tmp_path):
         """Test importing file with both standard and 3DE nodes."""
@@ -260,15 +262,17 @@ end_group
 """
         undist_file = tmp_path / "mixed.nk"
         undist_file.write_text(mixed_content)
-        
+
         result = NukeScriptGenerator._import_undistortion_nodes(
             str(undist_file),
             ypos_offset=-200,
         )
-        
+
         assert result
         assert "SetupGroup" in result
         assert "LD_3DE4_Radial_Standard_Degree_4" in result
         assert "LensDistortion" in result
         # First node should connect to plate
-        assert result.replace("inputs 0", "inputs 1", 1) in result or "inputs 1" in result
+        assert (
+            result.replace("inputs 0", "inputs 1", 1) in result or "inputs 1" in result
+        )

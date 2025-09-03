@@ -27,27 +27,33 @@ class TestConditionVariableFix:
     def setup_method(self):
         """Set up test environment."""
         self.app = QApplication.instance() or QApplication([])
-        
+
         # Reset ProcessPoolManager singleton to clear any test doubles from other tests
         ProcessPoolManager._instance = None
-        
+
         # The conftest.py autouse fixture mocks ProcessPoolManager.get_instance()
         # For this test we need the real ProcessPoolManager, so create it directly
         self.manager = ProcessPoolManager.__new__(ProcessPoolManager)
         self.manager.__init__()
-        
-        # Set it as the singleton instance 
+
+        # Set it as the singleton instance
         ProcessPoolManager._instance = self.manager
-        
+
         # Ensure we have a real ProcessPoolManager, not a test double
-        assert hasattr(self.manager, '_session_lock'), "Expected real ProcessPoolManager with _session_lock"
-        assert hasattr(self.manager, '_session_condition'), "Expected real ProcessPoolManager with _session_condition"
-        assert hasattr(self.manager, '_session_creation_in_progress'), "Expected real ProcessPoolManager with _session_creation_in_progress"
+        assert hasattr(self.manager, "_session_lock"), (
+            "Expected real ProcessPoolManager with _session_lock"
+        )
+        assert hasattr(self.manager, "_session_condition"), (
+            "Expected real ProcessPoolManager with _session_condition"
+        )
+        assert hasattr(self.manager, "_session_creation_in_progress"), (
+            "Expected real ProcessPoolManager with _session_creation_in_progress"
+        )
 
     def teardown_method(self):
         """Clean up test environment."""
         # Clean up the ProcessPoolManager instance
-        if hasattr(self.manager, 'shutdown'):
+        if hasattr(self.manager, "shutdown"):
             try:
                 self.manager.shutdown()
             except Exception:
@@ -97,7 +103,7 @@ class TestConditionVariableFix:
     def test_condition_variable_prevents_deadlock(self):
         """Test that condition variable doesn't cause deadlocks."""
         # This tests the fix for the lock release-reacquire pattern
-        
+
         # Track exceptions from threads so test fails if threads have issues
         thread_exceptions = []
 
@@ -141,7 +147,9 @@ class TestConditionVariableFix:
         waiter.join(timeout=1.0)
 
         # Check for thread exceptions first
-        assert len(thread_exceptions) == 0, f"Thread exceptions occurred: {thread_exceptions}"
+        assert len(thread_exceptions) == 0, (
+            f"Thread exceptions occurred: {thread_exceptions}"
+        )
 
         assert not creator.is_alive(), "Creator thread deadlocked"
         assert not waiter.is_alive(), "Waiter thread deadlocked"

@@ -635,7 +635,7 @@ class TestUndistortionFinder:
         tmp_path,
     ):
         """Test finding PL01 undistortion files with production structure.
-        
+
         Tests the exact structure from the user's production environment:
         /shows/broken_eggs/shots/BRX_170/BRX_170_0100/user/gabriel-h/mm/3de/mm-default/exports/
         scene/PL01/nuke_lens_distortion/v004/BRX_170_0100_turnover-plate_PL01_film_lin_v001/
@@ -675,7 +675,7 @@ class TestUndistortionFinder:
         # Verify the full expected path structure
         expected_parts = [
             "scene",
-            "PL01", 
+            "PL01",
             "nuke_lens_distortion",
             "v004",
             plate_subdir,
@@ -703,7 +703,7 @@ class TestUndistortionFinder:
         bg_nk = bg01_v005 / f"{mock_shot_name}_BG01_LD_v005.nk"
         bg_nk.write_text("# BG01 v005")
 
-        # Create PL01 with lower version (v003) 
+        # Create PL01 with lower version (v003)
         pl01_v003 = scene_dir / "PL01" / "nuke_lens_distortion" / "v003"
         pl01_v003.mkdir(parents=True)
         pl_nk = pl01_v003 / f"{mock_shot_name}_PL01_LD_v003.nk"
@@ -717,14 +717,18 @@ class TestUndistortionFinder:
 
         # PL01 should be chosen over BG01 despite lower version due to higher priority
         assert result is not None
-        assert "PL01" in str(result), "PL01 should be chosen over BG01 due to higher priority"
+        assert "PL01" in str(result), (
+            "PL01 should be chosen over BG01 due to higher priority"
+        )
         assert "v003" in str(result), "Should find PL01 v003"
-        assert "BG01" not in str(result), "BG01 should not be chosen when PL01 is available"
+        assert "BG01" not in str(result), (
+            "BG01 should not be chosen when PL01 is available"
+        )
 
     def test_fg01_priority_over_pl01(
         self,
         tmp_path,
-        mock_shot_name, 
+        mock_shot_name,
         mock_username,
     ):
         """Test that FG01 plates have higher priority than PL01."""
@@ -753,6 +757,10 @@ class TestUndistortionFinder:
 
         # FG01 should be chosen over PL01 despite lower version due to highest priority
         assert result is not None
-        assert "FG01" in str(result), "FG01 should be chosen over PL01 due to highest priority"
+        assert "FG01" in str(result), (
+            "FG01 should be chosen over PL01 due to highest priority"
+        )
         assert "v001" in str(result), "Should find FG01 v001"
-        assert "PL01" not in str(result), "PL01 should not be chosen when FG01 is available"
+        assert "PL01" not in str(result), (
+            "PL01 should not be chosen when FG01 is available"
+        )

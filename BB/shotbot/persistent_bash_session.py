@@ -15,6 +15,8 @@ import threading
 import time
 from typing import Any
 
+from config import ThreadingConfig
+
 # Try to import fcntl for non-blocking I/O (Unix-only)
 try:
     import fcntl
@@ -25,8 +27,6 @@ except ImportError:
     logging.warning("fcntl module not available - will use blocking I/O")
 
 HAS_FCNTL = _has_fcntl
-
-from config import ThreadingConfig
 
 # Import debug utilities
 try:

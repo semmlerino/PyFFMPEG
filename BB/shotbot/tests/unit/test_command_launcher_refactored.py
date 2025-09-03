@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any
 
 import pytest
 from PySide6.QtTest import QSignalSpy
@@ -21,9 +20,12 @@ import command_launcher
 from command_launcher import CommandLauncher
 from config import Config
 from shot_model import Shot
-from tests.test_doubles_extended import TestCommand
-from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
-from tests.test_doubles_library import SubprocessModuleDouble, TestSubprocess, TestShot, TestCompletedProcess
+from tests.test_doubles_library import (
+    SubprocessModuleDouble,
+    TestSubprocess,
+    TestShot,
+    TestCompletedProcess,
+)
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
@@ -38,24 +40,24 @@ class TestCommandLauncherCore:
     def setup_method(self):
         """Setup with SubprocessModuleDouble at subprocess boundary."""
         self.launcher = CommandLauncher()
-        
+
         # Create TestSubprocess instance
         self.test_subprocess = TestSubprocess()
-        
+
         # Wrap it with SubprocessModuleDouble
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure rez to be unavailable (as per testing guide)
         self.test_subprocess.set_command_output(
             "which rez", return_code=1, stderr="rez: command not found"
         )
-        
+
         # Replace both subprocess.run and subprocess.Popen
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
-        
+
         # Also replace in the command_launcher module
         command_launcher.subprocess.run = self.subprocess_double.run
         command_launcher.subprocess.Popen = self.subprocess_double.Popen
@@ -103,7 +105,7 @@ class TestCommandLauncherCore:
         # Configure subprocess to succeed for launcher commands
         self.test_subprocess.return_code = 0
         self.test_subprocess.stdout = "Nuke launched successfully"
-        
+
         # Set current shot
         shot = Shot(
             show="test",
@@ -128,10 +130,13 @@ class TestCommandLauncherCore:
             # Launch app
             result = self.launcher.launch_app("nuke")
             assert result is True
-            assert len(self.test_subprocess.executed_commands) > 0  # Command was executed
+            assert (
+                len(self.test_subprocess.executed_commands) > 0
+            )  # Command was executed
 
     def test_launch_app_no_shot_selected(self, qtbot):
         """Test error when no shot is selected."""
+
         # Set up error signal expectation with parameter checking
         def check_error_params(timestamp, error):
             return "No shot selected" in error
@@ -154,13 +159,13 @@ class TestCommandLauncherCore:
 
         def check_error_params(timestamp, error):
             return "Unknown application: unknown_app" in error
-            
+
         with qtbot.waitSignal(
             self.launcher.command_error, check_params_cb=check_error_params
         ):
             # Try unknown app
             result = self.launcher.launch_app("unknown_app")
-            
+
             # Verify error behavior
             assert result is False
             # Commands may be executed during rez check, but not main launch
@@ -192,7 +197,9 @@ class TestCommandLauncherCore:
         # Should eventually succeed with direct bash
         assert result is True
         assert len(self.test_subprocess.executed_commands) >= 1  # Commands were tried
-        assert self.command_spy.count() >= 1  # May emit multiple signals during fallback
+        assert (
+            self.command_spy.count() >= 1
+        )  # May emit multiple signals during fallback
 
 
 class TestWorkspaceCommands:
@@ -201,28 +208,28 @@ class TestWorkspaceCommands:
     def setup_method(self):
         """Setup with SubprocessModuleDouble for workspace commands."""
         self.launcher = CommandLauncher()
-        
+
         # Create TestSubprocess instance
         self.test_subprocess = TestSubprocess()
-        
+
         # Wrap it with SubprocessModuleDouble
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure rez to be unavailable
         self.test_subprocess.set_command_output(
             "which rez", return_code=1, stderr="rez: command not found"
         )
-        
+
         # Configure workspace commands to succeed
         self.test_subprocess.return_code = 0
         self.test_subprocess.stdout = "Command executed"
-        
+
         # Replace both subprocess.run and subprocess.Popen
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
-        
+
         # Also replace in the command_launcher module
         command_launcher.subprocess.run = self.subprocess_double.run
         command_launcher.subprocess.Popen = self.subprocess_double.Popen
@@ -299,24 +306,24 @@ class TestThreeDESceneLaunching:
     def setup_method(self):
         """Setup for 3DE scene tests."""
         self.launcher = CommandLauncher()
-        
+
         # Create TestSubprocess instance
         self.test_subprocess = TestSubprocess()
-        
+
         # Wrap it with SubprocessModuleDouble
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure rez to be unavailable
         self.test_subprocess.set_command_output(
             "which rez", return_code=1, stderr="rez: command not found"
         )
-        
+
         # Replace both subprocess.run and subprocess.Popen
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
-        
+
         # Also replace in the command_launcher module
         command_launcher.subprocess.run = self.subprocess_double.run
         command_launcher.subprocess.Popen = self.subprocess_double.Popen
@@ -337,7 +344,7 @@ class TestThreeDESceneLaunching:
         # Configure subprocess to succeed
         self.test_subprocess.return_code = 0
         self.test_subprocess.stdout = "3DE launched with scene"
-        
+
         # Create test scene
         scene = ThreeDEScene(
             show="test",
@@ -387,7 +394,7 @@ class TestThreeDESceneLaunching:
         # Configure subprocess to succeed
         self.test_subprocess.return_code = 0
         self.test_subprocess.stdout = "Nuke launched in scene context"
-        
+
         scene = ThreeDEScene(
             show="test",
             sequence="seq01",
@@ -410,24 +417,24 @@ class TestErrorHandling:
     def setup_method(self):
         """Setup for error testing."""
         self.launcher = CommandLauncher()
-        
+
         # Create TestSubprocess instance
         self.test_subprocess = TestSubprocess()
-        
+
         # Wrap it with SubprocessModuleDouble
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure rez to be unavailable
         self.test_subprocess.set_command_output(
             "which rez", return_code=1, stderr="rez: command not found"
         )
-        
+
         # Replace both subprocess.run and subprocess.Popen
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
-        
+
         # Also replace in the command_launcher module
         command_launcher.subprocess.run = self.subprocess_double.run
         command_launcher.subprocess.Popen = self.subprocess_double.Popen
@@ -445,11 +452,11 @@ class TestErrorHandling:
         """Test handling of subprocess failures."""
         # First clear the rez side effect to allow the rez check
         self.test_subprocess.side_effect = None
-        
+
         # Now create a custom Popen that fails
         def failing_popen(*args, **kwargs):
             raise Exception("Process execution failed")
-        
+
         # Replace just Popen to let subprocess.run (rez check) work but Popen fail
         self.subprocess_double.Popen = failing_popen
         command_launcher.subprocess.Popen = failing_popen
@@ -472,11 +479,11 @@ class TestErrorHandling:
         """Test when all execution methods fail."""
         # First clear the rez side effect to allow the rez check
         self.test_subprocess.side_effect = None
-        
+
         # Create custom methods that always fail
         def failing_popen(*args, **kwargs):
             raise Exception("All execution failed")
-        
+
         def failing_run(*args, **kwargs):
             # Let rez check pass - the actual check is 'which rez'
             cmd = args[0] if args else ""
@@ -484,10 +491,12 @@ class TestErrorHandling:
             # The rez check uses ["which", "rez"]
             if "which" in cmd_str and "rez" in cmd_str:
                 # Return a TestCompletedProcess that indicates rez not found
-                return TestCompletedProcess(cmd, returncode=1, stderr="rez: command not found")
+                return TestCompletedProcess(
+                    cmd, returncode=1, stderr="rez: command not found"
+                )
             # For all other commands, fail
             raise Exception("All execution failed")
-        
+
         # Replace both methods to fail (except rez check)
         self.subprocess_double.run = failing_run
         self.subprocess_double.Popen = failing_popen
@@ -548,28 +557,28 @@ class TestNukeIntegration:
     def setup_method(self):
         """Setup for Nuke tests."""
         self.launcher = CommandLauncher()
-        
+
         # Create TestSubprocess instance
         self.test_subprocess = TestSubprocess()
-        
+
         # Wrap it with SubprocessModuleDouble
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure rez to be unavailable
         self.test_subprocess.set_command_output(
             "which rez", return_code=1, stderr="rez: command not found"
         )
-        
+
         # Setup default success
         self.test_subprocess.return_code = 0
         self.test_subprocess.stdout = "Nuke launched"
-        
+
         # Replace both subprocess.run and subprocess.Popen
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
-        
+
         # Also replace in the command_launcher module
         command_launcher.subprocess.run = self.subprocess_double.run
         command_launcher.subprocess.Popen = self.subprocess_double.Popen
@@ -685,7 +694,7 @@ class TestNukeIntegration:
                 plate_path: str, undistortion_path: str, shot_name: str
             ) -> str:
                 return "/tmp/integrated_script.nk"
-            
+
             @staticmethod
             def create_loader_script(
                 plate_path: str, undistortion_path: str, shot_name: str
@@ -745,20 +754,20 @@ class TestTimestampGeneration:
     def test_consistent_timestamp_format(self):
         """Test timestamp format consistency across signals."""
         launcher = CommandLauncher()
-        
+
         # Create test subprocess setup
         test_subprocess = TestSubprocess()
         subprocess_double = SubprocessModuleDouble(test_subprocess)
-        
+
         # Configure rez to be unavailable
         test_subprocess.set_command_output(
             "which rez", return_code=1, stderr="rez: command not found"
         )
-        
+
         # Setup test command to succeed
         test_subprocess.return_code = 0
         test_subprocess.stdout = "Command executed"
-        
+
         # Replace subprocess methods
         original_subprocess_run = subprocess.run
         original_subprocess_popen = subprocess.Popen

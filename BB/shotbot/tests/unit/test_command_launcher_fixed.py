@@ -36,9 +36,11 @@ class TestCommandLauncherCore:
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure test subprocess to make rez unavailable
-        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
+        self.test_subprocess.set_command_output(
+            "which rez", 1, "", "rez: command not found"
+        )
 
         # Replace subprocess at system boundary only
         self.original_run = subprocess.run
@@ -241,9 +243,11 @@ class TestCommandLauncherAdvanced:
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure test subprocess to make rez unavailable
-        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
+        self.test_subprocess.set_command_output(
+            "which rez", 1, "", "rez: command not found"
+        )
 
         # Replace subprocess at system boundary
         self.original_run = subprocess.run

@@ -101,7 +101,8 @@ class UndistortionFinder:
                 # Check if directory name matches plate pattern (case-insensitive)
                 plate_name_upper = potential_plate.name.upper()
                 if any(
-                    plate_name_upper.startswith(prefix) for prefix in Config.UNDISTORTION_PLATE_PREFIXES
+                    plate_name_upper.startswith(prefix)
+                    for prefix in Config.UNDISTORTION_PLATE_PREFIXES
                 ):
                     undist_base = potential_plate / "nuke_lens_distortion"
 
@@ -159,13 +160,13 @@ class UndistortionFinder:
             # Plate priority using configuration
             plate_upper = plate.upper()
             plate_priority = 999  # Default for unknown plates
-            
+
             # Find matching prefix in configuration
             for prefix, priority in Config.UNDISTORTION_PLATE_PRIORITY.items():
                 if plate_upper.startswith(prefix):
                     plate_priority = priority
                     break
-            
+
             return (
                 plate_priority,
                 -version_num,

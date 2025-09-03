@@ -133,7 +133,6 @@ class PreviousShotsGrid(QWidget):
         self._model.scan_finished.connect(self._on_scan_finished)
         self._model.scan_progress.connect(self._on_scan_progress)
 
-
     @Slot()
     def _on_refresh_clicked(self) -> None:
         """Handle refresh button click."""

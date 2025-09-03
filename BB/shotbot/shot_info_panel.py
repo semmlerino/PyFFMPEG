@@ -292,9 +292,9 @@ class InfoPanelPixmapLoader(QRunnable):
         """Load pixmap in background thread."""
         try:
             from config import Config
-            
+
             path_obj = Path(self.path) if isinstance(self.path, str) else self.path
-            
+
             if not path_obj.exists():
                 logger.debug(f"Thumbnail path does not exist: {self.path}")
                 self.signals.failed.emit()
@@ -309,8 +309,7 @@ class InfoPanelPixmapLoader(QRunnable):
 
             # Use utility for memory bounds checking (smaller limits for info panel)
             if ImageUtils.is_image_too_large_for_thumbnail(  # type: ignore[attr-defined]
-                image.size(),
-                Config.MAX_INFO_PANEL_DIMENSION_PX
+                image.size(), Config.MAX_INFO_PANEL_DIMENSION_PX
             ):
                 logger.warning(f"Image too large for info panel: {image.size()}")
                 self.signals.failed.emit()

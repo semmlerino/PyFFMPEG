@@ -586,7 +586,7 @@ class ProcessPoolManager(QObject):
             Performance metrics dictionary
         """
         metrics = self._metrics.get_report()
-        
+
         # Build proper PerformanceMetricsDict structure
         # Use defaults for any missing required fields
         result: PerformanceMetricsDict = {
@@ -601,7 +601,7 @@ class ProcessPoolManager(QObject):
             "loading_in_progress": metrics.get("loading_in_progress", False),
             "session_warmed": metrics.get("session_warmed", False),
         }
-        
+
         return result
 
     def shutdown(self):
@@ -652,7 +652,7 @@ class ProcessMetrics:
         )
 
         uptime = time.time() - self.start_time
-        
+
         # Calculate cache hit rate
         total_cache_requests = self.cache_hits + self.cache_misses
         cache_hit_rate = (

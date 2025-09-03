@@ -33,7 +33,7 @@ class TestInfoPanelPixmapLoader:
         # Create a simple test image
         image = QImage(100, 100, QImage.Format.Format_RGB32)
         image.fill(0xFF0000)  # Red image
-        
+
         image_path = tmp_path / "test_image.jpg"
         image.save(str(image_path), "JPEG")
         return image_path
@@ -50,28 +50,28 @@ class TestInfoPanelPixmapLoader:
         """Test InfoPanelPixmapLoader successful image loading."""
         loaded_signals = []
         failed_signals = []
-        
+
         def on_loaded(image):
             loaded_signals.append(image)
-            
+
         def on_failed():
             failed_signals.append(True)
-            
+
         # Create loader
         loader = InfoPanelPixmapLoader(test_panel, temp_image_file)
         loader.signals.loaded.connect(on_loaded)
         loader.signals.failed.connect(on_failed)
-        
+
         # Start loading in thread pool
         QThreadPool.globalInstance().start(loader)
-        
+
         # Wait for completion
         qtbot.wait(500)
-        
+
         # Verify successful loading
         assert len(loaded_signals) == 1
         assert len(failed_signals) == 0
-        
+
         loaded_image = loaded_signals[0]
         assert isinstance(loaded_image, QImage)
         assert not loaded_image.isNull()
@@ -80,25 +80,25 @@ class TestInfoPanelPixmapLoader:
         """Test loader handling of non-existent files."""
         loaded_signals = []
         failed_signals = []
-        
+
         def on_loaded(image):
             loaded_signals.append(image)
-            
+
         def on_failed():
             failed_signals.append(True)
-            
+
         # Create loader with non-existent path
         nonexistent_path = Path("/nonexistent/image.jpg")
         loader = InfoPanelPixmapLoader(test_panel, nonexistent_path)
         loader.signals.loaded.connect(on_loaded)
         loader.signals.failed.connect(on_failed)
-        
+
         # Start loading
         QThreadPool.globalInstance().start(loader)
-        
+
         # Wait for completion
         qtbot.wait(500)
-        
+
         # Verify failure handling
         assert len(loaded_signals) == 0
         assert len(failed_signals) == 1
@@ -108,29 +108,29 @@ class TestInfoPanelPixmapLoader:
         # Create oversized image that should trigger validation failure
         large_image = QImage(8000, 8000, QImage.Format.Format_RGB32)
         large_image.fill(0x00FF00)  # Green image
-        
+
         large_image_path = tmp_path / "large_image.jpg"
         large_image.save(str(large_image_path), "JPEG")
-        
+
         loaded_signals = []
         failed_signals = []
-        
+
         def on_loaded(image):
             loaded_signals.append(image)
-            
+
         def on_failed():
             failed_signals.append(True)
-            
+
         loader = InfoPanelPixmapLoader(test_panel, large_image_path)
         loader.signals.loaded.connect(on_loaded)
         loader.signals.failed.connect(on_failed)
-        
+
         # Start loading
         QThreadPool.globalInstance().start(loader)
-        
+
         # Wait for completion
         qtbot.wait(1000)  # Longer wait for large image processing
-        
+
         # Should fail due to dimension validation
         # (Actual behavior depends on Config.MAX_INFO_PANEL_DIMENSION_PX)
         # The test verifies the integration works without crashing
@@ -140,12 +140,12 @@ class TestInfoPanelPixmapLoader:
         """Test multiple concurrent loader operations."""
         completed_count = 0
         completion_lock = threading.Lock()
-        
+
         def on_completed():
             nonlocal completed_count
             with completion_lock:
                 completed_count += 1
-        
+
         # Create multiple loaders
         loaders = []
         for i in range(5):
@@ -153,38 +153,38 @@ class TestInfoPanelPixmapLoader:
             loader.signals.loaded.connect(lambda img, i=i: on_completed())
             loader.signals.failed.connect(lambda i=i: on_completed())
             loaders.append(loader)
-            
+
         # Start all loaders
         for loader in loaders:
             QThreadPool.globalInstance().start(loader)
-            
+
         # Wait for all to complete
         qtbot.wait(1000)
-        
+
         # Verify all completed
         assert completed_count == 5
 
     def test_loader_string_path_conversion(self, test_panel, temp_image_file, qtbot):
         """Test loader handles both string and Path objects."""
         loaded_signals = []
-        
+
         def on_loaded(image):
             loaded_signals.append(image)
-            
+
         # Test with string path
         loader_str = InfoPanelPixmapLoader(test_panel, str(temp_image_file))
         loader_str.signals.loaded.connect(on_loaded)
         QThreadPool.globalInstance().start(loader_str)
-        
+
         qtbot.wait(300)
-        
-        # Test with Path object  
+
+        # Test with Path object
         loader_path = InfoPanelPixmapLoader(test_panel, temp_image_file)
         loader_path.signals.loaded.connect(on_loaded)
         QThreadPool.globalInstance().start(loader_path)
-        
+
         qtbot.wait(300)
-        
+
         # Both should succeed
         assert len(loaded_signals) == 2
 
@@ -213,7 +213,7 @@ class TestShotInfoPanelAsyncLoading:
         image = QImage(128, 128, QImage.Format.Format_RGB32)
         image.fill(0x0000FF)  # Blue image
         image.save(str(thumbnail_path), "JPEG")
-        
+
         # Create shot that points to this thumbnail
         shot = Shot("test_show", "test_seq", "test_shot", str(tmp_path))
         # Mock get_thumbnail_path to return our test image
@@ -224,14 +224,14 @@ class TestShotInfoPanelAsyncLoading:
         """Test complete async thumbnail loading workflow."""
         # Set shot - should trigger async loading
         info_panel.set_shot(test_shot)
-        
+
         # Verify shot info is displayed immediately
         assert info_panel.shot_name_label.text() == test_shot.full_name
         assert test_shot.show in info_panel.show_sequence_label.text()
-        
+
         # Wait for async thumbnail loading to complete
         qtbot.wait(500)
-        
+
         # Verify thumbnail was loaded (placeholder or actual image)
         thumbnail_pixmap = info_panel.thumbnail_label.pixmap()
         assert thumbnail_pixmap is not None
@@ -245,19 +245,19 @@ class TestShotInfoPanelAsyncLoading:
             image = QImage(64, 64, QImage.Format.Format_RGB32)
             image.fill(0xFF0000 if i % 2 else 0x00FF00)  # Alternating colors
             image.save(str(thumbnail_path), "JPEG")
-            
+
             shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
             shot.get_thumbnail_path = lambda p=thumbnail_path: p
             shots.append(shot)
-        
+
         # Rapidly change shots
         for shot in shots:
             info_panel.set_shot(shot)
             qtbot.wait(50)  # Brief delay between changes
-            
+
         # Wait for all async operations to complete
         qtbot.wait(500)
-        
+
         # Panel should display the last shot without crashing
         assert info_panel._current_shot == shots[-1]
         assert shots[-1].shot in info_panel.shot_name_label.text()
@@ -266,13 +266,13 @@ class TestShotInfoPanelAsyncLoading:
         """Test shot removal while async loading is in progress."""
         # Set shot to start loading
         info_panel.set_shot(test_shot)
-        
+
         # Immediately clear shot (simulates rapid user interaction)
         info_panel.set_shot(None)
-        
+
         # Wait for any async operations to complete
         qtbot.wait(500)
-        
+
         # Panel should show "no shot selected" state
         assert info_panel.shot_name_label.text() == "No Shot Selected"
         assert info_panel.show_sequence_label.text() == ""
@@ -281,45 +281,46 @@ class TestShotInfoPanelAsyncLoading:
         """Test integration with ImageUtils memory bounds checking."""
         # The actual bounds checking is done in the loader
         # This test verifies the integration doesn't crash
-        
+
         test_shot = Shot("bounds_test", "seq", "shot", str(tmp_path))
-        
+
         # Mock get_thumbnail_path to return a path (may not exist)
         thumbnail_path = tmp_path / "bounds_test.jpg"
         test_shot.get_thumbnail_path = lambda: thumbnail_path
-        
+
         # Set shot - should handle missing file gracefully
         info_panel.set_shot(test_shot)
-        
+
         qtbot.wait(300)
-        
+
         # Should show placeholder without crashing
         thumbnail_text = info_panel.thumbnail_label.text()
-        assert thumbnail_text in ["", "No Image"] or info_panel.thumbnail_label.pixmap() is not None
+        assert (
+            thumbnail_text in ["", "No Image"]
+            or info_panel.thumbnail_label.pixmap() is not None
+        )
 
     def test_cache_integration(self, info_panel, test_shot, qtbot):
         """Test integration with cache manager."""
         # Mock cache manager behavior
-        with patch.object(info_panel.cache_manager, 'get_cached_thumbnail') as mock_get:
+        with patch.object(info_panel.cache_manager, "get_cached_thumbnail") as mock_get:
             mock_get.return_value = None  # No cached thumbnail
-            
+
             # Set shot - should try cache first
             info_panel.set_shot(test_shot)
-            
+
             qtbot.wait(100)
-            
+
             # Verify cache was checked
             mock_get.assert_called_once_with(
-                test_shot.show,
-                test_shot.sequence, 
-                test_shot.shot
+                test_shot.show, test_shot.sequence, test_shot.shot
             )
 
 
 class TestShotInfoPanelCore:
     """Test core ShotInfoPanel functionality."""
 
-    @pytest.fixture 
+    @pytest.fixture
     def info_panel(self, qapp, qtbot) -> ShotInfoPanel:
         """Create basic ShotInfoPanel."""
         panel = ShotInfoPanel()
@@ -337,9 +338,9 @@ class TestShotInfoPanelCore:
     def test_shot_info_display(self, info_panel):
         """Test shot information display."""
         test_shot = Shot("Test Show", "Test Seq", "Test Shot", "/test/workspace/path")
-        
+
         info_panel.set_shot(test_shot)
-        
+
         assert info_panel.shot_name_label.text() == test_shot.full_name
         assert "Test Show" in info_panel.show_sequence_label.text()
         assert "Test Seq" in info_panel.show_sequence_label.text()
@@ -350,10 +351,10 @@ class TestShotInfoPanelCore:
         # Set a shot first
         test_shot = Shot("Test", "Test", "Test", "/test")
         info_panel.set_shot(test_shot)
-        
+
         # Clear it
         info_panel.set_shot(None)
-        
+
         assert info_panel.shot_name_label.text() == "No Shot Selected"
         assert info_panel.show_sequence_label.text() == ""
         assert info_panel.path_label.text() == ""
@@ -362,14 +363,14 @@ class TestShotInfoPanelCore:
     def test_placeholder_thumbnail_setting(self, info_panel):
         """Test placeholder thumbnail behavior."""
         info_panel._set_placeholder_thumbnail()
-        
+
         # When setText is called after setPixmap, the pixmap is cleared
         # So we should have text but no pixmap
         thumbnail_pixmap = info_panel.thumbnail_label.pixmap()
-        
+
         # The pixmap will be null because setText clears it
         if thumbnail_pixmap:
             assert thumbnail_pixmap.isNull()
-        
+
         # Should have "No Image" text instead
         assert info_panel.thumbnail_label.text() == "No Image"

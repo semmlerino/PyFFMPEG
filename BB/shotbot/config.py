@@ -93,11 +93,15 @@ class Config:
     REZ_NUKE_PACKAGES = ["nuke"]  # Default rez packages for Nuke (can be overridden)
     REZ_MAYA_PACKAGES = ["maya"]  # Default rez packages for Maya
     REZ_3DE_PACKAGES = ["3de"]  # Default rez packages for 3DE
-    
+
     # Nuke Undistortion Handling
-    NUKE_UNDISTORTION_MODE = "direct"  # Options: "direct" (open file), "parse" (old method)
-    NUKE_USE_LOADER_SCRIPT = True  # Use loader script when combining plate + undistortion
-    
+    NUKE_UNDISTORTION_MODE = (
+        "direct"  # Options: "direct" (open file), "parse" (old method)
+    )
+    NUKE_USE_LOADER_SCRIPT = (
+        True  # Use loader script when combining plate + undistortion
+    )
+
     # Persistent Terminal Settings
     USE_PERSISTENT_TERMINAL = True  # Use single terminal for all commands
     PERSISTENT_TERMINAL_FIFO = "/tmp/shotbot_commands.fifo"  # FIFO path for commands
@@ -245,7 +249,7 @@ class Config:
         "fg01": 9,
         "FG02": 8,
         "PL01": 7,  # Primary turnover plate - high priority
-        "PL02": 6,  # Secondary turnover plate  
+        "PL02": 6,  # Secondary turnover plate
         "PL03": 5,  # Tertiary turnover plate
         "COMP01": 4.5,  # Composite plates - between PL and BG
         "COMP02": 4.4,
@@ -256,11 +260,24 @@ class Config:
     }  # Higher value = higher priority
 
     # Common color space patterns in plate names
-    COLOR_SPACE_PATTERNS = ["aces", "lin_sgamut3cine", "lin_rec709", "rec709", "srgb", "film_lin"]
-    
+    COLOR_SPACE_PATTERNS = [
+        "aces",
+        "lin_sgamut3cine",
+        "lin_rec709",
+        "rec709",
+        "srgb",
+        "film_lin",
+    ]
+
     # Undistortion plate discovery configuration
-    UNDISTORTION_PLATE_PREFIXES = ["FG", "BG", "BC", "PL", "COMP"]  # Plate prefixes to search for undistortion files
-    
+    UNDISTORTION_PLATE_PREFIXES = [
+        "FG",
+        "BG",
+        "BC",
+        "PL",
+        "COMP",
+    ]  # Plate prefixes to search for undistortion files
+
     # Undistortion plate priorities (lower value = higher priority)
     UNDISTORTION_PLATE_PRIORITY = {
         "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
@@ -269,7 +286,7 @@ class Config:
         "BG": 2,  # BG plates third priority (BG01, BG02, etc.)
         "BC": 3,  # BC plates lowest priority (BC01 - background clean plates)
     }
-    
+
     UNDISTORTION_BASE_SEGMENTS = [
         "user",
         "mm",

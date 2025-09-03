@@ -152,7 +152,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
         super().__init__()
-        
+
         # Initialize shot_model attribute (will be set later based on feature flag)
 
         # Initialize ProcessPoolManager singleton on main thread first
@@ -191,7 +191,7 @@ class MainWindow(QMainWindow):
         # Pass to models - OptimizedShotModel is now the default
         if use_legacy:
             logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
-            # ShotModel inherits from BaseShotModel  
+            # ShotModel inherits from BaseShotModel
             shot_model_instance = cast("BaseShotModel", ShotModel(self.cache_manager))
             self.shot_model = shot_model_instance
         else:
@@ -217,8 +217,10 @@ class MainWindow(QMainWindow):
             self.persistent_terminal = PersistentTerminalManager(
                 fifo_path=Config.PERSISTENT_TERMINAL_FIFO
             )
-        
-        self.command_launcher = CommandLauncher(persistent_terminal=self.persistent_terminal)
+
+        self.command_launcher = CommandLauncher(
+            persistent_terminal=self.persistent_terminal
+        )
         self.launcher_manager = LauncherManager()
         self._current_scene: ThreeDEScene | None = None
         self._threede_worker: ThreeDESceneWorker | None = None
@@ -780,7 +782,7 @@ class MainWindow(QMainWindow):
         # Check if we're closing to avoid accessing deleted widgets
         if hasattr(self, "_closing") and self._closing:
             return
-            
+
         # Start progress for 3DE discovery
         _ = ProgressManager.start_operation("Scanning for 3DE scenes")
 
@@ -804,7 +806,7 @@ class MainWindow(QMainWindow):
         # Check if we're closing to avoid accessing deleted widgets
         if hasattr(self, "_closing") and self._closing:
             return
-            
+
         # Update progress operation if active
         operation = ProgressManager.get_current_operation()
         if operation:
@@ -820,7 +822,7 @@ class MainWindow(QMainWindow):
         # Check if we're closing to avoid accessing deleted widgets
         if hasattr(self, "_closing") and self._closing:
             return
-            
+
         # Finish progress operation
         ProgressManager.finish_operation(success=True)
 
@@ -1726,21 +1728,21 @@ class MainWindow(QMainWindow):
         # Mark that we're closing to prevent new operations
         # Extract worker reference safely while holding lock
         worker_to_cleanup = None
-        
+
         with QMutexLocker(self._worker_mutex):
             self._closing = True
-            
+
             # Extract worker reference and clear it atomically
             if self._threede_worker:
                 worker_to_cleanup = self._threede_worker
                 self._threede_worker = None
-        
+
         # Handle worker cleanup outside of mutex to avoid deadlock
         if worker_to_cleanup:
             # Check if it's a real worker (not a Mock in tests)
             # Use isinstance check for better type safety
             from threede_scene_worker import ThreeDESceneWorker
-            
+
             if isinstance(worker_to_cleanup, ThreeDESceneWorker):
                 # Disconnect all signals first to prevent callbacks on deleted widgets
                 try:
@@ -1755,12 +1757,12 @@ class MainWindow(QMainWindow):
                 except (RuntimeError, TypeError):
                     # Signals may already be disconnected or deleted
                     pass
-                
+
                 # Only stop if not already finished
                 if not worker_to_cleanup.isFinished():
                     logger.debug("Stopping 3DE worker during shutdown")
                     worker_to_cleanup.stop()
-                    
+
                     # Wait for worker to finish without holding mutex
                     if not worker_to_cleanup.wait(3000):  # Wait up to 3 seconds
                         logger.warning(
@@ -1768,7 +1770,7 @@ class MainWindow(QMainWindow):
                         )
                         # Use safe_terminate which avoids dangerous terminate() call
                         worker_to_cleanup.safe_terminate()
-                
+
                 # Clean up the worker
                 worker_to_cleanup.deleteLater()
 

@@ -30,6 +30,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
 class MockShot:
     """Mock Shot class for testing without PySide6 dependency."""
+
     def __init__(self, show: str, sequence: str, shot: str, workspace_path: str):
         self.show = show
         self.sequence = sequence
@@ -41,95 +42,95 @@ class MockShot:
 def extract_shot_from_directory(shot_dir: str, sequence: str) -> Optional[str]:
     """Extract shot number from directory name using actual implementation logic."""
     if shot_dir.startswith(f"{sequence}_"):
-        shot = shot_dir[len(sequence) + 1:]
+        shot = shot_dir[len(sequence) + 1 :]
     else:
         shot_parts = shot_dir.rsplit("_", 1)
         if len(shot_parts) == 2:
             shot = shot_parts[1]
         else:
             shot = shot_dir
-    
+
     # Critical fix: validate shot is not empty
     if not shot:
         return None
-    
+
     return shot
 
 
 def parse_ws_sg_line(line: str) -> Optional[MockShot]:
     """Parse a single ws -sg output line."""
-    if not line.startswith('workspace'):
+    if not line.startswith("workspace"):
         return None
-    
+
     parts = line.split()
     if len(parts) != 2:
         return None
-    
+
     workspace_path = parts[1]
     path_parts = Path(workspace_path).parts
-    
+
     # Validate path structure
     if len(path_parts) < 6:
         return None
-    if path_parts[1] != 'shows' or path_parts[3] != 'shots':
+    if path_parts[1] != "shows" or path_parts[3] != "shots":
         return None
-    
+
     show = path_parts[2]
     sequence = path_parts[4]
     shot_dir = path_parts[5]
-    
+
     # Extract shot using the actual implementation logic
     shot = extract_shot_from_directory(shot_dir, sequence)
     if not shot:
         return None
-    
+
     return MockShot(show, sequence, shot, workspace_path)
 
 
 def parse_3de_file_path(file_path: str) -> Optional[Tuple[str, str, str]]:
     """Parse a 3DE file path to extract shot information."""
     path = Path(file_path)
-    
+
     # Find 'shots' in the path
     try:
         parts = path.parts
-        shots_idx = parts.index('shots')
-        
+        shots_idx = parts.index("shots")
+
         if shots_idx + 2 >= len(parts):
             return None
-        
+
         sequence = parts[shots_idx + 1]
         shot_dir = parts[shots_idx + 2]
-        
+
         # Extract shot using actual logic
         shot = extract_shot_from_directory(shot_dir, sequence)
         if not shot:
             return None
-        
+
         # Find show name (should be before 'shots')
         if shots_idx > 1:
             show = parts[shots_idx - 1]
             return (show, sequence, shot)
     except (ValueError, IndexError):
         pass
-    
+
     return None
 
 
 def test_ws_sg_parsing():
     """Test parsing of ws -sg output."""
     print("\n=== Testing ws -sg Parsing ===")
-    
-    lines = WS_SG_OUTPUT.strip().split('\n')
+
+    lines = WS_SG_OUTPUT.strip().split("\n")
     shots = []
-    
+
     for line in lines:
         shot = parse_ws_sg_line(line)
         if shot:
             shots.append(shot)
-    
+
     print(f"Parsed {len(shots)} shots from {len(lines)} lines")
-    
+
     # Validate specific shots
     test_cases = [
         (0, "gator", "012_DC", "1000"),
@@ -137,34 +138,40 @@ def test_ws_sg_parsing():
         (7, "broken_eggs", "BRX_166", "0010"),
         (11, "jack_ryan", "999_xx", "999"),
     ]
-    
+
     all_passed = True
     for idx, expected_show, expected_seq, expected_shot in test_cases:
         if idx < len(shots):
             s = shots[idx]
-            if s.show == expected_show and s.sequence == expected_seq and s.shot == expected_shot:
+            if (
+                s.show == expected_show
+                and s.sequence == expected_seq
+                and s.shot == expected_shot
+            ):
                 print(f"  ✓ Shot {idx}: {s.show}/{s.sequence}/{s.shot}")
             else:
-                print(f"  ❌ Shot {idx}: expected {expected_show}/{expected_seq}/{expected_shot}, got {s.show}/{s.sequence}/{s.shot}")
+                print(
+                    f"  ❌ Shot {idx}: expected {expected_show}/{expected_seq}/{expected_shot}, got {s.show}/{s.sequence}/{s.shot}"
+                )
                 all_passed = False
         else:
             print(f"  ❌ Shot {idx} not found in parsed shots")
             all_passed = False
-    
+
     return all_passed
 
 
 def test_show_extraction():
     """Test extraction of unique shows from shots."""
     print("\n=== Testing Show Extraction ===")
-    
-    lines = WS_SG_OUTPUT.strip().split('\n')
+
+    lines = WS_SG_OUTPUT.strip().split("\n")
     shots = [parse_ws_sg_line(line) for line in lines]
     shots = [s for s in shots if s]  # Filter None values
-    
+
     shows = {shot.show for shot in shots}
     expected_shows = {"gator", "jack_ryan", "broken_eggs"}
-    
+
     if shows == expected_shows:
         print(f"  ✓ Extracted shows: {', '.join(sorted(shows))}")
         return True
@@ -176,7 +183,7 @@ def test_show_extraction():
 def test_edge_cases():
     """Test edge cases in shot extraction."""
     print("\n=== Testing Edge Cases ===")
-    
+
     test_cases = [
         # (shot_dir, sequence, expected_shot, description)
         ("BB_", "BB", None, "Empty shot after underscore"),
@@ -186,7 +193,7 @@ def test_edge_cases():
         ("XYZ_", "XYZ", None, "Another empty case"),
         ("A_B_C", "A_B", "C", "Multiple underscores"),
     ]
-    
+
     all_passed = True
     for shot_dir, sequence, expected, description in test_cases:
         result = extract_shot_from_directory(shot_dir, sequence)
@@ -195,25 +202,33 @@ def test_edge_cases():
         else:
             print(f"  ❌ {description}: expected {expected}, got {result}")
             all_passed = False
-    
+
     return all_passed
 
 
 def test_3de_path_parsing():
     """Test parsing of 3DE file paths."""
     print("\n=== Testing 3DE Path Parsing ===")
-    
+
     test_paths = [
-        ("/shows/gator/shots/012_DC/012_DC_1000/user/ryan/mm/3de/test.3de",
-         ("gator", "012_DC", "1000")),
-        ("/shows/jack_ryan/shots/DB_256/DB_256_1200/user/john/3de/scene.3de",
-         ("jack_ryan", "DB_256", "1200")),
-        ("/shows/broken_eggs/shots/BRX_170/BRX_170_0100/publish/mm/scene.3de",
-         ("broken_eggs", "BRX_170", "0100")),
-        ("/shows/test/shots/BB/BB_/user/someone/test.3de",
-         None),  # Should be rejected (empty shot)
+        (
+            "/shows/gator/shots/012_DC/012_DC_1000/user/ryan/mm/3de/test.3de",
+            ("gator", "012_DC", "1000"),
+        ),
+        (
+            "/shows/jack_ryan/shots/DB_256/DB_256_1200/user/john/3de/scene.3de",
+            ("jack_ryan", "DB_256", "1200"),
+        ),
+        (
+            "/shows/broken_eggs/shots/BRX_170/BRX_170_0100/publish/mm/scene.3de",
+            ("broken_eggs", "BRX_170", "0100"),
+        ),
+        (
+            "/shows/test/shots/BB/BB_/user/someone/test.3de",
+            None,
+        ),  # Should be rejected (empty shot)
     ]
-    
+
     all_passed = True
     for path, expected in test_paths:
         result = parse_3de_file_path(path)
@@ -227,48 +242,52 @@ def test_3de_path_parsing():
             print(f"     Expected: {expected}")
             print(f"     Got: {result}")
             all_passed = False
-    
+
     return all_passed
 
 
 def test_complete_pipeline():
     """Test the complete pipeline integration."""
     print("\n=== Testing Complete Pipeline ===")
-    
+
     # Step 1: Parse ws -sg output
-    lines = WS_SG_OUTPUT.strip().split('\n')
+    lines = WS_SG_OUTPUT.strip().split("\n")
     shots = [parse_ws_sg_line(line) for line in lines]
     shots = [s for s in shots if s]
     print(f"  ✓ Parsed {len(shots)} shots from ws -sg")
-    
+
     # Step 2: Extract unique shows
     shows = {shot.show for shot in shots}
     print(f"  ✓ Extracted {len(shows)} shows: {', '.join(sorted(shows))}")
-    
+
     # Step 3: Validate shot extraction for each
     sample_shots = [
         ("gator", "012_DC", "1000"),
         ("jack_ryan", "DB_271", "1760"),
         ("broken_eggs", "BRX_166", "0010"),
     ]
-    
+
     for show, sequence, expected_shot in sample_shots:
         # Find the shot in parsed list
         found = False
         for shot in shots:
-            if shot.show == show and shot.sequence == sequence and shot.shot == expected_shot:
+            if (
+                shot.show == show
+                and shot.sequence == sequence
+                and shot.shot == expected_shot
+            ):
                 found = True
                 break
-        
+
         if found:
             print(f"  ✓ Found {show}/{sequence}/{expected_shot} in parsed shots")
         else:
             print(f"  ❌ Missing {show}/{sequence}/{expected_shot} in parsed shots")
             return False
-    
+
     # Step 4: Validate 3DE path parsing would work
     print("  ✓ 3DE path parsing validated")
-    
+
     # Step 5: Validate empty shot rejection
     empty_test = extract_shot_from_directory("BB_", "BB")
     if empty_test is None:
@@ -276,7 +295,7 @@ def test_complete_pipeline():
     else:
         print(f"  ❌ Empty shot not rejected: got {empty_test}")
         return False
-    
+
     print("\n  Pipeline validation complete!")
     return True
 
@@ -287,7 +306,7 @@ def main():
     print("FINAL SHOT PROCESSING PIPELINE VALIDATION")
     print("=" * 60)
     print("\nValidating the complete pipeline with all fixes applied")
-    
+
     tests = [
         ("ws -sg Parsing", test_ws_sg_parsing),
         ("Show Extraction", test_show_extraction),
@@ -295,7 +314,7 @@ def main():
         ("3DE Path Parsing", test_3de_path_parsing),
         ("Complete Pipeline", test_complete_pipeline),
     ]
-    
+
     results = []
     for name, test_func in tests:
         try:
@@ -304,21 +323,21 @@ def main():
         except Exception as e:
             print(f"\n❌ {name} failed with exception: {e}")
             results.append((name, False))
-    
+
     # Summary
     print("\n" + "=" * 60)
     print("VALIDATION SUMMARY")
     print("=" * 60)
-    
+
     passed = sum(1 for _, success in results if success)
     total = len(results)
-    
+
     for name, success in results:
         status = "✓ PASS" if success else "❌ FAIL"
         print(f"  {status}: {name}")
-    
+
     print(f"\nTotal: {passed}/{total} tests passed")
-    
+
     if passed == total:
         print("\n🎉 SUCCESS! All pipeline components are working correctly.")
         print("The shot processing pipeline correctly handles:")

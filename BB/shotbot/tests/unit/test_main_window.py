@@ -230,22 +230,22 @@ class TestApplicationLaunching:
                 self.stdout = ""
                 self.stderr = ""
                 self.pid = 12345  # Mock PID for persistent terminal
-                
+
             def __enter__(self):
                 return self
-                
+
             def __exit__(self, exc_type, exc_val, exc_tb):
                 pass
-                
+
             def communicate(self, input=None, timeout=None):
                 return (self.stdout, self.stderr)
-                
+
             def poll(self):
                 return self.returncode
-                
+
             def kill(self):
                 pass
-                
+
             def wait(self, timeout=None):
                 return self.returncode
 
@@ -254,16 +254,15 @@ class TestApplicationLaunching:
             process = MockProcess()
             process.args = command
             return process
-            
+
         # Mock both subprocess.run and subprocess.Popen
-        import subprocess
         class CompletedProcessMock:
             def __init__(self, args, returncode):
                 self.args = args
                 self.returncode = returncode
                 self.stdout = ""
                 self.stderr = ""
-        
+
         def mock_run(command, **kwargs):
             executed_commands.append(command)
             return CompletedProcessMock(command, 0)
@@ -276,7 +275,7 @@ class TestApplicationLaunching:
 
         # Test behavior: command should have been executed
         assert len(executed_commands) > 0
-        
+
         # Find the nuke command (might not be first due to rez check)
         nuke_command_found = False
         for executed_command in executed_commands:
@@ -287,7 +286,7 @@ class TestApplicationLaunching:
             if "nuke" in command_str.lower():
                 nuke_command_found = True
                 break
-        
+
         assert nuke_command_found, f"nuke command not found in: {executed_commands}"
         # Verify launch was successful (returns None for successful subprocess.Popen)
         # Note: launch_app doesn't return True/False, it returns None on success

@@ -285,7 +285,9 @@ class SettingsManager(QObject):
             Config.CACHE_REFRESH_INTERVAL_MINUTES,
             type=int,
         )
-        return value if isinstance(value, int) else Config.CACHE_REFRESH_INTERVAL_MINUTES
+        return (
+            value if isinstance(value, int) else Config.CACHE_REFRESH_INTERVAL_MINUTES
+        )
 
     def set_refresh_interval(self, minutes: int) -> None:
         """Set refresh interval in minutes."""
@@ -443,7 +445,11 @@ class SettingsManager(QObject):
         stored_associations = self.settings.value(
             "applications/file_associations", default_associations, type=dict
         )
-        return stored_associations if isinstance(stored_associations, dict) else default_associations
+        return (
+            stored_associations
+            if isinstance(stored_associations, dict)
+            else default_associations
+        )
 
     def set_file_associations(self, associations: dict[str, str]) -> None:
         """Set file type associations."""

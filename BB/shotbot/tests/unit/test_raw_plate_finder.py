@@ -305,7 +305,7 @@ class TestRawPlateFinder:
 
         plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
 
-        # Create FG01 with multiple versions  
+        # Create FG01 with multiple versions
         versions = ["v001", "v002", "v003", "v010"]
         for version in versions:
             version_dir = plate_base / "FG01" / version / "exr" / "1920x1080"
@@ -326,13 +326,24 @@ class TestRawPlateFinder:
         assert result is not None
         assert "v010" in result
 
-    @pytest.mark.parametrize("version,plate_name,expected_version", [
-        pytest.param("v001", "FG01", "v001", id="basic_version"),
-        pytest.param("v010", "FG01", "v010", id="higher_version"), 
-        pytest.param("v002", "BG01", "v002", id="bg_plate"),
-        pytest.param("v999", "COMP01", "v999", marks=pytest.mark.slow, id="high_version_number"),
-    ])
-    def test_parametrized_version_discovery(self, tmp_path, monkeypatch, version, plate_name, expected_version):
+    @pytest.mark.parametrize(
+        "version,plate_name,expected_version",
+        [
+            pytest.param("v001", "FG01", "v001", id="basic_version"),
+            pytest.param("v010", "FG01", "v010", id="higher_version"),
+            pytest.param("v002", "BG01", "v002", id="bg_plate"),
+            pytest.param(
+                "v999",
+                "COMP01",
+                "v999",
+                marks=pytest.mark.slow,
+                id="high_version_number",
+            ),
+        ],
+    )
+    def test_parametrized_version_discovery(
+        self, tmp_path, monkeypatch, version, plate_name, expected_version
+    ):
         """Test version discovery with various plate and version combinations."""
         # Setup structure
         shows_root = tmp_path / "shows"
@@ -340,7 +351,7 @@ class TestRawPlateFinder:
         workspace_path.mkdir(parents=True, exist_ok=True)
 
         plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
-        
+
         # Create specific version structure
         version_dir = plate_base / plate_name / version / "exr" / "1920x1080"
         version_dir.mkdir(parents=True, exist_ok=True)
@@ -352,8 +363,10 @@ class TestRawPlateFinder:
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
 
         # Test discovery
-        result = RawPlateFinder.find_latest_raw_plate(str(workspace_path), "seq01_shot01")
-        
+        result = RawPlateFinder.find_latest_raw_plate(
+            str(workspace_path), "seq01_shot01"
+        )
+
         # Should find the specific version
         assert result is not None
         assert expected_version in result
@@ -499,36 +512,42 @@ class TestRawPlateFinder:
 
     def test_pl01_turnover_plate_discovery(self, tmp_path, monkeypatch):
         """Test PL01 turnover plate discovery with film_lin colorspace.
-        
+
         This test validates the exact production scenario reported by the user:
         /shows/broken_eggs/shots/BRX_170/BRX_170_0100/publish/turnover/plate/input_plate/PL01/v001/exr/4356x2880/BRX_170_0100_turnover-plate_PL01_film_lin_v001.####.exr
         """
         # Create workspace matching production structure
-        shows_root = tmp_path / "shows" 
-        workspace_path = shows_root / "broken_eggs" / "shots" / "BRX_170" / "BRX_170_0100"
+        shows_root = tmp_path / "shows"
+        workspace_path = (
+            shows_root / "broken_eggs" / "shots" / "BRX_170" / "BRX_170_0100"
+        )
         workspace_path.mkdir(parents=True, exist_ok=True)
 
         # Create exact production plate structure
         plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
         pl01_v001 = plate_base / "PL01" / "v001" / "exr" / "4356x2880"
         pl01_v001.mkdir(parents=True, exist_ok=True)
-        
+
         # Create plate files with production naming pattern
         shot_name = "BRX_170_0100"
-        plate_file1 = pl01_v001 / f"{shot_name}_turnover-plate_PL01_film_lin_v001.1001.exr"
-        plate_file2 = pl01_v001 / f"{shot_name}_turnover-plate_PL01_film_lin_v001.1002.exr"
-        plate_file3 = pl01_v001 / f"{shot_name}_turnover-plate_PL01_film_lin_v001.1100.exr"
-        
+        plate_file1 = (
+            pl01_v001 / f"{shot_name}_turnover-plate_PL01_film_lin_v001.1001.exr"
+        )
+        plate_file2 = (
+            pl01_v001 / f"{shot_name}_turnover-plate_PL01_film_lin_v001.1002.exr"
+        )
+        plate_file3 = (
+            pl01_v001 / f"{shot_name}_turnover-plate_PL01_film_lin_v001.1100.exr"
+        )
+
         plate_file1.touch()
         plate_file2.touch()
         plate_file3.touch()
 
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
 
-        # Test PL01 plate discovery 
-        result = RawPlateFinder.find_latest_raw_plate(
-            str(workspace_path), shot_name
-        )
+        # Test PL01 plate discovery
+        result = RawPlateFinder.find_latest_raw_plate(str(workspace_path), shot_name)
 
         # Verify PL01 plate was found
         assert result is not None, "PL01 turnover plate should be discoverable"
@@ -537,10 +556,12 @@ class TestRawPlateFinder:
         assert "v001" in result, "Result should contain version v001"
         assert "4356x2880" in result, "Result should contain resolution"
         assert result.endswith(".####.exr"), "Result should use #### frame pattern"
-        
+
         # Verify the full expected path structure
         expected_pattern = f"{shot_name}_turnover-plate_PL01_film_lin_v001.####.exr"
-        assert expected_pattern in result, f"Result should contain expected pattern: {expected_pattern}"
+        assert expected_pattern in result, (
+            f"Result should contain expected pattern: {expected_pattern}"
+        )
 
     def test_pl01_priority_over_bg01(self, tmp_path, monkeypatch):
         """Test that PL01 has higher priority than BG01 plates."""
@@ -550,12 +571,12 @@ class TestRawPlateFinder:
         workspace_path.mkdir(parents=True, exist_ok=True)
 
         plate_base = workspace_path / "publish" / "turnover" / "plate" / "input_plate"
-        
+
         # Create BG01 plate (lower priority)
         bg01_v001 = plate_base / "BG01" / "v001" / "exr" / "1920x1080"
         bg01_v001.mkdir(parents=True, exist_ok=True)
         (bg01_v001 / "seq01_shot01_turnover-plate_BG01_aces_v001.1001.exr").touch()
-        
+
         # Create PL01 plate (higher priority)
         pl01_v001 = plate_base / "PL01" / "v001" / "exr" / "4356x2880"
         pl01_v001.mkdir(parents=True, exist_ok=True)
@@ -569,5 +590,7 @@ class TestRawPlateFinder:
         )
 
         assert result is not None
-        assert "PL01" in result, "PL01 should be chosen over BG01 due to higher priority"
+        assert "PL01" in result, (
+            "PL01 should be chosen over BG01 due to higher priority"
+        )
         assert "BG01" not in result, "BG01 should not be chosen when PL01 is available"

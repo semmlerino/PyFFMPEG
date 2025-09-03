@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -29,14 +29,16 @@ class TestCommandLauncherImproved:
         # Set up subprocess double (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure default behavior for rez check
-        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
-        
+        self.test_subprocess.set_command_output(
+            "which rez", 1, "", "rez: command not found"
+        )
+
         # Store original subprocess methods for restoration
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_Popen = subprocess.Popen
-        
+
         # Replace subprocess methods with doubles
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen

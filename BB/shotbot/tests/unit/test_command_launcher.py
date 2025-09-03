@@ -117,12 +117,14 @@ class TestSignalEmissions:
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
 
         # Configure test subprocess to make rez unavailable
-        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
+        self.test_subprocess.set_command_output(
+            "which rez", 1, "", "rez: command not found"
+        )
 
         # Replace subprocess at system boundary
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
-        
+
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
@@ -217,12 +219,14 @@ class TestApplicationLaunching:
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
 
         # Configure test subprocess to make rez unavailable
-        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
+        self.test_subprocess.set_command_output(
+            "which rez", 1, "", "rez: command not found"
+        )
 
         # Replace subprocess at system boundary
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
-        
+
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
@@ -349,13 +353,15 @@ class TestThreeDESceneLaunching:
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure test subprocess to make rez unavailable
-        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
-        
+        self.test_subprocess.set_command_output(
+            "which rez", 1, "", "rez: command not found"
+        )
+
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
-        
+
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
@@ -445,13 +451,15 @@ class TestWorkspaceIntegration:
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         # Configure test subprocess to make rez unavailable
-        self.test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
-        
+        self.test_subprocess.set_command_output(
+            "which rez", 1, "", "rez: command not found"
+        )
+
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
-        
+
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
@@ -533,7 +541,7 @@ class TestErrorHandling:
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
 
@@ -550,16 +558,17 @@ class TestErrorHandling:
 
         # Configure test subprocess to make rez unavailable but allow its check to succeed
         test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
-        
+
         # Replace subprocess at system boundary
         original_subprocess_run = subprocess.run
         original_subprocess_popen = subprocess.Popen
-        
+
         subprocess.run = subprocess_double.run
-        
+
         # Make Popen fail for terminal commands
         def failing_popen(*args, **kwargs):
             raise Exception("Process execution failed")
+
         subprocess.Popen = failing_popen
 
         # Set test shot
@@ -629,16 +638,17 @@ class TestErrorHandling:
 
         # Configure test subprocess to make rez unavailable but allow its check to succeed
         test_subprocess.set_command_output("which rez", 1, "", "rez: command not found")
-        
+
         # Replace subprocess at system boundary
         original_subprocess_run = subprocess.run
         original_subprocess_popen = subprocess.Popen
-        
+
         subprocess.run = subprocess_double.run
-        
+
         # Make Popen always fail
         def failing_popen(*args, **kwargs):
             raise Exception("All execution failed")
+
         subprocess.Popen = failing_popen
 
         # Set test shot
@@ -669,10 +679,10 @@ class TestNukeIntegration:
         self.test_subprocess.return_code = 0
         self.test_subprocess.stdout = "nuke launched successfully"
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
-        
+
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
@@ -683,6 +693,7 @@ class TestNukeIntegration:
 
     def test_nuke_with_raw_plate_option(self, qtbot):
         """Test Nuke launching with raw plate integration."""
+
         # Create test doubles for dependencies
         class TestRawPlateFinder:
             @staticmethod
@@ -717,6 +728,7 @@ class TestNukeIntegration:
 
     def test_nuke_with_undistortion_option(self, qtbot):
         """Test Nuke launching with undistortion integration."""
+
         # Create test double for UndistortionFinder
         class TestUndistortionFinder:
             @staticmethod
@@ -746,6 +758,7 @@ class TestNukeIntegration:
 
     def test_nuke_with_both_plate_and_undistortion(self, qtbot):
         """Test Nuke launching with both raw plate and undistortion."""
+
         # Create test doubles for both finders
         class TestRawPlateFinder:
             @staticmethod
@@ -807,12 +820,14 @@ class TestTimestampGeneration:
             parts = timestamp.split(":")
             if len(parts) != 3:
                 return False
-            
+
             # Verify each part is numeric and within valid ranges
             hours, minutes, seconds = parts
             return (
-                hours.isdigit() and 0 <= int(hours) <= 23
-                and minutes.isdigit() and 0 <= int(minutes) <= 59
+                hours.isdigit()
+                and 0 <= int(hours) <= 23
+                and minutes.isdigit()
+                and 0 <= int(minutes) <= 59
                 and seconds.replace(".", "").isdigit()  # May have decimal seconds
             )
 
@@ -843,7 +858,7 @@ class TestTimestampGeneration:
         subprocess_double = SubprocessModuleDouble(test_subprocess)
         original_subprocess_run = subprocess.run
         original_subprocess_popen = subprocess.Popen
-        
+
         subprocess.run = subprocess_double.run
         subprocess.Popen = subprocess_double.Popen
 
@@ -881,10 +896,10 @@ class TestEdgeCases:
         self.test_subprocess.return_code = 0
         self.test_subprocess.stdout = "app launched successfully"
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
-        
+
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
-        
+
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
@@ -952,24 +967,27 @@ class TestEdgeCases:
             result = launcher.launch_app(app)
             assert result, f"Failed to launch {app}"
 
-    @pytest.mark.parametrize("app_name", [
-        "nuke",
-        "maya", 
-        "rv",
-        pytest.param("3de", marks=pytest.mark.slow, id="3de_slow_launch"),
-    ])
+    @pytest.mark.parametrize(
+        "app_name",
+        [
+            "nuke",
+            "maya",
+            "rv",
+            pytest.param("3de", marks=pytest.mark.slow, id="3de_slow_launch"),
+        ],
+    )
     def test_individual_app_launch_parametrized(self, qtbot, app_name):
         """Test individual app launches with better error isolation."""
         launcher = CommandLauncher()
-        
+
         # Set test shot
         shot = Shot(
             show="test_show",
-            sequence="seq01", 
+            sequence="seq01",
             shot="shot01",
             workspace_path="/tmp/test_workspace",
         )
         launcher.set_current_shot(shot)
-        
+
         result = launcher.launch_app(app_name)
         assert result, f"Failed to launch {app_name}"

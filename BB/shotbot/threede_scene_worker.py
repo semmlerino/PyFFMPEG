@@ -33,44 +33,43 @@ logger = logging.getLogger(__name__)
 
 class QtThreadSafeEmitter(QObject):
     """Thread-safe signal emitter for cross-thread Qt signal emission.
-    
+
     This class solves Qt thread affinity violations by providing a safe way
     to emit Qt signals from ThreadPoolExecutor worker threads. It defines
     its own signals that can be connected with QueuedConnection to the
     worker's signals, ensuring proper thread-safe delivery.
-    
+
     The emitter must be created in the target thread (worker's QThread) to
     have proper thread affinity for signal emission.
     """
-    
+
     # Internal signals for thread-safe communication
     _progress_signal = Signal(int, str)  # files_found, status
 
     def __init__(self, worker_instance: ThreeDESceneWorker) -> None:
         """Initialize the thread-safe emitter.
-        
+
         Args:
             worker_instance: The worker whose signals will be emitted
         """
         super().__init__()
         self.worker = worker_instance
-        
+
         # Connect our internal signal to the worker's actual signals
         # Use QueuedConnection to ensure thread-safe delivery
         self._progress_signal.connect(
-            self._emit_progress_safe,
-            Qt.ConnectionType.QueuedConnection
+            self._emit_progress_safe, Qt.ConnectionType.QueuedConnection
         )
-        
+
         logger.debug("QtThreadSafeEmitter created in thread: %s", self.thread())
 
     def emit_from_thread(self, files_found: int, status: str) -> None:
         """Safely emit progress signals from any thread.
-        
+
         This method can be called from ThreadPoolExecutor threads or any
         other thread. It emits our internal signal which is connected
         with QueuedConnection to ensure thread-safe delivery.
-        
+
         Args:
             files_found: Number of files found so far
             status: Current status message
@@ -81,10 +80,10 @@ class QtThreadSafeEmitter(QObject):
     @Slot(int, str)
     def _emit_progress_safe(self, files_found: int, status: str) -> None:
         """Internal slot that emits signals in the correct thread.
-        
+
         This slot runs in the worker's QThread and can safely emit Qt signals.
         It's connected to our internal signal with QueuedConnection.
-        
+
         Args:
             files_found: Number of files found so far
             status: Current status message
@@ -94,12 +93,12 @@ class QtThreadSafeEmitter(QObject):
             # Emit the signals that were being called directly before
             self.worker.progress.emit(
                 files_found,  # current files found
-                0,           # total unknown during scanning
-                0.0,         # percentage unknown during scanning  
-                status,      # current status message
-                "",          # ETA not available during parallel scan
+                0,  # total unknown during scanning
+                0.0,  # percentage unknown during scanning
+                status,  # current status message
+                "",  # ETA not available during parallel scan
             )
-            
+
             # Also emit scan progress for compatibility
             self.worker.scan_progress.emit(files_found, 0, status)
 
@@ -332,16 +331,17 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             return self._is_paused
         finally:
             self._pause_mutex.unlock()
+
     @Slot()
     def run(self) -> None:
         """Override run to ensure finished signal is always emitted.
-        
+
         This ensures that the finished signal is emitted even when the thread
         is interrupted via requestInterruption(), not just when stopped normally.
         """
         # Track whether finished signal was emitted
         self._finished_emitted = False
-        
+
         try:
             # Call parent's run() which manages state and calls do_work()
             super().run()
@@ -351,13 +351,16 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             if not self._finished_emitted:
                 if not self._all_scenes:
                     # If no scenes were found, emit empty list
-                    logger.debug("Worker finishing, emitting finished signal with empty list")
+                    logger.debug(
+                        "Worker finishing, emitting finished signal with empty list"
+                    )
                     self.finished.emit([])
                 else:
                     # Emit whatever scenes we managed to find
-                    logger.debug(f"Worker finishing, emitting finished signal with {len(self._all_scenes)} scenes")
+                    logger.debug(
+                        f"Worker finishing, emitting finished signal with {len(self._all_scenes)} scenes"
+                    )
                     self.finished.emit(self._all_scenes)
-
 
     def _check_pause_and_cancel(self) -> bool:
         """Check for pause/cancel requests and handle them.
@@ -559,18 +562,20 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         Returns:
             List of all discovered ThreeDEScene objects
         """
-        logger.info("Discovering ALL 3DE scenes in shows using parallel file-first strategy")
+        logger.info(
+            "Discovering ALL 3DE scenes in shows using parallel file-first strategy"
+        )
 
         # Create progress callback that emits signals to UI using thread-safe emitter
         def progress_callback(files_found: int, status: str) -> None:
             """Forward progress updates to UI with cancellation check.
-            
+
             This callback runs in ThreadPoolExecutor worker threads, so it uses
             the thread-safe emitter to avoid Qt thread affinity violations.
             """
             if self.should_stop():
                 return
-                
+
             # Use thread-safe emitter instead of direct signal emission
             # This prevents Qt thread affinity violations when called from ThreadPoolExecutor
             self.thread_safe_emitter.emit_from_thread(files_found, status)
@@ -582,11 +587,13 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         # Use the new parallel file-first discovery
         logger.info("Using parallel discovery with progress reporting")
-        all_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
-            self.user_shots,  # Used to determine which shows to search
-            self.excluded_users,
-            progress_callback=progress_callback,
-            cancel_flag=cancel_flag,
+        all_scenes = (
+            ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
+                self.user_shots,  # Used to determine which shows to search
+                self.excluded_users,
+                progress_callback=progress_callback,
+                cancel_flag=cancel_flag,
+            )
         )
 
         # Check for cancellation after scan
@@ -605,7 +612,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         for scene in all_scenes:
             if self.should_stop():
                 break
-                
+
             scene_id = f"{scene.show}/{scene.sequence}/{scene.shot}"
             if scene_id not in user_shot_ids:
                 other_scenes.append(scene)

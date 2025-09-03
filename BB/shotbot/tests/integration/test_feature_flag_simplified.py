@@ -154,33 +154,34 @@ class TestFeatureFlagBehavior:
         # Create a test double for async loader that has real Qt behavior
         class TestAsyncLoader(QThread):
             """Test double for AsyncShotLoader with real Qt thread behavior."""
+
             shots_loaded = Signal(list)
             load_failed = Signal(str)
-            
+
             def __init__(self):
                 super().__init__()
                 self.stop_called = False
                 self.wait_called = False
                 self.delete_later_called = False
                 self._running = True
-            
+
             def isRunning(self):
                 return self._running
-            
+
             def stop(self):
                 self.stop_called = True
                 self.requestInterruption()
                 self._running = False
-            
+
             def wait(self, timeout=None):
                 self.wait_called = True
                 self._running = False
                 return True
-            
+
             def deleteLater(self):
                 self.delete_later_called = True
                 super().deleteLater()
-        
+
         # Use the test double
         test_loader = TestAsyncLoader()
         optimized_model._async_loader = test_loader

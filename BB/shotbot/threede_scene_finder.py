@@ -31,6 +31,7 @@ __all__ = ["ThreeDESceneFinder", "ThreeDEScene", "DirectoryCache"]
 if not hasattr(ThreeDESceneFinder, "get_cache_stats"):
     # Try to add cache methods dynamically, but ignore type errors
     try:
+
         def get_cache_stats(cls):
             """Get cache statistics for monitoring."""
             if hasattr(cls, "_directory_cache"):

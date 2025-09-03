@@ -170,11 +170,11 @@ class TestSubprocess:
     ) -> PopenDouble:
         """Simulate subprocess.Popen() for process management."""
         self.executed_commands.append(command)
-        
+
         # Raise exception if configured (for Popen calls)
         if self.side_effect:
             raise self.side_effect
-            
+
         return PopenDouble(command, self.return_code, self.stdout, self.stderr)
 
     def set_command_output(
@@ -427,11 +427,11 @@ class TestCacheManager(QObject):
         self._memory_usage_bytes: int = 0
         self._cache_operations: list[dict[str, Any]] = []
         self.thumbnails_dir = self.cache_dir / "thumbnails"
-        
+
         # Initialize required dependencies with test doubles
         from cache.failure_tracker import FailureTracker
         from cache.thumbnail_processor import ThumbnailProcessor
-        
+
         self._thumbnail_processor = ThumbnailProcessor()
         self._failure_tracker = FailureTracker()
 
@@ -932,7 +932,7 @@ class ThreadSafeTestImage:
 
 class SubprocessModuleDouble:
     """Test double for the entire subprocess module.
-    
+
     This class can replace the entire subprocess module for testing,
     providing both run() and Popen() methods that work correctly
     with the context manager protocol.
@@ -956,8 +956,13 @@ class SubprocessModuleDouble:
     ) -> TestCompletedProcess:
         """Mock subprocess.run() method."""
         return self._test_subprocess.run(
-            command, shell=shell, capture_output=capture_output,
-            text=text, check=check, timeout=timeout, **kwargs
+            command,
+            shell=shell,
+            capture_output=capture_output,
+            text=text,
+            check=check,
+            timeout=timeout,
+            **kwargs,
         )
 
     def Popen(

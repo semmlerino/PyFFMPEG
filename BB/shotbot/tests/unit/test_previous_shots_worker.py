@@ -159,19 +159,18 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Collect shot_found signals to verify count
         shot_found_signals = []
+
         def collect_shot_found(shot_dict):
             shot_found_signals.append(shot_dict)
-        
+
         worker.shot_found.connect(collect_shot_found)
-        
+
         # Set up expectation for scan_finished with result validation
         def check_scan_result(final_result):
             return isinstance(final_result, list) and len(final_result) == 3
-        
+
         with qtbot.waitSignal(
-            worker.scan_finished, 
-            check_params_cb=check_scan_result,
-            timeout=5000
+            worker.scan_finished, check_params_cb=check_scan_result, timeout=5000
         ):
             # Ensure no error signals are emitted
             with qtbot.assertNotEmitted(worker.error_occurred, wait=100):

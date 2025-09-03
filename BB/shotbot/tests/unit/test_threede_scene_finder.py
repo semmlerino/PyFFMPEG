@@ -376,9 +376,9 @@ class TestPerformance:
         scenes = ThreeDESceneFinder.find_scenes_for_shot(
             str(shot_path),  # Use the actual path created by create_vfx_structure
             show,
-            seq, 
+            seq,
             shot,
-            excluded_users=set()
+            excluded_users=set(),
         )
 
         # Verify scene was found

@@ -120,7 +120,7 @@ class TestThumbnailProcessorThreadSafety:
         """Create diverse test images for concurrent processing."""
         import numpy as np
         from PIL import Image
-        
+
         images = []
 
         for i in range(20):  # Create 20 test images
@@ -128,15 +128,17 @@ class TestThumbnailProcessorThreadSafety:
 
             # Create valid JPEG images with PIL instead of QImage to avoid Qt initialization issues
             size = 200 + i * 10
-            
+
             # Fill with different colors to ensure variety
             color_r = (i * 37) % 256
             color_g = (i * 61) % 256
             color_b = (i * 89) % 256
-            
+
             # Create solid color image using numpy array
-            img_array = np.full((size, size, 3), [color_r, color_g, color_b], dtype=np.uint8)
-            image = Image.fromarray(img_array, 'RGB')
+            img_array = np.full(
+                (size, size, 3), [color_r, color_g, color_b], dtype=np.uint8
+            )
+            image = Image.fromarray(img_array, "RGB")
 
             # Save as JPEG
             try:
@@ -157,14 +159,14 @@ class TestThumbnailProcessorThreadSafety:
         """Create images that may cause issues."""
         import numpy as np
         from PIL import Image
-        
+
         problems = []
 
         # Large image
         large = tmp_path / "large.jpg"
         # Create large red image using PIL instead of QImage
         large_array = np.full((5000, 5000, 3), [255, 0, 0], dtype=np.uint8)
-        large_img = Image.fromarray(large_array, 'RGB')
+        large_img = Image.fromarray(large_array, "RGB")
         try:
             large_img.save(str(large), "JPEG", quality=70)
             problems.append(large)
@@ -690,14 +692,14 @@ class TestQtLockImplementation:
         """Verify all Qt operations are within lock scope."""
         import numpy as np
         from PIL import Image
-        
+
         processor = ThumbnailProcessor()
 
         # Create test image using PIL to avoid Qt dependency in test
         test_img = tmp_path / "test.jpg"
         # Create a simple red image
         img_array = np.full((100, 100, 3), [255, 0, 0], dtype=np.uint8)
-        pil_img = Image.fromarray(img_array, 'RGB')
+        pil_img = Image.fromarray(img_array, "RGB")
         pil_img.save(str(test_img), "JPEG")
 
         # Test that processing completes successfully (lock is working properly)

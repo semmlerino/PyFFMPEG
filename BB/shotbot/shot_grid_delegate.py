@@ -166,7 +166,9 @@ class ShotGridDelegate(QStyledItemDelegate):
             painter.restore()
 
     @override
-    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex) -> QSize:
+    def sizeHint(
+        self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
+    ) -> QSize:
         """Provide size hint for the item.
 
         Args:

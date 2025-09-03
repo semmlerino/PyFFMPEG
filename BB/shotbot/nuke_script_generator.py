@@ -342,7 +342,9 @@ Viewer {{
                     break
 
             if not is_copy_paste_format:
-                logger.debug("Not copy/paste format, returning empty (main method will handle fallback)")
+                logger.debug(
+                    "Not copy/paste format, returning empty (main method will handle fallback)"
+                )
                 return ""
 
             # Process copy/paste format - import everything except boilerplate
@@ -376,20 +378,22 @@ Viewer {{
                     continue
 
                 # Skip Root node and its contents (would conflict)
-                if not inside_root and (stripped.startswith("Root {") or stripped == "Root {"):
+                if not inside_root and (
+                    stripped.startswith("Root {") or stripped == "Root {"
+                ):
                     logger.debug("Found Root node, skipping its contents")
                     inside_root = True
                     root_brace_count = 1
                     i += 1
                     continue
-                
+
                 # If inside Root node, track braces and skip content
                 if inside_root:
                     if "{" in line:
                         root_brace_count += line.count("{")
                     if "}" in line:
                         root_brace_count -= line.count("}")
-                    
+
                     if root_brace_count <= 0:
                         inside_root = False
                         logger.debug("Finished skipping Root node")
@@ -399,12 +403,12 @@ Viewer {{
                 # Apply ypos offset if this line contains ypos
                 if "ypos" in line and ypos_offset != 0:
                     ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
-                    
+
                     def adjust_ypos(match: re.Match[str]) -> str:
                         old_ypos = int(match.group(1))
                         new_ypos = old_ypos + ypos_offset
                         return f"ypos {new_ypos}"
-                    
+
                     adjusted_line = ypos_pattern.sub(adjust_ypos, line)
                     if adjusted_line != line:
                         logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
@@ -471,13 +475,15 @@ Viewer {{
             if not undistortion_file.exists():
                 logger.error(f"Undistortion file not found: {undistortion_path}")
                 return ""
-            
+
             logger.debug(f"File exists, size: {undistortion_file.stat().st_size} bytes")
 
             with open(undistortion_path, encoding="utf-8") as f:
                 content = f.read()
-            
-            logger.debug(f"Successfully read file, content length: {len(content)} characters")
+
+            logger.debug(
+                f"Successfully read file, content length: {len(content)} characters"
+            )
 
             if not content.strip():
                 logger.error(f"Undistortion file is empty: {undistortion_path}")
@@ -503,13 +509,13 @@ Viewer {{
                     logger.debug(f"Skipping version line: {stripped[:50]}")
                     i += 1
                     continue
-                
+
                 # Skip shebang line
                 if stripped.startswith("#!"):
                     logger.debug("Skipping shebang line")
                     i += 1
                     continue
-                
+
                 # Skip window layout definition (conflicts with main script)
                 if stripped.startswith("define_window_layout"):
                     logger.debug("Skipping window layout definition")
@@ -525,20 +531,22 @@ Viewer {{
                     continue
 
                 # Handle Root node - skip it and its contents
-                if not inside_root and (stripped.startswith("Root {") or stripped == "Root {"):
+                if not inside_root and (
+                    stripped.startswith("Root {") or stripped == "Root {"
+                ):
                     logger.debug("Found Root node, skipping its contents")
                     inside_root = True
                     root_brace_count = 1
                     i += 1
                     continue
-                
+
                 # If inside Root node, track braces and skip content
                 if inside_root:
                     if "{" in line:
                         root_brace_count += line.count("{")
                     if "}" in line:
                         root_brace_count -= line.count("}")
-                    
+
                     if root_brace_count <= 0:
                         inside_root = False
                         logger.debug("Finished skipping Root node")
@@ -549,12 +557,12 @@ Viewer {{
                 if "ypos" in line and ypos_offset != 0:
                     # Find all ypos values in the line and adjust them
                     ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
-                    
+
                     def adjust_ypos(match: re.Match[str]) -> str:
                         old_ypos = int(match.group(1))
                         new_ypos = old_ypos + ypos_offset
                         return f"ypos {new_ypos}"
-                    
+
                     adjusted_line = ypos_pattern.sub(adjust_ypos, line)
                     if adjusted_line != line:
                         logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
@@ -566,8 +574,10 @@ Viewer {{
                     logger.debug(f"Skipping copy/paste init line: {stripped[:50]}...")
                     i += 1
                     continue
-                
-                if stripped.startswith("push") and ("push $cut_paste_input" in line or "push 0" in stripped):
+
+                if stripped.startswith("push") and (
+                    "push $cut_paste_input" in line or "push 0" in stripped
+                ):
                     logger.debug(f"Skipping copy/paste push: {stripped[:50]}...")
                     i += 1
                     continue
@@ -644,16 +654,18 @@ Viewer {{
             version_lines = 0
             shebang_lines = 0
             window_layout_lines = 0
-            
+
             # Track if file is copy/paste format
             is_copy_paste = False
             for line in lines[:10]:
                 if "set cut_paste_input" in line:
                     is_copy_paste = True
                     break
-            
+
             if is_copy_paste:
-                print("\nFile Format: Copy/Paste format (contains 'set cut_paste_input')")
+                print(
+                    "\nFile Format: Copy/Paste format (contains 'set cut_paste_input')"
+                )
             else:
                 print("\nFile Format: Standard .nk format")
 
@@ -687,7 +699,9 @@ Viewer {{
                         window_brace_count -= line.count("}")
                     if window_brace_count <= 0:
                         inside_window_layout = False
-                elif not inside_root and (stripped.startswith("Root {") or stripped == "Root {"):
+                elif not inside_root and (
+                    stripped.startswith("Root {") or stripped == "Root {"
+                ):
                     inside_root = True
                     root_brace_count = 1
                     root_lines += 1
@@ -703,7 +717,11 @@ Viewer {{
                         inside_root = False
                 elif is_copy_paste and "set cut_paste_input" in line:
                     skipped_lines += 1
-                elif is_copy_paste and stripped.startswith("push") and ("push $cut_paste_input" in line or "push 0" in stripped):
+                elif (
+                    is_copy_paste
+                    and stripped.startswith("push")
+                    and ("push $cut_paste_input" in line or "push 0" in stripped)
+                ):
                     skipped_lines += 1
                 else:
                     # This line would be imported
@@ -717,19 +735,27 @@ Viewer {{
             print(f"    - Window layout lines: {window_layout_lines}")
             print(f"    - Root node lines: {root_lines}")
             if is_copy_paste:
-                print(f"    - Copy/paste boilerplate: {skipped_lines - shebang_lines - version_lines - window_layout_lines - root_lines}")
+                print(
+                    f"    - Copy/paste boilerplate: {skipped_lines - shebang_lines - version_lines - window_layout_lines - root_lines}"
+                )
 
             # Try the actual import to see what happens
             print("\n=== IMPORT TEST ===")
-            
+
             # Test both parsers
             if is_copy_paste:
                 print("Testing copy/paste format parser...")
-                result = NukeScriptGenerator._import_undistortion_nodes_copy_paste_format(undistortion_path)
+                result = (
+                    NukeScriptGenerator._import_undistortion_nodes_copy_paste_format(
+                        undistortion_path
+                    )
+                )
             else:
                 print("Testing standard format parser...")
-                result = NukeScriptGenerator._import_undistortion_nodes(undistortion_path)
-            
+                result = NukeScriptGenerator._import_undistortion_nodes(
+                    undistortion_path
+                )
+
             if result:
                 print(f"SUCCESS: Import returned {len(result)} characters")
                 print("\nFirst 400 characters of imported content:")
@@ -740,10 +766,14 @@ Viewer {{
                 print("FAILED: Import returned empty string")
                 print("\nTrying alternate parser as fallback...")
                 if is_copy_paste:
-                    result = NukeScriptGenerator._import_undistortion_nodes(undistortion_path)
+                    result = NukeScriptGenerator._import_undistortion_nodes(
+                        undistortion_path
+                    )
                 else:
-                    result = NukeScriptGenerator._import_undistortion_nodes_copy_paste_format(undistortion_path)
-                
+                    result = NukeScriptGenerator._import_undistortion_nodes_copy_paste_format(
+                        undistortion_path
+                    )
+
                 if result:
                     print(f"FALLBACK SUCCESS: Got {len(result)} characters")
                 else:
@@ -762,34 +792,36 @@ Viewer {{
         shot_name: str,
     ) -> str | None:
         """Create a minimal Nuke loader script that uses Nuke's Python API.
-        
+
         This method creates a simple script that loads both the plate and undistortion
         using Nuke's built-in scriptSource() command, which properly handles all node
         types and dependencies without parsing.
-        
+
         Args:
             plate_path: Path to the plate sequence
             undistortion_path: Path to undistortion .nk file
             shot_name: Name of the shot
-            
+
         Returns:
             Path to the temporary loader script, or None on error
         """
         try:
             # Sanitize shot_name to prevent path traversal
             safe_shot_name = re.sub(r"[^\w\-_]", "_", shot_name)
-            
+
             # Convert paths for Nuke
             nuke_plate_path = NukeScriptGenerator._escape_path(plate_path)
             nuke_plate_path = nuke_plate_path.replace("####", "%04d")
             nuke_undist_path = NukeScriptGenerator._escape_path(undistortion_path)
-            
+
             # Detect properties
-            first_frame, last_frame = NukeScriptGenerator._detect_frame_range(plate_path)
+            first_frame, last_frame = NukeScriptGenerator._detect_frame_range(
+                plate_path
+            )
             width, height = NukeScriptGenerator._detect_resolution(plate_path)
             colorspace, use_raw = NukeScriptGenerator._detect_colorspace(plate_path)
             raw_str = "true" if use_raw else "false"
-            
+
             # Create a minimal loader script that uses Python to import everything
             script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
 version 16.0 v4
@@ -901,7 +933,7 @@ Viewer {{
  ypos 100
 }}
 """
-            
+
             # Create temporary file
             with tempfile.NamedTemporaryFile(
                 mode="w",
@@ -919,7 +951,7 @@ Viewer {{
             print(f"Created Nuke loader script: {temp_path}")
             print(f"  Plate: {plate_path}")
             print(f"  Undistortion: {undistortion_path}")
-            
+
             return temp_path
 
         except Exception as e:
@@ -1058,10 +1090,12 @@ Read {{
                         ypos_offset=-200,
                     )
                 )
-                
+
                 # If copy/paste format failed, try the standard parser
                 if not imported_nodes:
-                    logger.info("Copy/paste format parser returned empty result, trying standard parser as fallback")
+                    logger.info(
+                        "Copy/paste format parser returned empty result, trying standard parser as fallback"
+                    )
                     imported_nodes = NukeScriptGenerator._import_undistortion_nodes(
                         undistortion_path,
                         ypos_offset=-200,

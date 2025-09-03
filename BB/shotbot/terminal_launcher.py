@@ -209,7 +209,9 @@ class TerminalLauncher(QObject):
                 error_message=error_msg,
             )
 
-    def _substitute_variables(self, text: str | None, variables: dict[str, str | None]) -> str:
+    def _substitute_variables(
+        self, text: str | None, variables: dict[str, str | None]
+    ) -> str:
         """Substitute variables in text using {variable_name} syntax."""
         if text is None:
             return ""
@@ -312,7 +314,11 @@ class TerminalLauncher(QObject):
             # Execute the terminal command
             # Use DEVNULL to prevent pipe buffer deadlocks when apps close
             # Filter out None values from environment for subprocess compatibility
-            clean_env = {k: v for k, v in (environment or {}).items() if v is not None} if environment else None
+            clean_env = (
+                {k: v for k, v in (environment or {}).items() if v is not None}
+                if environment
+                else None
+            )
             process = subprocess.Popen(
                 terminal_cmd,
                 env=clean_env,
