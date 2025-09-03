@@ -22,7 +22,6 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtTest import QTest
-from pytestqt.qtbot import QtBot
 from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,

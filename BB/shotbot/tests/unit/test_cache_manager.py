@@ -16,7 +16,6 @@ import pytest
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QSignalSpy
-from pytestqt.qtbot import QtBot
 
 from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
 from config import ThreadingConfig

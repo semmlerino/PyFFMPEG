@@ -24,8 +24,7 @@ from __future__ import annotations
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtTest import QTest, QSignalSpy
-from pytestqt.qtbot import QtBot
+from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from config import Config

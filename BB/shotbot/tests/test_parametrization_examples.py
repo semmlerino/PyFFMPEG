@@ -11,8 +11,9 @@ Enhanced patterns implemented throughout the test suite:
 - Cartesian product replacements for nested loops
 """
 
-import pytest
 from typing import Any, List, Tuple
+
+import pytest
 
 
 class TestParametrizationPatterns:

@@ -392,8 +392,8 @@ class TestCacheManager(QObject):
         self.thumbnails_dir = self.cache_dir / "thumbnails"
         
         # Initialize required dependencies with test doubles
-        from cache.thumbnail_processor import ThumbnailProcessor
         from cache.failure_tracker import FailureTracker
+        from cache.thumbnail_processor import ThumbnailProcessor
         
         self._thumbnail_processor = ThumbnailProcessor()
         self._failure_tracker = FailureTracker()

@@ -7,8 +7,8 @@ This test directly tests the actual implementation code to verify:
 3. Empty string validation prevents crashes
 """
 
-import sys
 import re
+import sys
 from pathlib import Path
 
 # Add parent directory to path

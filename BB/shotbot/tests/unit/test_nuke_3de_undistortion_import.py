@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
-
-import pytest
 
 from nuke_script_generator import NukeScriptGenerator
 
@@ -210,7 +207,7 @@ class TestNuke3DEUndistortionImport:
         assert Path(script_path).exists()
         
         # Read generated script
-        with open(script_path, "r") as f:
+        with open(script_path) as f:
             content = f.read()
         
         # Verify content

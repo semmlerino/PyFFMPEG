@@ -16,11 +16,10 @@ from typing import List
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shot_model import Shot
+from targeted_shot_finder import TargetedShotsFinder
 from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
 from threede_scene_model import ThreeDESceneModel
-from targeted_shot_finder import TargetedShotsFinder
 from utils import PathUtils
-
 
 # Mock ws -sg output from user
 WS_SG_OUTPUT = """workspace /shows/gator/shots/012_DC/012_DC_1000

@@ -15,7 +15,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from pytestqt.qtbot import QtBot
 from PySide6.QtTest import QSignalSpy
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

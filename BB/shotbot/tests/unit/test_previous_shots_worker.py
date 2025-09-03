@@ -32,7 +32,6 @@ from pathlib import Path
 import pytest
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtTest import QSignalSpy
-from pytestqt.qtbot import QtBot
 
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot

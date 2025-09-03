@@ -36,7 +36,6 @@ import psutil
 import pytest
 
 from cache.thumbnail_processor import ThumbnailProcessor
-from tests.test_doubles_library import ThreadSafeTestImage
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
@@ -119,8 +118,8 @@ class TestThumbnailProcessorThreadSafety:
     @pytest.fixture
     def test_images(self, tmp_path) -> list[Path]:
         """Create diverse test images for concurrent processing."""
-        from PIL import Image
         import numpy as np
+        from PIL import Image
         
         images = []
 
@@ -156,8 +155,8 @@ class TestThumbnailProcessorThreadSafety:
     @pytest.fixture
     def problematic_images(self, tmp_path) -> list[Path]:
         """Create images that may cause issues."""
-        from PIL import Image
         import numpy as np
+        from PIL import Image
         
         problems = []
 
@@ -689,8 +688,8 @@ class TestQtLockImplementation:
 
     def test_lock_scope_coverage(self, tmp_path):
         """Verify all Qt operations are within lock scope."""
-        from PIL import Image
         import numpy as np
+        from PIL import Image
         
         processor = ThumbnailProcessor()
 

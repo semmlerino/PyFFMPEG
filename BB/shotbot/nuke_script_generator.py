@@ -346,7 +346,7 @@ Viewer {{
                 return ""
 
             # Process copy/paste format - import everything except boilerplate
-            imported_lines = []
+            imported_lines: list[str] = []
             i = 0
             inside_root = False
             root_brace_count = 0
@@ -400,7 +400,7 @@ Viewer {{
                 if "ypos" in line and ypos_offset != 0:
                     ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
                     
-                    def adjust_ypos(match):
+                    def adjust_ypos(match: re.Match[str]) -> str:
                         old_ypos = int(match.group(1))
                         new_ypos = old_ypos + ypos_offset
                         return f"ypos {new_ypos}"
@@ -550,7 +550,7 @@ Viewer {{
                     # Find all ypos values in the line and adjust them
                     ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
                     
-                    def adjust_ypos(match):
+                    def adjust_ypos(match: re.Match[str]) -> str:
                         old_ypos = int(match.group(1))
                         new_ypos = old_ypos + ypos_offset
                         return f"ypos {new_ypos}"

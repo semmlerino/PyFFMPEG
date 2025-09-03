@@ -11,19 +11,17 @@ import sys
 import threading
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import QMetaObject, Qt, Q_ARG, QThreadPool
+from PySide6.QtCore import Q_ARG, QMetaObject, Qt, QThreadPool
 from PySide6.QtGui import QImage
-from PySide6.QtTest import QSignalSpy
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shot_info_panel import ShotInfoPanel, InfoPanelPixmapLoader
+from cache_manager import CacheManager
+from shot_info_panel import InfoPanelPixmapLoader, ShotInfoPanel
 from shot_item_model import ShotItemModel
 from shot_model import Shot
-from cache_manager import CacheManager
 from tests.test_doubles_library import TestCacheManager
 
 pytestmark = [pytest.mark.thread_safety, pytest.mark.qt, pytest.mark.critical]
@@ -255,8 +253,8 @@ class TestShotInfoPanelThreadSafety:
     @pytest.fixture
     def thread_safe_panel(self, qtbot) -> ShotInfoPanel:
         """Create panel for thread safety testing."""
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
         temp_dir = Path(tempfile.mkdtemp())
         panel = ShotInfoPanel(CacheManager(cache_dir=temp_dir))
         qtbot.addWidget(panel)
@@ -413,8 +411,8 @@ class TestCrossComponentThreadSafety:
         image.save(str(image_path), "JPEG")
         
         model = ShotItemModel(TestCacheManager())
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
         temp_dir = Path(tempfile.mkdtemp())
         panel = ShotInfoPanel(CacheManager(cache_dir=temp_dir))
         qtbot.addWidget(panel)

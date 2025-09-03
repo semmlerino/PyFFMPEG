@@ -10,13 +10,17 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject, Signal
 
 from config import Config
-from shot_model import Shot
-from threede_scene_model import ThreeDEScene
 
 if TYPE_CHECKING:
     from nuke_script_generator import NukeScriptGenerator as NukeScriptGeneratorType
     from raw_plate_finder import RawPlateFinder as RawPlateFinderType
+    from shot_model import Shot
+    from threede_scene_model import ThreeDEScene
     from undistortion_finder import UndistortionFinder as UndistortionFinderType
+else:
+    # Import at runtime to avoid circular imports
+    from shot_model import Shot  # noqa: TC001
+    from threede_scene_model import ThreeDEScene  # noqa: TC001
 
 
 class CommandLauncher(QObject):
@@ -35,7 +39,7 @@ class CommandLauncher(QObject):
         raw_plate_finder: type[RawPlateFinderType] | None = None,
         undistortion_finder: type[UndistortionFinderType] | None = None,
         nuke_script_generator: type[NukeScriptGeneratorType] | None = None,
-    ):
+    ) -> None:
         """Initialize CommandLauncher with optional dependencies.
         
         Args:
@@ -65,7 +69,7 @@ class CommandLauncher(QObject):
         else:
             self._nuke_script_generator = nuke_script_generator
 
-    def set_current_shot(self, shot: Shot | None):
+    def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context."""
         self.current_shot = shot
 
@@ -610,7 +614,7 @@ class CommandLauncher(QObject):
             self._emit_error(f"Failed to launch {app_name} in scene context: {str(e)}")
             return False
 
-    def _emit_error(self, error: str):
+    def _emit_error(self, error: str) -> None:
         """Emit error with timestamp."""
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.command_error.emit(timestamp, error)

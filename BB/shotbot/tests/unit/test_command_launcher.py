@@ -20,7 +20,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from pytestqt.qtbot import QtBot
 
 from command_launcher import CommandLauncher
 from config import Config

@@ -7,24 +7,21 @@ with focus on async operations and race condition prevention.
 from __future__ import annotations
 
 import sys
-import tempfile
 import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import QTimer
 from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from cache_manager import CacheManager
-from shot_info_panel import ShotInfoPanel  
+from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
-from tests.test_doubles_library import TestCacheManager
 
 pytestmark = [pytest.mark.integration, pytest.mark.qt, pytest.mark.slow]
 

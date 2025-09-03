@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -75,7 +74,7 @@ class TestParallelDiscoveryIntegration:
                         # Nested 3DE files (realistic production structure)
                         nested_dir = user_dir / "matchmove" / "3de" / "FG01"
                         nested_dir.mkdir(parents=True, exist_ok=True)
-                        (nested_dir / f"fg_track_v001.3de").write_text("# 3DE Scene\nversion 1.0")
+                        (nested_dir / "fg_track_v001.3de").write_text("# 3DE Scene\nversion 1.0")
                     
                     # Create Shot object for this shot
                     shot = Shot(
@@ -257,7 +256,6 @@ class TestParallelDiscoveryIntegration:
     def test_concurrent_parallel_discovery(self):
         """Test multiple parallel discoveries running concurrently."""
         import threading
-        import time
         
         shows_root, test_shots = self._create_test_vfx_structure()
         

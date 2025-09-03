@@ -7,7 +7,7 @@ This test validates the entire pipeline from ws -sg parsing through
 
 import sys
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))

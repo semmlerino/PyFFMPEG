@@ -16,7 +16,6 @@ from typing import Any
 
 import pytest
 from PySide6.QtTest import QSignalSpy
-from pytestqt.qtbot import QtBot
 
 import command_launcher
 from command_launcher import CommandLauncher

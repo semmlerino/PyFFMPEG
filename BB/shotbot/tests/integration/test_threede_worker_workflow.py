@@ -16,10 +16,8 @@ from __future__ import annotations
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
 
 import pytest
-from PySide6.QtCore import QTimer
 
 from shot_model import Shot
 from threede_scene_worker import ThreeDESceneWorker
@@ -466,7 +464,7 @@ class TestThreeDEWorkerWorkflow:
             cleanup_worker()
 
         # Log workflow summary for debugging
-        print(f"Production workflow simulation completed:")
+        print("Production workflow simulation completed:")
         print(f"  Total events: {len(workflow_events)}")
         print(f"  Progress updates: {len([e for e in workflow_events if e[1] == 'progress_update'])}")
         if workflow_events:

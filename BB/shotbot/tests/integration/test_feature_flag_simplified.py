@@ -16,10 +16,11 @@ import pytest
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from PySide6.QtCore import QThread, Signal
+
 from cache_manager import CacheManager
 from shot_model import Shot, ShotModel
 from shot_model_optimized import OptimizedShotModel
-from PySide6.QtCore import QThread, Signal
 
 
 class TestFeatureFlagBehavior:

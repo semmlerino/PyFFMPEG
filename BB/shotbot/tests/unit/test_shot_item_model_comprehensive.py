@@ -8,20 +8,18 @@ protection and immutable shot identifier handling.
 from __future__ import annotations
 
 import sys
-import threading
-import time
-from pathlib import Path
 from concurrent.futures import Future
-from unittest.mock import Mock, patch
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import QModelIndex, QObject, Qt, Signal, QMetaObject, Q_ARG
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from cache_manager import CacheManager, ThumbnailCacheResult
+from cache_manager import ThumbnailCacheResult
 from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
