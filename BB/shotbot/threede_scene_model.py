@@ -260,19 +260,19 @@ class ThreeDESceneModel:
         """
 
         # Priority 1: Latest modification time
-        def get_mtime(scene):
+        def get_mtime(scene: ThreeDEScene) -> float:
             try:
                 return scene.scene_path.stat().st_mtime
             except (OSError, AttributeError):
                 return 0
 
         # Priority 2: Plate preference
-        plate_priority = {
+        plate_priority: dict[str, int] = {
             "fg01": 3,
             "bg01": 2,
         }  # lowercase for case-insensitive comparison
 
-        def scene_score(scene):
+        def scene_score(scene: ThreeDEScene) -> tuple[float, int, str]:
             mtime = get_mtime(scene)
             plate_score = plate_priority.get(scene.plate.lower(), 1)
             return (mtime, plate_score, scene.plate)
