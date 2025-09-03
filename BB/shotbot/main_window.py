@@ -86,6 +86,7 @@ from base_shot_model import BaseShotModel  # Need at runtime for isinstance chec
 from cache_manager import CacheManager  # Need at runtime for instantiation
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
+from launcher.models import CustomLauncher  # Need for type annotations
 from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
 from launcher_manager import LauncherManager  # Need at runtime
 from log_viewer import LogViewer
@@ -1408,7 +1409,7 @@ class MainWindow(QMainWindow):
             return
 
         # Group by category
-        categories = {}
+        categories: dict[str, list[CustomLauncher]] = {}
         for launcher in launchers:
             category = launcher.category or "custom"
             if category not in categories:
@@ -1644,7 +1645,7 @@ class MainWindow(QMainWindow):
             return
 
         # Group by category
-        categories = {}
+        categories: dict[str, list[CustomLauncher]] = {}
         for launcher in launchers:
             category = launcher.category or "custom"
             if category not in categories:
