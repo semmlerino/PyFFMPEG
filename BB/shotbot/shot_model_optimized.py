@@ -19,9 +19,8 @@ import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
-from typing_extensions import override
-
 from PySide6.QtCore import Qt, QThread, Signal, Slot
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager

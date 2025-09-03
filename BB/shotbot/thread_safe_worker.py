@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import weakref
 from enum import Enum
 from typing import Any
 

@@ -15,10 +15,7 @@ import logging
 import sys
 import threading
 import time
-from pathlib import Path
-from typing import List, Tuple
 import unittest
-from unittest.mock import MagicMock, patch
 
 # Add current directory to path for imports
 sys.path.insert(0, '.')
@@ -40,7 +37,11 @@ class ThreadSafetyValidationTests(unittest.TestCase):
     def test_threading_utils_import(self):
         """Test that threading utilities can be imported successfully."""
         try:
-            from threading_utils import ThreadSafeProgressTracker, CancellationEvent, ThreadPoolManager
+            from threading_utils import (
+                CancellationEvent,
+                ThreadPoolManager,
+                ThreadSafeProgressTracker,
+            )
             logger.info("✅ Successfully imported thread-safe components")
             
             # Test basic instantiation
@@ -104,7 +105,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         self.assertTrue(len(progress_updates) > 0, "Should have received progress updates")
         self.assertLess(elapsed, self.test_timeout, "Test should complete within timeout")
         
-        logger.info(f"✅ Progress tracker test passed:")
+        logger.info("✅ Progress tracker test passed:")
         logger.info(f"   - {num_workers} workers processed {files_per_worker} files each")
         logger.info(f"   - Final total: {final_total} (expected: {expected_total})")
         logger.info(f"   - Progress updates: {len(progress_updates)}")
@@ -147,7 +148,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
     def test_threadpool_manager(self):
         """Test ThreadPoolManager provides proper resource cleanup.""" 
         try:
-            from threading_utils import ThreadPoolManager, CancellationEvent
+            from threading_utils import CancellationEvent, ThreadPoolManager
         except ImportError:
             self.skipTest("Threading utilities not available")
         

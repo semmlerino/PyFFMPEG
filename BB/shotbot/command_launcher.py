@@ -13,9 +13,9 @@ from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
 if TYPE_CHECKING:
+    from nuke_script_generator import NukeScriptGenerator as NukeScriptGeneratorType
     from raw_plate_finder import RawPlateFinder as RawPlateFinderType
     from undistortion_finder import UndistortionFinder as UndistortionFinderType
-    from nuke_script_generator import NukeScriptGenerator as NukeScriptGeneratorType
 
 
 class CommandLauncher(QObject):

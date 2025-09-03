@@ -8,10 +8,10 @@ virtualization, and proper update notifications.
 from __future__ import annotations
 
 import logging
+from concurrent.futures import Future
 from enum import IntEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from concurrent.futures import Future
 
 from typing_extensions import override
 
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from cache.thumbnail_loader import ThumbnailCacheResult
 
 from PySide6.QtCore import (
+    Q_ARG,
     QAbstractListModel,
     QByteArray,
     QMetaObject,
@@ -30,12 +31,11 @@ from PySide6.QtCore import (
     QTimer,
     Signal,
     Slot,
-    Q_ARG,
 )
 from PySide6.QtGui import QIcon, QImage, QPixmap
 
-from cache_manager import CacheManager
 from cache.thumbnail_loader import ThumbnailCacheResult
+from cache_manager import CacheManager
 from config import Config
 from shot_model import RefreshResult, Shot
 
@@ -483,14 +483,14 @@ class ShotItemModel(QAbstractListModel):
             cached_path: Path to the cached thumbnail (passed as string for Qt compatibility)
         """
         # Convert string back to Path for internal use
-        cached_path = Path(cached_path)
+        cached_path_obj = Path(cached_path)
         
         # Validation and processing happen atomically in main thread
         shot_data = self._find_shot_by_full_name(shot_full_name)
         if shot_data is not None:
             shot, row = shot_data
             index = self.index(row, 0)
-            self._load_cached_pixmap(cached_path, row, shot, index)
+            self._load_cached_pixmap(cached_path_obj, row, shot, index)
         else:
             logger.debug(f"Shot {shot_full_name} no longer exists in model, ignoring success callback")
     

@@ -23,8 +23,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from test_thread_safety_validation import (
-    ThreadSafetyValidationTests, 
-    run_validation_tests
+    ThreadSafetyValidationTests,
+    run_validation_tests,
 )
 
 

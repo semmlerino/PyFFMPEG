@@ -15,21 +15,22 @@ import io
 import logging
 import os
 import pstats
-import psutil
 import re
 import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+import psutil
+
 # Add current directory for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from previous_shots_finder import PreviousShotsFinder
-    from utils import PathUtils, FileUtils, get_cache_stats, clear_all_caches
-    from shot_model import Shot
     from config import Config
+    from previous_shots_finder import PreviousShotsFinder
+    from shot_model import Shot
+    from utils import FileUtils, PathUtils, clear_all_caches, get_cache_stats
     shotbot_available = True
 except ImportError:
     print("Warning: ShotBot modules not available - using mock implementations")

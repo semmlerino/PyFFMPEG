@@ -330,11 +330,11 @@ class ShotModel(BaseShotModel):
         return None
 
     @override
-    def find_shot_by_name(self, full_name: str) -> Shot | None:
+    def find_shot_by_name(self, full_name: str) -> "Shot | None":  # type: ignore[override]
         """Find shot by full name."""
         for shot in self.shots:
             if shot.full_name == full_name:
-                return shot
+                return shot  # type: ignore[return-value]
         return None
 
     def get_shot_by_name(self, full_name: str) -> Shot | None:

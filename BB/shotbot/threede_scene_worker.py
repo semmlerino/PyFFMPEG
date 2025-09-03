@@ -8,7 +8,15 @@ from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QMutex, QThread, QWaitCondition, Signal, QObject, QMetaObject, Qt, Slot, QTimer
+from PySide6.QtCore import (
+    QMutex,
+    QObject,
+    Qt,
+    QThread,
+    QWaitCondition,
+    Signal,
+    Slot,
+)
 
 from config import Config
 from thread_safe_worker import ThreadSafeWorker
@@ -38,7 +46,7 @@ class QtThreadSafeEmitter(QObject):
     # Internal signals for thread-safe communication
     _progress_signal = Signal(int, str)  # files_found, status
 
-    def __init__(self, worker_instance: 'ThreeDESceneWorker') -> None:
+    def __init__(self, worker_instance: ThreeDESceneWorker) -> None:
         """Initialize the thread-safe emitter.
         
         Args:

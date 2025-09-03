@@ -191,13 +191,13 @@ class MainWindow(QMainWindow):
         if use_legacy:
             logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
             # ShotModel inherits from BaseShotModel  
-            shot_model_instance = cast(BaseShotModel, ShotModel(self.cache_manager))
+            shot_model_instance = cast("BaseShotModel", ShotModel(self.cache_manager))
             self.shot_model = shot_model_instance
         else:
             logger.info("Using OptimizedShotModel with 366x faster startup")
             # OptimizedShotModel inherits from BaseShotModel
             optimized_model = OptimizedShotModel(self.cache_manager)
-            self.shot_model = cast(BaseShotModel, optimized_model)
+            self.shot_model = cast("BaseShotModel", optimized_model)
             # Initialize async loading for immediate UI display
             init_result = optimized_model.initialize_async()
             if init_result.success:

@@ -9,8 +9,15 @@ from __future__ import annotations
 
 import logging
 
-from typing_extensions import override
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QRect, QRectF, QSize, Qt, Signal
+from PySide6.QtCore import (
+    QModelIndex,
+    QPersistentModelIndex,
+    QRect,
+    QRectF,
+    QSize,
+    Qt,
+    Signal,
+)
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -27,6 +34,7 @@ from PySide6.QtWidgets import (
     QStyleOptionViewItem,
     QWidget,
 )
+from typing_extensions import override
 
 from config import Config
 from shot_item_model import ShotRole
