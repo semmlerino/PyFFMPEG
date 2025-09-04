@@ -767,3 +767,44 @@ class LauncherManagerDialog(QDialog):
                 logger.info(f"Successfully launched: {launcher.name}")
             else:
                 logger.error(f"Failed to launch: {launcher.name}")
+    
+    def closeEvent(self, event):
+        """Clean up signal connections on close."""
+        # Disconnect launcher manager signals
+        try:
+            self.launcher_manager.launchers_changed.disconnect(self._load_launchers)
+            self.launcher_manager.execution_started.disconnect(self._on_execution_started)
+            self.launcher_manager.execution_finished.disconnect(self._on_execution_finished)
+        except (RuntimeError, TypeError):
+            # Signals may already be disconnected
+            pass
+        
+        # Disconnect preview panel signals
+        try:
+            self.preview_panel.launch_requested.disconnect(self._launch_launcher)
+            self.preview_panel.edit_requested.disconnect(self._edit_launcher)
+            self.preview_panel.delete_requested.disconnect(self._delete_launcher)
+        except (RuntimeError, TypeError):
+            pass
+        
+        # Disconnect list widget signals
+        try:
+            self.launcher_list.itemSelectionChanged.disconnect(self._on_selection_changed)
+            self.launcher_list.itemDoubleClicked.disconnect(self._on_double_click)
+        except (RuntimeError, TypeError):
+            pass
+        
+        # Disconnect search field
+        try:
+            self.search_field.textChanged.disconnect(self._filter_launchers)
+        except (RuntimeError, TypeError):
+            pass
+        
+        # Disconnect buttons
+        try:
+            self.add_button.clicked.disconnect(self._add_launcher)
+            self.close_button.clicked.disconnect(self.close)
+        except (RuntimeError, TypeError):
+            pass
+        
+        event.accept()

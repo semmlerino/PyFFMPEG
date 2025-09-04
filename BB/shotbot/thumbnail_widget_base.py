@@ -20,6 +20,8 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
+
+from runnable_tracker import get_tracker
 from PySide6.QtGui import (
     QColor,
     QContextMenuEvent,
@@ -63,6 +65,13 @@ class FolderOpenerWorker(QRunnable):
     @Slot()
     def run(self):
         """Open the folder using the appropriate method for the platform."""
+        tracker = get_tracker()
+        metadata = {
+            "type": "FolderOpenerWorker",
+            "folder_path": self.folder_path,
+        }
+        tracker.register(self, metadata)
+        
         try:
             # Ensure we have a proper absolute path
             folder_path = self.folder_path
@@ -139,6 +148,9 @@ class FolderOpenerWorker(QRunnable):
                     self.signals.error.emit(error_msg)
                 except RuntimeError:
                     pass  # Signals object was deleted
+        finally:
+            # Always unregister from tracker when done
+            tracker.unregister(self)
 
 
 class LoadingState(Enum):
@@ -186,6 +198,13 @@ class BaseThumbnailLoader(QRunnable):
 
         Uses QImage for thread safety - QPixmap can only be used in the main GUI thread.
         """
+        tracker = get_tracker()
+        metadata = {
+            "type": "BaseThumbnailLoader",
+            "path": str(self.path),
+        }
+        tracker.register(self, metadata)
+        
         if not self.path or not self.path.exists():
             logger.warning(f"Thumbnail path does not exist: {self.path}")
             # Safe signal emission
@@ -282,6 +301,8 @@ class BaseThumbnailLoader(QRunnable):
                 del image
             if pixmap is not None:
                 del pixmap
+            # Always unregister from tracker when done
+            tracker.unregister(self)
 
 
 class ThumbnailWidgetBase(QFrame):

@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal
+
+from runnable_tracker import get_tracker
 from PySide6.QtGui import QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -293,6 +295,13 @@ class InfoPanelPixmapLoader(QRunnable):
 
     def run(self):
         """Load pixmap in background thread."""
+        tracker = get_tracker()
+        metadata = {
+            "type": "InfoPanelPixmapLoader",
+            "path": str(self.path),
+        }
+        tracker.register(self, metadata)
+        
         try:
             from config import Config
 
@@ -339,3 +348,6 @@ class InfoPanelPixmapLoader(QRunnable):
         except Exception as e:
             logger.error(f"Error loading info panel thumbnail {self.path}: {e}")
             self.signals.failed.emit()
+        finally:
+            # Always unregister from tracker when done
+            tracker.unregister(self)

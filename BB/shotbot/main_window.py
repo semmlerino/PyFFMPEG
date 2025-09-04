@@ -1827,6 +1827,11 @@ class MainWindow(QMainWindow):
                 if hasattr(self.persistent_terminal, "cleanup_fifo_only"):
                     self.persistent_terminal.cleanup_fifo_only()
 
+        # Clean up any remaining QRunnables in the thread pool
+        from runnable_tracker import cleanup_all_runnables
+        logger.debug("Cleaning up tracked QRunnables")
+        cleanup_all_runnables()
+        
         self._save_settings()
         event.accept()
 

@@ -593,6 +593,16 @@ class LauncherManager(QObject):
     def shutdown(self) -> None:
         """Shutdown the launcher manager and clean up resources."""
         logger.info("Shutting down LauncherManager")
+        
+        # Disconnect signals to prevent memory leaks
+        try:
+            self._process_manager.process_started.disconnect(self.command_started)
+            self._process_manager.process_finished.disconnect(self.command_finished)
+            self._process_manager.process_error.disconnect(self.command_error)
+        except (RuntimeError, TypeError):
+            # Signals may already be disconnected
+            pass
+        
         self._process_manager.shutdown()
         logger.info("LauncherManager shutdown complete")
 

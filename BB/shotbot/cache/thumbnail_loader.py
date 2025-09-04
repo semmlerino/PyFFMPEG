@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, QRunnable, QWaitCondition, Signal
 
+from runnable_tracker import get_tracker
+
 if TYPE_CHECKING:
     from .failure_tracker import FailureTracker
     from .thumbnail_processor import ThumbnailProcessor
@@ -174,6 +176,15 @@ class ThumbnailLoader(QRunnable):
 
     def run(self) -> None:
         """Process the thumbnail in background with result synchronization."""
+        tracker = get_tracker()
+        metadata = {
+            "type": "ThumbnailLoader",
+            "shot": self.shot,
+            "show": self.show,
+            "sequence": self.sequence,
+        }
+        tracker.register(self, metadata)
+        
         cache_key = f"{self.show}_{self.sequence}_{self.shot}"
 
         try:
@@ -243,6 +254,9 @@ class ThumbnailLoader(QRunnable):
                     pass  # Signals deleted
 
             logger.error(error_msg)
+        finally:
+            # Always unregister from tracker when done
+            tracker.unregister(self)
 
     def get_cache_key(self) -> str:
         """Get the cache key for this thumbnail.
