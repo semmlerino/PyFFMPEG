@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Interactive demo script for ShotBot mock mode.
+
+This script demonstrates that ShotBot can run without VFX infrastructure.
+"""
+
+import sys
+import time
+import json
+from pathlib import Path
+
+def test_mock_environment():
+    """Test that mock environment is working."""
+    print("=" * 60)
+    print("SHOTBOT MOCK MODE DEMONSTRATION")
+    print("=" * 60)
+    print()
+    
+    # 1. Show that mock data is loaded
+    demo_shots_path = Path("demo_shots.json")
+    with open(demo_shots_path) as f:
+        data = json.load(f)
+        shots = data["shots"]
+        
+    print("✅ Mock Environment Ready!")
+    print()
+    print(f"📁 Loaded {len(shots)} demo shots from {demo_shots_path.name}:")
+    
+    # Group shots by show
+    by_show = {}
+    for shot in shots:
+        show = shot["show"]
+        if show not in by_show:
+            by_show[show] = []
+        by_show[show].append(f"{shot['seq']}_{shot['shot']}")
+    
+    for show in sorted(by_show.keys()):
+        print(f"\n  🎬 {show}:")
+        for shot_name in by_show[show][:3]:  # Show first 3
+            print(f"     - {shot_name}")
+        if len(by_show[show]) > 3:
+            print(f"     ... and {len(by_show[show])-3} more")
+    
+    print()
+    print("🚀 Mock mode provides:")
+    print("   ✓ No 'ws' command required")
+    print("   ✓ No VFX filesystem needed")
+    print("   ✓ Instant startup (no 2.4s delay)")
+    print("   ✓ Works offline")
+    print()
+    print("📝 To run ShotBot with GUI:")
+    print("   ./venv/bin/python shotbot.py --mock")
+    print()
+    print("   or set environment variable:")
+    print("   SHOTBOT_MOCK=1 ./venv/bin/python shotbot.py")
+    print()
+    
+    # 2. Test that the ProcessPoolManager can be mocked
+    print("🧪 Testing mock ProcessPoolManager...")
+    
+    # Import and mock the ProcessPoolManager
+    from tests.test_doubles_library import TestProcessPool
+    mock_pool = TestProcessPool()
+    
+    # Set up with our demo shots
+    outputs = []
+    for shot in shots:
+        outputs.append(f"workspace /shows/{shot['show']}/shots/{shot['seq']}/{shot['seq']}_{shot['shot']}")
+    
+    mock_pool.set_outputs(*outputs)
+    
+    # Test executing ws -sg
+    result = mock_pool.execute_workspace_command("ws -sg")
+    lines = result.strip().split('\n')
+    
+    print(f"✅ Mock 'ws -sg' returns {len(lines)} shots")
+    print(f"   First shot: {lines[0]}")
+    
+    print()
+    print("=" * 60)
+    print("✨ ShotBot is ready to run in mock mode!")
+    print("=" * 60)
+    
+    return True
+
+if __name__ == "__main__":
+    try:
+        # Check if PySide6 is available
+        try:
+            import PySide6
+            print(f"✅ PySide6 {PySide6.__version__} is installed")
+        except ImportError:
+            print("⚠️  PySide6 not found - GUI won't work, but mock mode is configured")
+            print("   Install with: pip install PySide6")
+        print()
+        
+        success = test_mock_environment()
+        
+        if success:
+            print("\n👉 Ready to run: ./venv/bin/python shotbot.py --mock")
+        
+        sys.exit(0 if success else 1)
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

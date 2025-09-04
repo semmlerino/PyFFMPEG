@@ -71,10 +71,21 @@ class BaseShotModel(QObject):
         )
         self._selected_shot: Shot | None = None
 
-        # Initialize ProcessPoolManager singleton
+        # Initialize ProcessPoolManager via factory for dependency injection support
         if DEBUG_VERBOSE:
-            logger.debug("Getting ProcessPoolManager singleton instance")
-        self._process_pool = ProcessPoolManager.get_instance()
+            logger.debug("Getting ProcessPoolManager instance via factory")
+        
+        # Use the factory for clean dependency injection support
+        try:
+            from process_pool_factory import get_process_pool
+            self._process_pool = get_process_pool()
+            if DEBUG_VERBOSE:
+                logger.debug("Using factory-provided process pool instance")
+        except ImportError:
+            # Fallback to direct access if factory not available
+            if DEBUG_VERBOSE:
+                logger.debug("Factory not available, using direct singleton access")
+            self._process_pool = ProcessPoolManager.get_instance()
 
         # Performance metrics
         self._last_refresh_time = 0.0

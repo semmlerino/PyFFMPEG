@@ -77,8 +77,14 @@ class LauncherManager(QObject):
         self._validator = LauncherValidator()
         self._process_manager = LauncherProcessManager()
 
-        # ProcessPoolManager for optimized command execution
-        self._process_pool = ProcessPoolManager.get_instance()
+        # ProcessPoolManager for optimized command execution (via factory for DI)
+        try:
+            from process_pool_factory import get_process_pool
+            self._process_pool = get_process_pool()
+        except ImportError:
+            # Fallback to direct access if factory not available
+            self._process_pool = ProcessPoolManager.get_instance()
+        
         self._use_process_pool = (
             os.environ.get("SHOTBOT_USE_PROCESS_POOL", "true").lower() == "true"
         )

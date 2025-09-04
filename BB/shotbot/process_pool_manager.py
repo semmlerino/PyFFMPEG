@@ -264,10 +264,29 @@ class ProcessPoolManager(QObject):
         """Get singleton instance.
 
         Thread safety is handled by __new__ method.
+        This method now supports dependency injection through ProcessPoolFactory.
 
         Returns:
             ProcessPoolManager singleton
         """
+        # Check if factory has an override first
+        try:
+            from process_pool_factory import ProcessPoolFactory
+            
+            # If factory has a custom instance, and it's not us, return it
+            factory_instance = ProcessPoolFactory._override
+            if factory_instance is not None and factory_instance is not cls._instance:
+                # This allows mock injection
+                if hasattr(factory_instance, '__class__'):
+                    logger.debug(
+                        f"Using injected instance: {factory_instance.__class__.__name__}"
+                    )
+                return factory_instance  # type: ignore[return-value]
+        except ImportError:
+            # Factory not available, proceed normally
+            pass
+        
+        # Standard singleton pattern
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance

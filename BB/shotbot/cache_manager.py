@@ -66,15 +66,20 @@ class CacheManager(QObject):
         """Initialize cache manager facade with modular components.
 
         Args:
-            cache_dir: Cache directory path. If None, uses default ~/.shotbot/cache
+            cache_dir: Cache directory path. If None, uses mode-appropriate default
         """
         super().__init__()
 
         # Thread safety for coordination
         self._lock: threading.RLock = threading.RLock()
 
-        # Set up cache directory structure
-        self.cache_dir = cache_dir or (Path.home() / ".shotbot" / "cache")
+        # Set up cache directory structure using CacheConfig for mode separation
+        if cache_dir is None:
+            from cache_config import CacheConfig
+            self.cache_dir = CacheConfig.get_cache_directory()
+            logger.debug(f"Using mode-based cache directory: {self.cache_dir}")
+        else:
+            self.cache_dir = cache_dir
         self.thumbnails_dir = self.cache_dir / "thumbnails"
         self.shots_cache_file = self.cache_dir / "shots.json"
         self.threede_scenes_cache_file = self.cache_dir / "threede_scenes.json"

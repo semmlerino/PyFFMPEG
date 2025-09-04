@@ -131,8 +131,13 @@ class SessionWarmer(QThread):
                 return
 
             logger.debug("Starting background session pre-warming")
-            # Get the process pool instance and warm it up
-            pool = ProcessPoolManager.get_instance()
+            # Get the process pool instance and warm it up (via factory for DI)
+            try:
+                from process_pool_factory import get_process_pool
+                pool = get_process_pool()
+            except ImportError:
+                # Fallback to direct access if factory not available
+                pool = ProcessPoolManager.get_instance()
 
             # Check for interruption before executing
             if self.isInterruptionRequested():
@@ -157,9 +162,14 @@ class MainWindow(QMainWindow):
 
         # Initialize shot_model attribute (will be set later based on feature flag)
 
-        # Initialize ProcessPoolManager singleton on main thread first
+        # Initialize ProcessPoolManager on main thread first via factory
         # This prevents race conditions if SessionWarmer tries to create it from a thread
-        ProcessPoolManager.get_instance()
+        try:
+            from process_pool_factory import get_process_pool
+            get_process_pool()  # Initialize early
+        except ImportError:
+            # Fallback to direct access if factory not available
+            ProcessPoolManager.get_instance()
 
         # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager()
@@ -243,7 +253,14 @@ class MainWindow(QMainWindow):
 
     def _setup_ui(self) -> None:
         """Set up the main UI."""
-        self.setWindowTitle(f"{Config.APP_NAME} v{Config.APP_VERSION}")
+        # Check if we're in mock mode
+        is_mock_mode = os.environ.get('SHOTBOT_MOCK', '').lower() in ('1', 'true', 'yes')
+        
+        # Set window title with mock indicator if applicable
+        if is_mock_mode:
+            self.setWindowTitle(f"{Config.APP_NAME} v{Config.APP_VERSION} - 🧪 MOCK MODE")
+        else:
+            self.setWindowTitle(f"{Config.APP_NAME} v{Config.APP_VERSION}")
         self.resize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
 
         # Central widget
@@ -410,6 +427,21 @@ class MainWindow(QMainWindow):
         # Status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
+        
+        # Add mock mode indicator to status bar if in mock mode
+        if is_mock_mode:
+            mock_label = QLabel("🧪 MOCK MODE ACTIVE")
+            mock_label.setStyleSheet("""
+                QLabel {
+                    color: #ffcc00;
+                    font-weight: bold;
+                    padding: 2px 8px;
+                    background-color: rgba(255, 204, 0, 0.2);
+                    border: 1px solid #ffcc00;
+                    border-radius: 3px;
+                }
+            """)
+            self.status_bar.addPermanentWidget(mock_label)
 
         # Initialize notification manager
         _ = NotificationManager.initialize(self, self.status_bar)
