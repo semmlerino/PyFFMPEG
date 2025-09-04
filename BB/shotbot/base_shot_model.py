@@ -10,11 +10,10 @@ from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Signal
 
-from type_definitions import PerformanceMetricsDict
-
 if TYPE_CHECKING:
     from cache_manager import CacheManager
     from shot_model import Shot
+    from type_definitions import PerformanceMetricsDict
 
 from exceptions import WorkspaceError
 from process_pool_manager import ProcessPoolManager

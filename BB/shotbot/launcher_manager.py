@@ -9,8 +9,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Signal
 
@@ -26,7 +25,11 @@ from launcher.process_manager import LauncherProcessManager
 from launcher.repository import LauncherRepository
 from launcher.validator import LauncherValidator
 from process_pool_manager import ProcessPoolManager
-from shot_model import Shot
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from shot_model import Shot
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)

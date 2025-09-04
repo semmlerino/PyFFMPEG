@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import Any, Iterator
-from unittest.mock import Mock
+from typing import TYPE_CHECKING, Any, Iterator
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -33,6 +32,9 @@ from tests.test_type_safe_patterns import (
     create_test_shot_data,
     create_typed_process_pool_mock,
 )
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 
 class TestQApplication:

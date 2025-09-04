@@ -13,16 +13,15 @@ This replaces test_command_launcher.py with a clean, focused test suite.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
 from PySide6.QtTest import QSignalSpy
 
-import subprocess
-
 import command_launcher
 from command_launcher import CommandLauncher
-from tests.test_doubles_library import TestShot, TestSubprocess, SubprocessModuleDouble
+from tests.test_doubles_library import SubprocessModuleDouble, TestShot, TestSubprocess
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]

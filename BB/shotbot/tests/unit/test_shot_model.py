@@ -11,12 +11,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# pyright: basic
+from typing import TYPE_CHECKING
+
 import pytest
 
 from shot_model import RefreshResult, Shot
 
-# pyright: basic
-from tests.unit.test_protocols import TestShotFactory
+if TYPE_CHECKING:
+    from tests.unit.test_protocols import TestShotFactory
 
 
 @pytest.mark.unit

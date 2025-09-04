@@ -13,7 +13,6 @@ Following UNIFIED_TESTING_GUIDE principles:
 from __future__ import annotations
 
 import concurrent.futures
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -28,7 +27,12 @@ try:
 except ImportError:
     PILImage = None
 
+from typing import TYPE_CHECKING
+
 from tests.test_doubles_library import TestSubprocess, ThreadSafeTestImage
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 

@@ -16,10 +16,9 @@ Thread Safety:
 from __future__ import annotations
 
 import logging
-import threading
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import Qt, QThread, Signal, Slot
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, Signal, Slot
 from typing_extensions import override
 
 if TYPE_CHECKING:
@@ -141,7 +140,7 @@ class OptimizedShotModel(BaseShotModel):
         # Background loader with thread safety
         self._async_loader: AsyncShotLoader | None = None
         self._loading_in_progress = False
-        self._loader_lock = threading.Lock()  # Protect loader creation
+        self._loader_lock = QMutex()  # Protect loader creation using Qt's mutex
 
         # Pre-warm strategy
         self._warm_on_startup = True
@@ -194,7 +193,7 @@ class OptimizedShotModel(BaseShotModel):
         Thread-safe method that ensures only one background loader
         is created at a time.
         """
-        with self._loader_lock:
+        with QMutexLocker(self._loader_lock):
             # Double-check inside the lock
             if self._loading_in_progress:
                 logger.warning("Background load already in progress")
@@ -283,7 +282,7 @@ class OptimizedShotModel(BaseShotModel):
         This slot is called when the background loader finishes.
         Properly decorated with @Slot for Qt efficiency.
         """
-        with self._loader_lock:
+        with QMutexLocker(self._loader_lock):
             self._loading_in_progress = False
             # Clean up loader
             if self._async_loader:
@@ -304,7 +303,7 @@ class OptimizedShotModel(BaseShotModel):
     def refresh_strategy(self) -> RefreshResult:
         """Override to use async strategy if no shots loaded yet."""
         # Check loading state with lock held
-        with self._loader_lock:
+        with QMutexLocker(self._loader_lock):
             loading = self._loading_in_progress
 
         if not self.shots and not loading:
@@ -347,7 +346,7 @@ class OptimizedShotModel(BaseShotModel):
         """Get performance metrics including cache statistics."""
         metrics = super().get_performance_metrics()
         # Read loading state with lock held
-        with self._loader_lock:
+        with QMutexLocker(self._loader_lock):
             loading = self._loading_in_progress
 
         metrics.update(

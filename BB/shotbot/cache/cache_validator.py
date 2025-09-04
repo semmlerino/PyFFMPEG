@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from .memory_manager import MemoryManager
 from .storage_backend import StorageBackend
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from type_definitions import (
         ValidationResultDict,
     )
+
+    from .memory_manager import MemoryManager
 
 logger = logging.getLogger(__name__)
 

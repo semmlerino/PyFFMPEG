@@ -6,10 +6,12 @@ extracted from the original launcher_manager.py to improve separation of concern
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import subprocess
 
 
 @dataclass

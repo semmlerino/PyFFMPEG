@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import logging
-import threading
 from concurrent.futures import Future
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QRunnable, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, QRunnable, QWaitCondition, Signal
 
-from .failure_tracker import FailureTracker
-from .thumbnail_processor import ThumbnailProcessor
+if TYPE_CHECKING:
+    from .failure_tracker import FailureTracker
+    from .thumbnail_processor import ThumbnailProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +29,8 @@ class ThumbnailCacheResult:
         self.future: Future[Path | None] = Future()
         self.cache_path: Path | None = None
         self.error: str | None = None
-        self._complete_event = threading.Event()
-        self._completed_lock = threading.Lock()
+        self._complete_condition = QWaitCondition()
+        self._completed_mutex = QMutex()
         self._is_complete = False
 
     def set_result(self, cache_path: Path) -> None:
@@ -38,7 +39,7 @@ class ThumbnailCacheResult:
         Args:
             cache_path: Path to the cached thumbnail
         """
-        with self._completed_lock:
+        with QMutexLocker(self._completed_mutex):
             if self._is_complete:
                 return  # Already completed, ignore
             self._is_complete = True
@@ -48,7 +49,7 @@ class ThumbnailCacheResult:
             self.future.set_result(cache_path)
         except Exception:
             pass  # Future already completed
-        self._complete_event.set()
+        self._complete_condition.wakeAll()
 
     def set_error(self, error: str) -> None:
         """Set error result (thread-safe, prevents multiple completions).
@@ -56,7 +57,7 @@ class ThumbnailCacheResult:
         Args:
             error: Error message describing the failure
         """
-        with self._completed_lock:
+        with QMutexLocker(self._completed_mutex):
             if self._is_complete:
                 return  # Already completed, ignore
             self._is_complete = True
@@ -66,7 +67,7 @@ class ThumbnailCacheResult:
             self.future.set_exception(Exception(error))
         except Exception:
             pass  # Future already completed
-        self._complete_event.set()
+        self._complete_condition.wakeAll()
 
     def wait(self, timeout: float | None = None) -> bool:
         """Wait for completion.
@@ -77,7 +78,16 @@ class ThumbnailCacheResult:
         Returns:
             True if completed within timeout
         """
-        return self._complete_event.wait(timeout)
+        self._completed_mutex.lock()
+        try:
+            if self._is_complete:
+                return True
+            # Convert seconds to milliseconds for Qt
+            timeout_ms = int(timeout * 1000) if timeout is not None else -1
+            result = self._complete_condition.wait(self._completed_mutex, timeout_ms)
+            return result and self._is_complete
+        finally:
+            self._completed_mutex.unlock()
 
     def get_result(self, timeout: float | None = None) -> Path | None:
         """Get result with optional timeout.
@@ -99,7 +109,7 @@ class ThumbnailCacheResult:
         Returns:
             True if operation completed (success or failure)
         """
-        with self._completed_lock:
+        with QMutexLocker(self._completed_mutex):
             return self._is_complete
 
     def __repr__(self) -> str:

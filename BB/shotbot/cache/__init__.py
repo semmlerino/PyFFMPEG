@@ -18,16 +18,16 @@ The main CacheManager acts as a facade maintaining backward compatibility.
 
 from typing import TYPE_CHECKING
 
+from .cache_validator import CacheValidator
+from .failure_tracker import FailureTracker
+from .memory_manager import MemoryManager
+from .shot_cache import ShotCache
+from .storage_backend import StorageBackend
+from .threede_cache import ThreeDECache
+from .thumbnail_loader import ThumbnailLoader
+from .thumbnail_processor import ThumbnailProcessor
+
 # Import components for public API
-if TYPE_CHECKING:
-    from .cache_validator import CacheValidator
-    from .failure_tracker import FailureTracker
-    from .memory_manager import MemoryManager
-    from .shot_cache import ShotCache
-    from .storage_backend import StorageBackend
-    from .threede_cache import ThreeDECache
-    from .thumbnail_loader import ThumbnailLoader
-    from .thumbnail_processor import ThumbnailProcessor
 
 __all__ = [
     "StorageBackend",

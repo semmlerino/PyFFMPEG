@@ -286,6 +286,11 @@ class TestShot:
         if not self.name:
             self.name = f"{self.sequence}_{self.shot}"
 
+    @property
+    def full_name(self) -> str:
+        """Get full shot name (matches real Shot class interface)."""
+        return f"{self.sequence}_{self.shot}"
+
     def get_thumbnail_path(self) -> Path:
         """Get path to thumbnail with real path construction."""
         return Path(self.workspace_path) / "publish" / "editorial" / "thumbnail.jpg"
@@ -434,6 +439,16 @@ class TestCacheManager(QObject):
 
         self._thumbnail_processor = ThumbnailProcessor()
         self._failure_tracker = FailureTracker()
+
+    @property
+    def test_thumbnail_processor(self) -> ThumbnailProcessor:
+        """Test-only access to thumbnail processor."""
+        return self._thumbnail_processor
+
+    @property
+    def test_failure_tracker(self) -> FailureTracker:
+        """Test-only access to failure tracker."""
+        return self._failure_tracker
 
     def cache_thumbnail(
         self,

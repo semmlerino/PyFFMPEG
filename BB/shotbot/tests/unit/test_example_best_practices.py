@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 import threading
-from pathlib import Path
 
 import pytest
 from PySide6.QtCore import QCoreApplication, QObject, Signal
@@ -16,11 +15,16 @@ try:
 except ImportError:
     Image = None
 
+from typing import TYPE_CHECKING
+
 from cache_manager import CacheManager
 from launcher_manager import LauncherManager
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestShot, TestShotModel, TestSubprocess
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 

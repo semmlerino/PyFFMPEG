@@ -420,16 +420,16 @@ Viewer {{
                 # Node names in Nuke can only contain letters, numbers, and underscores
                 if " name " in line:
                     name_pattern = re.compile(r"(\s+name\s+)([^\s]+)")
-                    
+
                     def sanitize_name(match: re.Match[str]) -> str:
                         prefix = match.group(1)
                         name = match.group(2)
                         # Replace any character that's not alphanumeric or underscore
-                        sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+                        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
                         if sanitized != name:
                             logger.debug(f"Sanitized node name: {name} -> {sanitized}")
                         return prefix + sanitized
-                    
+
                     line = name_pattern.sub(sanitize_name, line)
 
                 # Handle Python blocks - strip indentation from Python code
@@ -448,7 +448,7 @@ Viewer {{
                         python_brace_count += line.count("{")
                     if "}" in line:
                         python_brace_count -= line.count("}")
-                    
+
                     if python_brace_count <= 0:
                         inside_python = False
                         logger.debug("Exiting Python block in copy/paste format")
@@ -458,22 +458,28 @@ Viewer {{
                         # For Python code, use same logic as standard format
                         if stripped:  # Non-empty line
                             indent_count = len(line) - len(line.lstrip())
-                            
+
                             # Top-level Python statements should have NO indentation
-                            if stripped.startswith(('import ', 'from ', 'def ', 'class ')):
+                            if stripped.startswith(
+                                ("import ", "from ", "def ", "class ")
+                            ):
                                 imported_lines.append(stripped)
                             else:
                                 # Preserve relative indentation for nested blocks
                                 if indent_count >= 5:
-                                    dedented = line[5:] if len(line) > 5 else line.lstrip()
+                                    dedented = (
+                                        line[5:] if len(line) > 5 else line.lstrip()
+                                    )
                                 elif indent_count == 4:
                                     dedented = line[4:]
                                 else:
                                     dedented = line.lstrip()
                                 imported_lines.append(dedented)
-                            
+
                             if imported_lines[-1] != line:
-                                logger.debug(f"Dedented Python line in copy/paste: {imported_lines[-1][:50]}...")
+                                logger.debug(
+                                    f"Dedented Python line in copy/paste: {imported_lines[-1][:50]}..."
+                                )
                         else:
                             # Empty line in Python block
                             imported_lines.append("")
@@ -640,16 +646,16 @@ Viewer {{
                 # Node names in Nuke can only contain letters, numbers, and underscores
                 if " name " in line:
                     name_pattern = re.compile(r"(\s+name\s+)([^\s]+)")
-                    
+
                     def sanitize_name(match: re.Match[str]) -> str:
                         prefix = match.group(1)
                         name = match.group(2)
                         # Replace any character that's not alphanumeric or underscore
-                        sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+                        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
                         if sanitized != name:
                             logger.debug(f"Sanitized node name: {name} -> {sanitized}")
                         return prefix + sanitized
-                    
+
                     line = name_pattern.sub(sanitize_name, line)
 
                 # Skip copy/paste specific lines even in standard format
@@ -682,28 +688,30 @@ Viewer {{
                         python_brace_count += line.count("{")
                     if "}" in line:
                         python_brace_count -= line.count("}")
-                    
+
                     if python_brace_count <= 0:
                         inside_python = False
                         logger.debug("Exiting Python block")
-                        # Import the closing brace with no indentation 
+                        # Import the closing brace with no indentation
                         imported_lines.append("}")
                     else:
                         # For Python code, we need to intelligently strip base indentation
                         if stripped:  # Non-empty line
                             # Find how much the line is indented
                             indent_count = len(line) - len(line.lstrip())
-                            
-                            # For the first non-comment Python line (like 'import'), 
+
+                            # For the first non-comment Python line (like 'import'),
                             # ALL indentation should be removed since Python code starts at column 0
-                            if stripped.startswith(('import ', 'from ', 'def ', 'class ')):
+                            if stripped.startswith(
+                                ("import ", "from ", "def ", "class ")
+                            ):
                                 # This is a top-level Python statement - remove ALL leading whitespace
                                 imported_lines.append(stripped)
                             else:
                                 # For other lines, try to preserve relative indentation
                                 # Detect the base indentation (usually the amount before 'import')
                                 # and remove that amount from all lines
-                                
+
                                 # Common patterns: lines might have 4, 5, 8, or 9+ spaces
                                 # We want to strip the "base" amount but keep Python indentation
                                 if indent_count > 0:
@@ -711,7 +719,9 @@ Viewer {{
                                     # Heuristic: if it has 5+ spaces, first 5 are Nuke indent
                                     if indent_count >= 5:
                                         # Likely pattern: 1 space (Group) + 4 spaces (python block)
-                                        dedented = line[5:] if len(line) > 5 else line.lstrip()
+                                        dedented = (
+                                            line[5:] if len(line) > 5 else line.lstrip()
+                                        )
                                     elif indent_count == 4:
                                         # Standard 4-space indent - remove it
                                         dedented = line[4:]
@@ -721,8 +731,10 @@ Viewer {{
                                     imported_lines.append(dedented)
                                 else:
                                     imported_lines.append(stripped)
-                            
-                            logger.debug(f"Processed Python line: {imported_lines[-1][:50]}...")
+
+                            logger.debug(
+                                f"Processed Python line: {imported_lines[-1][:50]}..."
+                            )
                         else:
                             # Empty line in Python block
                             imported_lines.append("")

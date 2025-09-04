@@ -18,10 +18,12 @@ import pstats
 import re
 import sys
 import time
-from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 import psutil
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Add current directory for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

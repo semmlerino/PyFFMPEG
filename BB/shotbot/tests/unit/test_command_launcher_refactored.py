@@ -22,9 +22,9 @@ from config import Config
 from shot_model import Shot
 from tests.test_doubles_library import (
     SubprocessModuleDouble,
-    TestSubprocess,
-    TestShot,
     TestCompletedProcess,
+    TestShot,
+    TestSubprocess,
 )
 from threede_scene_model import ThreeDEScene
 

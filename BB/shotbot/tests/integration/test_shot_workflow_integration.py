@@ -128,8 +128,8 @@ workspace /shows/show1/shots/seq02/seq02_0010
         ]
 
         # Store shots in cache
-        cache_manager._storage_backend.write_json(
-            cache_manager._shot_cache._cache_file,
+        cache_manager.test_storage_backend.write_json(
+            cache_manager.test_shot_cache._cache_file,
             {"timestamp": datetime.now().isoformat(), "shots": test_shots_data},
         )
 

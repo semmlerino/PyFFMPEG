@@ -6,9 +6,10 @@ keyboard navigation, and tooltip management.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
-from PySide6.QtWidgets import QListView, QPushButton, QSlider, QTabWidget, QWidget
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QListView, QPushButton, QSlider, QTabWidget, QWidget
 
 
 @runtime_checkable

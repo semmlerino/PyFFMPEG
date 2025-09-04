@@ -358,7 +358,7 @@ class TestThreeDEShotGridSelection:
         spy = QSignalSpy(threede_grid.scene_selected)
 
         # Simulate click
-        threede_grid._on_thumbnail_clicked(scene)
+        threede_grid._on_item_clicked(scene)
 
         assert threede_grid.selected_scene == scene
         assert spy.count() == 1
@@ -377,7 +377,7 @@ class TestThreeDEShotGridSelection:
         spy = QSignalSpy(threede_grid.scene_double_clicked)
 
         # Simulate double click
-        threede_grid._on_thumbnail_double_clicked(scene)
+        threede_grid._on_item_double_clicked(scene)
 
         assert spy.count() == 1
         assert spy.at(0)[0] == scene
@@ -402,13 +402,13 @@ class TestThreeDEShotGridSelection:
 
         # Select first scene
         scene1 = sample_scenes[0]
-        threede_grid._on_thumbnail_clicked(scene1)
+        threede_grid._on_item_clicked(scene1)
         thumb1 = threede_grid.thumbnails[scene1.display_name]
         assert thumb1._selected is True
 
         # Select second scene
         scene2 = sample_scenes[1]
-        threede_grid._on_thumbnail_clicked(scene2)
+        threede_grid._on_item_clicked(scene2)
         thumb2 = threede_grid.thumbnails[scene2.display_name]
 
         # First should be deselected
@@ -424,7 +424,7 @@ class TestThreeDEShotGridKeyboardNavigation:
     def test_arrow_key_right(self, threede_grid, sample_scenes):
         """Test right arrow navigation."""
         threede_grid.refresh_scenes()
-        threede_grid.selected_scene = sample_scenes[0]
+        threede_grid.select_scene(sample_scenes[0])
 
         # Create real key event
         from PySide6.QtCore import QEvent
@@ -442,7 +442,7 @@ class TestThreeDEShotGridKeyboardNavigation:
     def test_arrow_key_left(self, threede_grid, sample_scenes):
         """Test left arrow navigation."""
         threede_grid.refresh_scenes()
-        threede_grid.selected_scene = sample_scenes[2]
+        threede_grid.select_scene(sample_scenes[2])
 
         # Create real key event
         from PySide6.QtCore import QEvent
@@ -460,7 +460,7 @@ class TestThreeDEShotGridKeyboardNavigation:
     def test_arrow_key_down(self, threede_grid, sample_scenes):
         """Test down arrow navigation."""
         threede_grid.refresh_scenes()
-        threede_grid.selected_scene = sample_scenes[0]
+        threede_grid.select_scene(sample_scenes[0])
 
         # Create real key event
         from PySide6.QtCore import QEvent
@@ -485,7 +485,7 @@ class TestThreeDEShotGridKeyboardNavigation:
     def test_home_key(self, threede_grid, sample_scenes):
         """Test Home key navigation."""
         threede_grid.refresh_scenes()
-        threede_grid.selected_scene = sample_scenes[3]
+        threede_grid.select_scene(sample_scenes[3])
 
         # Create real key event
         from PySide6.QtCore import QEvent
@@ -503,7 +503,7 @@ class TestThreeDEShotGridKeyboardNavigation:
     def test_end_key(self, threede_grid, sample_scenes):
         """Test End key navigation."""
         threede_grid.refresh_scenes()
-        threede_grid.selected_scene = sample_scenes[0]
+        threede_grid.select_scene(sample_scenes[0])
 
         # Create real key event
         from PySide6.QtCore import QEvent
@@ -521,7 +521,7 @@ class TestThreeDEShotGridKeyboardNavigation:
     def test_enter_key(self, threede_grid, qtbot, sample_scenes):
         """Test Enter key triggers double click."""
         threede_grid.refresh_scenes()
-        threede_grid.selected_scene = sample_scenes[0]
+        threede_grid.select_scene(sample_scenes[0])
 
         # Create real key event
         from PySide6.QtCore import QEvent
@@ -543,7 +543,7 @@ class TestThreeDEShotGridKeyboardNavigation:
         from PySide6.QtGui import QKeyEvent
 
         threede_grid.refresh_scenes()
-        threede_grid.selected_scene = sample_scenes[0]
+        threede_grid.select_scene(sample_scenes[0])
 
         # Test various app shortcuts
         shortcuts = {
@@ -587,7 +587,7 @@ class TestThreeDEShotGridKeyboardNavigation:
     def test_ensure_widget_visible(self, threede_grid, sample_scenes):
         """Test ensuring selected widget is visible after navigation."""
         threede_grid.refresh_scenes()
-        threede_grid.selected_scene = sample_scenes[0]
+        threede_grid.select_scene(sample_scenes[0])
 
         # Create real key event
         from PySide6.QtCore import QEvent

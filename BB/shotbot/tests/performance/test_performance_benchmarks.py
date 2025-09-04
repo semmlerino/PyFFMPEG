@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import statistics
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from PySide6.QtGui import QColor, QImage
@@ -27,6 +27,9 @@ from cache_manager import CacheManager
 # Import process pool manager
 from process_pool_manager import ProcessPoolManager
 from shot_model import Shot
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Create alias for optimized version (same implementation for now)
 OptimizedProcessPoolManager = ProcessPoolManager

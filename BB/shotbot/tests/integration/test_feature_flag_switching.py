@@ -66,8 +66,14 @@ class TestFeatureFlagSwitching:
 
             # Mock QTimer to prevent delayed operations
             with patch("PySide6.QtCore.QTimer.singleShot"):
-                # Mock ProcessPoolManager to avoid subprocess calls
-                with patch("shot_model_optimized.ProcessPoolManager"):
+                # Mock ProcessPoolManager.get_instance() to avoid subprocess calls
+                with patch(
+                    "process_pool_manager.ProcessPoolManager.get_instance"
+                ) as mock_get_instance:
+                    # Return a test double for ProcessPoolManager
+                    from tests.test_doubles_library import TestProcessPool
+
+                    mock_get_instance.return_value = TestProcessPool()
                     window = MainWindow()
                     qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
@@ -146,7 +152,12 @@ class TestFeatureFlagSwitching:
                         # Handle different model types with appropriate mocking
                         if not expected_legacy:
                             # Use OptimizedShotModel, need to mock ProcessPoolManager
-                            with patch("shot_model_optimized.ProcessPoolManager"):
+                            with patch(
+                                "process_pool_manager.ProcessPoolManager.get_instance"
+                            ) as mock_get_instance:
+                                from tests.test_doubles_library import TestProcessPool
+
+                                mock_get_instance.return_value = TestProcessPool()
                                 window = MainWindow()
                                 qtbot.addWidget(
                                     window
@@ -365,7 +376,12 @@ class TestMainWindowIntegration:
             # Mock QTimer to prevent delayed operations
             with patch("PySide6.QtCore.QTimer.singleShot"):
                 # Mock ProcessPoolManager for OptimizedShotModel
-                with patch("shot_model_optimized.ProcessPoolManager"):
+                with patch(
+                    "process_pool_manager.ProcessPoolManager.get_instance"
+                ) as mock_get_instance:
+                    from tests.test_doubles_library import TestProcessPool
+
+                    mock_get_instance.return_value = TestProcessPool()
                     # Should not raise any exceptions
                     window = MainWindow()
                     qtbot.addWidget(window)  # CRITICAL: Register for cleanup
@@ -424,7 +440,12 @@ class TestMainWindowIntegration:
 
                 # Mock QTimer to prevent delayed operations
                 with patch("PySide6.QtCore.QTimer.singleShot"):
-                    with patch("shot_model_optimized.ProcessPoolManager"):
+                    with patch(
+                        "process_pool_manager.ProcessPoolManager.get_instance"
+                    ) as mock_get_instance:
+                        from tests.test_doubles_library import TestProcessPool
+
+                        mock_get_instance.return_value = TestProcessPool()
                         window = MainWindow()
                         qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 

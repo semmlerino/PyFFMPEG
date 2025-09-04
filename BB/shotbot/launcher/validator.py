@@ -12,10 +12,12 @@ import re
 import string
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from config import Config
-from launcher.models import CustomLauncher, LauncherEnvironment
+
+if TYPE_CHECKING:
+    from launcher.models import CustomLauncher, LauncherEnvironment
 
 # Import Shot conditionally since it requires Qt
 try:

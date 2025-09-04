@@ -47,7 +47,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QIcon
@@ -75,7 +75,9 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
-from settings_manager import SettingsManager
+
+if TYPE_CHECKING:
+    from settings_manager import SettingsManager
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)

@@ -27,7 +27,7 @@ Focus areas:
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from PySide6.QtCore import QCoreApplication
@@ -36,6 +36,9 @@ from PySide6.QtTest import QSignalSpy
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
 from tests.test_doubles_library import TestCompletedProcess
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 

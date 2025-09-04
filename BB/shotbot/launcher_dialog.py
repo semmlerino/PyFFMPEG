@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QShortcut
@@ -31,8 +32,10 @@ from launcher.models import (
     LauncherEnvironment,
     LauncherTerminal,
 )
-from launcher_manager import LauncherManager
 from notification_manager import NotificationManager, NotificationType
+
+if TYPE_CHECKING:
+    from launcher_manager import LauncherManager
 
 logger = logging.getLogger(__name__)
 

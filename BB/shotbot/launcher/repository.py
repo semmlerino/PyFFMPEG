@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import TYPE_CHECKING
 
-from launcher.config_manager import LauncherConfigManager
-from launcher.models import CustomLauncher
+if TYPE_CHECKING:
+    from launcher.config_manager import LauncherConfigManager
+    from launcher.models import CustomLauncher
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)

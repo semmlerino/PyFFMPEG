@@ -28,7 +28,7 @@ from tests.test_doubles_extended import TestCommand
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestShot, TestSubprocess, SubprocessModuleDouble
+from tests.test_doubles_library import SubprocessModuleDouble, TestShot, TestSubprocess
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]

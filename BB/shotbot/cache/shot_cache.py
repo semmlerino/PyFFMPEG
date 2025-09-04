@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import TYPE_CHECKING, Sequence
 
 from config import Config
@@ -12,9 +11,11 @@ from config import Config
 from .storage_backend import StorageBackend
 
 if TYPE_CHECKING:
-    from shot_model import Shot
+    from pathlib import Path
 
-from type_definitions import CacheDataDict, CacheInfoDict, ShotDict
+    from shot_model import Shot
+    from type_definitions import CacheDataDict, CacheInfoDict, ShotDict
+
 
 logger = logging.getLogger(__name__)
 

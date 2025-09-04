@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from config import Config
-from type_definitions import CacheDataDict, CacheInfoDict, ThreeDESceneDict
 
 from .storage_backend import StorageBackend
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from type_definitions import CacheDataDict, CacheInfoDict, ThreeDESceneDict
 
 logger = logging.getLogger(__name__)
 

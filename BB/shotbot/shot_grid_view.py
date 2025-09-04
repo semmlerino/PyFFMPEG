@@ -8,6 +8,7 @@ and proper Model/View integration.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QModelIndex,
@@ -18,7 +19,6 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
@@ -34,6 +34,9 @@ from config import Config
 from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotItemModel, ShotRole
 from thumbnail_widget_base import FolderOpenerWorker
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
 
 logger = logging.getLogger(__name__)
 

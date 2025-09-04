@@ -1079,10 +1079,13 @@ class TestCacheManagerThreading:
 
             # Modify one instance
             cache1._memory_usage_bytes = 1000
-            cache1._cached_thumbnails["test"] = ThreadSafeTestImage(100, 100)
+            # Use proper API to track an item instead of direct dict modification
+            test_path = Path("test.jpg")
+            cache1.test_memory_manager.track_item(test_path, 12345)
 
             # Verify other instance is unaffected (they are independent variables)
-            assert cache1._memory_usage_bytes == 1000
+            # Note: track_item adds 12345 bytes to the 1000 we set manually
+            assert cache1._memory_usage_bytes == 1000 + 12345  # 13345
             assert cache2._memory_usage_bytes == 0
             assert len(cache1._cached_thumbnails) == 1
             assert len(cache2._cached_thumbnails) == 0

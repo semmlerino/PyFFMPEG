@@ -8,7 +8,6 @@ virtualization, and proper update notifications.
 from __future__ import annotations
 
 import logging
-from concurrent.futures import Future
 from enum import IntEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -16,6 +15,8 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import override
 
 if TYPE_CHECKING:
+    from concurrent.futures import Future
+
     from cache.thumbnail_loader import ThumbnailCacheResult
 
 from PySide6.QtCore import (

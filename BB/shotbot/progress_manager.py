@@ -57,16 +57,17 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable, Iterator
-
-from PySide6.QtWidgets import (
-    QProgressBar,
-    QProgressDialog,
-    QPushButton,
-    QStatusBar,
-)
+from typing import TYPE_CHECKING, Callable, Iterator
 
 from notification_manager import NotificationManager
+
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import (
+        QProgressBar,
+        QProgressDialog,
+        QPushButton,
+        QStatusBar,
+    )
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)

@@ -78,15 +78,14 @@ if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
+    from launcher.models import CustomLauncher
     from launcher_dialog import LauncherManagerDialog
     from launcher_manager import LauncherManager
 
 # Runtime imports (needed at runtime)
-from base_shot_model import BaseShotModel  # Need at runtime for isinstance checks
 from cache_manager import CacheManager  # Need at runtime for instantiation
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
-from launcher.models import CustomLauncher  # Need for type annotations
 from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
 from launcher_manager import LauncherManager  # Need at runtime
 from log_viewer import LogViewer
@@ -695,7 +694,7 @@ class MainWindow(QMainWindow):
                     "3DE worker still running, will stop before starting new one",
                 )
                 worker_to_stop = self._threede_worker
-                self._threede_worker = None
+                # Don't clear the reference yet - prevents race condition
 
         # Stop old worker outside of mutex to avoid deadlock
         if worker_to_stop:
@@ -707,6 +706,11 @@ class MainWindow(QMainWindow):
                 # Use safe_terminate which avoids dangerous terminate() call
                 worker_to_stop.safe_terminate()
             worker_to_stop.deleteLater()
+            
+            # Clear reference after worker is stopped, with mutex protection
+            with QMutexLocker(self._worker_mutex):
+                if self._threede_worker == worker_to_stop:
+                    self._threede_worker = None
 
         # Check once more if closing (could have changed while stopping worker)
         if self._closing:
@@ -1783,9 +1787,14 @@ class MainWindow(QMainWindow):
                     self._session_warmer.requestInterruption()
                     # Session warming is non-critical, give it max 2 seconds
                     if not self._session_warmer.wait(2000):
-                        logger.warning("Session warmer didn't finish gracefully")
-                        # DO NOT use terminate() - just abandon the thread
-                        # Qt will clean it up on exit
+                        logger.warning("Session warmer didn't finish gracefully, attempting quit")
+                        # Try quit() which is safer than terminate()
+                        self._session_warmer.quit()
+                        # Give it one more second
+                        if not self._session_warmer.wait(1000):
+                            logger.warning("Session warmer thread abandoned - will be cleaned on exit")
+                            # DO NOT use terminate() - just abandon the thread
+                            # Qt will clean it up on exit
                 self._session_warmer.deleteLater()
                 self._session_warmer = None
 

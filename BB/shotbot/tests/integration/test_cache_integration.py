@@ -125,13 +125,13 @@ class TestCacheIntegration:
         test_file = self.cache_dir / "test_storage.json"
 
         # Write data atomically
-        cache_manager._storage_backend.write_json(test_file, test_data)  # type: ignore[attr-defined]
+        cache_manager.test_storage_backend.write_json(test_file, test_data)
 
         # Verify file exists
         assert test_file.exists()
 
         # Read data back
-        loaded_data = cache_manager._storage_backend.read_json(test_file)  # type: ignore[attr-defined]
+        loaded_data = cache_manager.test_storage_backend.read_json(test_file)
 
         # Verify data integrity
         assert loaded_data == test_data
@@ -142,10 +142,10 @@ class TestCacheIntegration:
         updated_data = test_data.copy()
         updated_data["new_key"] = "new_value"
 
-        cache_manager._storage_backend.write_json(test_file, updated_data)  # type: ignore[attr-defined]
+        cache_manager.test_storage_backend.write_json(test_file, updated_data)
 
         # Verify update worked
-        final_data = cache_manager._storage_backend.read_json(test_file)  # type: ignore[attr-defined]
+        final_data = cache_manager.test_storage_backend.read_json(test_file)
         assert final_data["new_key"] == "new_value"
         assert final_data["test_key"] == "test_value"  # Original data preserved
 
@@ -160,7 +160,7 @@ class TestCacheIntegration:
         operation_key = "test_thumbnail_operation"
 
         # Initially should allow retry (no failures)
-        should_retry, reason = cache_manager._failure_tracker.should_retry(
+        should_retry, reason = cache_manager.test_failure_tracker.should_retry(
             operation_key
         )
         assert should_retry is True
@@ -168,19 +168,19 @@ class TestCacheIntegration:
 
         # Record multiple failures
         for i in range(3):
-            cache_manager._failure_tracker.record_failure(
+            cache_manager.test_failure_tracker.record_failure(
                 operation_key, f"Test failure {i}"
             )
 
         # Should now be blocked due to exponential backoff
-        should_retry, reason = cache_manager._failure_tracker.should_retry(
+        should_retry, reason = cache_manager.test_failure_tracker.should_retry(
             operation_key
         )
         assert should_retry is False
         assert "retry in" in reason  # Message includes retry time
 
         # Get failure status - returns dict of all failures
-        all_failures = cache_manager._failure_tracker.get_failure_status()
+        all_failures = cache_manager.test_failure_tracker.get_failure_status()
         assert operation_key in all_failures
         failure_info = all_failures[operation_key]
         assert failure_info["attempts"] == 3
@@ -189,10 +189,10 @@ class TestCacheIntegration:
         assert "error" in failure_info  # Last error message
 
         # Clear failures
-        cache_manager._failure_tracker.clear_failures(operation_key)
+        cache_manager.test_failure_tracker.clear_failures(operation_key)
 
         # Should allow retry again
-        should_retry, reason = cache_manager._failure_tracker.should_retry(
+        should_retry, reason = cache_manager.test_failure_tracker.should_retry(
             operation_key
         )
         assert should_retry is True

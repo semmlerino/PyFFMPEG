@@ -12,12 +12,14 @@ to ensure type safety without over-specification.
 
 from __future__ import annotations
 
-import pathlib
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import pytest
 
-from shot_model import Shot
+if TYPE_CHECKING:
+    import pathlib
+
+    from shot_model import Shot
 
 pytestmark = pytest.mark.unit
 

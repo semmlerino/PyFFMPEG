@@ -5,15 +5,17 @@ from __future__ import annotations
 import logging
 import threading
 from pathlib import Path
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from base_shot_model import BaseShotModel
 from cache_manager import CacheManager
 from previous_shots_finder import ParallelShotsFinder
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
+
+if TYPE_CHECKING:
+    from base_shot_model import BaseShotModel
 
 logger = logging.getLogger(__name__)
 

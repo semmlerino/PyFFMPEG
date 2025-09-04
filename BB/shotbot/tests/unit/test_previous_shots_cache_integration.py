@@ -16,7 +16,7 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -26,6 +26,9 @@ from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestShot, TestShotModel
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 

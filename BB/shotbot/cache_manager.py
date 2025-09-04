@@ -31,13 +31,13 @@ from cache.thumbnail_loader import ThumbnailCacheResult, ThumbnailLoader
 from cache.thumbnail_processor import ThumbnailProcessor
 from config import Config
 from exceptions import CacheError, ThumbnailError
-from type_definitions import (
-    ShotDict,
-    ThreeDESceneDict,
-)
 
 if TYPE_CHECKING:
     from shot_model import Shot
+    from type_definitions import (
+        ShotDict,
+        ThreeDESceneDict,
+    )
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -121,7 +121,7 @@ class CacheManager(QObject):
         """Backward compatibility property for memory tracking."""
         # Return direct reference for backward compatibility with tests
         # Note: In production code, use get_memory_usage() for read-only access
-        return self._memory_manager._cached_items
+        return self._memory_manager.cached_items
 
     @property
     def _memory_usage_bytes(self) -> int:
@@ -143,7 +143,9 @@ class CacheManager(QObject):
         """Backward compatibility setter for memory limit (test use only)."""
         # Note: In production, memory limit should be set via constructor
         # This setter exists only for backward compatibility with existing tests
-        self._memory_manager._max_memory_bytes = value
+        self._memory_manager.set_memory_limit(
+            value // (1024 * 1024)
+        )  # Convert bytes to MB
 
     @property
     def _failed_attempts(self) -> dict[str, dict[str, Any]]:
@@ -431,7 +433,7 @@ class CacheManager(QObject):
         """Get current cache memory usage statistics (backward compatible)."""
         stats = self._memory_manager.get_usage_stats()
         total_bytes = stats.get("total_bytes", 0)
-        max_bytes = self._memory_manager._max_memory_bytes
+        max_bytes = self._memory_manager.max_memory_bytes
 
         # Return old format for backward compatibility
         return {
@@ -591,6 +593,11 @@ class CacheManager(QObject):
         return self._failure_tracker
 
     @property
+    def test_thumbnail_processor(self) -> ThumbnailProcessor:
+        """Test-only access to thumbnail processor."""
+        return self._thumbnail_processor
+
+    @property
     def test_memory_manager(self) -> MemoryManager:
         """Test-only access to memory manager."""
         return self._memory_manager
@@ -703,8 +710,8 @@ class ThumbnailCacheLoader(QRunnable):
                 result_obj = result
 
         self._loader = ThumbnailLoader(
-            cache_manager._thumbnail_processor,
-            cache_manager._failure_tracker,
+            cache_manager.test_thumbnail_processor,
+            cache_manager.test_failure_tracker,
             source_path_obj,
             cache_path,
             show,

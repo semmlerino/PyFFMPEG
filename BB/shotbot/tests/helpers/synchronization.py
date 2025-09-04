@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import time
 from contextlib import contextmanager
-from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from PySide6.QtCore import QEventLoop, QTimer, Signal
 from PySide6.QtTest import QSignalSpy
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class SynchronizationHelpers:

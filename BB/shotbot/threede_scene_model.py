@@ -6,12 +6,14 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from cache_manager import CacheManager
 from config import Config
-from shot_model import Shot
 from utils import PathUtils, ValidationUtils
+
+if TYPE_CHECKING:
+    from shot_model import Shot
 
 logger = logging.getLogger(__name__)
 

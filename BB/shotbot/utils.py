@@ -8,12 +8,14 @@ import re
 import time
 from functools import lru_cache
 from pathlib import Path
-from types import TracebackType
-from typing import Any
-
-from PySide6.QtCore import QSize
+from typing import TYPE_CHECKING, Any
 
 from config import Config
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from PySide6.QtCore import QSize
 
 # Performance monitoring removed - was using archived module
 
@@ -664,7 +666,7 @@ class PathUtils:
     @staticmethod
     def discover_plate_directories(
         base_path: str | Path,
-    ) -> list[tuple[str, int]]:
+    ) -> list[tuple[str, float]]:
         """Discover available plate directories and return them in priority order.
 
         Args:
@@ -677,7 +679,7 @@ class PathUtils:
             return []
 
         path_obj = Path(base_path) if isinstance(base_path, str) else base_path
-        found_plates: list[tuple[str, int]] = []
+        found_plates: list[tuple[str, float]] = []
 
         # Check for each possible plate pattern
         for pattern in Config.PLATE_DISCOVERY_PATTERNS:

@@ -8,13 +8,16 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from cache.cache_validator import CacheValidator
 from cache.memory_manager import MemoryManager
 from cache.storage_backend import StorageBackend
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = pytest.mark.unit
 

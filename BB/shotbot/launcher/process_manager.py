@@ -8,12 +8,11 @@ from __future__ import annotations
 
 import logging
 import subprocess
-import threading
 import time
 import uuid
 from typing import Any
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, QRecursiveMutex, QTimer, Signal
 
 from config import ThreadingConfig
 from launcher.models import ProcessInfo
@@ -47,8 +46,9 @@ class LauncherProcessManager(QObject):
         # Thread-safe process tracking with detailed information
         self._active_processes: dict[str, ProcessInfo] = {}
         self._active_workers: dict[str, LauncherWorker] = {}  # Track worker threads
-        self._process_lock = threading.RLock()
-        self._cleanup_lock = threading.Lock()  # Separate lock for cleanup coordination
+        # Use QRecursiveMutex for PySide6 compatibility
+        self._process_lock = QRecursiveMutex()  # Qt recursive mutex for nested locking
+        self._cleanup_lock = QMutex()  # Qt mutex for cleanup coordination
         self._cleanup_in_progress = False  # Track cleanup state with lock protection
         self._cleanup_scheduled = False  # Prevent cascading cleanup requests
 
@@ -110,7 +110,7 @@ class LauncherProcessManager(QObject):
                 timestamp=time.time(),
             )
 
-            with self._process_lock:
+            with QMutexLocker(self._process_lock):
                 self._active_processes[process_key] = process_info
 
             logger.info(
@@ -168,7 +168,7 @@ class LauncherProcessManager(QObject):
 
             # Add to tracking dictionary BEFORE starting to prevent race condition
             # where worker finishes before being tracked
-            with self._process_lock:
+            with QMutexLocker(self._process_lock):
                 self._active_workers[worker_key] = worker
 
             # Now start the worker - it's already tracked
@@ -219,7 +219,7 @@ class LauncherProcessManager(QObject):
             Number of active processes
         """
         # Thread-safe snapshot
-        with self._process_lock:
+        with QMutexLocker(self._process_lock):
             # Include both subprocess and worker counts
             return len(self._active_processes) + len(self._active_workers)
 
@@ -232,7 +232,7 @@ class LauncherProcessManager(QObject):
         info_list = []
 
         # Get snapshot of processes
-        with self._process_lock:
+        with QMutexLocker(self._process_lock):
             processes_snapshot = list(self._active_processes.items())
             workers_snapshot = list(self._active_workers.items())
 
@@ -284,7 +284,7 @@ class LauncherProcessManager(QObject):
             True if process was terminated, False otherwise
         """
         # Check if it's a subprocess
-        with self._process_lock:
+        with QMutexLocker(self._process_lock):
             if process_key in self._active_processes:
                 process_info = self._active_processes[process_key]
                 try:
@@ -335,7 +335,7 @@ class LauncherProcessManager(QObject):
 
         finished_keys = []
 
-        with self._process_lock:
+        with QMutexLocker(self._process_lock):
             # Create a snapshot to avoid iteration issues
             processes_snapshot = list(self._active_processes.items())
 
@@ -352,7 +352,7 @@ class LauncherProcessManager(QObject):
 
         # Remove finished processes with lock held
         if finished_keys:
-            with self._process_lock:
+            with QMutexLocker(self._process_lock):
                 for key in finished_keys:
                     if key in self._active_processes:
                         process_info = self._active_processes[key]
@@ -370,7 +370,7 @@ class LauncherProcessManager(QObject):
 
         finished_keys = []
 
-        with self._process_lock:
+        with QMutexLocker(self._process_lock):
             # Snapshot for safe iteration
             workers_snapshot = list(self._active_workers.items())
 
@@ -387,7 +387,7 @@ class LauncherProcessManager(QObject):
 
         # Clean up finished workers
         if finished_keys:
-            with self._process_lock:
+            with QMutexLocker(self._process_lock):
                 for key in finished_keys:
                     if key in self._active_workers:
                         logger.debug(f"Removing finished worker {key}")
@@ -409,7 +409,7 @@ class LauncherProcessManager(QObject):
 
     def _perform_cleanup_with_reset(self):
         """Perform cleanup and reset the scheduled flag."""
-        with self._cleanup_lock:
+        with QMutexLocker(self._cleanup_lock):
             self._cleanup_scheduled = False
         self._periodic_cleanup()
 
@@ -422,7 +422,7 @@ class LauncherProcessManager(QObject):
         self._cleanup_retry_timer.stop()
 
         # Get snapshot of active processes
-        with self._process_lock:
+        with QMutexLocker(self._process_lock):
             processes = list(self._active_processes.keys())
             workers = list(self._active_workers.keys())
 

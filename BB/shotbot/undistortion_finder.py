@@ -152,7 +152,7 @@ class UndistortionFinder:
             return None
 
         # Sort by version (newest first) and plate preference (FG > PL > BG > BC)
-        def sort_key(item: tuple[Path, str, str]) -> tuple[int, int]:
+        def sort_key(item: tuple[Path, str, str]) -> tuple[float, int]:
             file_path, version, plate = item
             # Extract version number for sorting (v001 or V001 -> 1)
             version_lower = version.lower()

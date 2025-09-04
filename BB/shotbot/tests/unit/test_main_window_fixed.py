@@ -6,7 +6,7 @@ Background workers are managed properly through Qt mechanisms.
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -19,6 +19,9 @@ from tests.test_doubles_library import (
     TestCompletedProcess,
     TestProcessPool,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 

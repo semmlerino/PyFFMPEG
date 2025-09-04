@@ -43,10 +43,11 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 from PySide6.QtCore import QObject, Signal
-from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication
 
 if TYPE_CHECKING:
+    from PySide6.QtGui import QPixmap
+
     from cache_manager import CacheManager
     from process_pool_manager import ProcessPoolManager
     from shot_model import Shot

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal
 from PySide6.QtGui import QFont, QImage, QPixmap
@@ -15,8 +16,10 @@ from PySide6.QtWidgets import (
 )
 
 from cache_manager import CacheManager, ThumbnailCacheLoader
-from shot_model import Shot
 from utils import ImageUtils
+
+if TYPE_CHECKING:
+    from shot_model import Shot
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)

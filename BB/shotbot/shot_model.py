@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 # Use typing_extensions for override (available in venv)
@@ -14,12 +13,14 @@ from typing_extensions import override
 from base_shot_model import BaseShotModel
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from cache_manager import CacheManager
     from process_pool_manager import ProcessPoolManager
+    from type_definitions import PerformanceMetricsDict, ShotDict
 
 from config import Config
 from exceptions import WorkspaceError
-from type_definitions import PerformanceMetricsDict, ShotDict
 from utils import PathUtils
 
 # Set up logger for this module
@@ -92,7 +93,7 @@ class RefreshResult(NamedTuple):
     has_changes: bool
 
 
-@dataclass
+@dataclass(slots=True)
 class Shot:
     """Represents a single shot."""
 

@@ -10,7 +10,7 @@ Provides comprehensive accessibility support including:
 
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol, cast, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QColor, QKeyEvent, QKeySequence, QPalette, QShortcut
@@ -89,7 +89,7 @@ class ShotProtocol(Protocol):
     sequence: str
     shot: str
     workspace_path: str
-    
+
     @property
     def full_name(self) -> str: ...
 
@@ -335,7 +335,7 @@ class AccessibilityAnnouncer:
             if command_launcher and hasattr(command_launcher, "current_shot"):
                 shot = command_launcher.current_shot
                 if shot and hasattr(shot, "full_name"):
-                    messages.append(f"Selected shot: {shot.full_name}")  # type: ignore[attr-defined]
+                    messages.append(f"Selected shot: {shot.full_name}")
 
         # Enabled applications
         if hasattr(window, "app_buttons"):
@@ -363,7 +363,9 @@ class AccessibilityAnnouncer:
             if hasattr(
                 cast("MainWindowProtocol", window).shot_info_panel, "_current_shot"
             ):
-                shot: ShotProtocol | None = cast("MainWindowProtocol", window).shot_info_panel._current_shot  # type: ignore[attr-defined]
+                shot: ShotProtocol | None = cast(
+                    "MainWindowProtocol", window
+                ).shot_info_panel._current_shot  # type: ignore[attr-defined]
                 if shot:
                     message = (
                         f"Shot {shot.shot} in sequence {shot.sequence}, "
