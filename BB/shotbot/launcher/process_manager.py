@@ -212,6 +212,24 @@ class LauncherProcessManager(QObject):
         unique_suffix = str(uuid.uuid4())[:8]  # Short UUID suffix
         return f"{launcher_id}_{process_pid}_{timestamp}_{unique_suffix}"
 
+    def get_active_processes_dict(self) -> dict[str, Any]:
+        """Get dictionary of active processes.
+
+        Returns:
+            Copy of the active processes dictionary for safe access
+        """
+        with QMutexLocker(self._process_lock):
+            return dict(self._active_processes)
+
+    def get_active_workers_dict(self) -> dict[str, Any]:
+        """Get dictionary of active workers.
+
+        Returns:
+            Copy of the active workers dictionary for safe access
+        """
+        with QMutexLocker(self._process_lock):
+            return dict(self._active_workers)
+
     def get_active_process_count(self) -> int:
         """Get count of currently active processes.
 

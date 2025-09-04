@@ -264,7 +264,7 @@ class NotificationManager(QObject):
     for proper integration with the application UI.
     """
 
-    _instance: "NotificationManager" | None = None
+    _instance: NotificationManager | None = None
     _main_window: QMainWindow | None = None
     _status_bar: QStatusBar | None = None
     _active_toasts: list[ToastNotification] = []

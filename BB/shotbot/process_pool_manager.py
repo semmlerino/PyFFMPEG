@@ -205,12 +205,18 @@ class ProcessPoolManager(QObject):
     def __new__(cls, *args, **kwargs):
         """Ensure singleton pattern with proper thread safety.
 
-        Note: Double-checked locking is broken in Python due to GIL
-        and memory model. We use lock-first approach for safety.
+        This implementation uses a simple lock-based approach which is
+        guaranteed to be thread-safe in Python. The lock ensures that only
+        one thread can create the instance, and the _initialized flag is
+        set atomically within the same lock.
         """
         with cls._lock:
             if cls._instance is None:
-                cls._instance = super().__new__(cls)
+                # Create the instance
+                instance = super().__new__(cls)
+                # Mark as not initialized yet
+                instance._initialized = False
+                cls._instance = instance
             return cls._instance
 
     def __init__(self, max_workers: int = 4, sessions_per_type: int = 3):
@@ -220,10 +226,13 @@ class ProcessPoolManager(QObject):
             max_workers: Maximum concurrent workers
             sessions_per_type: Number of sessions to maintain per type for parallelism
         """
-        # Only initialize once
+        # Only initialize once, using the same lock as __new__
         with ProcessPoolManager._lock:
-            if hasattr(self, "_initialized"):
+            if self._initialized:
                 return
+            
+            # Mark as initialized FIRST to prevent race conditions
+            self._initialized = True
 
             super().__init__()
 

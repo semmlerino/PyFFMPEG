@@ -521,9 +521,15 @@ class ThumbnailWidgetBase(QFrame):
         # Create worker to open folder in background
         worker = FolderOpenerWorker(folder_path)
 
-        # Connect signals for error handling
-        worker.signals.error.connect(self._on_folder_open_error)
-        worker.signals.success.connect(self._on_folder_open_success)
+        # Connect signals with QueuedConnection for thread safety
+        worker.signals.error.connect(
+            self._on_folder_open_error,
+            Qt.ConnectionType.QueuedConnection
+        )
+        worker.signals.success.connect(
+            self._on_folder_open_success,
+            Qt.ConnectionType.QueuedConnection
+        )
 
         # Start the worker
         QThreadPool.globalInstance().start(worker)

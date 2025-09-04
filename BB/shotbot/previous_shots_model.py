@@ -114,9 +114,15 @@ class PreviousShotsModel(QObject):
                 shows_root=Path("/shows"),  # Use default shows root
             )
 
-            # Connect worker signals
-            self._worker.scan_finished.connect(self._on_scan_finished)
-            self._worker.error_occurred.connect(self._on_scan_error)
+            # Connect worker signals with QueuedConnection for thread safety
+            self._worker.scan_finished.connect(
+                self._on_scan_finished,
+                Qt.ConnectionType.QueuedConnection
+            )
+            self._worker.error_occurred.connect(
+                self._on_scan_error,
+                Qt.ConnectionType.QueuedConnection
+            )
 
             # Start worker thread
             logger.info("Starting previous shots scan in background thread")

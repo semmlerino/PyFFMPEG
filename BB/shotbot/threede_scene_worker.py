@@ -31,76 +31,39 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class QtThreadSafeEmitter(QObject):
-    """Thread-safe signal emitter for cross-thread Qt signal emission.
+class QtProgressReporter(QObject):
+    """Simple Qt-based progress reporter for thread-safe signal emission.
 
-    This class solves Qt thread affinity violations by providing a safe way
-    to emit Qt signals from ThreadPoolExecutor worker threads. It defines
-    its own signals that can be connected with QueuedConnection to the
-    worker's signals, ensuring proper thread-safe delivery.
+    This class provides a clean way to emit progress signals from any thread,
+    including ThreadPoolExecutor worker threads. It uses Qt's built-in queued
+    connection mechanism for thread safety instead of complex workarounds.
 
-    The emitter must be created in the target thread (worker's QThread) to
-    have proper thread affinity for signal emission.
+    The reporter is created in the worker's QThread and uses queued signals
+    to ensure all emissions happen in the correct thread context.
     """
 
-    # Internal signals for thread-safe communication
-    _progress_signal = Signal(int, str)  # files_found, status
+    # Signal that will be emitted with progress updates
+    # Using queued connection ensures thread-safe delivery
+    progress_update = Signal(int, str)  # files_found, status
 
-    def __init__(self, worker_instance: ThreeDESceneWorker) -> None:
-        """Initialize the thread-safe emitter.
-
-        Args:
-            worker_instance: The worker whose signals will be emitted
-        """
+    def __init__(self) -> None:
+        """Initialize the progress reporter."""
         super().__init__()
-        self.worker = worker_instance
+        logger.debug("QtProgressReporter created in thread: %s", self.thread())
 
-        # Connect our internal signal to the worker's actual signals
-        # Use QueuedConnection to ensure thread-safe delivery
-        self._progress_signal.connect(
-            self._emit_progress_safe, Qt.ConnectionType.QueuedConnection
-        )
+    def report_progress(self, files_found: int, status: str) -> None:
+        """Report progress from any thread.
 
-        logger.debug("QtThreadSafeEmitter created in thread: %s", self.thread())
-
-    def emit_from_thread(self, files_found: int, status: str) -> None:
-        """Safely emit progress signals from any thread.
-
-        This method can be called from ThreadPoolExecutor threads or any
-        other thread. It emits our internal signal which is connected
-        with QueuedConnection to ensure thread-safe delivery.
+        This method can be safely called from ThreadPoolExecutor threads or any
+        other thread. The signal emission will be queued and delivered in the
+        correct Qt thread.
 
         Args:
             files_found: Number of files found so far
             status: Current status message
         """
-        # Emit our internal signal - Qt handles the thread-safe delivery
-        self._progress_signal.emit(files_found, status)
-
-    @Slot(int, str)
-    def _emit_progress_safe(self, files_found: int, status: str) -> None:
-        """Internal slot that emits signals in the correct thread.
-
-        This slot runs in the worker's QThread and can safely emit Qt signals.
-        It's connected to our internal signal with QueuedConnection.
-
-        Args:
-            files_found: Number of files found so far
-            status: Current status message
-        """
-        # Check if worker is still valid and not stopped
-        if self.worker and not self.worker.should_stop():
-            # Emit the signals that were being called directly before
-            self.worker.progress.emit(
-                files_found,  # current files found
-                0,  # total unknown during scanning
-                0.0,  # percentage unknown during scanning
-                status,  # current status message
-                "",  # ETA not available during parallel scan
-            )
-
-            # Also emit scan progress for compatibility
-            self.worker.scan_progress.emit(files_found, 0, status)
+        # Simply emit the signal - Qt handles thread-safe delivery via queued connection
+        self.progress_update.emit(files_found, status)
 
 
 class ProgressCalculator:
@@ -362,6 +325,30 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                     )
                     self.finished.emit(self._all_scenes)
 
+    def _handle_progress_update(self, files_found: int, status: str) -> None:
+        """Handle progress updates from the reporter.
+
+        This method runs in the worker's QThread and can safely emit Qt signals.
+        It's called via queued connection from the progress reporter.
+
+        Args:
+            files_found: Number of files found so far
+            status: Current status message
+        """
+        # Check if worker is still active
+        if not self.should_stop():
+            # Emit the progress signals safely from the worker thread
+            self.progress.emit(
+                files_found,  # current files found
+                0,  # total unknown during scanning
+                0.0,  # percentage unknown during scanning
+                status,  # current status message
+                "",  # ETA not available during parallel scan
+            )
+            
+            # Also emit scan progress for compatibility
+            self.scan_progress.emit(files_found, 0, status)
+
     def _check_pause_and_cancel(self) -> bool:
         """Check for pause/cancel requests and handle them.
 
@@ -399,10 +386,16 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             if hasattr(self, "_desired_priority"):
                 self.setPriority(self._desired_priority)
 
-            # Create thread-safe emitter now that we're in the worker thread
-            # This ensures proper Qt thread affinity for signal emission
-            self.thread_safe_emitter = QtThreadSafeEmitter(self)
-            logger.debug("Thread-safe emitter created in worker thread")
+            # Create progress reporter for thread-safe signal emission
+            # This reporter will handle progress updates from ThreadPoolExecutor threads
+            self._progress_reporter = QtProgressReporter()
+            
+            # Connect the reporter's signal to our handler with QueuedConnection
+            # This ensures all signal emission happens in the correct Qt thread
+            self._progress_reporter.progress_update.connect(
+                self._handle_progress_update, Qt.ConnectionType.QueuedConnection
+            )
+            logger.debug("Progress reporter created and connected in worker thread")
 
             logger.info("Starting enhanced 3DE scene discovery")
             self.started.emit()
@@ -566,19 +559,20 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             "Discovering ALL 3DE scenes in shows using parallel file-first strategy"
         )
 
-        # Create progress callback that emits signals to UI using thread-safe emitter
+        # Create progress callback that uses the Qt progress reporter
         def progress_callback(files_found: int, status: str) -> None:
             """Forward progress updates to UI with cancellation check.
 
             This callback runs in ThreadPoolExecutor worker threads, so it uses
-            the thread-safe emitter to avoid Qt thread affinity violations.
+            the progress reporter which handles thread-safe signal emission via
+            Qt's queued connection mechanism.
             """
             if self.should_stop():
                 return
 
-            # Use thread-safe emitter instead of direct signal emission
-            # This prevents Qt thread affinity violations when called from ThreadPoolExecutor
-            self.thread_safe_emitter.emit_from_thread(files_found, status)
+            # Use the progress reporter which will queue the signal emission
+            # This ensures thread-safe delivery without complex workarounds
+            self._progress_reporter.report_progress(files_found, status)
 
         # Create cancel flag callback
         def cancel_flag() -> bool:

@@ -105,7 +105,7 @@ class LauncherManager(QObject):
         Returns:
             Dictionary of active processes from the process manager
         """
-        return self._process_manager._active_processes
+        return self._process_manager.get_active_processes_dict()
 
     @property
     def _active_workers(self) -> dict[str, Any]:
@@ -114,7 +114,7 @@ class LauncherManager(QObject):
         Returns:
             Dictionary of active workers from the process manager
         """
-        return self._process_manager._active_workers
+        return self._process_manager.get_active_workers_dict()
 
     @_active_workers.setter
     def _active_workers(self, value: dict[str, Any]) -> None:
@@ -123,6 +123,7 @@ class LauncherManager(QObject):
         Args:
             value: Dictionary of active workers to set
         """
+        # TODO: Add a public setter method in ProcessManager or refactor tests
         self._process_manager._active_workers = value
 
     @property

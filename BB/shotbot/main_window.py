@@ -1726,30 +1726,43 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:
         """Thread-safe close event handler.
 
-        Ensures proper cleanup without double termination of workers.
+        Implements proper shutdown sequence:
+        1. Set closing flag to prevent new operations
+        2. Request all workers to stop
+        3. Wait for workers to finish with timeout
+        4. Disconnect signals only after workers stopped
+        5. Clear references and cleanup
         """
-        # No background refresh worker needed anymore - using signals
-
-        # Mark that we're closing to prevent new operations
-        # Extract worker reference safely while holding lock
-        worker_to_cleanup = None
-
+        # Step 1: Mark that we're closing to prevent new operations
         with QMutexLocker(self._worker_mutex):
             self._closing = True
+            # Keep worker reference - don't clear it yet!
+            worker_to_cleanup = self._threede_worker
 
-            # Extract worker reference and clear it atomically
-            if self._threede_worker:
-                worker_to_cleanup = self._threede_worker
-                self._threede_worker = None
-
-        # Handle worker cleanup outside of mutex to avoid deadlock
+        # Step 2: Request worker to stop (if it exists)
         if worker_to_cleanup:
             # Check if it's a real worker (not a Mock in tests)
             # Use isinstance check for better type safety
             from threede_scene_worker import ThreeDESceneWorker
 
             if isinstance(worker_to_cleanup, ThreeDESceneWorker):
-                # Disconnect all signals first to prevent callbacks on deleted widgets
+                # Step 3: Request worker to stop if not already finished
+                if not worker_to_cleanup.isFinished():
+                    logger.debug("Stopping 3DE worker during shutdown")
+                    worker_to_cleanup.stop()
+
+                    # Step 4: Wait for worker to finish with timeout
+                    if not worker_to_cleanup.wait(3000):  # Wait up to 3 seconds
+                        logger.warning(
+                            "3DE worker didn't stop gracefully, using safe termination",
+                        )
+                        # Use safe_terminate which avoids dangerous terminate() call
+                        worker_to_cleanup.safe_terminate()
+                        # Give it one more second after safe termination
+                        worker_to_cleanup.wait(1000)
+
+                # Step 5: Disconnect signals only AFTER worker has stopped
+                # This prevents signal emission during disconnection
                 try:
                     worker_to_cleanup.started.disconnect()
                     worker_to_cleanup.batch_ready.disconnect()
@@ -1763,20 +1776,12 @@ class MainWindow(QMainWindow):
                     # Signals may already be disconnected or deleted
                     pass
 
-                # Only stop if not already finished
-                if not worker_to_cleanup.isFinished():
-                    logger.debug("Stopping 3DE worker during shutdown")
-                    worker_to_cleanup.stop()
+                # Step 6: NOW clear the reference and clean up
+                with QMutexLocker(self._worker_mutex):
+                    if self._threede_worker == worker_to_cleanup:
+                        self._threede_worker = None
 
-                    # Wait for worker to finish without holding mutex
-                    if not worker_to_cleanup.wait(3000):  # Wait up to 3 seconds
-                        logger.warning(
-                            "3DE worker didn't stop gracefully, using safe termination",
-                        )
-                        # Use safe_terminate which avoids dangerous terminate() call
-                        worker_to_cleanup.safe_terminate()
-
-                # Clean up the worker
+                # Schedule deletion
                 worker_to_cleanup.deleteLater()
 
             # Clean up session warmer if it exists

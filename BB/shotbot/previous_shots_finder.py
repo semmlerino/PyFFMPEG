@@ -156,17 +156,16 @@ class PreviousShotsFinder:
             logger.debug(f"Empty shot extracted from path {path}")
             return None
 
-            try:
-                return Shot(
-                    show=show,
-                    sequence=sequence,
-                    shot=shot,  # Use extracted shot number to match ws -sg
-                    workspace_path=workspace_path,
-                )
-            except Exception as e:
-                logger.debug(f"Could not create Shot from path {path}: {e}")
-
-        return None
+        try:
+            return Shot(
+                show=show,
+                sequence=sequence,
+                shot=shot,  # Use extracted shot number to match ws -sg
+                workspace_path=workspace_path,
+            )
+        except Exception as e:
+            logger.debug(f"Could not create Shot from path {path}: {e}")
+            return None
 
     def filter_approved_shots(
         self, all_user_shots: list[Shot], active_shots: list[Shot]
