@@ -210,10 +210,6 @@ class PreviousShotsWorker(ThreadSafeWorker):
             # Re-raise to let base class handle error state
             raise
 
-            # Transition to error state then stopped
-            self.set_state(WorkerState.ERROR)
-            self.set_state(WorkerState.STOPPED)
-
     def _scan_for_user_shots(self) -> list[Shot]:
         """DEPRECATED: Use self._finder.find_user_shots() instead.
 

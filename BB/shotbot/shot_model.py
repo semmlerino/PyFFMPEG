@@ -327,15 +327,15 @@ class ShotModel(BaseShotModel):
     def get_shot_by_index(self, index: int) -> Shot | None:
         """Get shot by index."""
         if 0 <= index < len(self.shots):
-            return self.shots[index]  # type: ignore[reportReturnType]
+            return self.shots[index]
         return None
 
     @override
-    def find_shot_by_name(self, full_name: str) -> Shot | None:  # type: ignore[override]
+    def find_shot_by_name(self, full_name: str) -> Shot | None:
         """Find shot by full name."""
         for shot in self.shots:
             if shot.full_name == full_name:
-                return shot  # type: ignore[return-value]
+                return shot
         return None
 
     def get_shot_by_name(self, full_name: str) -> Shot | None:

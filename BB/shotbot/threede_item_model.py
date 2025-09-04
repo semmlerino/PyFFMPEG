@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 from PySide6.QtCore import (
     QAbstractListModel,
     QModelIndex,
+    QMutex,
+    QMutexLocker,
     QObject,
     QPersistentModelIndex,
     Qt,
@@ -34,6 +36,9 @@ from config import Config
 from threede_scene_model import ThreeDEScene
 
 logger = logging.getLogger(__name__)
+
+# Maximum cache size to prevent memory leaks (100 thumbnails max)
+MAX_CACHE_SIZE = 100
 
 
 class ThreeDERole(IntEnum):
@@ -96,6 +101,7 @@ class ThreeDEItemModel(QAbstractListModel):
         # Use QImage for thread safety
         self._thumbnail_cache: dict[str, QImage] = {}
         self._loading_states: dict[str, str] = {}
+        self._cache_mutex = QMutex()  # Thread-safe cache access
         self._selected_index = QPersistentModelIndex()
         self._is_loading = False
         
@@ -174,7 +180,8 @@ class ThreeDEItemModel(QAbstractListModel):
         elif role == ThreeDERole.ThumbnailPixmapRole:
             return self._get_thumbnail_pixmap(scene)
         elif role == ThreeDERole.LoadingStateRole:
-            return self._loading_states.get(scene.shot_name, "idle")
+            with QMutexLocker(self._cache_mutex):
+                return self._loading_states.get(scene.shot_name, "idle")
         elif role == ThreeDERole.IsSelectedRole:
             return index == self._selected_index
         elif role == ThreeDERole.ModifiedTimeRole:
@@ -194,8 +201,9 @@ class ThreeDEItemModel(QAbstractListModel):
         cache_key = scene.full_name
         
         # Check memory cache first
-        if cache_key in self._thumbnail_cache:
-            return QPixmap.fromImage(self._thumbnail_cache[cache_key])
+        with QMutexLocker(self._cache_mutex):
+            if cache_key in self._thumbnail_cache:
+                return QPixmap.fromImage(self._thumbnail_cache[cache_key])
         
         # Check if thumbnail exists
         thumb_path = scene.get_thumbnail_path()
@@ -204,7 +212,16 @@ class ThreeDEItemModel(QAbstractListModel):
             image = QImage(str(thumb_path))
             if not image.isNull():
                 # Cache it
-                self._thumbnail_cache[cache_key] = image
+                with QMutexLocker(self._cache_mutex):
+                    # Enforce cache size limit to prevent memory leaks
+                    if len(self._thumbnail_cache) >= MAX_CACHE_SIZE:
+                        # Remove oldest entries (FIFO)
+                        oldest_key = next(iter(self._thumbnail_cache))
+                        del self._thumbnail_cache[oldest_key]
+                        if oldest_key in self._loading_states:
+                            del self._loading_states[oldest_key]
+                    
+                    self._thumbnail_cache[cache_key] = image
                 return QPixmap.fromImage(image)
         
         # Return placeholder or None
@@ -218,15 +235,17 @@ class ThreeDEItemModel(QAbstractListModel):
             cache_key = scene.full_name
             
             # Skip if already cached
-            if cache_key in self._thumbnail_cache:
-                continue
-            
-            # Skip if already loading
-            if self._loading_states.get(cache_key) == "loading":
-                continue
+            with QMutexLocker(self._cache_mutex):
+                if cache_key in self._thumbnail_cache:
+                    continue
+                
+                # Skip if already loading
+                if self._loading_states.get(cache_key) == "loading":
+                    continue
             
             # Start loading
-            self._loading_states[cache_key] = "loading"
+            with QMutexLocker(self._cache_mutex):
+                self._loading_states[cache_key] = "loading"
             self._load_thumbnail_async(scene, row)
     
     def _load_thumbnail_async(self, scene: ThreeDEScene, row: int):
@@ -248,8 +267,17 @@ class ThreeDEItemModel(QAbstractListModel):
             if path and path.exists():
                 image = QImage(str(path))
                 if not image.isNull():
-                    self._thumbnail_cache[scene.full_name] = image
-                    self._loading_states[scene.full_name] = "loaded"
+                    with QMutexLocker(self._cache_mutex):
+                        # Enforce cache size limit to prevent memory leaks
+                        if len(self._thumbnail_cache) >= MAX_CACHE_SIZE:
+                            # Remove oldest entries (FIFO)
+                            oldest_key = next(iter(self._thumbnail_cache))
+                            del self._thumbnail_cache[oldest_key]
+                            if oldest_key in self._loading_states:
+                                del self._loading_states[oldest_key]
+                        
+                        self._thumbnail_cache[scene.full_name] = image
+                        self._loading_states[scene.full_name] = "loaded"
                     
                     # Update the specific row
                     index = self.index(row, 0)
@@ -301,8 +329,9 @@ class ThreeDEItemModel(QAbstractListModel):
         if reset:
             self.beginResetModel()
             self._scenes = scenes
-            self._thumbnail_cache.clear()
-            self._loading_states.clear()
+            with QMutexLocker(self._cache_mutex):
+                self._thumbnail_cache.clear()
+                self._loading_states.clear()
             self._selected_index = QPersistentModelIndex()
             self.endResetModel()
             self.scenes_updated.emit()
@@ -381,3 +410,60 @@ class ThreeDEItemModel(QAbstractListModel):
     def is_loading(self) -> bool:
         """Check if loading is in progress."""
         return self._is_loading
+    
+    def cleanup(self) -> None:
+        """Clean up resources before deletion.
+        
+        This method should be called before the model is deleted to prevent
+        memory leaks and ensure proper resource cleanup.
+        """
+        # Stop timers
+        if hasattr(self, '_thumbnail_timer'):
+            self._thumbnail_timer.stop()
+            self._thumbnail_timer.deleteLater()
+        
+        # Clear caches
+        with QMutexLocker(self._cache_mutex):
+            self._thumbnail_cache.clear()
+            self._loading_states.clear()
+        
+        # Clear selection
+        self._selected_index = QPersistentModelIndex()
+        
+        # Disconnect signals safely
+        try:
+            self.scenes_updated.disconnect()
+        except (RuntimeError, TypeError):
+            pass  # Already disconnected or no connections
+        
+        try:
+            self.thumbnail_loaded.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        
+        try:
+            self.selection_changed.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        
+        try:
+            self.loading_started.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        
+        try:
+            self.loading_progress.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        
+        try:
+            self.loading_finished.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        
+        logger.info("ThreeDEItemModel resources cleaned up")
+    
+    def deleteLater(self) -> None:
+        """Override deleteLater to ensure cleanup."""
+        self.cleanup()
+        super().deleteLater()
