@@ -104,7 +104,8 @@ from shot_model import Shot, ShotModel
 from shot_model_optimized import OptimizedShotModel  # Performance-optimized model
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 from threede_scene_worker import ThreeDESceneWorker
-from threede_shot_grid import ThreeDEShotGrid
+from threede_grid_view import ThreeDEGridView
+from threede_item_model import ThreeDEItemModel
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -168,11 +169,8 @@ class MainWindow(QMainWindow):
         # Store reference to settings dialog
         self._settings_dialog: SettingsDialog | None = None
 
-        # Configure 3DE thumbnail widgets to use our cache manager
-        # TODO: Convert threede_shot_grid to Model/View architecture
-        from threede_thumbnail_widget import ThreeDEThumbnailWidget
-
-        ThreeDEThumbnailWidget.set_cache_manager(self.cache_manager)
+        # Create 3DE item model for Model/View architecture
+        self.threede_item_model = ThreeDEItemModel(cache_manager=self.cache_manager)
 
         # Check feature flag - now defaults to True for optimized model
         # Set SHOTBOT_USE_LEGACY_MODEL=1 to use old implementation if issues arise
@@ -270,8 +268,8 @@ class MainWindow(QMainWindow):
         self.shot_grid = ShotGridView(model=self.shot_item_model)
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
 
-        # Tab 2: Other 3DE scenes
-        self.threede_shot_grid = ThreeDEShotGrid(self.threede_scene_model)
+        # Tab 2: Other 3DE scenes (using Model/View architecture)
+        self.threede_shot_grid = ThreeDEGridView(model=self.threede_item_model)
         _ = self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
 
         # Tab 3: Previous Shots (approved/completed)
@@ -614,7 +612,7 @@ class MainWindow(QMainWindow):
 
         # Show cached 3DE scenes immediately if available
         if has_cached_scenes:
-            self.threede_shot_grid.refresh_scenes()
+            self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
 
         # Update status with what was loaded from cache
         if has_cached_shots and has_cached_scenes:
@@ -723,7 +721,7 @@ class MainWindow(QMainWindow):
                 return
 
             # Show loading state
-            self.threede_shot_grid.set_loading(True)
+            self.threede_item_model.set_loading_state(True)
             self._update_status("Starting enhanced 3DE scene discovery...")
 
             # Create enhanced worker with progressive scanning enabled
@@ -832,8 +830,8 @@ class MainWindow(QMainWindow):
         ProgressManager.finish_operation(success=True)
 
         # Hide loading state
-        if self.threede_shot_grid is not None:
-            self.threede_shot_grid.set_loading(False)
+        if self.threede_item_model is not None:
+            self.threede_item_model.set_loading_state(False)
 
         # Update model with discovered scenes (compare with existing)
         old_scene_data = {
@@ -865,7 +863,7 @@ class MainWindow(QMainWindow):
                 logger.warning(f"Failed to cache 3DE scenes after scan: {e}")
 
             # Update UI
-            self.threede_shot_grid.refresh_scenes()
+            self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
 
             # Update status
             scene_count = len(scenes)
@@ -884,12 +882,9 @@ class MainWindow(QMainWindow):
                 logger.warning(f"Failed to refresh 3DE scene cache TTL: {e}")
 
             # Ensure UI is populated if this is the first load
-            # (scenes might have been loaded from cache but UI not yet updated)
-            if (
-                not self.threede_shot_grid.thumbnails
-                and self.threede_scene_model.scenes
-            ):
-                self.threede_shot_grid.refresh_scenes()
+            # Update model with latest scenes if needed
+            if self.threede_scene_model.scenes:
+                self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
             self._update_status("3DE scene discovery complete (no changes)")
 
     def _on_threede_discovery_error(self, error_message: str) -> None:
@@ -902,7 +897,7 @@ class MainWindow(QMainWindow):
         ProgressManager.finish_operation(success=False, error_message=error_message)
 
         # Hide loading state
-        self.threede_shot_grid.set_loading(False)
+        self.threede_item_model.set_loading_state(False)
 
         # Show error notification for serious issues
         NotificationManager.warning(
@@ -941,6 +936,10 @@ class MainWindow(QMainWindow):
         # This provides more frequent updates than the main progress signal
         # Useful for showing which specific shot/user is being scanned
         self._update_status(f"Scanning ({current_shot}/{total_shots}): {status}")
+        
+        # Update model progress
+        if self.threede_item_model:
+            self.threede_item_model.update_loading_progress(current_shot, total_shots)
 
     def _on_threede_discovery_paused(self) -> None:
         """Handle worker pause signal."""
@@ -1284,9 +1283,8 @@ class MainWindow(QMainWindow):
             self.shot_grid.size_slider.setValue(value)
             self.threede_shot_grid.size_slider.setValue(value)
 
-            # Update internal thumbnail sizes directly since signals are blocked
-            self.shot_grid._thumbnail_size = value  # type: ignore[attr-defined]
-            self.threede_shot_grid._thumbnail_size = value  # type: ignore[attr-defined]
+            # For Model/View grids, the size change is handled by the delegate
+            # when the slider value changes. Previous_shots_grid still needs it.
             self.previous_shots_grid._thumbnail_size = value  # type: ignore[attr-defined]
 
             # Update size labels
