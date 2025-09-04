@@ -3,33 +3,29 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSize, Qt, QTimer, Signal, Slot
-from PySide6.QtWidgets import (
-    QGridLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QScrollArea,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
+from base_grid_widget import BaseGridWidget
 from cache_manager import CacheManager
-from config import Config
-from previous_shots_model import PreviousShotsModel
 from progress_manager import ProgressManager
 from shot_model import Shot
 from thumbnail_widget import ThumbnailWidget
 
+if TYPE_CHECKING:
+    from previous_shots_model import PreviousShotsModel
+
 logger = logging.getLogger(__name__)
 
 
-class PreviousShotsGrid(QWidget):
+class PreviousShotsGrid(BaseGridWidget["Shot"]):
     """Grid widget for displaying approved shots with thumbnails.
 
     This widget displays shots that the user has worked on but are
     no longer active (i.e., approved/completed shots).
+    Extends BaseGridWidget with refresh functionality and progress tracking.
     """
 
     # Signals
@@ -53,9 +49,6 @@ class PreviousShotsGrid(QWidget):
 
         self._model = previous_shots_model
         self._cache_manager = cache_manager or CacheManager()
-        self._thumbnail_widgets: dict[str, ThumbnailWidget] = {}
-        self._selected_shot: Shot | None = None
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
 
         # PERFORMANCE: Resize debouncing timer
         self._resize_timer = QTimer()
@@ -64,29 +57,22 @@ class PreviousShotsGrid(QWidget):
         self._resize_timer.setInterval(100)  # 100ms debounce
         self._pending_size: QSize | None = None
 
-        self._setup_ui()
         self._connect_signals()
 
         # Initial population
-        self._populate_grid()
+        self.refresh_display()
 
         logger.info("PreviousShotsGrid initialized")
 
-    @property
-    def thumbnail_size(self) -> int:
-        """Get the current thumbnail size.
+    def _create_header(self) -> QWidget | None:
+        """Create header with refresh button and status label.
 
         Returns:
-            Current thumbnail size in pixels
+            Header widget.
         """
-        return self._thumbnail_size
-
-    def _setup_ui(self) -> None:
-        """Set up the user interface."""
-        layout = QVBoxLayout(self)
-
-        # Header with refresh button and status
-        header_layout = QHBoxLayout()
+        widget = QWidget()
+        header_layout = QHBoxLayout(widget)
+        header_layout.setContentsMargins(0, 0, 0, 5)
 
         # Status label
         self._status_label = QLabel("Approved Shots")
@@ -100,35 +86,11 @@ class PreviousShotsGrid(QWidget):
         self._refresh_button.clicked.connect(self._on_refresh_clicked)
         header_layout.addWidget(self._refresh_button)
 
-        layout.addLayout(header_layout)
-
-        # Scroll area for grid
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
-
-        # Grid widget
-        self._grid_widget = QWidget()
-        self._grid_layout = QGridLayout(self._grid_widget)
-        self._grid_layout.setSpacing(10)
-
-        scroll_area.setWidget(self._grid_widget)
-        layout.addWidget(scroll_area)
-
-        # Info label for empty state
-        self._empty_label = QLabel(
-            "No approved shots found.\n"
-            "Approved shots you've worked on will appear here."
-        )
-        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_label.setStyleSheet("color: gray; font-style: italic;")
-        self._empty_label.hide()
-        layout.addWidget(self._empty_label)
+        return widget
 
     def _connect_signals(self) -> None:
         """Connect model signals to grid updates."""
-        self._model.shots_updated.connect(self._populate_grid)
+        self._model.shots_updated.connect(self.refresh_display)
         self._model.scan_started.connect(self._on_scan_started)
         self._model.scan_finished.connect(self._on_scan_finished)
         self._model.scan_progress.connect(self._on_scan_progress)
@@ -158,7 +120,6 @@ class PreviousShotsGrid(QWidget):
         ProgressManager.finish_operation(success=True)
 
         # Reset UI state
-        """Handle scan completion."""
         self._refresh_button.setEnabled(True)
         self._refresh_button.setText("Refresh")
         shot_count = self._model.get_shot_count()
@@ -176,125 +137,13 @@ class PreviousShotsGrid(QWidget):
             percent = int((current / total) * 100)
             self._status_label.setText(f"Scanning... {percent}%")
 
-    @Slot()
-    def _populate_grid(self) -> None:
-        """Populate the grid with approved shots."""
-        # Clear existing widgets
-        self._clear_grid()
-
-        # Get shots from model
-        shots = self._model.get_shots()
-
-        if not shots:
-            self._empty_label.show()
-            self._grid_widget.hide()
-            return
-
-        self._empty_label.hide()
-        self._grid_widget.show()
-
-        # Calculate grid dimensions
-        columns = max(1, self.width() // (self._thumbnail_size + 20))
-
-        # Add thumbnails to grid
-        for index, shot in enumerate(shots):
-            row = index // columns
-            col = index % columns
-
-            # Create thumbnail widget
-            thumbnail = self._create_thumbnail_widget(shot)
-            self._grid_layout.addWidget(thumbnail, row, col)
-            self._thumbnail_widgets[shot.shot] = thumbnail
-
-        # Update status
-        self._status_label.setText(f"Approved Shots ({len(shots)})")
-
-        logger.info(f"Populated grid with {len(shots)} approved shots")
-
-    def _create_thumbnail_widget(self, shot: Shot) -> ThumbnailWidget:
-        """Create a thumbnail widget for a shot.
-
-        Args:
-            shot: Shot to create thumbnail for.
-
-        Returns:
-            ThumbnailWidget instance.
-        """
-        # FIX: ThumbnailWidget takes (shot, size) not (shot, cache_manager)
-        thumbnail = ThumbnailWidget(shot, self._thumbnail_size)
-
-        # Set the cache manager for the widget class if needed
-        if self._cache_manager:
-            ThumbnailWidget.set_cache_manager(self._cache_manager)
-
-        # Set approved shot styling
-        thumbnail.setStyleSheet("""
-            ThumbnailWidget {
-                border: 2px solid #4a90e2;
-                border-radius: 5px;
-                background-color: #f0f8ff;
-            }
-            ThumbnailWidget:hover {
-                border: 2px solid #2e7cd6;
-                background-color: #e6f3ff;
-            }
-        """)
-
-        # Connect signals (ThumbnailWidget uses 'clicked' and 'double_clicked')
-        thumbnail.clicked.connect(self._on_shot_selected)
-        thumbnail.double_clicked.connect(self._on_shot_double_clicked)
-
-        # TODO: Add approved indicator when ThumbnailWidget supports it
-        # Currently ThumbnailWidget doesn't have set_status_text method
-
-        return thumbnail
-
-    def _clear_grid(self) -> None:
-        """Clear all widgets from the grid."""
-        while self._grid_layout.count():
-            item = self._grid_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-
-        self._thumbnail_widgets.clear()
-        self._selected_shot = None
-
-    @Slot()
-    def _on_shot_selected(self, shot: Shot) -> None:
-        """Handle shot selection.
-
-        Args:
-            shot: Selected shot.
-        """
-        # Update selection state
-        self._selected_shot = shot
-
-        # Update visual selection
-        for shot_name, widget in self._thumbnail_widgets.items():
-            widget.set_selected(shot_name == shot.shot)
-
-        # Emit signal
-        self.shot_selected.emit(shot)
-
-        logger.debug(f"Selected approved shot: {shot.shot}")
-
-    @Slot()
-    def _on_shot_double_clicked(self, shot: Shot) -> None:
-        """Handle shot double-click.
-
-        Args:
-            shot: Double-clicked shot.
-        """
-        self.shot_double_clicked.emit(shot)
-        logger.debug(f"Double-clicked approved shot: {shot.shot}")
-
     def get_selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
 
         Returns:
             Selected Shot object or None.
         """
-        return self._selected_shot
+        return self.selected_item
 
     def refresh(self) -> None:
         """Refresh the grid display."""
@@ -318,6 +167,123 @@ class PreviousShotsGrid(QWidget):
     def _do_resize(self) -> None:
         """Perform the actual resize after debounce timer expires."""
         if self._pending_size:
-            self._populate_grid()
+            self._reflow_grid()
             self._pending_size = None
             logger.debug("Grid resized and repopulated after debounce")
+
+    # Implement abstract methods from BaseGridWidget
+
+    def _create_thumbnail_widget(self, item: Shot) -> QWidget:
+        """Create a thumbnail widget for a shot.
+
+        Args:
+            item: Shot to create thumbnail for.
+
+        Returns:
+            ThumbnailWidget instance.
+        """
+        thumbnail = ThumbnailWidget(item, self.thumbnail_size)
+
+        # Set the cache manager for the widget class if needed
+        if self._cache_manager:
+            ThumbnailWidget.set_cache_manager(self._cache_manager)
+
+        # Set approved shot styling
+        thumbnail.setStyleSheet("""
+            ThumbnailWidget {
+                border: 2px solid #4a90e2;
+                border-radius: 5px;
+                background-color: #f0f8ff;
+            }
+            ThumbnailWidget:hover {
+                border: 2px solid #2e7cd6;
+                background-color: #e6f3ff;
+            }
+        """)
+
+        return thumbnail
+
+    def _get_item_key(self, item: Shot) -> str:
+        """Get unique key for a shot.
+
+        Args:
+            item: Shot to get key for.
+
+        Returns:
+            Shot's name as key.
+        """
+        return item.shot
+
+    def _get_items(self) -> list[Shot]:
+        """Get list of shots to display.
+
+        Returns:
+            List of shots from the model.
+        """
+        shots = self._model.get_shots()
+
+        # Update status when getting items
+        if hasattr(self, "_status_label"):
+            self._status_label.setText(f"Approved Shots ({len(shots)})")
+
+        return shots
+
+    def _handle_item_selected(self, item: Shot) -> None:
+        """Handle shot selection.
+
+        Args:
+            item: Selected shot.
+        """
+        self.shot_selected.emit(item)
+        logger.debug(f"Selected approved shot: {item.shot}")
+
+    def _handle_item_double_clicked(self, item: Shot) -> None:
+        """Handle shot double-click.
+
+        Args:
+            item: Double-clicked shot.
+        """
+        self.shot_double_clicked.emit(item)
+        logger.debug(f"Double-clicked approved shot: {item.shot}")
+
+    def _update_thumbnail_size(self, thumbnail: QWidget, size: int) -> None:
+        """Update thumbnail widget size.
+
+        Args:
+            thumbnail: Thumbnail widget to update.
+            size: New size in pixels.
+        """
+        if isinstance(thumbnail, ThumbnailWidget):
+            thumbnail.set_size(size)
+
+    def _set_thumbnail_selected(self, thumbnail: QWidget, selected: bool) -> None:
+        """Set thumbnail selection state.
+
+        Args:
+            thumbnail: Thumbnail widget.
+            selected: Whether thumbnail is selected.
+        """
+        if isinstance(thumbnail, ThumbnailWidget):
+            thumbnail.set_selected(selected)
+
+    def _connect_thumbnail_signals(self, thumbnail: QWidget, item: Shot) -> None:
+        """Connect thumbnail widget signals.
+
+        Args:
+            thumbnail: Thumbnail widget.
+            item: Associated shot.
+        """
+        if isinstance(thumbnail, ThumbnailWidget):
+            # Use lambda to pass the shot object
+            thumbnail.clicked.connect(lambda: self._on_item_clicked(item))
+            thumbnail.double_clicked.connect(lambda: self._on_item_double_clicked(item))
+
+    def _show_empty_state(self) -> None:
+        """Show custom empty state for approved shots."""
+        empty_label = QLabel(
+            "No approved shots found.\n"
+            "Approved shots you've worked on will appear here."
+        )
+        empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_label.setStyleSheet("color: gray; font-style: italic;")
+        self.grid_layout.addWidget(empty_label, 0, 0)

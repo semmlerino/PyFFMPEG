@@ -20,278 +20,135 @@ Migration guide:
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QKeyEvent, QResizeEvent, QWheelEvent
-from PySide6.QtWidgets import (
-    QGridLayout,
-    QHBoxLayout,
-    QLabel,
-    QScrollArea,
-    QSlider,
-    QVBoxLayout,
-    QWidget,
-)
+from typing import TYPE_CHECKING
 
-from config import Config
-from shot_model import Shot, ShotModel
+from PySide6.QtCore import Signal
+
+from base_grid_widget import BaseGridWidget
 from thumbnail_widget import ThumbnailWidget
 
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QWidget
 
-class ShotGrid(QWidget):
-    """Grid display of shot thumbnails."""
+    from shot_model import Shot, ShotModel
+
+
+class ShotGrid(BaseGridWidget["Shot"]):
+    """Grid display of shot thumbnails.
+
+    This class extends BaseGridWidget to provide shot-specific functionality.
+    """
 
     # Signals
     shot_selected = Signal(object)  # Shot
     shot_double_clicked = Signal(object)  # Shot
-    app_launch_requested = Signal(str)  # app_name
 
     def __init__(self, shot_model: ShotModel):
+        """Initialize the shot grid.
+
+        Args:
+            shot_model: Model containing shot data.
+        """
         super().__init__()
         self.shot_model = shot_model
-        self.thumbnails: dict[str, ThumbnailWidget] = {}
-        self.selected_shot: Shot | None = None
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
-        self._setup_ui()
-
-    def _setup_ui(self):
-        """Set up the UI."""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        # Size control
-        size_layout = QHBoxLayout()
-        size_layout.addWidget(QLabel("Thumbnail Size:"))
-
-        self.size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
-        self.size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
-        self.size_slider.setValue(self._thumbnail_size)
-        self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.size_slider.setTickInterval(50)
-        self.size_slider.valueChanged.connect(self._on_size_changed)
-        size_layout.addWidget(self.size_slider)
-
-        self.size_label = QLabel(f"{self._thumbnail_size}px")
-        self.size_label.setMinimumWidth(50)
-        size_layout.addWidget(self.size_label)
-
-        layout.addLayout(size_layout)
-
-        # Scroll area
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff,
-        )
-
-        # Container widget
-        self.container = QWidget()
-        self.grid_layout = QGridLayout(self.container)
-        self.grid_layout.setSpacing(Config.THUMBNAIL_SPACING)
-
-        self.scroll_area.setWidget(self.container)
-        layout.addWidget(self.scroll_area)
-
-        # Enable keyboard focus
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def refresh_shots(self):
         """Refresh the shot display."""
-        # Clear existing thumbnails
-        self._clear_grid()
-
-        # Create thumbnails for all shots
-        for i, shot in enumerate(self.shot_model.shots):
-            thumbnail = ThumbnailWidget(shot, self._thumbnail_size)
-            thumbnail.clicked.connect(self._on_thumbnail_clicked)
-            thumbnail.double_clicked.connect(self._on_thumbnail_double_clicked)
-
-            self.thumbnails[shot.full_name] = thumbnail
-
-            # Add to grid
-            row = i // self._get_column_count()
-            col = i % self._get_column_count()
-            self.grid_layout.addWidget(thumbnail, row, col)
-
-    def _clear_grid(self):
-        """Clear all thumbnails from grid."""
-        for thumbnail in self.thumbnails.values():
-            self.grid_layout.removeWidget(thumbnail)
-            thumbnail.deleteLater()
-        self.thumbnails.clear()
-
-    def _get_column_count(self) -> int:
-        """Calculate number of columns based on width."""
-        available_width = self.scroll_area.viewport().width()
-        if available_width <= 0:
-            return Config.GRID_COLUMNS
-
-        # Calculate based on thumbnail size and spacing
-        item_width = self._thumbnail_size + Config.THUMBNAIL_SPACING
-        columns = max(1, available_width // item_width)
-        return columns
-
-    def _reflow_grid(self):
-        """Reflow grid layout based on new size."""
-        if not self.thumbnails:
-            return
-
-        # Remove all widgets
-        for widget in self.thumbnails.values():
-            self.grid_layout.removeWidget(widget)
-
-        # Re-add in new positions
-        for i, shot in enumerate(self.shot_model.shots):
-            if shot.full_name in self.thumbnails:
-                thumbnail = self.thumbnails[shot.full_name]
-                row = i // self._get_column_count()
-                col = i % self._get_column_count()
-                self.grid_layout.addWidget(thumbnail, row, col)
-
-    def _on_size_changed(self, value: int):
-        """Handle thumbnail size change."""
-        self._thumbnail_size = value
-        self.size_label.setText(f"{value}px")
-
-        # Update all thumbnails
-        for thumbnail in self.thumbnails.values():
-            thumbnail.set_size(value)
-
-        # Reflow grid
-        self._reflow_grid()
-
-    def _on_thumbnail_clicked(self, shot: Shot):
-        """Handle thumbnail click."""
-        # Update selection
-        if self.selected_shot:
-            old_thumb = self.thumbnails.get(self.selected_shot.full_name)
-            if old_thumb:
-                old_thumb.set_selected(False)
-
-        self.selected_shot = shot
-        thumbnail = self.thumbnails.get(shot.full_name)
-        if thumbnail:
-            thumbnail.set_selected(True)
-
-        self.shot_selected.emit(shot)
-
-    def _on_thumbnail_double_clicked(self, shot: Shot):
-        """Handle thumbnail double click."""
-        self.shot_double_clicked.emit(shot)
+        self.refresh_display()
 
     def select_shot(self, shot: Shot):
-        """Select a shot programmatically."""
-        self._on_thumbnail_clicked(shot)
+        """Select a shot programmatically.
 
-    def resizeEvent(self, event: QResizeEvent):
-        """Handle resize to reflow grid."""
-        super().resizeEvent(event)
-        self._reflow_grid()
+        Args:
+            shot: Shot to select.
+        """
+        self.select_item(shot)
 
-    def wheelEvent(self, event: QWheelEvent):
-        """Handle wheel event for thumbnail size adjustment with Ctrl."""
-        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            delta = event.angleDelta().y()
-            if delta > 0:
-                new_size = min(self._thumbnail_size + 10, Config.MAX_THUMBNAIL_SIZE)
-            else:
-                new_size = max(self._thumbnail_size - 10, Config.MIN_THUMBNAIL_SIZE)
+    # Implement abstract methods from BaseGridWidget
 
-            self.size_slider.setValue(new_size)
-            event.accept()
-        else:
-            super().wheelEvent(event)
+    def _create_thumbnail_widget(self, item: Shot) -> QWidget:
+        """Create a thumbnail widget for a shot.
 
-    def keyPressEvent(self, event: QKeyEvent):
-        """Handle keyboard navigation."""
-        if not self.shot_model.shots:
-            super().keyPressEvent(event)
-            return
+        Args:
+            item: Shot to create thumbnail for.
 
-        # Get current selection index
-        current_index = -1
-        if self.selected_shot:
-            for i, shot in enumerate(self.shot_model.shots):
-                if shot.full_name == self.selected_shot.full_name:
-                    current_index = i
-                    break
+        Returns:
+            ThumbnailWidget instance.
+        """
+        return ThumbnailWidget(item, self.thumbnail_size)
 
-        # Calculate grid dimensions
-        columns = self._get_column_count()
-        total_shots = len(self.shot_model.shots)
+    def _get_item_key(self, item: Shot) -> str:
+        """Get unique key for a shot.
 
-        new_index = current_index
+        Args:
+            item: Shot to get key for.
 
-        # Handle arrow keys
-        if event.key() == Qt.Key.Key_Right:
-            new_index = (
-                min(current_index + 1, total_shots - 1) if current_index >= 0 else 0
-            )
-        elif event.key() == Qt.Key.Key_Left:
-            new_index = max(current_index - 1, 0) if current_index >= 0 else 0
-        elif event.key() == Qt.Key.Key_Down:
-            if current_index >= 0:
-                new_index = min(current_index + columns, total_shots - 1)
-            else:
-                new_index = 0
-        elif event.key() == Qt.Key.Key_Up:
-            if current_index >= 0:
-                new_index = max(current_index - columns, 0)
-            else:
-                new_index = 0
-        elif event.key() == Qt.Key.Key_Home:
-            new_index = 0
-        elif event.key() == Qt.Key.Key_End:
-            new_index = total_shots - 1
-        elif event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
-            # Double-click on current selection
-            if self.selected_shot:
-                self.shot_double_clicked.emit(self.selected_shot)
-            event.accept()
-            return
-        # Application launch shortcuts
-        elif event.key() == Qt.Key.Key_3:
-            # Launch 3de
-            if self.selected_shot:
-                self.app_launch_requested.emit("3de")
-            event.accept()
-            return
-        elif event.key() == Qt.Key.Key_N:
-            # Launch Nuke
-            if self.selected_shot:
-                self.app_launch_requested.emit("nuke")
-            event.accept()
-            return
-        elif event.key() == Qt.Key.Key_M:
-            # Launch Maya
-            if self.selected_shot:
-                self.app_launch_requested.emit("maya")
-            event.accept()
-            return
-        elif event.key() == Qt.Key.Key_R:
-            # Launch RV
-            if self.selected_shot:
-                self.app_launch_requested.emit("rv")
-            event.accept()
-            return
-        elif event.key() == Qt.Key.Key_P:
-            # Launch Publish
-            if self.selected_shot:
-                self.app_launch_requested.emit("publish")
-            event.accept()
-            return
-        else:
-            super().keyPressEvent(event)
-            return
+        Returns:
+            Shot's full name as key.
+        """
+        return item.full_name
 
-        # Select new shot if index changed
-        if new_index != current_index and 0 <= new_index < total_shots:
-            new_shot = self.shot_model.shots[new_index]
-            self.select_shot(new_shot)
+    def _get_items(self) -> list[Shot]:
+        """Get list of shots to display.
 
-            # Ensure the selected thumbnail is visible
-            if new_shot.full_name in self.thumbnails:
-                thumbnail = self.thumbnails[new_shot.full_name]
-                self.scroll_area.ensureWidgetVisible(thumbnail)
+        Returns:
+            List of shots from the model.
+        """
+        return self.shot_model.shots
 
-        event.accept()
+    def _handle_item_selected(self, item: Shot) -> None:
+        """Handle shot selection.
+
+        Args:
+            item: Selected shot.
+        """
+        self.shot_selected.emit(item)
+
+    def _handle_item_double_clicked(self, item: Shot) -> None:
+        """Handle shot double-click.
+
+        Args:
+            item: Double-clicked shot.
+        """
+        self.shot_double_clicked.emit(item)
+
+    def _update_thumbnail_size(self, thumbnail: QWidget, size: int) -> None:
+        """Update thumbnail widget size.
+
+        Args:
+            thumbnail: Thumbnail widget to update.
+            size: New size in pixels.
+        """
+        if isinstance(thumbnail, ThumbnailWidget):
+            thumbnail.set_size(size)
+
+    def _set_thumbnail_selected(self, thumbnail: QWidget, selected: bool) -> None:
+        """Set thumbnail selection state.
+
+        Args:
+            thumbnail: Thumbnail widget.
+            selected: Whether thumbnail is selected.
+        """
+        if isinstance(thumbnail, ThumbnailWidget):
+            thumbnail.set_selected(selected)
+
+    def _connect_thumbnail_signals(self, thumbnail: QWidget, item: Shot) -> None:
+        """Connect thumbnail widget signals.
+
+        Args:
+            thumbnail: Thumbnail widget.
+            item: Associated shot.
+        """
+        if isinstance(thumbnail, ThumbnailWidget):
+            # Use lambda to pass the shot object
+            thumbnail.clicked.connect(lambda: self._on_item_clicked(item))
+            thumbnail.double_clicked.connect(lambda: self._on_item_double_clicked(item))
+
+    @property
+    def selected_shot(self) -> Shot | None:
+        """Get the currently selected shot.
+
+        Returns:
+            Selected shot or None.
+        """
+        return self.selected_item

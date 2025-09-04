@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, List
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
@@ -22,7 +22,9 @@ from PySide6.QtWidgets import QApplication
 from config import ThreadingConfig
 from persistent_bash_session import PersistentBashSession
 from secure_command_executor import get_secure_executor
-from type_definitions import PerformanceMetricsDict
+
+if TYPE_CHECKING:
+    from type_definitions import PerformanceMetricsDict
 
 # Import debug utilities
 try:
@@ -451,7 +453,7 @@ class ProcessPoolManager(QObject):
             logger.error(f"File search failed: {e}")
             return []
 
-    def _get_bash_session_deprecated(self, session_type: str) -> None:
+    def _get_bash_session_deprecated(self, session_type: str) -> PersistentBashSession:
         """Get next available bash session from pool using round-robin.
 
         Creates sessions lazily on first use to avoid conflicts with Qt initialization.

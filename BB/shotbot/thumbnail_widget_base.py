@@ -8,7 +8,7 @@ import sys
 from abc import abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Protocol, TypeVar
+from typing import Protocol
 
 from PySide6.QtCore import (
     QObject,
@@ -38,9 +38,6 @@ from thumbnail_loading_indicator import ThumbnailLoadingIndicator
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
-
-# Type variable for data objects
-T = TypeVar("T", bound="ThumbnailDataProtocol")
 
 
 class FolderOpenerSignals(QObject):
@@ -302,7 +299,7 @@ class ThumbnailWidgetBase(QFrame):
         """Set the shared cache manager for all thumbnail widgets."""
         cls._cache_manager = cache_manager
 
-    def __init__(self, data: T, size: int = Config.DEFAULT_THUMBNAIL_SIZE):
+    def __init__(self, data: ThumbnailDataProtocol, size: int = Config.DEFAULT_THUMBNAIL_SIZE):
         super().__init__()
         self.data = data
         self._thumbnail_size = size

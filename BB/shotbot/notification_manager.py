@@ -306,6 +306,23 @@ class NotificationManager(QObject):
         return instance
 
     @classmethod
+    def cleanup(cls) -> None:
+        """Clean up the notification manager resources.
+
+        This should be called during test teardown or application shutdown
+        to prevent access to deleted Qt objects.
+        """
+        cls._main_window = None
+        cls._status_bar = None
+        if cls._current_progress:
+            cls._current_progress.close()
+            cls._current_progress = None
+        for toast in cls._active_toasts:
+            toast.close()
+        cls._active_toasts.clear()
+        logger.debug("NotificationManager cleaned up")
+
+    @classmethod
     def error(cls, title: str, message: str = "", details: str = "") -> None:
         """Show a critical error dialog.
 
@@ -385,7 +402,10 @@ class NotificationManager(QObject):
             # Restore original styling after timeout
             if timeout > 0:
                 QTimer.singleShot(
-                    timeout, lambda: cls._status_bar.setStyleSheet(original_style)
+                    timeout,
+                    lambda: cls._status_bar.setStyleSheet(original_style)
+                    if cls._status_bar
+                    else None,
                 )
 
         logger.info(f"Success notification: {message}")

@@ -24,11 +24,11 @@ from typing_extensions import override
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
+    from process_pool_manager import ProcessPoolManager
+    from type_definitions import PerformanceMetricsDict
 
 from base_shot_model import BaseShotModel
-from process_pool_manager import ProcessPoolManager
 from shot_model import RefreshResult, Shot
-from type_definitions import PerformanceMetricsDict
 
 logger = logging.getLogger(__name__)
 
@@ -449,6 +449,19 @@ class OptimizedShotModel(BaseShotModel):
     def clear_selection(self) -> None:
         """Clear the current shot selection."""
         self.select_shot(None)
+    
+    def wait_for_async_load(self, timeout_ms: int = 5000) -> bool:
+        """Wait for async loading to complete.
+        
+        Args:
+            timeout_ms: Maximum time to wait in milliseconds
+            
+        Returns:
+            True if loading completed, False if timed out
+        """
+        if self._async_loader and self._async_loader.isRunning():
+            return self._async_loader.wait(timeout_ms)
+        return True  # Not loading, so already complete
 
 
 # Example usage for immediate UI display
@@ -507,8 +520,7 @@ if __name__ == "__main__":
     app.processEvents()
 
     # In real app, this would be handled by Qt event loop
-    if model._async_loader:
-        model._async_loader.wait(5000)
+    model.wait_for_async_load(5000)
 
     print(f"Final shots: {len(model.shots)}")
     print(f"Performance metrics: {model.get_performance_metrics()}")
