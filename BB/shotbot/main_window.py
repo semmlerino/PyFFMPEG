@@ -91,8 +91,9 @@ from launcher_manager import LauncherManager  # Need at runtime
 from log_viewer import LogViewer
 from notification_manager import NotificationManager, NotificationType
 from persistent_terminal_manager import PersistentTerminalManager
-from previous_shots_grid import PreviousShotsGrid
+from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
+from previous_shots_view import PreviousShotsView
 from process_pool_manager import ProcessPoolManager
 from progress_manager import ProgressManager
 from settings_dialog import SettingsDialog
@@ -272,9 +273,12 @@ class MainWindow(QMainWindow):
         self.threede_shot_grid = ThreeDEGridView(model=self.threede_item_model)
         _ = self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
 
-        # Tab 3: Previous Shots (approved/completed)
-        self.previous_shots_grid = PreviousShotsGrid(
+        # Tab 3: Previous Shots (approved/completed) - using Model/View architecture
+        self.previous_shots_item_model = PreviousShotsItemModel(
             self.previous_shots_model, self.cache_manager
+        )
+        self.previous_shots_grid = PreviousShotsView(
+            model=self.previous_shots_item_model
         )
         _ = self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
 
@@ -563,6 +567,7 @@ class MainWindow(QMainWindow):
         _ = self.previous_shots_grid.shot_double_clicked.connect(
             self._on_shot_double_clicked
         )
+        _ = self.previous_shots_grid.app_launch_requested.connect(self._launch_app)
 
         # Command launcher
         _ = self.command_launcher.command_executed.connect(self.log_viewer.add_command)
@@ -580,6 +585,9 @@ class MainWindow(QMainWindow):
         # Synchronize thumbnail sizes between tabs
         _ = self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
         _ = self.threede_shot_grid.size_slider.valueChanged.connect(
+            self._sync_thumbnail_sizes,
+        )
+        _ = self.previous_shots_grid.size_slider.valueChanged.connect(
             self._sync_thumbnail_sizes,
         )
 
@@ -1242,60 +1250,74 @@ class MainWindow(QMainWindow):
     def _increase_thumbnail_size(self) -> None:
         """Increase thumbnail size."""
         # Get current size from active tab
-        if self.tab_widget.currentIndex() == 0:
+        tab_index = self.tab_widget.currentIndex()
+        if tab_index == 0:
             current = self.shot_grid.size_slider.value()
-        else:
+        elif tab_index == 1:
             current = self.threede_shot_grid.size_slider.value()
+        else:
+            current = self.previous_shots_grid.size_slider.value()
 
         new_size = min(current + 20, Config.MAX_THUMBNAIL_SIZE)
-        # This will trigger _sync_thumbnail_sizes to update both
-        if self.tab_widget.currentIndex() == 0:
+        # This will trigger _sync_thumbnail_sizes to update all grids
+        if tab_index == 0:
             self.shot_grid.size_slider.setValue(new_size)
-        else:
+        elif tab_index == 1:
             self.threede_shot_grid.size_slider.setValue(new_size)
+        else:
+            self.previous_shots_grid.size_slider.setValue(new_size)
 
     def _decrease_thumbnail_size(self) -> None:
         """Decrease thumbnail size."""
         # Get current size from active tab
-        if self.tab_widget.currentIndex() == 0:
+        tab_index = self.tab_widget.currentIndex()
+        if tab_index == 0:
             current = self.shot_grid.size_slider.value()
-        else:
+        elif tab_index == 1:
             current = self.threede_shot_grid.size_slider.value()
+        else:
+            current = self.previous_shots_grid.size_slider.value()
 
         new_size = max(current - 20, Config.MIN_THUMBNAIL_SIZE)
-        # This will trigger _sync_thumbnail_sizes to update both
-        if self.tab_widget.currentIndex() == 0:
+        # This will trigger _sync_thumbnail_sizes to update all grids
+        if tab_index == 0:
             self.shot_grid.size_slider.setValue(new_size)
-        else:
+        elif tab_index == 1:
             self.threede_shot_grid.size_slider.setValue(new_size)
+        else:
+            self.previous_shots_grid.size_slider.setValue(new_size)
 
     def _sync_thumbnail_sizes(self, value: int) -> None:
-        """Synchronize thumbnail sizes between both tabs."""
+        """Synchronize thumbnail sizes between all tabs."""
         # Use signal blocking instead of disconnection to prevent race conditions
         # This is thread-safe and guaranteed to work
 
         # Block signals temporarily to prevent recursion
         shot_grid_was_blocked = self.shot_grid.size_slider.blockSignals(True)
         threede_grid_was_blocked = self.threede_shot_grid.size_slider.blockSignals(True)
+        previous_grid_was_blocked = self.previous_shots_grid.size_slider.blockSignals(True)
 
         try:
-            # Update both sliders without triggering signals
+            # Update all sliders without triggering signals
             self.shot_grid.size_slider.setValue(value)
             self.threede_shot_grid.size_slider.setValue(value)
+            self.previous_shots_grid.size_slider.setValue(value)
 
-            # For Model/View grids, the size change is handled by the delegate
-            # when the slider value changes. Previous_shots_grid still needs it.
-            self.previous_shots_grid._thumbnail_size = value  # type: ignore[attr-defined]
+            # All grids now use Model/View, size change is handled by delegates
 
             # Update size labels
             self.shot_grid.size_label.setText(f"{value}px")
             self.threede_shot_grid.size_label.setText(f"{value}px")
+            self.previous_shots_grid.size_label.setText(f"{value}px")
         finally:
             # Always restore signal state, even if an exception occurs
             # This prevents leaving signals permanently blocked
             _ = self.shot_grid.size_slider.blockSignals(shot_grid_was_blocked)
             _ = self.threede_shot_grid.size_slider.blockSignals(
                 threede_grid_was_blocked
+            )
+            _ = self.previous_shots_grid.size_slider.blockSignals(
+                previous_grid_was_blocked
             )
 
     def _update_status(self, message: str) -> None:
@@ -1544,6 +1566,8 @@ class MainWindow(QMainWindow):
                 self.shot_grid.size_slider.setValue(thumbnail_size)
             if hasattr(self.threede_shot_grid, "size_slider"):
                 self.threede_shot_grid.size_slider.setValue(thumbnail_size)
+            if hasattr(self.previous_shots_grid, "size_slider"):
+                self.previous_shots_grid.size_slider.setValue(thumbnail_size)
 
             # Apply UI preferences
             self._apply_ui_settings()
@@ -1904,6 +1928,8 @@ class MainWindow(QMainWindow):
             self.shot_grid.size_slider.setValue(thumbnail_size)
         if hasattr(self.threede_shot_grid, "size_slider"):
             self.threede_shot_grid.size_slider.setValue(thumbnail_size)
+        if hasattr(self.previous_shots_grid, "size_slider"):
+            self.previous_shots_grid.size_slider.setValue(thumbnail_size)
 
         logger.info("Settings applied successfully")
 
