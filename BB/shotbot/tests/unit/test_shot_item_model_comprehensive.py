@@ -103,7 +103,7 @@ class TestAsyncCallbackRaceConditions:
         assert result is None
 
     def test_immutable_shot_identifier_capture(
-        self, model, test_shots, qtbot, tmp_path
+        self, model, test_shots, qtbot, tmp_path, monkeypatch
     ):
         """Test that shot_full_name is captured correctly for async callbacks.
 
@@ -115,8 +115,7 @@ class TestAsyncCallbackRaceConditions:
         thumbnail_path.touch()
 
         # Mock get_thumbnail_path to return our fake path
-        for shot in test_shots:
-            shot.get_thumbnail_path = lambda: thumbnail_path
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: thumbnail_path)
 
         model.set_shots(test_shots)
 
@@ -197,13 +196,20 @@ class TestAsyncCallbackRaceConditions:
             assert result["shot_full_name"] == test_shots[0].full_name
             assert result["cached_path"] == "/cache/test.jpg"
 
-    def test_concurrent_thumbnail_loading(self, model, test_shots, qtbot, tmp_path):
+    def test_concurrent_thumbnail_loading(self, model, test_shots, qtbot, tmp_path, monkeypatch):
         """Test multiple simultaneous thumbnail load operations for thread safety."""
         # Create fake thumbnail files for each shot
+        thumbnail_paths = {}
         for i, shot in enumerate(test_shots):
             thumbnail_path = tmp_path / f"thumbnail_{i}.jpg"
             thumbnail_path.touch()
-            shot.get_thumbnail_path = lambda path=thumbnail_path: path
+            thumbnail_paths[shot.full_name] = thumbnail_path
+        
+        # Mock get_thumbnail_path to return correct path for each shot
+        def mock_get_thumbnail(self):
+            return thumbnail_paths.get(self.full_name)
+        
+        monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
 
         model.set_shots(test_shots)
 

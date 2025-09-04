@@ -44,16 +44,22 @@ class TestAsyncWorkflowIntegration:
         return tmp_path, thumbnails
 
     @pytest.fixture
-    def test_shots(self, temp_setup):
+    def test_shots(self, temp_setup, monkeypatch):
         """Create test shots with thumbnail paths."""
         tmp_path, thumbnails = temp_setup
 
         shots = []
+        thumbnail_map = {}
         for i, thumbnail_path in enumerate(thumbnails):
             shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
-            # Mock thumbnail path to point to our test images
-            shot.get_thumbnail_path = lambda p=thumbnail_path: p
             shots.append(shot)
+            thumbnail_map[shot.full_name] = thumbnail_path
+        
+        # Mock get_thumbnail_path to return correct path for each shot
+        def mock_get_thumbnail(self):
+            return thumbnail_map.get(self.full_name)
+        
+        monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
 
         return shots
 
@@ -224,14 +230,22 @@ class TestAsyncWorkflowIntegration:
         assert info_panel._current_shot is None
 
     def test_error_propagation_across_components(
-        self, integration_components, test_shots, qtbot
+        self, integration_components, test_shots, qtbot, monkeypatch
     ):
         """Test error handling doesn't cascade between components."""
         item_model, info_panel, cache_manager = integration_components
 
         # Create shot with problematic thumbnail path
         bad_shot = Shot("error_show", "error_seq", "error_shot", "/nonexistent")
-        bad_shot.get_thumbnail_path = lambda: Path("/nonexistent/image.jpg")
+        
+        # Mock get_thumbnail_path to return nonexistent path for bad shot
+        original_get_thumbnail = Shot.get_thumbnail_path
+        def mock_get_thumbnail(self):
+            if self == bad_shot:
+                return Path("/nonexistent/image.jpg")
+            return original_get_thumbnail(self)
+        
+        monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
 
         # Set in both components
         item_model.set_shots([bad_shot])
@@ -295,7 +309,7 @@ class TestAsyncWorkflowIntegration:
 class TestAsyncCallbackIntegration:
     """Test async callback integration scenarios."""
 
-    def test_model_reset_during_async_callbacks(self, qtbot, tmp_path):
+    def test_model_reset_during_async_callbacks(self, qtbot, tmp_path, monkeypatch):
         """Test model reset while async callbacks are in progress."""
         # Create test setup
         image_path = tmp_path / "test.jpg"
@@ -306,14 +320,15 @@ class TestAsyncCallbackIntegration:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         model = ShotItemModel(cache_manager)
 
+        # Mock get_thumbnail_path to return the test image
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)
+
         try:
             # Create initial shots
             initial_shots = [
                 Shot("show1", "seq1", "shot1", str(tmp_path)),
                 Shot("show1", "seq1", "shot2", str(tmp_path)),
             ]
-            for shot in initial_shots:
-                shot.get_thumbnail_path = lambda p=image_path: p
 
             model.set_shots(initial_shots)
 
@@ -323,7 +338,6 @@ class TestAsyncCallbackIntegration:
 
             # Reset model with completely different shots
             new_shots = [Shot("new_show", "new_seq", "new_shot", str(tmp_path))]
-            new_shots[0].get_thumbnail_path = lambda p=image_path: p
 
             model.set_shots(new_shots)
 
@@ -337,7 +351,7 @@ class TestAsyncCallbackIntegration:
         finally:
             model.deleteLater()
 
-    def test_info_panel_shot_change_during_loading(self, qtbot, tmp_path):
+    def test_info_panel_shot_change_during_loading(self, qtbot, tmp_path, monkeypatch):
         """Test info panel shot changes while async loading is in progress."""
         # Create test image
         image_path = tmp_path / "test.jpg"
@@ -349,12 +363,14 @@ class TestAsyncCallbackIntegration:
         panel = ShotInfoPanel(cache_manager)
         qtbot.addWidget(panel)
 
+        # Mock get_thumbnail_path to return the test image
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)
+
         try:
             # Create test shots
             shots = []
             for i in range(3):
                 shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
-                shot.get_thumbnail_path = lambda p=image_path: p
                 shots.append(shot)
 
             # Rapidly cycle through shots

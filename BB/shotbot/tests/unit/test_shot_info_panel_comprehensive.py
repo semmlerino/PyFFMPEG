@@ -206,7 +206,7 @@ class TestShotInfoPanelAsyncLoading:
         panel.deleteLater()
 
     @pytest.fixture
-    def test_shot(self, tmp_path, qapp) -> Shot:
+    def test_shot(self, tmp_path, qapp, monkeypatch) -> Shot:
         """Create test shot with thumbnail."""
         # Create test thumbnail
         thumbnail_path = tmp_path / "thumbnail.jpg"
@@ -216,8 +216,8 @@ class TestShotInfoPanelAsyncLoading:
 
         # Create shot that points to this thumbnail
         shot = Shot("test_show", "test_seq", "test_shot", str(tmp_path))
-        # Mock get_thumbnail_path to return our test image
-        shot.get_thumbnail_path = lambda: thumbnail_path
+        # Mock get_thumbnail_path method on the Shot class
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: thumbnail_path)
         return shot
 
     def test_async_thumbnail_loading_workflow(self, info_panel, test_shot, qtbot):
@@ -236,10 +236,11 @@ class TestShotInfoPanelAsyncLoading:
         thumbnail_pixmap = info_panel.thumbnail_label.pixmap()
         assert thumbnail_pixmap is not None
 
-    def test_concurrent_shot_changes(self, info_panel, tmp_path, qtbot):
+    def test_concurrent_shot_changes(self, info_panel, tmp_path, qtbot, monkeypatch):
         """Test rapid shot changes don't cause race conditions."""
         # Create multiple test shots
         shots = []
+        thumbnail_paths = []
         for i in range(3):
             thumbnail_path = tmp_path / f"thumbnail_{i}.jpg"
             image = QImage(64, 64, QImage.Format.Format_RGB32)
@@ -247,8 +248,17 @@ class TestShotInfoPanelAsyncLoading:
             image.save(str(thumbnail_path), "JPEG")
 
             shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
-            shot.get_thumbnail_path = lambda p=thumbnail_path: p
             shots.append(shot)
+            thumbnail_paths.append(thumbnail_path)
+        
+        # Create a mock function that returns the correct path based on shot
+        def mock_get_thumbnail(self):
+            for i, s in enumerate(shots):
+                if self == s:
+                    return thumbnail_paths[i]
+            return None
+        
+        monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
 
         # Rapidly change shots
         for shot in shots:
@@ -277,7 +287,7 @@ class TestShotInfoPanelAsyncLoading:
         assert info_panel.shot_name_label.text() == "No Shot Selected"
         assert info_panel.show_sequence_label.text() == ""
 
-    def test_memory_bounds_checking_integration(self, info_panel, tmp_path, qtbot):
+    def test_memory_bounds_checking_integration(self, info_panel, tmp_path, qtbot, monkeypatch):
         """Test integration with ImageUtils memory bounds checking."""
         # The actual bounds checking is done in the loader
         # This test verifies the integration doesn't crash
@@ -286,7 +296,7 @@ class TestShotInfoPanelAsyncLoading:
 
         # Mock get_thumbnail_path to return a path (may not exist)
         thumbnail_path = tmp_path / "bounds_test.jpg"
-        test_shot.get_thumbnail_path = lambda: thumbnail_path
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: thumbnail_path)
 
         # Set shot - should handle missing file gracefully
         info_panel.set_shot(test_shot)

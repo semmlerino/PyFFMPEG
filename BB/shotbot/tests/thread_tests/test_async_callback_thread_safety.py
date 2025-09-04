@@ -303,10 +303,11 @@ class TestShotInfoPanelThreadSafety:
         success_count = sum(1 for success, _ in loading_results if success)
         assert success_count == len(image_paths)
 
-    def test_rapid_shot_changes_thread_safety(self, thread_safe_panel, tmp_path, qtbot):
+    def test_rapid_shot_changes_thread_safety(self, thread_safe_panel, tmp_path, qtbot, monkeypatch):
         """Test rapid shot changes don't cause race conditions."""
         # Create test shots with images
         shots = []
+        thumbnail_paths = {}
         for i in range(10):
             image_path = tmp_path / f"shot_{i}.jpg"
             image = QImage(32, 32, QImage.Format.Format_RGB32)
@@ -314,8 +315,14 @@ class TestShotInfoPanelThreadSafety:
             image.save(str(image_path), "JPEG")
 
             shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
-            shot.get_thumbnail_path = lambda p=image_path: p
             shots.append(shot)
+            thumbnail_paths[shot.full_name] = image_path
+        
+        # Mock get_thumbnail_path to return correct path for each shot
+        def mock_get_thumbnail(self):
+            return thumbnail_paths.get(self.full_name)
+        
+        monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
 
         change_errors = []
 
@@ -405,7 +412,7 @@ class TestShotInfoPanelThreadSafety:
 class TestCrossComponentThreadSafety:
     """Test thread safety across multiple components."""
 
-    def test_model_and_panel_concurrent_operations(self, qtbot, tmp_path):
+    def test_model_and_panel_concurrent_operations(self, qtbot, tmp_path, monkeypatch):
         """Test model and panel operating concurrently without interference."""
         # Create test setup
         image_path = tmp_path / "concurrent.jpg"
@@ -421,12 +428,14 @@ class TestCrossComponentThreadSafety:
         panel = ShotInfoPanel(CacheManager(cache_dir=temp_dir))
         qtbot.addWidget(panel)
 
+        # Mock get_thumbnail_path to return the test image
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)
+
         try:
             # Create shared shots
             shots = []
             for i in range(5):
                 shot = Shot(f"conc_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
-                shot.get_thumbnail_path = lambda p=image_path: p
                 shots.append(shot)
 
             operation_errors = []
