@@ -47,12 +47,32 @@ A PySide6 GUI application for browsing VFX shots and launching applications in s
 
 ## Usage
 
-Run the application:
+### Normal Mode (Requires VFX Environment)
+Run the application in a VFX environment with access to `ws -sg`:
 ```bash
 python shotbot.py
 # or
 ./shotbot.py
 ```
+
+### Mock Mode (No VFX Environment Needed)
+Run with mock data for development/testing without `ws` command:
+```bash
+python shotbot.py --mock
+# or
+SHOTBOT_MOCK=1 python shotbot.py
+```
+
+Mock mode uses demo shot data from `demo_shots.json` and doesn't require:
+- Access to `ws -sg` command
+- VFX facility network access
+- Shot directories or thumbnails
+
+Perfect for:
+- Development and testing
+- Offline work
+- CI/CD pipelines
+- Demos and training
 
 ### Keyboard Shortcuts
 

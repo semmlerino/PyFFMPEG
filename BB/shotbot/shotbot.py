@@ -59,6 +59,7 @@ Thread Safety:
     thumbnail loading and scene discovery.
 """
 
+import argparse
 import logging
 import os
 import sys
@@ -171,8 +172,78 @@ def setup_logging() -> None:
 
 def main() -> None:
     """Main entry point."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="ShotBot - VFX Shot Launcher Application",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  shotbot.py              # Run normally (requires ws command)
+  shotbot.py --mock       # Run with mock VFX data (no ws needed)
+  
+Environment Variables:
+  SHOTBOT_DEBUG=1         # Enable debug logging
+  SHOTBOT_MOCK=1          # Enable mock mode via environment
+"""
+    )
+    parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Run with mock VFX data (no ws command needed)",
+    )
+    args = parser.parse_args()
+
     # Initialize logging first - BEFORE any imports that might trigger PIL
     setup_logging()
+    
+    logger = logging.getLogger(__name__)
+
+    # Check for mock mode from either command line or environment
+    mock_mode = args.mock or os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes")
+    
+    if mock_mode:
+        logger.info("Starting ShotBot in MOCK MODE - using test data")
+        # Set up mock ProcessPoolManager before any imports that might use it
+        from tests.test_doubles_library import TestProcessPool
+        import process_pool_manager
+        
+        # Create mock pool with sample shot data
+        mock_pool = TestProcessPool()
+        
+        # Load demo shots if available, otherwise use defaults
+        demo_shots_path = Path(__file__).parent / "demo_shots.json"
+        if demo_shots_path.exists():
+            import json
+            try:
+                with open(demo_shots_path) as f:
+                    demo_data = json.load(f)
+                    # Convert to workspace output format
+                    outputs = []
+                    for shot in demo_data.get("shots", []):
+                        show = shot.get("show", "demo")
+                        seq = shot.get("seq", "seq01")
+                        shot_num = shot.get("shot", "0010")
+                        outputs.append(f"workspace /shows/{show}/shots/{seq}/{seq}_{shot_num}")
+                    if outputs:
+                        mock_pool.set_outputs(*outputs)
+                        logger.info(f"Loaded {len(outputs)} demo shots from {demo_shots_path}")
+            except Exception as e:
+                logger.warning(f"Could not load demo_shots.json: {e}, using defaults")
+        
+        # If no demo shots loaded, use defaults
+        if not mock_pool.outputs:
+            mock_pool.set_outputs(
+                "workspace /shows/demo/shots/seq01/seq01_0010",
+                "workspace /shows/demo/shots/seq01/seq01_0020",
+                "workspace /shows/demo/shots/seq01/seq01_0030",
+                "workspace /shows/demo/shots/seq02/seq02_0040",
+                "workspace /shows/demo/shots/seq02/seq02_0050",
+            )
+            logger.info("Using default demo shots")
+        
+        # Replace the ProcessPoolManager singleton
+        process_pool_manager.ProcessPoolManager._instance = mock_pool
+        logger.info("Mock ProcessPoolManager injected successfully")
 
     # Now import Qt and main window AFTER logging is configured
     # This ensures PIL logging is suppressed before PIL is imported
