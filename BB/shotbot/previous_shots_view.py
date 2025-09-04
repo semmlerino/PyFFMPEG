@@ -38,9 +38,10 @@ from shot_item_model import ShotRole
 from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
+    from PySide6.QtGui import QCloseEvent, QContextMenuEvent, QKeyEvent, QWheelEvent
     
     from previous_shots_item_model import PreviousShotsItemModel
+    from shot_model import Shot
 
 logger = logging.getLogger(__name__)
 
@@ -83,11 +84,13 @@ class PreviousShotsView(QWidget):
         if model:
             self.set_model(model)
 
-        # Visibility tracking timer for lazy loading
-        self._visibility_timer = QTimer()
-        self._visibility_timer.timeout.connect(self._update_visible_range)
-        self._visibility_timer.setInterval(100)
-        self._visibility_timer.start()
+        # Setup scroll-based visibility updates (replaces timer)
+        self._update_timer = QTimer()
+        self._update_timer.setSingleShot(True)
+        self._update_timer.timeout.connect(self._update_visible_range)
+        
+        # Connect scroll events to trigger debounced updates
+        # This will be connected when the model is set
 
         logger.info("PreviousShotsView initialized with Model/View architecture")
 
@@ -190,7 +193,7 @@ class PreviousShotsView(QWidget):
         return self._model
 
     @property
-    def selected_shot(self):
+    def selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
 
         Returns:
@@ -224,11 +227,25 @@ class PreviousShotsView(QWidget):
         # Connect to model signals
         model.shots_updated.connect(self._on_model_updated)
         
-        # Connect to underlying model's scan signals
-        if hasattr(model, '_model'):
-            model._model.scan_started.connect(self._on_scan_started)
-            model._model.scan_finished.connect(self._on_scan_finished)
-            model._model.scan_progress.connect(self._on_scan_progress)
+        # Connect to underlying model's scan signals using accessor method
+        underlying_model = model.get_underlying_model()
+        underlying_model.scan_started.connect(
+            self._on_scan_started,
+            Qt.ConnectionType.QueuedConnection
+        )
+        underlying_model.scan_finished.connect(
+            self._on_scan_finished,
+            Qt.ConnectionType.QueuedConnection
+        )
+        underlying_model.scan_progress.connect(
+            self._on_scan_progress,
+            Qt.ConnectionType.QueuedConnection
+        )
+        
+        # Connect scroll events for debounced visibility updates
+        self.list_view.verticalScrollBar().valueChanged.connect(
+            self._schedule_visible_range_update
+        )
 
         # Update status with shot count
         self._update_status()
@@ -494,13 +511,23 @@ class PreviousShotsView(QWidget):
 
         logger.debug(f"Context menu shown for shot: {shot.full_name}")
 
-    def _open_shot_folder(self, shot) -> None:
+    def _open_shot_folder(self, shot: Shot) -> None:
         """Open the shot's workspace folder in system file manager.
 
         Args:
             shot: Shot object containing workspace path
         """
         folder_path = shot.workspace_path
+        
+        # Validate folder path
+        if not folder_path:
+            logger.error(f"No workspace path for shot: {shot.full_name}")
+            return
+        
+        from pathlib import Path
+        if not Path(folder_path).exists():
+            logger.error(f"Workspace path does not exist: {folder_path}")
+            return
 
         # Create worker to open folder in background
         worker = FolderOpenerWorker(folder_path)
@@ -534,7 +561,7 @@ class PreviousShotsView(QWidget):
         """Handle successful folder opening."""
         logger.debug("Folder opened successfully")
 
-    def get_selected_shot(self):
+    def get_selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
 
         Returns:
@@ -545,3 +572,30 @@ class PreviousShotsView(QWidget):
     def refresh(self) -> None:
         """Trigger a refresh of the grid."""
         self._on_refresh_clicked()
+    
+    @Slot()
+    def _schedule_visible_range_update(self) -> None:
+        """Schedule a debounced visible range update.
+        
+        This is called on scroll events and uses a timer to debounce
+        the updates for better performance.
+        """
+        # Cancel any pending update
+        self._update_timer.stop()
+        # Schedule update after 50ms of no scrolling
+        self._update_timer.start(50)
+    
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Handle widget close event to clean up resources.
+        
+        Args:
+            event: Close event
+        """
+        # Stop the update timer to prevent memory leaks
+        if hasattr(self, '_update_timer'):
+            self._update_timer.stop()
+        
+        # Call parent implementation
+        super().closeEvent(event)
+        
+        logger.debug("PreviousShotsView cleaned up resources on close")
