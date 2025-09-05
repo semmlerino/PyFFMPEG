@@ -1,4 +1,4 @@
-"""Unit tests for ThreeDEShotGrid widget."""
+"""Unit tests for ThreeDEGridView Model/View component."""
 
 from __future__ import annotations
 
@@ -10,7 +10,8 @@ from PySide6.QtTest import QSignalSpy
 
 from config import Config
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
-from threede_shot_grid import ThreeDEShotGrid
+from threede_grid_view import ThreeDEGridView
+from threede_item_model import ThreeDEItemModel
 from threede_thumbnail_widget import ThreeDEThumbnailWidget
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
@@ -44,14 +45,17 @@ def scene_model(sample_scenes):
 
 @pytest.fixture
 def threede_grid(qtbot, scene_model):
-    """Create a ThreeDEShotGrid instance for testing."""
-    grid = ThreeDEShotGrid(scene_model)
-    qtbot.addWidget(grid)
-    return grid
+    """Create a ThreeDEGridView instance for testing."""
+    # Create the item model wrapper
+    item_model = ThreeDEItemModel(scene_model)
+    # Create the view with the model
+    view = ThreeDEGridView(model=item_model)
+    qtbot.addWidget(view)
+    return view
 
 
-class TestThreeDEShotGridInitialization:
-    """Test ThreeDEShotGrid initialization."""
+class TestThreeDEGridViewInitialization:
+    """Test ThreeDEGridView initialization."""
 
     def test_initialization(self, threede_grid, scene_model):
         """Test grid initialization."""
@@ -82,7 +86,7 @@ class TestThreeDEShotGridInitialization:
         assert threede_grid.focusPolicy() == Qt.FocusPolicy.StrongFocus
 
 
-class TestThreeDEShotGridLoadingState:
+class TestThreeDEGridViewLoadingState:
     """Test loading state management."""
 
     def test_set_loading_true(self, threede_grid, qtbot):
@@ -123,7 +127,7 @@ class TestThreeDEShotGridLoadingState:
         # Progress bar remains in indeterminate state
 
 
-class TestThreeDEShotGridSceneDisplay:
+class TestThreeDEGridViewSceneDisplay:
     """Test scene display functionality."""
 
     def test_refresh_scenes_with_scenes(self, threede_grid, sample_scenes):
@@ -204,7 +208,7 @@ class TestThreeDEShotGridSceneDisplay:
         assert threede_grid.grid_layout.count() == 0
 
 
-class TestThreeDEShotGridColumnCalculation:
+class TestThreeDEGridViewColumnCalculation:
     """Test column count calculation."""
 
     def test_get_column_count_default(self, threede_grid):
@@ -255,7 +259,7 @@ class TestThreeDEShotGridColumnCalculation:
         assert count >= 1
 
 
-class TestThreeDEShotGridSizeControl:
+class TestThreeDEGridViewSizeControl:
     """Test thumbnail size control."""
 
     def test_size_slider_range(self, threede_grid):
@@ -344,7 +348,7 @@ class TestThreeDEShotGridSizeControl:
         assert threede_grid._thumbnail_size == initial_size
 
 
-class TestThreeDEShotGridSelection:
+class TestThreeDEGridViewSelection:
     """Test scene selection functionality."""
 
     def test_thumbnail_click(self, threede_grid, qtbot, sample_scenes):
@@ -418,7 +422,7 @@ class TestThreeDEShotGridSelection:
         assert threede_grid.selected_scene == scene2
 
 
-class TestThreeDEShotGridKeyboardNavigation:
+class TestThreeDEGridViewKeyboardNavigation:
     """Test keyboard navigation."""
 
     def test_arrow_key_right(self, threede_grid, sample_scenes):
@@ -608,7 +612,7 @@ class TestThreeDEShotGridKeyboardNavigation:
         assert new_thumb.parent() is not None
 
 
-class TestThreeDEShotGridReflow:
+class TestThreeDEGridViewReflow:
     """Test grid reflow functionality."""
 
     def test_reflow_grid(self, threede_grid, sample_scenes):
@@ -659,7 +663,7 @@ class TestThreeDEShotGridReflow:
         assert threede_grid.grid_layout.count() >= initial_thumbnail_count
 
 
-class TestThreeDEShotGridSignalConnections:
+class TestThreeDEGridViewSignalConnections:
     """Test signal connections."""
 
     def test_thumbnail_signal_connections(self, threede_grid, sample_scenes):

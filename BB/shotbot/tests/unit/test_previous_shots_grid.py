@@ -1,6 +1,6 @@
-"""Tests for PreviousShotsGrid widget.
+"""Tests for PreviousShotsView component.
 
-Tests the UI grid component with real Qt widgets and signal interactions.
+Tests the Model/View UI component with real Qt widgets and signal interactions.
 Follows best practices:
 - Uses real Qt components where possible
 - Proper signal race condition prevention
@@ -19,13 +19,14 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from previous_shots_view import PreviousShotsView
+from previous_shots_item_model import PreviousShotsItemModel
 from PySide6.QtCore import QObject, QSize, Qt, Signal
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtTest import QSignalSpy, QTest
 
 from cache_manager import CacheManager
 from config import Config
-from previous_shots_grid import PreviousShotsGrid
 from previous_shots_model import PreviousShotsModel
 from shot_model import Shot
 
@@ -92,8 +93,8 @@ class FakePreviousShotsModel(QObject):
         return self._scanning
 
 
-class TestPreviousShotsGrid:
-    """Test cases for PreviousShotsGrid widget with real Qt components."""
+class TestPreviousShotsView:
+    """Test cases for PreviousShotsView Model/View component with real Qt components."""
 
     @pytest.fixture
     def test_model(self, qtbot) -> FakePreviousShotsModel:
@@ -114,33 +115,33 @@ class TestPreviousShotsGrid:
         return CacheManager(cache_dir=tmp_path / "cache")
 
     @pytest.fixture
-    def grid_widget(self, test_model, test_cache_manager, qtbot) -> PreviousShotsGrid:
-        """Create PreviousShotsGrid widget with test doubles."""
-        grid = PreviousShotsGrid(test_model, test_cache_manager)
-        qtbot.addWidget(grid)  # Proper - this IS a QWidget
-        grid.show()
-        qtbot.waitExposed(grid)  # Wait for widget to be visible
-        return grid
+    def grid_widget(self, test_model, test_cache_manager, qtbot) -> PreviousShotsView:
+        """Create PreviousShotsView widget with Model/View architecture."""
+        # Create the item model wrapper for the previous shots model
+        item_model = PreviousShotsItemModel(test_model)
+        # Create the view with the model
+        view = PreviousShotsView(model=item_model)
+        qtbot.addWidget(view)  # Proper - this IS a QWidget
+        view.show()
+        qtbot.waitExposed(view)  # Wait for widget to be visible
+        return view
 
     def test_grid_initialization(self, grid_widget, test_model, test_cache_manager):
         """Test grid widget initialization."""
-        assert grid_widget._model is test_model
-        assert grid_widget._cache_manager is test_cache_manager
-        assert isinstance(
-            grid_widget.thumbnails, dict
-        )  # Changed from _thumbnail_widgets
-        assert grid_widget.selected_item is None  # Changed from _selected_shot
+        # View has the item model, which wraps the test_model
+        assert grid_widget.model is not None
+        assert isinstance(grid_widget.model, PreviousShotsItemModel)
+        assert grid_widget.selected_shot is None
 
         # UI components should be created
         assert grid_widget._status_label is not None
         assert grid_widget._refresh_button is not None
-        assert hasattr(grid_widget, "grid_layout")  # Changed from _grid_widget
-        assert hasattr(grid_widget, "container")  # Grid container from BaseGridWidget
+        assert hasattr(grid_widget, "list_view")  # Model/View uses list_view
+        assert hasattr(grid_widget, "size_slider")  # Size control
 
-        # Resize timer should be configured (performance optimization)
-        assert hasattr(grid_widget, "_resize_timer")
-        assert grid_widget._resize_timer.isSingleShot()
-        assert grid_widget._resize_timer.interval() == 100
+        # View should have proper methods
+        assert hasattr(grid_widget, "refresh")
+        assert hasattr(grid_widget, "get_selected_shot")
 
     def test_refresh_button_interaction(self, grid_widget, test_model, qtbot):
         """Test refresh button click behavior with signal waiting."""
@@ -382,12 +383,12 @@ class TestPreviousShotsGrid:
         assert grid_widget.get_selected_shot() is shot
 
 
-class TestPreviousShotsGridIntegration:
+class TestPreviousShotsViewIntegration:
     """Integration tests with real components."""
 
     @pytest.fixture
-    def integration_grid(self, qtbot, tmp_path) -> PreviousShotsGrid:
-        """Create grid with all real components for integration testing."""
+    def integration_grid(self, qtbot, tmp_path) -> PreviousShotsView:
+        """Create view with all real components for integration testing."""
         from shot_model import ShotModel
 
         # Real components
@@ -395,13 +396,14 @@ class TestPreviousShotsGridIntegration:
         shot_model = ShotModel(cache_manager)
         previous_model = PreviousShotsModel(shot_model, cache_manager)
 
-        # Create grid
-        grid = PreviousShotsGrid(previous_model, cache_manager)
-        qtbot.addWidget(grid)
-        grid.show()
-        qtbot.waitExposed(grid)
+        # Create the item model and view
+        item_model = PreviousShotsItemModel(previous_model)
+        view = PreviousShotsView(model=item_model)
+        qtbot.addWidget(view)
+        view.show()
+        qtbot.waitExposed(view)
 
-        yield grid
+        yield view
 
         # Cleanup
         if hasattr(previous_model, "stop_auto_refresh"):
@@ -414,7 +416,7 @@ class TestPreviousShotsGridIntegration:
 
         # Grid should be created successfully
         assert grid is not None
-        assert isinstance(grid, PreviousShotsGrid)
+        assert isinstance(grid, PreviousShotsView)
 
         # Should have UI components
         assert hasattr(grid, "_refresh_button")

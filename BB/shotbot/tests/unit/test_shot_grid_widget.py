@@ -28,11 +28,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QGridLayout, QScrollArea, QSlider, QWidget
+# from shot_grid import ShotGrid  # Module deleted during Model/View migration
+from shot_item_model import ShotItemModel
 
 from config import Config
-from shot_grid import ShotGrid  # Deprecated but still tested
 from shot_grid_view import ShotGridView  # Modern Model/View
-from shot_item_model import ShotItemModel
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -42,155 +42,8 @@ from tests.test_doubles_library import (
     TestShotModel,
 )
 
-
-class TestShotGridWidget:
-    """Test real Qt widget behavior of deprecated ShotGrid."""
-
-    @pytest.fixture
-    def test_shots(self):
-        """Create test shots for widget testing."""
-        return [
-            TestShot("show1", "seq1", "0010", "/shows/show1/shots/seq1/seq1_0010"),
-            TestShot("show1", "seq1", "0020", "/shows/show1/shots/seq1/seq1_0020"),
-            TestShot("show2", "seq2", "0030", "/shows/show2/shots/seq2/seq2_0030"),
-        ]
-
-    @pytest.fixture
-    def test_shot_model(self, test_shots):
-        """Create a test shot model with real shots and Qt signals."""
-        model = TestShotModel()
-        model.add_test_shots(test_shots)
-        return model
-
-    @pytest.fixture
-    def shot_grid_widget(self, qtbot, test_shot_model):
-        """Create ShotGrid widget for testing."""
-        widget = ShotGrid(test_shot_model)
-        qtbot.addWidget(widget)
-        return widget
-
-    def test_widget_initialization(self, shot_grid_widget):
-        """Test widget is properly initialized with correct properties."""
-        widget = shot_grid_widget
-
-        # Verify widget properties
-        assert widget is not None
-        assert hasattr(widget, "shot_model")
-        assert hasattr(widget, "thumbnails")
-        assert hasattr(widget, "selected_shot")
-        assert widget.selected_shot is None
-        assert widget._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
-
-    def test_widget_ui_components(self, shot_grid_widget):
-        """Test widget has all expected UI components."""
-        widget = shot_grid_widget
-
-        # Check for essential UI components
-        assert hasattr(widget, "size_slider")
-        assert isinstance(widget.size_slider, QSlider)
-        assert hasattr(widget, "scroll_area")
-        assert isinstance(widget.scroll_area, QScrollArea)
-        assert hasattr(widget, "container")
-        assert isinstance(widget.container, QWidget)
-        assert hasattr(widget, "grid_layout")
-        assert isinstance(widget.grid_layout, QGridLayout)
-
-        # Verify slider configuration
-        assert widget.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE
-        assert widget.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE
-        assert widget.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE
-
-    def test_signals_exist(self, shot_grid_widget):
-        """Test widget has all expected signals."""
-        widget = shot_grid_widget
-
-        # Verify signal existence
-        assert hasattr(widget, "shot_selected")
-        assert hasattr(widget, "shot_double_clicked")
-        assert hasattr(widget, "app_launch_requested")
-
-    def test_size_slider_interaction(self, qtbot, shot_grid_widget):
-        """Test thumbnail size slider responds to user interaction."""
-        widget = shot_grid_widget
-        slider = widget.size_slider
-
-        # Set up signal spy for size changes
-        size_changed_spy = QSignalSpy(slider.valueChanged)
-
-        # Simulate user dragging slider
-        new_size = Config.MIN_THUMBNAIL_SIZE + 50
-        slider.setValue(new_size)
-
-        # Process Qt events
-        qtbot.wait(10)
-
-        # Verify signal emission and state change
-        assert size_changed_spy.count() == 1
-        assert slider.value() == new_size
-        assert widget._thumbnail_size == new_size
-
-    def test_keyboard_focus_handling(self, qtbot, shot_grid_widget):
-        """Test widget properly handles keyboard focus."""
-        widget = shot_grid_widget
-
-        # Widget should accept strong focus
-        assert widget.focusPolicy() == Qt.FocusPolicy.StrongFocus
-
-        # Set focus and verify (just test that it doesn't crash)
-        widget.setFocus()
-        qtbot.wait(10)
-
-        # Widget should maintain focus policy
-        assert widget.focusPolicy() == Qt.FocusPolicy.StrongFocus
-
-    def test_scroll_area_configuration(self, shot_grid_widget):
-        """Test scroll area is properly configured."""
-        widget = shot_grid_widget
-        scroll_area = widget.scroll_area
-
-        # Verify scroll area settings
-        assert scroll_area.widgetResizable() is True
-        assert (
-            scroll_area.horizontalScrollBarPolicy()
-            == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        assert scroll_area.widget() == widget.container
-
-    def test_grid_layout_properties(self, shot_grid_widget):
-        """Test grid layout has correct spacing and properties."""
-        widget = shot_grid_widget
-        layout = widget.grid_layout
-
-        # Verify layout spacing
-        assert layout.spacing() == Config.THUMBNAIL_SPACING
-        assert layout.parent() == widget.container
-
-    def test_refresh_shots_method_exists(self, shot_grid_widget):
-        """Test refresh_shots method exists and is callable."""
-        widget = shot_grid_widget
-
-        # Method should exist and be callable
-        assert hasattr(widget, "refresh_shots")
-        assert callable(widget.refresh_shots)
-
-    def test_widget_resize_handling(self, qtbot, shot_grid_widget):
-        """Test widget handles resize events properly."""
-        widget = shot_grid_widget
-
-        # Make widget visible first
-        widget.show()
-        qtbot.wait(10)
-
-        # Simulate resize event
-        resize_event = QResizeEvent(widget.size(), widget.size())
-        widget.resizeEvent(resize_event)
-
-        # Process events
-        qtbot.wait(10)
-
-        # Widget should still be functional after resize
-        assert widget.isVisible()
-        assert widget.size().isValid()
+# TestShotGridWidget removed - tested the deleted ShotGrid widget.
+# Use TestShotGridView below for Model/View architecture tests.
 
 
 class TestShotGridView:
