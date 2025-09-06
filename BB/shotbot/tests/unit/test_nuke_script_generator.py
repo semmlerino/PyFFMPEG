@@ -309,23 +309,28 @@ Group {{
             # Test that the undistortion file path reference is included
             assert undist_path.name in content
 
-    def test_generate_complete_comp_script(self) -> None:
-        """Test generating complete comp script with Read and Write nodes."""
+    def test_create_plate_script_with_undistortion_comprehensive(self) -> None:
+        """Test creating plate script with undistortion - comprehensive functionality."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            plate_path = temp_path / "test_plate.exr"
-            output_dir = temp_path / "output"
-            plate_path.touch()
-            output_dir.mkdir()
+            plate_path = temp_path / "test_plate.%04d.exr"
+            undist_path = temp_path / "undist.nk"
+            
+            # Create mock undistortion file
+            undist_path.write_text("""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
+version 16.0 v4
+Lens2 {
+ inputs 1
+ name LensDistortion
+ distortion1 {{curve}}
+ xpos 0
+ ypos -100
+}""")
 
-            # Use generate_comp_script for complete comp scripts
-            script_path = NukeScriptGenerator.generate_comp_script(
-                shot_name="test_shot",
+            script_path = NukeScriptGenerator.create_plate_script_with_undistortion(
                 plate_path=str(plate_path),
-                colorspace="linear",
-                first_frame=1001,
-                last_frame=1100,
-                output_dir=str(output_dir),
+                undistortion_path=str(undist_path),
+                shot_name="test_shot"
             )
 
             assert script_path is not None
@@ -334,9 +339,7 @@ Group {{
             with open(script_path) as f:
                 content = f.read()
 
-            # Test complete comp script structure
-            assert "Read {" in content
-            assert "Write {" in content
-            assert "Grade {" in content
-            assert "Viewer {" in content
-            assert "test_plate.exr" in content
+            # Test script structure includes plate and undistortion
+            assert "Read_Plate" in content
+            assert "Viewer" in content
+            assert "test_plate.%04d.exr" in content

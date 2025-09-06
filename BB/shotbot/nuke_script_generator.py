@@ -20,6 +20,109 @@ class NukeScriptGenerator:
     _temp_files: set[str] = set()
     _cleanup_registered: bool = False
 
+    # Template constants for repeated script elements
+    WINDOW_LAYOUT_XML = """define_window_layout_xml {<?xml version="1.0" encoding="UTF-8"?>
+<layout version="1.0">
+    <window x="0" y="0" w="1920" h="1080" fullscreen="0" screen="0">
+        <splitter orientation="1">
+            <split size="1214"/>
+            <splitter orientation="2">
+                <split size="570"/>
+                <dock id="" activePageId="Viewer.1">
+                    <page id="Viewer.1"/>
+                </dock>
+                <split size="460"/>
+                <dock id="" activePageId="DAG.1">
+                    <page id="DAG.1"/>
+                </dock>
+            </splitter>
+            <split size="682"/>
+            <dock id="" activePageId="Properties.1">
+                <page id="Properties.1"/>
+            </dock>
+        </splitter>
+    </window>
+</layout>
+}"""
+
+    # onCreate Python script for undistortion loader
+    UNDISTORTION_ONCREATE_SCRIPT = '''import nuke
+import os
+import sys
+import re
+
+try:
+    print('DEBUG: Starting undistortion import...')
+    print(f'DEBUG: Python version: {sys.version}')
+    
+    undist_file = r"{undist_file}"
+    print(f'DEBUG: Looking for undistortion file: {undist_file}')
+    
+    if os.path.exists(undist_file):
+        print('DEBUG: File exists, attempting to source...')
+        try:
+            # Source the undistortion file
+            nuke.scriptSource(undist_file)
+            print('DEBUG: Successfully sourced undistortion file')
+            
+            # Get all imported nodes and sanitize their names
+            imported_nodes = nuke.selectedNodes()
+            print(f'DEBUG: Found {len(imported_nodes)} imported nodes')
+            
+            # Sanitize node names - replace illegal characters
+            for node in imported_nodes:
+                try:
+                    original_name = node.name()
+                    # Replace hyphens and other illegal characters with underscores
+                    # Nuke node names can only contain letters, numbers, and underscores
+                    sanitized_name = re.sub(r'[^a-zA-Z0-9_]', '_', original_name)
+                    if sanitized_name != original_name:
+                        # Find a unique name if the sanitized name already exists
+                        base_name = sanitized_name
+                        counter = 1
+                        while nuke.exists(sanitized_name):
+                            sanitized_name = f'{base_name}_{counter}'
+                            counter += 1
+                        node.setName(sanitized_name)
+                        print(f'DEBUG: Renamed node from {original_name} to {sanitized_name}')
+                except Exception as rename_ex:
+                    print(f'DEBUG: Could not rename node {node}: {rename_ex}')
+                    continue
+            
+            # Now try to connect imported nodes to Read_Plate
+            try:
+                read_plate = nuke.toNode('Read_Plate')
+                if imported_nodes and read_plate:
+                    for node in imported_nodes:
+                        if hasattr(node, 'maxInputs') and node.maxInputs() > 0:
+                            if hasattr(node, 'input') and node.input(0) is None:
+                                try:
+                                    node.setInput(0, read_plate)
+                                    print(f'DEBUG: Connected {node.name()} to Read_Plate')
+                                    break
+                                except Exception as ex:
+                                    print(f'DEBUG: Could not connect {node.name()}: {ex}')
+                else:
+                    print('DEBUG: No nodes to connect or Read_Plate not found')
+            except Exception as connect_ex:
+                print(f'DEBUG: Error during node connection: {connect_ex}')
+            
+            # Success - just log it, no popup
+            print(f'INFO: Undistortion imported successfully from {undist_file}')
+        except Exception as e:
+            print(f'ERROR: Failed to source undistortion: {e}')
+            import traceback
+            traceback.print_exc()
+            # No popup on error, just log it
+            print(f'ERROR: Could not import undistortion from {undist_file}: {str(e)}')
+    else:
+        print(f'WARNING: Undistortion file not found: {undist_file}')
+        # No popup, just log warning
+except Exception as e:
+    print(f'ERROR: Unexpected error in Python executor: {e}')
+    import traceback
+    traceback.print_exc()'''
+
     @classmethod
     def _register_cleanup(cls) -> None:
         """Register cleanup function to run at program exit."""
@@ -186,29 +289,7 @@ class NukeScriptGenerator:
             # Create proper Nuke script content
             script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
 version 16.0 v4
-define_window_layout_xml {{<?xml version="1.0" encoding="UTF-8"?>
-<layout version="1.0">
-    <window x="0" y="0" w="1920" h="1080" fullscreen="0" screen="0">
-        <splitter orientation="1">
-            <split size="1214"/>
-            <splitter orientation="2">
-                <split size="570"/>
-                <dock id="" activePageId="Viewer.1">
-                    <page id="Viewer.1"/>
-                </dock>
-                <split size="460"/>
-                <dock id="" activePageId="DAG.1">
-                    <page id="DAG.1"/>
-                </dock>
-            </splitter>
-            <split size="682"/>
-            <dock id="" activePageId="Properties.1">
-                <page id="Properties.1"/>
-            </dock>
-        </splitter>
-    </window>
-</layout>
-}}
+{NukeScriptGenerator.WINDOW_LAYOUT_XML}
 Root {{
  inputs 0
  name {safe_shot_name}_plate_comp
@@ -293,6 +374,90 @@ Viewer {{
             return None
 
     @staticmethod
+    def _adjust_ypos_in_line(line: str, ypos_offset: int) -> str:
+        """Adjust ypos values in a line by the given offset.
+        
+        Args:
+            line: The line to process
+            ypos_offset: Amount to add to ypos values
+            
+        Returns:
+            Line with adjusted ypos values
+        """
+        import re
+        
+        if "ypos" not in line or ypos_offset == 0:
+            return line
+            
+        def adjust_ypos(match: re.Match[str]) -> str:
+            old_ypos = int(match.group(1))
+            new_ypos = old_ypos + ypos_offset
+            return f"ypos {new_ypos}"
+            
+        ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
+        return ypos_pattern.sub(adjust_ypos, line)
+
+    @staticmethod
+    def _sanitize_node_names_in_line(line: str) -> str:
+        """Sanitize node names in a line to be Nuke-compatible.
+        
+        Args:
+            line: The line to process
+            
+        Returns:
+            Line with sanitized node names
+        """
+        import logging
+        import re
+        
+        if " name " not in line:
+            return line
+            
+        logger = logging.getLogger(__name__)
+        
+        def sanitize_name(match: re.Match[str]) -> str:
+            prefix = match.group(1)
+            name = match.group(2)
+            # Replace any character that's not alphanumeric or underscore
+            sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+            if sanitized != name:
+                logger.debug(f"Sanitized node name: {name} -> {sanitized}")
+            return prefix + sanitized
+            
+        name_pattern = re.compile(r"(\s+name\s+)([^\s]+)")
+        return name_pattern.sub(sanitize_name, line)
+
+    @staticmethod
+    def _should_skip_boilerplate_line(line: str, stripped: str) -> bool:
+        """Check if a line should be skipped as boilerplate.
+        
+        Args:
+            line: The full line
+            stripped: The stripped line
+            
+        Returns:
+            True if this line should be skipped
+        """
+        # Skip version line (will be in main script already)
+        if stripped.startswith("version "):
+            return True
+            
+        # Skip shebang line
+        if stripped.startswith("#!"):
+            return True
+            
+        # Skip copy/paste specific lines
+        if "set cut_paste_input" in line:
+            return True
+            
+        if stripped.startswith("push") and (
+            "push $cut_paste_input" in line or "push 0" in stripped
+        ):
+            return True
+            
+        return False
+
+    @staticmethod
     def _import_undistortion_nodes_copy_paste_format(
         undistortion_path: str,
         ypos_offset: int = -200,
@@ -311,7 +476,6 @@ Viewer {{
             String containing the processed content to insert
         """
         import logging
-        import re
 
         logger = logging.getLogger(__name__)
 
@@ -359,23 +523,9 @@ Viewer {{
                 line = lines[i]
                 stripped = line.strip()
 
-                # Skip copy/paste boilerplate
-                if "set cut_paste_input" in line:
-                    logger.debug(f"Skipping copy/paste boilerplate: {line[:50]}")
-                    i += 1
-                    continue
-
-                # Skip certain push commands that are copy/paste specific
-                if stripped.startswith("push"):
-                    if "push $cut_paste_input" in line or "push 0" in stripped:
-                        logger.debug(f"Skipping copy/paste push: {line[:50]}")
-                        i += 1
-                        continue
-                    # Keep other push commands as they might be connection management
-
-                # Skip version line (will be in main script already)
-                if stripped.startswith("version "):
-                    logger.debug(f"Skipping version line: {stripped[:50]}")
+                # Skip standard boilerplate lines
+                if NukeScriptGenerator._should_skip_boilerplate_line(line, stripped):
+                    logger.debug(f"Skipping boilerplate line: {line[:50]}")
                     i += 1
                     continue
 
@@ -403,34 +553,14 @@ Viewer {{
                     continue
 
                 # Apply ypos offset if this line contains ypos
-                if "ypos" in line and ypos_offset != 0:
-                    ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
-
-                    def adjust_ypos(match: re.Match[str]) -> str:
-                        old_ypos = int(match.group(1))
-                        new_ypos = old_ypos + ypos_offset
-                        return f"ypos {new_ypos}"
-
-                    adjusted_line = ypos_pattern.sub(adjust_ypos, line)
-                    if adjusted_line != line:
-                        logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
-                        line = adjusted_line
+                adjusted_line = NukeScriptGenerator._adjust_ypos_in_line(line, ypos_offset)
+                if adjusted_line != line:
+                    logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
+                    line = adjusted_line
 
                 # Sanitize node names - replace illegal characters (like hyphens)
                 # Node names in Nuke can only contain letters, numbers, and underscores
-                if " name " in line:
-                    name_pattern = re.compile(r"(\s+name\s+)([^\s]+)")
-
-                    def sanitize_name(match: re.Match[str]) -> str:
-                        prefix = match.group(1)
-                        name = match.group(2)
-                        # Replace any character that's not alphanumeric or underscore
-                        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-                        if sanitized != name:
-                            logger.debug(f"Sanitized node name: {name} -> {sanitized}")
-                        return prefix + sanitized
-
-                    line = name_pattern.sub(sanitize_name, line)
+                line = NukeScriptGenerator._sanitize_node_names_in_line(line)
 
                 # Handle Python blocks - strip indentation from Python code
                 if not inside_python and stripped.startswith("python {"):
@@ -535,7 +665,6 @@ Viewer {{
             String containing the processed content to insert
         """
         import logging
-        import re
 
         logger = logging.getLogger(__name__)
 
@@ -578,15 +707,9 @@ Viewer {{
                 line = lines[i]
                 stripped = line.strip()
 
-                # Skip version line (will be in main script already)
-                if stripped.startswith("version "):
-                    logger.debug(f"Skipping version line: {stripped[:50]}")
-                    i += 1
-                    continue
-
-                # Skip shebang line
-                if stripped.startswith("#!"):
-                    logger.debug("Skipping shebang line")
+                # Skip standard boilerplate lines
+                if NukeScriptGenerator._should_skip_boilerplate_line(line, stripped):
+                    logger.debug(f"Skipping boilerplate line: {line[:50]}")
                     i += 1
                     continue
 
@@ -628,47 +751,18 @@ Viewer {{
                     continue
 
                 # Apply ypos offset if this line contains ypos
-                if "ypos" in line and ypos_offset != 0:
-                    # Find all ypos values in the line and adjust them
-                    ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
-
-                    def adjust_ypos(match: re.Match[str]) -> str:
-                        old_ypos = int(match.group(1))
-                        new_ypos = old_ypos + ypos_offset
-                        return f"ypos {new_ypos}"
-
-                    adjusted_line = ypos_pattern.sub(adjust_ypos, line)
-                    if adjusted_line != line:
-                        logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
-                        line = adjusted_line
+                adjusted_line = NukeScriptGenerator._adjust_ypos_in_line(line, ypos_offset)
+                if adjusted_line != line:
+                    logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
+                    line = adjusted_line
 
                 # Sanitize node names - replace illegal characters (like hyphens)
                 # Node names in Nuke can only contain letters, numbers, and underscores
-                if " name " in line:
-                    name_pattern = re.compile(r"(\s+name\s+)([^\s]+)")
+                line = NukeScriptGenerator._sanitize_node_names_in_line(line)
 
-                    def sanitize_name(match: re.Match[str]) -> str:
-                        prefix = match.group(1)
-                        name = match.group(2)
-                        # Replace any character that's not alphanumeric or underscore
-                        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-                        if sanitized != name:
-                            logger.debug(f"Sanitized node name: {name} -> {sanitized}")
-                        return prefix + sanitized
-
-                    line = name_pattern.sub(sanitize_name, line)
-
-                # Skip copy/paste specific lines even in standard format
-                # (sometimes files contain these without being full copy/paste format)
-                if "set cut_paste_input" in line:
-                    logger.debug(f"Skipping copy/paste init line: {stripped[:50]}...")
-                    i += 1
-                    continue
-
-                if stripped.startswith("push") and (
-                    "push $cut_paste_input" in line or "push 0" in stripped
-                ):
-                    logger.debug(f"Skipping copy/paste push: {stripped[:50]}...")
+                # Skip copy/paste specific lines that might appear in standard format
+                if NukeScriptGenerator._should_skip_boilerplate_line(line, stripped):
+                    logger.debug(f"Skipping boilerplate line: {line[:50]}")
                     i += 1
                     continue
 
@@ -779,170 +873,6 @@ Viewer {{
             logger.debug(f"Full traceback: {traceback.format_exc()}")
             return ""
 
-    @staticmethod
-    def debug_undistortion_file(undistortion_path: str) -> None:
-        """Debug function to analyze undistortion .nk file structure.
-
-        This function analyzes an undistortion file and reports what will be imported,
-        which is useful for troubleshooting import issues.
-
-        Args:
-            undistortion_path: Path to the undistortion .nk file to analyze
-        """
-        try:
-            if not Path(undistortion_path).exists():
-                print(f"ERROR: File does not exist: {undistortion_path}")
-                return
-
-            print(f"\n=== DEBUG ANALYSIS: {undistortion_path} ===")
-
-            with open(undistortion_path, encoding="utf-8") as f:
-                content = f.read()
-
-            if not content.strip():
-                print("ERROR: File is empty")
-                return
-
-            lines = content.split("\n")
-            print(f"File has {len(lines)} lines, {len(content)} characters")
-
-            # Analyze what will be skipped vs imported
-            skipped_lines = 0
-            imported_lines = 0
-            root_lines = 0
-            version_lines = 0
-            shebang_lines = 0
-            window_layout_lines = 0
-
-            # Track if file is copy/paste format
-            is_copy_paste = False
-            for line in lines[:10]:
-                if "set cut_paste_input" in line:
-                    is_copy_paste = True
-                    break
-
-            if is_copy_paste:
-                print(
-                    "\nFile Format: Copy/Paste format (contains 'set cut_paste_input')"
-                )
-            else:
-                print("\nFile Format: Standard .nk format")
-
-            # Simulate the import logic
-            inside_root = False
-            root_brace_count = 0
-            inside_window_layout = False
-            window_brace_count = 0
-
-            for i, line in enumerate(lines):
-                stripped = line.strip()
-
-                # Track what would be skipped
-                if stripped.startswith("#!"):
-                    shebang_lines += 1
-                    skipped_lines += 1
-                elif stripped.startswith("version "):
-                    version_lines += 1
-                    skipped_lines += 1
-                elif stripped.startswith("define_window_layout"):
-                    inside_window_layout = True
-                    window_brace_count = 1
-                    window_layout_lines += 1
-                    skipped_lines += 1
-                elif inside_window_layout:
-                    window_layout_lines += 1
-                    skipped_lines += 1
-                    if "{" in line:
-                        window_brace_count += line.count("{")
-                    if "}" in line:
-                        window_brace_count -= line.count("}")
-                    if window_brace_count <= 0:
-                        inside_window_layout = False
-                elif not inside_root and (
-                    stripped.startswith("Root {") or stripped == "Root {"
-                ):
-                    inside_root = True
-                    root_brace_count = 1
-                    root_lines += 1
-                    skipped_lines += 1
-                elif inside_root:
-                    root_lines += 1
-                    skipped_lines += 1
-                    if "{" in line:
-                        root_brace_count += line.count("{")
-                    if "}" in line:
-                        root_brace_count -= line.count("}")
-                    if root_brace_count <= 0:
-                        inside_root = False
-                elif is_copy_paste and "set cut_paste_input" in line:
-                    skipped_lines += 1
-                elif (
-                    is_copy_paste
-                    and stripped.startswith("push")
-                    and ("push $cut_paste_input" in line or "push 0" in stripped)
-                ):
-                    skipped_lines += 1
-                else:
-                    # This line would be imported
-                    imported_lines += 1
-
-            print("\nImport Analysis:")
-            print(f"  Lines to import: {imported_lines}")
-            print(f"  Lines to skip: {skipped_lines}")
-            print(f"    - Shebang lines: {shebang_lines}")
-            print(f"    - Version lines: {version_lines}")
-            print(f"    - Window layout lines: {window_layout_lines}")
-            print(f"    - Root node lines: {root_lines}")
-            if is_copy_paste:
-                print(
-                    f"    - Copy/paste boilerplate: {skipped_lines - shebang_lines - version_lines - window_layout_lines - root_lines}"
-                )
-
-            # Try the actual import to see what happens
-            print("\n=== IMPORT TEST ===")
-
-            # Test both parsers
-            if is_copy_paste:
-                print("Testing copy/paste format parser...")
-                result = (
-                    NukeScriptGenerator._import_undistortion_nodes_copy_paste_format(
-                        undistortion_path
-                    )
-                )
-            else:
-                print("Testing standard format parser...")
-                result = NukeScriptGenerator._import_undistortion_nodes(
-                    undistortion_path
-                )
-
-            if result:
-                print(f"SUCCESS: Import returned {len(result)} characters")
-                print("\nFirst 400 characters of imported content:")
-                print("-" * 40)
-                print(result[:400] + "..." if len(result) > 400 else result)
-                print("-" * 40)
-            else:
-                print("FAILED: Import returned empty string")
-                print("\nTrying alternate parser as fallback...")
-                if is_copy_paste:
-                    result = NukeScriptGenerator._import_undistortion_nodes(
-                        undistortion_path
-                    )
-                else:
-                    result = NukeScriptGenerator._import_undistortion_nodes_copy_paste_format(
-                        undistortion_path
-                    )
-
-                if result:
-                    print(f"FALLBACK SUCCESS: Got {len(result)} characters")
-                else:
-                    print("FALLBACK FAILED: Still empty")
-
-        except Exception as e:
-            print(f"ERROR analyzing file: {e}")
-            import traceback
-
-            print(traceback.format_exc())
 
     @staticmethod
     def create_loader_script(
@@ -980,6 +910,17 @@ Viewer {{
             width, height = NukeScriptGenerator._detect_resolution(plate_path)
             colorspace, use_raw = NukeScriptGenerator._detect_colorspace(plate_path)
             raw_str = "true" if use_raw else "false"
+
+            # Prepare the onCreate script for the NoOp node
+            # Need to escape quotes and newlines for Nuke script format
+            backslash = chr(92)  # Avoid backslash in f-string
+            quote = chr(34)      # Avoid quote escaping in f-string
+            formatted_oncreate_script = (
+                NukeScriptGenerator.UNDISTORTION_ONCREATE_SCRIPT
+                .replace(chr(10), backslash + 'n')  # Replace newlines with \n
+                .replace(quote, backslash + quote)  # Escape quotes
+                .format(undist_file=nuke_undist_path)
+            )
 
             # Create a minimal loader script that uses Python to import everything
             script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
@@ -1041,7 +982,7 @@ NoOp {{
  name PythonExecutor
  tile_color 0xff000001
  label "Python Script Loader\\nImports undistortion nodes"
- onCreate "import nuke\\nimport os\\nimport sys\\nimport re\\n\\ntry:\\n    print('DEBUG: Starting undistortion import...')\\n    print(f'DEBUG: Python version: {{sys.version}}')\\n    \\n    undist_file = r\\"{nuke_undist_path}\\"\\n    print(f'DEBUG: Looking for undistortion file: {{undist_file}}')\\n    \\n    if os.path.exists(undist_file):\\n        print('DEBUG: File exists, attempting to source...')\\n        try:\\n            # Source the undistortion file\\n            nuke.scriptSource(undist_file)\\n            print('DEBUG: Successfully sourced undistortion file')\\n            \\n            # Get all imported nodes and sanitize their names\\n            imported_nodes = nuke.selectedNodes()\\n            print(f'DEBUG: Found {{len(imported_nodes)}} imported nodes')\\n            \\n            # Sanitize node names - replace illegal characters\\n            for node in imported_nodes:\\n                try:\\n                    original_name = node.name()\\n                    # Replace hyphens and other illegal characters with underscores\\n                    # Nuke node names can only contain letters, numbers, and underscores\\n                    sanitized_name = re.sub(r'[^a-zA-Z0-9_]', '_', original_name)\\n                    if sanitized_name != original_name:\\n                        # Find a unique name if the sanitized name already exists\\n                        base_name = sanitized_name\\n                        counter = 1\\n                        while nuke.exists(sanitized_name):\\n                            sanitized_name = f'{{base_name}}_{{counter}}'\\n                            counter += 1\\n                        node.setName(sanitized_name)\\n                        print(f'DEBUG: Renamed node from {{original_name}} to {{sanitized_name}}')\\n                except Exception as rename_ex:\\n                    print(f'DEBUG: Could not rename node {{node}}: {{rename_ex}}')\\n                    continue\\n            \\n            # Now try to connect imported nodes to Read_Plate\\n            try:\\n                read_plate = nuke.toNode('Read_Plate')\\n                if imported_nodes and read_plate:\\n                    for node in imported_nodes:\\n                        if hasattr(node, 'maxInputs') and node.maxInputs() > 0:\\n                            if hasattr(node, 'input') and node.input(0) is None:\\n                                try:\\n                                    node.setInput(0, read_plate)\\n                                    print(f'DEBUG: Connected {{node.name()}} to Read_Plate')\\n                                    break\\n                                except Exception as ex:\\n                                    print(f'DEBUG: Could not connect {{node.name()}}: {{ex}}')\\n                else:\\n                    print('DEBUG: No nodes to connect or Read_Plate not found')\\n            except Exception as connect_ex:\\n                print(f'DEBUG: Error during node connection: {{connect_ex}}')\\n            \\n            # Success - just log it, no popup\\n            print(f'INFO: Undistortion imported successfully from {{undist_file}}')\\n        except Exception as e:\\n            print(f'ERROR: Failed to source undistortion: {{e}}')\\n            import traceback\\n            traceback.print_exc()\\n            # No popup on error, just log it\\n            print(f'ERROR: Could not import undistortion from {{undist_file}}: {{str(e)}}')\\n    else:\\n        print(f'WARNING: Undistortion file not found: {{undist_file}}')\\n        # No popup, just log warning\\nexcept Exception as e:\\n    print(f'ERROR: Unexpected error in Python executor: {{e}}')\\n    import traceback\\n    traceback.print_exc()"
+ onCreate "{formatted_oncreate_script}"
  xpos 200
  ypos -300
 }}
@@ -1135,29 +1076,7 @@ Viewer {{
             # Create enhanced Nuke script content
             script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
 version 16.0 v4
-define_window_layout_xml {{<?xml version="1.0" encoding="UTF-8"?>
-<layout version="1.0">
-    <window x="0" y="0" w="1920" h="1080" fullscreen="0" screen="0">
-        <splitter orientation="1">
-            <split size="1214"/>
-            <splitter orientation="2">
-                <split size="570"/>
-                <dock id="" activePageId="Viewer.1">
-                    <page id="Viewer.1"/>
-                </dock>
-                <split size="460"/>
-                <dock id="" activePageId="DAG.1" focus="true">
-                    <page id="DAG.1"/>
-                </dock>
-            </splitter>
-            <split size="682"/>
-            <dock id="" activePageId="Properties.1">
-                <page id="Properties.1"/>
-            </dock>
-        </splitter>
-    </window>
-</layout>
-}}
+{NukeScriptGenerator.WINDOW_LAYOUT_XML}
 Root {{
  inputs 0
  name {safe_shot_name}_comp
@@ -1322,207 +1241,4 @@ Viewer {{
 
         except Exception as e:
             print(f"Error creating Nuke script with undistortion: {e}")
-            return None
-
-    @staticmethod
-    def _generate_read_node(
-        file_path: str,
-        colorspace: str | None,
-        first_frame: int,
-        last_frame: int,
-    ) -> str:
-        """Generate a Read node with proper colorspace quoting.
-
-        Args:
-            file_path: Path to the input file/sequence
-            colorspace: Colorspace name (will be quoted if contains spaces)
-            first_frame: First frame number
-            last_frame: Last frame number
-
-        Returns:
-            String containing the Read node definition
-
-        Raises:
-            ValueError: If frame range is invalid
-        """
-        # Validate frame range
-        if first_frame > last_frame:
-            raise ValueError(f"Invalid frame range: {first_frame} to {last_frame}")
-
-        # Escape and quote file path for Nuke
-        nuke_path = NukeScriptGenerator._escape_path(file_path)
-
-        # Handle colorspace - always quote for consistency and safety
-        if colorspace and colorspace.strip():
-            colorspace_line = f'colorspace "{colorspace.strip()}"'
-        else:
-            colorspace_line = 'colorspace "linear"'  # Default fallback
-
-        return f"""Read {{
- inputs 0
- file_type exr
- file "{nuke_path}"
- {colorspace_line}
- first {first_frame}
- last {last_frame}
- origfirst {first_frame}
- origlast {last_frame}
- origset true
- on_error black
- reload 0
- auto_alpha true
- premultiplied true
- name Read1
- selected true
-}}"""
-
-    @staticmethod
-    def _generate_write_node(output_path: str) -> str:
-        """Generate a Write node for output.
-
-        Args:
-            output_path: Path for output file/sequence
-
-        Returns:
-            String containing the Write node definition
-        """
-        # Escape path for Nuke
-        nuke_path = NukeScriptGenerator._escape_path(output_path)
-
-        return f"""Write {{
- file_type exr
- file "{nuke_path}"
- colorspace "ACES - ACEScg"
- datatype "16 bit half"
- compression "Zip (1 scanline)"
- interleave "channels"
- autocrop false
- create_directories true
- name Write1
- selected true
-}}"""
-
-    @staticmethod
-    def _generate_undistortion_node(undisto_path: str) -> str:
-        """Generate an undistortion group node.
-
-        Args:
-            undisto_path: Path to undistortion .nk file
-
-        Returns:
-            String containing the undistortion Group node
-        """
-        escaped_path = NukeScriptGenerator._escape_path(undisto_path)
-
-        return f"""Group {{
- name Undistortion
- tile_color 0xcc804eff
- note_font_size 11
- note_font_color 0xffffffff
- # Undistortion file: {escaped_path}
- addUserKnob {{26 info_line l "Undistortion Info:"}}
- addUserKnob {{26 source_file l "Source File:" T "{escaped_path}"}}
- addUserKnob {{22 reload_undisto l "Reload Undistortion" -STARTLINE T "# Placeholder for undistortion reload logic"}}
-}}"""
-
-    @staticmethod
-    def generate_comp_script(
-        shot_name: str,
-        plate_path: str,
-        colorspace: str,
-        first_frame: int,
-        last_frame: int,
-        output_dir: str,
-    ) -> str | None:
-        """Generate a complete comp script with Read and Write nodes.
-
-        Args:
-            shot_name: Name of the shot for filename and script metadata
-            plate_path: Path to input plate sequence
-            colorspace: Colorspace for the plate
-            first_frame: First frame of the sequence
-            last_frame: Last frame of the sequence
-            output_dir: Directory to save the script
-
-        Returns:
-            Path to the generated .nk script file, or None if failed
-        """
-        try:
-            import os
-            import re
-
-            # Sanitize shot name to prevent path traversal
-            safe_shot_name = re.sub(r"[^\w\-_]", "_", shot_name)
-            safe_shot_name = safe_shot_name.replace("..", "_")  # Extra safety
-
-            # Create output script path
-            script_filename = f"{safe_shot_name}_comp.nk"
-            output_path = os.path.join(output_dir, script_filename)
-
-            # Ensure output directory exists
-            os.makedirs(output_dir, exist_ok=True)
-
-            # Generate script content
-            width, height = NukeScriptGenerator._detect_resolution(plate_path)
-
-            script_content = f"""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
-version 16.0 v4
-# Shot: {shot_name}
-# Generated by ShotBot NukeScriptGenerator
-
-Root {{
- inputs 0
- name {safe_shot_name}_comp
- frame {first_frame}
- first_frame {first_frame}
- last_frame {last_frame}
- fps 24
- format "{width} {height} 0 0 {width} {height} 1 {safe_shot_name}_format"
- proxy_type scale
- proxy_format "1920 1080 0 0 1920 1080 1 HD_1080"
- colorManagement OCIO
- OCIO_config aces_1.2
- defaultViewerLUT "OCIO LUTs"
- workingSpaceLUT "ACES - ACEScg"
- monitorLut "Rec.709 (ACES)"
- int8Lut "Rec.709 (ACES)"
- int16Lut "Rec.709 (ACES)"
- logLut "Log film emulation (ACES)"
- floatLUT linear
-}}
-
-{NukeScriptGenerator._generate_read_node(plate_path, colorspace, first_frame, last_frame)}
-
-Grade {{
- inputs 1
- name Grade_CC
- label "Color Correction"
- selected true
- xpos 0
- ypos 50
-}}
-
-{NukeScriptGenerator._generate_write_node(f"{output_dir}/comp_output.%04d.exr")}
-
-Viewer {{
- inputs 1
- frame_range {first_frame}-{last_frame}
- fps 24
- frame {first_frame}
- name Viewer1
- selected true
- xpos 0
- ypos 200
-}}
-"""
-
-            # Write the script file
-            with open(output_path, "w", encoding="utf-8") as f:
-                f.write(script_content)
-
-            print(f"Generated comp script: {output_path}")
-            return output_path
-
-        except Exception as e:
-            print(f"Error generating comp script: {e}")
             return None
