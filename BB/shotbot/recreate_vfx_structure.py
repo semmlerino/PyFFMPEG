@@ -11,13 +11,13 @@ Or specify a custom root:
     python recreate_vfx_structure.py vfx_structure.json --root /tmp/mock_vfx
 """
 
-import json
-import os
-import sys
 import argparse
-from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+import json
 import random
+from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFont
+
 
 class VFXStructureRecreator:
     """Recreate VFX filesystem structure with placeholder files."""
@@ -125,7 +125,7 @@ class VFXStructureRecreator:
 """
         
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
+        path.write_text(content, encoding='utf-8')
         self.stats['3de_files_created'] += 1
     
     def create_exr_sequence(self, path: Path, shot_name: str, start: int = 1001, end: int = 1010):
@@ -146,7 +146,7 @@ class VFXStructureRecreator:
             # EXR files would be large images, we'll create tiny placeholders
             frame_file = path / f"{shot_name}.{frame:04d}.exr"
             # Just create an empty file or tiny text file
-            frame_file.write_text(f"EXR placeholder: {shot_name} frame {frame}\n")
+            frame_file.write_text(f"EXR placeholder: {shot_name} frame {frame}\n", encoding='utf-8')
         
         # Create a slate image as JPG
         slate_path = path / f"{shot_name}_slate.jpg"
@@ -225,7 +225,7 @@ class VFXStructureRecreator:
             else:
                 # Create generic placeholder file
                 file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.write_text(f"Placeholder for {name}\n")
+                file_path.write_text(f"Placeholder for {name}\n", encoding='utf-8')
                 
             self.stats['files_created'] += 1
     
@@ -293,7 +293,7 @@ def merge_structures(json_files):
     
     for json_file in json_files:
         print(f"Loading {json_file}...")
-        with open(json_file, 'r') as f:
+        with open(json_file, encoding='utf-8') as f:
             data = json.load(f)
         
         # Use the latest capture time
@@ -381,7 +381,7 @@ def main():
     # Handle single or multiple input files
     if len(args.input) == 1:
         # Single file - load directly
-        with open(args.input[0], 'r') as f:
+        with open(args.input[0], encoding='utf-8') as f:
             structure_data = json.load(f)
         print(f"Loaded structure from {args.input[0]}")
     else:
@@ -399,9 +399,9 @@ def main():
         merged_output = Path(args.root) / 'merged_structure.json'
         print(f"\nSaving merged structure to: {merged_output}")
         merged_output.parent.mkdir(parents=True, exist_ok=True)
-        with open(merged_output, 'w') as f:
+        with open(merged_output, 'w', encoding='utf-8') as f:
             json.dump(structure_data, f, indent=2)
-        print(f"Merged structure saved for future use")
+        print("Merged structure saved for future use")
     
     # Clean if requested
     if args.clean:
@@ -428,7 +428,7 @@ DO NOT use for production!
         args.input,
         structure_data.get('capture_time', 'unknown'),
         structure_data.get('capture_host', 'unknown')
-    ))
+    ), encoding='utf-8')
     
     print(f"\n✅ Mock VFX environment ready at: {args.root}")
     print(f"You can now set SHOWS_ROOT={args.root}/shows when running ShotBot")
