@@ -292,6 +292,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             # Draw with clipping for rounded corners
             painter.setClipRect(rect)
             painter.drawPixmap(x, y, scaled_pixmap)
+            # Clear clipping to allow text drawing below
+            painter.setClipping(False)
     
     def _draw_placeholder(self, painter: QPainter, rect: QRect) -> None:
         """Draw a placeholder when no thumbnail is available."""
