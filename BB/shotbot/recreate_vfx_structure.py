@@ -229,6 +229,56 @@ class VFXStructureRecreator:
                 
             self.stats['files_created'] += 1
     
+    def create_additional_3de_files(self, structure_data: dict):
+        """Create additional 3DE files from other users for 'Other 3DE Scenes' tab.
+        
+        Args:
+            structure_data: Dictionary loaded from capture JSON
+        """
+        print("Creating additional 3DE files from other users...")
+        
+        # Other users to create 3DE files for (top users from the original structure)
+        other_users = ["henry-b", "david-s", "jeanette-m", "dave-c", "richard-f"]
+        
+        # Get workspace shots from the structure data
+        workspace_shots = structure_data.get('workspace_shots', [])
+        if not workspace_shots:
+            print("No workspace shots found, skipping additional 3DE files")
+            return
+            
+        # Create 3DE files for about 25% of the shots for each other user
+        import random
+        random.seed(42)  # Consistent results
+        
+        for user in other_users:
+            # Select a subset of shots for this user
+            selected_shots = random.sample(workspace_shots, min(len(workspace_shots) // 4, 20))
+            
+            for shot_data in selected_shots:
+                try:
+                    show = shot_data.get('show', 'unknown')
+                    sequence = shot_data.get('sequence', 'unknown')  
+                    shot = shot_data.get('shot', 'unknown')
+                    
+                    # Create 3DE file path following the standard pattern
+                    shot_dir = self.root / 'shows' / show / 'shots' / sequence / shot
+                    user_3de_dir = shot_dir / 'user' / user / 'mm' / '3de' / 'mm-default' / 'scenes' / 'scene' / 'bg01'
+                    
+                    # Create directory structure
+                    user_3de_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # Create 3DE file
+                    threede_filename = f"{shot}_mm_default_bg01_scene_v001.3de"
+                    threede_file = user_3de_dir / threede_filename
+                    
+                    self.create_3de_file(threede_file, shot, user, "bg01")
+                    
+                except Exception as e:
+                    print(f"Error creating 3DE file for {user} in {shot_data}: {e}")
+                    continue
+        
+        print(f"Created additional 3DE files from {len(other_users)} other users")
+    
     def recreate_structure(self, structure_data: dict):
         """Recreate the entire VFX structure.
         
@@ -253,6 +303,9 @@ class VFXStructureRecreator:
                     # Create under our mock root
                     show_path = self.root / 'shows' / show
                     self.recreate_node(show_structure, self.root / 'shows')
+        
+        # Create additional 3DE files from other users for "Other 3DE Scenes" tab
+        self.create_additional_3de_files(structure_data)
         
         # Create symlink for convenience (if on Linux/Mac)
         try:
