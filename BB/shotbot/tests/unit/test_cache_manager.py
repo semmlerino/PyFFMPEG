@@ -914,13 +914,16 @@ class TestThreadSafety:
 
     def test_thread_safety_lock_exists(self, cache_manager):
         """Test that cache manager has thread safety lock."""
+        from PySide6.QtCore import QMutexLocker
+        
         # Verify the lock exists for thread safety
         assert hasattr(cache_manager, "_lock")
         assert cache_manager._lock is not None
 
-        # Simple test that we can acquire the lock
-        with cache_manager._lock:
-            pass  # Lock acquired and released successfully
+        # Simple test that we can acquire the lock using QMutexLocker
+        locker = QMutexLocker(cache_manager._lock)
+        # Lock acquired successfully when locker is created
+        # Lock will be automatically released when locker goes out of scope
 
 
 class TestEdgeCases:
@@ -1096,11 +1099,12 @@ class TestCacheManagerThreading:
 
         def add_memory_usage(thread_id: int, amount: int):
             """Add memory usage from multiple threads."""
+            from PySide6.QtCore import QMutexLocker
             try:
-                with manager._lock:
-                    current = manager._memory_usage_bytes
-                    # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
-                    manager._memory_usage_bytes = current + amount
+                locker = QMutexLocker(manager._lock)
+                current = manager._memory_usage_bytes
+                # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
+                manager._memory_usage_bytes = current + amount
             except Exception as e:
                 logging.error(f"Thread {thread_id} error: {e}")
 
@@ -1189,24 +1193,26 @@ class TestCacheManagerThreading:
 
         def cleanup_cache():
             """Perform cache cleanup."""
+            from PySide6.QtCore import QMutexLocker
             try:
-                with manager._lock:
-                    # Simulate cleanup work
-                    # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
-                    manager.test_cached_thumbnails.clear()
-                    manager._memory_usage_bytes = 0
-                    cleanup_results.append("cleanup_done")
+                locker = QMutexLocker(manager._lock)
+                # Simulate cleanup work
+                # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
+                manager.test_cached_thumbnails.clear()
+                manager._memory_usage_bytes = 0
+                cleanup_results.append("cleanup_done")
             except Exception as e:
                 cleanup_results.append(f"cleanup_error: {e}")
 
         def access_cache():
             """Access cache during cleanup."""
+            from PySide6.QtCore import QMutexLocker
             try:
-                with manager._lock:
-                    # Simulate cache access
-                    # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
-                    count = len(manager.test_cached_thumbnails)
-                    access_results.append(f"access_count: {count}")
+                locker = QMutexLocker(manager._lock)
+                # Simulate cache access
+                # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
+                count = len(manager.test_cached_thumbnails)
+                access_results.append(f"access_count: {count}")
             except Exception as e:
                 access_results.append(f"access_error: {e}")
 
@@ -1331,31 +1337,27 @@ class TestCacheManagerThreading:
 
         # In a real scenario, Qt would handle QPixmap cleanup automatically
         # We just verify the structure is correct
-        assert hasattr(result, "_completed_lock")
-        assert isinstance(result._completed_lock, type(threading.Lock()))
+        assert hasattr(result, "_completed_mutex")
+        from PySide6.QtCore import QMutex
+        assert isinstance(result._completed_mutex, QMutex)
 
     # NOTE: Removed test_concurrent_cache_retrieval - was causing hangs with threading and patches
     # Cache retrieval thread safety is verified through the _lock existence test
 
-    def test_rlock_reentrant_behavior(self, cache_manager):
-        """Test that RLock allows reentrant access."""
+    def test_lock_basic_behavior(self, cache_manager):
+        """Test that QMutex provides basic thread safety."""
+        from PySide6.QtCore import QMutexLocker
         manager = cache_manager
 
-        def nested_lock_access():
-            """Test nested lock acquisition."""
-            with manager._lock:
-                # First level
-                initial_memory = manager._memory_usage_bytes
+        def single_lock_access():
+            """Test single lock acquisition."""
+            locker = QMutexLocker(manager._lock)
+            # Basic lock usage - no nesting needed
+            initial_memory = manager._memory_usage_bytes
+            manager._memory_usage_bytes = initial_memory + 100
+            final_memory = manager._memory_usage_bytes
+            return final_memory
 
-                with manager._lock:
-                    # Second level (reentrant)
-                    manager._memory_usage_bytes = initial_memory + 100
-
-                    with manager._lock:
-                        # Third level (reentrant)
-                        final_memory = manager._memory_usage_bytes
-                        return final_memory
-
-        # Should work without deadlock
-        result = nested_lock_access()
+        # Should work without issues
+        result = single_lock_access()
         assert result == 100  # Memory was incremented

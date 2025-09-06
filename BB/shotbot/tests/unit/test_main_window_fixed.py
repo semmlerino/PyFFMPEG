@@ -30,8 +30,11 @@ class TestMainWindowNoHang:
     """Fixed MainWindow tests that don't hang."""
 
     @pytest.fixture
-    def safe_main_window(self, qtbot, tmp_path: Path):
+    def safe_main_window(self, qtbot, tmp_path: Path, monkeypatch):
         """Create MainWindow with test doubles for subprocess operations."""
+        # Force legacy ShotModel for predictable synchronous behavior in tests
+        monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
+        
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir(exist_ok=True)
         cache_manager = CacheManager(cache_dir=cache_dir)
@@ -103,12 +106,12 @@ class TestMainWindowNoHang:
         """Test shot refresh with test process pool."""
         # Configure test pool response
         test_pool = safe_main_window.shot_model._process_pool
-        test_pool.set_outputs("workspace /shows/test/shots/seq01/0010\n")
+        test_pool.set_outputs("workspace /shows/test/shots/seq01/seq01_0010\n")
 
         # Clear any existing shots
         safe_main_window.shot_model.shots = []
 
-        # Refresh
+        # Using legacy ShotModel for synchronous behavior in tests
         safe_main_window._refresh_shots()
 
         # Verify shot loaded

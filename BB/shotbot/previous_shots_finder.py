@@ -138,9 +138,17 @@ class PreviousShotsFinder:
         # Try optimized pattern first (69% faster)
         match = self._shot_pattern.search(path)
         if match:
-            # Optimized: directly capture show, sequence, and shot number
-            show, sequence, shot = match.groups()
-            workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{sequence}_{shot}"
+            # Extract show, sequence, and shot directory, then parse shot number
+            show, sequence, shot_dir = match.groups()
+            
+            # Extract shot number from directory name (consistent with base_shot_model logic)
+            if shot_dir.startswith(f"{sequence}_"):
+                shot = shot_dir[len(sequence) + 1:]  # +1 for underscore
+                workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
+            else:
+                # Non-standard naming, skip
+                logger.debug(f"Non-standard shot naming: {shot_dir}")
+                return None
         else:
             # Fallback for non-standard naming
             match = self._shot_pattern_fallback.search(path)
