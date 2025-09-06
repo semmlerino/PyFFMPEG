@@ -6,12 +6,19 @@ that might create singleton instances using the new dependency injection system.
 It also detects and uses recreated VFX filesystem if available.
 """
 
-import sys
-import os
 import logging
+import os
+import sys
 
 # CRITICAL: Set mock mode FIRST
 os.environ['SHOTBOT_MOCK'] = '1'
+
+# CRITICAL: Set SHOWS_ROOT immediately to ensure Config uses mock path
+# This MUST happen before ANY module imports that might load Config
+# Respect SHOWS_ROOT if already set (e.g., by run_mock_vfx_env.py)
+if 'SHOWS_ROOT' not in os.environ:
+    # Default to the shows directory within mock VFX structure for consistent paths
+    os.environ['SHOWS_ROOT'] = '/tmp/mock_vfx/shows'
 
 # Set up logging immediately
 logging.basicConfig(
@@ -35,11 +42,9 @@ MOCK_VFX_PATHS = [
 mock_filesystem_found = False
 for mock_path in MOCK_VFX_PATHS:
     if mock_path.exists():
-        # Found mock filesystem - set it as the shows root
-        shows_root = str(mock_path.parent)
-        os.environ['SHOWS_ROOT'] = shows_root
+        # Found mock filesystem - just report it (don't override SHOWS_ROOT if already set correctly)
         logger.info(f"🎬 Using mock VFX filesystem at: {mock_path}")
-        logger.info(f"   SHOWS_ROOT set to: {shows_root}")
+        logger.info(f"   SHOWS_ROOT is: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")
         mock_filesystem_found = True
         
         # Also check if we have the marker file
@@ -49,8 +54,10 @@ for mock_path in MOCK_VFX_PATHS:
         break
 
 if not mock_filesystem_found:
+    # SHOWS_ROOT should already be set correctly by earlier logic
     logger.info("ℹ️  No mock filesystem found. Run recreate_vfx_structure.py to create one.")
     logger.info("   The app will work but paths won't exist.")
+    logger.info(f"   SHOWS_ROOT is: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")
 
 # CRITICAL: Use the new dependency injection system BEFORE any app imports
 from process_pool_factory import ProcessPoolFactory
@@ -66,7 +73,7 @@ logger.info("✅ Mock mode enabled in ProcessPoolFactory")
 logger.info("Loading ShotBot application...")
 
 # Import the original main function
-from shotbot import setup_logging, main
+from shotbot import main
 
 # Run the original main but skip the mock injection part
 # (since we already did it properly)
