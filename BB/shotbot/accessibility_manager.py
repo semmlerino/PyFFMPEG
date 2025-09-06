@@ -6,10 +6,18 @@ keyboard navigation, and tooltip management.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
-if TYPE_CHECKING:
-    from PySide6.QtWidgets import QListView, QPushButton, QSlider, QTabWidget, QWidget
+# Qt imports needed at runtime for Protocol definitions
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import (
+    QListView,
+    QPushButton,
+    QSlider,
+    QStatusBar,
+    QTabWidget,
+    QWidget,
+)
 
 
 @runtime_checkable
@@ -22,6 +30,30 @@ class GridWidget(Protocol):
     # attributes - checked with hasattr at runtime
     size_slider: QSlider | None
     list_view: QListView | None
+
+
+@runtime_checkable
+class MainWindowProtocol(Protocol):
+    """Protocol for main window with UI elements for accessibility setup."""
+    
+    # Core window methods
+    def setTabOrder(self, first: QWidget, second: QWidget) -> None: ...
+    
+    # Menu actions (optional - checked with hasattr)
+    refresh_action: QAction | None
+    settings_action: QAction | None
+    exit_action: QAction | None
+    increase_size_action: QAction | None
+    decrease_size_action: QAction | None
+    reset_layout_action: QAction | None
+    shortcuts_action: QAction | None
+    about_action: QAction | None
+    
+    # UI components (optional - checked with hasattr)
+    status_bar: QStatusBar | None
+    tab_widget: QTabWidget | None
+    shot_grid: GridWidget | None
+    app_buttons: dict[str, QPushButton] | None
 
 
 class AccessibilityManager:
@@ -163,55 +195,55 @@ class AccessibilityManager:
             ("Command History", "View history of launched commands"),
         ]
 
-        for i, (name, description) in enumerate(tab_descriptions):
+        for i, (_name, description) in enumerate(tab_descriptions):
             if i < tab_widget.count():
                 tab_widget.setTabToolTip(i, description)
                 # Note: Tab text is already set, just adding tooltip
 
     @staticmethod
-    def setup_comprehensive_tooltips(window: Any) -> None:
+    def setup_comprehensive_tooltips(window: MainWindowProtocol) -> None:
         """Add comprehensive tooltips to all UI elements.
 
         Args:
             window: Main window with UI elements
         """
         # File menu tooltips
-        if hasattr(window, "refresh_action"):
+        if hasattr(window, "refresh_action") and window.refresh_action is not None:
             window.refresh_action.setToolTip(
                 "Refresh shot list from workspace (Ctrl+R)"
             )
 
-        if hasattr(window, "settings_action"):
+        if hasattr(window, "settings_action") and window.settings_action is not None:
             window.settings_action.setToolTip("Open application settings dialog")
 
-        if hasattr(window, "exit_action"):
+        if hasattr(window, "exit_action") and window.exit_action is not None:
             window.exit_action.setToolTip("Exit ShotBot application")
 
         # View menu tooltips
-        if hasattr(window, "increase_size_action"):
+        if hasattr(window, "increase_size_action") and window.increase_size_action is not None:
             window.increase_size_action.setToolTip("Increase thumbnail size (Ctrl++)")
 
-        if hasattr(window, "decrease_size_action"):
+        if hasattr(window, "decrease_size_action") and window.decrease_size_action is not None:
             window.decrease_size_action.setToolTip("Decrease thumbnail size (Ctrl+-)")
 
-        if hasattr(window, "reset_layout_action"):
+        if hasattr(window, "reset_layout_action") and window.reset_layout_action is not None:
             window.reset_layout_action.setToolTip(
                 "Reset window layout to default configuration"
             )
 
         # Help menu tooltips
-        if hasattr(window, "shortcuts_action"):
+        if hasattr(window, "shortcuts_action") and window.shortcuts_action is not None:
             window.shortcuts_action.setToolTip("Show keyboard shortcuts reference")
 
-        if hasattr(window, "about_action"):
+        if hasattr(window, "about_action") and window.about_action is not None:
             window.about_action.setToolTip("About ShotBot application")
 
         # Status bar tooltip
-        if hasattr(window, "status_bar"):
+        if hasattr(window, "status_bar") and window.status_bar is not None:
             window.status_bar.setToolTip("Application status and messages")
 
     @staticmethod
-    def setup_keyboard_navigation(window: Any) -> None:
+    def setup_keyboard_navigation(window: MainWindowProtocol) -> None:
         """Set up proper tab order for keyboard navigation.
 
         Args:
@@ -221,25 +253,41 @@ class AccessibilityManager:
         if all(
             hasattr(window, attr) for attr in ["tab_widget", "shot_grid", "app_buttons"]
         ):
-            # Start with tab widget
-            window.setTabOrder(window.tab_widget, window.shot_grid.size_slider)
+            # Start with tab widget - add null checks
+            tab_widget = getattr(window, "tab_widget", None)
+            shot_grid = getattr(window, "shot_grid", None)
+            if tab_widget is not None and shot_grid is not None:
+                size_slider = getattr(shot_grid, "size_slider", None)
+                if size_slider is not None:
+                    window.setTabOrder(tab_widget, size_slider)
 
-            # Then shot grid controls
-            if hasattr(window.shot_grid, "list_view"):
+            # Then shot grid controls - with complete null safety
+            if (window.shot_grid is not None 
+                and hasattr(window.shot_grid, "list_view")
+                and hasattr(window.shot_grid, "size_slider")
+                and window.shot_grid.size_slider is not None
+                and window.shot_grid.list_view is not None):
                 window.setTabOrder(
                     window.shot_grid.size_slider, window.shot_grid.list_view
                 )
 
-            # Then launcher buttons in order
-            prev_widget = (
-                window.shot_grid.list_view
-                if hasattr(window.shot_grid, "list_view")
-                else window.shot_grid
-            )
-            for app_name in ["3de", "nuke", "maya", "rv", "publish"]:
-                if app_name in window.app_buttons:
-                    window.setTabOrder(prev_widget, window.app_buttons[app_name])
-                    prev_widget = window.app_buttons[app_name]
+            # Then launcher buttons in order - with null safety
+            if window.shot_grid is not None:
+                prev_widget = (
+                    window.shot_grid.list_view
+                    if hasattr(window.shot_grid, "list_view")
+                    else window.shot_grid
+                )
+            else:
+                prev_widget = None
+            # Add null safety for app_buttons access
+            if hasattr(window, 'app_buttons') and window.app_buttons is not None:
+                for app_name in ["3de", "nuke", "maya", "rv", "publish"]:
+                    if (app_name in window.app_buttons 
+                        and prev_widget is not None
+                        and window.app_buttons[app_name] is not None):
+                        window.setTabOrder(prev_widget, window.app_buttons[app_name])
+                        prev_widget = window.app_buttons[app_name]
 
     @staticmethod
     def add_focus_indicators_stylesheet() -> str:

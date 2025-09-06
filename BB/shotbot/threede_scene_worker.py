@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QMutex,
+    QMutexLocker,
     QObject,
     Qt,
     QThread,
@@ -231,6 +232,12 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         self._last_progress_time = 0
         self._all_scenes: list[ThreeDEScene] = []
         self._files_processed = 0
+        # Progress reporter will be created in do_work() to prevent race condition
+        self._progress_reporter: QtProgressReporter | None = None
+        
+        # Thread safety for finished signal emission (simplified)
+        self._finished_mutex = QMutex()
+        self._finished_emitted = False
 
         # Store desired priority for setting after thread starts
         priority_map = {
@@ -302,28 +309,41 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         This ensures that the finished signal is emitted even when the thread
         is interrupted via requestInterruption(), not just when stopped normally.
         """
-        # Track whether finished signal was emitted
-        self._finished_emitted = False
+        # Reset finished flag at start
+        with QMutexLocker(self._finished_mutex):
+            self._finished_emitted = False
 
         try:
             # Call parent's run() which manages state and calls do_work()
             super().run()
         finally:
-            # Only emit finished signal if not already emitted by do_work()
-            # This ensures tests and UI get the finished signal even on interruption
-            if not self._finished_emitted:
-                if not self._all_scenes:
-                    # If no scenes were found, emit empty list
-                    logger.debug(
-                        "Worker finishing, emitting finished signal with empty list"
-                    )
-                    self.finished.emit([])
-                else:
-                    # Emit whatever scenes we managed to find
-                    logger.debug(
-                        f"Worker finishing, emitting finished signal with {len(self._all_scenes)} scenes"
-                    )
-                    self.finished.emit(self._all_scenes)
+            # Ensure finished signal is emitted exactly once
+            self._emit_finished_signal_once()
+
+    def _emit_finished_signal_once(self, scenes: list[ThreeDEScene] | None = None) -> bool:
+        """Emit finished signal exactly once, thread-safely.
+        
+        Args:
+            scenes: Optional list of scenes to emit. If None, uses self._all_scenes
+            
+        Returns:
+            bool: True if signal was emitted, False if already emitted
+        """
+        with QMutexLocker(self._finished_mutex):
+            if self._finished_emitted:
+                return False
+            self._finished_emitted = True
+            
+        # Emit outside the lock to prevent deadlocks
+        scenes_to_emit = scenes if scenes is not None else (self._all_scenes if self._all_scenes else [])
+        
+        if not scenes_to_emit:
+            logger.debug("Worker finishing, emitting finished signal with empty list")
+        else:
+            logger.debug(f"Worker finishing, emitting finished signal with {len(scenes_to_emit)} scenes")
+            
+        self.finished.emit(scenes_to_emit)
+        return True
 
     def _handle_progress_update(self, files_found: int, status: str) -> None:
         """Handle progress updates from the reporter.
@@ -386,8 +406,8 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             if hasattr(self, "_desired_priority"):
                 self.setPriority(self._desired_priority)
 
-            # Create progress reporter for thread-safe signal emission
-            # This reporter will handle progress updates from ThreadPoolExecutor threads
+            # Create progress reporter in worker thread to prevent race condition
+            # This ensures it's created in the correct thread context from the start
             self._progress_reporter = QtProgressReporter()
             
             # Connect the reporter's signal to our handler with QueuedConnection
@@ -402,15 +422,13 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
             if not self.shots:
                 logger.warning("No shots provided for 3DE scene discovery")
-                self._finished_emitted = True
-                self.finished.emit([])
+                self._emit_finished_signal_once([])
                 return
 
             # Check for initial cancellation using base class method
             if self.should_stop():
                 logger.info("3DE scene discovery cancelled before starting")
-                self._finished_emitted = True
-                self.finished.emit([])
+                self._emit_finished_signal_once([])
                 return
 
             # Choose discovery method based on configuration
@@ -422,15 +440,15 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             # Final cancellation check
             if self.should_stop():
                 logger.info("3DE scene discovery cancelled during processing")
-                self._finished_emitted = True
-                self.finished.emit(self._all_scenes)  # Return partial results
+                # Return partial results
+                self._emit_finished_signal_once()
                 return
 
             logger.info(
                 f"Enhanced 3DE scene discovery completed: {len(scenes)} scenes found",
             )
-            self._finished_emitted = True
-            self.finished.emit(scenes)
+            # Emit final results
+            self._emit_finished_signal_once(scenes)
 
         except Exception as e:
             logger.error(f"Error in enhanced 3DE scene discovery worker: {e}")
@@ -572,7 +590,9 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
             # Use the progress reporter which will queue the signal emission
             # This ensures thread-safe delivery without complex workarounds
-            self._progress_reporter.report_progress(files_found, status)
+            # Add null check to prevent race condition with reporter creation
+            if self._progress_reporter is not None:
+                self._progress_reporter.report_progress(files_found, status)
 
         # Create cancel flag callback
         def cancel_flag() -> bool:

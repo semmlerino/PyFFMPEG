@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
-import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QTimer, Qt, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, QTimer, Signal
 
 from cache_manager import CacheManager
 from previous_shots_finder import ParallelShotsFinder
@@ -56,7 +55,7 @@ class PreviousShotsModel(QObject):
         self._worker: PreviousShotsWorker | None = None
 
         # THREAD SAFETY: Lock for protecting _is_scanning flag
-        self._scan_lock = threading.Lock()
+        self._scan_lock = QMutex()
 
         # Auto-refresh timer
         self._refresh_timer = QTimer(self)
@@ -77,6 +76,48 @@ class PreviousShotsModel(QObject):
         """Stop automatic refresh of previous shots."""
         self._refresh_timer.stop()
         logger.info("Stopped auto-refresh for previous shots")
+    
+    def _cleanup_worker_safely(self) -> None:
+        """Centralized worker cleanup to prevent race conditions and crashes.
+        
+        This method ensures proper cleanup sequence:
+        1. Request stop first
+        2. Wait with timeout to prevent hanging
+        3. Clear reference before deletion
+        4. Disconnect signals to prevent late emissions
+        5. Schedule deletion on event loop
+        """
+        with QMutexLocker(self._scan_lock):
+            if self._worker is not None:
+                logger.debug("Safely cleaning up worker thread")
+                
+                # 1. Request stop first
+                self._worker.stop()
+                
+                # 2. Wait with timeout (prevent hanging)
+                if not self._worker.wait(2000):
+                    logger.warning("Worker did not stop gracefully within 2s")
+                    # Force termination if necessary
+                    if self._worker.isRunning():
+                        self._worker.terminate()
+                        self._worker.wait(1000)
+                
+                # 3. Clear reference BEFORE scheduling deletion
+                worker = self._worker
+                self._worker = None
+                
+                # 4. Disconnect all signals to prevent late emissions
+                try:
+                    worker.scan_finished.disconnect()
+                    worker.error_occurred.disconnect()
+                    if hasattr(worker, 'progress'):
+                        getattr(worker, 'progress').disconnect()
+                except (RuntimeError, TypeError):
+                    pass  # Already disconnected
+                
+                # 5. Schedule deletion on event loop
+                worker.deleteLater()
+                logger.debug("Worker thread cleanup completed")
 
     def refresh_shots(self) -> bool:
         """Refresh the list of previous shots using a background worker thread.
@@ -85,7 +126,7 @@ class PreviousShotsModel(QObject):
             True if refresh was started, False if already scanning.
         """
         # THREAD SAFETY: Use lock to protect _is_scanning flag
-        with self._scan_lock:
+        with QMutexLocker(self._scan_lock):
             if self._is_scanning:
                 logger.debug("Already scanning for previous shots")
                 return False
@@ -99,19 +140,20 @@ class PreviousShotsModel(QObject):
         try:
             # Stop any existing worker
             if self._worker is not None:
-                logger.debug("Stopping existing worker")
-                self._worker.stop()
-                self._worker.wait(1000)  # Wait up to 1 second
-                self._worker = None
+                logger.debug("Stopping existing worker before starting new scan")
+                self._cleanup_worker_safely()
 
             # Get active shots from the main model
             active_shots = self._shot_model.get_shots()
 
             # Create and configure worker thread
+            from config import Config
+            
             self._worker = PreviousShotsWorker(
                 active_shots=active_shots,
                 username=self._finder.username,
-                shows_root=Path("/shows"),  # Use default shows root
+                shows_root=Path(Config.SHOWS_ROOT),  # Use configured shows root
+                parent=self,  # Set parent for proper cleanup hierarchy
             )
 
             # Connect worker signals with QueuedConnection for thread safety
@@ -133,29 +175,33 @@ class PreviousShotsModel(QObject):
         except Exception as e:
             logger.error(f"Error starting previous shots scan: {e}")
             # Reset scanning flag on error
-            with self._scan_lock:
+            with QMutexLocker(self._scan_lock):
                 self._is_scanning = False
             self.scan_finished.emit()
             return False
 
-    def _on_scan_finished(self, approved_shots: list) -> None:
+    def _on_scan_finished(self, approved_shots: list[dict[str, str]]) -> None:
         """Handle worker completion.
 
         Args:
-            approved_shots: List of approved shots found by worker.
+            approved_shots: List of approved shot dictionaries found by worker.
         """
         try:
-            # Convert dictionaries back to Shot objects if needed
-            if approved_shots and isinstance(approved_shots[0], dict):
-                approved_shots = [
-                    Shot.from_dict(shot_dict) for shot_dict in approved_shots
-                ]
+            # Convert dictionaries to Shot objects
+            shot_objects: list[Shot] = [
+                Shot(
+                    show=shot_dict["show"],
+                    sequence=shot_dict["sequence"],
+                    shot=shot_dict["shot"],
+                    workspace_path=shot_dict["workspace_path"]
+                ) for shot_dict in approved_shots
+            ] if approved_shots else []
 
             # Check if there are changes
-            has_changes = self._has_changes(approved_shots)
+            has_changes = self._has_changes(shot_objects)
 
             if has_changes:
-                self._previous_shots = approved_shots
+                self._previous_shots = shot_objects
                 self._save_to_cache()
                 self.shots_updated.emit()
                 logger.info(
@@ -167,12 +213,11 @@ class PreviousShotsModel(QObject):
         except Exception as e:
             logger.error(f"Error processing scan results: {e}")
         finally:
-            # Reset scanning flag and cleanup worker
-            with self._scan_lock:
+            # Reset scanning flag
+            with QMutexLocker(self._scan_lock):
                 self._is_scanning = False
-            if self._worker:
-                self._worker.deleteLater()
-                self._worker = None
+            # Use centralized cleanup
+            self._cleanup_worker_safely()
             self.scan_finished.emit()
 
     def _on_scan_error(self, error_msg: str) -> None:
@@ -182,12 +227,11 @@ class PreviousShotsModel(QObject):
             error_msg: Error message from worker.
         """
         logger.error(f"Previous shots scan error: {error_msg}")
-        # Reset scanning flag and cleanup
-        with self._scan_lock:
+        # Reset scanning flag
+        with QMutexLocker(self._scan_lock):
             self._is_scanning = False
-        if self._worker:
-            self._worker.deleteLater()
-            self._worker = None
+        # Use centralized cleanup
+        self._cleanup_worker_safely()
         self.scan_finished.emit()
 
     def _has_changes(self, new_shots: list[Shot]) -> bool:
@@ -238,7 +282,7 @@ class PreviousShotsModel(QObject):
                 return shot
         return None
 
-    def get_shot_details(self, shot: Shot) -> Dict:
+    def get_shot_details(self, shot: Shot) -> dict[str, str]:
         """Get detailed information about a shot.
 
         Args:
@@ -247,14 +291,15 @@ class PreviousShotsModel(QObject):
         Returns:
             Dictionary with shot details.
         """
-        return self._finder.get_shot_details(shot)
+        # Type assertion since finder returns string values
+        return dict[str, str](self._finder.get_shot_details(shot))  # type: ignore[misc]
 
     def _load_from_cache(self) -> None:
         """Load previous shots from cache."""
         try:
             # Use the correct method: get_cached_previous_shots()
             cached_data = self._cache_manager.get_cached_previous_shots()
-            if cached_data and isinstance(cached_data, list):
+            if cached_data:
                 self._previous_shots = [
                     Shot(
                         show=s["show"],
@@ -326,13 +371,10 @@ class PreviousShotsModel(QObject):
 
     def cleanup(self) -> None:
         """Clean up resources and stop worker thread."""
+        logger.debug("PreviousShotsModel cleanup initiated")
         self.stop_auto_refresh()
-        if self._worker is not None:
-            logger.debug("Stopping worker thread for cleanup")
-            self._worker.stop()
-            self._worker.wait(2000)  # Wait up to 2 seconds
-            self._worker.deleteLater()
-            self._worker = None
+        self._cleanup_worker_safely()  # Use centralized cleanup
+        logger.info("PreviousShotsModel cleanup completed")
 
     def is_scanning(self) -> bool:
         """Check if currently scanning for shots.
@@ -341,5 +383,5 @@ class PreviousShotsModel(QObject):
             True if scanning is in progress.
         """
         # THREAD SAFETY: Use lock when reading _is_scanning
-        with self._scan_lock:
+        with QMutexLocker(self._scan_lock):
             return self._is_scanning

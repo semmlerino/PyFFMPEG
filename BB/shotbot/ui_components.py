@@ -18,7 +18,7 @@ from PySide6.QtCore import (
     QTimer,
     Signal,
 )
-from PySide6.QtGui import QColor, QIcon, QPainter, QPen
+from PySide6.QtGui import QColor, QEnterEvent, QIcon, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
@@ -77,14 +77,14 @@ class ModernButton(QPushButton):
         self.hover_animation.setDuration(design_system.animation.duration_fast)
         self.hover_animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
 
-    def enterEvent(self, event):
+    def enterEvent(self, event: QEnterEvent) -> None:
         """Animate on hover."""
         self.hover_animation.setStartValue(1.0)
         self.hover_animation.setEndValue(0.9)
         self.hover_animation.start()
         super().enterEvent(event)
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, event) -> None:
         """Animate on leave."""
         self.hover_animation.setStartValue(0.9)
         self.hover_animation.setEndValue(1.0)
@@ -116,7 +116,7 @@ class LoadingSpinner(QWidget):
         self.angle = (self.angle + 10) % 360
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Paint the spinner."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -522,7 +522,7 @@ class FloatingActionButton(QPushButton):
             y = parent_rect.height() - self.height() - 24
             self.move(x, y)
 
-    def enterEvent(self, event):
+    def enterEvent(self, event: QEnterEvent) -> None:
         """Scale up on hover."""
         current_rect = self.geometry()
         expanded_rect = QRect(
@@ -536,7 +536,7 @@ class FloatingActionButton(QPushButton):
         self.hover_animation.start()
         super().enterEvent(event)
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, event) -> None:
         """Scale back on leave."""
         current_rect = self.geometry()
         normal_rect = QRect(
