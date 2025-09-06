@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, List
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from config import ThreadingConfig
@@ -196,28 +196,28 @@ class ProcessPoolManager(QObject):
 
     # Singleton instance
     _instance = None
-    _lock = threading.RLock()  # Use reentrant lock to prevent deadlock in nested calls
+    _lock = QMutex()  # Qt mutex for thread-safe singleton access
 
     # Qt signals
     command_completed = Signal(str, object)  # command_id, result
     command_failed = Signal(str, str)  # command_id, error
 
     def __new__(cls, *args, **kwargs):
-        """Ensure singleton pattern with proper thread safety.
+        """Ensure singleton pattern with proper thread safety using double-checked locking.
 
-        This implementation uses a simple lock-based approach which is
-        guaranteed to be thread-safe in Python. The lock ensures that only
-        one thread can create the instance, and the _initialized flag is
-        set atomically within the same lock.
+        This implementation uses double-checked locking pattern which optimizes
+        the common case where the singleton is already initialized by avoiding
+        the lock acquisition. The inner check ensures thread safety during creation.
         """
-        with cls._lock:
-            if cls._instance is None:
-                # Create the instance
-                instance = super().__new__(cls)
-                # Mark as not initialized yet
-                instance._initialized = False
-                cls._instance = instance
-            return cls._instance
+        # Fast path - no lock if already initialized
+        if cls._instance is None:
+            with QMutexLocker(cls._lock):
+                # Double-check inside lock to prevent race condition
+                if cls._instance is None:
+                    instance = super().__new__(cls)
+                    instance._initialized = False
+                    cls._instance = instance
+        return cls._instance
 
     def __init__(self, max_workers: int = 4, sessions_per_type: int = 3):
         """Initialize process pool manager.
@@ -227,7 +227,7 @@ class ProcessPoolManager(QObject):
             sessions_per_type: Number of sessions to maintain per type for parallelism
         """
         # Only initialize once, using the same lock as __new__
-        with ProcessPoolManager._lock:
+        with QMutexLocker(ProcessPoolManager._lock):
             if self._initialized:
                 return
             

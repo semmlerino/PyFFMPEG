@@ -12,8 +12,7 @@ import threading
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from process_pool_manager import ProcessPoolManager
-    from tests.test_doubles_library import TestProcessPool
+    from type_definitions import PerformanceMetricsDict
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +42,16 @@ class ProcessPoolInterface(Protocol):
         """Execute multiple commands in parallel."""
         ...
     
-    def invalidate_cache(self, pattern: str | None = None):
+    def invalidate_cache(self, pattern: str | None = None) -> None:
         """Invalidate command cache."""
         ...
     
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Shutdown the process pool."""
+        ...
+    
+    def get_metrics(self) -> PerformanceMetricsDict:
+        """Get performance metrics."""
         ...
 
 
@@ -141,42 +144,67 @@ class ProcessPoolFactory:
     
     @classmethod
     def _create_mock_instance(cls) -> ProcessPoolInterface:
-        """Create mock TestProcessPool instance.
+        """Create mock pool instance.
+        
+        Prefers the enhanced MockWorkspacePool that properly simulates
+        the VFX environment, falls back to TestProcessPool if needed.
         
         Returns:
-            TestProcessPool instance with demo data
+            Mock pool instance with demo data
         """
-        from tests.test_doubles_library import TestProcessPool
-        import json
         from pathlib import Path
         
-        mock_pool = TestProcessPool()
-        
-        # Load demo shots if available
-        demo_shots_path = Path(__file__).parent / "demo_shots.json"
-        if demo_shots_path.exists():
-            logger.info(f"Loading demo shots from {demo_shots_path}")
-            with open(demo_shots_path) as f:
-                demo_data = json.load(f)
-                outputs = []
-                for shot in demo_data.get("shots", []):
-                    show = shot.get("show", "demo")
-                    seq = shot.get("seq", "seq01")
-                    shot_num = shot.get("shot", "0010")
-                    outputs.append(f"workspace /shows/{show}/shots/{seq}/{seq}_{shot_num}")
-                if outputs:
-                    mock_pool.set_outputs(*outputs)
-                    logger.info(f"Loaded {len(outputs)} demo shots")
-        else:
-            # Fallback demo data
-            logger.info("Using default demo shots")
-            mock_pool.set_outputs(
-                "workspace /shows/demo/shots/seq01/seq01_0010",
-                "workspace /shows/demo/shots/seq01/seq01_0020",
-                "workspace /shows/demo/shots/seq01/seq01_0030",
-            )
-        
-        return mock_pool
+        # Try to use the enhanced mock pool first
+        try:
+            from mock_workspace_pool import create_mock_pool_from_filesystem
+            
+            logger.info("Using enhanced MockWorkspacePool")
+            mock_pool = create_mock_pool_from_filesystem()
+            
+            # The pool already loaded shots from filesystem or demo
+            if hasattr(mock_pool, 'shots') and mock_pool.shots:
+                logger.info(f"Mock pool has {len(mock_pool.shots)} shots ready")
+            
+            return mock_pool
+            
+        except ImportError:
+            # Fall back to simple test pool
+            logger.info("Falling back to TestProcessPool")
+            import json
+
+            from tests.test_doubles_library import TestProcessPool
+            
+            mock_pool = TestProcessPool()
+            
+            # Load demo shots and join them with newlines for ws -sg
+            demo_shots_path = Path(__file__).parent / "demo_shots.json"
+            if demo_shots_path.exists():
+                logger.info(f"Loading demo shots from {demo_shots_path}")
+                with open(demo_shots_path) as f:
+                    demo_data: dict[str, list[dict[str, str]]] = json.load(f)
+                    outputs: list[str] = []
+                    for shot in demo_data.get("shots", []):
+                        show: str = shot.get("show", "demo")
+                        seq: str = shot.get("seq", "seq01")
+                        shot_num: str = shot.get("shot", "0010")
+                        outputs.append(f"workspace /shows/{show}/shots/{seq}/{seq}_{shot_num}")
+                    
+                    if outputs:
+                        # Set as a single output with all shots joined by newlines
+                        # This simulates what 'ws -sg' actually returns
+                        mock_pool.set_outputs("\n".join(outputs))
+                        logger.info(f"Loaded {len(outputs)} demo shots as single output")
+            else:
+                # Fallback demo data
+                logger.info("Using default demo shots")
+                default_shots = [
+                    "workspace /shows/demo/shots/seq01/seq01_0010",
+                    "workspace /shows/demo/shots/seq01/seq01_0020",
+                    "workspace /shows/demo/shots/seq01/seq01_0030",
+                ]
+                mock_pool.set_outputs("\n".join(default_shots))
+            
+            return mock_pool
     
     @classmethod
     def reset(cls):

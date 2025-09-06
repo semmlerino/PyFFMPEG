@@ -19,15 +19,15 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from previous_shots_view import PreviousShotsView
-from previous_shots_item_model import PreviousShotsItemModel
 from PySide6.QtCore import QObject, QSize, Qt, Signal
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtTest import QSignalSpy, QTest
 
 from cache_manager import CacheManager
 from config import Config
+from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
+from previous_shots_view import PreviousShotsView
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)

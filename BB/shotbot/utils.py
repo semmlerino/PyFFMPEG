@@ -8,7 +8,7 @@ import re
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from config import Config
 
@@ -92,9 +92,9 @@ class CacheIsolation:
         logger.debug("Cache isolation context exited")
 
 
-def get_cache_stats() -> dict[str, Any]:
+def get_cache_stats() -> dict[str, object]:
     """Get statistics about current cache usage."""
-    stats: dict[str, Any] = {
+    stats: dict[str, object] = {
         "path_cache_size": len(_path_cache),
         "version_cache_size": VersionUtils.get_version_cache_size(),
         "extract_version_cache_info": VersionUtils.extract_version_from_path.cache_info(),

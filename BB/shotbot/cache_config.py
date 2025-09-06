@@ -6,9 +6,9 @@ that separates mock/test cache from production cache.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ class CacheConfig:
             logger.info(f"Cleared mock cache: {CacheConfig.MOCK_CACHE_DIR}")
     
     @staticmethod
-    def get_cache_info() -> dict:
+    def get_cache_info() -> dict[str, object]:
         """Get information about current cache configuration.
         
         Returns:
@@ -147,7 +147,7 @@ class CacheConfig:
         """
         cache_dir = CacheConfig.get_cache_directory()
         
-        info = {
+        info: dict[str, object] = {
             "cache_directory": str(cache_dir),
             "exists": cache_dir.exists(),
             "is_test_mode": CacheConfig.is_test_mode(),
@@ -205,7 +205,6 @@ class CacheConfig:
 
 # Make sys available for is_test_mode
 import sys
-
 
 # Example usage and testing
 if __name__ == "__main__":

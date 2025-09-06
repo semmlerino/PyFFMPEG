@@ -18,14 +18,15 @@ Usage:
     python capture_vfx_structure.py --stdout | gzip > structure.json.gz
 """
 
+import argparse
 import json
 import os
-import sys
 import subprocess
-from pathlib import Path
-import argparse
+import sys
 import time
-from typing import Dict, List, Any
+from pathlib import Path
+from typing import Any, Dict, List
+
 
 def get_workspace_shots():
     """Get list of shots from ws -sg command."""

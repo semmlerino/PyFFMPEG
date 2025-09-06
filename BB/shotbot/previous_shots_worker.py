@@ -10,7 +10,7 @@ from PySide6.QtCore import QObject, Signal
 
 from previous_shots_finder import ParallelShotsFinder
 from shot_model import Shot
-from thread_safe_worker import ThreadSafeWorker, WorkerState
+from thread_safe_worker import ThreadSafeWorker
 
 logger = logging.getLogger(__name__)
 

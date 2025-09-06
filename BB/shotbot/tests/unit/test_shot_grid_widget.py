@@ -25,21 +25,18 @@ from __future__ import annotations
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QResizeEvent
 from PySide6.QtTest import QSignalSpy, QTest
-from PySide6.QtWidgets import QGridLayout, QScrollArea, QSlider, QWidget
+
+from shot_grid_view import ShotGridView  # Modern Model/View
+
 # from shot_grid import ShotGrid  # Module deleted during Model/View migration
 from shot_item_model import ShotItemModel
-
-from config import Config
-from shot_grid_view import ShotGridView  # Modern Model/View
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     TestCacheManager,
     TestShot,
-    TestShotModel,
 )
 
 # TestShotGridWidget removed - tested the deleted ShotGrid widget.

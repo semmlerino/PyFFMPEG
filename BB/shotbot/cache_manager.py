@@ -11,9 +11,9 @@ import logging
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
-from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, QRunnable, QThread, QThreadPool, Signal
 from PySide6.QtWidgets import QApplication
 
 # Use typing_extensions for override (available in venv)
@@ -29,10 +29,14 @@ from cache.storage_backend import StorageBackend
 from cache.threede_cache import ThreeDECache
 from cache.thumbnail_loader import ThumbnailCacheResult, ThumbnailLoader
 from cache.thumbnail_processor import ThumbnailProcessor
+
+# Import unified cache configuration
+from cache_config_unified import UnifiedCacheConfig, create_unified_cache_config
 from config import Config
 from exceptions import CacheError, ThumbnailError
 
 if TYPE_CHECKING:
+    from settings_manager import SettingsManager
     from shot_model import Shot
     from type_definitions import (
         ShotDict,
@@ -62,16 +66,26 @@ class CacheManager(QObject):
     # Signals - maintain backward compatibility
     cache_updated = Signal()
 
-    def __init__(self, cache_dir: Path | None = None):
+    def __init__(self, cache_dir: Path | None = None, settings_manager: SettingsManager | None = None):
         """Initialize cache manager facade with modular components.
 
         Args:
             cache_dir: Cache directory path. If None, uses mode-appropriate default
+            settings_manager: Settings manager for unified cache configuration
         """
         super().__init__()
 
         # Thread safety for coordination
-        self._lock: threading.RLock = threading.RLock()
+        self._lock: QMutex = QMutex()
+        
+        # Initialize unified cache configuration if settings manager provided
+        self._unified_config: UnifiedCacheConfig | None = None
+        if settings_manager:
+            try:
+                self._unified_config = create_unified_cache_config(settings_manager)
+                logger.info("CacheManager using unified cache configuration")
+            except Exception as e:
+                logger.warning(f"Failed to initialize unified cache config: {e}")
 
         # Set up cache directory structure using CacheConfig for mode separation
         if cache_dir is None:
@@ -88,16 +102,38 @@ class CacheManager(QObject):
         # Initialize modular components
         self._storage_backend = StorageBackend()
         self._failure_tracker = FailureTracker()
-        self._memory_manager = MemoryManager()
+        
+        # Use unified config for memory manager if available
+        if self._unified_config:
+            self._memory_manager = self._unified_config.create_memory_manager()
+            # Connect to configuration changes
+            self._unified_config.memory_limit_changed.connect(self._on_memory_limit_changed)
+            self._unified_config.expiry_time_changed.connect(self._on_expiry_time_changed)
+        else:
+            self._memory_manager = MemoryManager()
+            
         self._thumbnail_processor = ThumbnailProcessor()
 
-        # Initialize data caches
-        self._shot_cache = ShotCache(self.shots_cache_file, self._storage_backend)
+        # Initialize data caches with unified config if available
+        expiry_minutes = (
+            self._unified_config.expiry_minutes if self._unified_config 
+            else None  # Use config defaults
+        )
+        
+        self._shot_cache = ShotCache(
+            self.shots_cache_file, 
+            self._storage_backend, 
+            expiry_minutes=expiry_minutes
+        )
         self._threede_cache = ThreeDECache(
-            self.threede_scenes_cache_file, self._storage_backend
+            self.threede_scenes_cache_file, 
+            self._storage_backend,
+            expiry_minutes=expiry_minutes
         )
         self._previous_shots_cache = ShotCache(
-            self.previous_shots_cache_file, self._storage_backend
+            self.previous_shots_cache_file, 
+            self._storage_backend,
+            expiry_minutes=expiry_minutes
         )
 
         # Initialize validator (will be created after directory setup)
@@ -153,7 +189,7 @@ class CacheManager(QObject):
         )  # Convert bytes to MB
 
     @property
-    def _failed_attempts(self) -> dict[str, dict[str, Any]]:
+    def _failed_attempts(self) -> dict[str, dict[str, object]]:
         """Backward compatibility property for failure tracking."""
         return self._failure_tracker.get_failure_status()
 
@@ -183,7 +219,7 @@ class CacheManager(QObject):
     # Thumbnail caching methods - backward compatible interface
     def get_cached_thumbnail(self, show: str, sequence: str, shot: str) -> Path | None:
         """Get path to cached thumbnail if it exists (thread-safe)."""
-        with self._lock:
+        with QMutexLocker(self._lock):
             # Periodic validation
             self._run_periodic_validation()
 
@@ -228,7 +264,7 @@ class CacheManager(QObject):
 
         cache_key = f"{show}_{sequence}_{shot}"
 
-        with self._lock:
+        with QMutexLocker(self._lock):
             # Check if already being loaded
             if cache_key in self._active_loaders:
                 result = self._active_loaders[cache_key]
@@ -341,7 +377,7 @@ class CacheManager(QObject):
 
     def _cleanup_loader(self, cache_key: str) -> None:
         """Remove completed loader from tracking."""
-        with self._lock:
+        with QMutexLocker(self._lock):
             _ = self._active_loaders.pop(cache_key, None)
 
     def _run_periodic_validation(self) -> None:
@@ -381,13 +417,13 @@ class CacheManager(QObject):
         return self._threede_cache.has_valid_cache()
 
     def cache_threede_scenes(
-        self, scenes: list[ThreeDESceneDict], metadata: dict[str, Any] | None = None
+        self, scenes: list[ThreeDESceneDict], metadata: dict[str, object] | None = None
     ):
         """Cache 3DE scene list to file with optional metadata."""
         _ = self._threede_cache.cache_scenes(scenes, metadata)
 
     # Generic data caching methods for backward compatibility
-    def cache_data(self, key: str, data: Any) -> None:
+    def cache_data(self, key: str, data: object) -> None:
         """Cache generic data with a key (for backward compatibility).
 
         Args:
@@ -401,7 +437,7 @@ class CacheManager(QObject):
             cache_file = self.cache_dir / f"{key}.json"
             _ = self._storage_backend.write_json(cache_file, data)
 
-    def get_cached_data(self, key: str) -> Any | None:
+    def get_cached_data(self, key: str) -> object | None:
         """Get cached generic data by key (for backward compatibility).
 
         Args:
@@ -434,7 +470,7 @@ class CacheManager(QObject):
                 cache_file.unlink()
 
     # Memory and validation methods - delegate to appropriate components
-    def get_memory_usage(self) -> dict[str, Any]:
+    def get_memory_usage(self) -> dict[str, float | int]:
         """Get current cache memory usage statistics (backward compatible)."""
         stats = self._memory_manager.get_usage_stats()
         total_bytes = stats.get("total_bytes", 0)
@@ -449,7 +485,7 @@ class CacheManager(QObject):
             "thumbnail_count": stats.get("tracked_items", 0),
         }
 
-    def validate_cache(self) -> dict[str, Any]:
+    def validate_cache(self) -> dict[str, object]:
         """Validate cache consistency and fix issues (backward compatible)."""
         if self._cache_validator:
             result = self._cache_validator.validate_cache()
@@ -479,7 +515,7 @@ class CacheManager(QObject):
 
     def clear_cache(self):
         """Clear all cached data."""
-        with self._lock:
+        with QMutexLocker(self._lock):
             # Clear memory tracking
             self._memory_manager.clear_all_tracking()
 
@@ -514,7 +550,7 @@ class CacheManager(QObject):
         """Clear failed attempts to allow immediate retry."""
         self._failure_tracker.clear_failures(cache_key)
 
-    def get_failed_attempts_status(self) -> dict[str, dict[str, Any]]:
+    def get_failed_attempts_status(self) -> dict[str, dict[str, object]]:
         """Get current status of failed attempts for debugging."""
         return self._failure_tracker.get_failure_status()
 
@@ -527,7 +563,7 @@ class CacheManager(QObject):
         """Gracefully shutdown the cache manager."""
         logger.info("CacheManager shutting down...")
 
-        with self._lock:
+        with QMutexLocker(self._lock):
             try:
                 # Validate and fix any cache inconsistencies
                 if self._cache_validator:
@@ -567,6 +603,27 @@ class CacheManager(QObject):
         # Use the public method to set memory limit
         self._memory_manager.set_memory_limit(max_memory_mb)
         logger.info(f"Cache memory limit set to {max_memory_mb} MB")
+
+    def _on_memory_limit_changed(self, new_limit_mb: int) -> None:
+        """Handle unified cache config memory limit changes.
+        
+        Args:
+            new_limit_mb: New memory limit in MB
+        """
+        self._memory_manager.set_memory_limit(new_limit_mb)
+        logger.info(f"Cache memory limit updated to {new_limit_mb}MB via unified config")
+
+    def _on_expiry_time_changed(self, new_expiry_minutes: int) -> None:
+        """Handle unified cache config expiry time changes.
+        
+        Args:
+            new_expiry_minutes: New expiry time in minutes
+        """
+        # Update all cache components with new expiry time
+        self._shot_cache.set_expiry_minutes(new_expiry_minutes)
+        self._threede_cache.set_expiry_minutes(new_expiry_minutes)
+        self._previous_shots_cache.set_expiry_minutes(new_expiry_minutes)
+        logger.info(f"Cache expiry time updated to {new_expiry_minutes} minutes via unified config")
 
     def set_expiry_minutes(self, expiry_minutes: int) -> None:
         """Set cache expiry time in minutes.
@@ -689,7 +746,7 @@ class ThumbnailCacheLoader(QRunnable):
         show: str,
         sequence: str,
         shot: str,
-        result: dict[str, Any] | None = None,
+        result: dict[str, object] | None = None,
     ):
         """Initialize with original constructor signature."""
         super().__init__()
@@ -708,11 +765,9 @@ class ThumbnailCacheLoader(QRunnable):
         # Convert dict result to ThumbnailCacheResult if needed
         result_obj = None
         if result is not None:
-            if isinstance(result, dict):
-                result_obj = ThumbnailCacheResult()
-                # Copy any existing data from dict to result object
-            else:
-                result_obj = result
+            # Result is always a dict in legacy code
+            result_obj = ThumbnailCacheResult()
+            # Copy any existing data from dict to result object
 
         self._loader = ThumbnailLoader(
             cache_manager.test_thumbnail_processor,

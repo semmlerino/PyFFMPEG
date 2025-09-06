@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Test headless mode functionality."""
 
-import sys
-import os
 import logging
+import os
 import subprocess
+import sys
 
 logging.basicConfig(
     level=logging.INFO,
@@ -95,8 +95,9 @@ def test_headless_app_creation():
     logger.info("Testing headless QApplication creation")
     logger.info("=" * 50)
     
-    from headless_mode import HeadlessMode
     from PySide6.QtCore import QCoreApplication
+
+    from headless_mode import HeadlessMode
     
     # Clean up any existing application
     if QCoreApplication.instance():

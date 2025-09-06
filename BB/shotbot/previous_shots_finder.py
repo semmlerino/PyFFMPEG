@@ -9,9 +9,9 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Callable, Generator
 
-from config import ThreadingConfig
+from config import Config, ThreadingConfig
 from shot_model import Shot
 
 logger = logging.getLogger(__name__)
@@ -46,23 +46,30 @@ class PreviousShotsFinder:
             raise ValueError(f"Username contains invalid characters: '{self.username}'")
 
         self.user_path_pattern = f"/user/{self.username}"
-        # Optimized regex: directly captures shot number after sequence prefix
-        # Pattern matches: /shows/{show}/shots/{sequence}/{sequence}_{shot}/
-        self._shot_pattern = re.compile(r"/shows/([^/]+)/shots/([^/]+)/\2_([^/]+)/")
-        # Fallback pattern for non-standard naming
-        self._shot_pattern_fallback = re.compile(r"/shows/([^/]+)/shots/([^/]+)/([^/]+)/")
+        # Optimized regex pattern for shot parsing
+        # [^/]+ is faster than \w+ for path components  
+        shows_root_escaped = re.escape(Config.SHOWS_ROOT)
+        self._shot_pattern = re.compile(rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/")
         logger.info(f"PreviousShotsFinder initialized for user: {self.username}")
 
-    def find_user_shots(self, shows_root: Path = Path("/shows")) -> list[Shot]:
+    def find_user_shots(self, shows_root: Path | None = None) -> list[Shot]:
         """Find all shots that contain user work directories.
 
         Args:
-            shows_root: Root directory to search for shots.
+            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None).
 
         Returns:
             List of Shot objects where user has work directories.
         """
+        from config import Config
+        
         shots: list[Shot] = []
+        
+        # Ensure shows_root is always a Path object
+        if shows_root is None:
+            shows_root = Path(Config.SHOWS_ROOT)
+        elif isinstance(shows_root, str):
+            shows_root = Path(shows_root)
 
         if not shows_root.exists():
             logger.warning(f"Shows root does not exist: {shows_root}")
@@ -133,7 +140,7 @@ class PreviousShotsFinder:
         if match:
             # Optimized: directly capture show, sequence, and shot number
             show, sequence, shot = match.groups()
-            workspace_path = f"/shows/{show}/shots/{sequence}/{sequence}_{shot}"
+            workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{sequence}_{shot}"
         else:
             # Fallback for non-standard naming
             match = self._shot_pattern_fallback.search(path)
@@ -143,7 +150,7 @@ class PreviousShotsFinder:
                 # Extract shot number from directory name
                 if shot_dir.startswith(f"{sequence}_"):
                     shot = shot_dir[len(sequence) + 1:]  # +1 for underscore
-                    workspace_path = f"/shows/{show}/shots/{sequence}/{shot_dir}"
+                    workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
                 else:
                     # Non-standard naming, skip
                     logger.debug(f"Non-standard shot naming: {shot_dir}")
@@ -197,7 +204,7 @@ class PreviousShotsFinder:
         return approved_shots
 
     def find_approved_shots(
-        self, active_shots: list[Shot], shows_root: Path = Path("/shows")
+        self, active_shots: list[Shot], shows_root: Path | None = None
     ) -> list[Shot]:
         """Find all approved shots for the user.
 
@@ -206,15 +213,23 @@ class PreviousShotsFinder:
 
         Args:
             active_shots: Currently active shots from workspace.
-            shows_root: Root directory to search for shots.
+            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None).
 
         Returns:
             List of approved/completed shots.
         """
+        from config import Config
+        
+        # Ensure shows_root is always a Path object
+        if shows_root is None:
+            shows_root = Path(Config.SHOWS_ROOT)
+        elif isinstance(shows_root, str):
+            shows_root = Path(shows_root)
+            
         all_user_shots = self.find_user_shots(shows_root)
         return self.filter_approved_shots(all_user_shots, active_shots)
 
-    def get_shot_details(self, shot: Shot) -> dict[str, Any]:
+    def get_shot_details(self, shot: Shot) -> dict[str, str]:
         """Get additional details about an approved shot.
 
         Args:
@@ -297,7 +312,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         Returns:
             List of show directory paths
         """
-        shows = []
+        shows: list[Path] = []
 
         try:
             # Use os.scandir for fast directory listing
@@ -376,7 +391,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         return shots
 
     def find_user_shots_parallel(
-        self, shows_root: Path = Path("/shows")
+        self, shows_root: Path | None = None
     ) -> Generator[Shot, None, None]:
         """Find user shots using parallel search with incremental yielding.
 
@@ -386,6 +401,9 @@ class ParallelShotsFinder(PreviousShotsFinder):
         Yields:
             Shot objects as they are discovered
         """
+        if shows_root is None:
+            shows_root = Path(Config.SHOWS_ROOT)
+        
         if not shows_root.exists():
             logger.warning(f"Shows root does not exist: {shows_root}")
             return
@@ -443,18 +461,26 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         self._report_progress(100, 100, "Scan complete")
 
-    def find_user_shots(self, shows_root: Path = Path("/shows")) -> list[Shot]:
+    def find_user_shots(self, shows_root: Path | None = None) -> list[Shot]:
         """Find all shots with user work directories using parallel search.
 
         This method overrides the parent's synchronous implementation with
         a parallel version. Falls back to legacy method if environment variable is set.
 
         Args:
-            shows_root: Root directory to search for shots
+            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None)
 
         Returns:
             List of Shot objects where user has work directories
         """
+        from config import Config
+        
+        # Ensure shows_root is always a Path object
+        if shows_root is None:
+            shows_root = Path(Config.SHOWS_ROOT)
+        elif isinstance(shows_root, str):
+            shows_root = Path(shows_root)
+            
         # Check for legacy mode fallback
         if os.environ.get("USE_LEGACY_SHOT_FINDER"):
             logger.info("Using legacy sequential shot finder")
@@ -473,7 +499,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         return shots
 
     def find_approved_shots_targeted(
-        self, active_shots: list[Shot], shows_root: Path = Path("/shows")
+        self, active_shots: list[Shot], shows_root: Path | None = None
     ) -> list[Shot]:
         """Find approved shots using targeted search for maximum performance.
 
@@ -483,12 +509,19 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         Args:
             active_shots: Currently active shots from workspace command
-            shows_root: Root directory to search for shots
+            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None)
 
         Returns:
             List of approved/completed shots
         """
+        from config import Config
         from targeted_shot_finder import TargetedShotsFinder
+        
+        # Ensure shows_root is always a Path object
+        if shows_root is None:
+            shows_root = Path(Config.SHOWS_ROOT)
+        elif isinstance(shows_root, str):
+            shows_root = Path(shows_root)
 
         # Create targeted finder with same settings
         targeted_finder = TargetedShotsFinder(

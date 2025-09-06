@@ -8,6 +8,7 @@ virtualization, and proper update notifications.
 from __future__ import annotations
 
 import logging
+from concurrent.futures import Future
 from enum import IntEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -15,8 +16,6 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import override
 
 if TYPE_CHECKING:
-    from concurrent.futures import Future
-
     from cache.thumbnail_loader import ThumbnailCacheResult
 
 from PySide6.QtCore import (
@@ -25,8 +24,6 @@ from PySide6.QtCore import (
     QByteArray,
     QMetaObject,
     QModelIndex,
-    QMutex,
-    QMutexLocker,
     QObject,
     QPersistentModelIndex,
     QSize,
@@ -43,9 +40,6 @@ from config import Config
 from shot_model import RefreshResult, Shot
 
 logger = logging.getLogger(__name__)
-
-# Maximum cache size to prevent memory leaks (100 thumbnails max)
-MAX_CACHE_SIZE = 100
 
 
 class ShotRole(IntEnum):
@@ -105,7 +99,6 @@ class ShotItemModel(QAbstractListModel):
         # Convert to QPixmap only when needed in the main thread for display
         self._thumbnail_cache: dict[str, QImage] = {}
         self._loading_states: dict[str, str] = {}
-        self._cache_mutex = QMutex()  # Thread-safe cache access
         self._selected_index = QPersistentModelIndex()
 
         # Lazy loading timer for thumbnails
@@ -120,9 +113,7 @@ class ShotItemModel(QAbstractListModel):
         logger.info("ShotItemModel initialized with Model/View architecture")
 
     @override
-    def rowCount(
-        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
-    ) -> int:
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         """Return number of shots in the model.
 
         Args:
@@ -136,11 +127,7 @@ class ShotItemModel(QAbstractListModel):
         return len(self._shots)
 
     @override
-    def data(
-        self,
-        index: QModelIndex | QPersistentModelIndex,
-        role: int = Qt.ItemDataRole.DisplayRole,
-    ) -> Any:
+    def data(self, index: QModelIndex | QPersistentModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         """Get data for the given index and role.
 
         Args:
@@ -196,8 +183,7 @@ class ShotItemModel(QAbstractListModel):
             return self._get_thumbnail_pixmap(shot)
 
         if role == ShotRole.LoadingStateRole:
-            with QMutexLocker(self._cache_mutex):
-                return self._loading_states.get(shot.full_name, "idle")
+            return self._loading_states.get(shot.full_name, "idle")
 
         if role == ShotRole.IsSelectedRole:
             return self._selected_index == QPersistentModelIndex(index)
@@ -218,7 +204,7 @@ class ShotItemModel(QAbstractListModel):
         """
         # Get base roles from parent class
         roles = super().roleNames()
-
+        
         # Add custom roles with QByteArray
         roles.update(
             {
@@ -287,8 +273,7 @@ class ShotItemModel(QAbstractListModel):
 
         # Handle loading state
         if role == ShotRole.LoadingStateRole:
-            with QMutexLocker(self._cache_mutex):
-                self._loading_states[shot.full_name] = value
+            self._loading_states[shot.full_name] = value
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
             return True
 
@@ -302,13 +287,10 @@ class ShotItemModel(QAbstractListModel):
             shots: List of Shot objects
         """
         self.beginResetModel()
-        # Stop thumbnail loading timer to prevent loading for old shots
-        self._thumbnail_timer.stop()
 
         self._shots = shots
-        with QMutexLocker(self._cache_mutex):
-            self._thumbnail_cache.clear()
-            self._loading_states.clear()
+        self._thumbnail_cache.clear()
+        self._loading_states.clear()
         self._selected_index = QPersistentModelIndex()
 
         self.endResetModel()
@@ -342,12 +324,11 @@ class ShotItemModel(QAbstractListModel):
             shot = self._shots[row]
 
             # Skip if already loaded
-            with QMutexLocker(self._cache_mutex):
-                if shot.full_name in self._thumbnail_cache:
-                    continue
+            if shot.full_name in self._thumbnail_cache:
+                continue
 
-                # Skip if loading or previously failed
-                state = self._loading_states.get(shot.full_name)
+            # Skip if loading or previously failed
+            state = self._loading_states.get(shot.full_name)
             if state in ("loading", "failed"):
                 continue
 
@@ -355,10 +336,9 @@ class ShotItemModel(QAbstractListModel):
             self._load_thumbnail_async(row, shot)
 
         # Stop timer if no more loading needed
-        with QMutexLocker(self._cache_mutex):
-            all_loaded = all(
-                self._shots[i].full_name in self._thumbnail_cache for i in range(start, end)
-            )
+        all_loaded = all(
+            self._shots[i].full_name in self._thumbnail_cache for i in range(start, end)
+        )
         if all_loaded:
             self._thumbnail_timer.stop()
 
@@ -370,8 +350,7 @@ class ShotItemModel(QAbstractListModel):
             shot: Shot object
         """
         # Mark as loading
-        with QMutexLocker(self._cache_mutex):
-            self._loading_states[shot.full_name] = "loading"
+        self._loading_states[shot.full_name] = "loading"
         index = self.index(row, 0)
         self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
 
@@ -406,34 +385,25 @@ class ShotItemModel(QAbstractListModel):
                 else:
                     # Immediate failure
                     logger.warning(f"Failed to cache thumbnail from {thumbnail_path}")
-                    with QMutexLocker(self._cache_mutex):
-                        self._loading_states[shot.full_name] = "failed"
+                    self._loading_states[shot.full_name] = "failed"
                     self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
             else:
                 # Fallback without cache manager - only load lightweight formats
                 suffix_lower = thumbnail_path.suffix.lower()
                 if suffix_lower in Config.THUMBNAIL_EXTENSIONS:
-                    pixmap = QPixmap(str(thumbnail_path))
-                    if not pixmap.isNull():
-                        # Scale to thumbnail size
-                        pixmap = pixmap.scaled(
+                    # Use QImage for thread-safe loading instead of QPixmap
+                    image = QImage(str(thumbnail_path))
+                    if not image.isNull():
+                        # Scale to thumbnail size using QImage (thread-safe)
+                        scaled_image = image.scaled(
                             Config.DEFAULT_THUMBNAIL_SIZE,
                             Config.DEFAULT_THUMBNAIL_SIZE,
                             Qt.AspectRatioMode.KeepAspectRatio,
                             Qt.TransformationMode.SmoothTransformation,
                         )
-                        # Convert to QImage for thread-safe storage
-                        with QMutexLocker(self._cache_mutex):
-                            # Enforce cache size limit to prevent memory leaks
-                            if len(self._thumbnail_cache) >= MAX_CACHE_SIZE:
-                                # Remove oldest entries (FIFO)
-                                oldest_key = next(iter(self._thumbnail_cache))
-                                del self._thumbnail_cache[oldest_key]
-                                if oldest_key in self._loading_states:
-                                    del self._loading_states[oldest_key]
-                            
-                            self._thumbnail_cache[shot.full_name] = pixmap.toImage()
-                            self._loading_states[shot.full_name] = "loaded"
+                        # Store QImage directly (thread-safe)
+                        self._thumbnail_cache[shot.full_name] = scaled_image
+                        self._loading_states[shot.full_name] = "loaded"
 
                         # Notify view of update
                         self.dataChanged.emit(
@@ -447,26 +417,21 @@ class ShotItemModel(QAbstractListModel):
                         )
                         self.thumbnail_loaded.emit(row)
                     else:
-                        with QMutexLocker(self._cache_mutex):
-                            self._loading_states[shot.full_name] = "failed"
+                        self._loading_states[shot.full_name] = "failed"
                         self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
                 else:
                     logger.debug(
                         f"Cannot load {suffix_lower} file without cache manager: {thumbnail_path}"
                     )
-                    with QMutexLocker(self._cache_mutex):
-                        self._loading_states[shot.full_name] = "failed"
+                    self._loading_states[shot.full_name] = "failed"
                     self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
         else:
-            with QMutexLocker(self._cache_mutex):
-                self._loading_states[shot.full_name] = "failed"
+            self._loading_states[shot.full_name] = "failed"
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
 
-    def _on_thumbnail_cached_safe(
-        self, future: Future[Path | None], shot_full_name: str
-    ) -> None:
+    def _on_thumbnail_cached_safe(self, future: Future[Path | None], shot_full_name: str) -> None:
         """Handle thumbnail caching completion with race condition protection.
-
+        
         This method is called from background threads and uses QMetaObject.invokeMethod
         to safely queue operations to the main thread with only immutable identifiers.
         """
@@ -475,28 +440,25 @@ class ShotItemModel(QAbstractListModel):
             if cached_path:
                 # Only pass immutable identifiers to main thread - no race conditions
                 QMetaObject.invokeMethod(
-                    self,
-                    "_handle_thumbnail_success_atomically",
+                    self, "_handle_thumbnail_success_atomically",
                     Qt.ConnectionType.QueuedConnection,
                     Q_ARG(str, shot_full_name),  # Immutable identifier
-                    Q_ARG(str, str(cached_path)),  # Convert Path to string for Qt
+                    Q_ARG(str, str(cached_path))   # Convert Path to string for Qt
                 )
             else:
                 # Caching failed - pass only immutable identifier
                 QMetaObject.invokeMethod(
-                    self,
-                    "_handle_thumbnail_failure_atomically",
+                    self, "_handle_thumbnail_failure_atomically",
                     Qt.ConnectionType.QueuedConnection,
-                    Q_ARG(str, shot_full_name),  # Immutable identifier only
+                    Q_ARG(str, shot_full_name)  # Immutable identifier only
                 )
         except Exception as e:
             logger.error(f"Thumbnail caching failed for {shot_full_name}: {e}")
             # Handle failure atomically in main thread
             QMetaObject.invokeMethod(
-                self,
-                "_handle_thumbnail_failure_atomically",
+                self, "_handle_thumbnail_failure_atomically",
                 Qt.ConnectionType.QueuedConnection,
-                Q_ARG(str, shot_full_name),  # Immutable identifier only
+                Q_ARG(str, shot_full_name)  # Immutable identifier only
             )
 
     def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
@@ -506,23 +468,22 @@ class ShotItemModel(QAbstractListModel):
                 return shot, row
         return None
 
-    @Slot(str, str)  # shot_full_name: str, cached_path: str
-    def _handle_thumbnail_success_atomically(
-        self, shot_full_name: str, cached_path: str
-    ) -> None:
-        """Atomically handle thumbnail success in main thread - prevents race conditions.
 
+    @Slot(str, str)  # shot_full_name: str, cached_path: str
+    def _handle_thumbnail_success_atomically(self, shot_full_name: str, cached_path: str) -> None:
+        """Atomically handle thumbnail success in main thread - prevents race conditions.
+        
         This method does validation and processing atomically in the main thread,
         preventing race conditions where shot data could become stale between
         validation and processing.
-
+        
         Args:
             shot_full_name: Immutable identifier for the shot
             cached_path: Path to the cached thumbnail (passed as string for Qt compatibility)
         """
         # Convert string back to Path for internal use
         cached_path_obj = Path(cached_path)
-
+        
         # Validation and processing happen atomically in main thread
         shot_data = self._find_shot_by_full_name(shot_full_name)
         if shot_data is not None:
@@ -530,17 +491,15 @@ class ShotItemModel(QAbstractListModel):
             index = self.index(row, 0)
             self._load_cached_pixmap(cached_path_obj, row, shot, index)
         else:
-            logger.debug(
-                f"Shot {shot_full_name} no longer exists in model, ignoring success callback"
-            )
-
+            logger.debug(f"Shot {shot_full_name} no longer exists in model, ignoring success callback")
+    
     @Slot(str)  # shot_full_name: str
     def _handle_thumbnail_failure_atomically(self, shot_full_name: str) -> None:
         """Atomically handle thumbnail failure in main thread - prevents race conditions.
-
+        
         This method does validation and processing atomically in the main thread,
         preventing race conditions where shot data could become stale.
-
+        
         Args:
             shot_full_name: Immutable identifier for the shot
         """
@@ -548,40 +507,30 @@ class ShotItemModel(QAbstractListModel):
         shot_data = self._find_shot_by_full_name(shot_full_name)
         if shot_data is not None:
             shot, row = shot_data
-            with QMutexLocker(self._cache_mutex):
-                self._loading_states[shot.full_name] = "failed"
+            self._loading_states[shot.full_name] = "failed"
             index = self.index(row, 0)
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
         else:
-            logger.debug(
-                f"Shot {shot_full_name} no longer exists in model, ignoring failure callback"
-            )
+            logger.debug(f"Shot {shot_full_name} no longer exists in model, ignoring failure callback")
 
-    @Slot(
-        object, int, object
-    )  # cached_path: object (Path), row: int, shot: object (Shot)
-    def _load_cached_pixmap_safe(
-        self, cached_path: object, row: int, shot: object
-    ) -> None:
+    @Slot(object, int, object)  # cached_path: object (Path), row: int, shot: object (Shot)
+    def _load_cached_pixmap_safe(self, cached_path: object, row: int, shot: object) -> None:
         """Safely load cached pixmap on main thread."""
         # Assert types for runtime safety
         assert isinstance(cached_path, Path), f"Expected Path, got {type(cached_path)}"
         from shot_model import Shot
-
         assert isinstance(shot, Shot), f"Expected Shot, got {type(shot)}"
         index = self.index(row, 0)
         self._load_cached_pixmap(cached_path, row, shot, index)
 
     @Slot(int, object)
-    def _on_thumbnail_cache_failed_safe(self, row: int, shot) -> None:
+    def _on_thumbnail_cache_failed_safe(self, row: int, shot: Shot) -> None:
         """Handle thumbnail cache failure on main thread."""
         self._loading_states[shot.full_name] = "failed"
         index = self.index(row, 0)
         self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
 
-    def _load_cached_pixmap(
-        self, cached_path: Path, row: int, shot: Shot, index: QModelIndex
-    ) -> None:
+    def _load_cached_pixmap(self, cached_path: Path, row: int, shot: Shot, index: QModelIndex) -> None:
         """Load pixmap from cached path (main thread only)."""
         # Load the cached JPEG as QPixmap
         pixmap = QPixmap(str(cached_path))
@@ -594,17 +543,8 @@ class ShotItemModel(QAbstractListModel):
                 Qt.TransformationMode.SmoothTransformation,
             )
             # Convert to QImage for thread-safe storage
-            with QMutexLocker(self._cache_mutex):
-                # Enforce cache size limit to prevent memory leaks
-                if len(self._thumbnail_cache) >= MAX_CACHE_SIZE:
-                    # Remove oldest entries (FIFO)
-                    oldest_key = next(iter(self._thumbnail_cache))
-                    del self._thumbnail_cache[oldest_key]
-                    if oldest_key in self._loading_states:
-                        del self._loading_states[oldest_key]
-                
-                self._thumbnail_cache[shot.full_name] = pixmap.toImage()
-                self._loading_states[shot.full_name] = "loaded"
+            self._thumbnail_cache[shot.full_name] = pixmap.toImage()
+            self._loading_states[shot.full_name] = "loaded"
             logger.debug(f"Loaded thumbnail for {shot.full_name} from cache")
 
             # Notify view of update
@@ -620,8 +560,7 @@ class ShotItemModel(QAbstractListModel):
             self.thumbnail_loaded.emit(row)
         else:
             logger.warning(f"Failed to load cached thumbnail pixmap from {cached_path}")
-            with QMutexLocker(self._cache_mutex):
-                self._loading_states[shot.full_name] = "failed"
+            self._loading_states[shot.full_name] = "failed"
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
 
     def _get_thumbnail_pixmap(self, shot: Shot) -> QPixmap | None:
@@ -635,8 +574,7 @@ class ShotItemModel(QAbstractListModel):
         Returns:
             QPixmap converted from cached QImage or None
         """
-        with QMutexLocker(self._cache_mutex):
-            qimage = self._thumbnail_cache.get(shot.full_name)
+        qimage = self._thumbnail_cache.get(shot.full_name)
         if qimage:
             # Convert QImage to QPixmap in main thread
             return QPixmap.fromImage(qimage)
@@ -679,8 +617,7 @@ class ShotItemModel(QAbstractListModel):
 
     def clear_thumbnail_cache(self) -> None:
         """Clear the thumbnail cache to free memory."""
-        with QMutexLocker(self._cache_mutex):
-            self._thumbnail_cache.clear()
+        self._thumbnail_cache.clear()
 
         # Notify all items that thumbnails need reloading
         if self._shots:
@@ -689,45 +626,3 @@ class ShotItemModel(QAbstractListModel):
                 self.index(len(self._shots) - 1, 0),
                 [ShotRole.ThumbnailPixmapRole, Qt.ItemDataRole.DecorationRole],
             )
-
-    def cleanup(self) -> None:
-        """Clean up resources before deletion.
-        
-        This method should be called before the model is deleted to prevent
-        memory leaks and ensure proper resource cleanup.
-        """
-        # Stop timers
-        if hasattr(self, '_thumbnail_timer'):
-            self._thumbnail_timer.stop()
-            self._thumbnail_timer.deleteLater()
-        
-        # Clear caches
-        with QMutexLocker(self._cache_mutex):
-            self._thumbnail_cache.clear()
-            self._loading_states.clear()
-        
-        # Clear selection
-        self._selected_index = QPersistentModelIndex()
-        
-        # Disconnect signals safely
-        try:
-            self.shots_updated.disconnect()
-        except (RuntimeError, TypeError):
-            pass  # Already disconnected or no connections
-        
-        try:
-            self.thumbnail_loaded.disconnect()
-        except (RuntimeError, TypeError):
-            pass
-        
-        try:
-            self.selection_changed.disconnect()
-        except (RuntimeError, TypeError):
-            pass
-        
-        logger.info("ShotItemModel resources cleaned up")
-    
-    def deleteLater(self) -> None:
-        """Override deleteLater to ensure cleanup."""
-        self.cleanup()
-        super().deleteLater()

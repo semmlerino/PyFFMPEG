@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test the new dependency injection system for ProcessPoolManager."""
 
-import sys
 import logging
+import sys
 
 logging.basicConfig(
     level=logging.INFO,

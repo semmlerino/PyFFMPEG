@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal
-
-from runnable_tracker import get_tracker
 from PySide6.QtGui import QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -18,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from cache_manager import CacheManager, ThumbnailCacheLoader
+from runnable_tracker import get_tracker
 from utils import ImageUtils
 
 if TYPE_CHECKING:

@@ -12,7 +12,15 @@ import time
 import uuid
 from typing import Any
 
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, QRecursiveMutex, QTimer, Signal
+from PySide6.QtCore import (
+    QMutex,
+    QMutexLocker,
+    QObject,
+    QRecursiveMutex,
+    Qt,
+    QTimer,
+    Signal,
+)
 
 from config import ThreadingConfig
 from launcher.models import ProcessInfo

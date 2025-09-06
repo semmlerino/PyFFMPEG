@@ -86,7 +86,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
                 timestamp_str = str(timestamp)
         
         return {
-            "name": index.data(ThreeDERole.FileNameRole) or "Unknown",
+            "name": index.data(ThreeDERole.DisplayRole) or "Unknown",
             "show": index.data(ThreeDERole.ShowRole),
             "sequence": index.data(ThreeDERole.SequenceRole),
             "shot": index.data(ThreeDERole.ShotRole),

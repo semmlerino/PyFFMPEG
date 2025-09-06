@@ -13,9 +13,9 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Callable, Generator
 
-from config import ThreadingConfig
+from config import Config, ThreadingConfig
 from shot_model import Shot
 
 logger = logging.getLogger(__name__)
@@ -64,8 +64,10 @@ class TargetedShotsFinder:
         self._stop_requested = False
         self._progress_callback = None
 
-        # Pattern for parsing shot paths
-        self._shot_pattern = re.compile(r"/shows/([^/]+)/shots/([^/]+)/([^/]+)/")
+        # Pattern for parsing shot paths (dynamic based on configured SHOWS_ROOT)
+        import re
+        shows_root_escaped = re.escape(Config.SHOWS_ROOT)
+        self._shot_pattern = re.compile(rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/")
 
         logger.info(f"TargetedShotsFinder initialized for user: {self.username}")
 
@@ -104,22 +106,30 @@ class TargetedShotsFinder:
         return shows
 
     def _scan_show_for_user(
-        self, show_name: str, shows_root: Path = Path("/shows")
+        self, show_name: str, shows_root: Path | None = None
     ) -> list[Shot]:
         """Scan a specific show for user directories.
 
         Args:
             show_name: Name of the show to scan
-            shows_root: Root directory containing shows
+            shows_root: Root directory containing shows (uses Config.SHOWS_ROOT if None)
 
         Returns:
             List of Shot objects found in this show
         """
+        from config import Config
+        
         shots: list[Shot] = []
 
         if self._stop_requested:
             return shots
 
+        # Ensure shows_root is always a Path object
+        if shows_root is None:
+            shows_root = Path(Config.SHOWS_ROOT)
+        elif isinstance(shows_root, str):
+            shows_root = Path(shows_root)
+            
         show_path = shows_root / show_name / "shots"
         if not show_path.exists():
             logger.debug(f"Shots directory does not exist: {show_path}")
@@ -201,7 +211,7 @@ class TargetedShotsFinder:
                 return None
 
             # Build the workspace path using the full directory name
-            workspace_path = f"/shows/{show}/shots/{sequence}/{shot_dir}"
+            workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
 
             try:
                 return Shot(
@@ -216,20 +226,28 @@ class TargetedShotsFinder:
         return None
 
     def find_user_shots_in_shows(
-        self, target_shows: set[str], shows_root: Path = Path("/shows")
+        self, target_shows: set[str], shows_root: Path | None = None
     ) -> Generator[Shot, None, None]:
         """Find user shots in the specified shows using parallel search.
 
         Args:
             target_shows: Set of show names to search in
-            shows_root: Root directory containing shows
+            shows_root: Root directory containing shows (uses Config.SHOWS_ROOT if None)
 
         Yields:
             Shot objects as they are discovered
         """
+        from config import Config
+        
         if not target_shows:
             logger.warning("No target shows provided for search")
             return
+
+        # Ensure shows_root is always a Path object
+        if shows_root is None:
+            shows_root = Path(Config.SHOWS_ROOT)
+        elif isinstance(shows_root, str):
+            shows_root = Path(shows_root)
 
         if not shows_root.exists():
             logger.warning(f"Shows root does not exist: {shows_root}")
@@ -283,7 +301,7 @@ class TargetedShotsFinder:
         self._report_progress(100, 100, "Targeted search complete")
 
     def find_approved_shots_targeted(
-        self, active_shots: list[Shot], shows_root: Path = Path("/shows")
+        self, active_shots: list[Shot], shows_root: Path | None = None
     ) -> list[Shot]:
         """Find approved shots using targeted search approach.
 
@@ -292,14 +310,22 @@ class TargetedShotsFinder:
 
         Args:
             active_shots: Currently active shots from workspace
-            shows_root: Root directory to search for shots
+            shows_root: Root directory to search for shots (uses Config.SHOWS_ROOT if None)
 
         Returns:
             List of approved/completed shots
         """
         import time
 
+        from config import Config
+
         start_time = time.time()
+
+        # Ensure shows_root is always a Path object
+        if shows_root is None:
+            shows_root = Path(Config.SHOWS_ROOT)
+        elif isinstance(shows_root, str):
+            shows_root = Path(shows_root)
 
         # Extract target shows from active shots
         target_shows = self.extract_shows_from_active_shots(active_shots)
@@ -339,7 +365,7 @@ class TargetedShotsFinder:
         self._report_progress(100, 100, "Targeted search complete")
         return approved_shots
 
-    def get_shot_details(self, shot: Shot) -> dict[str, Any]:
+    def get_shot_details(self, shot: Shot) -> dict[str, str]:
         """Get additional details about a shot.
 
         Args:

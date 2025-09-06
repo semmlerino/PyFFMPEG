@@ -53,7 +53,7 @@ from PySide6.QtCore import (
     QTimer,
     Signal,
 )
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QMouseEvent
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
@@ -244,7 +244,7 @@ class ToastNotification(QFrame):
         self.dismissed.emit()
         self.deleteLater()
 
-    def mousePressEvent(self, event) -> None:
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse clicks to dismiss the toast."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.dismiss()

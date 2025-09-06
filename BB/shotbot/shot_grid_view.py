@@ -31,8 +31,9 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
-from shot_grid_delegate import ShotGridDelegate
+from shot_grid_delegate_refactored import ShotGridDelegate
 from shot_item_model import ShotItemModel, ShotRole
+from shot_model import Shot
 from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:
@@ -53,8 +54,8 @@ class ShotGridView(QWidget):
     """
 
     # Signals
-    shot_selected = Signal(object)  # Shot object
-    shot_double_clicked = Signal(object)  # Shot object
+    shot_selected = Signal(Shot)  # Shot object
+    shot_double_clicked = Signal(Shot)  # Shot object
     app_launch_requested = Signal(str)  # app_name
 
     def __init__(
@@ -72,7 +73,7 @@ class ShotGridView(QWidget):
 
         self._model = model
         self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
-        self._selected_shot = None
+        self._selected_shot: Shot | None = None
 
         self._setup_ui()
 
@@ -226,7 +227,7 @@ class ShotGridView(QWidget):
         if not index.isValid() or not self._model:
             return
 
-        shot = index.data(ShotRole.ShotObjectRole)
+        shot: Shot | None = index.data(ShotRole.ShotObjectRole)
         if shot:
             self._selected_shot = shot
 
@@ -248,7 +249,7 @@ class ShotGridView(QWidget):
         if not index.isValid() or not self._model:
             return
 
-        shot = index.data(ShotRole.ShotObjectRole)
+        shot: Shot | None = index.data(ShotRole.ShotObjectRole)
         if shot:
             self.shot_double_clicked.emit(shot)
             logger.debug(f"Shot double-clicked: {shot.full_name}")
@@ -276,7 +277,7 @@ class ShotGridView(QWidget):
         if current.isValid():
             self._model.setData(current, True, ShotRole.IsSelectedRole)
 
-            shot = current.data(ShotRole.ShotObjectRole)
+            shot: Shot | None = current.data(ShotRole.ShotObjectRole)
             if shot:
                 self._selected_shot = shot
                 self.shot_selected.emit(shot)
@@ -394,7 +395,7 @@ class ShotGridView(QWidget):
         # Find the shot in the model
         for row in range(self._model.rowCount()):
             index = self._model.index(row, 0)
-            shot = index.data(ShotRole.ShotObjectRole)
+            shot: Shot | None = index.data(ShotRole.ShotObjectRole)
 
             if shot and shot.full_name == shot_name:
                 # Select in view
@@ -438,7 +439,7 @@ class ShotGridView(QWidget):
             # No item clicked, show no menu
             return
 
-        shot = index.data(ShotRole.ShotObjectRole)
+        shot: Shot | None = index.data(ShotRole.ShotObjectRole)
         if not shot:
             return
 
@@ -454,7 +455,7 @@ class ShotGridView(QWidget):
 
         logger.debug(f"Context menu shown for shot: {shot.full_name}")
 
-    def _open_shot_folder(self, shot) -> None:
+    def _open_shot_folder(self, shot: Shot) -> None:
         """Open the shot's workspace folder in system file manager (non-blocking).
 
         Args:

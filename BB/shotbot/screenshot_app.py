@@ -1,0 +1,141 @@
+#!/usr/bin/env python
+"""
+Script to run ShotBot in mock mode and capture a screenshot.
+"""
+
+import os
+import sys
+
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
+
+# Set up mock environment before importing ShotBot modules
+os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx/shows"
+os.environ["SHOTBOT_DEBUG"] = "1"
+
+# Import ShotBot modules
+from main_window import MainWindow
+from process_pool_factory import ProcessPoolFactory
+
+
+def capture_screenshot():
+    """Capture screenshot of the ShotBot main window."""
+    import glob
+
+    app = QApplication.instance()
+    if not app:
+        return
+
+    # Get the main window
+    windows = app.topLevelWidgets()
+    main_window = None
+    for window in windows:
+        if isinstance(window, MainWindow):
+            main_window = window
+            break
+
+    if not main_window:
+        print("Could not find MainWindow")
+        app.quit()
+        return
+
+    # Make sure window is shown
+    main_window.show()
+    main_window.raise_()
+    
+    # Switch to "Other 3DE Scenes" tab to show the issue
+    if hasattr(main_window, 'tab_widget'):
+        # Tab 0: My Shots, Tab 1: Other 3DE Scenes, Tab 2: Previous Shots
+        main_window.tab_widget.setCurrentIndex(1)
+
+    # Grab the window
+    pixmap = main_window.grab()
+
+    # Find the next available screenshot number
+    existing_screenshots = glob.glob("shotbot_screenshot_*.png")
+    next_num = 1
+    if existing_screenshots:
+        numbers = []
+        for filename in existing_screenshots:
+            try:
+                num = int(filename.replace("shotbot_screenshot_", "").replace(".png", ""))
+                numbers.append(num)
+            except ValueError:
+                continue
+        if numbers:
+            next_num = max(numbers) + 1
+
+    # Save screenshot with incremented number
+    filename = f"shotbot_screenshot_{next_num}.png"
+    if pixmap.save(filename):
+        print(f"Screenshot saved to {filename}")
+        print(f"Window size: {main_window.width()}x{main_window.height()}")
+        
+        # ShotBot-specific debug info
+        if hasattr(main_window, 'tab_widget'):
+            print(f"Tab widget present: True")
+            print(f"Current tab index: {main_window.tab_widget.currentIndex()}")
+            print(f"Tab count: {main_window.tab_widget.count()}")
+            for i in range(main_window.tab_widget.count()):
+                print(f"Tab {i}: {main_window.tab_widget.tabText(i)}")
+        
+        if hasattr(main_window, 'threede_item_model'):
+            scene_count = len(main_window.threede_item_model.scenes)
+            print(f"3DE Item Model scenes: {scene_count}")
+            
+        if hasattr(main_window, 'threede_scene_model'):
+            scene_count = len(main_window.threede_scene_model.scenes)
+            print(f"3DE Scene Model scenes: {scene_count}")
+            
+    else:
+        print(f"Failed to save screenshot to {filename}")
+
+    # Quit the app
+    app.quit()
+
+
+def main():
+    """Main entry point."""
+    # Set offscreen platform for headless environment 
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    
+    # Enable mock mode in ProcessPoolFactory
+    ProcessPoolFactory.set_mock_mode(True)
+
+    app = QApplication(sys.argv)
+
+    # Create ShotBot main window
+    window = MainWindow()
+    window.show()
+
+    def check_and_capture():
+        """Check if 3DE discovery is complete and capture screenshot."""
+        # Check if 3DE discovery has completed
+        if hasattr(window, 'threede_item_model'):
+            scene_count = len(window.threede_item_model.scenes)
+            print(f"Current 3DE scenes in model: {scene_count}")
+            
+            if scene_count > 0:
+                print("3DE discovery complete, capturing screenshot...")
+                capture_screenshot()
+                return
+        
+        # If we've been waiting too long, just capture anyway to show the current state
+        check_and_capture.attempts = getattr(check_and_capture, 'attempts', 0) + 1
+        if check_and_capture.attempts >= 5:  # After 5 attempts (10 seconds total)
+            print("Capturing screenshot anyway to show current state...")
+            capture_screenshot()
+            return
+            
+        # If not ready, check again in 2 seconds
+        QTimer.singleShot(2000, check_and_capture)
+
+    # Start checking for completion after initial setup
+    QTimer.singleShot(3000, check_and_capture)
+
+    # Run the app
+    app.exec()
+
+
+if __name__ == "__main__":
+    main()

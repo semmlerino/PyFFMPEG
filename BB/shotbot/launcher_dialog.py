@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QShortcut
+from PySide6.QtGui import QCloseEvent, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -768,7 +768,7 @@ class LauncherManagerDialog(QDialog):
             else:
                 logger.error(f"Failed to launch: {launcher.name}")
     
-    def closeEvent(self, event):
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Clean up signal connections on close."""
         # Disconnect launcher manager signals
         try:

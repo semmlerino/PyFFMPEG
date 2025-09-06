@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test that mock injection works correctly without GUI."""
 
-import sys
 import os
+import sys
 
 # Enable mock mode
 os.environ['SHOTBOT_MOCK'] = '1'
@@ -22,11 +22,13 @@ mock_pool.set_outputs(
 
 # Now inject it BEFORE importing ProcessPoolManager
 import process_pool_manager
+
 process_pool_manager.ProcessPoolManager._instance = mock_pool
 print("✅ Mock pool injected")
 
 # Now test that it works
 from process_pool_manager import ProcessPoolManager
+
 pool = ProcessPoolManager.get_instance()
 
 # This should use the mock, not try to run real ws command
@@ -40,6 +42,7 @@ except Exception as e:
 
 # Now test with ShotModel
 from shot_model import ShotModel
+
 model = ShotModel(load_cache=False)
 
 try:

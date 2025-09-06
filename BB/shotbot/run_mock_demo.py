@@ -4,10 +4,10 @@
 This script demonstrates that ShotBot can run without VFX infrastructure.
 """
 
-import sys
-import time
 import json
+import sys
 from pathlib import Path
+
 
 def test_mock_environment():
     """Test that mock environment is working."""

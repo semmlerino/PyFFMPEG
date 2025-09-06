@@ -400,7 +400,9 @@ class TestShotModel(QObject):
             shot = self.get_shot_by_name(shot)
         if shot:
             self._selected_shot = shot
-            self.shot_selected.emit(shot.name)
+            # Handle both TestShot and real Shot objects
+            shot_name = getattr(shot, 'name', None) or getattr(shot, 'full_name', str(shot))
+            self.shot_selected.emit(shot_name)
 
     def clear(self) -> None:
         """Clear all shots."""
@@ -561,6 +563,32 @@ class TestCacheManager(QObject):
             "issues_found": 0,
             "issues_fixed": 0,
         }
+
+    def get_cached_threede_scenes(self) -> list[dict[str, Any]] | None:
+        """Get cached 3DE scene list if valid."""
+        # For testing, return empty list to simulate no cached scenes initially
+        return []
+
+    def cache_threede_scenes(
+        self, scenes: list[dict[str, Any]], metadata: dict[str, Any] | None = None
+    ) -> bool:
+        """Cache 3DE scene data."""
+        # For testing, just track that this was called
+        self._cache_operations.append(
+            {
+                "operation": "cache_threede_scenes",
+                "scene_count": len(scenes),
+                "metadata": metadata,
+                "timestamp": time.time(),
+            }
+        )
+        self.cache_updated.emit()
+        return True
+
+    def shutdown(self) -> None:
+        """Gracefully shutdown the cache manager (test double)."""
+        # For testing, just clear all cached data
+        self.clear_cache()
 
 
 # =============================================================================

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Test cache directory separation between production, mock, and test modes."""
 
-import sys
-import os
 import logging
-from pathlib import Path
+import os
 import shutil
+import sys
 import tempfile
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -62,8 +62,8 @@ def test_cache_manager_separation():
     logger.info("Testing CacheManager directory separation")
     logger.info("=" * 50)
     
-    from cache_manager import CacheManager
     from cache_config import CacheConfig
+    from cache_manager import CacheManager
     
     # Save original environment
     original_env = dict(os.environ)
@@ -107,8 +107,8 @@ def test_cache_isolation():
     logger.info("Testing cache isolation")
     logger.info("=" * 50)
     
-    from cache_manager import CacheManager
     from cache_config import CacheConfig
+    from cache_manager import CacheManager
     
     # Save original environment
     original_env = dict(os.environ)

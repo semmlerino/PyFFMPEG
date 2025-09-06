@@ -9,9 +9,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy
 
 from config import Config
-from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
+from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 from threede_thumbnail_widget import ThreeDEThumbnailWidget
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]

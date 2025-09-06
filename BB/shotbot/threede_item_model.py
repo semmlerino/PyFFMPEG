@@ -10,12 +10,7 @@ from __future__ import annotations
 import logging
 from enum import IntEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-from typing_extensions import override
-
-if TYPE_CHECKING:
-    from cache.thumbnail_loader import ThumbnailCacheResult
+from typing import Any
 
 from PySide6.QtCore import (
     QAbstractListModel,
@@ -30,9 +25,9 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtGui import QImage, QPixmap
+from typing_extensions import override
 
 from cache_manager import CacheManager
-from config import Config
 from threede_scene_model import ThreeDEScene
 
 logger = logging.getLogger(__name__)
@@ -181,11 +176,15 @@ class ThreeDEItemModel(QAbstractListModel):
             return self._get_thumbnail_pixmap(scene)
         elif role == ThreeDERole.LoadingStateRole:
             with QMutexLocker(self._cache_mutex):
-                return self._loading_states.get(scene.shot_name, "idle")
+                return self._loading_states.get(scene.full_name, "idle")
         elif role == ThreeDERole.IsSelectedRole:
             return index == self._selected_index
         elif role == ThreeDERole.ModifiedTimeRole:
-            return scene.modified_time
+            # Get modification time from the scene file
+            try:
+                return scene.scene_path.stat().st_mtime
+            except OSError:
+                return 0.0  # Return 0 if file doesn't exist or can't be accessed
         
         return None
     
@@ -260,7 +259,7 @@ class ThreeDEItemModel(QAbstractListModel):
             return
         
         # Use cache manager to load thumbnail
-        from PySide6.QtCore import QMetaObject, Q_ARG
+        from PySide6.QtCore import Q_ARG, QMetaObject
         
         def on_thumbnail_loaded(path: Path | None):
             """Handle loaded thumbnail."""

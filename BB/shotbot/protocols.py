@@ -6,13 +6,13 @@ interface design throughout the application.
 
 from __future__ import annotations
 
-# Import RefreshResult from shot_model where it's properly defined as NamedTuple
+# Import RefreshResult from type_definitions where it's properly defined as NamedTuple
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from shot_model import RefreshResult
+    from type_definitions import RefreshResult
 
 
 @runtime_checkable

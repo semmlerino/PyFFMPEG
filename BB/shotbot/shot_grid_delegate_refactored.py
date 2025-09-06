@@ -1,0 +1,85 @@
+"""Refactored delegate for shot thumbnail rendering using base class.
+
+This module provides a simplified ShotGridDelegate that inherits common
+functionality from BaseThumbnailDelegate.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QWidget
+from typing_extensions import override
+
+from base_thumbnail_delegate import BaseThumbnailDelegate, DelegateTheme
+from shot_item_model import ShotRole
+
+logger = logging.getLogger(__name__)
+
+
+class ShotGridDelegate(BaseThumbnailDelegate):
+    """Delegate for rendering shot thumbnails in a grid.
+    
+    Inherits common painting logic from BaseThumbnailDelegate and
+    provides shot-specific data extraction and theming.
+    """
+    
+    def __init__(self, parent: QWidget | None = None):
+        """Initialize the shot grid delegate.
+        
+        Args:
+            parent: Optional parent widget
+        """
+        super().__init__(parent)
+        logger.debug("ShotGridDelegate initialized")
+    
+    @override
+    def get_theme(self) -> DelegateTheme:
+        """Get the shot grid theme configuration.
+        
+        Returns:
+            Theme configuration for shot grid
+        """
+        return DelegateTheme(
+            # Shot grid specific colors
+            bg_color=QColor("#2b2b2b"),
+            bg_hover_color=QColor("#3a3a3a"),
+            bg_selected_color=QColor("#0d7377"),
+            border_color=QColor("#444"),
+            border_hover_color=QColor("#888"),
+            border_selected_color=QColor("#14ffec"),
+            text_color=QColor("#ffffff"),
+            text_selected_color=QColor("#14ffec"),
+            # Dimensions
+            text_height=40,
+            padding=8,
+            border_radius=8,
+            # Font sizes
+            name_font_size=9,
+            info_font_size=8,
+        )
+    
+    @override
+    def get_item_data(self, index: QModelIndex | QPersistentModelIndex) -> dict[str, Any]:
+        """Extract shot data from model index.
+        
+        Args:
+            index: Model index
+            
+        Returns:
+            Dictionary with shot data
+        """
+        if not index.isValid():
+            return {}
+        
+        return {
+            "name": index.data(ShotRole.FullNameRole) or "Unknown",
+            "show": index.data(ShotRole.ShowRole),
+            "sequence": index.data(ShotRole.SequenceRole),
+            "thumbnail": index.data(ShotRole.ThumbnailPixmapRole),
+            "loading_state": index.data(ShotRole.LoadingStateRole),
+            "is_selected": index.data(ShotRole.IsSelectedRole) or False,
+        }

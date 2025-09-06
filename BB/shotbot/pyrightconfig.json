@@ -1,6 +1,6 @@
 {
   "typeCheckingMode": "basic",
-  "pythonVersion": "3.12",
+  "pythonVersion": "3.11",
   "pythonPlatform": "Linux",
   "include": [
     "*.py"
@@ -18,9 +18,11 @@
   "reportPrivateUsage": "warning",
   "reportUnknownMemberType": "warning", 
   "reportUnknownArgumentType": "warning",
+  "reportUnknownVariableType": "warning",
+  "reportMissingTypeArgument": "warning",
   "reportUnnecessaryTypeIgnoreComment": "error",
   "reportIgnoreCommentWithoutRule": "error",
-  "reportUntypedFunctionDecorator": "warning",
+  "reportUntypedFunctionDecorator": "error",
   "reportMissingTypeStubs": "none",
   "reportImportCycles": "none",
   "reportOptionalCall": "warning",
@@ -29,8 +31,14 @@
   "reportOptionalIterable": "warning",
   "reportOptionalContextManager": "warning",
   "reportOptionalOperand": "warning",
-  "reportGeneralTypeIssues": "warning",
+  "reportGeneralTypeIssues": "error",
   "reportIncompatibleMethodOverride": "error",
   "reportIncompatibleVariableOverride": "error",
-  "reportConstantRedefinition": "error"
+  "reportConstantRedefinition": "error",
+  "reportAny": "warning",
+  "reportExplicitAny": "error",
+  "strictListInference": true,
+  "strictDictionaryInference": true,
+  "strictSetInference": true,
+  "strictParameterNoneValue": true
 }

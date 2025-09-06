@@ -236,9 +236,17 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
                 if missing:
                     raise ValueError(f"Shot {i} missing fields: {missing}")
             
-            pool.set_shots_from_demo(demo_data["shots"])
+            # Assign only a subset of shots to gabriel-h to simulate realistic user workload
+            # while still allowing "Other 3DE Scenes" to find many unassigned 3DE files
+            assigned_shots = demo_data["shots"][:4]  # Take first 4 shots for gabriel-h
+            logger.info(f"Assigning {len(assigned_shots)} of {len(demo_data['shots'])} demo shots to gabriel-h")
+            
+            pool.set_shots_from_demo(assigned_shots)
             if pool.shots:
-                logger.info(f"Loaded {len(pool.shots)} demo shots successfully")
+                logger.info(f"✅ Gabriel-h assigned to {len(pool.shots)} shots:")
+                for shot_path in pool.shots:
+                    logger.info(f"   📋 {shot_path}")
+                logger.info(f"🎯 This leaves {len(demo_data['shots']) - len(assigned_shots)} shots unassigned for 'Other 3DE Scenes'")
                 return pool
             else:
                 logger.warning("Demo shots loaded but pool is empty")

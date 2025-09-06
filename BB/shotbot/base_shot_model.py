@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
 
@@ -16,6 +15,7 @@ if TYPE_CHECKING:
     from type_definitions import PerformanceMetricsDict
 
 from exceptions import WorkspaceError
+from optimized_shot_parser import OptimizedShotParser
 from process_pool_manager import ProcessPoolManager
 from utils import ValidationUtils
 
@@ -27,6 +27,10 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
     "true",
     "yes",
 )
+
+
+# Import RefreshResult from type_definitions to avoid circular imports
+from type_definitions import RefreshResult
 
 
 class BaseShotModel(QObject):
@@ -66,9 +70,8 @@ class BaseShotModel(QObject):
 
         self.shots: list[Shot] = []
         self.cache_manager = cache_manager or CacheManager()
-        self._parse_pattern = re.compile(
-            r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+_\w+))",
-        )
+        # Use OptimizedShotParser for improved performance
+        self._parser = OptimizedShotParser()
         self._selected_shot: Shot | None = None
 
         # Initialize ProcessPoolManager via factory for dependency injection support
@@ -155,18 +158,19 @@ class BaseShotModel(QObject):
             if not line:
                 continue
 
-            match = self._parse_pattern.search(line)
-            if match:
+            # Use OptimizedShotParser for better performance
+            result = self._parser.parse_workspace_line(line)
+            if result:
                 try:
-                    workspace_path = match.group(1)
-                    show = match.group(2)
-                    sequence = match.group(3)
-                    shot_dir = match.group(4)  # e.g., "seq01_0010" or "012_DC"
+                    workspace_path = result.workspace_path
+                    show = result.show
+                    sequence = result.sequence
+                    shot = result.shot
 
                     # Log what we extracted for debugging
                     logger.debug(
                         f"Parsed line {line_num}: workspace_path={workspace_path}, "
-                        f"show={show}, sequence={sequence}, shot_dir={shot_dir}"
+                        f"show={show}, sequence={sequence}, shot={shot}"
                     )
 
                     # Validate extracted components using utility
@@ -174,32 +178,13 @@ class BaseShotModel(QObject):
                         workspace_path,
                         show,
                         sequence,
-                        shot_dir,
-                        names=["workspace_path", "show", "sequence", "shot_dir"],
+                        shot,
+                        names=["workspace_path", "show", "sequence", "shot"],
                     ):
                         logger.warning(
                             f"Line {line_num}: Missing required components in: {line}",
                         )
                         continue
-
-                    # Extract shot from shot_dir (e.g., "012_DC_1000" -> "1000", "BRX_166_0010" -> "0010")
-                    # The shot directory format is {sequence}_{shot}
-                    # Check if shot_dir starts with sequence_
-                    if shot_dir.startswith(f"{sequence}_"):
-                        # Remove the sequence prefix to get the shot number
-                        shot = shot_dir[len(sequence) + 1 :]  # +1 for the underscore
-                    else:
-                        # Fallback: use the last part after underscore
-                        shot_parts = shot_dir.rsplit("_", 1)
-                        if len(shot_parts) == 2:
-                            shot = shot_parts[1]
-                        else:
-                            # No underscore found, use whole name as shot
-                            shot = shot_dir
-
-                    logger.debug(
-                        f"Extracted shot '{shot}' from shot_dir '{shot_dir}' (sequence='{sequence}')"
-                    )
 
                     from shot_model import Shot  # Import here to avoid circular import
 
@@ -306,7 +291,7 @@ class BaseShotModel(QObject):
         }
 
     @abstractmethod
-    def load_shots(self) -> Any:
+    def load_shots(self) -> RefreshResult:
         """Load shots using implementation-specific strategy.
 
         Subclasses must implement this to provide either synchronous
@@ -318,7 +303,7 @@ class BaseShotModel(QObject):
         pass
 
     @abstractmethod
-    def refresh_strategy(self) -> Any:
+    def refresh_strategy(self) -> RefreshResult:
         """Refresh shot list using implementation-specific strategy.
 
         Subclasses must implement this to define how refreshing works
@@ -329,7 +314,7 @@ class BaseShotModel(QObject):
         """
         pass
 
-    def refresh_shots(self) -> Any:
+    def refresh_shots(self) -> RefreshResult:
         """Public API to refresh shots.
 
         Delegates to implementation-specific refresh_strategy.

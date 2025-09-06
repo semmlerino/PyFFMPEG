@@ -8,8 +8,6 @@ loading indicators, and proper Model/View integration for 3DE scenes.
 from __future__ import annotations
 
 import logging
-import os
-import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -36,12 +34,12 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
-from threede_grid_delegate import ThreeDEGridDelegate
-from threede_item_model import ThreeDEItemModel, ThreeDERole
+from threede_grid_delegate_refactored import ThreeDEGridDelegate
+from threede_item_model import ThreeDEItemModel
 from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
+    from PySide6.QtGui import QKeyEvent
     
     from threede_scene_model import ThreeDEScene
 

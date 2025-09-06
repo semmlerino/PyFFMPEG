@@ -6,10 +6,10 @@ without requiring PySide6 or Qt GUI components.
 """
 
 import json
-import logging
 import os
 import sys
 from pathlib import Path
+
 
 def test_mock_setup():
     """Test that mock mode can be set up correctly."""
@@ -31,7 +31,7 @@ def test_mock_setup():
             # Show sample data
             shows = set(s["show"] for s in shots)
             print(f"   Shows: {', '.join(sorted(shows))}")
-            print(f"   First 3 shots:")
+            print("   First 3 shots:")
             for shot in shots[:3]:
                 print(f"     - {shot['show']}/{shot['seq']}_{shot['shot']}")
     except Exception as e:

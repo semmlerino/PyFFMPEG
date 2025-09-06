@@ -7,9 +7,9 @@ enabling automated testing in CI/CD pipelines and headless servers.
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
-import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -105,8 +105,8 @@ class HeadlessMode:
         Returns:
             QApplication configured for headless mode
         """
-        from PySide6.QtWidgets import QApplication
         from PySide6.QtCore import QCoreApplication, Qt
+        from PySide6.QtWidgets import QApplication
         
         if argv is None:
             argv = sys.argv
@@ -164,7 +164,6 @@ class HeadlessMode:
         
         # Try to import Qt and check if we can create widgets
         try:
-            from PySide6.QtWidgets import QApplication
             from PySide6.QtCore import QCoreApplication
             
             # If application already exists, display is likely available
@@ -235,9 +234,9 @@ class HeadlessMainWindow:
     
     def __init__(self, *args, **kwargs):
         """Initialize headless main window."""
-        from shot_model import ShotModel
         from cache_manager import CacheManager
         from process_pool_factory import ProcessPoolFactory
+        from shot_model import ShotModel
         
         # Enable mock mode for headless testing
         ProcessPoolFactory.set_mock_mode(True)
@@ -274,7 +273,6 @@ class HeadlessMainWindow:
 
 def run_headless_app():
     """Run the application in headless mode for testing."""
-    import sys
     from PySide6.QtCore import QTimer
     
     # Configure headless mode

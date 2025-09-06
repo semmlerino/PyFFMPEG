@@ -10,7 +10,6 @@ import logging
 import re
 import shlex
 import subprocess
-from typing import Any
 
 from PySide6.QtCore import Signal
 

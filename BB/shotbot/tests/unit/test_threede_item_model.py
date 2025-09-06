@@ -8,14 +8,11 @@ and proper resource cleanup.
 import time
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import QMetaObject, QModelIndex, QSize, Qt, QThread, Signal
+from PySide6.QtCore import QMetaObject, QModelIndex, Qt, QThread
 from PySide6.QtGui import QImage
-from PySide6.QtTest import QSignalSpy, QTest
-from PySide6.QtWidgets import QApplication
 
 from cache_manager import CacheManager
 from threede_item_model import ThreeDEItemModel

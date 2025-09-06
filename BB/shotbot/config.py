@@ -50,6 +50,7 @@ Thread Safety:
 """
 
 import multiprocessing
+import os
 from pathlib import Path
 
 
@@ -73,8 +74,8 @@ class Config:
     THUMBNAIL_SPACING = 20  # Increased to accommodate selection highlight
     PLACEHOLDER_COLOR = "#444444"
 
-    # Shot paths
-    SHOWS_ROOT = "/shows"
+    # Shot paths (configurable via SHOWS_ROOT environment variable)
+    SHOWS_ROOT: str = os.environ.get("SHOWS_ROOT", "/shows")
     THUMBNAIL_PATH_PATTERN = "{shows_root}/{show}/shots/{sequence}/{shot}/publish/editorial/cutref/v001/jpg/1920x1080/"
 
     # Commands
@@ -121,6 +122,7 @@ class Config:
     # Threading
     MAX_THUMBNAIL_THREADS = 4
     CPU_COUNT = multiprocessing.cpu_count()  # Number of CPU cores available
+    WORKER_STOP_TIMEOUT_MS = 5000  # Timeout for worker.wait() calls (5 seconds)
 
     # Memory optimization (deprecated - Model/View is always used)
     # The Model/View architecture provides automatic memory optimization
@@ -340,7 +342,7 @@ class Config:
     SHOW_SEARCH_ENABLED = (
         True  # Enable searching all shots in shows (not just user's shots)
     )
-    SHOW_ROOT_PATHS = ["/shows"]  # Root directories where shows are stored
+    SHOW_ROOT_PATHS = [SHOWS_ROOT]  # Root directories where shows are stored (uses configured SHOWS_ROOT)
     MAX_SHOTS_PER_SHOW = 1000  # Limit to prevent excessive searching in huge shows
     SKIP_SEQUENCE_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]
     SKIP_SHOT_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]

@@ -4,12 +4,12 @@
 This handles the common case where large JSON captures are split for transfer.
 """
 
-import sys
-import os
+import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
-import argparse
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -60,7 +60,7 @@ def main():
     # Validate JSON
     print("\n🔍 Validating JSON...")
     try:
-        with open(args.output, 'r') as f:
+        with open(args.output) as f:
             data = json.load(f)
         shows = list(data.get('shows', {}).keys())
         print(f"✅ Valid JSON with {len(shows)} shows: {', '.join(shows)}")
@@ -91,7 +91,7 @@ def main():
             print("\nYou can now run:")
             print("  ./venv/bin/python shotbot_mock.py")
         else:
-            print(f"❌ Recreation failed:")
+            print("❌ Recreation failed:")
             print(result.stderr)
             sys.exit(1)
     else:

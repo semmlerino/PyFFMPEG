@@ -20,8 +20,6 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-
-from runnable_tracker import get_tracker
 from PySide6.QtGui import (
     QColor,
     QContextMenuEvent,
@@ -36,6 +34,7 @@ from PySide6.QtWidgets import QFrame, QLabel, QMenu, QSizePolicy, QVBoxLayout, Q
 
 from cache_manager import CacheManager, ThumbnailCacheLoader
 from config import Config
+from runnable_tracker import get_tracker
 from thumbnail_loading_indicator import ThumbnailLoadingIndicator
 
 # Set up logger for this module
@@ -571,7 +570,7 @@ class ThumbnailWidgetBase(QFrame):
         logger.debug("Folder opened successfully")
 
     # Mouse events
-    def mousePressEvent(self, event: QMouseEvent):
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse press."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.data)

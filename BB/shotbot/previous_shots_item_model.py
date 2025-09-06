@@ -32,7 +32,6 @@ from shot_item_model import ShotRole  # Reuse the same roles
 if TYPE_CHECKING:
     from concurrent.futures import Future
 
-    from cache.thumbnail_loader import ThumbnailCacheResult
     from cache_manager import CacheManager
     from previous_shots_model import PreviousShotsModel
     from shot_model import Shot

@@ -7,7 +7,14 @@ from concurrent.futures import Future
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, QRunnable, QWaitCondition, Signal
+from PySide6.QtCore import (
+    QMutex,
+    QMutexLocker,
+    QObject,
+    QRunnable,
+    QWaitCondition,
+    Signal,
+)
 
 from runnable_tracker import get_tracker
 
@@ -200,12 +207,26 @@ class ThumbnailLoader(QRunnable):
                 # Emit success signal if still valid
                 if hasattr(self, "signals") and self.signals:
                     try:
-                        self.signals.loaded.emit(
-                            self.show,
-                            self.sequence,
-                            self.shot,
-                            self.cache_path,
-                        )
+                        # Check if signal object still exists before emission
+                        try:
+                            import sip
+                            if not sip.isdeleted(self.signals):
+                                self.signals.loaded.emit(
+                                    self.show,
+                                    self.sequence,
+                                    self.shot,
+                                    self.cache_path,
+                                )
+                            else:
+                                logger.debug("Signal object deleted, skipping loaded emission")
+                        except ImportError:
+                            # Fallback if sip not available
+                            self.signals.loaded.emit(
+                                self.show,
+                                self.sequence,
+                                self.shot,
+                                self.cache_path,
+                            )
                     except RuntimeError:
                         pass  # Signals deleted
 
@@ -222,12 +243,26 @@ class ThumbnailLoader(QRunnable):
 
                 if hasattr(self, "signals") and self.signals:
                     try:
-                        self.signals.failed.emit(
-                            self.show,
-                            self.sequence,
-                            self.shot,
-                            error_msg,
-                        )
+                        # Check if signal object still exists before emission
+                        try:
+                            import sip
+                            if not sip.isdeleted(self.signals):
+                                self.signals.failed.emit(
+                                    self.show,
+                                    self.sequence,
+                                    self.shot,
+                                    error_msg,
+                                )
+                            else:
+                                logger.debug("Signal object deleted, skipping failed emission")
+                        except ImportError:
+                            # Fallback if sip not available
+                            self.signals.failed.emit(
+                                self.show,
+                                self.sequence,
+                                self.shot,
+                                error_msg,
+                            )
                     except RuntimeError:
                         pass  # Signals deleted
 
@@ -244,12 +279,26 @@ class ThumbnailLoader(QRunnable):
             # Check if signals object still exists before emitting
             if hasattr(self, "signals") and self.signals:
                 try:
-                    self.signals.failed.emit(
-                        self.show,
-                        self.sequence,
-                        self.shot,
-                        str(e),
-                    )
+                    # Check if signal object still exists before emission
+                    try:
+                        import sip
+                        if not sip.isdeleted(self.signals):
+                            self.signals.failed.emit(
+                                self.show,
+                                self.sequence,
+                                self.shot,
+                                str(e),
+                            )
+                        else:
+                            logger.debug("Signal object deleted, skipping exception emission")
+                    except ImportError:
+                        # Fallback if sip not available
+                        self.signals.failed.emit(
+                            self.show,
+                            self.sequence,
+                            self.shot,
+                            str(e),
+                        )
                 except RuntimeError:
                     pass  # Signals deleted
 

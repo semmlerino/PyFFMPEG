@@ -16,340 +16,194 @@ Focus on functionality, performance, and VFX workflow optimization instead.
 
 ## Project Overview
 
-ShotBot is a PySide6-based GUI application for VFX shot browsing and application launching. It integrates with VFX pipeline tools using the `ws` (workspace) command to list and navigate shots. The application provides a visual interface for artists to browse shots, view thumbnails, and launch VFX applications in the correct shot context.
+ShotBot is a PySide6-based GUI application for VFX shot browsing and application launching. It integrates with VFX pipeline tools using the `ws` (workspace) command to list and navigate shots. The application provides a visual interface for artists to browse shots, view thumbnails, and launch VFX applications (3DE, Nuke, Maya, RV) in the correct shot context.
 
-## Python Compatibility
-
-### Supported Versions
-- **Minimum**: Python 3.11
-- **Recommended**: Python 3.12+
-- **Tested**: Python 3.11, 3.12
-
-### Important Compatibility Notes
-
-#### Type Annotations
-This codebase uses modern type annotations with union syntax (`str | None`) which requires Python 3.10+. All type annotations are compatible with Python 3.11.
-
-#### Override Decorator
-The `@override` decorator is used for better type safety. For Python 3.11 compatibility:
-- **DO NOT** import from `typing.override` (Python 3.12+ only)
-- **DO** import from `typing_extensions.override` (works with 3.11+)
-
-```python
-# Correct (Python 3.11+ compatible)
-from typing_extensions import override
-
-# Incorrect (Python 3.12+ only)
-from typing import override  # Will fail on Python 3.11!
-```
-
-#### Threading and Performance
-Recent improvements include:
-- Parallel filesystem scanning with `concurrent.futures.ThreadPoolExecutor`
-- Proper `@Slot` decorators on all QThread `run()` methods
-- Thread-safe singleton initialization for `ProcessPoolManager`
-
-These features are fully compatible with Python 3.11+.
-
-#### Dependencies
-The `typing_extensions` package is required and included in requirements.txt. This provides backports of typing features for older Python versions.
-
-## Commands
+## Critical Commands
 
 ### Running the Application
+
 ```bash
-# Using virtual environment (recommended)
+# Production mode (requires VFX environment)
 source venv/bin/activate
 python shotbot.py
 
-# Or in rez environment
-rez env PySide6_Essentials pillow Jinja2 -- python3 shotbot.py
+# Mock mode (no VFX infrastructure needed - 432 production shots)
+python shotbot.py --mock
+# Or better, with recreated VFX filesystem:
+python shotbot_mock.py
 
-# Debug mode for verbose logging
+# Headless mode (for CI/CD)
+python shotbot.py --headless --mock
+
+# Debug mode
 SHOTBOT_DEBUG=1 python shotbot.py
+```
+
+### Mock VFX Environment
+
+The project includes a sophisticated mock environment system:
+
+```bash
+# Recreate VFX filesystem structure (11,386 dirs, 29,335 files)
+python recreate_vfx_structure.py vfx_structure_complete.json
+
+# Verify mock environment (shows 432 real production shots)
+python verify_mock_environment.py
+
+# Run with full mock environment
+python run_mock_vfx_env.py
 ```
 
 ### Testing
 
-See **UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md** for comprehensive testing documentation including:
-- WSL-optimized strategies
-- Test organization and best practices  
-- Qt-specific testing patterns
-- Common issues and solutions
-
-**DO NOT** create scripts to automate fixes, as those tend to create more issues. Only if you are absolutely sure it won't cause issues, you can run a dry test to see what it would do exactly, and it would fix a lot of easy and simple issues at once.
-
-#### Test Suite Overview
-The codebase contains **1,114 tests** organized into:
-- **Unit tests** (`tests/unit/`) - 89 test files covering core functionality
-- **Integration tests** (`tests/integration/`) - 12 files for end-to-end workflows
-- **Performance tests** (`tests/performance/`) - 6 files for benchmarking
-- **Thread safety tests** (`tests/thread_tests/`) - 4 files for concurrency
-
-#### Running Tests
-
 ```bash
-# Prerequisites - activate virtual environment
-source venv/bin/activate
-
-# Quick validation (2 seconds) - No pytest, just import checks
+# Quick validation (2 seconds)
 python3 tests/utilities/quick_test.py
 
-# Fast test suite (50-60 seconds) - Core functionality only
+# Fast test suite (50-60 seconds)
 ./run_fast_tests.sh
-# Or:
-python3 tests/utilities/run_tests_wsl.py --fast
 
-# Full test suite (100-120 seconds) - All tests
+# Full test suite (100-120 seconds, 1,114 tests)
 python3 -m pytest tests/
 
-# Specific test categories using markers
+# Specific categories
 python3 -m pytest tests/ -m fast       # Tests under 100ms
-python3 -m pytest tests/ -m unit       # Unit tests only  
+python3 -m pytest tests/ -m unit       # Unit tests only
 python3 -m pytest tests/ -m integration # Integration tests
-python3 -m pytest tests/ -m "not slow" # Skip slow tests
 
-# Run specific test file
-python3 -m pytest tests/unit/test_shot_model.py
-
-# Run with verbose output
-python3 -m pytest tests/ -v
-
-# Stop at first failure
-python3 -m pytest tests/ -x
-
-# Run only last failed tests
-python3 -m pytest tests/ --lf
-```
-
-#### Test Markers
-Tests are categorized with pytest markers (defined in `pytest.ini`):
-- `fast` - Tests that run in under 100ms
-- `slow` - Tests that take over 1 second
-- `unit` - Unit tests
-- `integration` - Integration tests
-- `performance` - Performance benchmarks
-- `qt` - Tests requiring Qt event loop
-- `gui` - Tests requiring display (may fail in headless environment)
-- `critical` - Must-pass tests for core functionality
-
-#### Expected Results
-As of the latest run:
-- **✅ 1,113 tests passing** (99.9% pass rate)
-- **⏭️ 1 test skipped** (Windows-specific)
-- **⚠️ 20 warnings** (non-critical, mostly resource warnings)
-- **⏱️ Execution time**: ~100 seconds for full suite, ~50 seconds for fast tests
-
-#### Common Issues and Solutions
-
-1. **FileNotFoundError for pytest_wsl.ini**
-   - Run tests from project root, not from subdirectories
-   - The config file is in the project root
-
-2. **ModuleNotFoundError: No module named 'PySide6'**
-   - Ensure virtual environment is activated: `source venv/bin/activate`
-   - Install dependencies: `pip install -r requirements.txt`
-
-3. **Flaky thread safety tests**
-   - Lock contention thresholds may fail under high system load
-   - These test concurrency safety, not specific timing
-   - Re-run if they fail sporadically
-
-4. **Qt widget lifecycle errors in tests**
-   - Common in test environment, not in production
-   - Related to test teardown, not application bugs
-   - Can be safely ignored if other tests pass
-
-#### Test Organization
-```
-tests/
-├── conftest.py              # Main pytest configuration and fixtures
-├── unit/                    # Unit tests for individual components
-│   ├── test_shot_model.py   # Core data model tests
-│   ├── test_cache_*.py      # Cache system tests
-│   └── test_launcher_*.py   # Launcher system tests
-├── integration/             # End-to-end workflow tests
-│   └── test_user_workflows.py
-├── performance/             # Performance benchmarks
-│   └── test_performance_benchmarks.py
-├── thread_tests/            # Concurrency and thread safety
-│   └── test_thread_safety_regression.py
-└── utilities/               # Test runners and helpers
-    ├── quick_test.py        # Fast validation without pytest
-    ├── run_tests_wsl.py     # WSL-optimized test runner
-    └── run_tests.py         # Standard test runner
+# Run specific test
+python3 -m pytest tests/unit/test_shot_model.py -v
 ```
 
 ### Code Quality
+
 ```bash
-# Activate virtual environment first
 source venv/bin/activate
 
-# Format code with ruff
+# Format code
 ruff format .
 
-# Check for linting issues
-ruff check .
-
-# Fix linting issues automatically
+# Lint and auto-fix
 ruff check --fix .
 
 # Type checking
 basedpyright
 ```
 
-### Setting Up Development Environment
-```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate
+## Python Compatibility
 
-# Install runtime dependencies
-pip install -r requirements.txt
+- **Minimum**: Python 3.11
+- **Uses**: Modern type annotations with union syntax (`str | None`)
+- **Critical**: Import `override` from `typing_extensions`, NOT `typing`
 
-# Install development dependencies
-pip install -r requirements-dev.txt
+```python
+# CORRECT (Python 3.11 compatible)
+from typing_extensions import override
+
+# WRONG (Python 3.12+ only)
+from typing import override  # Will fail on Python 3.11!
 ```
 
-## Architecture
+## High-Level Architecture
 
-### Core System Design
+### Core Design Pattern: Model-View with Qt Signal-Slot
 
-The application follows a Model-View architecture with Qt's signal-slot mechanism for loose coupling:
+The application uses Qt's signal-slot mechanism for loose coupling between components. This is critical for understanding how data flows through the application.
 
-1. **Data Layer**: Models (`shot_model.py`, `threede_scene_model.py`) handle data fetching and caching
-2. **View Layer**: Grid widgets (`shot_grid.py`, `threede_shot_grid.py`) display thumbnails
-3. **Control Layer**: Launchers (`command_launcher.py`, `launcher_manager.py`) execute applications
-4. **Cache Layer**: Modular cache system with specialized components (see Cache Architecture section)
+### Key Architectural Components
 
-### Key Components
+#### 1. Process Pool Management with Dependency Injection
+- **`ProcessPoolManager`**: Singleton that manages all subprocess calls with caching and session pooling
+- **`ProcessPoolFactory`**: Factory pattern for dependency injection (allows mock injection)
+- **`MockWorkspacePool`**: Sophisticated mock that simulates 432 real production shots
+- **Critical**: The `ws` command is a shell function, requires interactive bash: `["/bin/bash", "-i", "-c", "ws -sg"]`
 
-#### Main Application
-- **`shotbot.py`**: Entry point and application initialization
-- **`main_window.py`**: Main window with tabbed interface, integrates all components
-- **`config.py`**: Centralized configuration constants (paths, timeouts, defaults)
+#### 2. Model/View Architecture for Shot Display
+- **Models** implement `QAbstractItemModel` for efficient data handling
+- **Views** use custom delegates for optimized painting
+- **Shot flow**: `ws -sg` → `ProcessPool` → `ShotModel` → `ShotItemModel` → `ShotGridView`
+- Models emit signals when data changes, views automatically update
 
-#### Shot Management
-- **`shot_model.py`**: Parses `ws -sg` output, manages shot list with caching
-- **`shot_grid.py`**: Thumbnail grid for "My Shots" tab
-- **`shot_info_panel.py`**: Displays current shot details and thumbnail
-- **`thumbnail_widget.py`**: Individual thumbnail with selection effects
-
-#### 3DE Scene Discovery
-- **`threede_scene_finder.py`**: Recursive .3de file discovery in user directories
-- **`threede_scene_model.py`**: Model for 3DE scenes with user exclusion
-- **`threede_shot_grid.py`**: Grid widget for "Other 3DE scenes" tab
-- **`threede_scene_worker.py`**: Background worker thread for scene discovery
-
-#### Previous Shots (Approved/Completed)
-- **`previous_shots_finder.py`**: Finds shots user has worked on that are no longer active (approved)
-- **`previous_shots_model.py`**: Qt model managing approved shots with thread-safe refresh
-- **`previous_shots_grid.py`**: Grid widget displaying approved shots with resize debouncing
-- **`previous_shots_worker.py`**: Background worker for filesystem scanning (uses finder)
-
-#### Custom Launcher System
-- **`launcher_manager.py`**: Business logic for custom launchers with thread safety
-- **`launcher_dialog.py`**: UI for creating/editing custom launchers
-- **`launcher_config.py`**: Configuration for launcher templates
-- **`LauncherWorker`**: QThread-based worker for non-blocking command execution
-- **`terminal_launcher.py`**: Terminal-based command execution
-
-#### Cache System (Refactored Architecture)
-- **`cache_manager.py`**: Facade maintaining backward compatibility with modular components
-- **`cache/`**: Modular cache package with specialized components:
-  - **`storage_backend.py`**: Atomic file I/O operations with fallback handling
-  - **`failure_tracker.py`**: Exponential backoff for failed thumbnail operations  
-  - **`memory_manager.py`**: Memory usage tracking with LRU eviction
-  - **`thumbnail_processor.py`**: Multi-format image processing (Qt/PIL/OpenEXR)
-  - **`shot_cache.py`**: Shot data caching with TTL validation
-  - **`threede_cache.py`**: 3DE scene caching with metadata support
-  - **`cache_validator.py`**: Cache consistency validation and repair
-  - **`thumbnail_loader.py`**: Async thumbnail loading with QRunnable
-
-#### Utilities
-- **`utils.py`**: Centralized utilities for path operations, validation, and caching
-- **`log_viewer.py`**: Command history viewer
-- **`raw_plate_finder.py`**: Discovers raw plate sequences
-- **`undistortion_finder.py`**: Finds undistortion .nk files
-
-### Cache Architecture (Refactored 2025-08-20)
-
-Refactored from monolithic 1,476-line class into modular SOLID architecture with 100% backward compatibility:
-
+#### 3. Cache System (Modular Architecture)
 ```
-cache_manager.py (Facade - 369 lines)
-├── StorageBackend (150 lines) - Atomic file operations
-├── FailureTracker (150 lines) - Exponential backoff logic  
-├── MemoryManager (100 lines) - Memory tracking & LRU eviction
-├── ThumbnailProcessor (300 lines) - Multi-format image processing
-├── ShotCache (100 lines) - Shot data caching with TTL
-├── ThreeDECache (100 lines) - 3DE scene caching with metadata
-├── CacheValidator (100 lines) - Consistency validation & repair
-└── ThumbnailLoader (100 lines) - Async QRunnable processing
+cache_manager.py (Facade - maintains backward compatibility)
+├── StorageBackend - Atomic file operations
+├── FailureTracker - Exponential backoff (5min→15min→45min→2hr)
+├── MemoryManager - LRU eviction at 100MB limit
+├── ThumbnailProcessor - Multi-format (Qt/PIL/OpenEXR) with HDR
+├── ShotCache/ThreeDECache - TTL-based caching (30min default)
+└── ThumbnailLoader - Async QRunnable processing
 ```
+- **Cache directories are mode-separated**: production, mock, test (see `cache_config.py`)
 
-**Key Features:**
-- Exponential backoff for failures (5min → 15min → 45min → 2hr)
-- LRU eviction at 100MB memory limit
-- Multi-format support (Qt/PIL/OpenEXR) with HDR tone mapping
-- TTL-based expiration (30 minutes default)
-- Atomic operations prevent corruption
-- Zero breaking changes - existing code works unchanged
+#### 4. Thread-Safe Background Operations
+- **Workers**: `ThreeDESceneWorker`, `PreviousShotsWorker` use `QThread` for background scanning
+- **Thread safety**: All shared data protected with `threading.RLock()`
+- **Signal connections**: Use `Qt.ConnectionType.QueuedConnection` for cross-thread
+- **Resource cleanup**: Workers properly disconnect signals and delete on completion
+
+#### 5. Launcher System
+- **`LauncherManager`**: Manages custom launchers with thread-safe process tracking
+- **Process keys**: Timestamp + UUID prevent collisions
+- **Terminal integration**: Uses gnome-terminal/konsole for command execution
 
 ### Critical Implementation Details
 
-#### Workspace Command (`ws`)
-The `ws` command is a **shell function**, not an executable. Must use interactive bash:
+#### QSettings Storage Pattern
 ```python
-subprocess.run(["/bin/bash", "-i", "-c", "ws -sg"], ...)
-```
-
-#### QSettings Storage
-QByteArray to hex string conversion for geometry storage:
-```python
-# Correct: Use .data().decode('ascii')
+# CORRECT - Use .data().decode('ascii')
 hex_string = byte_array.data().decode('ascii')
-# NOT: str(byte_array) or byte_array.hex()
+# WRONG - Will corrupt settings
+str(byte_array) or byte_array.hex()
 ```
 
-#### Thread Safety in LauncherManager
-The custom launcher system uses thread-safe process management:
-- `threading.RLock()` protects `_active_processes` dictionary
-- Unique process keys with timestamp + UUID prevent collisions
-- `LauncherWorker` QThread for non-blocking execution
-
-#### Change Detection
-`refresh_shots()` returns a tuple for efficient UI updates:
+#### Change Detection Pattern
 ```python
+# refresh_shots() returns RefreshResult(success, has_changes)
 success, has_changes = shot_model.refresh_shots()
 if success and has_changes:
     # Update UI only when needed
 ```
 
 #### Resource Management
-- QPixmap cleanup in `cache_manager.py` prevents memory leaks
+- QPixmap cleanup prevents memory leaks
 - 30-second subprocess timeout prevents hangs
-- Proper QThread cleanup with `quit()` and `wait()`
+- QThread cleanup with `quit()` and `wait()`
 
-### Signal-Slot Communication
+### Key Signals for Component Communication
+- `shot_model.shots_updated` → UI refreshes shot grid
+- `launcher_manager.command_started/finished` → Progress indicators
+- `threede_worker.scene_found` → Progressive UI updates
+- `thumbnail_widget.shot_selected` → Updates info panel
 
-Key signals used throughout the application:
-- `shot_model.shots_updated`: Emitted when shot list changes
-- `launcher_manager.command_started/finished/output`: Launcher execution events
-- `threede_worker.scene_found/scan_progress/scan_finished`: 3DE discovery events
-- `thumbnail_widget.shot_selected/shot_double_clicked`: User interaction
+## Mock Environment System
 
-### Caching Strategy
+The project includes a complete VFX environment simulation:
 
-- **Shot List**: 30-minute TTL, refreshes every 5 minutes if changed
-- **Thumbnails**: Permanent cache, QPixmap resources cleaned up on deletion
-- **3DE Scenes**: 30-minute TTL with background refresh
-- **Path Validation**: 60-second TTL to reduce filesystem checks
+1. **Capture**: `capture_vfx_structure.py` runs on VFX workstation, outputs JSON
+2. **Recreate**: `recreate_vfx_structure.py` rebuilds structure locally
+3. **Mock Pool**: `MockWorkspacePool` simulates `ws -sg` with 432 real shots
+4. **Dependency Injection**: `ProcessPoolFactory` cleanly swaps implementations
+5. **Headless Mode**: Full Qt offscreen support for CI/CD
+
+The mock environment includes:
+- 3 shows: broken_eggs (190 shots), gator (69 shots), jack_ryan (173 shots)
+- Complete directory structure from production
+- Placeholder thumbnails and 3DE files
+- Separate cache directories prevent contamination
+
+## Performance Optimizations
+
+- **Parallel filesystem scanning** with `ThreadPoolExecutor`
+- **Adaptive UI timers** adjust update frequency based on activity
+- **Caching strategy**: 30-min TTL for shots, permanent for thumbnails
+- **Progressive loading**: UI shows immediately, data loads in background
+- **Optimized painting**: Custom delegates minimize redraws
 
 ## Common Development Tasks
 
 ### Adding a New Application Launcher
-Edit the `APPS` dictionary in `config.py`:
+Edit `APPS` in `config.py`:
 ```python
 APPS = {
     "3de": "3de",
@@ -359,92 +213,22 @@ APPS = {
 }
 ```
 
-### Creating a Custom Launcher
-Use the `LauncherManager` API:
-```python
-launcher = CustomLauncher(
-    id="my_launcher",
-    name="My Tool",
-    command="my_command {shot_name}",
-    icon="path/to/icon.png"
-)
-manager.create_launcher(launcher)
-```
-
 ### Debugging Issues
+1. Enable debug: `SHOTBOT_DEBUG=1 python shotbot.py`
+2. Check process output in log viewer
+3. Test workspace: `bash -i -c "ws -sg"`
+4. Verify mock environment: `python verify_mock_environment.py`
 
-1. **Enable debug logging**: `SHOTBOT_DEBUG=1 python shotbot.py`
-2. **Check process output**: View command history in log viewer
-3. **Test workspace command**: `bash -i -c "ws -sg"` in terminal
-4. **Verify paths**: Check `utils.py` path validation with debug mode
+## Test Organization
 
-
-## Performance Considerations
-
-### UI Responsiveness
-- Background workers for long operations (3DE scanning, shot refresh)
-- Adaptive timer intervals based on activity
-- Thumbnail loading happens asynchronously
-
-### Memory Management
-- QPixmap cache cleanup prevents leaks
-- Process output buffering with line-by-line reading
-- TTL-based path validation cache reduces filesystem access
-
-### Concurrent Operations
-- Thread-safe launcher management with RLock
-- Multiple launchers can run simultaneously
-- Worker threads for non-blocking operations
-
-
-## Changelog
-
-### 2025-08-20: Previous Shots Feature
-- Added view for approved/completed shots with filesystem scanning
-- Thread-safe refresh with background worker, 30-minute TTL caching
-- UI resize debouncing (100ms) for performance
-
-### 2025-08-12: Nuke Script Generator Fix
-- Fixed colorspace quoting for names with spaces (e.g., "Input - Sony - S-Gamut3.Cine - Linear")
-- Added temporary file cleanup and shot name sanitization
-
-### 2025-08-08: Type System Improvements
-- Added RefreshResult NamedTuple for clear operation results
-- Union types for flexible path APIs (str|Path)
-- Comprehensive Optional handling for Qt widgets
-
-### 2025-08-07: Raw Plate Finder & UI Fixes
-- Dynamic colorspace detection from actual files
-- Non-blocking folder opening with QRunnable
-- 3DE scene deduplication by modification time
-- **BREAKING**: `PathUtils.build_raw_plate_path()` now returns base path without plate name
+- **1,114 tests** with 99.9% pass rate
+- **Markers**: `fast`, `slow`, `unit`, `integration`, `qt`, `gui`, `critical`
+- **WSL optimizations** in `run_tests_wsl.py`
+- **Common issues**: Usually environment setup, not code problems
 
 ## Type System
 
-### Key Patterns
-- **RefreshResult NamedTuple**: Replaces ambiguous tuple returns
-  ```python
-  class RefreshResult(NamedTuple):
-      success: bool
-      has_changes: bool
-  ```
-- **Union[str, Path]**: Flexible path APIs accepting both types
-- **Optional[QWidget]**: Proper nullable Qt widget handling
-- **Typed Signals**: `Signal()`, `Signal(str)`, `Signal(dict)` declarations
-
-### Type Checking
-```bash
-# Run type checking with basedpyright (uses tests/pyrightconfig.json)
-basedpyright
-
-# From tests directory for enhanced configuration
-cd tests && basedpyright
-
-# WSL compatibility if needed
-basedpyright --typeshedpath venv/lib/python3.12/site-packages/basedpyright/dist/typeshed-fallback
-```
-
-**Type Checker Configuration**: The project uses `tests/pyrightconfig.json` for comprehensive type checking settings including:
-- Basic type checking mode with Python 3.12 target
-- Enhanced reporting for type issues (unknown members, arguments, etc.)
-- Strict error reporting for unnecessary type ignore comments
+- Uses `RefreshResult` NamedTuple for clear return types
+- `Union[str, Path]` for flexible path APIs
+- Comprehensive `Optional[QWidget]` handling
+- Type checking: `basedpyright` (config in `tests/pyrightconfig.json`)
