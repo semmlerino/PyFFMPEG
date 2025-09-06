@@ -329,7 +329,9 @@ class VFXStructureRecreator:
                                 shot = path_parts[shots_idx + 2]
                                 
                                 # Create scene/bg01 subdirectory and 3DE file
-                                scenes_dir = self.root / Path(*path_parts)
+                                # Path parts start with show name, need to prepend 'shows'
+                                full_path_parts = ['shows'] + path_parts
+                                scenes_dir = self.root / Path(*full_path_parts)
                                 scene_bg01_dir = scenes_dir / 'scene' / 'bg01'
                                 scene_bg01_dir.mkdir(parents=True, exist_ok=True)
                                 
