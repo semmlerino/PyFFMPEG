@@ -254,11 +254,20 @@ class VFXStructureRecreator:
             # Select a subset of shots for this user
             selected_shots = random.sample(workspace_shots, min(len(workspace_shots) // 4, 20))
             
-            for shot_data in selected_shots:
+            for shot_path in selected_shots:
                 try:
-                    show = shot_data.get('show', 'unknown')
-                    sequence = shot_data.get('sequence', 'unknown')  
-                    shot = shot_data.get('shot', 'unknown')
+                    # Parse path string: /shows/broken_eggs/shots/BRX_170/BRX_170_0100
+                    path_parts = Path(shot_path).parts
+                    if len(path_parts) >= 5 and 'shows' in path_parts and 'shots' in path_parts:
+                        shows_idx = path_parts.index('shows')
+                        shots_idx = path_parts.index('shots')
+                        
+                        show = path_parts[shows_idx + 1]  # broken_eggs
+                        sequence = path_parts[shots_idx + 1]  # BRX_170  
+                        shot = path_parts[shots_idx + 2]  # BRX_170_0100
+                    else:
+                        print(f"Could not parse shot path: {shot_path}")
+                        continue
                     
                     # Create 3DE file path following the standard pattern
                     shot_dir = self.root / 'shows' / show / 'shots' / sequence / shot
@@ -274,7 +283,7 @@ class VFXStructureRecreator:
                     self.create_3de_file(threede_file, shot, user, "bg01")
                     
                 except Exception as e:
-                    print(f"Error creating 3DE file for {user} in {shot_data}: {e}")
+                    print(f"Error creating 3DE file for {user} in {shot_path}: {e}")
                     continue
         
         print(f"Created additional 3DE files from {len(other_users)} other users")
