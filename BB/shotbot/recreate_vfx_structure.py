@@ -288,6 +288,64 @@ class VFXStructureRecreator:
         
         print(f"Created additional 3DE files from {len(other_users)} other users")
     
+    def create_gabrielh_3de_files(self, structure_data: dict):
+        """Create 3DE files for gabriel-h to populate 'My Shots' tab."""
+        gabrielh_3de_count = 0
+        
+        # Find all gabriel-h 3DE scene directories
+        for show, show_data_list in structure_data.get('shows', {}).items():
+            for show_data in show_data_list:
+                structure = show_data.get('structure', {})
+                gabrielh_3de_paths = []
+                
+                def find_gabrielh_3de_scenes(node, path_parts=[]):
+                    """Recursively find gabriel-h 3DE scenes directories."""
+                    if node.get('type') == 'dir':
+                        current_path = path_parts + [node['name']]
+                        
+                        # Check if this is a gabriel-h scenes directory
+                        path_str = '/'.join(current_path)
+                        if ('user/gabriel-h' in path_str and 
+                            'scenes' in path_str and 
+                            '3de' in path_str and
+                            'mm-default' in path_str):
+                            gabrielh_3de_paths.append(current_path)
+                        
+                        # Recurse through children
+                        for child in node.get('children', []):
+                            find_gabrielh_3de_scenes(child, current_path)
+                
+                find_gabrielh_3de_scenes(structure)
+                
+                # Create 3DE files in each found scenes directory
+                for path_parts in gabrielh_3de_paths:
+                    try:
+                        # Extract shot info from path 
+                        # Example path: shows/broken_eggs/shots/BRX_170/BRX_170_0100/user/gabriel-h/mm/3de/mm-default/scenes
+                        if 'shots' in path_parts:
+                            shots_idx = path_parts.index('shots')
+                            if shots_idx + 2 < len(path_parts):
+                                sequence = path_parts[shots_idx + 1]
+                                shot = path_parts[shots_idx + 2]
+                                
+                                # Create scene/bg01 subdirectory and 3DE file
+                                scenes_dir = self.root / Path(*path_parts)
+                                scene_bg01_dir = scenes_dir / 'scene' / 'bg01'
+                                scene_bg01_dir.mkdir(parents=True, exist_ok=True)
+                                
+                                # Create 3DE file
+                                threede_filename = f"{shot}_mm_default_bg01_scene_v001.3de"
+                                threede_file = scene_bg01_dir / threede_filename
+                                
+                                self.create_3de_file(threede_file, shot, "gabriel-h", "bg01")
+                                gabrielh_3de_count += 1
+                                
+                    except Exception as e:
+                        print(f"Error creating gabriel-h 3DE file in {'/'.join(path_parts)}: {e}")
+                        continue
+        
+        print(f"Created {gabrielh_3de_count} 3DE files for gabriel-h")
+    
     def recreate_structure(self, structure_data: dict):
         """Recreate the entire VFX structure.
         
@@ -315,6 +373,9 @@ class VFXStructureRecreator:
         
         # Create additional 3DE files from other users for "Other 3DE Scenes" tab
         self.create_additional_3de_files(structure_data)
+        
+        # Create 3DE files for current user gabriel-h for "My Shots" tab
+        self.create_gabrielh_3de_files(structure_data)
         
         # Create symlink for convenience (if on Linux/Mac)
         try:
