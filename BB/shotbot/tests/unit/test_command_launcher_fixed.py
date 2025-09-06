@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 class TestCommandLauncherCore:
     """Core command launcher functionality tests."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test double at system boundary only."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
@@ -59,12 +59,12 @@ class TestCommandLauncherCore:
             lambda t, e: self.emitted_errors.append((t, e))
         )
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test doubles."""
         subprocess.run = self.original_run
         subprocess.Popen = self.original_popen
 
-    def test_initialization(self, qtbot):
+    def test_initialization(self, qtbot) -> None:
         """Test launcher initializes with proper signals."""
         # Check initial state
         assert self.launcher.current_shot is None
@@ -76,7 +76,7 @@ class TestCommandLauncherCore:
         assert spy_executed.isValid()
         assert spy_error.isValid()
 
-    def test_set_current_shot(self, qtbot):
+    def test_set_current_shot(self, qtbot) -> None:
         """Test setting shot context behavior."""
         # Create test shot using test double
         shot = TestShot(
@@ -94,7 +94,7 @@ class TestCommandLauncherCore:
         self.launcher.set_current_shot(None)
         assert self.launcher.current_shot is None
 
-    def test_launch_success_behavior(self, qtbot):
+    def test_launch_success_behavior(self, qtbot) -> None:
         """Test successful app launch behavior."""
         # Arrange: Set up for success
         self.test_subprocess.return_code = 0
@@ -117,7 +117,7 @@ class TestCommandLauncherCore:
         assert "nuke" in command
         assert "/test/workspace" in command
 
-    def test_launch_failure_behavior(self, qtbot):
+    def test_launch_failure_behavior(self, qtbot) -> None:
         """Test app launch failure behavior."""
         # Arrange: Set up for failure - make Popen raise an exception
         self.test_subprocess.side_effect = FileNotFoundError("Command failed")
@@ -136,7 +136,7 @@ class TestCommandLauncherCore:
         timestamp, error = self.emitted_errors[0]
         assert "Failed to launch nuke" in error
 
-    def test_launch_without_shot(self, qtbot):
+    def test_launch_without_shot(self, qtbot) -> None:
         """Test launching without shot context."""
         # Act: Launch without setting shot
         result = self.launcher.launch_app("maya")
@@ -146,7 +146,7 @@ class TestCommandLauncherCore:
         assert len(self.emitted_errors) == 1
         assert "No shot selected" in self.emitted_errors[0][1]
 
-    def test_launch_unknown_app(self, qtbot):
+    def test_launch_unknown_app(self, qtbot) -> None:
         """Test launching unknown application."""
         # Arrange: Set valid shot
         shot = TestShot(workspace_path="/test/workspace")
@@ -160,7 +160,7 @@ class TestCommandLauncherCore:
         assert len(self.emitted_errors) == 1
         assert "Unknown application: unknown_app" in self.emitted_errors[0][1]
 
-    def test_multiple_launches_behavior(self, qtbot):
+    def test_multiple_launches_behavior(self, qtbot) -> None:
         """Test multiple app launches behavior."""
         # Arrange: Set up shot and success
         self.test_subprocess.return_code = 0
@@ -182,7 +182,7 @@ class TestCommandLauncherCore:
         for app in apps:
             assert any(app in cmd for cmd in commands), f"{app} not found in commands"
 
-    def test_workspace_path_variations(self, qtbot):
+    def test_workspace_path_variations(self, qtbot) -> None:
         """Test different workspace path formats."""
         # Arrange: Success setup
         self.test_subprocess.return_code = 0
@@ -208,7 +208,7 @@ class TestCommandLauncherCore:
             assert len(self.emitted_commands) == 1
             assert path in self.emitted_commands[0][1]
 
-    def test_command_formatting_behavior(self, qtbot):
+    def test_command_formatting_behavior(self, qtbot) -> None:
         """Test command formatting with shot variables."""
         # Arrange: Set up custom command capability
         self.test_subprocess.return_code = 0
@@ -237,7 +237,7 @@ class TestCommandLauncherCore:
 class TestCommandLauncherAdvanced:
     """Advanced command launcher functionality tests."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test double."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
@@ -254,12 +254,12 @@ class TestCommandLauncherAdvanced:
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up."""
         subprocess.run = self.original_run
         subprocess.Popen = self.original_popen
 
-    def test_scene_launching_behavior(self, qtbot):
+    def test_scene_launching_behavior(self, qtbot) -> None:
         """Test 3DE scene launching without complex mocking."""
         # Arrange: Set up success
         self.test_subprocess.return_code = 0
@@ -282,7 +282,7 @@ class TestCommandLauncherAdvanced:
         # Assert: Test behavior
         assert result is True  # Should succeed with valid inputs
 
-    def test_terminal_fallback_behavior(self, qtbot):
+    def test_terminal_fallback_behavior(self, qtbot) -> None:
         """Test terminal fallback without complex mocking."""
         # Arrange: Set up fallback scenario
         attempt_count = 0
@@ -312,7 +312,7 @@ class TestCommandLauncherAdvanced:
         assert result is True
         assert attempt_count >= 3  # Multiple attempts made
 
-    def test_timestamp_format_behavior(self, qtbot):
+    def test_timestamp_format_behavior(self, qtbot) -> None:
         """Test timestamp format in signals."""
         # Arrange: Track signals
         timestamps = []
@@ -336,7 +336,7 @@ class TestCommandLauncherAdvanced:
         # Seconds may have decimal places
         assert seconds.replace(".", "").isdigit()
 
-    def test_error_recovery_behavior(self, qtbot):
+    def test_error_recovery_behavior(self, qtbot) -> None:
         """Test error recovery without implementation details."""
         # Arrange: Set up shot
         shot = TestShot(workspace_path="/test/workspace")
@@ -376,7 +376,7 @@ class TestCommandLauncherAdvanced:
 class TestCommandLauncherEdgeCases:
     """Edge case tests without complex scenarios."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
         """Minimal setup."""
@@ -390,12 +390,12 @@ class TestCommandLauncherEdgeCases:
         self.original_popen = command_launcher.subprocess.Popen
         command_launcher.subprocess.Popen = lambda *args, **kwargs: self.test_subprocess
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up."""
 
         command_launcher.subprocess.Popen = self.original_popen
 
-    def test_empty_workspace_path(self, qtbot):
+    def test_empty_workspace_path(self, qtbot) -> None:
         """Test handling of empty workspace path."""
         # Arrange: Empty workspace
         shot = TestShot(workspace_path="")
@@ -407,7 +407,7 @@ class TestCommandLauncherEdgeCases:
         # Assert: Should handle gracefully
         assert result is True or result is False  # Either behavior is acceptable
 
-    def test_special_characters_in_paths(self, qtbot):
+    def test_special_characters_in_paths(self, qtbot) -> None:
         """Test paths with special characters."""
         # Arrange: Special character paths
         special_paths = [
@@ -425,7 +425,7 @@ class TestCommandLauncherEdgeCases:
             # Assert: Should handle without crashing
             assert isinstance(result, bool), f"Invalid result for path: {path}"
 
-    def test_rapid_launches(self, qtbot):
+    def test_rapid_launches(self, qtbot) -> None:
         """Test rapid successive launches."""
         # Arrange: Set up shot
         shot = TestShot(workspace_path="/test/workspace")

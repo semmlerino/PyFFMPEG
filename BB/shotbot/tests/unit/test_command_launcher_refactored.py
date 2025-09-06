@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 from PySide6.QtTest import QSignalSpy
@@ -37,7 +38,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 class TestCommandLauncherCore:
     """Core CommandLauncher tests using SubprocessModuleDouble."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with SubprocessModuleDouble at subprocess boundary."""
         self.launcher = CommandLauncher()
 
@@ -66,14 +67,14 @@ class TestCommandLauncherCore:
         self.command_spy = QSignalSpy(self.launcher.command_executed)
         self.error_spy = QSignalSpy(self.launcher.command_error)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess methods."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
         command_launcher.subprocess.run = self.original_subprocess_run
         command_launcher.subprocess.Popen = self.original_subprocess_popen
 
-    def test_initialization(self, qtbot):
+    def test_initialization(self, qtbot) -> None:
         """Test CommandLauncher initializes with correct state."""
         assert self.launcher.current_shot is None
         assert hasattr(self.launcher, "command_executed")
@@ -82,7 +83,7 @@ class TestCommandLauncherCore:
         assert self.launcher.command_executed is not None
         assert self.launcher.command_error is not None
 
-    def test_set_current_shot(self):
+    def test_set_current_shot(self) -> None:
         """Test setting shot context."""
         # Create test shot
         shot = TestShot(
@@ -100,7 +101,7 @@ class TestCommandLauncherCore:
         self.launcher.set_current_shot(None)
         assert self.launcher.current_shot is None
 
-    def test_launch_app_success(self, qtbot):
+    def test_launch_app_success(self, qtbot) -> None:
         """Test successful app launch behavior."""
         # Configure subprocess to succeed for launcher commands
         self.test_subprocess.return_code = 0
@@ -134,7 +135,7 @@ class TestCommandLauncherCore:
                 len(self.test_subprocess.executed_commands) > 0
             )  # Command was executed
 
-    def test_launch_app_no_shot_selected(self, qtbot):
+    def test_launch_app_no_shot_selected(self, qtbot) -> None:
         """Test error when no shot is selected."""
 
         # Set up error signal expectation with parameter checking
@@ -149,7 +150,7 @@ class TestCommandLauncherCore:
             assert result is False
             # Commands may be executed during rez check, but not main launch
 
-    def test_launch_unknown_app(self, qtbot):
+    def test_launch_unknown_app(self, qtbot) -> None:
         """Test error for unknown application."""
         # Set shot
         shot = Shot(
@@ -170,7 +171,7 @@ class TestCommandLauncherCore:
             assert result is False
             # Commands may be executed during rez check, but not main launch
 
-    def test_terminal_fallback(self):
+    def test_terminal_fallback(self) -> None:
         """Test fallback through different terminal options."""
         # Configure terminals to fail but direct bash to succeed
         self.test_subprocess.set_command_output(
@@ -205,7 +206,7 @@ class TestCommandLauncherCore:
 class TestWorkspaceCommands:
     """Test workspace command integration using SubprocessModuleDouble."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with SubprocessModuleDouble for workspace commands."""
         self.launcher = CommandLauncher()
 
@@ -238,14 +239,14 @@ class TestWorkspaceCommands:
         self.command_spy = QSignalSpy(self.launcher.command_executed)
         self.error_spy = QSignalSpy(self.launcher.command_error)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess methods."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
         command_launcher.subprocess.run = self.original_subprocess_run
         command_launcher.subprocess.Popen = self.original_subprocess_popen
 
-    def test_workspace_command_construction(self):
+    def test_workspace_command_construction(self) -> None:
         """Test proper workspace command construction."""
         # Set shot
         shot = Shot(
@@ -272,7 +273,7 @@ class TestWorkspaceCommands:
         # Check subprocess was used
         assert len(self.test_subprocess.executed_commands) > 0
 
-    def test_workspace_path_variations(self):
+    def test_workspace_path_variations(self) -> None:
         """Test different workspace path formats."""
         test_paths = [
             "/shows/project/shots/seq01/seq01_0010",
@@ -303,7 +304,7 @@ class TestWorkspaceCommands:
 class TestThreeDESceneLaunching:
     """Test 3DE scene launching functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup for 3DE scene tests."""
         self.launcher = CommandLauncher()
 
@@ -332,14 +333,14 @@ class TestThreeDESceneLaunching:
         self.command_spy = QSignalSpy(self.launcher.command_executed)
         self.error_spy = QSignalSpy(self.launcher.command_error)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess methods."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
         command_launcher.subprocess.run = self.original_subprocess_run
         command_launcher.subprocess.Popen = self.original_subprocess_popen
 
-    def test_launch_app_with_scene(self):
+    def test_launch_app_with_scene(self) -> None:
         """Test launching 3DE with scene file."""
         # Configure subprocess to succeed
         self.test_subprocess.return_code = 0
@@ -370,7 +371,7 @@ class TestThreeDESceneLaunching:
         assert scene.workspace_path in command
         assert "3de" in command
 
-    def test_launch_app_with_scene_unknown_app(self):
+    def test_launch_app_with_scene_unknown_app(self) -> None:
         """Test error for unknown app with scene."""
         scene = ThreeDEScene(
             show="test",
@@ -389,7 +390,7 @@ class TestThreeDESceneLaunching:
         timestamp, error = self.error_spy.at(0)
         assert "Unknown application: unknown_app" in error
 
-    def test_launch_app_with_scene_context(self):
+    def test_launch_app_with_scene_context(self) -> None:
         """Test launching app with scene context (no scene file)."""
         # Configure subprocess to succeed
         self.test_subprocess.return_code = 0
@@ -414,7 +415,7 @@ class TestThreeDESceneLaunching:
 class TestErrorHandling:
     """Test error handling and edge cases."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup for error testing."""
         self.launcher = CommandLauncher()
 
@@ -441,20 +442,20 @@ class TestErrorHandling:
 
         self.error_spy = QSignalSpy(self.launcher.command_error)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess methods."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
         command_launcher.subprocess.run = self.original_subprocess_run
         command_launcher.subprocess.Popen = self.original_subprocess_popen
 
-    def test_subprocess_execution_failure(self):
+    def test_subprocess_execution_failure(self) -> None:
         """Test handling of subprocess failures."""
         # First clear the rez side effect to allow the rez check
         self.test_subprocess.side_effect = None
 
         # Now create a custom Popen that fails
-        def failing_popen(*args, **kwargs):
+        def failing_popen(*args, **kwargs) -> NoReturn:
             raise Exception("Process execution failed")
 
         # Replace just Popen to let subprocess.run (rez check) work but Popen fail
@@ -475,13 +476,13 @@ class TestErrorHandling:
         timestamp, error = self.error_spy.at(0)
         assert "Failed to launch nuke" in error
 
-    def test_all_execution_methods_fail(self):
+    def test_all_execution_methods_fail(self) -> None:
         """Test when all execution methods fail."""
         # First clear the rez side effect to allow the rez check
         self.test_subprocess.side_effect = None
 
         # Create custom methods that always fail
-        def failing_popen(*args, **kwargs):
+        def failing_popen(*args, **kwargs) -> NoReturn:
             raise Exception("All execution failed")
 
         def failing_run(*args, **kwargs):
@@ -513,7 +514,7 @@ class TestErrorHandling:
         assert result is False
         assert self.error_spy.count() == 1
 
-    def test_special_characters_in_paths(self):
+    def test_special_characters_in_paths(self) -> None:
         """Test handling of special characters in paths."""
         # Configure subprocess to succeed
         self.test_subprocess.return_code = 0
@@ -538,7 +539,7 @@ class TestErrorHandling:
             result = self.launcher.launch_app("maya")
             assert result is True
 
-    def test_empty_workspace_path(self):
+    def test_empty_workspace_path(self) -> None:
         """Test handling of empty workspace path."""
         # Configure subprocess to succeed
         self.test_subprocess.return_code = 0
@@ -554,7 +555,7 @@ class TestErrorHandling:
 class TestNukeIntegration:
     """Test Nuke-specific integration features."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup for Nuke tests."""
         self.launcher = CommandLauncher()
 
@@ -583,14 +584,14 @@ class TestNukeIntegration:
         command_launcher.subprocess.run = self.subprocess_double.run
         command_launcher.subprocess.Popen = self.subprocess_double.Popen
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess methods."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
         command_launcher.subprocess.run = self.original_subprocess_run
         command_launcher.subprocess.Popen = self.original_subprocess_popen
 
-    def test_nuke_with_raw_plate(self):
+    def test_nuke_with_raw_plate(self) -> None:
         """Test Nuke launching with raw plate integration."""
 
         # Create test doubles for dependencies
@@ -632,7 +633,7 @@ class TestNukeIntegration:
         assert result is True
         assert len(self.test_subprocess.executed_commands) > 0
 
-    def test_nuke_with_undistortion(self):
+    def test_nuke_with_undistortion(self) -> None:
         """Test Nuke launching with undistortion."""
 
         # Create test double for UndistortionFinder
@@ -662,7 +663,7 @@ class TestNukeIntegration:
 
         assert result is True
 
-    def test_nuke_with_both_options(self):
+    def test_nuke_with_both_options(self) -> None:
         """Test Nuke with both raw plate and undistortion."""
 
         # Create test doubles for both finders
@@ -726,7 +727,7 @@ class TestNukeIntegration:
 class TestTimestampGeneration:
     """Test timestamp generation for command logging."""
 
-    def test_timestamp_format(self):
+    def test_timestamp_format(self) -> None:
         """Test timestamp format in signal emissions."""
         launcher = CommandLauncher()
 
@@ -751,7 +752,7 @@ class TestTimestampGeneration:
         assert minutes.isdigit() and 0 <= int(minutes) <= 59
         assert seconds.replace(".", "").isdigit()  # May have decimals
 
-    def test_consistent_timestamp_format(self):
+    def test_consistent_timestamp_format(self) -> None:
         """Test timestamp format consistency across signals."""
         launcher = CommandLauncher()
 

@@ -73,18 +73,18 @@ def stable_filesystem(tmp_path):
     """Filesystem operations with stability checks."""
 
     class StableFS:
-        def write_file(self, path: Path, content: str):
+        def write_file(self, path: Path, content: str) -> None:
             path.write_text(content)
             # Ensure write is complete
             assert path.exists()
             assert path.read_text() == content
 
-        def create_dir(self, path: Path):
+        def create_dir(self, path: Path) -> None:
             path.mkdir(parents=True, exist_ok=True)
             # Ensure directory is created
             assert path.is_dir()
 
-        def remove_file(self, path: Path):
+        def remove_file(self, path: Path) -> None:
             if path.exists():
                 path.unlink()
             # Ensure file is removed

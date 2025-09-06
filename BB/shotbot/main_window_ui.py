@@ -41,7 +41,7 @@ class MainWindowUI:
     focused on coordination and business logic.
     """
     
-    def __init__(self, main_window: QMainWindow):
+    def __init__(self, main_window: QMainWindow) -> None:
         """Initialize UI manager for the given main window.
         
         Args:

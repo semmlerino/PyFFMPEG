@@ -35,7 +35,7 @@ class UnifiedCacheConfig(QObject):
     expiry_time_changed = Signal(int)  # new_expiry_minutes  
     config_updated = Signal()
     
-    def __init__(self, settings_manager: SettingsManager):
+    def __init__(self, settings_manager: SettingsManager) -> None:
         """Initialize unified cache config with settings manager.
         
         Args:

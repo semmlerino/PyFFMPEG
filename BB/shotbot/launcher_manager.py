@@ -63,7 +63,7 @@ class LauncherManager(QObject):
     # Process limits
     MAX_CONCURRENT_PROCESSES = ThreadingConfig.MAX_WORKER_THREADS * 25
 
-    def __init__(self, config_dir: str | Path | None = None):
+    def __init__(self, config_dir: str | Path | None = None) -> None:
         """Initialize the launcher manager with all components.
 
         Args:
@@ -133,7 +133,7 @@ class LauncherManager(QObject):
         self._process_manager._active_workers = value
 
     @property
-    def _process_lock(self):
+    def _process_lock(self) -> Any:
         """Backward compatibility property for accessing process lock.
 
         Returns:
@@ -142,7 +142,7 @@ class LauncherManager(QObject):
         return self._process_manager._process_lock
 
     @property
-    def _cleanup_retry_timer(self):
+    def _cleanup_retry_timer(self) -> Any:
         """Backward compatibility property for accessing cleanup retry timer.
 
         Returns:

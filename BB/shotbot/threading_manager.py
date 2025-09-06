@@ -38,7 +38,7 @@ class ThreadingManager(QObject):
     threede_discovery_paused = Signal()
     threede_discovery_resumed = Signal()
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize threading manager."""
         super().__init__()
         

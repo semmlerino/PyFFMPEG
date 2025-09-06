@@ -37,7 +37,7 @@ DEBUG_VERBOSE = (
 class TimingProfiler:
     """Track and report timing for operations."""
 
-    def __init__(self, name: str = "default"):
+    def __init__(self, name: str = "default") -> None:
         """Initialize timing profiler.
 
         Args:
@@ -103,7 +103,7 @@ class TimingProfiler:
                 }
         return report
 
-    def log_report(self):
+    def log_report(self) -> None:
         """Log timing report."""
         if not self.timings:
             return
@@ -137,14 +137,14 @@ class ProcessStateTracker:
         "ERROR",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize state tracker."""
         self.states: dict[str, str] = {}
         self.state_history: dict[str, list[tuple]] = {}
         self.state_timings: dict[str, dict[str, float]] = {}
         self.enabled = DEBUG_STATE or DEBUG_ALL
 
-    def transition(self, session_id: str, to_state: str, reason: str = ""):
+    def transition(self, session_id: str, to_state: str, reason: str = "") -> None:
         """Record state transition.
 
         Args:
@@ -272,7 +272,7 @@ class SystemDiagnostics:
         return info
 
     @staticmethod
-    def log_system_info():
+    def log_system_info() -> None:
         """Log system information."""
         info = SystemDiagnostics.get_system_info()
 
@@ -287,7 +287,7 @@ class IOBufferInspector:
     """Inspect and debug I/O buffers."""
 
     @staticmethod
-    def inspect(data: str, context: str, session_id: str = ""):
+    def inspect(data: str, context: str, session_id: str = "") -> None:
         """Inspect buffer contents.
 
         Args:
@@ -327,7 +327,7 @@ class CommandTracer:
     """Trace command execution."""
 
     @staticmethod
-    def trace(command: str, session_id: str = ""):
+    def trace(command: str, session_id: str = "") -> None:
         """Trace command execution.
 
         Args:
@@ -356,12 +356,12 @@ class CommandTracer:
 class DeadlockDetector:
     """Detect potential deadlocks."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize deadlock detector."""
         self.waiting_on: dict[str, tuple] = {}
         self.enabled = DEBUG_ALL
 
-    def waiting(self, session_id: str, resource: str):
+    def waiting(self, session_id: str, resource: str) -> None:
         """Record that session is waiting for resource.
 
         Args:
@@ -376,7 +376,7 @@ class DeadlockDetector:
         # Check for long waits
         self._check_long_waits()
 
-    def done_waiting(self, session_id: str):
+    def done_waiting(self, session_id: str) -> None:
         """Record that session is done waiting.
 
         Args:
@@ -392,7 +392,7 @@ class DeadlockDetector:
                 logger.debug(f"[{session_id}] Waited {wait_time:.1f}s for {resource}")
             del self.waiting_on[session_id]
 
-    def _check_long_waits(self):
+    def _check_long_waits(self) -> None:
         """Check for sessions waiting too long."""
         current_time = time.time()
         for session_id, (resource, start_time) in list(self.waiting_on.items()):
@@ -413,7 +413,7 @@ state_tracker = ProcessStateTracker()
 deadlock_detector = DeadlockDetector()
 
 
-def setup_enhanced_debugging():
+def setup_enhanced_debugging() -> None:
     """Setup enhanced debugging based on environment variables."""
     if DEBUG_VERBOSE or DEBUG_ALL:
         logger.info("Enhanced debugging enabled")

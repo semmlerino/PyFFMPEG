@@ -42,7 +42,7 @@ class TestLauncherRefactoringSafety:
             category="Test",
         )
 
-    def test_launcher_crud_operations(self, launcher_manager, sample_launcher):
+    def test_launcher_crud_operations(self, launcher_manager, sample_launcher) -> None:
         """Verify all CRUD operations work correctly."""
         # Create
         assert launcher_manager.create_launcher_from_object(sample_launcher)
@@ -77,7 +77,7 @@ class TestLauncherRefactoringSafety:
         # Verify deletion
         assert launcher_manager.get_launcher(sample_launcher.id) is None
 
-    def test_launcher_execution(self, launcher_manager, sample_launcher):
+    def test_launcher_execution(self, launcher_manager, sample_launcher) -> None:
         """Verify launchers can execute commands."""
         # Create launcher
         launcher_manager.create_launcher_from_object(sample_launcher)
@@ -114,7 +114,7 @@ class TestLauncherRefactoringSafety:
             # Verify execution started
             assert success is True
 
-    def test_launcher_validation(self, launcher_manager):
+    def test_launcher_validation(self, launcher_manager) -> None:
         """Verify command validation works correctly."""
         # Valid commands
         valid_commands = [
@@ -140,7 +140,7 @@ class TestLauncherRefactoringSafety:
 
     def test_launcher_persistence(
         self, launcher_manager, sample_launcher, temp_config_dir
-    ):
+    ) -> None:
         """Verify launcher configurations persist correctly."""
         # Create and save launcher
         launcher_manager.create_launcher_from_object(sample_launcher)
@@ -154,7 +154,7 @@ class TestLauncherRefactoringSafety:
         assert loaded_launcher.name == sample_launcher.name
         assert loaded_launcher.command == sample_launcher.command
 
-    def test_launcher_categories(self, launcher_manager):
+    def test_launcher_categories(self, launcher_manager) -> None:
         """Verify category management works."""
         # Create launchers in different categories
         categories = ["VFX", "Pipeline", "Utility"]
@@ -179,7 +179,7 @@ class TestLauncherRefactoringSafety:
         assert len(vfx_launchers) >= 1
         assert all(launcher.category == "VFX" for launcher in vfx_launchers)
 
-    def test_process_tracking(self, launcher_manager, sample_launcher):
+    def test_process_tracking(self, launcher_manager, sample_launcher) -> None:
         """Verify process tracking functionality."""
         launcher_manager.create_launcher_from_object(sample_launcher)
 
@@ -202,7 +202,7 @@ class TestLauncherRefactoringSafety:
             assert len(process_info) > 0
             assert any(p["launcher_id"] == sample_launcher.id for p in process_info)
 
-    def test_signal_emission(self, launcher_manager, sample_launcher, qtbot):
+    def test_signal_emission(self, launcher_manager, sample_launcher, qtbot) -> None:
         """Verify Qt signals are emitted correctly."""
         launcher_manager.create_launcher_from_object(sample_launcher)
 
@@ -210,7 +210,7 @@ class TestLauncherRefactoringSafety:
         signal_emissions = []
 
         def track_signal(signal_name):
-            def handler(*args):
+            def handler(*args) -> None:
                 signal_emissions.append((signal_name, args))
 
             return handler
@@ -255,7 +255,7 @@ class TestMainWindowRefactoringSafety:
         """Ensure QApplication exists."""
         return qapp
 
-    def test_ui_initialization(self, app, qtbot):
+    def test_ui_initialization(self, app, qtbot) -> None:
         """Verify UI initializes without errors."""
         from main_window import MainWindow
 
@@ -270,7 +270,7 @@ class TestMainWindowRefactoringSafety:
         assert window.menuBar() is not None
         assert window.statusBar() is not None
 
-    def test_tab_creation(self, app, qtbot):
+    def test_tab_creation(self, app, qtbot) -> None:
         """Verify all tabs are created."""
         from main_window import MainWindow
 
@@ -288,7 +288,7 @@ class TestMainWindowRefactoringSafety:
         assert "My Shots" in tab_titles
         assert "Other 3DE scenes" in tab_titles
 
-    def test_menu_structure(self, app, qtbot):
+    def test_menu_structure(self, app, qtbot) -> None:
         """Verify menu structure is preserved."""
         from main_window import MainWindow
 
@@ -305,7 +305,7 @@ class TestMainWindowRefactoringSafety:
         assert any("File" in title for title in menu_titles)
         assert any("Help" in title for title in menu_titles)
 
-    def test_signal_connections(self, app, qtbot):
+    def test_signal_connections(self, app, qtbot) -> None:
         """Verify critical signal-slot connections work."""
         from main_window import MainWindow
 
@@ -326,7 +326,7 @@ class TestMainWindowRefactoringSafety:
 class TestCombinedIntegration:
     """Test launcher and main window work together."""
 
-    def test_launcher_execution_from_ui(self, qapp, qtbot):
+    def test_launcher_execution_from_ui(self, qapp, qtbot) -> None:
         """Verify launchers can be executed from UI context."""
         import time
 
@@ -358,7 +358,7 @@ class TestCombinedIntegration:
             assert any(launcher.id == unique_id for launcher in launchers)
 
 
-def test_import_compatibility():
+def test_import_compatibility() -> None:
     """Verify all imports still work after refactoring."""
     # These imports should not fail
     from launcher.models import (

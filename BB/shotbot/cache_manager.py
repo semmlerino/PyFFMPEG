@@ -8,12 +8,19 @@ monolithic CacheManager.
 from __future__ import annotations
 
 import logging
-import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Sequence
 
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, QRunnable, QThread, QThreadPool, Signal
+from PySide6.QtCore import (
+    QMutex,
+    QMutexLocker,
+    QObject,
+    QRunnable,
+    QThread,
+    QThreadPool,
+    Signal,
+)
 from PySide6.QtWidgets import QApplication
 
 # Use typing_extensions for override (available in venv)
@@ -36,6 +43,8 @@ from config import Config
 from exceptions import CacheError, ThumbnailError
 
 if TYPE_CHECKING:
+    import threading
+
     from settings_manager import SettingsManager
     from shot_model import Shot
     from type_definitions import (
@@ -66,7 +75,7 @@ class CacheManager(QObject):
     # Signals - maintain backward compatibility
     cache_updated = Signal()
 
-    def __init__(self, cache_dir: Path | None = None, settings_manager: SettingsManager | None = None):
+    def __init__(self, cache_dir: Path | None = None, settings_manager: SettingsManager | None = None) -> None:
         """Initialize cache manager facade with modular components.
 
         Args:
@@ -170,7 +179,7 @@ class CacheManager(QObject):
         return self._memory_manager.memory_usage_bytes
 
     @_memory_usage_bytes.setter
-    def _memory_usage_bytes(self, value: int):
+    def _memory_usage_bytes(self, value: int) -> None:
         """Backward compatibility setter for memory usage."""
         self._memory_manager.memory_usage_bytes = value
 
@@ -180,7 +189,7 @@ class CacheManager(QObject):
         return self._memory_manager.max_memory_bytes
 
     @_max_memory_bytes.setter
-    def _max_memory_bytes(self, value: int):
+    def _max_memory_bytes(self, value: int) -> None:
         """Backward compatibility setter for memory limit (test use only)."""
         # Note: In production, memory limit should be set via constructor
         # This setter exists only for backward compatibility with existing tests
@@ -368,7 +377,7 @@ class CacheManager(QObject):
             return cache_path
         return None
 
-    def _on_thumbnail_loaded(self, cache_key: str, cache_path: Path):
+    def _on_thumbnail_loaded(self, cache_key: str, cache_path: Path) -> None:
         """Handle successful thumbnail loading."""
         # Track in memory manager
         _ = self._memory_manager.track_item(cache_path)
@@ -394,7 +403,7 @@ class CacheManager(QObject):
         """Get cached shot list if valid."""
         return self._shot_cache.get_cached_shots()
 
-    def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]):
+    def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
         """Cache shot list to file."""
         _ = self._shot_cache.cache_shots(shots)
 
@@ -403,7 +412,7 @@ class CacheManager(QObject):
         """Get cached previous/approved shot list if valid."""
         return self._previous_shots_cache.get_cached_shots()
 
-    def cache_previous_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]):
+    def cache_previous_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
         """Cache previous/approved shot list to file."""
         _ = self._previous_shots_cache.cache_shots(shots)
 
@@ -418,7 +427,7 @@ class CacheManager(QObject):
 
     def cache_threede_scenes(
         self, scenes: list[ThreeDESceneDict], metadata: dict[str, object] | None = None
-    ):
+    ) -> None:
         """Cache 3DE scene list to file with optional metadata."""
         _ = self._threede_cache.cache_scenes(scenes, metadata)
 
@@ -513,7 +522,7 @@ class CacheManager(QObject):
             "details": [],
         }
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear all cached data."""
         with QMutexLocker(self._lock):
             # Clear memory tracking
@@ -546,7 +555,7 @@ class CacheManager(QObject):
             logger.info("Cache cleared successfully")
 
     # Failure tracking methods - delegate to FailureTracker
-    def clear_failed_attempts(self, cache_key: str | None = None):
+    def clear_failed_attempts(self, cache_key: str | None = None) -> None:
         """Clear failed attempts to allow immediate retry."""
         self._failure_tracker.clear_failures(cache_key)
 
@@ -747,7 +756,7 @@ class ThumbnailCacheLoader(QRunnable):
         sequence: str,
         shot: str,
         result: dict[str, object] | None = None,
-    ):
+    ) -> None:
         """Initialize with original constructor signature."""
         super().__init__()
         from cache.thumbnail_loader import ThumbnailLoader

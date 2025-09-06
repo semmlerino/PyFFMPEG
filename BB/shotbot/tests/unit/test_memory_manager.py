@@ -39,7 +39,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 class TestMemoryManagerInitialization:
     """Test MemoryManager initialization and configuration."""
 
-    def test_default_initialization(self):
+    def test_default_initialization(self) -> None:
         """MemoryManager should initialize with default config values."""
         manager = MemoryManager()
 
@@ -50,7 +50,7 @@ class TestMemoryManagerInitialization:
         assert len(manager) == 0
         assert manager.cached_items == {}
 
-    def test_custom_memory_limit(self):
+    def test_custom_memory_limit(self) -> None:
         """MemoryManager should accept custom memory limits."""
         custom_mb = 50
         manager = MemoryManager(max_memory_mb=custom_mb)
@@ -59,7 +59,7 @@ class TestMemoryManagerInitialization:
         assert manager.max_memory_bytes == expected_bytes
         assert manager.memory_usage_bytes == 0
 
-    def test_zero_memory_limit(self):
+    def test_zero_memory_limit(self) -> None:
         """MemoryManager should handle zero memory limit gracefully."""
         # Note: max_memory_mb=0 uses default due to "or" logic in constructor
         # This tests the actual behavior, not the expected behavior
@@ -70,7 +70,7 @@ class TestMemoryManagerInitialization:
         assert manager.max_memory_bytes == expected_bytes
         assert manager.is_over_limit() is False  # 0 bytes usage <= limit
 
-    def test_string_representation(self):
+    def test_string_representation(self) -> None:
         """MemoryManager should provide informative string representation."""
         manager = MemoryManager(max_memory_mb=10)
 
@@ -97,7 +97,7 @@ class TestMemoryTracking:
         """Create MemoryManager with small limit for testing."""
         return MemoryManager(max_memory_mb=1)  # 1MB limit
 
-    def test_track_item_with_file_size(self, manager: MemoryManager, temp_file: Path):
+    def test_track_item_with_file_size(self, manager: MemoryManager, temp_file: Path) -> None:
         """Tracking should detect file size automatically."""
         result = manager.track_item(temp_file)
 
@@ -113,7 +113,7 @@ class TestMemoryTracking:
 
     def test_track_item_with_explicit_size(
         self, manager: MemoryManager, temp_file: Path
-    ):
+    ) -> None:
         """Tracking should accept explicit size parameter."""
         explicit_size = 2048  # 2KB
         result = manager.track_item(temp_file, size_bytes=explicit_size)
@@ -126,7 +126,7 @@ class TestMemoryTracking:
         cached_items = manager.cached_items
         assert cached_items[str(temp_file)] == explicit_size
 
-    def test_track_nonexistent_file(self, manager: MemoryManager):
+    def test_track_nonexistent_file(self, manager: MemoryManager) -> None:
         """Tracking nonexistent file should fail gracefully."""
         nonexistent = Path("/nonexistent/file.txt")
 
@@ -137,7 +137,7 @@ class TestMemoryTracking:
         assert manager.memory_usage_bytes == 0
         assert len(manager) == 0
 
-    def test_track_item_update_size(self, manager: MemoryManager, temp_file: Path):
+    def test_track_item_update_size(self, manager: MemoryManager, temp_file: Path) -> None:
         """Re-tracking item should update size correctly."""
         # Track with initial size
         manager.track_item(temp_file, size_bytes=1000)
@@ -152,7 +152,7 @@ class TestMemoryTracking:
         cached_items = manager.cached_items
         assert cached_items[str(temp_file)] == 2000
 
-    def test_untrack_item(self, manager: MemoryManager, temp_file: Path):
+    def test_untrack_item(self, manager: MemoryManager, temp_file: Path) -> None:
         """Untracking should remove item and update memory usage."""
         # Track item first
         manager.track_item(temp_file, size_bytes=1500)
@@ -167,7 +167,7 @@ class TestMemoryTracking:
         assert len(manager) == 0
         assert str(temp_file) not in manager.cached_items
 
-    def test_untrack_nonexistent_item(self, manager: MemoryManager):
+    def test_untrack_nonexistent_item(self, manager: MemoryManager) -> None:
         """Untracking non-tracked item should return False."""
         nonexistent = Path("/nonexistent/file.txt")
 
@@ -176,7 +176,7 @@ class TestMemoryTracking:
         assert result is False
         assert manager.memory_usage_bytes == 0
 
-    def test_memory_usage_setter_backward_compatibility(self, manager: MemoryManager):
+    def test_memory_usage_setter_backward_compatibility(self, manager: MemoryManager) -> None:
         """Memory usage setter should work for backward compatibility."""
         # Set memory usage directly
         manager.memory_usage_bytes = 5000
@@ -197,7 +197,7 @@ class TestLRUEviction:
 
     def test_evict_if_needed_under_limit(
         self, manager_small: MemoryManager, tmp_path: Path
-    ):
+    ) -> None:
         """No eviction should occur when under memory limit."""
         # Create small file under limit
         small_file = tmp_path / "small.txt"
@@ -213,7 +213,7 @@ class TestLRUEviction:
 
     def test_evict_if_needed_over_limit(
         self, manager_small: MemoryManager, tmp_path: Path
-    ):
+    ) -> None:
         """Eviction should occur when over memory limit."""
         # Create file that exceeds limit
         large_file = tmp_path / "large.txt"
@@ -229,7 +229,7 @@ class TestLRUEviction:
         assert not large_file.exists()  # File should be deleted
         assert not manager_small.is_over_limit()
 
-    def test_lru_eviction_order(self, manager_small: MemoryManager, tmp_path: Path):
+    def test_lru_eviction_order(self, manager_small: MemoryManager, tmp_path: Path) -> None:
         """LRU eviction should remove oldest files first."""
         files = []
 
@@ -264,7 +264,7 @@ class TestLRUEviction:
 
     def test_evict_nonexistent_files(
         self, manager_small: MemoryManager, tmp_path: Path
-    ):
+    ) -> None:
         """Eviction should handle files that no longer exist."""
         # Track file then delete it manually
         test_file = tmp_path / "test.txt"
@@ -282,7 +282,7 @@ class TestLRUEviction:
 
     def test_evict_with_file_access_error(
         self, manager_small: MemoryManager, tmp_path: Path
-    ):
+    ) -> None:
         """Eviction should handle file access errors gracefully."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("x" * 2000)
@@ -306,7 +306,7 @@ class TestUsageStatistics:
         """Create MemoryManager for statistics testing."""
         return MemoryManager(max_memory_mb=10)
 
-    def test_get_usage_stats_empty(self, manager: MemoryManager):
+    def test_get_usage_stats_empty(self, manager: MemoryManager) -> None:
         """Usage stats should handle empty cache correctly."""
         stats = manager.get_usage_stats()
 
@@ -321,7 +321,7 @@ class TestUsageStatistics:
 
         assert stats == expected_stats
 
-    def test_get_usage_stats_with_items(self, manager: MemoryManager, tmp_path: Path):
+    def test_get_usage_stats_with_items(self, manager: MemoryManager, tmp_path: Path) -> None:
         """Usage stats should calculate correctly with tracked items."""
         # Track multiple files
         total_size = 0
@@ -345,7 +345,7 @@ class TestUsageStatistics:
         expected_avg_kb = (total_size / file_count) / 1024
         assert abs(stats["average_item_kb"] - expected_avg_kb) < 0.1
 
-    def test_is_over_limit(self, manager: MemoryManager):
+    def test_is_over_limit(self, manager: MemoryManager) -> None:
         """is_over_limit should work correctly."""
         assert not manager.is_over_limit()
 
@@ -360,7 +360,7 @@ class TestUsageStatistics:
 
         assert not manager.is_over_limit()
 
-    def test_usage_stats_zero_limit(self):
+    def test_usage_stats_zero_limit(self) -> None:
         """Usage stats should handle zero memory limit gracefully."""
         # Note: max_memory_mb=0 uses default due to "or" logic in constructor
         manager = MemoryManager(max_memory_mb=0)
@@ -371,7 +371,7 @@ class TestUsageStatistics:
         assert stats["max_mb"] == ThreadingConfig.CACHE_MAX_MEMORY_MB
         assert stats["usage_percent"] == 0.0
 
-    def test_usage_stats_true_zero_limit(self):
+    def test_usage_stats_true_zero_limit(self) -> None:
         """Test actual zero limit by directly setting the private attribute."""
         manager = MemoryManager(max_memory_mb=10)
 
@@ -392,7 +392,7 @@ class TestCacheValidation:
         """Create MemoryManager for validation testing."""
         return MemoryManager(max_memory_mb=10)
 
-    def test_validate_tracking_all_valid(self, manager: MemoryManager, tmp_path: Path):
+    def test_validate_tracking_all_valid(self, manager: MemoryManager, tmp_path: Path) -> None:
         """Validation should pass when all tracked items are valid."""
         # Track valid files
         files = []
@@ -415,7 +415,7 @@ class TestCacheValidation:
 
     def test_validate_tracking_invalid_files(
         self, manager: MemoryManager, tmp_path: Path
-    ):
+    ) -> None:
         """Validation should fix tracking for deleted files."""
         # Track files then delete some
         valid_file = tmp_path / "valid.txt"
@@ -444,7 +444,7 @@ class TestCacheValidation:
 
     def test_validate_tracking_size_mismatches(
         self, manager: MemoryManager, tmp_path: Path
-    ):
+    ) -> None:
         """Validation should fix size mismatches."""
         # Track file with wrong size
         test_file = tmp_path / "test.txt"
@@ -470,7 +470,7 @@ class TestCacheValidation:
 
     def test_validate_tracking_with_access_errors(
         self, manager: MemoryManager, tmp_path: Path
-    ):
+    ) -> None:
         """Validation should handle file access errors gracefully."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
@@ -505,7 +505,7 @@ class TestClearAndReset:
 
         return manager
 
-    def test_clear_all_tracking(self, populated_manager: MemoryManager):
+    def test_clear_all_tracking(self, populated_manager: MemoryManager) -> None:
         """clear_all_tracking should reset all state."""
         # Verify initial state
         assert len(populated_manager) > 0
@@ -524,7 +524,7 @@ class TestClearAndReset:
             file_path = Path(file_path_str)
             assert file_path.exists()
 
-    def test_clear_empty_manager(self):
+    def test_clear_empty_manager(self) -> None:
         """clear_all_tracking should work on empty manager."""
         manager = MemoryManager()
 
@@ -542,7 +542,7 @@ class TestThreadSafety:
         """Create MemoryManager for thread safety testing."""
         return MemoryManager(max_memory_mb=10)
 
-    def test_concurrent_track_untrack(self, manager: MemoryManager, tmp_path: Path):
+    def test_concurrent_track_untrack(self, manager: MemoryManager, tmp_path: Path) -> None:
         """Concurrent tracking and untracking should be thread-safe."""
         # Create multiple files
         files = []
@@ -555,14 +555,14 @@ class TestThreadSafety:
         track_started = threading.Event()
         threading.Barrier(2)  # Synchronize both threads
 
-        def track_files():
+        def track_files() -> None:
             """Track files in worker thread."""
             track_started.set()  # Signal that tracking has started
             for file_path in files[:5]:
                 manager.track_item(file_path)
                 # No sleep needed - natural thread scheduling provides contention
 
-        def untrack_files():
+        def untrack_files() -> None:
             """Untrack files in worker thread."""
             track_started.wait()  # Wait for tracking to start
             for file_path in files[2:7]:  # Overlap with tracking
@@ -586,7 +586,7 @@ class TestThreadSafety:
         validation = manager.validate_tracking()
         assert validation["tracked_usage_bytes"] == final_usage
 
-    def test_concurrent_statistics_access(self, manager: MemoryManager, tmp_path: Path):
+    def test_concurrent_statistics_access(self, manager: MemoryManager, tmp_path: Path) -> None:
         """Concurrent access to statistics should be thread-safe."""
         # Track some files
         for i in range(5):
@@ -597,7 +597,7 @@ class TestThreadSafety:
         stats_results = []
         errors = []
 
-        def get_stats_worker():
+        def get_stats_worker() -> None:
             """Get statistics in worker thread."""
             try:
                 for _ in range(20):
@@ -607,7 +607,7 @@ class TestThreadSafety:
             except Exception as e:
                 errors.append(e)
 
-        def modify_tracking_worker():
+        def modify_tracking_worker() -> None:
             """Modify tracking in worker thread."""
             try:
                 file_path = tmp_path / "dynamic.txt"
@@ -640,7 +640,7 @@ class TestThreadSafety:
             assert stats["total_bytes"] >= 0
             assert stats["tracked_items"] >= 0
 
-    def test_concurrent_validation(self, manager: MemoryManager, tmp_path: Path):
+    def test_concurrent_validation(self, manager: MemoryManager, tmp_path: Path) -> None:
         """Concurrent validation should be thread-safe."""
         # Create and track files
         files = []
@@ -653,13 +653,13 @@ class TestThreadSafety:
         validation_results = []
         validation_started = threading.Event()
 
-        def validation_worker():
+        def validation_worker() -> None:
             """Run validation in worker thread."""
             validation_started.set()  # Signal that validation has started
             result = manager.validate_tracking()
             validation_results.append(result)
 
-        def file_deletion_worker():
+        def file_deletion_worker() -> None:
             """Delete some files during validation."""
             validation_started.wait()  # Wait for validation to start
             for file_path in files[::2]:  # Delete every other file
@@ -691,7 +691,7 @@ class TestThreadSafety:
 class TestEdgeCasesAndErrorConditions:
     """Test edge cases and error conditions."""
 
-    def test_track_item_with_zero_size(self, tmp_path: Path):
+    def test_track_item_with_zero_size(self, tmp_path: Path) -> None:
         """Tracking item with zero size should work correctly."""
         manager = MemoryManager(max_memory_mb=1)
 
@@ -706,7 +706,7 @@ class TestEdgeCasesAndErrorConditions:
         assert manager.memory_usage_bytes == 0
         assert len(manager) == 1
 
-    def test_track_item_with_negative_size(self, tmp_path: Path):
+    def test_track_item_with_negative_size(self, tmp_path: Path) -> None:
         """Tracking with negative size should be handled gracefully."""
         manager = MemoryManager(max_memory_mb=1)
 
@@ -723,7 +723,7 @@ class TestEdgeCasesAndErrorConditions:
         manager.untrack_item(test_file)
         assert manager.memory_usage_bytes == 0  # Should use max(0, ...)
 
-    def test_memory_usage_consistency_after_errors(self, tmp_path: Path):
+    def test_memory_usage_consistency_after_errors(self, tmp_path: Path) -> None:
         """Memory usage should remain consistent even after errors."""
         manager = MemoryManager(max_memory_mb=1)
 
@@ -742,11 +742,11 @@ class TestEdgeCasesAndErrorConditions:
         assert manager.memory_usage_bytes == initial_usage
         assert len(manager) == 1
 
-    def test_property_access_thread_safety(self):
+    def test_property_access_thread_safety(self) -> None:
         """Property access should be thread-safe."""
         manager = MemoryManager(max_memory_mb=5)
 
-        def property_access_worker():
+        def property_access_worker() -> None:
             """Access properties in worker thread."""
             for _ in range(50):
                 _ = manager.memory_usage_bytes
@@ -762,7 +762,7 @@ class TestEdgeCasesAndErrorConditions:
 
         # Should complete without errors (any threading issues would cause crashes)
 
-    def test_evict_with_no_tracked_items(self):
+    def test_evict_with_no_tracked_items(self) -> None:
         """Eviction should handle empty manager gracefully."""
         manager = MemoryManager(max_memory_mb=0.001)  # Very small limit
 

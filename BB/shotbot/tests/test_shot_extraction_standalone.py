@@ -209,7 +209,7 @@ def test_3de_file_paths():
     return failed == 0
 
 
-def main():
+def main() -> int:
     """Run all tests."""
     print("\n" + "=" * 60)
     print("SHOT EXTRACTION STANDALONE TEST")

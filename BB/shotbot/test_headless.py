@@ -14,7 +14,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def test_headless_detection():
+def test_headless_detection() -> None:
     """Test headless environment detection."""
     logger.info("=" * 50)
     logger.info("Testing headless detection")
@@ -58,7 +58,7 @@ def test_headless_detection():
         os.environ.update(original_env)
 
 
-def test_headless_qt_config():
+def test_headless_qt_config() -> None:
     """Test Qt configuration for headless."""
     logger.info("=" * 50)
     logger.info("Testing Qt headless configuration")
@@ -89,7 +89,7 @@ def test_headless_qt_config():
         os.environ.update(original_env)
 
 
-def test_headless_app_creation():
+def test_headless_app_creation() -> None:
     """Test creating headless QApplication."""
     logger.info("=" * 50)
     logger.info("Testing headless QApplication creation")
@@ -116,7 +116,7 @@ def test_headless_app_creation():
     app.quit()
 
 
-def test_headless_main_window():
+def test_headless_main_window() -> None:
     """Test HeadlessMainWindow."""
     logger.info("=" * 50)
     logger.info("Testing HeadlessMainWindow")
@@ -145,7 +145,7 @@ def test_headless_main_window():
     logger.info(f"✅ Returns {len(shots)} shots")
 
 
-def test_headless_shotbot_command():
+def test_headless_shotbot_command() -> None:
     """Test running shotbot with --headless flag."""
     logger.info("=" * 50)
     logger.info("Testing shotbot --headless command")
@@ -190,7 +190,7 @@ def test_headless_shotbot_command():
         logger.error(f"❌ Error running headless: {e}")
 
 
-def test_decorators():
+def test_decorators() -> None:
     """Test headless decorators."""
     logger.info("=" * 50)
     logger.info("Testing headless decorators")
@@ -204,7 +204,7 @@ def test_decorators():
     try:
         # Test skip_if_headless decorator
         @HeadlessMode.skip_if_headless
-        def ui_operation():
+        def ui_operation() -> str:
             return "UI operation executed"
         
         # In normal mode - make sure to remove headless indicators
@@ -232,7 +232,7 @@ def test_decorators():
         os.environ.update(original_env)
 
 
-def main():
+def main() -> None:
     """Run all tests."""
     logger.info("Starting headless mode tests...")
     

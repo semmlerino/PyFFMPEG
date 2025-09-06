@@ -23,11 +23,11 @@ class TestQtIntegration:
         model.cleanup()
         model.deleteLater()
 
-    def test_event_loop_responsiveness(self, qt_model, qtbot):
+    def test_event_loop_responsiveness(self, qt_model, qtbot) -> None:
         """Test that UI remains responsive during background loading."""
 
         # Mock slow process pool
-        def slow_command(*args, **kwargs):
+        def slow_command(*args, **kwargs) -> str:
             # Process events while "loading"
             for i in range(10):
                 qtbot.wait(10)  # 10ms intervals
@@ -49,7 +49,7 @@ class TestQtIntegration:
         # Event loop should remain responsive
         loop_responsive = True
 
-        def check_responsiveness():
+        def check_responsiveness() -> None:
             nonlocal loop_responsive
             loop_responsive = True
 
@@ -59,11 +59,11 @@ class TestQtIntegration:
 
         assert loop_responsive, "Event loop was blocked"
 
-    def test_timer_based_refresh_integration(self, qt_model, qtbot):
+    def test_timer_based_refresh_integration(self, qt_model, qtbot) -> None:
         """Test integration with QTimer-based refresh patterns."""
         refresh_count = 0
 
-        def on_refresh():
+        def on_refresh() -> None:
             nonlocal refresh_count
             refresh_count += 1
             qt_model.refresh_shots()
@@ -85,12 +85,12 @@ class TestQtIntegration:
         # Should have completed multiple refreshes
         assert refresh_count >= 3, f"Only {refresh_count} refreshes in 200ms"
 
-    def test_signal_slot_performance(self, qt_model, qtbot):
+    def test_signal_slot_performance(self, qt_model, qtbot) -> None:
         """Test performance of signal-slot connections."""
         signal_count = 0
         signal_times = []
 
-        def count_signals():
+        def count_signals() -> None:
             nonlocal signal_count
             signal_count += 1
             signal_times.append(time.perf_counter())
@@ -116,7 +116,7 @@ class TestQtIntegration:
             signal_duration = signal_times[-1] - signal_times[0]
             assert signal_duration < 1.0, f"Signals took {signal_duration:.3f}s"
 
-    def test_memory_cleanup_in_qt_context(self, qt_model, qtbot):
+    def test_memory_cleanup_in_qt_context(self, qt_model, qtbot) -> None:
         """Test memory cleanup works properly in Qt context."""
         _initial_loader_count = 0  # Not used in this test
 
@@ -135,7 +135,7 @@ class TestQtIntegration:
         if qt_model._async_loader:
             assert not qt_model._async_loader.isRunning()
 
-    def test_widget_lifecycle_integration(self, real_cache_manager, qtbot):
+    def test_widget_lifecycle_integration(self, real_cache_manager, qtbot) -> None:
         """Test model lifecycle matches Qt widget patterns."""
         # Create model
         model = OptimizedShotModel(real_cache_manager)
@@ -161,7 +161,7 @@ class TestQtIntegration:
 class TestPerformanceValidation:
     """Validate actual performance improvements claimed in optimization."""
 
-    def test_startup_time_improvement_validation(self, real_cache_manager):
+    def test_startup_time_improvement_validation(self, real_cache_manager) -> None:
         """Validate the claimed <0.1s startup time."""
         # Test with cached data
         model = OptimizedShotModel(real_cache_manager)
@@ -199,7 +199,7 @@ class TestPerformanceValidation:
 
         print(f"Startup performance: avg={avg_time:.3f}s, max={max_time:.3f}s")
 
-    def test_memory_usage_optimization(self, real_cache_manager):
+    def test_memory_usage_optimization(self, real_cache_manager) -> None:
         """Test memory usage remains reasonable with optimizations."""
         import os
 
@@ -234,14 +234,14 @@ class TestPerformanceValidation:
 
         model.cleanup()
 
-    def test_background_load_efficiency(self, real_cache_manager, qtbot):
+    def test_background_load_efficiency(self, real_cache_manager, qtbot) -> None:
         """Test that background loading is actually efficient."""
         model = OptimizedShotModel(real_cache_manager)
 
         # Mock process pool with timing simulation
         execution_count = 0
 
-        def timed_command(*args, **kwargs):
+        def timed_command(*args, **kwargs) -> str:
             nonlocal execution_count
             execution_count += 1
             # Simulate realistic command time

@@ -29,7 +29,7 @@ class ThreadSafeThumbnailCache:
     - Main thread assertions prevent accidental QPixmap creation in worker threads
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize thread-safe thumbnail cache."""
         self._image_cache: dict[str, QImage] = {}  # QImage (thread-safe)
         self._pixmap_cache: dict[str, QPixmap] = {}  # QPixmap (main thread only)
@@ -233,7 +233,6 @@ def create_thread_safe_pixmap(path: Path, size: tuple[int, int] | None = None) -
 if __name__ == "__main__":
     # Demo the thread-safe cache
     import sys
-    from pathlib import Path
 
     from PySide6.QtWidgets import QApplication
     

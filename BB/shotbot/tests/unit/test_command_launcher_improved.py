@@ -24,7 +24,7 @@ pytestmark = pytest.mark.unit
 class TestCommandLauncherImproved:
     """Improved tests using test doubles instead of mocks."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with real components and test doubles."""
         # Set up subprocess double (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
@@ -60,13 +60,13 @@ class TestCommandLauncherImproved:
             lambda timestamp, error: self.emitted_errors.append((timestamp, error))
         )
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up subprocess doubles."""
         # Restore original subprocess methods
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_Popen
 
-    def test_launch_app_success_behavior(self):
+    def test_launch_app_success_behavior(self) -> None:
         """Test successful app launch BEHAVIOR, not implementation."""
         # Arrange: Configure subprocess double for success
         self.test_subprocess.set_command_output("nuke", 0, "Application started", "")
@@ -84,7 +84,7 @@ class TestCommandLauncherImproved:
         assert "nuke" in command  # Correct app launched
         assert len(self.emitted_errors) == 0  # No errors
 
-    def test_launch_app_failure_behavior(self):
+    def test_launch_app_failure_behavior(self) -> None:
         """Test app launch failure BEHAVIOR."""
         # Arrange: Configure subprocess double to raise exception
         self.test_subprocess.side_effect = FileNotFoundError("Command not found")
@@ -103,7 +103,7 @@ class TestCommandLauncherImproved:
         # Command is still logged before the failure
         assert len(self.emitted_commands) == 1  # Command logged before error
 
-    def test_launch_without_shot_behavior(self):
+    def test_launch_without_shot_behavior(self) -> None:
         """Test launching without shot context."""
         # Act: Launch without setting shot
         result = self.launcher.launch_app("maya")
@@ -115,7 +115,7 @@ class TestCommandLauncherImproved:
         assert "No shot selected" in error
         assert len(self.emitted_commands) == 0
 
-    def test_concurrent_launches_behavior(self):
+    def test_concurrent_launches_behavior(self) -> None:
         """Test concurrent app launches (real threading behavior)."""
         # Arrange: Set up shot context and configure subprocess double for success
         self.launcher.current_shot = MagicMock(
@@ -142,7 +142,7 @@ class TestCommandLauncherImproved:
         # The actual subprocess success/failure is implementation detail
         # What matters is that commands are logged and attempted
 
-    def test_command_formatting_behavior(self):
+    def test_command_formatting_behavior(self) -> None:
         """Test command formatting with actual app launch."""
         # Arrange: Configure subprocess double and shot with test data
         self.test_subprocess.set_command_output(
@@ -163,7 +163,7 @@ class TestCommandLauncherImproved:
         timestamp, command = self.emitted_commands[0]  # Unpack timestamp and command
         assert "/shows/project_x/seq99/0420" in command  # Workspace path included
 
-    def test_workspace_change_behavior(self):
+    def test_workspace_change_behavior(self) -> None:
         """Test behavior when workspace changes."""
         # Arrange: Initial shot and configure subprocess double
         shot1 = MagicMock(
@@ -195,7 +195,7 @@ class TestCommandLauncherImproved:
 class TestCommandLauncherIntegration:
     """Integration tests with real filesystem."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with real temp directories."""
         self.temp_dir = Path(tempfile.mkdtemp())
         self.workspace = self.temp_dir / "workspace"
@@ -205,13 +205,13 @@ class TestCommandLauncherIntegration:
         (self.workspace / "scripts").mkdir()
         (self.workspace / "renders").mkdir()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up temp files."""
 
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
-    def test_real_workspace_navigation(self):
+    def test_real_workspace_navigation(self) -> None:
         """Test with real filesystem operations."""
 
         launcher = CommandLauncher()
@@ -227,7 +227,7 @@ class TestCommandLauncherIntegration:
         result = launcher.launch_app("nuke")  # Should not crash with real path
         assert isinstance(result, bool)  # Should return boolean success/failure
 
-    def test_missing_workspace_handling(self):
+    def test_missing_workspace_handling(self) -> None:
         """Test behavior with missing workspace."""
 
         launcher = CommandLauncher()

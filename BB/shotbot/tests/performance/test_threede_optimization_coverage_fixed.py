@@ -29,7 +29,7 @@ pytestmark = [pytest.mark.performance]
 class DirectoryCache:
     """Mock directory cache for testing."""
 
-    def __init__(self, ttl_seconds: int = 300):
+    def __init__(self, ttl_seconds: int = 300) -> None:
         self.ttl_seconds = ttl_seconds
         self._cache = {}
         self._stats = {"hits": 0, "misses": 0, "total_entries": 0}
@@ -48,7 +48,7 @@ class DirectoryCache:
         self._stats["misses"] += 1
         return None
 
-    def set_listing(self, path: Path, listing):
+    def set_listing(self, path: Path, listing) -> None:
         """Set cached directory listing."""
         self._cache[str(path)] = (listing, time.time())
         self._stats["total_entries"] = len(self._cache)
@@ -61,7 +61,7 @@ class DirectoryCache:
 class TestDirectoryCachePerformance:
     """Test the directory caching system thoroughly."""
 
-    def test_cache_basic_operations(self):
+    def test_cache_basic_operations(self) -> None:
         """Test basic cache operations."""
         cache = DirectoryCache(ttl_seconds=1)
 
@@ -83,7 +83,7 @@ class TestDirectoryCachePerformance:
         assert stats["total_entries"] == 1
 
     @patch("time.time")
-    def test_cache_ttl_expiration(self, mock_time):
+    def test_cache_ttl_expiration(self, mock_time) -> None:
         """Test cache TTL expiration - OPTIMIZED: Mock time instead of sleep."""
         cache = DirectoryCache(ttl_seconds=0.1)  # Very short TTL
 
@@ -101,7 +101,7 @@ class TestDirectoryCachePerformance:
         assert cache.get_listing(test_path) is None
 
     @pytest.mark.slow
-    def test_cache_performance_with_many_entries(self):
+    def test_cache_performance_with_many_entries(self) -> None:
         """Test cache performance with many entries - OPTIMIZED: Reduced from 1000 to 100."""
         cache = DirectoryCache(ttl_seconds=300)
 

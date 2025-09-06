@@ -25,7 +25,7 @@ from test_doubles_library import TestCacheManager
 class ExtendedTestCacheManager(TestCacheManager):
     """Extended TestCacheManager with 3DE scene support."""
 
-    def __init__(self, cache_dir=None):
+    def __init__(self, cache_dir=None) -> None:
         """Initialize with additional 3DE scene support."""
         super().__init__(cache_dir)
         self._cached_threede_scenes = []
@@ -34,7 +34,7 @@ class ExtendedTestCacheManager(TestCacheManager):
         """Get cached 3DE scenes (for MainWindow compatibility)."""
         return self._cached_threede_scenes
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Shutdown method for MainWindow compatibility."""
         # Test double: just clear caches
         self.clear_cache()
@@ -52,7 +52,7 @@ class TestFeatureFlagSwitching:
         yield
         self.temp_dir.cleanup()
 
-    def test_standard_model_when_flag_not_set(self, qtbot):
+    def test_standard_model_when_flag_not_set(self, qtbot) -> None:
         """Test that OptimizedShotModel is used when legacy flag is not set (default behavior)."""
         # Clear environment variable to use default
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
@@ -88,7 +88,7 @@ class TestFeatureFlagSwitching:
                             window._threede_worker.wait(1000)
                     window.close()
 
-    def test_legacy_model_when_flag_set(self, qtbot):
+    def test_legacy_model_when_flag_set(self, qtbot) -> None:
         """Test that ShotModel is used when legacy flag is set."""
         # Set environment variable
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
@@ -120,7 +120,7 @@ class TestFeatureFlagSwitching:
             # Clean up environment
             os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
-    def test_flag_values_recognized(self, qtbot):
+    def test_flag_values_recognized(self, qtbot) -> None:
         """Test that various flag values are recognized correctly for legacy model."""
         test_cases = [
             ("1", True),  # Use legacy ShotModel
@@ -200,7 +200,7 @@ class TestFeatureFlagSwitching:
             finally:
                 os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
-    def test_both_models_share_same_interface(self):
+    def test_both_models_share_same_interface(self) -> None:
         """Test that both models implement the same interface."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
@@ -231,7 +231,7 @@ class TestFeatureFlagSwitching:
             assert callable(getattr(standard_model, method_name))
             assert callable(getattr(optimized_model, method_name))
 
-    def test_signal_compatibility(self):
+    def test_signal_compatibility(self) -> None:
         """Test that both models emit compatible signals."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
@@ -258,7 +258,7 @@ class TestFeatureFlagSwitching:
                 f"OptimizedShotModel missing signal: {signal_name}"
             )
 
-    def test_cache_sharing_between_models(self):
+    def test_cache_sharing_between_models(self) -> None:
         """Test that cache is properly shared when switching models."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
@@ -284,7 +284,7 @@ class TestFeatureFlagSwitching:
         optimized_shots = {s.full_name for s in optimized_model.get_shots()}
         assert standard_shots == optimized_shots
 
-    def test_cleanup_on_model_switch(self):
+    def test_cleanup_on_model_switch(self) -> None:
         """Test that cleanup is properly handled when switching models."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
@@ -293,7 +293,7 @@ class TestFeatureFlagSwitching:
 
         # Create a test double for async loader
         class TestAsyncLoader:
-            def __init__(self):
+            def __init__(self) -> None:
                 self.is_running = True
                 self.stopped = False
                 self.waited = False
@@ -302,15 +302,15 @@ class TestFeatureFlagSwitching:
             def isRunning(self):
                 return self.is_running
 
-            def stop(self):
+            def stop(self) -> None:
                 self.stopped = True
                 self.is_running = False
 
-            def wait(self, timeout=None):
+            def wait(self, timeout=None) -> bool:
                 self.waited = True
                 return True
 
-            def deleteLater(self):
+            def deleteLater(self) -> None:
                 self.deleted = True
 
         test_loader = TestAsyncLoader()
@@ -327,7 +327,7 @@ class TestFeatureFlagSwitching:
         # Verify loader was cleared
         assert optimized_model._async_loader is None
 
-    def test_performance_metrics_available_in_both(self):
+    def test_performance_metrics_available_in_both(self) -> None:
         """Test that performance metrics are available in both models."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
@@ -363,7 +363,7 @@ class TestMainWindowIntegration:
         self.qtbot = qtbot
         yield
 
-    def test_window_initialization_with_default_model(self, qtbot):
+    def test_window_initialization_with_default_model(self, qtbot) -> None:
         """Test that MainWindow initializes correctly with default optimized model."""
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
@@ -396,7 +396,7 @@ class TestMainWindowIntegration:
                             window._threede_worker.wait(1000)
                     window.close()
 
-    def test_window_initialization_with_legacy_model(self, qtbot):
+    def test_window_initialization_with_legacy_model(self, qtbot) -> None:
         """Test that MainWindow initializes correctly with legacy model."""
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
@@ -426,7 +426,7 @@ class TestMainWindowIntegration:
         finally:
             os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
-    def test_closeEvent_handles_optimized_model(self, qtbot):
+    def test_closeEvent_handles_optimized_model(self, qtbot) -> None:
         """Test that closeEvent properly handles OptimizedShotModel cleanup (default behavior)."""
         # Use default OptimizedShotModel (no environment variable needed)
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
@@ -453,7 +453,7 @@ class TestMainWindowIntegration:
                         cleanup_called = False
                         original_cleanup = window.shot_model.cleanup
 
-                        def track_cleanup():
+                        def track_cleanup() -> None:
                             nonlocal cleanup_called
                             cleanup_called = True
                             original_cleanup()
@@ -462,7 +462,7 @@ class TestMainWindowIntegration:
 
                         # Create test close event
                         class TestCloseEvent:
-                            def accept(self):
+                            def accept(self) -> None:
                                 pass
 
                         test_event = TestCloseEvent()

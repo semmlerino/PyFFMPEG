@@ -53,7 +53,7 @@ class TestAsyncCallbackRaceConditions:
             Shot("show2", "seq2", "shot3", "/workspace/shot3"),
         ]
 
-    def test_shot_removal_during_async_callback(self, model, test_shots, qtbot):
+    def test_shot_removal_during_async_callback(self, model, test_shots, qtbot) -> None:
         """Test callback handling when shot is removed from model during async operation.
 
         This is the critical race condition fix - callbacks should handle
@@ -85,7 +85,7 @@ class TestAsyncCallbackRaceConditions:
         assert model.rowCount() == 2
         assert shots_updated_spy.count() == 1  # From set_shots call
 
-    def test_find_shot_by_full_name_race_protection(self, model, test_shots):
+    def test_find_shot_by_full_name_race_protection(self, model, test_shots) -> None:
         """Test _find_shot_by_full_name handles concurrent access safely."""
         model.set_shots(test_shots)
 
@@ -104,7 +104,7 @@ class TestAsyncCallbackRaceConditions:
 
     def test_immutable_shot_identifier_capture(
         self, model, test_shots, qtbot, tmp_path, monkeypatch
-    ):
+    ) -> None:
         """Test that shot_full_name is captured correctly for async callbacks.
 
         The fix captures shot.full_name as an immutable string before the
@@ -123,7 +123,7 @@ class TestAsyncCallbackRaceConditions:
         handler_calls = []
         original_handler = model._handle_thumbnail_success_atomically
 
-        def track_handler(shot_full_name, cached_path):
+        def track_handler(shot_full_name, cached_path) -> None:
             handler_calls.append((shot_full_name, cached_path))
             # Call original to maintain behavior
             original_handler(shot_full_name, cached_path)
@@ -159,7 +159,7 @@ class TestAsyncCallbackRaceConditions:
                     assert "/cache/thumbnail.jpg" in handler_calls[0][1]
                 # If handler wasn't called, that's OK - the key test is that loading state was set
 
-    def test_qmetaobject_invoke_method_thread_safety(self, model, test_shots, qtbot):
+    def test_qmetaobject_invoke_method_thread_safety(self, model, test_shots, qtbot) -> None:
         """Test cross-thread callback safety with string-based invocation.
 
         Tests that the _handle_thumbnail_success_atomically method can be
@@ -170,7 +170,7 @@ class TestAsyncCallbackRaceConditions:
         # Track method invocations
         invocation_results = []
 
-        def mock_handler(shot_full_name, cached_path):
+        def mock_handler(shot_full_name, cached_path) -> None:
             invocation_results.append(
                 {"shot_full_name": shot_full_name, "cached_path": cached_path}
             )
@@ -196,7 +196,7 @@ class TestAsyncCallbackRaceConditions:
             assert result["shot_full_name"] == test_shots[0].full_name
             assert result["cached_path"] == "/cache/test.jpg"
 
-    def test_concurrent_thumbnail_loading(self, model, test_shots, qtbot, tmp_path, monkeypatch):
+    def test_concurrent_thumbnail_loading(self, model, test_shots, qtbot, tmp_path, monkeypatch) -> None:
         """Test multiple simultaneous thumbnail load operations for thread safety."""
         # Create fake thumbnail files for each shot
         thumbnail_paths = {}
@@ -240,7 +240,7 @@ class TestAsyncCallbackRaceConditions:
 
     def test_thumbnail_cache_consistency_during_model_reset(
         self, model, test_shots, qtbot
-    ):
+    ) -> None:
         """Test that thumbnail cache remains consistent during model reset operations."""
         model.set_shots(test_shots)
 
@@ -265,7 +265,7 @@ class TestAsyncCallbackRaceConditions:
         assert len(model._thumbnail_cache) == 0
         assert len(model._loading_states) == 0
 
-    def test_async_callback_error_handling(self, model, test_shots, qtbot):
+    def test_async_callback_error_handling(self, model, test_shots, qtbot) -> None:
         """Test error handling in async callbacks doesn't crash the model."""
         model.set_shots(test_shots)
 
@@ -298,14 +298,14 @@ class TestShotItemModelCore:
         yield model
         model.deleteLater()
 
-    def test_model_initialization(self, model):
+    def test_model_initialization(self, model) -> None:
         """Test model initializes correctly."""
         assert model.rowCount() == 0
         assert isinstance(model._thumbnail_cache, dict)
         assert isinstance(model._loading_states, dict)
         assert model._cache_manager is not None
 
-    def test_shot_data_access(self, model):
+    def test_shot_data_access(self, model) -> None:
         """Test data access through Qt model interface."""
         test_shots = [Shot("show", "seq", "shot", "/path")]
         model.set_shots(test_shots)
@@ -319,7 +319,7 @@ class TestShotItemModelCore:
         assert model.data(index, ShotRole.SequenceRole) == "seq"
         assert model.data(index, ShotRole.ShotNameRole) == "shot"
 
-    def test_selection_handling(self, model):
+    def test_selection_handling(self, model) -> None:
         """Test selection state management."""
         test_shots = [Shot("show", "seq", "shot1", "/path1")]
         model.set_shots(test_shots)
@@ -338,7 +338,7 @@ class TestShotItemModelCore:
         assert success
         assert model.data(index, ShotRole.IsSelectedRole) is False
 
-    def test_refresh_shots_change_detection(self, model):
+    def test_refresh_shots_change_detection(self, model) -> None:
         """Test intelligent change detection during refresh."""
         original_shots = [Shot("show", "seq", "shot1", "/path1")]
         model.set_shots(original_shots)

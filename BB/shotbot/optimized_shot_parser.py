@@ -34,7 +34,7 @@ _GLOBAL_PATH_PATTERN = re.compile(
 class OptimizedShotParser:
     """Optimized shot parser with single-pass processing for 72% improvement."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize optimized parser using global patterns."""
         # Use global patterns for better performance
         self._ws_pattern = _GLOBAL_WS_PATTERN
@@ -163,12 +163,12 @@ def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
                 if shot_dir.startswith(sequence):
                     if len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == '_':
                         shot = shot_dir[len(sequence) + 1:]
-                        result = ParseResult(show, sequence, shot, workspace_path)
+                        ParseResult(show, sequence, shot, workspace_path)
                 elif '_' in shot_dir:
                     shot = shot_dir.rsplit('_', 1)[-1]
-                    result = ParseResult(show, sequence, shot, workspace_path)
+                    ParseResult(show, sequence, shot, workspace_path)
                 else:
-                    result = ParseResult(show, sequence, shot_dir, workspace_path)
+                    ParseResult(show, sequence, shot_dir, workspace_path)
     original_time = time.perf_counter() - start_time
     
     # Benchmark optimized parser

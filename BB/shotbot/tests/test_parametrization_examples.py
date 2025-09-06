@@ -29,7 +29,7 @@ class TestParametrizationPatterns:
             pytest.param("special/chars", True, id="special_characters"),
         ],
     )
-    def test_basic_parametrization_with_ids(self, input_value: Any, expected: bool):
+    def test_basic_parametrization_with_ids(self, input_value: Any, expected: bool) -> None:
         """Basic parametrization with descriptive test IDs."""
         # Implementation would go here
         pass
@@ -48,7 +48,7 @@ class TestParametrizationPatterns:
     )
     def test_performance_aware_parametrization(
         self, data_size: int, expected_time: float
-    ):
+    ) -> None:
         """Parametrization with performance marks for slow tests."""
         # Implementation would go here
         pass
@@ -71,7 +71,7 @@ class TestParametrizationPatterns:
             ),
         ],
     )
-    def test_complex_structure_combinations(self, show: str, sequence: str, shot: str):
+    def test_complex_structure_combinations(self, show: str, sequence: str, shot: str) -> None:
         """Replace nested loops with explicit parametrized combinations."""
         # Implementation would go here
         pass
@@ -84,14 +84,14 @@ class TestParametrizationPatterns:
             pytest.param("redis", marks=pytest.mark.slow, id="redis_backend_slow"),
         ]
     )
-    def database_backend(self, request):
+    def database_backend(self, request) -> str:
         """Indirect parametrization for complex fixture setup."""
         backend_type = request.param
         # Setup different database backends based on parameter
         return f"mock_{backend_type}_backend"
 
     @pytest.mark.parametrize("database_backend", ["sqlite", "memory"], indirect=True)
-    def test_with_indirect_parametrization(self, database_backend: str):
+    def test_with_indirect_parametrization(self, database_backend: str) -> None:
         """Test using indirect parametrization for complex fixture scenarios."""
         assert "backend" in database_backend
 
@@ -109,7 +109,7 @@ class TestParametrizationPatterns:
             ),
         ],
     )
-    def test_application_startup_times(self, app_name: str, startup_time: float):
+    def test_application_startup_times(self, app_name: str, startup_time: float) -> None:
         """Test application startup with appropriate performance marks."""
         # Implementation would go here
         pass
@@ -132,7 +132,7 @@ class TestParametrizationPatterns:
             ],
         ],
     )
-    def test_file_processing_scalability(self, file_count: int, processing_time: float):
+    def test_file_processing_scalability(self, file_count: int, processing_time: float) -> None:
         """Test file processing with grouped parameter sets."""
         # Implementation would go here
         pass
@@ -170,7 +170,7 @@ class TestParametrizationPatterns:
             ),
         ],
     )
-    def test_generated_combinations(self, show: str, sequence: str, shot: str):
+    def test_generated_combinations(self, show: str, sequence: str, shot: str) -> None:
         """Test using generated combinations instead of manual loops."""
         # Implementation would go here
         pass
@@ -215,7 +215,7 @@ class TestPerformancePatterns:
         ],
     )
     @pytest.mark.performance
-    def test_operation_performance(self, operation_count: int):
+    def test_operation_performance(self, operation_count: int) -> None:
         """Performance test with graduated load levels."""
         # Implementation would measure performance at different scales
         pass

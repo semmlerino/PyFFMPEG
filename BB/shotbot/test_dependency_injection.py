@@ -11,7 +11,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def test_production_mode():
+def test_production_mode() -> None:
     """Test that production mode works."""
     logger.info("=" * 50)
     logger.info("Testing PRODUCTION mode")
@@ -35,7 +35,7 @@ def test_production_mode():
     pool.shutdown()
     ProcessPoolFactory.reset()
 
-def test_mock_mode():
+def test_mock_mode() -> None:
     """Test that mock mode works."""
     logger.info("=" * 50)
     logger.info("Testing MOCK mode")
@@ -60,14 +60,15 @@ def test_mock_mode():
     
     # Test that it has demo data
     result = pool.execute_workspace_command("ws -sg")
-    logger.info(f"Mock data returned: {len(result.split('\\n'))} lines")
+    lines = result.split('\n')
+    logger.info(f"Mock data returned: {len(lines)} lines")
     assert "workspace" in result, "Mock should return workspace data"
     logger.info("✅ Mock returns demo data")
     
     # Clean up
     ProcessPoolFactory.reset()
 
-def test_custom_injection():
+def test_custom_injection() -> None:
     """Test custom implementation injection."""
     logger.info("=" * 50)
     logger.info("Testing CUSTOM injection")
@@ -104,7 +105,7 @@ def test_custom_injection():
     # Clean up
     ProcessPoolFactory.reset()
 
-def test_singleton_behavior():
+def test_singleton_behavior() -> None:
     """Test that factory maintains singleton behavior."""
     logger.info("=" * 50)
     logger.info("Testing SINGLETON behavior")
@@ -127,7 +128,7 @@ def test_singleton_behavior():
     pool1.shutdown()
     ProcessPoolFactory.reset()
 
-def test_backward_compatibility():
+def test_backward_compatibility() -> None:
     """Test that old code still works."""
     logger.info("=" * 50)
     logger.info("Testing BACKWARD COMPATIBILITY")
@@ -151,7 +152,7 @@ def test_backward_compatibility():
     pool.shutdown()
     ProcessPoolFactory.reset()
 
-def main():
+def main() -> None:
     """Run all tests."""
     logger.info("Starting dependency injection tests...")
     

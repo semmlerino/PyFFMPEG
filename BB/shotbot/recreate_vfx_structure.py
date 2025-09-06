@@ -22,7 +22,7 @@ from PIL import Image, ImageDraw, ImageFont
 class VFXStructureRecreator:
     """Recreate VFX filesystem structure with placeholder files."""
     
-    def __init__(self, root_path: str = None):
+    def __init__(self, root_path: str = None) -> None:
         """Initialize recreator.
         
         Args:
@@ -37,7 +37,7 @@ class VFXStructureRecreator:
         }
         
     def create_placeholder_image(self, path: Path, text: str = None, 
-                                width: int = 256, height: int = 144):
+                                width: int = 256, height: int = 144) -> None:
         """Create a placeholder thumbnail image.
         
         Args:
@@ -101,7 +101,7 @@ class VFXStructureRecreator:
         img.save(path, 'JPEG', quality=85)
         self.stats['thumbnails_created'] += 1
     
-    def create_3de_file(self, path: Path, shot_name: str, user: str, plate: str):
+    def create_3de_file(self, path: Path, shot_name: str, user: str, plate: str) -> None:
         """Create a placeholder 3DE scene file.
         
         Args:
@@ -128,7 +128,7 @@ class VFXStructureRecreator:
         path.write_text(content, encoding='utf-8')
         self.stats['3de_files_created'] += 1
     
-    def create_exr_sequence(self, path: Path, shot_name: str, start: int = 1001, end: int = 1010):
+    def create_exr_sequence(self, path: Path, shot_name: str, start: int = 1001, end: int = 1010) -> None:
         """Create placeholder EXR files for a plate sequence.
         
         Args:
@@ -156,7 +156,7 @@ class VFXStructureRecreator:
             512, 288
         )
     
-    def recreate_node(self, node: dict, parent_path: Path):
+    def recreate_node(self, node: dict, parent_path: Path) -> None:
         """Recursively recreate a node from the captured structure.
         
         Args:
@@ -229,7 +229,7 @@ class VFXStructureRecreator:
                 
             self.stats['files_created'] += 1
     
-    def create_additional_3de_files(self, structure_data: dict):
+    def create_additional_3de_files(self, structure_data: dict) -> None:
         """Create additional 3DE files from other users for 'Other 3DE Scenes' tab.
         
         Args:
@@ -288,7 +288,7 @@ class VFXStructureRecreator:
         
         print(f"Created additional 3DE files from {len(other_users)} other users")
     
-    def create_gabrielh_3de_files(self, structure_data: dict):
+    def create_gabrielh_3de_files(self, structure_data: dict) -> None:
         """Create 3DE files for gabriel-h to populate 'My Shots' tab."""
         gabrielh_3de_count = 0
         
@@ -298,7 +298,7 @@ class VFXStructureRecreator:
                 structure = show_data.get('structure', {})
                 gabrielh_3de_paths = []
                 
-                def find_gabrielh_3de_scenes(node, path_parts=[]):
+                def find_gabrielh_3de_scenes(node, path_parts=[]) -> None:
                     """Recursively find gabriel-h 3DE scenes directories."""
                     if node.get('type') == 'dir':
                         current_path = path_parts + [node['name']]
@@ -325,7 +325,7 @@ class VFXStructureRecreator:
                         if 'shots' in path_parts:
                             shots_idx = path_parts.index('shots')
                             if shots_idx + 2 < len(path_parts):
-                                sequence = path_parts[shots_idx + 1]
+                                path_parts[shots_idx + 1]
                                 shot = path_parts[shots_idx + 2]
                                 
                                 # Create scene/bg01 subdirectory and 3DE file
@@ -348,7 +348,7 @@ class VFXStructureRecreator:
         
         print(f"Created {gabrielh_3de_count} 3DE files for gabriel-h")
     
-    def recreate_structure(self, structure_data: dict):
+    def recreate_structure(self, structure_data: dict) -> None:
         """Recreate the entire VFX structure.
         
         Args:
@@ -363,14 +363,14 @@ class VFXStructureRecreator:
             
             for show_data in show_data_list:
                 # Determine local root (map /shows to our root)
-                original_root = show_data['root']
+                show_data['root']
                 
                 # Create show structure
                 if 'structure' in show_data:
                     show_structure = show_data['structure']
                     
                     # Create under our mock root
-                    show_path = self.root / 'shows' / show
+                    self.root / 'shows' / show
                     self.recreate_node(show_structure, self.root / 'shows')
         
         # Create additional 3DE files from other users for "Other 3DE Scenes" tab
@@ -481,7 +481,7 @@ def count_nodes(structure):
         count += count_nodes(child)
     return count
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='Recreate VFX filesystem structure from captured data'
     )

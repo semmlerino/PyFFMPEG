@@ -32,12 +32,12 @@ class TestParallelDiscoveryIntegration:
     with the progress_interval parameter.
     """
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures with realistic VFX directory structure."""
         self.temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_parallel_test_"))
         self.shows_root = self.temp_dir / "shows"
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directories."""
         import shutil
 
@@ -92,7 +92,7 @@ class TestParallelDiscoveryIntegration:
 
         return shows_root, test_shots
 
-    def test_find_all_3de_files_in_show_parallel_production_pattern(self):
+    def test_find_all_3de_files_in_show_parallel_production_pattern(self) -> None:
         """Test the exact method that failed in production with progress_interval parameter.
 
         This test would have caught the ThreadSafeProgressTracker parameter bug.
@@ -136,7 +136,7 @@ class TestParallelDiscoveryIntegration:
             assert shot.isdigit()
             assert user in ["artist1", "artist2", "supervisor"]
 
-    def test_find_all_scenes_in_shows_truly_efficient_parallel_workflow(self):
+    def test_find_all_scenes_in_shows_truly_efficient_parallel_workflow(self) -> None:
         """Test the complete parallel workflow that's used by the worker thread.
 
         This tests the method that actually calls find_all_3de_files_in_show_parallel
@@ -179,7 +179,7 @@ class TestParallelDiscoveryIntegration:
             assert hasattr(scene, "user")
             assert scene.scene_path.exists()
 
-    def test_parallel_discovery_with_cancellation(self):
+    def test_parallel_discovery_with_cancellation(self) -> None:
         """Test that cancellation works correctly during parallel discovery."""
         shows_root, test_shots = self._create_test_vfx_structure()
 
@@ -207,7 +207,7 @@ class TestParallelDiscoveryIntegration:
         # Should have received some progress updates before cancellation
         assert len(progress_updates) >= cancel_after_updates
 
-    def test_parallel_discovery_error_handling(self):
+    def test_parallel_discovery_error_handling(self) -> None:
         """Test error handling in parallel discovery with invalid paths."""
         # Mix of valid and invalid paths
         shows_root, valid_shots = self._create_test_vfx_structure()
@@ -239,7 +239,7 @@ class TestParallelDiscoveryIntegration:
         valid_scenes = [s for s in scenes if s.scene_path.exists()]
         assert len(valid_scenes) > 0
 
-    def test_config_based_progress_interval_handling(self):
+    def test_config_based_progress_interval_handling(self) -> None:
         """Test that progress_interval from config is handled correctly internally."""
         shows_root, _ = self._create_test_vfx_structure()
 
@@ -260,7 +260,7 @@ class TestParallelDiscoveryIntegration:
         assert isinstance(results, list)
         assert len(results) > 0, "Should find files using config progress interval"
 
-    def test_concurrent_parallel_discovery(self):
+    def test_concurrent_parallel_discovery(self) -> None:
         """Test multiple parallel discoveries running concurrently."""
         import threading
 
@@ -323,7 +323,7 @@ class TestParallelDiscoveryIntegration:
             assert len(scenes) >= 0  # May be 0 if no scenes found
             assert len(progress_updates) >= 0  # Should have some progress
 
-    def test_production_scale_simulation(self):
+    def test_production_scale_simulation(self) -> None:
         """Test with a larger scale that simulates production usage."""
         # Create larger test structure
         shows_root = self.temp_dir / "shows"

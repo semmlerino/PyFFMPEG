@@ -283,7 +283,7 @@ class SynchronizationHelpers:
 class AsyncWaiter:
     """Helper for waiting on multiple async operations."""
 
-    def __init__(self, qtbot: Any):
+    def __init__(self, qtbot: Any) -> None:
         self.qtbot = qtbot
         self.signals = []
         self.conditions = []

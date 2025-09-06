@@ -47,7 +47,7 @@ class TestFileSystem:
 
     __test__ = False
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the test filesystem."""
         self.files: dict[str, bytes] = {}
         self.directories: set[str] = set()
@@ -256,7 +256,7 @@ class TestCache:
 
     __test__ = False
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the test cache."""
         self.data: dict[str, Any] = {}
         self.expiry_times: dict[str, datetime] = {}
@@ -367,7 +367,7 @@ class TestQApplication:
 
     __test__ = False
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the test application."""
         self.clipboard_text = ""
         self.style_sheet = ""

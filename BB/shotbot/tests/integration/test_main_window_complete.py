@@ -83,7 +83,7 @@ class TestMainWindowCompleteWorkflows:
         
         return window
 
-    def test_shot_selection_to_launch_workflow(self, qtbot, main_window, test_shots):
+    def test_shot_selection_to_launch_workflow(self, qtbot, main_window, test_shots) -> None:
         """Test end-to-end user workflow: shot selection → info display → launch."""
         window = main_window
         
@@ -121,7 +121,7 @@ class TestMainWindowCompleteWorkflows:
         assert window.isVisible()
         assert not window.visibleRegion().isEmpty()
 
-    def test_threede_scene_workflow(self, qtbot, main_window):
+    def test_threede_scene_workflow(self, qtbot, main_window) -> None:
         """Test 3DE scene discovery and launch workflow."""
         window = main_window
         
@@ -160,7 +160,7 @@ class TestMainWindowCompleteWorkflows:
             # Verify launch with scene context
             mock_launch.assert_called_once_with("3de", test_scene)
 
-    def test_tab_switching_workflow(self, qtbot, main_window):
+    def test_tab_switching_workflow(self, qtbot, main_window) -> None:
         """Test user workflow across different tabs."""
         window = main_window
         
@@ -203,7 +203,7 @@ class TestMainWindowCompleteWorkflows:
             # Verify tab switched
             assert tab_widget.currentIndex() == prev_shots_tab_index
 
-    def test_keyboard_shortcuts_workflow(self, qtbot, main_window):
+    def test_keyboard_shortcuts_workflow(self, qtbot, main_window) -> None:
         """Test user workflow using keyboard shortcuts."""
         window = main_window
         
@@ -233,12 +233,12 @@ class TestMainWindowCompleteWorkflows:
         # Size may or may not change depending on limits
         assert current_thumb_size >= initial_thumb_size
 
-    def test_error_handling_workflow(self, qtbot, main_window):
+    def test_error_handling_workflow(self, qtbot, main_window) -> None:
         """Test user workflow during error conditions."""
         window = main_window
         
         # Step 1: Simulate shot loading error
-        error_spy = QSignalSpy(window.shot_model.error_occurred)
+        QSignalSpy(window.shot_model.error_occurred)
         
         # Trigger error in shot model
         with patch.object(window.shot_model, 'refresh_shots') as mock_refresh:
@@ -269,7 +269,7 @@ class TestMainWindowCompleteWorkflows:
         assert window.isVisible()
         assert not window.visibleRegion().isEmpty()
 
-    def test_drag_drop_workflow(self, qtbot, main_window):
+    def test_drag_drop_workflow(self, qtbot, main_window) -> None:
         """Test drag-and-drop functionality workflow."""
         window = main_window
         
@@ -287,7 +287,7 @@ class TestMainWindowCompleteWorkflows:
             # Test that widget accepts drops (basic check)
             assert hasattr(shot_grid, 'setAcceptDrops')
 
-    def test_menu_actions_workflow(self, qtbot, main_window):
+    def test_menu_actions_workflow(self, qtbot, main_window) -> None:
         """Test menu action workflows."""
         window = main_window
         
@@ -316,7 +316,7 @@ class TestMainWindowCompleteWorkflows:
                     assert refresh_spy.count() >= 0
                     break
 
-    def test_settings_dialog_workflow(self, qtbot, main_window):
+    def test_settings_dialog_workflow(self, qtbot, main_window) -> None:
         """Test settings dialog workflow."""
         window = main_window
         
@@ -345,7 +345,7 @@ class TestMainWindowCompleteWorkflows:
                 # Verify dialog would be shown (or settings handled)
                 # Implementation may vary
 
-    def test_resize_and_layout_workflow(self, qtbot, main_window):
+    def test_resize_and_layout_workflow(self, qtbot, main_window) -> None:
         """Test window resize and layout adaptation workflow."""
         window = main_window
         
@@ -374,7 +374,7 @@ class TestMainWindowCompleteWorkflows:
         assert final_size.width() >= window.minimumWidth()
         assert final_size.height() >= window.minimumHeight()
 
-    def test_status_bar_updates_workflow(self, qtbot, main_window):
+    def test_status_bar_updates_workflow(self, qtbot, main_window) -> None:
         """Test status bar update workflow throughout user actions."""
         window = main_window
         
@@ -399,7 +399,7 @@ class TestMainWindowCompleteWorkflows:
         current_message = status_bar.currentMessage()
         assert isinstance(current_message, str)
 
-    def test_cleanup_workflow(self, qtbot, main_window):
+    def test_cleanup_workflow(self, qtbot, main_window) -> None:
         """Test proper cleanup workflow on window close."""
         window = main_window
         

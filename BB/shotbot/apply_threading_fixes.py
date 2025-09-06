@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 
-def patch_threede_scene_worker():
+def patch_threede_scene_worker() -> bool:
     """Apply threading fixes to threede_scene_worker.py"""
     
     file_path = Path("threede_scene_worker.py")
@@ -141,7 +141,7 @@ def patch_threede_scene_worker():
     print(f"✓ Patched {file_path}")
     return True
 
-def verify_patches():
+def verify_patches() -> bool:
     """Verify that critical files have proper thread safety"""
     
     checks = []
@@ -187,7 +187,7 @@ def verify_patches():
     
     return all_pass
 
-def main():
+def main() -> int:
     """Apply threading fixes to the codebase"""
     
     print("Applying critical threading fixes to ShotBot...")

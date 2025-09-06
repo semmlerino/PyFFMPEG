@@ -98,7 +98,7 @@ class TestLauncherListWidget:
     """Test the custom launcher list widget."""
 
     # TODO: Consolidate test_initialization, test_initialization, test_initialization into single test
-    def test_initialization(self, qtbot):
+    def test_initialization(self, qtbot) -> None:
         """Test widget initialization with drag-and-drop support."""
         widget = LauncherListWidget()
         qtbot.addWidget(widget)
@@ -113,7 +113,7 @@ class TestLauncherListWidget:
 class TestLauncherPreviewPanel:
     """Test the launcher preview panel component."""
 
-    def test_initialization(self, qtbot):
+    def test_initialization(self, qtbot) -> None:
         """Test panel initialization with default state."""
         panel = LauncherPreviewPanel()
         qtbot.addWidget(panel)
@@ -127,7 +127,7 @@ class TestLauncherPreviewPanel:
         assert not panel.delete_button.isEnabled()
         assert panel._current_launcher_id is None
 
-    def test_set_launcher_with_data(self, qtbot):
+    def test_set_launcher_with_data(self, qtbot) -> None:
         """Test setting launcher data updates UI properly."""
         panel = LauncherPreviewPanel()
         qtbot.addWidget(panel)
@@ -144,7 +144,7 @@ class TestLauncherPreviewPanel:
         assert panel.delete_button.isEnabled()
         assert panel._current_launcher_id == launcher.id
 
-    def test_set_launcher_with_none(self, qtbot):
+    def test_set_launcher_with_none(self, qtbot) -> None:
         """Test setting None launcher clears UI."""
         panel = LauncherPreviewPanel()
         qtbot.addWidget(panel)
@@ -165,7 +165,7 @@ class TestLauncherPreviewPanel:
         assert not panel.delete_button.isEnabled()
         assert panel._current_launcher_id is None
 
-    def test_launch_button_signal(self, qtbot):
+    def test_launch_button_signal(self, qtbot) -> None:
         """Test launch button emits correct signal."""
         panel = LauncherPreviewPanel()
         qtbot.addWidget(panel)
@@ -186,7 +186,7 @@ class TestLauncherPreviewPanel:
         signal_args = spy.at(0)
         assert signal_args[0] == launcher.id
 
-    def test_edit_button_signal(self, qtbot):
+    def test_edit_button_signal(self, qtbot) -> None:
         """Test edit button emits correct signal."""
         panel = LauncherPreviewPanel()
         qtbot.addWidget(panel)
@@ -202,7 +202,7 @@ class TestLauncherPreviewPanel:
         signal_args = spy.at(0)
         assert signal_args[0] == launcher.id
 
-    def test_delete_button_signal(self, qtbot):
+    def test_delete_button_signal(self, qtbot) -> None:
         """Test delete button emits correct signal."""
         panel = LauncherPreviewPanel()
         qtbot.addWidget(panel)
@@ -218,7 +218,7 @@ class TestLauncherPreviewPanel:
         signal_args = spy.at(0)
         assert signal_args[0] == launcher.id
 
-    def test_button_signals_when_no_launcher(self, qtbot):
+    def test_button_signals_when_no_launcher(self, qtbot) -> None:
         """Test buttons don't emit signals when no launcher is set."""
         panel = LauncherPreviewPanel()
         qtbot.addWidget(panel)
@@ -244,7 +244,7 @@ class TestLauncherPreviewPanel:
 class TestLauncherEditDialog:
     """Test the launcher edit dialog."""
 
-    def test_create_mode_initialization(self, qtbot, mock_launcher_manager):
+    def test_create_mode_initialization(self, qtbot, mock_launcher_manager) -> None:
         """Test dialog initialization in create mode."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -263,7 +263,7 @@ class TestLauncherEditDialog:
         assert dialog.env_spec_field.text() == ""
         assert not dialog.persist_terminal.isChecked()
 
-    def test_edit_mode_initialization(self, qtbot, mock_launcher_manager):
+    def test_edit_mode_initialization(self, qtbot, mock_launcher_manager) -> None:
         """Test dialog initialization in edit mode."""
         launcher = create_rez_launcher()
         dialog = LauncherEditDialog(mock_launcher_manager, launcher)
@@ -283,7 +283,7 @@ class TestLauncherEditDialog:
         assert dialog.env_spec_field.text() == " ".join(launcher.environment.packages)
         assert dialog.persist_terminal.isChecked() == launcher.terminal.persist
 
-    def test_conda_environment_population(self, qtbot, mock_launcher_manager):
+    def test_conda_environment_population(self, qtbot, mock_launcher_manager) -> None:
         """Test conda environment field population."""
         launcher = create_conda_launcher()
         dialog = LauncherEditDialog(mock_launcher_manager, launcher)
@@ -292,7 +292,7 @@ class TestLauncherEditDialog:
         assert dialog.env_type_combo.currentText() == "conda"
         assert dialog.env_spec_field.text() == launcher.environment.command_prefix
 
-    def test_name_validation_empty(self, qtbot, mock_launcher_manager):
+    def test_name_validation_empty(self, qtbot, mock_launcher_manager) -> None:
         """Test name validation with empty name."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -304,7 +304,7 @@ class TestLauncherEditDialog:
         assert not dialog._validate_name()
         assert "border: 1px solid #f44336" in dialog.name_field.styleSheet()
 
-    def test_name_validation_valid(self, qtbot, mock_launcher_manager):
+    def test_name_validation_valid(self, qtbot, mock_launcher_manager) -> None:
         """Test name validation with valid name."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -316,7 +316,7 @@ class TestLauncherEditDialog:
         assert dialog._validate_name()
         assert "border: 1px solid #4caf50" in dialog.name_field.styleSheet()
 
-    def test_name_validation_duplicate(self, qtbot, mock_launcher_manager):
+    def test_name_validation_duplicate(self, qtbot, mock_launcher_manager) -> None:
         """Test name validation with duplicate name."""
         # Create existing launcher using real behavior
         mock_launcher_manager.create_launcher(
@@ -333,7 +333,7 @@ class TestLauncherEditDialog:
         assert not dialog._validate_name()
         assert "border: 1px solid #f44336" in dialog.name_field.styleSheet()
 
-    def test_name_validation_duplicate_self_edit(self, qtbot, mock_launcher_manager):
+    def test_name_validation_duplicate_self_edit(self, qtbot, mock_launcher_manager) -> None:
         """Test name validation allows same name when editing same launcher."""
         # Create launcher using real behavior
         launcher_id = mock_launcher_manager.create_launcher(
@@ -351,7 +351,7 @@ class TestLauncherEditDialog:
         assert dialog._validate_name()
         assert "border: 1px solid #4caf50" in dialog.name_field.styleSheet()
 
-    def test_command_validation_empty(self, qtbot, mock_launcher_manager):
+    def test_command_validation_empty(self, qtbot, mock_launcher_manager) -> None:
         """Test command validation with empty command."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -362,7 +362,7 @@ class TestLauncherEditDialog:
         assert not dialog._validate_command()
         assert "border: 1px solid #f44336" in dialog.command_field.styleSheet()
 
-    def test_command_validation_valid(self, qtbot, mock_launcher_manager):
+    def test_command_validation_valid(self, qtbot, mock_launcher_manager) -> None:
         """Test command validation with valid command."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -373,7 +373,7 @@ class TestLauncherEditDialog:
         assert dialog._validate_command()
         assert "border: 1px solid #4caf50" in dialog.command_field.styleSheet()
 
-    def test_command_validation_invalid(self, qtbot, mock_launcher_manager):
+    def test_command_validation_invalid(self, qtbot, mock_launcher_manager) -> None:
         """Test command validation with invalid command."""
         # Set up validation to fail for this specific command
         mock_launcher_manager.set_validation_result(
@@ -389,7 +389,7 @@ class TestLauncherEditDialog:
         assert not dialog._validate_command()
         assert "border: 1px solid #f44336" in dialog.command_field.styleSheet()
 
-    def test_command_testing_success(self, qtbot, mock_launcher_manager):
+    def test_command_testing_success(self, qtbot, mock_launcher_manager) -> None:
         """Test command testing with successful validation."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -407,7 +407,7 @@ class TestLauncherEditDialog:
         # Verify dry run was executed (behavior check)
         assert mock_launcher_manager.was_dry_run_executed()
 
-    def test_command_testing_failure(self, qtbot, mock_launcher_manager):
+    def test_command_testing_failure(self, qtbot, mock_launcher_manager) -> None:
         """Test command testing with validation failure."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -424,7 +424,7 @@ class TestLauncherEditDialog:
         assert "✗" in dialog.test_output.text()
         assert "color: #f44336" in dialog.test_output.styleSheet()
 
-    def test_command_testing_empty_command(self, qtbot, mock_launcher_manager):
+    def test_command_testing_empty_command(self, qtbot, mock_launcher_manager) -> None:
         """Test command testing with empty command."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -439,7 +439,7 @@ class TestLauncherEditDialog:
         # Test behavior: no dry run should have been executed
         assert not mock_launcher_manager.was_dry_run_executed()
 
-    def test_save_create_success(self, qtbot, mock_launcher_manager):
+    def test_save_create_success(self, qtbot, mock_launcher_manager) -> None:
         """Test successful launcher creation."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -471,7 +471,7 @@ class TestLauncherEditDialog:
         assert created_launcher.description == "Test description"
         assert created_launcher.category == "test_category"
 
-    def test_save_update_success(self, qtbot, mock_launcher_manager):
+    def test_save_update_success(self, qtbot, mock_launcher_manager) -> None:
         """Test successful launcher update."""
         # Create launcher using real behavior
         launcher_id = mock_launcher_manager.create_launcher(
@@ -494,7 +494,7 @@ class TestLauncherEditDialog:
         assert updated_launcher.name == "Updated Name"
         assert updated_launcher.command == "updated command"
 
-    def test_save_validation_failure(self, qtbot, mock_launcher_manager):
+    def test_save_validation_failure(self, qtbot, mock_launcher_manager) -> None:
         """Test save with validation failures."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -514,7 +514,7 @@ class TestLauncherEditDialog:
             mock_launcher_manager.get_created_launcher_count() == initial_launcher_count
         )
 
-    def test_save_create_failure(self, qtbot, mock_launcher_manager):
+    def test_save_create_failure(self, qtbot, mock_launcher_manager) -> None:
         """Test save when create_launcher fails."""
         # Create an existing launcher to cause name conflict
         mock_launcher_manager.create_launcher(
@@ -539,7 +539,7 @@ class TestLauncherEditDialog:
             mock_launcher_manager.get_created_launcher_count() == initial_launcher_count
         )
 
-    def test_conda_environment_handling(self, qtbot, mock_launcher_manager):
+    def test_conda_environment_handling(self, qtbot, mock_launcher_manager) -> None:
         """Test conda environment configuration in save."""
         dialog = LauncherEditDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -561,7 +561,7 @@ class TestLauncherEditDialog:
 class TestLauncherManagerDialog:
     """Test the main launcher manager dialog."""
 
-    def test_initialization(self, qtbot, mock_launcher_manager, sample_launchers):
+    def test_initialization(self, qtbot, mock_launcher_manager, sample_launchers) -> None:
         """Test dialog initialization and setup."""
         # Add sample launchers to manager
         for launcher in sample_launchers:
@@ -596,7 +596,7 @@ class TestLauncherManagerDialog:
 
     def test_launcher_list_population(
         self, qtbot, mock_launcher_manager, sample_launchers
-    ):
+    ) -> None:
         """Test launcher list is populated correctly."""
         # Add sample launchers to manager
         launcher_ids = []
@@ -622,7 +622,7 @@ class TestLauncherManagerDialog:
 
     def test_selection_updates_preview(
         self, qtbot, mock_launcher_manager, sample_launchers
-    ):
+    ) -> None:
         """Test selecting launcher updates preview panel."""
         # Add sample launchers to manager
         launcher_ids = []
@@ -648,7 +648,7 @@ class TestLauncherManagerDialog:
         assert dialog.preview_panel.name_label.text() == selected_launcher.name
         assert dialog.preview_panel._current_launcher_id == selected_launcher.id
 
-    def test_search_filtering(self, qtbot, mock_launcher_manager, sample_launchers):
+    def test_search_filtering(self, qtbot, mock_launcher_manager, sample_launchers) -> None:
         """Test search filtering functionality."""
         # Add sample launchers to manager
         for launcher in sample_launchers:
@@ -677,7 +677,7 @@ class TestLauncherManagerDialog:
 
     def test_search_command_filtering(
         self, qtbot, mock_launcher_manager, sample_launchers
-    ):
+    ) -> None:
         """Test search filters by command content."""
         # Add sample launchers to manager
         for launcher in sample_launchers:
@@ -706,7 +706,7 @@ class TestLauncherManagerDialog:
 
     def test_double_click_launches(
         self, qtbot, mock_launcher_manager, sample_launchers
-    ):
+    ) -> None:
         """Test double-clicking launcher item triggers launch."""
         # Add sample launchers to manager
         for launcher in sample_launchers:
@@ -735,12 +735,12 @@ class TestLauncherManagerDialog:
             len(mock_launcher_manager._execution_history) == initial_execution_count + 1
         )
 
-    def test_add_launcher_button(self, qtbot, mock_launcher_manager):
+    def test_add_launcher_button(self, qtbot, mock_launcher_manager) -> None:
         """Test add launcher button opens edit dialog."""
         dialog = LauncherManagerDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
 
-        initial_launcher_count = mock_launcher_manager.get_created_launcher_count()
+        mock_launcher_manager.get_created_launcher_count()
 
         # Mock the edit dialog to avoid actual dialog
         with patch("launcher_dialog.LauncherEditDialog") as mock_edit_dialog:
@@ -768,7 +768,7 @@ class TestLauncherManagerDialog:
 
     def test_preview_panel_signals(
         self, qtbot, mock_launcher_manager, sample_launchers
-    ):
+    ) -> None:
         """Test preview panel signals trigger correct actions."""
         # Add sample launchers to manager
         launcher_ids = []
@@ -800,8 +800,7 @@ class TestLauncherManagerDialog:
             mock_instance.exec.return_value = QDialog.DialogCode.Accepted
 
             # Get launcher state before edit
-            launcher_before = mock_launcher_manager.get_launcher(launcher_id)
-            original_name = launcher_before.name if launcher_before else None
+            mock_launcher_manager.get_launcher(launcher_id)
 
             dialog._edit_launcher(launcher_id)
 
@@ -823,7 +822,7 @@ class TestLauncherManagerDialog:
             == initial_launcher_count - 1
         )
 
-    def test_keyboard_shortcuts(self, qtbot, mock_launcher_manager, sample_launchers):
+    def test_keyboard_shortcuts(self, qtbot, mock_launcher_manager, sample_launchers) -> None:
         """Test keyboard shortcuts work correctly."""
         # Add sample launchers to manager
         launcher_ids = []
@@ -896,7 +895,7 @@ class TestLauncherManagerDialog:
             mock_instance = mock_edit_dialog.return_value
             mock_instance.exec.return_value = QDialog.DialogCode.Accepted
 
-            initial_list_count = dialog.launcher_list.count()
+            dialog.launcher_list.count()
 
             dialog._add_launcher()
             qtbot.wait(10)
@@ -925,7 +924,7 @@ class TestLauncherManagerDialog:
         qtbot.wait(10)
         assert dialog.search_field.hasFocus()
 
-    def test_execution_signals(self, qtbot, mock_launcher_manager):
+    def test_execution_signals(self, qtbot, mock_launcher_manager) -> None:
         """Test handling of launcher execution signals."""
         dialog = LauncherManagerDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
@@ -941,7 +940,7 @@ class TestLauncherManagerDialog:
         dialog._on_execution_finished(launcher_id, False)
         # Should handle both success and failure cases
 
-    def test_empty_launcher_list(self, qtbot, mock_launcher_manager):
+    def test_empty_launcher_list(self, qtbot, mock_launcher_manager) -> None:
         """Test dialog handles empty launcher list correctly."""
         # Don't add any launchers to manager - it starts empty
         dialog = LauncherManagerDialog(mock_launcher_manager)
@@ -954,7 +953,7 @@ class TestLauncherManagerDialog:
 
     def test_launcher_reload_on_changes(
         self, qtbot, mock_launcher_manager, sample_launchers
-    ):
+    ) -> None:
         """Test launcher list reloads when launchers change."""
         # Add initial sample launchers to manager
         for launcher in sample_launchers:

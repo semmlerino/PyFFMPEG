@@ -11,10 +11,11 @@ import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Slot
-from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow
 
 if TYPE_CHECKING:
+    from PySide6.QtGui import QCloseEvent
+
     from app_launcher_manager import AppLauncherManager
     from cache_manager import CacheManager
     from main_window_ui import MainWindowUI
@@ -38,7 +39,7 @@ class RefactoredMainWindow(QMainWindow):
     TOTAL: ~1,307 lines across 4 focused components vs 2,057 in one file
     """
     
-    def __init__(self, cache_manager: CacheManager | None = None):
+    def __init__(self, cache_manager: CacheManager | None = None) -> None:
         """Initialize refactored main window with component delegation."""
         super().__init__()
         

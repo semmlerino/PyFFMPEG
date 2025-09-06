@@ -10,7 +10,7 @@ app = (
 
 
 class TestThread(QThread):
-    def run(self):
+    def run(self) -> None:
         print(f"In run, interruption requested: {self.isInterruptionRequested()}")
 
 

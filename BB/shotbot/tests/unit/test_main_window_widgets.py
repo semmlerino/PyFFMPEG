@@ -58,7 +58,7 @@ class TestMainWindowInitialization:
         qtbot.addWidget(window)
         return window
 
-    def test_window_creation(self, main_window):
+    def test_window_creation(self, main_window) -> None:
         """Test MainWindow creates successfully."""
         window = main_window
 
@@ -68,7 +68,7 @@ class TestMainWindowInitialization:
         assert hasattr(window, "cache_manager")
         assert window.cache_manager is not None
 
-    def test_window_properties(self, main_window):
+    def test_window_properties(self, main_window) -> None:
         """Test window has correct basic properties."""
         window = main_window
 
@@ -82,7 +82,7 @@ class TestMainWindowInitialization:
         assert size.width() > 0
         assert size.height() > 0
 
-    def test_window_central_widget(self, main_window):
+    def test_window_central_widget(self, main_window) -> None:
         """Test window has central widget setup."""
         window = main_window
 
@@ -91,7 +91,7 @@ class TestMainWindowInitialization:
         assert central_widget is not None
         assert isinstance(central_widget, QWidget)
 
-    def test_cache_manager_assignment(self, main_window, real_cache_manager):
+    def test_cache_manager_assignment(self, main_window, real_cache_manager) -> None:
         """Test cache manager is properly assigned."""
         window = main_window
 
@@ -112,7 +112,7 @@ class TestMainWindowUIComponents:
         qtbot.wait(100)
         return window
 
-    def test_tab_widget_exists(self, main_window_ui):
+    def test_tab_widget_exists(self, main_window_ui) -> None:
         """Test main tab widget exists and is configured."""
         window = main_window_ui
 
@@ -125,7 +125,7 @@ class TestMainWindowUIComponents:
             tab_count = tab_widget.count()
             assert tab_count >= 3  # My Shots, Other 3DE scenes, Previous Shots
 
-    def test_status_bar_exists(self, main_window_ui):
+    def test_status_bar_exists(self, main_window_ui) -> None:
         """Test status bar exists and is functional."""
         window = main_window_ui
 
@@ -134,7 +134,7 @@ class TestMainWindowUIComponents:
         assert status_bar is not None
         assert isinstance(status_bar, QStatusBar)
 
-    def test_menu_bar_exists(self, main_window_ui):
+    def test_menu_bar_exists(self, main_window_ui) -> None:
         """Test menu bar exists."""
         window = main_window_ui
 
@@ -142,7 +142,7 @@ class TestMainWindowUIComponents:
         menu_bar = window.menuBar()
         assert menu_bar is not None
 
-    def test_splitter_configuration(self, main_window_ui):
+    def test_splitter_configuration(self, main_window_ui) -> None:
         """Test splitter widgets are properly configured."""
         window = main_window_ui
 
@@ -152,7 +152,7 @@ class TestMainWindowUIComponents:
         # Should have at least one splitter for layout
         assert len(splitters) >= 0  # May be 0 if layout doesn't use splitters
 
-    def test_essential_components_exist(self, main_window_ui):
+    def test_essential_components_exist(self, main_window_ui) -> None:
         """Test essential UI components exist."""
         window = main_window_ui
 
@@ -176,7 +176,7 @@ class TestMainWindowTabFunctionality:
         qtbot.wait(100)  # Allow tabs to initialize
         return window
 
-    def test_tab_navigation(self, qtbot, tabbed_window):
+    def test_tab_navigation(self, qtbot, tabbed_window) -> None:
         """Test tab navigation works correctly."""
         window = tabbed_window
         tab_widget = window.findChild(QTabWidget)
@@ -194,7 +194,7 @@ class TestMainWindowTabFunctionality:
             current_tab = tab_widget.currentIndex()
             assert current_tab == next_tab
 
-    def test_tab_content_exists(self, tabbed_window):
+    def test_tab_content_exists(self, tabbed_window) -> None:
         """Test tabs have content widgets."""
         window = tabbed_window
         tab_widget = window.findChild(QTabWidget)
@@ -207,7 +207,7 @@ class TestMainWindowTabFunctionality:
                 assert current_widget is not None
                 assert isinstance(current_widget, QWidget)
 
-    def test_tab_labels(self, tabbed_window):
+    def test_tab_labels(self, tabbed_window) -> None:
         """Test tabs have appropriate labels."""
         window = tabbed_window
         tab_widget = window.findChild(QTabWidget)
@@ -219,7 +219,7 @@ class TestMainWindowTabFunctionality:
                 assert isinstance(tab_text, str)
                 assert len(tab_text) > 0
 
-    def test_tab_switching_signals(self, qtbot, tabbed_window):
+    def test_tab_switching_signals(self, qtbot, tabbed_window) -> None:
         """Test tab switching emits proper signals."""
         window = tabbed_window
         tab_widget = window.findChild(QTabWidget)
@@ -252,7 +252,7 @@ class TestMainWindowSignalConnections:
         qtbot.wait(100)  # Allow connections to establish
         return window
 
-    def test_shot_model_connections(self, connected_window):
+    def test_shot_model_connections(self, connected_window) -> None:
         """Test shot model exists and has basic functionality."""
         window = connected_window
 
@@ -264,7 +264,7 @@ class TestMainWindowSignalConnections:
             assert hasattr(shot_model, "refresh_shots")
             assert hasattr(shot_model, "get_shots")
 
-    def test_launcher_manager_connections(self, connected_window):
+    def test_launcher_manager_connections(self, connected_window) -> None:
         """Test launcher manager exists and has basic functionality."""
         window = connected_window
 
@@ -278,7 +278,7 @@ class TestMainWindowSignalConnections:
             # Check that it's a QObject (signals are dynamic attributes)
             assert hasattr(launcher_manager, "deleteLater")  # QObject method
 
-    def test_threede_scene_worker_connections(self, connected_window):
+    def test_threede_scene_worker_connections(self, connected_window) -> None:
         """Test 3DE scene worker signal connections."""
         window = connected_window
 
@@ -302,7 +302,7 @@ class TestMainWindowKeyboardShortcuts:
         qtbot.waitExposed(window)
         return window
 
-    def test_refresh_shortcut(self, qtbot, shortcut_window):
+    def test_refresh_shortcut(self, qtbot, shortcut_window) -> None:
         """Test keyboard shortcut handling infrastructure."""
         window = shortcut_window
 
@@ -324,7 +324,7 @@ class TestMainWindowKeyboardShortcuts:
         # Verify keyboard handling infrastructure exists
         assert hasattr(window, "keyPressEvent")
 
-    def test_tab_navigation_shortcuts(self, qtbot, shortcut_window):
+    def test_tab_navigation_shortcuts(self, qtbot, shortcut_window) -> None:
         """Test tab navigation shortcuts."""
         window = shortcut_window
         tab_widget = window.findChild(QTabWidget)
@@ -343,7 +343,7 @@ class TestMainWindowKeyboardShortcuts:
             assert window.isVisible()
             assert not window.isMinimized()
 
-    def test_escape_key_handling(self, qtbot, shortcut_window):
+    def test_escape_key_handling(self, qtbot, shortcut_window) -> None:
         """Test escape key handling."""
         window = shortcut_window
 
@@ -371,7 +371,7 @@ class TestMainWindowStateManagement:
         qtbot.waitExposed(window)
         return window
 
-    def test_window_geometry_management(self, qtbot, stateful_window):
+    def test_window_geometry_management(self, qtbot, stateful_window) -> None:
         """Test window geometry can be managed."""
         window = stateful_window
 
@@ -389,7 +389,7 @@ class TestMainWindowStateManagement:
         assert new_geometry.width() >= new_width - 50  # Allow some tolerance
         assert new_geometry.height() >= new_height - 50
 
-    def test_window_show_hide(self, qtbot, stateful_window):
+    def test_window_show_hide(self, qtbot, stateful_window) -> None:
         """Test window show/hide functionality."""
         window = stateful_window
 
@@ -406,7 +406,7 @@ class TestMainWindowStateManagement:
         qtbot.waitExposed(window)
         assert window.isVisible()
 
-    def test_window_minimize_restore(self, qtbot, stateful_window):
+    def test_window_minimize_restore(self, qtbot, stateful_window) -> None:
         """Test window minimize/restore functionality."""
         window = stateful_window
 
@@ -428,7 +428,7 @@ class TestMainWindowStateManagement:
 class TestMainWindowErrorHandling:
     """Test MainWindow error handling and edge cases."""
 
-    def test_window_creation_with_no_cache_manager(self, qtbot):
+    def test_window_creation_with_no_cache_manager(self, qtbot) -> None:
         """Test window creates with default cache manager."""
         window = MainWindow(cache_manager=None)
         qtbot.addWidget(window)
@@ -437,7 +437,7 @@ class TestMainWindowErrorHandling:
         assert window is not None
         assert window.cache_manager is not None
 
-    def test_window_close_event_handling(self, qtbot, real_cache_manager):
+    def test_window_close_event_handling(self, qtbot, real_cache_manager) -> None:
         """Test window handles close events properly."""
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
@@ -455,7 +455,7 @@ class TestMainWindowErrorHandling:
         # Event handling shouldn't crash the process
         assert window is not None
 
-    def test_window_with_missing_components(self, qtbot, real_cache_manager):
+    def test_window_with_missing_components(self, qtbot, real_cache_manager) -> None:
         """Test window handles missing components gracefully."""
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
@@ -478,7 +478,7 @@ class TestMainWindowIntegration:
         qtbot.wait(200)  # Allow full initialization
         return window
 
-    def test_component_communication(self, qtbot, integrated_window):
+    def test_component_communication(self, qtbot, integrated_window) -> None:
         """Test components communicate through signals."""
         window = integrated_window
 
@@ -494,7 +494,7 @@ class TestMainWindowIntegration:
 
     def test_cache_manager_integration(
         self, qtbot, integrated_window, real_cache_manager
-    ):
+    ) -> None:
         """Test cache manager integrates with all components."""
         window = integrated_window
 
@@ -506,7 +506,7 @@ class TestMainWindowIntegration:
             # Shot model should use the cache manager
             assert hasattr(window.shot_model, "cache_manager")
 
-    def test_status_updates(self, qtbot, integrated_window):
+    def test_status_updates(self, qtbot, integrated_window) -> None:
         """Test status bar receives updates from components."""
         window = integrated_window
         status_bar = window.statusBar()
@@ -519,7 +519,7 @@ class TestMainWindowIntegration:
         current_message = status_bar.currentMessage()
         assert current_message == "Test message"
 
-    def test_ui_responsiveness_under_load(self, qtbot, integrated_window):
+    def test_ui_responsiveness_under_load(self, qtbot, integrated_window) -> None:
         """Test UI remains responsive under component load."""
         window = integrated_window
 
@@ -532,7 +532,7 @@ class TestMainWindowIntegration:
         assert window.isVisible()
         assert window.isEnabled()
 
-    def test_component_cleanup(self, qtbot, integrated_window):
+    def test_component_cleanup(self, qtbot, integrated_window) -> None:
         """Test components clean up properly."""
         window = integrated_window
 

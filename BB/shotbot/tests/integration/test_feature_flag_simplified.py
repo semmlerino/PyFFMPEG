@@ -34,7 +34,7 @@ class TestFeatureFlagBehavior:
         yield
         self.temp_dir.cleanup()
 
-    def test_model_selection_logic(self):
+    def test_model_selection_logic(self) -> None:
         """Test that feature flag correctly selects the model type."""
         # Test cases for flag values
         test_cases = [
@@ -65,7 +65,7 @@ class TestFeatureFlagBehavior:
             # Clean up
             os.environ.pop("SHOTBOT_OPTIMIZED_MODE", None)
 
-    def test_both_models_implement_interface(self):
+    def test_both_models_implement_interface(self) -> None:
         """Test that both models implement the same interface."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
@@ -94,7 +94,7 @@ class TestFeatureFlagBehavior:
             assert callable(getattr(standard_model, method_name))
             assert callable(getattr(optimized_model, method_name))
 
-    def test_both_models_have_signals(self):
+    def test_both_models_have_signals(self) -> None:
         """Test that both models have the required signals."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
@@ -120,7 +120,7 @@ class TestFeatureFlagBehavior:
                 f"OptimizedShotModel missing signal: {signal_name}"
             )
 
-    def test_cache_sharing_between_models(self):
+    def test_cache_sharing_between_models(self) -> None:
         """Test that cache works with both model types."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
@@ -146,7 +146,7 @@ class TestFeatureFlagBehavior:
         optimized_shots = {s.full_name for s in optimized_model.get_shots()}
         assert standard_shots == optimized_shots
 
-    def test_optimized_model_cleanup(self):
+    def test_optimized_model_cleanup(self) -> None:
         """Test that OptimizedShotModel cleanup works correctly."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
         optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
@@ -158,7 +158,7 @@ class TestFeatureFlagBehavior:
             shots_loaded = Signal(list)
             load_failed = Signal(str)
 
-            def __init__(self):
+            def __init__(self) -> None:
                 super().__init__()
                 self.stop_called = False
                 self.wait_called = False
@@ -168,17 +168,17 @@ class TestFeatureFlagBehavior:
             def isRunning(self):
                 return self._running
 
-            def stop(self):
+            def stop(self) -> None:
                 self.stop_called = True
                 self.requestInterruption()
                 self._running = False
 
-            def wait(self, timeout=None):
+            def wait(self, timeout=None) -> bool:
                 self.wait_called = True
                 self._running = False
                 return True
 
-            def deleteLater(self):
+            def deleteLater(self) -> None:
                 self.delete_later_called = True
                 super().deleteLater()
 
@@ -195,7 +195,7 @@ class TestFeatureFlagBehavior:
         assert test_loader.delete_later_called, "deleteLater() should have been called"
         assert optimized_model._async_loader is None
 
-    def test_performance_metrics_available(self):
+    def test_performance_metrics_available(self) -> None:
         """Test that performance metrics are available in both models."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 

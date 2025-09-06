@@ -6,7 +6,7 @@ import re
 import sys
 
 
-def test_shows_root():
+def test_shows_root() -> bool:
     """Test SHOWS_ROOT configuration in all modified files."""
     
     # Set mock environment

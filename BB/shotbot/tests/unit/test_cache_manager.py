@@ -120,7 +120,7 @@ class TestCacheManager:
         assert manager.thumbnails_dir == temp_cache_dir / "thumbnails"
         assert manager.test_cached_thumbnails == {}
 
-    def test_cache_directory_creation(self, tmp_path):
+    def test_cache_directory_creation(self, tmp_path) -> None:
         """Test cache directory is created if it doesn't exist."""
         cache_dir = tmp_path / "new_cache"
         assert not cache_dir.exists()
@@ -130,7 +130,7 @@ class TestCacheManager:
         assert cache_dir.exists()
         assert cache_dir.is_dir()
 
-    def test_load_cache_from_file(self, temp_cache_dir):
+    def test_load_cache_from_file(self, temp_cache_dir) -> None:
         """Test loading cache from existing file."""
         # Create a cache file with test data
 
@@ -155,7 +155,7 @@ class TestCacheManager:
         assert cached is not None
         assert len(cached) == 1
 
-    def test_save_cache_to_file(self, temp_cache_dir):
+    def test_save_cache_to_file(self, temp_cache_dir) -> None:
         """Test saving cache data to file."""
         manager = CacheManager(cache_dir=temp_cache_dir)
 
@@ -176,7 +176,7 @@ class TestCacheManager:
         assert len(data["shots"]) == 2
         assert data["shots"][0]["show"] == "show1"
 
-    def test_cache_shots_and_retrieval(self, cache_manager):
+    def test_cache_shots_and_retrieval(self, cache_manager) -> None:
         """Test caching and retrieving shots."""
         test_shots = [
             Shot("show1", "seq1", "0010", "/path1"),
@@ -196,7 +196,7 @@ class TestCacheManager:
         assert cached[0]["show"] == "show1"
         assert cached[2]["shot"] == "0030"
 
-    def test_cache_ttl_expiration(self, temp_cache_dir):
+    def test_cache_ttl_expiration(self, temp_cache_dir) -> None:
         """Test cache expiration after TTL."""
 
         # Create a cache file with expired timestamp (over 24 hours old)
@@ -225,7 +225,7 @@ class TestCacheManager:
         cache_manager,
         temp_cache_dir,
         test_image_file,
-    ):
+    ) -> None:
         """Test thumbnail caching with thread-safe image operations."""
         shot = Shot("test", "seq1", "0010", "/test/path")
 
@@ -259,7 +259,7 @@ class TestCacheManager:
                 f"Thumbnail file should be created at {expected_thumb}"
             )
 
-    def test_get_cached_thumbnail(self, cache_manager, temp_cache_dir):
+    def test_get_cached_thumbnail(self, cache_manager, temp_cache_dir) -> None:
         """Test retrieving cached thumbnail."""
         shot = Shot("test", "seq1", "0010", "/test/path")
 
@@ -275,7 +275,7 @@ class TestCacheManager:
         assert result == thumb_file
         assert result.exists()
 
-    def test_get_cached_thumbnail_not_found(self, cache_manager):
+    def test_get_cached_thumbnail_not_found(self, cache_manager) -> None:
         """Test retrieving non-existent thumbnail returns None."""
         shot = Shot("test", "seq1", "0010", "/test/path")
 
@@ -284,7 +284,7 @@ class TestCacheManager:
         assert result is None
 
     # TODO: Consolidate test_clear_cache, test_clear_cache into single test
-    def test_clear_cache(self, cache_manager, temp_cache_dir):
+    def test_clear_cache(self, cache_manager, temp_cache_dir) -> None:
         """Test clearing all cache data."""
         # Add some cache data
         test_shots = [Shot("show1", "seq1", "0010", "/path1")]
@@ -304,7 +304,7 @@ class TestCacheManager:
         assert cache_manager.test_cached_thumbnails == {}
         assert cache_manager.test_memory_usage_bytes == 0
 
-    def test_thread_safety_warning(self, cache_manager, test_image_file):
+    def test_thread_safety_warning(self, cache_manager, test_image_file) -> None:
         """Test thread safety check for image operations in worker threads."""
         shot = Shot("test", "seq1", "0010", "/test/path")
 
@@ -337,7 +337,7 @@ class TestCacheManager:
             # Behavior test: verify the operation completes without error
             # rather than checking mock calls
 
-    def test_memory_tracking(self, cache_manager):
+    def test_memory_tracking(self, cache_manager) -> None:
         """Test memory usage tracking for thumbnail cache."""
         # Memory tracking is done via _cached_thumbnails dict
         cache_manager.test_cached_thumbnails["/test/path.jpg"] = 40000
@@ -349,7 +349,7 @@ class TestCacheManager:
         cache_manager.clear_cache()
         assert cache_manager.test_memory_usage_bytes == 0
 
-    def test_cache_persistence_across_instances(self, temp_cache_dir):
+    def test_cache_persistence_across_instances(self, temp_cache_dir) -> None:
         """Test cache persists across CacheManager instances."""
         # First instance - save data
         manager1 = CacheManager(cache_dir=temp_cache_dir)
@@ -364,7 +364,7 @@ class TestCacheManager:
         assert len(cached) == 1
         assert cached[0]["show"] == "show1"
 
-    def test_corrupted_cache_handling(self, temp_cache_dir):
+    def test_corrupted_cache_handling(self, temp_cache_dir) -> None:
         """Test handling of corrupted cache file."""
         # Create corrupted cache file
         cache_file = temp_cache_dir / "shots.json"
@@ -384,7 +384,7 @@ class TestCacheManager:
             pytest.param(250, marks=pytest.mark.slow, id="stress_test"),
         ],
     )
-    def test_cache_size_limit(self, cache_manager, shot_count):
+    def test_cache_size_limit(self, cache_manager, shot_count) -> None:
         """Test cache respects size limits."""
         # Create a reasonable number of shots for testing
         large_shot_list = [
@@ -398,7 +398,7 @@ class TestCacheManager:
         cached = cache_manager.get_cached_shots()
         assert len(cached) == shot_count
 
-    def test_cache_update_timestamp(self, cache_manager):
+    def test_cache_update_timestamp(self, cache_manager) -> None:
         """Test cache timestamp is updated on save."""
 
         test_shots = [Shot("show1", "seq1", "0010", "/path1")]
@@ -427,7 +427,7 @@ class TestCacheManager:
 class TestCacheManagerIntegration:
     """Integration tests for CacheManager with other components."""
 
-    def test_integration_with_shot_model(self, cache_manager, shot_model_with_shots):
+    def test_integration_with_shot_model(self, cache_manager, shot_model_with_shots) -> None:
         """Test CacheManager integration with ShotModel."""
         # shot_model_with_shots already has shots populated
         model = shot_model_with_shots
@@ -439,13 +439,13 @@ class TestCacheManagerIntegration:
         cached = cache_manager.get_cached_shots()
         assert len(cached) == len(model.shots)
 
-    def test_concurrent_cache_access(self, cache_manager):
+    def test_concurrent_cache_access(self, cache_manager) -> None:
         """Test thread-safe cache operations."""
 
         results = []
         test_shots = [Shot("show1", "seq1", "0010", "/path1")]
 
-        def cache_operation():
+        def cache_operation() -> None:
             cache_manager.cache_shots(test_shots)
             cached = cache_manager.get_cached_shots()
             results.append(cached is not None)
@@ -473,7 +473,7 @@ class TestThumbnailCacheLoader:
         cache_manager,
         test_image,
         sample_shot,
-    ):
+    ) -> None:
         """Test ThumbnailCacheLoader initialization."""
         loader = ThumbnailCacheLoader(
             cache_manager,
@@ -496,7 +496,7 @@ class TestThumbnailCacheLoader:
         cache_manager,
         test_image,
         sample_shot,
-    ):
+    ) -> None:
         """Test successful thumbnail caching in background."""
         loader = ThumbnailCacheLoader(
             cache_manager,
@@ -535,7 +535,7 @@ class TestThumbnailCacheLoader:
         cache_manager,
         tmp_path,
         sample_shot,
-    ):
+    ) -> None:
         """Test failed thumbnail caching with non-existent file."""
         non_existent = tmp_path / "non_existent.jpg"
 
@@ -572,7 +572,7 @@ class TestThumbnailCacheLoader:
         cache_manager,
         test_image,
         sample_shot,
-    ):
+    ) -> None:
         """Test ThumbnailCacheLoader with QThreadPool."""
         loader = ThumbnailCacheLoader(
             cache_manager,
@@ -604,7 +604,7 @@ class TestCacheThumbnailDirect:
         cache_manager,
         test_image,
         sample_shot,
-    ):
+    ) -> None:
         """Test direct thumbnail caching."""
         result = cache_manager.cache_thumbnail_direct(
             test_image,
@@ -628,7 +628,7 @@ class TestCacheThumbnailDirect:
         cache_manager,
         large_image,
         sample_shot,
-    ):
+    ) -> None:
         """Test caching large image that exceeds max dimensions."""
         result = cache_manager.cache_thumbnail_direct(
             large_image,
@@ -645,7 +645,7 @@ class TestCacheThumbnailDirect:
         cache_manager,
         exr_image,
         sample_shot,
-    ):
+    ) -> None:
         """Test EXR file handling."""
         # Since we can't load real EXR files without plugins,
         # this will test the EXR detection and error handling
@@ -665,7 +665,7 @@ class TestCacheThumbnailDirect:
         test_image,
         sample_shot,
         monkeypatch,
-    ):
+    ) -> None:
         """Test memory error handling."""
 
         # Patch QImage to raise MemoryError
@@ -691,11 +691,11 @@ class TestCacheThumbnailDirect:
         test_image,
         sample_shot,
         monkeypatch,
-    ):
+    ) -> None:
         """Test I/O error handling."""
 
         # Patch save to always fail
-        def mock_save(self, path, format=None, quality=-1):
+        def mock_save(self, path, format=None, quality=-1) -> bool:
             # Always return False to simulate save failure
             return False
 
@@ -714,7 +714,7 @@ class TestCacheThumbnailDirect:
 class TestThreeDECaching:
     """Test 3DE scene caching functionality."""
 
-    def test_cache_threede_scenes(self, cache_manager, sample_3de_scene):
+    def test_cache_threede_scenes(self, cache_manager, sample_3de_scene) -> None:
         """Test caching 3DE scenes."""
         scenes = [sample_3de_scene.to_dict()]
 
@@ -732,7 +732,7 @@ class TestThreeDECaching:
         assert len(data["scenes"]) == 1
         assert data["scenes"][0]["show"] == sample_3de_scene.show
 
-    def test_get_cached_threede_scenes_valid(self, cache_manager, sample_3de_scene):
+    def test_get_cached_threede_scenes_valid(self, cache_manager, sample_3de_scene) -> None:
         """Test retrieving valid cached 3DE scenes."""
         # Cache some scenes
         scenes = [sample_3de_scene.to_dict()]
@@ -745,7 +745,7 @@ class TestThreeDECaching:
         assert len(cached) == 1
         assert cached[0]["show"] == sample_3de_scene.show
 
-    def test_get_cached_threede_scenes_expired(self, cache_manager, sample_3de_scene):
+    def test_get_cached_threede_scenes_expired(self, cache_manager, sample_3de_scene) -> None:
         """Test expired 3DE cache returns None."""
         # Cache some scenes
         scenes = [sample_3de_scene.to_dict()]
@@ -766,7 +766,7 @@ class TestThreeDECaching:
         cached = cache_manager.get_cached_threede_scenes()
         assert cached is None
 
-    def test_get_cached_threede_scenes_corrupted(self, cache_manager):
+    def test_get_cached_threede_scenes_corrupted(self, cache_manager) -> None:
         """Test corrupted 3DE cache handling."""
         # Create corrupted cache file
         cache_manager.threede_scenes_cache_file.parent.mkdir(
@@ -779,7 +779,7 @@ class TestThreeDECaching:
         cached = cache_manager.get_cached_threede_scenes()
         assert cached is None
 
-    def test_has_valid_threede_cache(self, cache_manager, sample_3de_scene):
+    def test_has_valid_threede_cache(self, cache_manager, sample_3de_scene) -> None:
         """Test checking if 3DE cache is valid."""
         # No cache initially
         assert cache_manager.has_valid_threede_cache() is False
@@ -791,7 +791,7 @@ class TestThreeDECaching:
         # Should be valid now
         assert cache_manager.has_valid_threede_cache() is True
 
-    def test_cache_threede_scenes_with_metadata(self, cache_manager, sample_3de_scene):
+    def test_cache_threede_scenes_with_metadata(self, cache_manager, sample_3de_scene) -> None:
         """Test caching 3DE scenes with metadata."""
         scenes = [sample_3de_scene.to_dict()]
         metadata = {
@@ -812,7 +812,7 @@ class TestThreeDECaching:
         assert "metadata" in data
         assert data["metadata"]["scan_type"] == "quick"
 
-    def test_cache_threede_scenes_empty(self, cache_manager):
+    def test_cache_threede_scenes_empty(self, cache_manager) -> None:
         """Test caching empty 3DE scene list."""
         # Cache empty list
         cache_manager.cache_threede_scenes([])
@@ -829,7 +829,7 @@ class TestThreeDECaching:
 class TestMemoryManagement:
     """Test memory management and eviction."""
 
-    def test_evict_old_thumbnails(self, cache_manager, test_image, monkeypatch):
+    def test_evict_old_thumbnails(self, cache_manager, test_image, monkeypatch) -> None:
         """Test thumbnail eviction when memory limit exceeded."""
         # Set a very low memory limit
         monkeypatch.setattr(cache_manager, "_max_memory_bytes", 1000)  # 1KB
@@ -849,7 +849,7 @@ class TestMemoryManagement:
             cache_manager.test_memory_usage_bytes <= cache_manager.test_max_memory_bytes
         )
 
-    def test_get_memory_usage(self, cache_manager, test_image):
+    def test_get_memory_usage(self, cache_manager, test_image) -> None:
         """Test getting memory usage information."""
         # Cache a thumbnail to have some memory usage
         cache_manager.cache_thumbnail_direct(test_image, "show", "seq", "shot01")
@@ -870,7 +870,7 @@ class TestMemoryManagement:
 class TestCacheValidation:
     """Test cache validation functionality."""
 
-    def test_validate_cache(self, cache_manager, test_image):
+    def test_validate_cache(self, cache_manager, test_image) -> None:
         """Test cache validation."""
         # Cache some data
         cache_manager.cache_thumbnail_direct(test_image, "show", "seq", "shot01")
@@ -885,7 +885,7 @@ class TestCacheValidation:
         assert "orphaned_files" in result
         assert result["valid"] is True
 
-    def test_clear_cache(self, cache_manager, test_image):
+    def test_clear_cache(self, cache_manager, test_image) -> None:
         """Test clearing all cache."""
         # Cache some data
         cache_manager.cache_thumbnail_direct(test_image, "show", "seq", "shot01")
@@ -897,7 +897,7 @@ class TestCacheValidation:
         assert cache_manager.test_memory_usage_bytes == 0
         assert len(cache_manager.test_cached_thumbnails) == 0
 
-    def test_shutdown(self, cache_manager):
+    def test_shutdown(self, cache_manager) -> None:
         """Test cache manager shutdown."""
         # Shutdown should not raise any exceptions
         cache_manager.shutdown()
@@ -912,7 +912,7 @@ class TestThreadSafety:
     # NOTE: Removed test_concurrent_cache_operations - was causing hangs due to Qt threading complexity
     # Thread safety is verified through real-world usage and the presence of _lock in CacheManager
 
-    def test_thread_safety_lock_exists(self, cache_manager):
+    def test_thread_safety_lock_exists(self, cache_manager) -> None:
         """Test that cache manager has thread safety lock."""
         from PySide6.QtCore import QMutexLocker
         
@@ -921,7 +921,7 @@ class TestThreadSafety:
         assert cache_manager._lock is not None
 
         # Simple test that we can acquire the lock using QMutexLocker
-        locker = QMutexLocker(cache_manager._lock)
+        QMutexLocker(cache_manager._lock)
         # Lock acquired successfully when locker is created
         # Lock will be automatically released when locker goes out of scope
 
@@ -929,7 +929,7 @@ class TestThreadSafety:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_cache_nonexistent_file(self, cache_manager, tmp_path):
+    def test_cache_nonexistent_file(self, cache_manager, tmp_path) -> None:
         """Test caching non-existent file."""
         non_existent = tmp_path / "does_not_exist.jpg"
 
@@ -942,7 +942,7 @@ class TestEdgeCases:
 
         assert result is None
 
-    def test_cache_invalid_image(self, cache_manager, tmp_path):
+    def test_cache_invalid_image(self, cache_manager, tmp_path) -> None:
         """Test caching invalid image file."""
         invalid_image = tmp_path / "invalid.jpg"
         invalid_image.write_text("NOT AN IMAGE")
@@ -956,7 +956,7 @@ class TestEdgeCases:
 
         assert result is None
 
-    def test_cache_with_special_characters(self, cache_manager, test_image):
+    def test_cache_with_special_characters(self, cache_manager, test_image) -> None:
         """Test caching with special characters in names."""
         result = cache_manager.cache_thumbnail_direct(
             test_image,
@@ -968,7 +968,7 @@ class TestEdgeCases:
         assert result is not None
         assert result.exists()
 
-    def test_cache_with_unicode_names(self, cache_manager, test_image):
+    def test_cache_with_unicode_names(self, cache_manager, test_image) -> None:
         """Test caching with Unicode characters in names."""
         result = cache_manager.cache_thumbnail_direct(
             test_image,
@@ -999,7 +999,7 @@ class TestCacheManagerThreading:
         """Create test shot for testing."""
         return Shot("test_show", "test_seq", "test_shot", "/test/workspace")
 
-    def test_thumbnail_cache_result_single_completion(self):
+    def test_thumbnail_cache_result_single_completion(self) -> None:
         """Test ThumbnailCacheResult prevents multiple completion."""
         result = ThumbnailCacheResult()
 
@@ -1020,14 +1020,14 @@ class TestCacheManagerThreading:
         assert result.cache_path == test_path  # Still first path (behavior)
         assert result.cache_path != test_path2  # Not changed (behavior)
 
-    def test_thumbnail_cache_result_concurrent_completion(self):
+    def test_thumbnail_cache_result_concurrent_completion(self) -> None:
         """Test ThumbnailCacheResult thread safety with concurrent completion attempts."""
         result = ThumbnailCacheResult()
 
         completion_results = []
         errors = []
 
-        def attempt_completion(thread_id: int):
+        def attempt_completion(thread_id: int) -> None:
             """Attempt to complete the result from multiple threads."""
             try:
                 test_path = Path(f"/test/cache/path_{thread_id}.jpg")
@@ -1064,7 +1064,7 @@ class TestCacheManagerThreading:
         assert result._is_complete is True
         assert result.cache_path is not None
 
-    def test_instance_variable_separation(self):
+    def test_instance_variable_separation(self) -> None:
         """Test that each CacheManager instance has separate variables."""
         # Create two cache manager instances
         with tempfile.TemporaryDirectory() as temp_dir1, tempfile.TemporaryDirectory() as temp_dir2:
@@ -1093,15 +1093,15 @@ class TestCacheManagerThreading:
             assert len(cache1._cached_thumbnails) == 1
             assert len(cache2._cached_thumbnails) == 0
 
-    def test_concurrent_memory_tracking(self, cache_manager):
+    def test_concurrent_memory_tracking(self, cache_manager) -> None:
         """Test thread-safe memory usage tracking."""
         manager = cache_manager
 
-        def add_memory_usage(thread_id: int, amount: int):
+        def add_memory_usage(thread_id: int, amount: int) -> None:
             """Add memory usage from multiple threads."""
             from PySide6.QtCore import QMutexLocker
             try:
-                locker = QMutexLocker(manager._lock)
+                QMutexLocker(manager._lock)
                 current = manager._memory_usage_bytes
                 # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
                 manager._memory_usage_bytes = current + amount
@@ -1128,14 +1128,14 @@ class TestCacheManagerThreading:
     # NOTE: Removed test_concurrent_thumbnail_caching - was causing hangs with complex Qt patching
     # Concurrent caching is tested through integration tests and real-world usage
 
-    def test_async_sync_mode_behavior(self, cache_manager, test_shot):
+    def test_async_sync_mode_behavior(self, cache_manager, test_shot) -> None:
         """Test cache manager threading behavior with different wait modes."""
 
         # Test that ThumbnailCacheResult behaves correctly in threaded environment
         result = ThumbnailCacheResult()
 
         # Test threading behavior of ThumbnailCacheResult
-        def complete_result():
+        def complete_result() -> None:
             test_path = Path("/test/cache/async_result.jpg")
             result.set_result(test_path)
 
@@ -1151,7 +1151,7 @@ class TestCacheManagerThreading:
         # Test concurrent access to completed result
         access_results = []
 
-        def access_result(thread_id: int):
+        def access_result(thread_id: int) -> None:
             try:
                 path = result.cache_path
                 is_complete = result._is_complete
@@ -1175,7 +1175,7 @@ class TestCacheManagerThreading:
             assert path_valid is True
             assert is_complete is True
 
-    def test_lock_protection_during_cleanup(self, cache_manager):
+    def test_lock_protection_during_cleanup(self, cache_manager) -> None:
         """Test that cleanup operations are properly lock-protected."""
         manager = cache_manager
 
@@ -1191,11 +1191,11 @@ class TestCacheManagerThreading:
         cleanup_results = []
         access_results = []
 
-        def cleanup_cache():
+        def cleanup_cache() -> None:
             """Perform cache cleanup."""
             from PySide6.QtCore import QMutexLocker
             try:
-                locker = QMutexLocker(manager._lock)
+                QMutexLocker(manager._lock)
                 # Simulate cleanup work
                 # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
                 manager.test_cached_thumbnails.clear()
@@ -1204,11 +1204,11 @@ class TestCacheManagerThreading:
             except Exception as e:
                 cleanup_results.append(f"cleanup_error: {e}")
 
-        def access_cache():
+        def access_cache() -> None:
             """Access cache during cleanup."""
             from PySide6.QtCore import QMutexLocker
             try:
-                locker = QMutexLocker(manager._lock)
+                QMutexLocker(manager._lock)
                 # Simulate cache access
                 # Note: Removed QCoreApplication.processEvents() - not needed in worker threads
                 count = len(manager.test_cached_thumbnails)
@@ -1233,7 +1233,7 @@ class TestCacheManagerThreading:
         assert "error" not in cleanup_results[0]
         assert "error" not in access_results[0]
 
-    def test_memory_limit_enforcement(self, cache_manager):
+    def test_memory_limit_enforcement(self, cache_manager) -> None:
         """Test that memory limits are enforced thread-safely."""
         manager = cache_manager
 
@@ -1271,7 +1271,7 @@ class TestCacheManagerThreading:
             # Restore original limit
             manager._max_memory_bytes = original_limit
 
-    def test_threadingconfig_integration(self, cache_manager):
+    def test_threadingconfig_integration(self, cache_manager) -> None:
         """Test integration with ThreadingConfig constants."""
         manager = cache_manager
 
@@ -1282,13 +1282,13 @@ class TestCacheManagerThreading:
     # NOTE: Commented out test_cache_statistics_thread_safety because
     # get_cache_stats() method doesn't exist in CacheManager implementation
 
-    def test_cache_key_generation_thread_safety(self, cache_manager):
+    def test_cache_key_generation_thread_safety(self, cache_manager) -> None:
         """Test thread-safe cache key generation."""
 
         cache_keys = []
         errors = []
 
-        def generate_cache_keys(thread_id: int):
+        def generate_cache_keys(thread_id: int) -> None:
             """Generate cache keys from multiple threads."""
             try:
                 for i in range(10):
@@ -1322,7 +1322,7 @@ class TestCacheManagerThreading:
         assert len(all_keys) == 30  # 3 threads × 10 keys each
         assert len(set(all_keys)) == 30  # All keys should be unique
 
-    def test_thumbnail_cache_result_cleanup(self):
+    def test_thumbnail_cache_result_cleanup(self) -> None:
         """Test ThumbnailCacheResult proper cleanup."""
         result = ThumbnailCacheResult()
 
@@ -1344,14 +1344,14 @@ class TestCacheManagerThreading:
     # NOTE: Removed test_concurrent_cache_retrieval - was causing hangs with threading and patches
     # Cache retrieval thread safety is verified through the _lock existence test
 
-    def test_lock_basic_behavior(self, cache_manager):
+    def test_lock_basic_behavior(self, cache_manager) -> None:
         """Test that QMutex provides basic thread safety."""
         from PySide6.QtCore import QMutexLocker
         manager = cache_manager
 
         def single_lock_access():
             """Test single lock acquisition."""
-            locker = QMutexLocker(manager._lock)
+            QMutexLocker(manager._lock)
             # Basic lock usage - no nesting needed
             initial_memory = manager._memory_usage_bytes
             manager._memory_usage_bytes = initial_memory + 100

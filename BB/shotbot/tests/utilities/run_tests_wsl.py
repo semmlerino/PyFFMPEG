@@ -83,7 +83,7 @@ def run_focused_tests(pattern):
     return subprocess.run(cmd).returncode
 
 
-def run_all_tests_batched():
+def run_all_tests_batched() -> int:
     """Run all tests in batches to avoid timeout issues."""
     print("📦 Running all tests in batches...")
 
@@ -127,7 +127,7 @@ def run_all_tests_batched():
         return 0
 
 
-def check_imports():
+def check_imports() -> int:
     """Quick check that all test files can be imported."""
     print("🔍 Checking all test imports...")
 

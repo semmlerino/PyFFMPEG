@@ -47,7 +47,7 @@ from cache.thumbnail_processor import ThumbnailProcessor
 class ThreadSafetyMonitor:
     """Monitor thread safety violations and resource issues."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.lock_acquisitions = 0
         self.lock_wait_times: list[float] = []
         self.qt_operations = 0
@@ -58,13 +58,13 @@ class ThreadSafetyMonitor:
         self.memory_peaks: list[int] = []
         self._lock = threading.Lock()
 
-    def record_lock_acquisition(self, wait_time: float):
+    def record_lock_acquisition(self, wait_time: float) -> None:
         """Record lock acquisition metrics."""
         with self._lock:
             self.lock_acquisitions += 1
             self.lock_wait_times.append(wait_time)
 
-    def record_operation(self, backend: str):
+    def record_operation(self, backend: str) -> None:
         """Record backend operation counts."""
         with self._lock:
             if backend == "qt":
@@ -72,7 +72,7 @@ class ThreadSafetyMonitor:
             elif backend == "pil":
                 self.pil_operations += 1
 
-    def record_error(self, error: str):
+    def record_error(self, error: str) -> None:
         """Record error occurrences."""
         with self._lock:
             self.errors.append(error)
@@ -193,7 +193,7 @@ class TestThumbnailProcessorThreadSafety:
     @pytest.mark.slow
     def test_high_concurrency_qt_operations(
         self, processor, test_images, tmp_path, monitor
-    ):
+    ) -> None:
         """Test Qt operations with 20 concurrent threads."""
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir(exist_ok=True)
@@ -271,7 +271,7 @@ class TestThumbnailProcessorThreadSafety:
         assert stats["max_lock_wait_ms"] < 2000, "Extreme lock wait time detected"
 
     @pytest.mark.slow
-    def test_mixed_backend_concurrency(self, processor, test_images, tmp_path):
+    def test_mixed_backend_concurrency(self, processor, test_images, tmp_path) -> None:
         """Test concurrent processing with mixed Qt and PIL backends."""
         cache_dir = tmp_path / "mixed_cache"
         cache_dir.mkdir(exist_ok=True)
@@ -307,7 +307,7 @@ class TestThumbnailProcessorThreadSafety:
         successful = sum(1 for r in results if r)
         assert successful >= 5, f"Too few successful operations: {successful}/10"
 
-    def test_race_condition_file_operations(self, processor, test_images, tmp_path):
+    def test_race_condition_file_operations(self, processor, test_images, tmp_path) -> None:
         """Test for race conditions in file I/O operations."""
         cache_dir = tmp_path / "race_cache"
         cache_dir.mkdir(exist_ok=True)
@@ -356,7 +356,7 @@ class TestThumbnailProcessorThreadSafety:
 
     def test_error_handling_under_concurrency(
         self, processor, problematic_images, tmp_path
-    ):
+    ) -> None:
         """Test error handling with concurrent problematic images."""
         cache_dir = tmp_path / "error_cache"
         cache_dir.mkdir(exist_ok=True)
@@ -399,7 +399,7 @@ class TestThumbnailProcessorThreadSafety:
         print(f"\nHandled {len(exceptions)} exceptions gracefully")
 
     @pytest.mark.slow
-    def test_memory_management_stress(self, processor, test_images, tmp_path):
+    def test_memory_management_stress(self, processor, test_images, tmp_path) -> None:
         """Test memory management under high load."""
         cache_dir = tmp_path / "memory_cache"
         cache_dir.mkdir(exist_ok=True)
@@ -447,7 +447,7 @@ class TestThumbnailProcessorThreadSafety:
         )
 
     @pytest.mark.slow
-    def test_qt_lock_prevents_segfaults(self, processor, test_images, tmp_path):
+    def test_qt_lock_prevents_segfaults(self, processor, test_images, tmp_path) -> None:
         """Verify Qt lock prevents segmentation faults."""
         cache_dir = tmp_path / "segfault_cache"
         cache_dir.mkdir(exist_ok=True)
@@ -498,7 +498,7 @@ class TestThumbnailProcessorThreadSafety:
         assert len(results) > 10, "Too many operations failed"
 
     @pytest.mark.slow
-    def test_deadlock_prevention(self, processor, test_images, tmp_path):
+    def test_deadlock_prevention(self, processor, test_images, tmp_path) -> None:
         """Test that the Qt lock doesn't cause deadlocks."""
         cache_dir = tmp_path / "deadlock_cache"
         cache_dir.mkdir(exist_ok=True)
@@ -521,7 +521,7 @@ class TestThumbnailProcessorThreadSafety:
 
             return result
 
-        def deadlock_detector():
+        def deadlock_detector() -> None:
             """Monitor for deadlocks."""
             time.sleep(10)  # Wait reasonable time
             if not all_done.is_set():
@@ -548,7 +548,7 @@ class TestThumbnailProcessorThreadSafety:
         assert not deadlock_event.is_set(), "Deadlock detected"
         assert len(not_done) == 0, "Some operations didn't complete"
 
-    def test_performance_impact_of_lock(self, processor, test_images, tmp_path):
+    def test_performance_impact_of_lock(self, processor, test_images, tmp_path) -> None:
         """Measure performance impact of Qt lock."""
         cache_dir = tmp_path / "perf_cache"
         cache_dir.mkdir(exist_ok=True)
@@ -591,7 +591,7 @@ class TestThumbnailProcessorThreadSafety:
         )
 
     @pytest.mark.slow
-    def test_resource_cleanup_under_stress(self, processor, test_images, tmp_path):
+    def test_resource_cleanup_under_stress(self, processor, test_images, tmp_path) -> None:
         """Test resource cleanup with many concurrent operations."""
         cache_dir = tmp_path / "cleanup_cache"
         cache_dir.mkdir(exist_ok=True)
@@ -658,7 +658,7 @@ class TestThumbnailProcessorThreadSafety:
 class TestQtLockImplementation:
     """Specific tests for Qt lock implementation details."""
 
-    def test_lock_is_reentrant_safe(self):
+    def test_lock_is_reentrant_safe(self) -> None:
         """Verify the lock handles reentrant calls correctly."""
         processor = ThumbnailProcessor()
 
@@ -668,7 +668,7 @@ class TestQtLockImplementation:
         # Test that lock is held during Qt operations
         lock_held = False
 
-        def check_lock_held():
+        def check_lock_held() -> None:
             nonlocal lock_held
             # Try to acquire lock with no wait
             acquired = processor._qt_lock.acquire(blocking=False)
@@ -688,7 +688,7 @@ class TestQtLockImplementation:
 
         # Lock implementation verified through behavior
 
-    def test_lock_scope_coverage(self, tmp_path):
+    def test_lock_scope_coverage(self, tmp_path) -> None:
         """Verify all Qt operations are within lock scope."""
         import numpy as np
         from PIL import Image

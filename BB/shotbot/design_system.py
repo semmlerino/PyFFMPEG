@@ -163,7 +163,7 @@ class Animation:
 class DesignSystem:
     """Central design system with all design tokens."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.colors = ColorPalette()
         self.typography = Typography()
         self.spacing = Spacing()

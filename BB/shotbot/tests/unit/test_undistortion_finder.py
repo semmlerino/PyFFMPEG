@@ -17,13 +17,13 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
-def mock_shot_name():
+def mock_shot_name() -> str:
     """Mock shot name for testing."""
     return "seq01_shot01"
 
 
 @pytest.fixture
-def mock_username():
+def mock_username() -> str:
     """Mock username for testing."""
     return "testuser"
 
@@ -73,7 +73,7 @@ class TestUndistortionFinder:
         undistortion_structure,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test successfully finding the latest undistortion file."""
         workspace_path = str(undistortion_structure)
 
@@ -94,7 +94,7 @@ class TestUndistortionFinder:
         undistortion_structure,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test finding undistortion with explicitly provided username."""
         workspace_path = str(undistortion_structure)
 
@@ -113,7 +113,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test when exports path doesn't exist."""
         workspace_path = str(tmp_path / "nonexistent")
 
@@ -130,7 +130,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test when no scene directories are found."""
         # Create exports path but no scene directories
         base_path = (
@@ -151,7 +151,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test fallback to direct 'scene' directory."""
         # Create exports path with direct scene directory
         base_path = (
@@ -178,7 +178,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test when scene directory exists but has no plate directories."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -203,7 +203,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test when plate directory exists but no nuke_lens_distortion directory."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -225,7 +225,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test when nuke_lens_distortion exists but has no version directories."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -251,7 +251,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test fallback to general pattern when no LD files found."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -278,7 +278,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test fallback to any .nk file when shot name not in filename."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -305,7 +305,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test that FG plates are prioritized over BG and BC plates."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -346,7 +346,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test that scene directory search is case-insensitive."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -374,7 +374,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test that plate directory matching is case-insensitive."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -402,7 +402,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test that version directory matching is case-insensitive."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -425,7 +425,7 @@ class TestUndistortionFinder:
         assert result is not None
         assert "V001" in str(result)
 
-    def test_get_version_from_path(self, tmp_path):
+    def test_get_version_from_path(self, tmp_path) -> None:
         """Test extracting version from path with real file structure."""
         # Create real version directory structure
         version_dir = tmp_path / "v002"
@@ -436,7 +436,7 @@ class TestUndistortionFinder:
         result = UndistortionFinder.get_version_from_path(test_path)
         assert result == "v002"
 
-    def test_get_version_from_path_none(self, tmp_path):
+    def test_get_version_from_path_none(self, tmp_path) -> None:
         """Test extracting version returns None when not found."""
         # Create path without version pattern
         test_path = tmp_path / "no_version_here" / "undistortion.nk"
@@ -446,7 +446,7 @@ class TestUndistortionFinder:
         result = UndistortionFinder.get_version_from_path(test_path)
         assert result is None
 
-    def test_sort_key_function(self, tmp_path, mock_shot_name, mock_username):
+    def test_sort_key_function(self, tmp_path, mock_shot_name, mock_username) -> None:
         """Test the sort_key function for proper ordering."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -483,7 +483,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test that .nk files are found in subdirectories."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -513,7 +513,7 @@ class TestUndistortionFinder:
         self,
         tmp_path,
         mock_username,
-    ):
+    ) -> None:
         """Test finding undistortion in plate-named subdirectory (real-world pattern).
 
         Tests pattern like:
@@ -560,7 +560,7 @@ class TestUndistortionFinder:
     def test_find_latest_undistortion_exact_vfx_structure(
         self,
         tmp_path,
-    ):
+    ) -> None:
         """Test finding undistortion with exact VFX production structure.
 
         Tests the exact structure from production:
@@ -616,7 +616,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test handling of non-existent directories gracefully."""
         # Use non-existent workspace path
         nonexistent_path = str(tmp_path / "does_not_exist")
@@ -633,7 +633,7 @@ class TestUndistortionFinder:
     def test_find_latest_undistortion_pl01_plate(
         self,
         tmp_path,
-    ):
+    ) -> None:
         """Test finding PL01 undistortion files with production structure.
 
         Tests the exact structure from the user's production environment:
@@ -690,7 +690,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test that PL01 plates have higher priority than BG01 but lower than FG01."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -730,7 +730,7 @@ class TestUndistortionFinder:
         tmp_path,
         mock_shot_name,
         mock_username,
-    ):
+    ) -> None:
         """Test that FG01 plates have higher priority than PL01."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"

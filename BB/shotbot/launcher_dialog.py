@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 class LauncherListWidget(QListWidget):
     """Custom list widget with drag-and-drop reordering support."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.setDragDropMode(QListWidget.DragDropMode.InternalMove)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
@@ -59,13 +59,13 @@ class LauncherPreviewPanel(QWidget):
     edit_requested = Signal(str)  # launcher_id
     delete_requested = Signal(str)  # launcher_id
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.setObjectName("previewPanel")
         self._current_launcher_id: str | None = None
         self._setup_ui()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Set up the preview panel UI."""
         layout = QVBoxLayout(self)
 
@@ -115,7 +115,7 @@ class LauncherPreviewPanel(QWidget):
         layout.addLayout(button_layout)
         layout.addStretch()
 
-    def set_launcher(self, launcher: CustomLauncher | None):
+    def set_launcher(self, launcher: CustomLauncher | None) -> None:
         """Update the preview with launcher details."""
         if not launcher:
             self._current_launcher_id = None
@@ -135,17 +135,17 @@ class LauncherPreviewPanel(QWidget):
         self.edit_button.setEnabled(True)
         self.delete_button.setEnabled(True)
 
-    def _on_launch(self):
+    def _on_launch(self) -> None:
         """Handle launch button click."""
         if self._current_launcher_id:
             self.launch_requested.emit(self._current_launcher_id)
 
-    def _on_edit(self):
+    def _on_edit(self) -> None:
         """Handle edit button click."""
         if self._current_launcher_id:
             self.edit_requested.emit(self._current_launcher_id)
 
-    def _on_delete(self):
+    def _on_delete(self) -> None:
         """Handle delete button click."""
         if self._current_launcher_id:
             self.delete_requested.emit(self._current_launcher_id)
@@ -159,7 +159,7 @@ class LauncherEditDialog(QDialog):
         launcher_manager: LauncherManager,
         launcher: CustomLauncher | None = None,
         parent=None,
-    ):
+    ) -> None:
         super().__init__(parent)
         self.launcher_manager = launcher_manager
         self.launcher = launcher
@@ -168,7 +168,7 @@ class LauncherEditDialog(QDialog):
         self._populate_fields()
         self._connect_signals()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Set up the edit dialog UI."""
         self.setWindowTitle("Edit Launcher" if self.is_editing else "New Launcher")
         self.setModal(True)
@@ -251,7 +251,7 @@ class LauncherEditDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
         layout.addWidget(self.button_box)
 
-    def _populate_fields(self):
+    def _populate_fields(self) -> None:
         """Populate fields with existing launcher data."""
         if not self.launcher:
             return
@@ -276,12 +276,12 @@ class LauncherEditDialog(QDialog):
         if self.launcher.terminal:
             self.persist_terminal.setChecked(self.launcher.terminal.persist)
 
-    def _connect_signals(self):
+    def _connect_signals(self) -> None:
         """Connect signals for validation."""
         self.name_field.textChanged.connect(self._validate_name)
         self.command_field.textChanged.connect(self._validate_command)
 
-    def _validate_name(self):
+    def _validate_name(self) -> bool:
         """Validate launcher name."""
         name = self.name_field.text().strip()
         if not name:
@@ -297,7 +297,7 @@ class LauncherEditDialog(QDialog):
         self.name_field.setStyleSheet("border: 1px solid #4caf50;")
         return True
 
-    def _validate_command(self):
+    def _validate_command(self) -> bool:
         """Validate command syntax."""
         command = self.command_field.toPlainText().strip()
         if not command:
@@ -312,7 +312,7 @@ class LauncherEditDialog(QDialog):
         self.command_field.setStyleSheet("border: 1px solid #4caf50;")
         return True
 
-    def _test_command(self):
+    def _test_command(self) -> None:
         """Test the command with dry run."""
         command = self.command_field.toPlainText().strip()
         if not command:
@@ -348,7 +348,7 @@ class LauncherEditDialog(QDialog):
             self.test_output.setText(f"✗ {str(e)}")
             self.test_output.setStyleSheet("color: #f44336; font-style: italic;")
 
-    def _save(self):
+    def _save(self) -> None:
         """Save the launcher."""
         if not self._validate_name() or not self._validate_command():
             NotificationManager.warning(
@@ -424,7 +424,7 @@ class LauncherEditDialog(QDialog):
 class LauncherManagerDialog(QDialog):
     """Main launcher management dialog."""
 
-    def __init__(self, launcher_manager: LauncherManager, parent=None):
+    def __init__(self, launcher_manager: LauncherManager, parent=None) -> None:
         super().__init__(parent)
         self.launcher_manager = launcher_manager
         self._launchers_cache: dict[str, CustomLauncher] = {}
@@ -434,7 +434,7 @@ class LauncherManagerDialog(QDialog):
         self._load_launchers()
         self._apply_styles()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Set up the main dialog UI."""
         self.setWindowTitle("Custom Launchers")
         self.setModal(False)
@@ -493,7 +493,7 @@ class LauncherManagerDialog(QDialog):
 
         layout.addLayout(button_layout)
 
-    def _setup_shortcuts(self):
+    def _setup_shortcuts(self) -> None:
         """Set up keyboard shortcuts."""
         # Enter - Launch
         QShortcut(Qt.Key.Key_Return, self, self._launch_selected)
@@ -513,7 +513,7 @@ class LauncherManagerDialog(QDialog):
         # Escape - Close
         QShortcut(Qt.Key.Key_Escape, self, self.close)
 
-    def _connect_signals(self):
+    def _connect_signals(self) -> None:
         """Connect signals to slots."""
         # Search
         self.search_field.textChanged.connect(self._filter_launchers)
@@ -523,7 +523,7 @@ class LauncherManagerDialog(QDialog):
         self.launcher_manager.execution_started.connect(self._on_execution_started)
         self.launcher_manager.execution_finished.connect(self._on_execution_finished)
 
-    def _apply_styles(self):
+    def _apply_styles(self) -> None:
         """Apply custom styles."""
         self.setStyleSheet("""
             QDialog {
@@ -628,7 +628,7 @@ class LauncherManagerDialog(QDialog):
             }
         """)
 
-    def _load_launchers(self):
+    def _load_launchers(self) -> None:
         """Load launchers into the list."""
         self.launcher_list.clear()
         self._launchers_cache.clear()
@@ -652,7 +652,7 @@ class LauncherManagerDialog(QDialog):
         else:
             self.preview_panel.set_launcher(None)
 
-    def _filter_launchers(self, text: str):
+    def _filter_launchers(self, text: str) -> None:
         """Filter launchers based on search text."""
         search_text = text.lower()
 
@@ -669,7 +669,7 @@ class LauncherManagerDialog(QDialog):
                 )
                 item.setHidden(not visible)
 
-    def _on_selection_changed(self):
+    def _on_selection_changed(self) -> None:
         """Handle launcher selection change."""
         current_item = self.launcher_list.currentItem()
         if current_item:
@@ -679,24 +679,24 @@ class LauncherManagerDialog(QDialog):
         else:
             self.preview_panel.set_launcher(None)
 
-    def _on_double_click(self, item: QListWidgetItem):
+    def _on_double_click(self, item: QListWidgetItem) -> None:
         """Handle double-click to launch."""
         launcher_id = item.data(Qt.ItemDataRole.UserRole)
         self._launch_launcher(launcher_id)
 
-    def _add_launcher(self):
+    def _add_launcher(self) -> None:
         """Show dialog to add new launcher."""
         dialog = LauncherEditDialog(self.launcher_manager, parent=self)
         dialog.exec()
 
-    def _edit_launcher(self, launcher_id: str):
+    def _edit_launcher(self, launcher_id: str) -> None:
         """Show dialog to edit launcher."""
         launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if launcher:
             dialog = LauncherEditDialog(self.launcher_manager, launcher, parent=self)
             dialog.exec()
 
-    def _delete_launcher(self, launcher_id: str):
+    def _delete_launcher(self, launcher_id: str) -> None:
         """Delete launcher with confirmation."""
         launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if not launcher:
@@ -719,7 +719,7 @@ class LauncherManagerDialog(QDialog):
             else:
                 NotificationManager.error("Delete Failed", "Failed to delete launcher.")
 
-    def _launch_launcher(self, launcher_id: str):
+    def _launch_launcher(self, launcher_id: str) -> None:
         """Launch the specified launcher."""
         launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if not launcher:
@@ -732,34 +732,34 @@ class LauncherManagerDialog(QDialog):
         except Exception as e:
             NotificationManager.error("Launch Error", f"Failed to launch: {str(e)}")
 
-    def _launch_selected(self):
+    def _launch_selected(self) -> None:
         """Launch the selected launcher."""
         current_item = self.launcher_list.currentItem()
         if current_item:
             launcher_id = current_item.data(Qt.ItemDataRole.UserRole)
             self._launch_launcher(launcher_id)
 
-    def _edit_selected(self):
+    def _edit_selected(self) -> None:
         """Edit the selected launcher."""
         current_item = self.launcher_list.currentItem()
         if current_item:
             launcher_id = current_item.data(Qt.ItemDataRole.UserRole)
             self._edit_launcher(launcher_id)
 
-    def _delete_selected(self):
+    def _delete_selected(self) -> None:
         """Delete the selected launcher."""
         current_item = self.launcher_list.currentItem()
         if current_item:
             launcher_id = current_item.data(Qt.ItemDataRole.UserRole)
             self._delete_launcher(launcher_id)
 
-    def _on_execution_started(self, launcher_id: str):
+    def _on_execution_started(self, launcher_id: str) -> None:
         """Handle launcher execution start."""
         launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if launcher:
             logger.info(f"Launching: {launcher.name}")
 
-    def _on_execution_finished(self, launcher_id: str, success: bool):
+    def _on_execution_finished(self, launcher_id: str, success: bool) -> None:
         """Handle launcher execution finish."""
         launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if launcher:

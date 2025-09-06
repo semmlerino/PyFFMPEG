@@ -12,7 +12,7 @@ from PySide6.QtCore import QObject, Signal
 if TYPE_CHECKING:
     from cache_manager import CacheManager
     from shot_model import Shot
-    from type_definitions import PerformanceMetricsDict
+    from type_definitions import PerformanceMetricsDict, RefreshResult
 
 from exceptions import WorkspaceError
 from optimized_shot_parser import OptimizedShotParser
@@ -30,7 +30,6 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
 
 
 # Import RefreshResult from type_definitions to avoid circular imports
-from type_definitions import RefreshResult
 
 
 class BaseShotModel(QObject):

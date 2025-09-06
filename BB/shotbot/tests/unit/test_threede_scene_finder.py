@@ -83,21 +83,21 @@ def shot_workspace_path(temp_vfx_structure):
 class TestThreeDESceneFinderBasics:
     """Test basic ThreeDESceneFinder functionality."""
 
-    def test_class_attributes(self):
+    def test_class_attributes(self) -> None:
         """Test ThreeDESceneFinder has expected class attributes."""
         assert hasattr(ThreeDESceneFinder, "_BG_FG_PATTERN")
         assert hasattr(ThreeDESceneFinder, "_PLATE_PATTERNS")
         assert hasattr(ThreeDESceneFinder, "_GENERIC_DIRS")
         assert hasattr(ThreeDESceneFinder, "EXCLUDED_DIRS")
 
-    def test_static_methods_exist(self):
+    def test_static_methods_exist(self) -> None:
         """Test that expected static methods exist."""
         assert hasattr(ThreeDESceneFinder, "find_scenes_for_shot")
         assert hasattr(ThreeDESceneFinder, "extract_plate_from_path")
         assert hasattr(ThreeDESceneFinder, "verify_scene_exists")
         assert hasattr(ThreeDESceneFinder, "quick_3de_exists_check_optimized")
 
-    def test_extract_plate_from_path(self, temp_vfx_structure):
+    def test_extract_plate_from_path(self, temp_vfx_structure) -> None:
         """Test extracting plate name from path."""
         user_path = Path(temp_vfx_structure) / "user" / "artist1"
 
@@ -111,7 +111,7 @@ class TestThreeDESceneFinderBasics:
         plate = ThreeDESceneFinder.extract_plate_from_path(generic_path, user_path)
         assert plate == "work"  # Falls back to parent directory
 
-    def test_verify_scene_exists(self, temp_vfx_structure):
+    def test_verify_scene_exists(self, temp_vfx_structure) -> None:
         """Test scene existence verification."""
         # Create a test file
         test_file = temp_vfx_structure / "test.3de"
@@ -124,7 +124,7 @@ class TestThreeDESceneFinderBasics:
         non_existent = temp_vfx_structure / "nonexistent.3de"
         assert ThreeDESceneFinder.verify_scene_exists(non_existent) is False
 
-    def test_quick_3de_exists_check_optimized(self, temp_vfx_structure):
+    def test_quick_3de_exists_check_optimized(self, temp_vfx_structure) -> None:
         """Test optimized quick check for .3de files."""
         # Check directory with .3de files
         shot_path = str(
@@ -155,7 +155,7 @@ class TestThreeDESceneFinderBasics:
 class TestSceneDiscovery:
     """Test 3DE scene discovery functionality."""
 
-    def test_find_scenes_for_shot(self, shot_workspace_path):
+    def test_find_scenes_for_shot(self, shot_workspace_path) -> None:
         """Test finding 3DE scenes for a specific shot."""
         scenes = ThreeDESceneFinder.find_scenes_for_shot(
             shot_workspace_path=shot_workspace_path,
@@ -181,7 +181,7 @@ class TestSceneDiscovery:
         # artist1 has bg01 and fg01 files
         assert len(plates) > 0
 
-    def test_find_scenes_with_no_excluded_users(self, shot_workspace_path):
+    def test_find_scenes_with_no_excluded_users(self, shot_workspace_path) -> None:
         """Test finding scenes without user exclusion."""
         # Test with empty excluded users set directly instead of mocking
         scenes = ThreeDESceneFinder.find_scenes_for_shot(
@@ -198,7 +198,7 @@ class TestSceneDiscovery:
         assert "testuser" in scene_users
         assert len(scene_users) >= 1
 
-    def test_find_scenes_flexible_paths(self, temp_vfx_structure):
+    def test_find_scenes_flexible_paths(self, temp_vfx_structure) -> None:
         """Test that scene finder works with flexible path structures."""
         # Test with seq02/0020 which has non-standard paths
         shot_path = str(
@@ -229,7 +229,7 @@ class TestSceneDiscovery:
         # Should have found both the root level and nested scenes
         assert any("bg01" in p.lower() for p in scene_paths)
 
-    def test_find_scenes_invalid_input(self):
+    def test_find_scenes_invalid_input(self) -> None:
         """Test finding scenes with invalid input."""
         # Invalid shot components
         scenes = ThreeDESceneFinder.find_scenes_for_shot(
@@ -251,7 +251,7 @@ class TestSceneDiscovery:
         )
         assert scenes == []
 
-    def test_find_scenes_nonexistent_path(self):
+    def test_find_scenes_nonexistent_path(self) -> None:
         """Test finding scenes in non-existent path."""
         scenes = ThreeDESceneFinder.find_scenes_for_shot(
             shot_workspace_path="/this/path/does/not/exist",
@@ -266,7 +266,7 @@ class TestSceneDiscovery:
 class TestPlateExtraction:
     """Test plate extraction logic."""
 
-    def test_extract_plate_bg_fg_pattern(self):
+    def test_extract_plate_bg_fg_pattern(self) -> None:
         """Test extracting BG/FG plate patterns."""
         user_path = Path("/user/artist")
 
@@ -283,7 +283,7 @@ class TestPlateExtraction:
             plate = ThreeDESceneFinder.extract_plate_from_path(file_path, user_path)
             assert plate == expected_plate
 
-    def test_extract_plate_fallback(self):
+    def test_extract_plate_fallback(self) -> None:
         """Test plate extraction fallback logic."""
         user_path = Path("/user/artist")
 
@@ -303,7 +303,7 @@ class TestPlateExtraction:
 class TestPerformance:
     """Test performance-related functionality."""
 
-    def test_quick_check_with_timeout(self, make_test_filesystem):
+    def test_quick_check_with_timeout(self, make_test_filesystem) -> None:
         """Test quick check respects timeout with real file structure."""
         fs = make_test_filesystem()
         # Create multiple shows with 3DE files using cartesian product
@@ -359,7 +359,7 @@ class TestPerformance:
     )
     def test_parametrized_3de_scene_discovery(
         self, make_test_filesystem, show, seq, shot, user
-    ):
+    ) -> None:
         """Test 3DE scene discovery with various structure combinations."""
         fs = make_test_filesystem()
 
@@ -369,7 +369,7 @@ class TestPerformance:
         threede_file = user_dir / "scene.3de"
         fs.create_file(threede_file, "3DE scene content")
 
-        shows_path = fs.base_path / "shows"
+        fs.base_path / "shows"
 
         # Discover scenes using the static method
         # The test structure creates shows/show/shots/seq/seq_shot
@@ -390,7 +390,7 @@ class TestPerformance:
         stats = fs.get_operation_stats()
         assert stats["files_created"] >= 1  # At least the 3DE file was created
 
-    def test_excluded_dirs_not_scanned(self, make_test_filesystem):
+    def test_excluded_dirs_not_scanned(self, make_test_filesystem) -> None:
         """Test that excluded directories are not scanned using TestFileSystem."""
         # Use TestFileSystem from test_doubles_extended
         fs = make_test_filesystem()
@@ -426,7 +426,7 @@ class TestPerformance:
 
 
 @pytest.mark.unit
-def test_show_root_path_extraction_no_double_slash():
+def test_show_root_path_extraction_no_double_slash() -> None:
     """Test that show root path extraction doesn't create double slashes.
 
     Regression test for bug where path extraction created '//shows' instead of '/shows'.
@@ -479,7 +479,7 @@ def test_show_root_path_extraction_no_double_slash():
 
 
 @pytest.mark.unit
-def test_path_parsing_for_deep_nested_structure():
+def test_path_parsing_for_deep_nested_structure() -> None:
     """Test path parsing handles deep nested 3DE file structures correctly.
 
     Regression test for the specific file structure that wasn't being found:

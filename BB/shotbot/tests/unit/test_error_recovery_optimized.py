@@ -2,6 +2,7 @@
 """Test error recovery scenarios for OptimizedShotModel."""
 
 import time
+from typing import NoReturn
 
 import pytest
 from PySide6.QtTest import QSignalSpy
@@ -15,11 +16,11 @@ class TestProcessPoolDouble:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    def __init__(self, failure_mode=None):
+    def __init__(self, failure_mode=None) -> None:
         self.failure_mode = failure_mode
         self.call_count = 0
 
-    def execute_workspace_command(self, command=None, **kwargs):
+    def execute_workspace_command(self, command=None, **kwargs) -> str:
         """Simulate workspace command with controllable failures."""
         self.call_count += 1
 
@@ -41,7 +42,7 @@ class TestErrorRecovery:
         """Create model for error testing."""
         return OptimizedShotModel(real_cache_manager)
 
-    def test_network_failure_recovery(self, error_prone_model, qtbot):
+    def test_network_failure_recovery(self, error_prone_model, qtbot) -> None:
         """Test recovery from network/filesystem failures."""
         # Use test double that fails first, then succeeds
         failing_pool = TestProcessPoolDouble(failure_mode="network_error")
@@ -66,7 +67,7 @@ class TestErrorRecovery:
         result2 = error_prone_model.refresh_shots()
         assert result2.success is True
 
-    def test_timeout_handling(self, error_prone_model, qtbot):
+    def test_timeout_handling(self, error_prone_model, qtbot) -> None:
         """Test handling of command timeouts."""
         # Use test double that simulates timeout
         timeout_pool = TestProcessPoolDouble(failure_mode="timeout_error")
@@ -88,7 +89,7 @@ class TestErrorRecovery:
         assert error_spy.count() == 1
         assert "timed out" in error_spy.at(0)[0].lower()
 
-    def test_corrupted_cache_recovery(self, error_prone_model, tmp_path):
+    def test_corrupted_cache_recovery(self, error_prone_model, tmp_path) -> None:
         """Test recovery from corrupted cache data."""
         # Create corrupted cache file to trigger error
         cache_dir = tmp_path / "corrupted_cache"
@@ -111,7 +112,7 @@ class TestErrorRecovery:
         assert result.success is True
         assert len(error_prone_model.shots) == 0
 
-    def test_process_pool_failure_fallback(self, error_prone_model):
+    def test_process_pool_failure_fallback(self, error_prone_model) -> None:
         """Test fallback when process pool is unavailable."""
         # Set None process pool to simulate unavailability
         error_prone_model._process_pool = None
@@ -123,12 +124,12 @@ class TestErrorRecovery:
         assert len(error_prone_model.shots) == 0  # But no shots loaded
         # Should not crash the application
 
-    def test_async_loader_exception_handling(self, qtbot):
+    def test_async_loader_exception_handling(self, qtbot) -> None:
         """Test AsyncShotLoader handles exceptions properly."""
 
         # Create failing process pool using test double
         class CriticalErrorPool:
-            def execute_workspace_command(self, command=None, **kwargs):
+            def execute_workspace_command(self, command=None, **kwargs) -> NoReturn:
                 raise RuntimeError("Critical error")
 
         failing_pool = CriticalErrorPool()
@@ -154,14 +155,14 @@ class TestErrorRecovery:
         assert success_spy.count() == 0
         assert "Critical error" in error_spy.at(0)[0]
 
-    def test_partial_data_handling(self):
+    def test_partial_data_handling(self) -> None:
         """Test handling of partial or malformed workspace data."""
         # Test the parsing directly without async complications
         from cache_manager import CacheManager
 
         # Use test double returning partial data
         class PartialDataPool:
-            def execute_workspace_command(self, command=None, **kwargs):
+            def execute_workspace_command(self, command=None, **kwargs) -> str:
                 # Return proper VFX path format: /shows/{show}/shots/{seq}/{seq}_{shot}
                 return """workspace /shows/test/shots/seq01/seq01_0010
 invalid line without workspace prefix
@@ -190,12 +191,12 @@ workspace /shows/test/shots/seq03/seq03_0030"""
         # All shots should be from the "test" show
         assert all(shot.show == "test" for shot in model.shots)
 
-    def test_cleanup_after_error(self, error_prone_model):
+    def test_cleanup_after_error(self, error_prone_model) -> None:
         """Test that cleanup works properly after errors."""
 
         # Cause an error state using test double
         class ErrorPool:
-            def execute_workspace_command(self, command=None, **kwargs):
+            def execute_workspace_command(self, command=None, **kwargs) -> NoReturn:
                 raise Exception("Setup error")
 
         error_pool = ErrorPool()
@@ -212,12 +213,12 @@ workspace /shows/test/shots/seq03/seq03_0030"""
         # Cleanup should complete quickly
         assert cleanup_time < 2.0, f"Cleanup took {cleanup_time:.3f}s, too slow"
 
-    def test_error_metrics_tracking(self, error_prone_model):
+    def test_error_metrics_tracking(self, error_prone_model) -> None:
         """Test that errors are tracked in performance metrics."""
 
         # Use test double that always fails
         class TrackedErrorPool:
-            def execute_workspace_command(self, command=None, **kwargs):
+            def execute_workspace_command(self, command=None, **kwargs) -> NoReturn:
                 raise RuntimeError("Tracked error")
 
         error_pool = TrackedErrorPool()

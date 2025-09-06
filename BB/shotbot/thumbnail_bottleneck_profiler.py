@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 class ThumbnailBottleneckProfiler:
     """Specialized profiler for thumbnail discovery bottlenecks."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.process = psutil.Process()
         self.baseline_memory = self.get_memory_mb()
         self.results = {}
@@ -745,7 +745,7 @@ class ThumbnailBottleneckProfiler:
         return "\n".join(report)
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     import argparse
 

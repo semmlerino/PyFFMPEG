@@ -20,7 +20,7 @@ class MemoryManager:
     It maintains thread safety for concurrent access.
     """
 
-    def __init__(self, max_memory_mb: int | None = None):
+    def __init__(self, max_memory_mb: int | None = None) -> None:
         """Initialize memory manager.
 
         Args:
@@ -143,7 +143,7 @@ class MemoryManager:
             return self._memory_usage_bytes
 
     @memory_usage_bytes.setter
-    def memory_usage_bytes(self, value: int):
+    def memory_usage_bytes(self, value: int) -> None:
         """Set memory usage in bytes (for backward compatibility)."""
         with self._lock:
             self._memory_usage_bytes = value

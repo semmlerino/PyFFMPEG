@@ -16,6 +16,7 @@ from __future__ import annotations
 import concurrent.futures
 import threading
 import time
+from typing import NoReturn
 
 import pytest
 
@@ -31,7 +32,7 @@ class TestThreadSafeProgressTracker:
     in production, ensuring we catch similar issues in the future.
     """
 
-    def test_parameter_name_validation(self):
+    def test_parameter_name_validation(self) -> None:
         """Test correct parameter names are used - the exact issue that failed in production.
 
         This test would have caught the progress_interval vs update_interval bug.
@@ -57,7 +58,7 @@ class TestThreadSafeProgressTracker:
         assert tracker._update_interval == progress_interval
         assert tracker._progress_callback is progress_callback
 
-    def test_would_catch_original_bug(self):
+    def test_would_catch_original_bug(self) -> None:
         """Test that demonstrates the original bug would be caught.
 
         This test explicitly shows what would happen with the wrong parameter name.
@@ -75,7 +76,7 @@ class TestThreadSafeProgressTracker:
                 progress_interval=10,  # Wrong parameter name that caused the bug
             )
 
-    def test_production_worker_progress_pattern(self):
+    def test_production_worker_progress_pattern(self) -> None:
         """Test the exact worker progress update pattern used in production."""
         progress_updates = []
 
@@ -103,7 +104,7 @@ class TestThreadSafeProgressTracker:
         assert last_update[0] >= 3  # At least 3 files processed
         assert "processing" in last_update[1] or "files" in last_update[1]
 
-    def test_multiple_workers_concurrent_updates(self):
+    def test_multiple_workers_concurrent_updates(self) -> None:
         """Test thread safety with multiple workers updating concurrently."""
         progress_updates = []
 
@@ -143,7 +144,7 @@ class TestThreadSafeProgressTracker:
         max_progress = max(update[0] for update in progress_updates)
         assert max_progress >= 5  # Should have processed multiple files
 
-    def test_worker_cleanup_tracking(self):
+    def test_worker_cleanup_tracking(self) -> None:
         """Test that completed workers are properly tracked."""
         tracker = ThreadSafeProgressTracker(progress_callback=None, update_interval=1)
 
@@ -158,7 +159,7 @@ class TestThreadSafeProgressTracker:
         # Verify worker is marked as completed
         assert worker_id in tracker._completed_workers
 
-    def test_production_parameter_combinations(self):
+    def test_production_parameter_combinations(self) -> None:
         """Test various parameter combinations used in production."""
         # Test with callback
         called = []
@@ -181,7 +182,7 @@ class TestThreadSafeProgressTracker:
 class TestCancellationEvent:
     """Test CancellationEvent component used in production parallel operations."""
 
-    def test_basic_cancellation_workflow(self):
+    def test_basic_cancellation_workflow(self) -> None:
         """Test basic cancellation and cleanup callback workflow."""
         cleanup_called = []
 
@@ -198,7 +199,7 @@ class TestCancellationEvent:
         assert event.is_cancelled()
         assert cleanup_called == ["cleaned"]
 
-    def test_multiple_cleanup_callbacks(self):
+    def test_multiple_cleanup_callbacks(self) -> None:
         """Test multiple cleanup callbacks are all executed."""
         cleanup_order = []
 
@@ -217,18 +218,18 @@ class TestCancellationEvent:
         assert "second" in cleanup_order
         assert "third" in cleanup_order
 
-    def test_exception_safety_in_cleanup(self):
+    def test_exception_safety_in_cleanup(self) -> None:
         """Test that exceptions in cleanup callbacks don't prevent other callbacks."""
         cleanup_called = []
 
         event = CancellationEvent()
 
         # Add callbacks - one that raises exception, one that should still run
-        def failing_callback():
+        def failing_callback() -> NoReturn:
             cleanup_called.append("before_error")
             raise RuntimeError("Cleanup failed")
 
-        def good_callback():
+        def good_callback() -> None:
             cleanup_called.append("after_error")
 
         event.add_cleanup_callback(failing_callback)
@@ -241,7 +242,7 @@ class TestCancellationEvent:
         assert "before_error" in cleanup_called
         assert "after_error" in cleanup_called
 
-    def test_production_usage_pattern(self):
+    def test_production_usage_pattern(self) -> None:
         """Test the exact cancellation pattern used in production parallel discovery."""
         # Simulate the pattern from threede_scene_finder_optimized.py
         cancel_event = CancellationEvent()
@@ -274,7 +275,7 @@ class TestCancellationEvent:
 class TestThreadingIntegration:
     """Integration tests for threading components working together."""
 
-    def test_progress_tracker_with_cancellation(self):
+    def test_progress_tracker_with_cancellation(self) -> None:
         """Test ThreadSafeProgressTracker working with CancellationEvent."""
         progress_updates = []
 
@@ -310,7 +311,7 @@ class TestThreadingIntegration:
         # Should have some progress updates before cancellation
         assert len(progress_updates) >= 1
 
-    def test_concurrent_futures_integration(self):
+    def test_concurrent_futures_integration(self) -> None:
         """Test threading utilities with concurrent.futures - production pattern."""
         progress_updates = []
 

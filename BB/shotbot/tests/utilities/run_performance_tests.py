@@ -221,7 +221,7 @@ def generate_performance_report(results: list[tuple[str, bool, float, str]]) -> 
     return "\n".join(report)
 
 
-def main():
+def main() -> int:
     """Run all performance tests and generate report."""
     print("=" * 80)
     print("SHOTBOT PERFORMANCE TEST SUITE")

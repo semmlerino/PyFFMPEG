@@ -18,7 +18,7 @@ from main_window import MainWindow
 from process_pool_factory import ProcessPoolFactory
 
 
-def capture_screenshot():
+def capture_screenshot() -> None:
     """Capture screenshot of the ShotBot main window."""
     import glob
 
@@ -73,7 +73,7 @@ def capture_screenshot():
         
         # ShotBot-specific debug info
         if hasattr(main_window, 'tab_widget'):
-            print(f"Tab widget present: True")
+            print("Tab widget present: True")
             print(f"Current tab index: {main_window.tab_widget.currentIndex()}")
             print(f"Tab count: {main_window.tab_widget.count()}")
             for i in range(main_window.tab_widget.count()):
@@ -94,7 +94,7 @@ def capture_screenshot():
     app.quit()
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     # Set offscreen platform for headless environment 
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
@@ -108,7 +108,7 @@ def main():
     window = MainWindow()
     window.show()
 
-    def check_and_capture():
+    def check_and_capture() -> None:
         """Check if 3DE discovery is complete and capture screenshot."""
         # Check if 3DE discovery has completed
         if hasattr(window, 'threede_item_model'):

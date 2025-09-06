@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -53,7 +54,7 @@ class TestNukeScriptGenerator:
 class TestCommandLauncherInitialization:
     """Test CommandLauncher initialization and basic setup."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test doubles at system boundary."""
         self.launcher = CommandLauncher()
         self.command_executor = TestCommand()
@@ -74,7 +75,7 @@ class TestCommandLauncherInitialization:
             lambda t, e: self.emitted_errors.append((t, e))
         )
 
-    def test_initialization(self, qtbot):
+    def test_initialization(self, qtbot) -> None:
         """Test CommandLauncher initializes correctly."""
         # Check initial state
         assert self.launcher.current_shot is None
@@ -88,7 +89,7 @@ class TestCommandLauncherInitialization:
         assert self.launcher.command_executed is not None
         assert self.launcher.command_error is not None
 
-    def test_set_current_shot(self, qtbot):
+    def test_set_current_shot(self, qtbot) -> None:
         """Test setting current shot context."""
         # Create test shot using test double
         shot = TestShot(
@@ -110,7 +111,7 @@ class TestCommandLauncherInitialization:
 class TestSignalEmissions:
     """Test signal emissions for command execution events."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test doubles."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
@@ -139,11 +140,11 @@ class TestSignalEmissions:
             lambda t, e: self.emitted_errors.append((t, e))
         )
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
 
-    def test_command_executed_signal(self, qtbot):
+    def test_command_executed_signal(self, qtbot) -> None:
         """Test command_executed signal emission behavior."""
         # Set up test double for success
         self.test_subprocess.return_code = 0
@@ -172,7 +173,7 @@ class TestSignalEmissions:
         assert "ws /tmp/test_workspace" in command
         assert "nuke" in command
 
-    def test_command_error_signal(self, qtbot):
+    def test_command_error_signal(self, qtbot) -> None:
         """Test command_error signal emission behavior."""
         # Test error when no shot is set
         result = self.launcher.launch_app("nuke")
@@ -186,7 +187,7 @@ class TestSignalEmissions:
         assert isinstance(timestamp, str)
         assert "No shot selected" in error
 
-    def test_unknown_app_error_signal(self, qtbot):
+    def test_unknown_app_error_signal(self, qtbot) -> None:
         """Test error signal for unknown application."""
         # Create test shot
         shot = TestShot(
@@ -212,7 +213,7 @@ class TestSignalEmissions:
 class TestApplicationLaunching:
     """Test application launching functionality with behavior focus."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test doubles."""
         self.launcher = CommandLauncher()
         self.test_subprocess = TestSubprocess()
@@ -230,16 +231,16 @@ class TestApplicationLaunching:
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
 
-    def test_launch_app_without_shot(self, qtbot):
+    def test_launch_app_without_shot(self, qtbot) -> None:
         """Test launching app without setting current shot."""
         result = self.launcher.launch_app("nuke")
         assert result is False
 
-    def test_launch_app_unknown_application(self, qtbot):
+    def test_launch_app_unknown_application(self, qtbot) -> None:
         """Test launching unknown application."""
         # Set test shot using test double
         shot = TestShot(
@@ -253,7 +254,7 @@ class TestApplicationLaunching:
         result = self.launcher.launch_app("nonexistent_app")
         assert result is False
 
-    def test_launch_app_valid_configuration(self, qtbot):
+    def test_launch_app_valid_configuration(self, qtbot) -> None:
         """Test launching valid application behavior."""
         # Set up test double for success
         self.test_subprocess.return_code = 0
@@ -271,7 +272,7 @@ class TestApplicationLaunching:
         result = self.launcher.launch_app("nuke")
         assert result is True
 
-    def test_command_construction(self, qtbot):
+    def test_command_construction(self, qtbot) -> None:
         """Test proper command construction behavior."""
         # Set up test double
         self.test_subprocess.return_code = 0
@@ -306,7 +307,7 @@ class TestApplicationLaunching:
         assert expected_app in command
         assert "&&" in command  # Command chaining
 
-    def test_terminal_fallback_execution(self, qtbot):
+    def test_terminal_fallback_execution(self, qtbot) -> None:
         """Test terminal fallback behavior."""
 
         # Set up test double to simulate terminal failures then success
@@ -349,7 +350,7 @@ class TestApplicationLaunching:
 class TestThreeDESceneLaunching:
     """Test 3DE scene launching functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
@@ -365,12 +366,12 @@ class TestThreeDESceneLaunching:
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
 
-    def test_launch_app_with_scene(self, qtbot):
+    def test_launch_app_with_scene(self, qtbot) -> None:
         """Test launching application with 3DE scene file."""
         launcher = CommandLauncher()
 
@@ -403,7 +404,7 @@ class TestThreeDESceneLaunching:
             result = launcher.launch_app_with_scene("3de", scene)
             assert result is True
 
-    def test_launch_app_with_scene_unknown_app(self, qtbot):
+    def test_launch_app_with_scene_unknown_app(self, qtbot) -> None:
         """Test error handling for unknown app with scene."""
         launcher = CommandLauncher()
 
@@ -421,7 +422,7 @@ class TestThreeDESceneLaunching:
         result = launcher.launch_app_with_scene("unknown_app", scene)
         assert result is False
 
-    def test_launch_app_with_scene_context(self, qtbot):
+    def test_launch_app_with_scene_context(self, qtbot) -> None:
         """Test launching app with scene context (no scene file)."""
         launcher = CommandLauncher()
 
@@ -447,7 +448,7 @@ class TestThreeDESceneLaunching:
 class TestWorkspaceIntegration:
     """Test workspace command integration."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
@@ -463,12 +464,12 @@ class TestWorkspaceIntegration:
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
 
-    def test_workspace_command_construction(self, qtbot):
+    def test_workspace_command_construction(self, qtbot) -> None:
         """Test proper workspace command construction."""
         launcher = CommandLauncher()
 
@@ -499,7 +500,7 @@ class TestWorkspaceIntegration:
         ):
             launcher.launch_app("rv")
 
-    def test_workspace_path_handling(self, qtbot):
+    def test_workspace_path_handling(self, qtbot) -> None:
         """Test different workspace path formats."""
         launcher = CommandLauncher()
 
@@ -537,7 +538,7 @@ class TestWorkspaceIntegration:
 class TestErrorHandling:
     """Test error handling and edge cases."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
         self.subprocess_double = SubprocessModuleDouble(self.test_subprocess)
@@ -545,12 +546,12 @@ class TestErrorHandling:
         self.original_subprocess_run = subprocess.run
         self.original_subprocess_popen = subprocess.Popen
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
 
-    def test_subprocess_execution_failure(self, qtbot):
+    def test_subprocess_execution_failure(self, qtbot) -> None:
         """Test handling of subprocess execution failures."""
         launcher = CommandLauncher()
         test_subprocess = TestSubprocess()
@@ -566,7 +567,7 @@ class TestErrorHandling:
         subprocess.run = subprocess_double.run
 
         # Make Popen fail for terminal commands
-        def failing_popen(*args, **kwargs):
+        def failing_popen(*args, **kwargs) -> NoReturn:
             raise Exception("Process execution failed")
 
         subprocess.Popen = failing_popen
@@ -594,7 +595,7 @@ class TestErrorHandling:
             subprocess.run = original_subprocess_run
             subprocess.Popen = original_subprocess_popen
 
-    def test_all_terminals_fail(self, qtbot):
+    def test_all_terminals_fail(self, qtbot) -> None:
         """Test when all terminal attempts fail but direct execution succeeds."""
         launcher = CommandLauncher()
 
@@ -630,7 +631,7 @@ class TestErrorHandling:
         assert result is True
         assert attempt_count >= 3  # Multiple attempts made
 
-    def test_complete_execution_failure(self, qtbot):
+    def test_complete_execution_failure(self, qtbot) -> None:
         """Test when all execution methods fail."""
         launcher = CommandLauncher()
         test_subprocess = TestSubprocess()
@@ -646,7 +647,7 @@ class TestErrorHandling:
         subprocess.run = subprocess_double.run
 
         # Make Popen always fail
-        def failing_popen(*args, **kwargs):
+        def failing_popen(*args, **kwargs) -> NoReturn:
             raise Exception("All execution failed")
 
         subprocess.Popen = failing_popen
@@ -673,7 +674,7 @@ class TestErrorHandling:
 class TestNukeIntegration:
     """Test Nuke-specific integration features."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
         self.test_subprocess.return_code = 0
@@ -686,26 +687,26 @@ class TestNukeIntegration:
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
 
-    def test_nuke_with_raw_plate_option(self, qtbot):
+    def test_nuke_with_raw_plate_option(self, qtbot) -> None:
         """Test Nuke launching with raw plate integration."""
 
         # Create test doubles for dependencies
         class TestRawPlateFinder:
             @staticmethod
-            def find_latest_raw_plate(*args, **kwargs):
+            def find_latest_raw_plate(*args, **kwargs) -> str:
                 return "/path/to/plate.%04d.exr"
 
             @staticmethod
-            def verify_plate_exists(*args, **kwargs):
+            def verify_plate_exists(*args, **kwargs) -> bool:
                 return True
 
             @staticmethod
-            def get_version_from_path(*args, **kwargs):
+            def get_version_from_path(*args, **kwargs) -> str:
                 return "v001"
 
         # Use dependency injection instead of module-level replacement
@@ -726,7 +727,7 @@ class TestNukeIntegration:
         result = launcher.launch_app("nuke", include_raw_plate=True)
         assert result is True
 
-    def test_nuke_with_undistortion_option(self, qtbot):
+    def test_nuke_with_undistortion_option(self, qtbot) -> None:
         """Test Nuke launching with undistortion integration."""
 
         # Create test double for UndistortionFinder
@@ -736,7 +737,7 @@ class TestNukeIntegration:
                 return Path("/path/to/undist.nk")
 
             @staticmethod
-            def get_version_from_path(*args, **kwargs):
+            def get_version_from_path(*args, **kwargs) -> str:
                 return "v001"
 
         # Use dependency injection instead of module-level replacement
@@ -756,21 +757,21 @@ class TestNukeIntegration:
         result = launcher.launch_app("nuke", include_undistortion=True)
         assert result is True
 
-    def test_nuke_with_both_plate_and_undistortion(self, qtbot):
+    def test_nuke_with_both_plate_and_undistortion(self, qtbot) -> None:
         """Test Nuke launching with both raw plate and undistortion."""
 
         # Create test doubles for both finders
         class TestRawPlateFinder:
             @staticmethod
-            def find_latest_raw_plate(*args, **kwargs):
+            def find_latest_raw_plate(*args, **kwargs) -> str:
                 return "/path/to/plate.%04d.exr"
 
             @staticmethod
-            def verify_plate_exists(*args, **kwargs):
+            def verify_plate_exists(*args, **kwargs) -> bool:
                 return True
 
             @staticmethod
-            def get_version_from_path(*args, **kwargs):
+            def get_version_from_path(*args, **kwargs) -> str:
                 return "v001"
 
         class TestUndistortionFinder:
@@ -779,7 +780,7 @@ class TestNukeIntegration:
                 return Path("/path/to/undist.nk")
 
             @staticmethod
-            def get_version_from_path(*args, **kwargs):
+            def get_version_from_path(*args, **kwargs) -> str:
                 return "v001"
 
         # Use dependency injection for all dependencies
@@ -809,7 +810,7 @@ class TestNukeIntegration:
 class TestTimestampGeneration:
     """Test timestamp generation for command logging."""
 
-    def test_timestamp_format(self, qtbot):
+    def test_timestamp_format(self, qtbot) -> None:
         """Test timestamp format in signal emissions."""
         launcher = CommandLauncher()
 
@@ -837,7 +838,7 @@ class TestTimestampGeneration:
             # Trigger error to get timestamp
             launcher.launch_app("nuke")  # No shot set, should trigger error
 
-    def test_consistent_timestamp_format(self, qtbot):
+    def test_consistent_timestamp_format(self, qtbot) -> None:
         """Test timestamp format consistency across different signals."""
         launcher = CommandLauncher()
 
@@ -890,7 +891,7 @@ class TestTimestampGeneration:
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup with test doubles."""
         self.test_subprocess = TestSubprocess()
         self.test_subprocess.return_code = 0
@@ -903,12 +904,12 @@ class TestEdgeCases:
         subprocess.run = self.subprocess_double.run
         subprocess.Popen = self.subprocess_double.Popen
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Restore original subprocess."""
         subprocess.run = self.original_subprocess_run
         subprocess.Popen = self.original_subprocess_popen
 
-    def test_empty_workspace_path(self, qtbot):
+    def test_empty_workspace_path(self, qtbot) -> None:
         """Test handling of empty workspace path."""
         launcher = CommandLauncher()
 
@@ -925,7 +926,7 @@ class TestEdgeCases:
         # Should still work with empty workspace
         assert result is True
 
-    def test_special_characters_in_paths(self, qtbot):
+    def test_special_characters_in_paths(self, qtbot) -> None:
         """Test handling of special characters in workspace paths."""
         launcher = CommandLauncher()
 
@@ -948,7 +949,7 @@ class TestEdgeCases:
             result = launcher.launch_app("nuke")
             assert result is True
 
-    def test_rapid_successive_launches(self, qtbot):
+    def test_rapid_successive_launches(self, qtbot) -> None:
         """Test rapid successive application launches."""
         launcher = CommandLauncher()
 
@@ -976,7 +977,7 @@ class TestEdgeCases:
             pytest.param("3de", marks=pytest.mark.slow, id="3de_slow_launch"),
         ],
     )
-    def test_individual_app_launch_parametrized(self, qtbot, app_name):
+    def test_individual_app_launch_parametrized(self, qtbot, app_name) -> None:
         """Test individual app launches with better error isolation."""
         launcher = CommandLauncher()
 

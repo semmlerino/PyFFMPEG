@@ -19,7 +19,7 @@ from typing import List, Tuple
 class FolderEncoder:
     """Handles folder encoding to base64 with optional chunking."""
 
-    def __init__(self, chunk_size_kb: int = 0, verbose: bool = False):
+    def __init__(self, chunk_size_kb: int = 0, verbose: bool = False) -> None:
         """Initialize the encoder.
 
         Args:
@@ -121,7 +121,7 @@ def get_folder_size(folder_path: str) -> int:
     return total_size
 
 
-def main():
+def main() -> None:
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
         description="Encode a folder to base64 format (compatible with Transfer.py)",

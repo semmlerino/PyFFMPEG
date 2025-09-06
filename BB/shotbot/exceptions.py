@@ -33,7 +33,7 @@ class ShotBotError(Exception):
         message: str,
         details: dict[str, Any | None] | None = None,
         error_code: str | None = None,
-    ):
+    ) -> None:
         """Initialize ShotBot error.
 
         Args:
@@ -67,7 +67,7 @@ class WorkspaceError(ShotBotError):
         workspace_path: str | None = None,
         command: str | None = None,
         details: dict[str, Any | None] | None = None,
-    ):
+    ) -> None:
         """Initialize workspace error.
 
         Args:
@@ -101,7 +101,7 @@ class ThumbnailError(ShotBotError):
         thumbnail_path: str | None = None,
         reason: str | None = None,
         details: dict[str, Any | None] | None = None,
-    ):
+    ) -> None:
         """Initialize thumbnail error.
 
         Args:
@@ -140,7 +140,7 @@ class SecurityError(ShotBotError):
         violation_type: str | None = None,
         attempted_command: str | None = None,
         details: dict[str, Any | None] | None = None,
-    ):
+    ) -> None:
         """Initialize security error.
 
         Args:
@@ -174,7 +174,7 @@ class LauncherError(ShotBotError):
         launcher_command: str | None = None,
         exit_code: int | None = None,
         details: dict[str, Any | None] | None = None,
-    ):
+    ) -> None:
         """Initialize launcher error.
 
         Args:
@@ -211,7 +211,7 @@ class CacheError(ShotBotError):
         cache_file: str | None = None,
         operation: str | None = None,
         details: dict[str, Any | None] | None = None,
-    ):
+    ) -> None:
         """Initialize cache error.
 
         Args:
@@ -248,7 +248,7 @@ class NetworkError(ShotBotError):
         status_code: int | None = None,
         timeout: float | None = None,
         details: dict[str, Any | None] | None = None,
-    ):
+    ) -> None:
         """Initialize network error.
 
         Args:
@@ -286,7 +286,7 @@ class ConfigurationError(ShotBotError):
         expected_value: Any | None = None,
         actual_value: Any | None = None,
         details: dict[str, Any | None] | None = None,
-    ):
+    ) -> None:
         """Initialize configuration error.
 
         Args:
@@ -326,7 +326,7 @@ class ValidationError(ShotBotError):
         value: Any | None = None,
         constraint: str | None = None,
         details: dict[str, Any | None] | None = None,
-    ):
+    ) -> None:
         """Initialize validation error.
 
         Args:

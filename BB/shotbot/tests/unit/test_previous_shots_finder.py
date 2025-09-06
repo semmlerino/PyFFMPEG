@@ -22,6 +22,8 @@ from shot_model import Shot
 # Import test helpers
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from typing import NoReturn
+
 from tests.test_doubles_library import TestSubprocess
 from tests.test_doubles_previous_shots import create_test_shot, create_test_shots
 
@@ -89,7 +91,7 @@ class TestPreviousShotsFinder:
     )
     def test_individual_shot_structure_validation(
         self, make_test_filesystem, finder, show, seq, shot
-    ):
+    ) -> None:
         """Test individual shot structures with parametrized data."""
         fs = make_test_filesystem()
 
@@ -110,7 +112,7 @@ class TestPreviousShotsFinder:
         expected_shot = (show, seq, shot)
         assert expected_shot in found_shots
 
-    def test_finder_initialization_with_username(self):
+    def test_finder_initialization_with_username(self) -> None:
         """Test finder initialization with specific username."""
         finder = PreviousShotsFinder(username="customuser")
 
@@ -118,7 +120,7 @@ class TestPreviousShotsFinder:
         assert finder.user_path_pattern == "/user/customuser"
         assert finder._shot_pattern is not None
 
-    def test_finder_initialization_with_sanitization(self):
+    def test_finder_initialization_with_sanitization(self) -> None:
         """Test that username is properly sanitized for security."""
         # Test path traversal attempt is sanitized (not blocked)
         finder = PreviousShotsFinder(username="../../../etc/passwd")
@@ -132,7 +134,7 @@ class TestPreviousShotsFinder:
         with pytest.raises(ValueError, match="Invalid username after sanitization"):
             PreviousShotsFinder(username="../../")
 
-    def test_finder_initialization_default_user(self):
+    def test_finder_initialization_default_user(self) -> None:
         """Test finder initialization with default user from environment."""
         # Save original USER env var
         original_user = os.environ.get("USER")
@@ -170,7 +172,7 @@ class TestPreviousShotsFinder:
             ),
         ],
     )
-    def test_parse_shot_from_path(self, finder, path, expected_shot):
+    def test_parse_shot_from_path(self, finder, path, expected_shot) -> None:
         """Test shot parsing from various path structures.
 
         Testing actual behavior of path parsing.
@@ -186,7 +188,7 @@ class TestPreviousShotsFinder:
             assert shot.shot == shot_name
             assert f"/shows/{show}/shots/{sequence}/{shot_name}" in shot.workspace_path
 
-    def test_find_user_shots_with_real_structure(self, finder, real_shows_structure):
+    def test_find_user_shots_with_real_structure(self, finder, real_shows_structure) -> None:
         """Test finding user shots with real directory structure.
 
         Following UNIFIED_TESTING_GUIDE:
@@ -263,18 +265,18 @@ class TestPreviousShotsFinder:
         }
         assert shot_ids == expected_ids
 
-    def test_find_user_shots_nonexistent_directory(self, finder, tmp_path):
+    def test_find_user_shots_nonexistent_directory(self, finder, tmp_path) -> None:
         """Test behavior with nonexistent shows directory."""
         nonexistent = tmp_path / "nonexistent"
         shots = finder.find_user_shots(nonexistent)
 
         assert shots == []
 
-    def test_find_user_shots_subprocess_timeout(self, finder, real_shows_structure):
+    def test_find_user_shots_subprocess_timeout(self, finder, real_shows_structure) -> None:
         """Test handling of subprocess timeout."""
 
         # Use test double that simulates timeout
-        def timeout_run(*args, **kwargs):
+        def timeout_run(*args, **kwargs) -> NoReturn:
             raise subprocess.TimeoutExpired("find", 30)
 
         # Import patch locally since we're removing the global import
@@ -285,7 +287,7 @@ class TestPreviousShotsFinder:
 
         assert shots == []
 
-    def test_find_user_shots_subprocess_error(self, finder, real_shows_structure):
+    def test_find_user_shots_subprocess_error(self, finder, real_shows_structure) -> None:
         """Test handling of subprocess errors."""
         # Use test double for subprocess error
         test_subprocess = TestSubprocess()
@@ -302,7 +304,7 @@ class TestPreviousShotsFinder:
         # Should handle errors gracefully and return empty list
         assert shots == []
 
-    def test_filter_approved_shots_behavior(self, finder):
+    def test_filter_approved_shots_behavior(self, finder) -> None:
         """Test actual filtering behavior, not implementation.
 
         Following UNIFIED_TESTING_GUIDE:
@@ -325,7 +327,7 @@ class TestPreviousShotsFinder:
         assert all_user_shots[0] not in approved_shots  # Active
         assert all_user_shots[3] not in approved_shots  # Active
 
-    def test_filter_approved_shots_edge_cases(self, finder):
+    def test_filter_approved_shots_edge_cases(self, finder) -> None:
         """Test filtering edge cases."""
         all_user_shots = create_test_shots(2)
 
@@ -341,7 +343,7 @@ class TestPreviousShotsFinder:
         approved = finder.filter_approved_shots([], [])
         assert approved == []
 
-    def test_find_approved_shots_integration(self, finder, real_shows_structure):
+    def test_find_approved_shots_integration(self, finder, real_shows_structure) -> None:
         """Test complete workflow from finding to filtering.
 
         Integration test with real filesystem and subprocess mocking.
@@ -391,7 +393,7 @@ class TestPreviousShotsFinder:
         assert len(approved_shots) == 1
         assert approved_shots[0].shot == "0020"
 
-    def test_get_shot_details_behavior(self, finder):
+    def test_get_shot_details_behavior(self, finder) -> None:
         """Test getting shot details returns expected structure."""
         shot = create_test_shot("testshow", "101_ABC", "0010")
 
@@ -405,7 +407,7 @@ class TestPreviousShotsFinder:
         assert details["user_path"] == f"{shot.workspace_path}/user/testuser"
         assert details["status"] == "approved"
 
-    def test_get_shot_details_with_real_directory(self, finder, tmp_path):
+    def test_get_shot_details_with_real_directory(self, finder, tmp_path) -> None:
         """Test getting shot details with real user directory.
 
         Uses real filesystem to test file detection.

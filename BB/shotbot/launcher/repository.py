@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class LauncherRepository:
     """Repository for launcher CRUD operations."""
 
-    def __init__(self, config_manager: LauncherConfigManager):
+    def __init__(self, config_manager: LauncherConfigManager) -> None:
         """Initialize the repository.
 
         Args:

@@ -23,7 +23,7 @@ pytestmark = pytest.mark.unit
 class TestPathUtilsTurnoverPlate:
     """Test turnover plate discovery functionality."""
 
-    def test_find_turnover_plate_thumbnail_with_plates(self, tmp_path):
+    def test_find_turnover_plate_thumbnail_with_plates(self, tmp_path) -> None:
         """Test finding turnover plate thumbnail with actual plate structure."""
         # Create test structure matching expected layout
         show_path = tmp_path / "shows" / "testshow"
@@ -61,7 +61,7 @@ class TestPathUtilsTurnoverPlate:
         assert "FG01" in str(result)
         assert "1001.exr" in result.name
 
-    def test_find_turnover_plate_no_plates(self, tmp_path):
+    def test_find_turnover_plate_no_plates(self, tmp_path) -> None:
         """Test find_turnover_plate_thumbnail when no plates exist."""
         # Create base structure without plates
         shows_root = tmp_path / "shows"
@@ -85,7 +85,7 @@ class TestPathUtilsTurnoverPlate:
         )
         assert result is None
 
-    def test_find_turnover_plate_empty_directory(self, tmp_path):
+    def test_find_turnover_plate_empty_directory(self, tmp_path) -> None:
         """Test when turnover directory exists but is empty."""
         shows_root = tmp_path / "shows"
         turnover_path = (
@@ -108,7 +108,7 @@ class TestPathUtilsTurnoverPlate:
         )
         assert result is None
 
-    def test_plate_priority_sorting(self):
+    def test_plate_priority_sorting(self) -> None:
         """Test plate priority function used in sorting."""
         # Create mock plate directories
         plates = [
@@ -141,7 +141,7 @@ class TestPathUtilsTurnoverPlate:
 class TestPathUtilsPublishThumbnail:
     """Test publish thumbnail discovery functionality."""
 
-    def test_find_any_publish_thumbnail_recursive(self, tmp_path):
+    def test_find_any_publish_thumbnail_recursive(self, tmp_path) -> None:
         """Test finding any publish thumbnail with recursive search."""
         # Create test structure
         publish_path = (
@@ -174,7 +174,7 @@ class TestPathUtilsPublishThumbnail:
         assert result is not None
         assert "1001.exr" in result.name
 
-    def test_find_any_publish_thumbnail_max_depth(self, tmp_path):
+    def test_find_any_publish_thumbnail_max_depth(self, tmp_path) -> None:
         """Test find_any_publish_thumbnail respects max depth."""
         # Create proper show/shot structure
         shows_root = tmp_path / "shows"
@@ -208,7 +208,7 @@ class TestPathUtilsPublishThumbnail:
         assert result is not None
         assert "level1" in str(result)
 
-    def test_find_any_publish_thumbnail_permission_error(self, tmp_path):
+    def test_find_any_publish_thumbnail_permission_error(self, tmp_path) -> None:
         """Test find_any_publish_thumbnail handles permission errors gracefully."""
         shows_root = tmp_path / "shows"
         publish_path = (
@@ -234,7 +234,7 @@ class TestPathUtilsPublishThumbnail:
             # Restore permissions for cleanup
             restricted_dir.chmod(0o755)
 
-    def test_find_any_publish_thumbnail_no_publish_dir(self, tmp_path):
+    def test_find_any_publish_thumbnail_no_publish_dir(self, tmp_path) -> None:
         """Test when publish directory doesn't exist."""
         shows_root = tmp_path / "shows"
         shows_root.mkdir()
@@ -252,7 +252,7 @@ class TestPathUtilsPublishThumbnail:
 class TestPathUtilsPlateDiscovery:
     """Test plate directory discovery functionality."""
 
-    def test_discover_plate_directories_standard(self, tmp_path):
+    def test_discover_plate_directories_standard(self, tmp_path) -> None:
         """Test discovering standard plate directories with actual discover_plate_directories method."""
         # Create test structure
         raw_path = tmp_path / "raw"
@@ -276,7 +276,7 @@ class TestPathUtilsPlateDiscovery:
         for plate in plates:
             assert plate in found_names
 
-    def test_discover_plate_directories_empty(self, tmp_path):
+    def test_discover_plate_directories_empty(self, tmp_path) -> None:
         """Test discovering plates in empty directory."""
         raw_path = tmp_path / "raw"
         raw_path.mkdir()
@@ -284,7 +284,7 @@ class TestPathUtilsPlateDiscovery:
         result = PathUtils.discover_plate_directories(str(raw_path))
         assert result == []
 
-    def test_discover_plate_directories_nonexistent(self):
+    def test_discover_plate_directories_nonexistent(self) -> None:
         """Test discover_plate_directories with non-existent path."""
         result = PathUtils.discover_plate_directories("/non/existent/path")
         assert result == []
@@ -293,7 +293,7 @@ class TestPathUtilsPlateDiscovery:
 class TestValidationUtilsExtended:
     """Extended tests for ValidationUtils."""
 
-    def test_get_excluded_users(self):
+    def test_get_excluded_users(self) -> None:
         """Test getting excluded users list."""
         # Test with real username from environment or default
         excluded = ValidationUtils.get_excluded_users()
@@ -301,7 +301,7 @@ class TestValidationUtilsExtended:
         assert isinstance(excluded, set)
         assert len(excluded) >= 1  # Should include at least current user
 
-    def test_get_excluded_users_with_additional(self):
+    def test_get_excluded_users_with_additional(self) -> None:
         """Test getting excluded users with additional users."""
         additional = {"user1", "user2"}
         excluded = ValidationUtils.get_excluded_users(additional)

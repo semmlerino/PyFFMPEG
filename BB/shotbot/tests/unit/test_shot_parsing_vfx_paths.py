@@ -29,7 +29,7 @@ class TestVFXPathParsing:
         model._process_pool = test_process_pool
         return model
 
-    def test_parse_actual_vfx_paths(self, shot_model, test_process_pool):
+    def test_parse_actual_vfx_paths(self, shot_model, test_process_pool) -> None:
         """Test parsing of actual VFX workspace paths from production environment."""
         # Actual ws -sg output from VFX environment
         test_output = """workspace /shows/gator/shots/012_DC/012_DC_1000
@@ -78,7 +78,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
         assert shot_data == expected_shots
 
-    def test_shot_directory_extraction(self, make_shot):
+    def test_shot_directory_extraction(self, make_shot) -> None:
         """Test correct extraction of shot from shot directory name."""
         # Test cases with actual VFX naming patterns
         test_cases = [
@@ -102,7 +102,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
             assert shot == expected_shot, f"Failed for {shot_dir}"
 
-    def test_thumbnail_path_construction(self, make_shot):
+    def test_thumbnail_path_construction(self, make_shot) -> None:
         """Test correct thumbnail path construction for VFX shots."""
         from config import Config
         from utils import PathUtils
@@ -159,7 +159,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
     )
     def test_workspace_line_parsing(
         self, shot_model, test_process_pool, workspace_line, expected
-    ):
+    ) -> None:
         """Test parsing of individual workspace lines with parametrization."""
         test_process_pool.set_outputs(workspace_line)
 
@@ -175,7 +175,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         assert shot.shot == expected["shot"]
         assert shot.full_name == expected["full_name"]
 
-    def test_workspace_path_format(self, make_shot):
+    def test_workspace_path_format(self, make_shot) -> None:
         """Test that workspace paths follow the expected format."""
         # Create shots with actual VFX naming
         shot = make_shot(show="jack_ryan", seq="DB_256", shot="1200")
@@ -195,7 +195,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         expected_path = "/shows/jack_ryan/shots/DB_256/DB_256_1200/publish/editorial/cutref/v001/jpg/1920x1080"
         assert str(thumb_path) == expected_path
 
-    def test_vfx_asset_paths(self):
+    def test_vfx_asset_paths(self) -> None:
         """Test construction and discovery of VFX asset paths."""
         from pathlib import Path
 
@@ -242,7 +242,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         )
         assert plate_path == expected_plate
 
-    def test_actual_vfx_file_paths(self):
+    def test_actual_vfx_file_paths(self) -> None:
         """Test parsing and construction of actual VFX file paths provided by user."""
         from pathlib import Path
 

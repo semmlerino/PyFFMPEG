@@ -74,7 +74,7 @@ class TestPreviousShootsCacheIntegration:
         # Note: PreviousShotsModel is QObject, not QWidget - no qtbot.addWidget() needed
         return model
 
-    def test_cache_storage_and_retrieval(self, cache_manager, temp_cache_dir):
+    def test_cache_storage_and_retrieval(self, cache_manager, temp_cache_dir) -> None:
         """Test basic cache storage and retrieval for previous shots."""
         # Test data
         test_shots = [
@@ -102,7 +102,7 @@ class TestPreviousShootsCacheIntegration:
         assert cached_data[0]["sequence"] == "test_seq"
         assert cached_data[0]["shot"] == "test_shot"
 
-    def test_cache_data_consistency(self, cache_manager):
+    def test_cache_data_consistency(self, cache_manager) -> None:
         """Test cache data format consistency."""
         # Original shots from model
         original_shots = [
@@ -146,7 +146,7 @@ class TestPreviousShootsCacheIntegration:
             assert orig.shot == recon.shot
             assert orig.workspace_path == recon.workspace_path
 
-    def test_cache_ttl_behavior(self, cache_manager, temp_cache_dir):
+    def test_cache_ttl_behavior(self, cache_manager, temp_cache_dir) -> None:
         """Test cache TTL (Time To Live) behavior."""
         # Cache some data
         test_data = [
@@ -176,7 +176,7 @@ class TestPreviousShootsCacheIntegration:
         cached_data = cache_manager.get_cached_previous_shots()
         assert cached_data is None
 
-    def test_cache_invalidation(self, cache_manager, temp_cache_dir):
+    def test_cache_invalidation(self, cache_manager, temp_cache_dir) -> None:
         """Test cache invalidation and clearing."""
         # Cache some data
         test_data = [
@@ -204,7 +204,7 @@ class TestPreviousShootsCacheIntegration:
 
     def test_model_cache_integration_on_init(
         self, mock_shot_model, temp_cache_dir, qtbot
-    ):
+    ) -> None:
         """Test model loads from cache on initialization."""
         # Pre-populate cache
         cache_manager = CacheManager(cache_dir=temp_cache_dir)
@@ -228,7 +228,7 @@ class TestPreviousShootsCacheIntegration:
         assert shots[0].show == "cached_show"
         assert shots[0].shot == "cached_shot"
 
-    def test_model_cache_integration_on_refresh(self, previous_shots_model, qtbot):
+    def test_model_cache_integration_on_refresh(self, previous_shots_model, qtbot) -> None:
         """Test model saves to cache after refresh."""
         # Mock finder to return approved shots
         mock_approved = [
@@ -262,7 +262,7 @@ class TestPreviousShootsCacheIntegration:
 
     # Performance test removed to prevent test suite timeout
 
-    def test_cache_corruption_recovery(self, temp_cache_dir, mock_shot_model, qtbot):
+    def test_cache_corruption_recovery(self, temp_cache_dir, mock_shot_model, qtbot) -> None:
         """Test recovery from corrupted cache files."""
         # Create corrupted cache file
         cache_file = temp_cache_dir / "previous_shots.json"
@@ -280,7 +280,7 @@ class TestPreviousShootsCacheIntegration:
 
         assert len(model.get_shots()) == 0
 
-    def test_cache_partial_write_recovery(self, temp_cache_dir, cache_manager):
+    def test_cache_partial_write_recovery(self, temp_cache_dir, cache_manager) -> None:
         """Test recovery from partial cache writes."""
         # Simulate partial write by creating incomplete JSON
         cache_file = temp_cache_dir / "previous_shots.json"
@@ -306,13 +306,13 @@ class TestPreviousShootsCacheIntegration:
         assert recovered_data is not None
         assert len(recovered_data) == 1
 
-    def test_concurrent_cache_access(self, cache_manager, temp_cache_dir):
+    def test_concurrent_cache_access(self, cache_manager, temp_cache_dir) -> None:
         """Test thread safety of cache operations."""
 
         results = []
         errors = []
 
-        def cache_operation(thread_id):
+        def cache_operation(thread_id) -> None:
             try:
                 # Each thread caches different data
                 data = [
@@ -345,7 +345,7 @@ class TestPreviousShootsCacheIntegration:
         assert final_data is not None
         assert len(final_data) == 1
 
-    def test_cache_directory_creation(self, tmp_path):
+    def test_cache_directory_creation(self, tmp_path) -> None:
         """Test cache directory creation when it doesn't exist."""
         nonexistent_cache_dir = tmp_path / "nonexistent" / "cache"
 
@@ -366,7 +366,7 @@ class TestPreviousShootsCacheIntegration:
         assert nonexistent_cache_dir.exists()
         assert (nonexistent_cache_dir / "previous_shots.json").exists()
 
-    def test_cache_permissions_handling(self, temp_cache_dir, cache_manager):
+    def test_cache_permissions_handling(self, temp_cache_dir, cache_manager) -> None:
         """Test handling of cache permission issues."""
         # Cache some data first
         test_data = [

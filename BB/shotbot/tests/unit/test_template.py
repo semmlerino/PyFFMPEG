@@ -27,7 +27,7 @@ class ExampleClass(QObject):
     operation_completed = Signal(str)
     error_occurred = Signal(str)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.state = "initial"
 
@@ -48,7 +48,7 @@ class TestExampleClassBehavior:
     Focus on testing outcomes and behavior, not implementation details.
     """
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures.
 
         Use dependency injection for system boundaries only.
@@ -69,7 +69,7 @@ class TestExampleClassBehavior:
         )
         self.example.error_occurred.connect(lambda msg: self.error_signals.append(msg))
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up resources.
 
         Ensure proper cleanup of Qt objects and resources.
@@ -78,7 +78,7 @@ class TestExampleClassBehavior:
         if hasattr(self, "example"):
             self.example.deleteLater()
 
-    def test_successful_operation_behavior(self, qtbot):
+    def test_successful_operation_behavior(self, qtbot) -> None:
         """Test successful operation behavior.
 
         Tests:
@@ -104,7 +104,7 @@ class TestExampleClassBehavior:
         assert len(self.completed_signals) == 1
         assert self.completed_signals[0] == "processed_test_value"
 
-    def test_error_handling_behavior(self, qtbot):
+    def test_error_handling_behavior(self, qtbot) -> None:
         """Test error handling behavior.
 
         Tests:
@@ -135,7 +135,7 @@ class TestExampleClassBehavior:
             ("special!@#", "processed_special!@#"),
         ],
     )
-    def test_various_inputs(self, input_value, expected_state, qtbot):
+    def test_various_inputs(self, input_value, expected_state, qtbot) -> None:
         """Test with various input values using parametrization."""
         # Act
         result = self.example.perform_operation(input_value)
@@ -151,7 +151,7 @@ class TestExampleClassIntegration:
     Test interaction with other components.
     """
 
-    def test_with_filesystem(self, tmp_path):
+    def test_with_filesystem(self, tmp_path) -> None:
         """Test with real filesystem operations.
 
         Use tmp_path for real file operations instead of mocking.
@@ -164,7 +164,7 @@ class TestExampleClassIntegration:
         assert test_file.exists()
         assert test_file.read_text() == "test content"
 
-    def test_with_qt_signals(self, qtbot):
+    def test_with_qt_signals(self, qtbot) -> None:
         """Test Qt signal/slot connections.
 
         Use qtbot for proper Qt testing.
@@ -182,7 +182,7 @@ class TestExampleClassIntegration:
         example.deleteLater()
 
     @pytest.mark.slow
-    def test_slow_operation(self, qtbot):
+    def test_slow_operation(self, qtbot) -> None:
         """Test that might be slow - mark appropriately.
 
         Mark slow tests so they can be skipped during development.
@@ -194,7 +194,7 @@ class TestExampleClassIntegration:
 class TestExampleClassEdgeCases:
     """Edge cases and error conditions."""
 
-    def test_unicode_handling(self, qtbot):
+    def test_unicode_handling(self, qtbot) -> None:
         """Test Unicode string handling."""
         example = ExampleClass()
 
@@ -206,7 +206,7 @@ class TestExampleClassEdgeCases:
             assert result is True
             assert test_str in example.state
 
-    def test_resource_cleanup(self, qtbot):
+    def test_resource_cleanup(self, qtbot) -> None:
         """Test proper resource cleanup."""
         example = ExampleClass()
 

@@ -298,7 +298,7 @@ class ThreadingTestHelpers:
         winner_thread: threading.Thread | None = None
         race_start_event = threading.Event()
 
-        def participant_wrapper(func: Callable[[], Any], index: int):
+        def participant_wrapper(func: Callable[[], Any], index: int) -> None:
             """Wrapper to synchronize participant execution."""
             thread = threading.current_thread()
             result = None
@@ -696,19 +696,19 @@ class RaceConditionFactory:
         """
         received_signals = []
 
-        def signal_handler(*args):
+        def signal_handler(*args) -> None:
             received_signals.append(args)
 
         # Connect signal handler
         signal.connect(signal_handler)
 
-        def emit_operation():
+        def emit_operation() -> None:
             for i in range(emit_count):
                 signal.emit()
                 if i == disconnect_after - 1:
                     time.sleep(0.001)  # Small delay to create race window
 
-        def disconnect_operation():
+        def disconnect_operation() -> None:
             time.sleep(0.001)  # Small delay to create race window
             signal.disconnect(signal_handler)
 
@@ -856,7 +856,7 @@ class PerformanceMetrics:
         durations = []
         barrier = threading.Barrier(contention_threads)
 
-        def contending_operation(thread_id: int):
+        def contending_operation(thread_id: int) -> None:
             """Operation that contends for the lock."""
             barrier.wait()  # Synchronize start
 
@@ -916,7 +916,7 @@ class PerformanceMetrics:
         durations = []
         received_times = []
 
-        def signal_handler():
+        def signal_handler() -> None:
             received_times.append(time.perf_counter())
 
         # Connect signal with specified connection type
@@ -1084,7 +1084,7 @@ def monitored_worker(qtbot) -> Iterator[LauncherWorker]:
     # Add monitoring
     state_changes = []
 
-    def track_state_change():
+    def track_state_change() -> None:
         state_changes.append((time.perf_counter(), worker.get_state()))
 
     worker.worker_started.connect(track_state_change)
@@ -1119,7 +1119,7 @@ def deadlock_timeout() -> Iterator[None]:
     stop_monitoring = threading.Event()
     deadlock_detected = threading.Event()
 
-    def deadlock_monitor():
+    def deadlock_monitor() -> None:
         """Background thread to monitor for deadlocks."""
         while not stop_monitoring.wait(1.0):  # Check every second
             try:
@@ -1316,7 +1316,7 @@ def create_test_deadlock(
     """
     barrier = threading.Barrier(2)
 
-    def deadlock_thread1():
+    def deadlock_thread1() -> None:
         barrier.wait()
         lock1.acquire()
         time.sleep(0.1)  # Ensure thread2 acquires lock2
@@ -1324,7 +1324,7 @@ def create_test_deadlock(
         lock2.release()
         lock1.release()
 
-    def deadlock_thread2():
+    def deadlock_thread2() -> None:
         barrier.wait()
         lock2.acquire()
         time.sleep(0.1)  # Ensure thread1 acquires lock1

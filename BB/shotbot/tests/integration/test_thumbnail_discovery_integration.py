@@ -22,7 +22,7 @@ from utils import PathUtils
 class TestThumbnailDiscoveryIntegration:
     """Integration tests for thumbnail discovery."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
         """Minimal setup to avoid pytest fixture overhead."""
@@ -30,7 +30,7 @@ class TestThumbnailDiscoveryIntegration:
         self.shows_root = self.temp_dir / "shows"
         self.shows_root.mkdir(parents=True, exist_ok=True)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Direct cleanup without fixture dependencies."""
         try:
             if self.temp_dir.exists():
@@ -38,7 +38,7 @@ class TestThumbnailDiscoveryIntegration:
         except Exception:
             pass  # Ignore cleanup errors
 
-    def test_turnover_plate_discovery_integration(self):
+    def test_turnover_plate_discovery_integration(self) -> None:
         """Integration test for turnover plate discovery across different structures."""
         # Import locally to avoid pytest environment issues
 
@@ -97,7 +97,7 @@ class TestThumbnailDiscoveryIntegration:
         assert result2 == test_file2
         assert "BG01" in str(result2)
 
-    def test_plate_priority_integration(self):
+    def test_plate_priority_integration(self) -> None:
         """Integration test for plate priority ordering (FG > BG > others)."""
         # Import locally
 
@@ -141,7 +141,7 @@ class TestThumbnailDiscoveryIntegration:
         assert result == fg_file
         assert "FG01" in str(result)
 
-    def test_fallback_discovery_integration(self):
+    def test_fallback_discovery_integration(self) -> None:
         """Integration test for fallback thumbnail discovery."""
         # Import locally
 
@@ -173,7 +173,7 @@ class TestThumbnailDiscoveryIntegration:
         assert result == fallback_file
         assert "1001" in result.name
 
-    def test_deep_nesting_integration(self):
+    def test_deep_nesting_integration(self) -> None:
         """Integration test for deeply nested file discovery."""
         # Import locally
 
@@ -216,7 +216,7 @@ class TestThumbnailDiscoveryIntegration:
         # With max_depth=3, it should not reach the deeply nested file
         assert result_limited is None, "Should not find file beyond max_depth limit"
 
-    def test_no_files_found_integration(self):
+    def test_no_files_found_integration(self) -> None:
         """Integration test for cases where no files are found."""
         # Import locally
 

@@ -37,7 +37,7 @@ class PreviousShotsModel(QObject):
         shot_model: BaseShotModel,
         cache_manager: CacheManager | None = None,
         parent: QObject | None = None,
-    ):
+    ) -> None:
         """Initialize the previous shots model.
 
         Args:

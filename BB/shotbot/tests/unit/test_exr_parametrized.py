@@ -50,7 +50,7 @@ class TestParametrizedPriority:
             ([], None),
         ],
     )
-    def test_format_priority(self, tmp_path, formats, expected):
+    def test_format_priority(self, tmp_path, formats, expected) -> None:
         """Test format selection priority with various combinations."""
         test_dir = tmp_path / "test"
         test_dir.mkdir()
@@ -83,7 +83,7 @@ class TestParametrizedPriority:
             pytest.param("random", 2, marks=pytest.mark.slow, id="random_plate_slow"),
         ],
     )
-    def test_plate_priority_ordering(self, tmp_path, plate_name, priority):
+    def test_plate_priority_ordering(self, tmp_path, plate_name, priority) -> None:
         """Test plate priority calculation for different plate names."""
         shows_root = tmp_path / "shows"
 
@@ -141,7 +141,7 @@ class TestParametrizedFileOperations:
             (100, True),  # Huge, must resize
         ],
     )
-    def test_file_size_handling(self, tmp_path, file_size_mb, should_resize):
+    def test_file_size_handling(self, tmp_path, file_size_mb, should_resize) -> None:
         """Test handling of various file sizes."""
         exr_file = tmp_path / "test.exr"
         exr_file.write_bytes(b"EXR" + b"x" * int(file_size_mb * 1024 * 1024))
@@ -192,7 +192,7 @@ class TestParametrizedFileOperations:
             ".Tiff",
         ],
     )
-    def test_extension_case_variations(self, tmp_path, extension):
+    def test_extension_case_variations(self, tmp_path, extension) -> None:
         """Test that all case variations of extensions are recognized."""
         test_file = tmp_path / f"image{extension}"
         test_file.touch()
@@ -222,7 +222,7 @@ class TestParametrizedPaths:
             ("with_underscore", "with-dash", "0001"),
         ],
     )
-    def test_shot_path_construction(self, tmp_path, show, sequence, shot):
+    def test_shot_path_construction(self, tmp_path, show, sequence, shot) -> None:
         """Test path construction with various naming conventions."""
         shows_root = tmp_path / "shows"
 
@@ -252,7 +252,7 @@ class TestParametrizedPaths:
             (20, False),  # Too deep, might not exist
         ],
     )
-    def test_directory_depth_handling(self, tmp_path, depth, exists):
+    def test_directory_depth_handling(self, tmp_path, depth, exists) -> None:
         """Test handling of various directory depths."""
         current = tmp_path
         for i in range(depth):
@@ -279,7 +279,7 @@ class TestParametrizedCaching:
             (False, "always_none"),  # Asynchronous, returns None
         ],
     )
-    def test_cache_wait_behavior(self, tmp_path, wait, expected_return):
+    def test_cache_wait_behavior(self, tmp_path, wait, expected_return) -> None:
         """Test cache behavior with wait parameter."""
         test_file = tmp_path / "test.jpg"
         test_file.touch()
@@ -312,7 +312,7 @@ class TestParametrizedErrorHandling:
             ("ValueError", ValueError("Invalid data")),
         ],
     )
-    def test_error_resilience(self, tmp_path, error_type, error_instance):
+    def test_error_resilience(self, tmp_path, error_type, error_instance) -> None:
         """Test resilience to various error types."""
         test_file = tmp_path / "test.exr"
         test_file.touch()
@@ -334,7 +334,7 @@ class TestParametrizedErrorHandling:
     @pytest.mark.parametrize(
         "missing_component", ["show", "sequence", "shot", "workspace_path"]
     )
-    def test_missing_shot_components(self, missing_component):
+    def test_missing_shot_components(self, missing_component) -> None:
         """Test handling of missing shot components."""
         # Create shot data with one missing component
         shot_data = {
@@ -371,7 +371,7 @@ class TestParametrizedIntegration:
             "no_thumbnail",
         ],
     )
-    def test_complete_discovery_scenarios(self, tmp_path, scenario):
+    def test_complete_discovery_scenarios(self, tmp_path, scenario) -> None:
         """Test complete discovery flow for various scenarios."""
         shows_root = tmp_path / "shows"
         shot_dir = shows_root / "test" / "shots" / "seq01" / "seq01_0010"

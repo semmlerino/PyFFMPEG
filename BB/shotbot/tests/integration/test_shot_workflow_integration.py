@@ -34,7 +34,7 @@ pytestmark = pytest.mark.integration
 class TestShotWorkflowIntegration:
     """Integration tests for shot refresh and caching workflow following UNIFIED_TESTING_GUIDE."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
         """Minimal setup to avoid pytest fixture overhead."""
@@ -44,7 +44,7 @@ class TestShotWorkflowIntegration:
         self.shows_root = self.temp_dir / "shows"
         self.shows_root.mkdir(parents=True, exist_ok=True)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Direct cleanup without fixture dependencies."""
         try:
             if self.temp_dir.exists():
@@ -52,7 +52,7 @@ class TestShotWorkflowIntegration:
         except Exception:
             pass  # Ignore cleanup errors
 
-    def test_shot_model_refresh_with_cache_integration(self):
+    def test_shot_model_refresh_with_cache_integration(self) -> None:
         """Test shot model refreshing from workspace with cache integration."""
         # Import locally to avoid pytest environment issues
 
@@ -101,7 +101,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         assert len(test_process_pool.commands) == 1
         assert "ws -sg" in test_process_pool.commands[0]
 
-    def test_shot_data_persistence_through_cache(self):
+    def test_shot_data_persistence_through_cache(self) -> None:
         """Test shot data persists correctly through cache storage."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -149,7 +149,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         assert shots[0].shot == "seq01_0010"
         assert shots[1].shot == "seq01_0020"
 
-    def test_shot_model_change_detection(self):
+    def test_shot_model_change_detection(self) -> None:
         """Test shot model correctly detects changes between refreshes."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -190,7 +190,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         shots = shot_model.get_shots()
         assert len(shots) == 2
 
-    def test_shot_model_cache_invalidation_workflow(self):
+    def test_shot_model_cache_invalidation_workflow(self) -> None:
         """Test cache invalidation when shots are updated."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -229,7 +229,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
 
         assert updated_cache_data["shots"][0]["show"] == "show2"
 
-    def test_shot_model_error_handling_with_cache_fallback(self):
+    def test_shot_model_error_handling_with_cache_fallback(self) -> None:
         """Test shot model error handling with cache fallback."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))

@@ -7,15 +7,17 @@ functionality from BaseThumbnailDelegate.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QWidget
 from typing_extensions import override
 
 from base_thumbnail_delegate import BaseThumbnailDelegate, DelegateTheme
 from threede_item_model import ThreeDERole
+
+if TYPE_CHECKING:
+    from PySide6.QtCore import QModelIndex, QPersistentModelIndex
+    from PySide6.QtWidgets import QWidget
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
     provides 3DE-specific data extraction and theming.
     """
     
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the 3DE grid delegate.
         
         Args:

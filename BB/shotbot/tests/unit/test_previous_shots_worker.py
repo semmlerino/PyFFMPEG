@@ -27,7 +27,7 @@ Focus areas:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 from PySide6.QtCore import QCoreApplication
@@ -81,7 +81,7 @@ class TestPreviousShotsWorkerBasics:
             worker.stop()
             worker.wait(5000)  # Wait up to 5 seconds for thread to finish
 
-    def test_worker_initialization(self, worker, mock_active_shots, shows_root):
+    def test_worker_initialization(self, worker, mock_active_shots, shows_root) -> None:
         """Test worker initialization with correct parameters."""
         assert worker._active_shots == mock_active_shots
         assert worker._shows_root == shows_root
@@ -89,7 +89,7 @@ class TestPreviousShotsWorkerBasics:
         assert not worker.should_stop()
         assert worker._found_shots == []
 
-    def test_worker_stop_mechanism(self, worker):
+    def test_worker_stop_mechanism(self, worker) -> None:
         """Test worker stop request mechanism."""
         assert not worker.should_stop()
 
@@ -97,7 +97,7 @@ class TestPreviousShotsWorkerBasics:
 
         assert worker.should_stop()
 
-    def test_get_found_shots_returns_copy(self, worker):
+    def test_get_found_shots_returns_copy(self, worker) -> None:
         """Test that get_found_shots returns a copy of internal list."""
         # Add some shots to internal list
         test_shots = [
@@ -137,7 +137,7 @@ class TestPreviousShotsWorkerWorkflow:
 
     def test_complete_workflow_with_results(
         self, worker_with_cleanup, qtbot, monkeypatch
-    ):
+    ) -> None:
         """Test complete run() workflow with mocked subprocess at system boundary."""
         worker = worker_with_cleanup
 
@@ -163,7 +163,7 @@ class TestPreviousShotsWorkerWorkflow:
         # Collect shot_found signals to verify count
         shot_found_signals = []
 
-        def collect_shot_found(shot_dict):
+        def collect_shot_found(shot_dict) -> None:
             shot_found_signals.append(shot_dict)
 
         worker.shot_found.connect(collect_shot_found)
@@ -187,7 +187,7 @@ class TestPreviousShotsWorkerWorkflow:
         # 3 found shots - 0 matching active shots = 3 approved shots
         assert len(shot_found_signals) == 3
 
-    def test_workflow_with_no_results(self, worker_with_cleanup, qtbot, monkeypatch):
+    def test_workflow_with_no_results(self, worker_with_cleanup, qtbot, monkeypatch) -> None:
         """Test workflow when no shots are found."""
         worker = worker_with_cleanup
 
@@ -220,7 +220,7 @@ class TestPreviousShotsWorkerWorkflow:
         final_result = scan_finished_spy.at(0)[0]
         assert len(final_result) == 0
 
-    def test_workflow_with_stop_request(self, worker_with_cleanup, qtbot, monkeypatch):
+    def test_workflow_with_stop_request(self, worker_with_cleanup, qtbot, monkeypatch) -> None:
         """Test workflow interruption with stop request."""
         worker = worker_with_cleanup
 
@@ -243,7 +243,7 @@ class TestPreviousShotsWorkerWorkflow:
                 stdout="/shows/show1/shots/seq1/shot1/user/testuser\n",
             )
 
-        scan_finished_spy = QSignalSpy(worker.scan_finished)
+        QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses subprocess.run for testing
         from previous_shots_finder import PreviousShotsFinder
@@ -273,7 +273,7 @@ class TestPreviousShotsWorkerWorkflow:
 
     def test_error_handling_finder_exception(
         self, worker_with_cleanup, qtbot, monkeypatch
-    ):
+    ) -> None:
         """Test error handling when finder raises unexpected exception."""
         worker = worker_with_cleanup
 
@@ -286,7 +286,7 @@ class TestPreviousShotsWorkerWorkflow:
         worker._finder = PreviousShotsFinder(username="testuser")
 
         # Mock finder.find_user_shots to raise exception (this will propagate)
-        def failing_find_user_shots(*args):
+        def failing_find_user_shots(*args) -> NoReturn:
             raise RuntimeError("Critical finder error")
 
         # Use monkeypatch for safer patching
@@ -311,7 +311,7 @@ class TestPreviousShotsWorkerWorkflow:
         # Should not emit scan_finished on error
         assert scan_finished_spy.count() == 0
 
-    def test_signal_data_format(self, worker_with_cleanup, qtbot, monkeypatch):
+    def test_signal_data_format(self, worker_with_cleanup, qtbot, monkeypatch) -> None:
         """Test signal data format matches expected structure."""
         worker = worker_with_cleanup
 
@@ -399,7 +399,7 @@ class TestPreviousShotsWorkerIntegration:
 
     def test_integration_with_real_finder(
         self, real_shows_structure, qtbot, monkeypatch
-    ):
+    ) -> None:
         """Test integration using real PreviousShotsFinder with mocked subprocess."""
 
         # Create active shots (some overlap with user work)

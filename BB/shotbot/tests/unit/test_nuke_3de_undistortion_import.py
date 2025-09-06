@@ -116,7 +116,7 @@ MOCK_3DE_CLASSIC = """LD_3DE_Classic_LD_Model {
 class TestNuke3DEUndistortionImport:
     """Test importing 3DE undistortion nodes."""
 
-    def test_import_3de_radial_standard_node(self, tmp_path):
+    def test_import_3de_radial_standard_node(self, tmp_path) -> None:
         """Test importing LD_3DE4_Radial_Standard_Degree_4 node."""
         # Create temp undistortion file
         undist_file = tmp_path / "test_undistortion.nk"
@@ -138,7 +138,7 @@ class TestNuke3DEUndistortionImport:
         # Should not have duplicate version line
         assert result.count("version 16.0") == 0
 
-    def test_import_copy_paste_format(self, tmp_path):
+    def test_import_copy_paste_format(self, tmp_path) -> None:
         """Test importing copy/paste format with 3DE nodes."""
         # Create temp file
         undist_file = tmp_path / "copy_paste.nk"
@@ -158,7 +158,7 @@ class TestNuke3DEUndistortionImport:
         # Note: Connection to plate is handled at a higher level, not in import method
         assert "inputs 0" in result
 
-    def test_import_classic_ld_model(self, tmp_path):
+    def test_import_classic_ld_model(self, tmp_path) -> None:
         """Test importing LD_3DE_Classic_LD_Model node."""
         # Create temp file
         undist_file = tmp_path / "classic.nk"
@@ -173,7 +173,7 @@ class TestNuke3DEUndistortionImport:
         assert "LD_3DE_Classic_LD_Model" in result
         assert "inputs 0" in result  # Should keep inputs 0 when not connecting
 
-    def test_fallback_to_parsers(self, tmp_path):
+    def test_fallback_to_parsers(self, tmp_path) -> None:
         """Test that fallback parsers are tried if simple import fails."""
         # Create an empty file to trigger fallback
         undist_file = tmp_path / "empty.nk"
@@ -187,7 +187,7 @@ class TestNuke3DEUndistortionImport:
 
         assert result == ""
 
-    def test_full_script_generation_with_3de_undistortion(self, tmp_path):
+    def test_full_script_generation_with_3de_undistortion(self, tmp_path) -> None:
         """Test full script generation with 3DE undistortion."""
         # Create undistortion file
         undist_file = tmp_path / "undist.nk"
@@ -217,7 +217,7 @@ class TestNuke3DEUndistortionImport:
         # Should have proper connection
         assert "inputs 1" in content
 
-    def test_3de_node_types_accepted(self):
+    def test_3de_node_types_accepted(self) -> None:
         """Verify 3DE node types are accepted by simplified pattern matching."""
         import re
 
@@ -242,7 +242,7 @@ class TestNuke3DEUndistortionImport:
                 f"3DE node should not be excluded: {node_type}"
             )
 
-    def test_mixed_node_types(self, tmp_path):
+    def test_mixed_node_types(self, tmp_path) -> None:
         """Test importing file with both standard and 3DE nodes."""
         mixed_content = """Group {
  inputs 0

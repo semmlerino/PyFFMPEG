@@ -50,7 +50,7 @@ def test_shows_root_dynamic_configuration():
                 from shot_finder_base import ShotFinderBase
                 
                 class TestFinder(ShotFinderBase):
-                    def find_shots(self):
+                    def find_shots(self) -> None:
                         pass  # Abstract method implementation
                 
                 finder = TestFinder()
@@ -83,10 +83,10 @@ def test_shows_root_dynamic_configuration():
                 
                 # Create a mock implementation
                 class TestShotModel(BaseShotModel):
-                    def load_shots(self):
+                    def load_shots(self) -> None:
                         pass
                     
-                    def refresh_strategy(self):
+                    def refresh_strategy(self) -> None:
                         pass
                 
                 model = TestShotModel()
@@ -283,7 +283,6 @@ def test_json_error_handling():
     
     try:
         # Need to properly mock the path
-        original_parent = Path.parent
         with mock.patch.object(Path, 'parent', property(lambda self: Path("/mock/dir"))):
             with mock.patch('builtins.open', mock.mock_open(read_data=open(temp_path).read())):
                 with mock.patch('pathlib.Path.exists', return_value=True):

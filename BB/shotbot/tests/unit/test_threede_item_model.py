@@ -65,7 +65,7 @@ def test_scenes():
 class TestThreadSafety:
     """Test thread safety improvements in ThreeDEItemModel."""
 
-    def test_mutex_protection_on_cache_access(self, model, test_scenes):
+    def test_mutex_protection_on_cache_access(self, model, test_scenes) -> None:
         """Test that cache dictionary access is protected by mutex."""
         model.set_scenes(test_scenes)
         
@@ -74,7 +74,7 @@ class TestThreadSafety:
         scene = test_scenes[0]
         
         # Simulate concurrent thumbnail cache access
-        def access_cache():
+        def access_cache() -> None:
             # This should be protected by mutex
             model._thumbnail_cache.get(str(scene.scene_path), None)
             model._loading_states.get(str(scene.scene_path), "pending")
@@ -87,7 +87,7 @@ class TestThreadSafety:
         assert model.rowCount() == 3
         assert len(model._scenes) == 3
 
-    def test_cache_size_limit_enforcement(self, model, qtbot):
+    def test_cache_size_limit_enforcement(self, model, qtbot) -> None:
         """Test that cache size limit (MAX_CACHE_SIZE) is enforced."""
         # Create more scenes than MAX_CACHE_SIZE
         many_scenes = []
@@ -119,7 +119,7 @@ class TestThreadSafety:
         # Cache should not exceed MAX_CACHE_SIZE
         assert len(model._thumbnail_cache) <= 100
 
-    def test_concurrent_thumbnail_callbacks(self, model, test_scenes, qtbot):
+    def test_concurrent_thumbnail_callbacks(self, model, test_scenes, qtbot) -> None:
         """Test that concurrent thumbnail callbacks are handled safely."""
         model.set_scenes(test_scenes)
         
@@ -130,7 +130,7 @@ class TestThreadSafety:
             # Simulate async callback from thread
             future = Future()
             
-            def run_callback():
+            def run_callback() -> None:
                 time.sleep(0.01)  # Simulate processing
                 test_image = QImage(100, 100, QImage.Format.Format_RGB32)
                 test_image.fill(Qt.GlobalColor.green)
@@ -162,7 +162,7 @@ class TestThreadSafety:
         # All callbacks should have been processed
         assert len(signals_received) == len(test_scenes)
 
-    def test_cleanup_releases_resources(self, model, test_scenes):
+    def test_cleanup_releases_resources(self, model, test_scenes) -> None:
         """Test that cleanup() properly releases resources."""
         model.set_scenes(test_scenes)
         
@@ -182,7 +182,7 @@ class TestThreadSafety:
         # Timer should be stopped
         assert not model._thumbnail_timer.isActive()
 
-    def test_reset_during_loading(self, model, test_scenes, qtbot):
+    def test_reset_during_loading(self, model, test_scenes, qtbot) -> None:
         """Test model reset while thumbnails are still loading."""
         model.set_scenes(test_scenes)
         
@@ -209,7 +209,7 @@ class TestThreadSafety:
         # Timer should have been restarted
         assert model._thumbnail_timer is not None
 
-    def test_data_role_thread_safety(self, model, test_scenes):
+    def test_data_role_thread_safety(self, model, test_scenes) -> None:
         """Test data() method is thread-safe for all roles."""
         model.set_scenes(test_scenes)
         
@@ -234,7 +234,7 @@ class TestThreadSafety:
             # Verify no crashes or exceptions
             assert data is not None or role == Qt.ItemDataRole.DecorationRole
 
-    def test_selection_changes_during_loading(self, model, test_scenes, qtbot):
+    def test_selection_changes_during_loading(self, model, test_scenes, qtbot) -> None:
         """Test selection changes while thumbnails are loading."""
         model.set_scenes(test_scenes)
         
@@ -250,7 +250,7 @@ class TestThreadSafety:
         model.set_selected_index(QModelIndex())
         assert not model._selected_index.isValid()
 
-    def test_visible_range_boundary_conditions(self, model, test_scenes):
+    def test_visible_range_boundary_conditions(self, model, test_scenes) -> None:
         """Test visible range updates with boundary conditions."""
         model.set_scenes(test_scenes)
         
@@ -269,7 +269,7 @@ class TestThreadSafety:
         assert model._visible_start == 2
         assert model._visible_end == 0
 
-    def test_thumbnail_timer_lifecycle(self, model, test_scenes):
+    def test_thumbnail_timer_lifecycle(self, model, test_scenes) -> None:
         """Test thumbnail timer starts and stops appropriately."""
         model.set_scenes(test_scenes)
         
@@ -296,7 +296,7 @@ class TestThreadSafety:
 class TestDataIntegrity:
     """Test data integrity with thread-safe operations."""
     
-    def test_concurrent_set_scenes(self, model, test_scenes, qtbot):
+    def test_concurrent_set_scenes(self, model, test_scenes, qtbot) -> None:
         """Test multiple rapid set_scenes calls."""
         # Rapidly change scenes - should not corrupt state
         for _ in range(5):
@@ -308,7 +308,7 @@ class TestDataIntegrity:
         assert model.rowCount() == 2
         assert len(model._scenes) == 2
 
-    def test_role_data_consistency(self, model, test_scenes):
+    def test_role_data_consistency(self, model, test_scenes) -> None:
         """Test that all data roles return consistent data."""
         model.set_scenes(test_scenes)
         
@@ -322,7 +322,7 @@ class TestDataIntegrity:
             assert model.data(index, Qt.ItemDataRole.UserRole) == scene
             assert model.data(index, Qt.ItemDataRole.UserRole + 1) == scene  # SceneObjectRole
 
-    def test_cache_persistence_across_resets(self, model, test_scenes):
+    def test_cache_persistence_across_resets(self, model, test_scenes) -> None:
         """Test that cache is properly managed across model resets."""
         model.set_scenes(test_scenes)
         

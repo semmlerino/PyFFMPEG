@@ -178,7 +178,6 @@ class TestOptimizedShotModelThreadSafety:
         """Test that rapid refresh calls don't cause race conditions."""
         # Track how many background loaders are created
         loader_creation_count = [0]
-        original_start_background_refresh = self.model._start_background_refresh
 
         def counting_background_refresh() -> None:
             loader_creation_count[0] += 1
@@ -308,7 +307,6 @@ class TestDeadlockDetection:
         model = OptimizedShotModel(cache_manager)
 
         signal_processed = [False]
-        main_thread_blocked = [False]
 
         def slot_handler(shots: list[Any]) -> None:
             """Slot that runs in main thread due to QueuedConnection."""

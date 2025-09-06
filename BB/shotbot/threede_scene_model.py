@@ -121,7 +121,7 @@ class ThreeDESceneModel:
         self,
         cache_manager: CacheManager | None = None,
         load_cache: bool = True,
-    ):
+    ) -> None:
         self.scenes: list[ThreeDEScene] = []
         self.cache_manager = cache_manager or CacheManager()
         # Get excluded users dynamically (current user + any additional)

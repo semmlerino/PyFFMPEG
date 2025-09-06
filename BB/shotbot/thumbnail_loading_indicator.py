@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QWidget
 class ThumbnailLoadingIndicator(QWidget):
     """A simple loading spinner widget."""
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._angle = 0
         self._timer = QTimer()
@@ -21,22 +21,22 @@ class ThumbnailLoadingIndicator(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
 
-    def start(self):
+    def start(self) -> None:
         """Start the loading animation."""
         self._timer.start(50)  # Update every 50ms
         self.show()
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the loading animation."""
         self._timer.stop()
         self.hide()
 
-    def _rotate(self):
+    def _rotate(self) -> None:
         """Rotate the spinner."""
         self._angle = (self._angle + 10) % 360
         self.update()
 
-    def paintEvent(self, event: QPaintEvent):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Paint the spinner."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -65,7 +65,7 @@ class ThumbnailLoadingIndicator(QWidget):
 class ShimmerLoadingIndicator(QWidget):
     """A shimmer/skeleton loading effect widget."""
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._shimmer_position: int = 0
         self._animation = QPropertyAnimation(self, b"shimmerPosition")
@@ -81,7 +81,7 @@ class ShimmerLoadingIndicator(QWidget):
         """Get shimmer position."""
         return self._shimmer_position
 
-    def _set_shimmer_position(self, value: int):
+    def _set_shimmer_position(self, value: int) -> None:
         """Set shimmer position."""
         self._shimmer_position = value
         self.update()
@@ -89,18 +89,18 @@ class ShimmerLoadingIndicator(QWidget):
     # Create property using Property
     shimmerPosition = Property(int, _get_shimmer_position, _set_shimmer_position)
 
-    def start(self):
+    def start(self) -> None:
         """Start the shimmer animation."""
         self._animation.setEndValue(self.width() + 100)
         self._animation.start()
         self.show()
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the shimmer animation."""
         self._animation.stop()
         self.hide()
 
-    def paintEvent(self, event: QPaintEvent):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Paint the shimmer effect."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

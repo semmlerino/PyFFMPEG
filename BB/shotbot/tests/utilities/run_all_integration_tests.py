@@ -53,7 +53,7 @@ def run_test(test_script: str, description: str) -> tuple[bool, str]:
         return False, status_msg
 
 
-def main():
+def main() -> int:
     """Run all integration tests."""
     print("=" * 80)
     print("SHOTBOT INTEGRATION TEST SUITE")

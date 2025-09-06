@@ -44,7 +44,7 @@ import logging
 import threading
 import time
 import uuid
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
 from config import ThreadingConfig
 
@@ -77,7 +77,7 @@ class ThreadSafeProgressTracker:
 
     def __init__(
         self,
-        progress_callback: Optional[Callable[[int, str], None]] = None,
+        progress_callback: Callable[[int, str], None] | None = None,
         update_interval: int = 10,
     ) -> None:
         """Initialize thread-safe progress tracker.
@@ -87,7 +87,7 @@ class ThreadSafeProgressTracker:
             update_interval: Report progress every N files processed
         """
         self._lock = threading.Lock()
-        self._worker_progress: Dict[str, int] = {}  # worker_id -> files_processed
+        self._worker_progress: dict[str, int] = {}  # worker_id -> files_processed
         self._total_progress = 0
         self._last_reported_progress = 0
         self._progress_callback = progress_callback
@@ -183,7 +183,7 @@ class ThreadSafeProgressTracker:
         with self._lock:
             return self._total_progress
 
-    def get_worker_stats(self) -> Dict[str, Any]:
+    def get_worker_stats(self) -> dict[str, Any]:
         """Get statistics about worker progress for debugging.
 
         Returns:
@@ -283,11 +283,11 @@ class CancellationEvent:
     def __init__(self) -> None:
         """Initialize cancellation event."""
         self._event = threading.Event()
-        self._callbacks: List[Callable[[], None]] = []
+        self._callbacks: list[Callable[[], None]] = []
         self._callbacks_lock = threading.Lock()
         self._cancelled = False
         self._cancel_lock = threading.Lock()
-        self._cancel_time: Optional[float] = None
+        self._cancel_time: float | None = None
         self._id = str(uuid.uuid4())[:8]
 
         logger.debug(f"CancellationEvent {self._id} initialized")
@@ -419,7 +419,7 @@ class CancellationEvent:
             f"{executed} succeeded, {failed} failed"
         )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cancellation event statistics for debugging.
 
         Returns:
@@ -473,9 +473,9 @@ class ThreadPoolManager:
     def __init__(
         self,
         max_workers: int | None = None,
-        cancel_event: Optional[CancellationEvent] = None,
+        cancel_event: CancellationEvent | None = None,
         shutdown_timeout: float | None = None,
-    ):
+    ) -> None:
         """Initialize ThreadPoolManager.
 
         Args:
@@ -486,7 +486,7 @@ class ThreadPoolManager:
         self.max_workers = max_workers or ThreadingConfig.MAX_WORKER_THREADS
         self.cancel_event = cancel_event
         self.shutdown_timeout = shutdown_timeout or ThreadingConfig.THREAD_POOL_TIMEOUT
-        self.executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+        self.executor: concurrent.futures.ThreadPoolExecutor | None = None
         self._entered = False
 
         logger.debug(
@@ -513,7 +513,7 @@ class ThreadPoolManager:
         )
         return self.executor
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Exit context manager and cleanup executor."""
         if not self._entered:
             return
@@ -609,7 +609,7 @@ def example_parallel_processing_with_cancellation():
     cancel_event, pool_manager = create_cancellation_context(max_workers=4)
 
     # Simulate external cancellation trigger (e.g., from UI)
-    def external_cancel_check():
+    def external_cancel_check() -> bool:
         # This would be your existing cancel_flag() function
         return False  # Replace with actual cancellation logic
 

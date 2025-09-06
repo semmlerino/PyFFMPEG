@@ -7,7 +7,7 @@ import sys
 # Set environment
 os.environ['SHOWS_ROOT'] = '/tmp/mock_vfx'
 
-def test_cleanup_implementation():
+def test_cleanup_implementation() -> bool:
     """Test that the QThread cleanup fixes are properly implemented."""
     
     print("=" * 60)

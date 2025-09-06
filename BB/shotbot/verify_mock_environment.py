@@ -137,7 +137,7 @@ def test_headless_app():
         return 0
 
 
-def verify_filesystem():
+def verify_filesystem() -> bool:
     """Verify the mock filesystem structure."""
     logger.info("\n" + "=" * 70)
     logger.info("VERIFYING MOCK FILESYSTEM")
@@ -181,7 +181,7 @@ def verify_filesystem():
     return True
 
 
-def main():
+def main() -> int:
     """Run all verification tests."""
     logger.info("🎬 SHOTBOT MOCK VFX ENVIRONMENT VERIFICATION")
     logger.info("=" * 70)

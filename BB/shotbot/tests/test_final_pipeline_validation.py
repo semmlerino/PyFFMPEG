@@ -31,7 +31,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 class MockShot:
     """Mock Shot class for testing without PySide6 dependency."""
 
-    def __init__(self, show: str, sequence: str, shot: str, workspace_path: str):
+    def __init__(self, show: str, sequence: str, shot: str, workspace_path: str) -> None:
         self.show = show
         self.sequence = sequence
         self.shot = shot
@@ -161,7 +161,7 @@ def test_ws_sg_parsing():
     return all_passed
 
 
-def test_show_extraction():
+def test_show_extraction() -> bool:
     """Test extraction of unique shows from shots."""
     print("\n=== Testing Show Extraction ===")
 
@@ -246,7 +246,7 @@ def test_3de_path_parsing():
     return all_passed
 
 
-def test_complete_pipeline():
+def test_complete_pipeline() -> bool:
     """Test the complete pipeline integration."""
     print("\n=== Testing Complete Pipeline ===")
 
@@ -300,7 +300,7 @@ def test_complete_pipeline():
     return True
 
 
-def main():
+def main() -> int:
     """Run all validation tests."""
     print("\n" + "=" * 60)
     print("FINAL SHOT PROCESSING PIPELINE VALIDATION")

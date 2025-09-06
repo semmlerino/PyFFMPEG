@@ -25,7 +25,7 @@ class ThumbnailProcessor:
     image processing.
     """
 
-    def __init__(self, thumbnail_size: int | None = None):
+    def __init__(self, thumbnail_size: int | None = None) -> None:
         """Initialize thumbnail processor.
 
         Args:
@@ -244,7 +244,7 @@ class ThumbnailProcessor:
             if scaled is not None:
                 del scaled
 
-    def _load_image_with_pil(self, source_path: Path, file_info: dict):
+    def _load_image_with_pil(self, source_path: Path, file_info: dict) -> PIL.Image.Image | None:
         """Load image using PIL with format-specific handling.
 
         Args:
@@ -278,7 +278,7 @@ class ThumbnailProcessor:
             logger.debug(f"PIL loading failed for {source_path}: {e}")
             return None
 
-    def _get_rez_environment_info(self):
+    def _get_rez_environment_info(self) -> dict:
         """Get Rez environment information for debugging.
 
         Returns:
@@ -306,7 +306,7 @@ class ThumbnailProcessor:
 
         return rez_info
 
-    def _load_exr_image(self, source_path: Path):
+    def _load_exr_image(self, source_path: Path) -> PIL.Image.Image | None:
         """Load EXR image with specialized backends and Rez environment support.
 
         Args:
@@ -365,7 +365,7 @@ class ThumbnailProcessor:
 
         return None
 
-    def _load_exr_with_system_tools(self, source_path: Path):
+    def _load_exr_with_system_tools(self, source_path: Path) -> PIL.Image.Image | None:
         """Load EXR using system tools (ImageMagick + OpenEXR native tools).
 
         This method uses external system tools that we confirmed are working
@@ -483,7 +483,7 @@ class ThumbnailProcessor:
                 except Exception:
                     pass  # Best effort cleanup
 
-    def _load_exr_with_openexr(self, source_path: Path):
+    def _load_exr_with_openexr(self, source_path: Path) -> PIL.Image.Image | None:
         """Load EXR using OpenEXR library with Rez environment support.
 
         Handles both official OpenEXR package and alternative openexr packages
@@ -600,7 +600,7 @@ class ThumbnailProcessor:
         logger.debug(f"Successfully loaded EXR using {api_style} OpenEXR API")
         return PILImage.fromarray(img_array, mode="RGB")
 
-    def _load_exr_with_imageio(self, source_path: Path):
+    def _load_exr_with_imageio(self, source_path: Path) -> PIL.Image.Image | None:
         """Load EXR using imageio library with Rez environment support.
 
         Args:

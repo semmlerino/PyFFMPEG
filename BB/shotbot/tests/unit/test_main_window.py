@@ -224,17 +224,17 @@ class TestApplicationLaunching:
         executed_commands = []
 
         class MockProcess:
-            def __init__(self):
+            def __init__(self) -> None:
                 self.returncode = 0
                 self.args = None
                 self.stdout = ""
                 self.stderr = ""
                 self.pid = 12345  # Mock PID for persistent terminal
 
-            def __enter__(self):
+            def __enter__(self) -> "MockSubprocess":
                 return self
 
-            def __exit__(self, exc_type, exc_val, exc_tb):
+            def __exit__(self, exc_type, exc_val, exc_tb) -> None:
                 pass
 
             def communicate(self, input=None, timeout=None):
@@ -243,7 +243,7 @@ class TestApplicationLaunching:
             def poll(self):
                 return self.returncode
 
-            def kill(self):
+            def kill(self) -> None:
                 pass
 
             def wait(self, timeout=None):
@@ -257,7 +257,7 @@ class TestApplicationLaunching:
 
         # Mock both subprocess.run and subprocess.Popen
         class CompletedProcessMock:
-            def __init__(self, args, returncode):
+            def __init__(self, args, returncode) -> None:
                 self.args = args
                 self.returncode = returncode
                 self.stdout = ""
@@ -271,7 +271,7 @@ class TestApplicationLaunching:
         monkeypatch.setattr("subprocess.run", mock_run)
 
         # Launch an app - test behavior, not implementation
-        result = main_window._launch_app("nuke")
+        main_window._launch_app("nuke")
 
         # Test behavior: command should have been executed
         assert len(executed_commands) > 0

@@ -46,7 +46,7 @@ from threede_scene_finder import ThreeDESceneFinder
 class PerformanceProfiler:
     """Utility class for profiling ThreeDESceneFinder operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.profiles = {}
         self.memory_usage = {}
         self.timing_data = {}
@@ -362,7 +362,7 @@ def large_project(tmp_path):
 class TestFileSystemTraversalPerformance:
     """Test different file system traversal methods."""
 
-    def test_rglob_vs_find_command_small(self, small_project, profiler):
+    def test_rglob_vs_find_command_small(self, small_project, profiler) -> None:
         """Compare rglob vs find command on small project."""
         shows_root, stats = small_project
 
@@ -412,7 +412,7 @@ class TestFileSystemTraversalPerformance:
         print(f"RGlob found: {len(rglob_result)} files")
         print(f"Find found: {len(find_result)} files")
 
-    def test_rglob_vs_find_command_medium(self, medium_project, profiler):
+    def test_rglob_vs_find_command_medium(self, medium_project, profiler) -> None:
         """Compare rglob vs find command on medium project."""
         shows_root, stats = medium_project
 
@@ -479,7 +479,7 @@ class TestFileSystemTraversalPerformance:
 class TestSceneFinderMethods:
     """Test actual ThreeDESceneFinder methods for performance."""
 
-    def test_find_scenes_for_shot_performance(self, medium_project, profiler):
+    def test_find_scenes_for_shot_performance(self, medium_project, profiler) -> None:
         """Profile find_scenes_for_shot method."""
         shows_root, stats = medium_project
 
@@ -503,7 +503,7 @@ class TestSceneFinderMethods:
         print(f"Time: {profiler.timing_data['find_scenes_for_shot']:.3f}s")
         print(f"Memory: {profiler.memory_usage['find_scenes_for_shot']:.1f}MB")
 
-    def test_extract_plate_performance(self, medium_project, profiler):
+    def test_extract_plate_performance(self, medium_project, profiler) -> None:
         """Profile extract_plate_from_path method."""
         shows_root, stats = medium_project
 
@@ -556,7 +556,7 @@ class TestSceneFinderMethods:
 
         print(f"Time: {profiler.timing_data['extract_plate_from_path']:.6f}s")
 
-    def test_regex_pattern_performance(self, profiler):
+    def test_regex_pattern_performance(self, profiler) -> None:
         """Test regex pattern compilation and matching performance."""
 
         def test_regex_patterns():
@@ -613,7 +613,7 @@ class TestSceneFinderMethods:
 class TestScalingPerformance:
     """Test how performance scales with project size."""
 
-    def test_performance_scaling(self, profiler):
+    def test_performance_scaling(self, profiler) -> None:
         """Test performance across different project sizes."""
 
         # Create projects of different sizes in temp dirs
@@ -680,7 +680,7 @@ class TestScalingPerformance:
             )
 
 
-def test_generate_performance_report(profiler):
+def test_generate_performance_report(profiler) -> None:
     """Generate and save performance report."""
 
     # This will be called after other tests to generate final report

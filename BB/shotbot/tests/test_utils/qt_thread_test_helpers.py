@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class ThreadSignalTester:
     """Helper for testing Qt thread signals reliably."""
 
-    def __init__(self, qtbot: QtBot):
+    def __init__(self, qtbot: QtBot) -> None:
         self.qtbot = qtbot
         self.captured_signals: list[Any] = []
 
@@ -34,7 +34,7 @@ class ThreadSignalTester:
             Signal handler function
         """
 
-        def handler(*args):
+        def handler(*args) -> None:
             if capture_args:
                 self.captured_signals.append(
                     args if len(args) > 1 else (args[0] if args else None),
@@ -115,7 +115,7 @@ def wait_for_thread_state(
     return False
 
 
-def ensure_qt_events_processed(qtbot: QtBot, cycles: int = 3):
+def ensure_qt_events_processed(qtbot: QtBot, cycles: int = 3) -> None:
     """Ensure Qt events are processed multiple times.
 
     This is useful when signals need to propagate through multiple
@@ -133,7 +133,7 @@ def ensure_qt_events_processed(qtbot: QtBot, cycles: int = 3):
 class WorkerTestFramework:
     """Complete framework for testing Qt workers with lifecycle management."""
 
-    def __init__(self, qtbot: QtBot):
+    def __init__(self, qtbot: QtBot) -> None:
         self.qtbot = qtbot
         self.signal_tester = ThreadSignalTester(qtbot)
 
@@ -167,7 +167,7 @@ class WorkerTestFramework:
             self.signal_tester.capture_signal(worker.worker_stopped)
         if hasattr(worker, "worker_error"):
 
-            def error_handler(msg):
+            def error_handler(msg) -> None:
                 results["error_messages"].append(msg)
 
             worker.worker_error.connect(error_handler)

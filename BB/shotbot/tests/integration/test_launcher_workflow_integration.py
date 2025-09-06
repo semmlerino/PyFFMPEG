@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.qt]
 class TestLauncherWorkflowIntegration:
     """Integration tests for launcher execution and process tracking following UNIFIED_TESTING_GUIDE."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
         """Minimal setup to avoid pytest fixture overhead."""
@@ -54,7 +54,7 @@ class TestLauncherWorkflowIntegration:
         self.mock_process.wait.return_value = 0  # Success
         self.mock_process.returncode = 0
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Direct cleanup without fixture dependencies."""
         try:
             if self.temp_dir.exists():
@@ -63,7 +63,7 @@ class TestLauncherWorkflowIntegration:
             pass  # Ignore cleanup errors
 
     @pytest.mark.slow
-    def test_launcher_manager_command_execution_integration(self):
+    def test_launcher_manager_command_execution_integration(self) -> None:
         """Test launcher manager executing commands with process tracking."""
         # Create launcher manager with test config directory
         launcher_manager = LauncherManager(config_dir=self.config_dir)
@@ -86,10 +86,10 @@ class TestLauncherWorkflowIntegration:
         execution_started_signals = []
         execution_finished_signals = []
 
-        def on_execution_started(launcher_id):
+        def on_execution_started(launcher_id) -> None:
             execution_started_signals.append(launcher_id)
 
-        def on_execution_finished(launcher_id, success):
+        def on_execution_finished(launcher_id, success) -> None:
             execution_finished_signals.append((launcher_id, success))
 
         launcher_manager.execution_started.connect(on_execution_started)
@@ -116,7 +116,7 @@ class TestLauncherWorkflowIntegration:
             assert len(execution_started_signals) == 1
             assert execution_started_signals[0] == launcher_id
 
-    def test_launcher_manager_process_tracking_integration(self):
+    def test_launcher_manager_process_tracking_integration(self) -> None:
         """Test launcher manager process tracking and cleanup."""
         launcher_manager = LauncherManager(config_dir=self.config_dir)
 
@@ -128,7 +128,7 @@ class TestLauncherWorkflowIntegration:
         )
 
         # Track active processes
-        initial_process_count = launcher_manager.get_active_process_count()
+        launcher_manager.get_active_process_count()
 
         # Mock subprocess.Popen to simulate long-running process
         long_running_process = MagicMock()
@@ -184,7 +184,7 @@ class TestLauncherWorkflowIntegration:
             updated_count = launcher_manager.get_active_process_count()
             assert updated_count >= 0  # Just verify the method works
 
-    def test_launcher_manager_signal_emission_flow(self):
+    def test_launcher_manager_signal_emission_flow(self) -> None:
         """Test complete signal emission flow during launcher execution."""
         launcher_manager = LauncherManager(config_dir=self.config_dir)
 
@@ -192,7 +192,7 @@ class TestLauncherWorkflowIntegration:
         signal_events = []
 
         def track_signal(signal_name):
-            def handler(*args):
+            def handler(*args) -> None:
                 signal_events.append((signal_name, args))
 
             return handler
@@ -251,7 +251,7 @@ class TestLauncherWorkflowIntegration:
             assert added_events[0][1][0] == launcher_id  # launcher_id
 
     @pytest.mark.slow
-    def test_launcher_manager_concurrent_execution_integration(self):
+    def test_launcher_manager_concurrent_execution_integration(self) -> None:
         """Test launcher manager handling multiple concurrent executions."""
         launcher_manager = LauncherManager(config_dir=self.config_dir)
 
@@ -316,7 +316,7 @@ class TestLauncherWorkflowIntegration:
             assert launcher_id1 in launcher_ids
             assert launcher_id2 in launcher_ids
 
-    def test_launcher_manager_persistence_integration(self):
+    def test_launcher_manager_persistence_integration(self) -> None:
         """Test launcher manager persistence of custom launchers."""
         # Create first launcher manager instance
         launcher_manager1 = LauncherManager(config_dir=self.config_dir)

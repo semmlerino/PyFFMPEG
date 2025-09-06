@@ -16,8 +16,6 @@ Architecture:
 The main CacheManager acts as a facade maintaining backward compatibility.
 """
 
-from typing import TYPE_CHECKING
-
 from .cache_validator import CacheValidator
 from .failure_tracker import FailureTracker
 from .memory_manager import MemoryManager

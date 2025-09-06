@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import logging
+from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
@@ -22,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def test_threading_fix():
+def test_threading_fix() -> Optional[bool]:
     """Test that the OptimizedShotModel can be created and used without threading violations."""
 
     # Initialize Qt application

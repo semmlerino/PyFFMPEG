@@ -60,12 +60,12 @@ def test_shots():
 class TestPreviousShotsThreadSafety:
     """Test thread safety in PreviousShotsItemModel."""
 
-    def test_mutex_protection_for_cache(self, model, test_shots):
+    def test_mutex_protection_for_cache(self, model, test_shots) -> None:
         """Test that cache operations are protected by mutex."""
         model.set_shots(test_shots)
         
         # Simulate concurrent cache access
-        def access_cache():
+        def access_cache() -> None:
             for shot in test_shots:
                 # These operations should be mutex-protected
                 model._thumbnail_cache.get(shot.full_name, None)
@@ -79,7 +79,7 @@ class TestPreviousShotsThreadSafety:
         assert model.rowCount() == 3
         assert len(model._shots) == 3
 
-    def test_cache_size_limit(self, model, qtbot):
+    def test_cache_size_limit(self, model, qtbot) -> None:
         """Test MAX_CACHE_SIZE limit is enforced."""
         # Create many shots (more than MAX_CACHE_SIZE of 100)
         many_shots = []
@@ -112,7 +112,7 @@ class TestPreviousShotsThreadSafety:
         assert len(model._thumbnail_cache) <= 100
         assert added_count <= 100
 
-    def test_concurrent_thumbnail_loading(self, model, test_shots, qtbot):
+    def test_concurrent_thumbnail_loading(self, model, test_shots, qtbot) -> None:
         """Test concurrent thumbnail loading callbacks."""
         model.set_shots(test_shots)
         
@@ -122,7 +122,7 @@ class TestPreviousShotsThreadSafety:
             """Mock async thumbnail loading."""
             future = Future()
             
-            def run_callback():
+            def run_callback() -> None:
                 time.sleep(0.01)
                 image = QImage(100, 100, QImage.Format.Format_RGB32)
                 image.fill(Qt.GlobalColor.cyan)
@@ -156,7 +156,7 @@ class TestPreviousShotsThreadSafety:
         # All should have been processed
         assert len(callbacks_received) == len(test_shots)
 
-    def test_cleanup_method(self, model, test_shots):
+    def test_cleanup_method(self, model, test_shots) -> None:
         """Test cleanup() properly releases resources."""
         model.set_shots(test_shots)
         
@@ -175,7 +175,7 @@ class TestPreviousShotsThreadSafety:
         # Timer should be stopped
         assert not model._thumbnail_timer.isActive()
 
-    def test_reset_while_loading(self, model, test_shots, qtbot):
+    def test_reset_while_loading(self, model, test_shots, qtbot) -> None:
         """Test model reset during active thumbnail loading."""
         model.set_shots(test_shots)
         
@@ -196,7 +196,7 @@ class TestPreviousShotsThreadSafety:
         assert model.rowCount() == 1
         assert len(model._shots) == 1
 
-    def test_data_roles_thread_safety(self, model, test_shots):
+    def test_data_roles_thread_safety(self, model, test_shots) -> None:
         """Test data() method with various roles."""
         model.set_shots(test_shots)
         
@@ -226,7 +226,7 @@ class TestPreviousShotsThreadSafety:
             elif role == Qt.ItemDataRole.UserRole + 1:
                 assert data == shot.full_name
 
-    def test_selection_during_updates(self, model, test_shots):
+    def test_selection_during_updates(self, model, test_shots) -> None:
         """Test selection changes during model updates."""
         model.set_shots(test_shots)
         
@@ -242,7 +242,7 @@ class TestPreviousShotsThreadSafety:
         if model._selected_index.isValid():
             assert model._selected_index.row() < model.rowCount()
 
-    def test_visible_range_updates(self, model, test_shots):
+    def test_visible_range_updates(self, model, test_shots) -> None:
         """Test visible range boundary conditions."""
         model.set_shots(test_shots)
         
@@ -265,7 +265,7 @@ class TestPreviousShotsThreadSafety:
         assert model._visible_start == -5
         assert model._visible_end == 100
 
-    def test_timer_lifecycle(self, model, test_shots):
+    def test_timer_lifecycle(self, model, test_shots) -> None:
         """Test thumbnail timer management."""
         model.set_shots(test_shots)
         
@@ -285,7 +285,7 @@ class TestPreviousShotsThreadSafety:
         model._load_visible_thumbnails()
         # Timer may stop when all loaded
 
-    def test_rapid_scene_changes(self, model, test_shots, qtbot):
+    def test_rapid_scene_changes(self, model, test_shots, qtbot) -> None:
         """Test rapid shot list changes."""
         # Rapidly change shots
         for _ in range(10):
@@ -302,7 +302,7 @@ class TestPreviousShotsThreadSafety:
 class TestDataConsistency:
     """Test data consistency with thread-safe operations."""
     
-    def test_shot_data_integrity(self, model, test_shots):
+    def test_shot_data_integrity(self, model, test_shots) -> None:
         """Test that shot data remains consistent."""
         model.set_shots(test_shots)
         
@@ -316,7 +316,7 @@ class TestDataConsistency:
             assert model.data(index, Qt.ItemDataRole.UserRole + 3) == shot.sequence
             assert model.data(index, Qt.ItemDataRole.UserRole + 4) == shot.shot
 
-    def test_empty_model_handling(self, model):
+    def test_empty_model_handling(self, model) -> None:
         """Test empty model edge cases."""
         model.set_shots([])
         
@@ -331,7 +331,7 @@ class TestDataConsistency:
         # Should not crash
         model._load_visible_thumbnails()
 
-    def test_cache_cleanup_on_reset(self, model, test_shots):
+    def test_cache_cleanup_on_reset(self, model, test_shots) -> None:
         """Test cache is managed properly on reset."""
         model.set_shots(test_shots)
         

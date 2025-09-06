@@ -6,6 +6,7 @@ clear separation of concerns and better configurability.
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 import threading
@@ -105,7 +106,7 @@ class ProductionPoolCreator(PoolCreator):
 class MockPoolCreator(PoolCreator):
     """Creates mock pool instances for testing/development."""
     
-    def __init__(self, mock_type: str = "auto"):
+    def __init__(self, mock_type: str = "auto") -> None:
         """Initialize mock creator.
         
         Args:
@@ -161,11 +162,7 @@ class TestPoolCreator(PoolCreator):
         Returns:
             True if test module is available
         """
-        try:
-            from tests.test_doubles_library import TestProcessPool
-            return True
-        except ImportError:
-            return False
+        return importlib.util.find_spec("tests.test_doubles_library") is not None
 
 
 class ProcessPoolFactoryRefactored:

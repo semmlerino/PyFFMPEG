@@ -41,7 +41,7 @@ class AppLauncherManager(QObject):
         self,
         command_launcher: CommandLauncher,
         launcher_manager: LauncherManager,
-    ):
+    ) -> None:
         """Initialize application launcher manager.
         
         Args:

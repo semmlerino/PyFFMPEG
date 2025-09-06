@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 
@@ -104,7 +104,7 @@ class TestCacheValidator:
         thumbnails_dir: Path,
         memory_manager: MemoryManager,
         storage_backend: StorageBackend,
-    ):
+    ) -> None:
         """Test CacheValidator initialization with real components."""
         validator = CacheValidator(
             thumbnails_directory=thumbnails_dir,
@@ -117,7 +117,7 @@ class TestCacheValidator:
         assert validator._storage is storage_backend
         assert str(validator).startswith("CacheValidator(dir=")
 
-    def test_get_cache_statistics_empty_cache(self, validator: CacheValidator):
+    def test_get_cache_statistics_empty_cache(self, validator: CacheValidator) -> None:
         """Test statistics for empty cache directory."""
         stats = validator.get_cache_statistics()
 
@@ -130,7 +130,7 @@ class TestCacheValidator:
 
     def test_get_cache_statistics_with_files(
         self, validator: CacheValidator, sample_thumbnail_files: list[Path]
-    ):
+    ) -> None:
         """Test statistics calculation with actual thumbnail files."""
         stats = validator.get_cache_statistics()
 
@@ -143,7 +143,7 @@ class TestCacheValidator:
         assert "total_bytes" in memory_stats
         assert "usage_percent" in memory_stats
 
-    def test_validate_cache_clean_state(self, validator: CacheValidator):
+    def test_validate_cache_clean_state(self, validator: CacheValidator) -> None:
         """Test cache validation when cache is in clean state."""
         results = validator.validate_cache(fix_issues=False)
 
@@ -158,7 +158,7 @@ class TestCacheValidator:
 
     def test_validate_cache_with_orphaned_files(
         self, validator: CacheValidator, sample_thumbnail_files: list[Path]
-    ):
+    ) -> None:
         """Test detection of orphaned files not tracked by memory manager."""
         # Files exist but are not tracked by memory manager (orphaned)
         results = validator.validate_cache(fix_issues=False)
@@ -170,7 +170,7 @@ class TestCacheValidator:
 
     def test_validate_cache_fix_orphaned_files(
         self, validator: CacheValidator, sample_thumbnail_files: list[Path]
-    ):
+    ) -> None:
         """Test automatic repair of orphaned files by adding to tracking."""
         # Validate and fix orphaned files
         results = validator.validate_cache(fix_issues=True)
@@ -187,7 +187,7 @@ class TestCacheValidator:
         assert results2["valid"] is True
         assert results2["orphaned_files"] == 0
 
-    def test_validate_cache_missing_directory_create(self, tmp_path: Path):
+    def test_validate_cache_missing_directory_create(self, tmp_path: Path) -> None:
         """Test automatic creation of missing thumbnails directory."""
         missing_dir = tmp_path / "missing_thumbnails"
         memory_manager = MemoryManager()
@@ -209,7 +209,7 @@ class TestCacheValidator:
         assert results["issues_fixed"] >= 1
         assert "Created missing thumbnails directory" in str(results["details"])
 
-    def test_validate_cache_missing_directory_no_fix(self, tmp_path: Path):
+    def test_validate_cache_missing_directory_no_fix(self, tmp_path: Path) -> None:
         """Test detection of missing directory without fixing."""
         missing_dir = tmp_path / "missing_thumbnails"
         memory_manager = MemoryManager()
@@ -231,7 +231,7 @@ class TestCacheValidator:
 
     def test_validate_memory_tracking_integration(
         self, validator: CacheValidator, sample_thumbnail_files: list[Path]
-    ):
+    ) -> None:
         """Test integration with MemoryManager validate_tracking method."""
         # Add some files to tracking with incorrect sizes to create mismatches
         memory_manager = validator._memory_manager
@@ -249,7 +249,7 @@ class TestCacheValidator:
 
     def test_repair_cache_comprehensive(
         self, validator: CacheValidator, sample_thumbnail_files: list[Path]
-    ):
+    ) -> None:
         """Test comprehensive cache repair operation."""
         # This is an alias for validate_cache with fix_issues=True
         results = validator.repair_cache()
@@ -263,7 +263,7 @@ class TestCacheValidator:
         for thumb_file in sample_thumbnail_files:
             assert validator._memory_manager.is_item_tracked(thumb_file)
 
-    def test_clean_empty_directories(self, validator: CacheValidator, tmp_path: Path):
+    def test_clean_empty_directories(self, validator: CacheValidator, tmp_path: Path) -> None:
         """Test removal of empty subdirectories in cache."""
         thumbnails_dir = validator._thumbnails_dir
 
@@ -295,7 +295,7 @@ class TestCacheValidator:
         assert not nested_empty.exists()
         assert non_empty.exists()  # Non-empty should remain
 
-    def test_clean_empty_directories_nonexistent_cache(self, tmp_path: Path):
+    def test_clean_empty_directories_nonexistent_cache(self, tmp_path: Path) -> None:
         """Test clean_empty_directories when cache directory does not exist."""
         missing_dir = tmp_path / "missing"
         memory_manager = MemoryManager()
@@ -312,7 +312,7 @@ class TestCacheValidator:
 
     def test_analyze_cache_efficiency_high_usage(
         self, validator: CacheValidator, sample_thumbnail_files: list[Path]
-    ):
+    ) -> None:
         """Test cache efficiency analysis with high memory usage."""
         # Track all files to create high memory usage
         memory_manager = validator._memory_manager
@@ -332,7 +332,7 @@ class TestCacheValidator:
         assert len(analysis["recommendations"]) > 0
         assert any("very high" in rec for rec in analysis["recommendations"])
 
-    def test_analyze_cache_efficiency_low_usage(self, validator: CacheValidator):
+    def test_analyze_cache_efficiency_low_usage(self, validator: CacheValidator) -> None:
         """Test cache efficiency analysis with low memory usage."""
         # Empty cache should have low utilization
         analysis = validator.analyze_cache_efficiency()
@@ -348,7 +348,7 @@ class TestCacheValidator:
 
     def test_analyze_cache_efficiency_large_files(
         self, validator: CacheValidator, tmp_path: Path
-    ):
+    ) -> None:
         """Test efficiency analysis with large thumbnail files."""
         # Create large thumbnail file
         thumbnails_dir = validator._thumbnails_dir
@@ -369,7 +369,7 @@ class TestCacheValidator:
             recommendations = analysis["recommendations"]
             assert any("thumbnail size" in rec for rec in recommendations)
 
-    def test_validate_cache_error_handling(self, tmp_path: Path):
+    def test_validate_cache_error_handling(self, tmp_path: Path) -> None:
         """Test error handling during cache validation."""
         # Create validator with problematic setup
         memory_manager = MemoryManager()
@@ -389,7 +389,7 @@ class TestCacheValidator:
         # Force an error by making memory_manager raise exception
         original_validate = memory_manager.validate_tracking
 
-        def error_validate():
+        def error_validate() -> NoReturn:
             raise RuntimeError("Simulated validation error")
 
         memory_manager.validate_tracking = error_validate
@@ -406,7 +406,7 @@ class TestCacheValidator:
 
     def test_validate_cache_integration_with_real_tracking(
         self, validator: CacheValidator, sample_thumbnail_files: list[Path]
-    ):
+    ) -> None:
         """Test full integration with real MemoryManager tracking validation."""
         memory_manager = validator._memory_manager
 
@@ -438,7 +438,7 @@ class TestCacheValidator:
         tmp_path: Path,
         memory_manager: MemoryManager,
         storage_backend: StorageBackend,
-    ):
+    ) -> None:
         """Test validation of complex directory structures."""
         # Test with nested missing directories
         complex_path = tmp_path / "cache" / "nested" / "thumbnails"
@@ -459,7 +459,7 @@ class TestCacheValidator:
         assert results["issues_fixed"] >= 1
         assert "Created missing thumbnails directory" in str(results["details"])
 
-    def test_statistics_with_nonexistent_directory(self, tmp_path: Path):
+    def test_statistics_with_nonexistent_directory(self, tmp_path: Path) -> None:
         """Test statistics when thumbnails directory does not exist."""
         missing_dir = tmp_path / "nonexistent"
         memory_manager = MemoryManager()
@@ -481,7 +481,7 @@ class TestCacheValidator:
 
     def test_orphaned_file_detection_with_subdirectories(
         self, validator: CacheValidator, tmp_path: Path
-    ):
+    ) -> None:
         """Test orphaned file detection in nested subdirectories."""
         thumbnails_dir = validator._thumbnails_dir
 
@@ -510,7 +510,7 @@ class TestCacheValidator:
 
     def test_comprehensive_cache_health_check(
         self, validator: CacheValidator, sample_thumbnail_files: list[Path]
-    ):
+    ) -> None:
         """Test comprehensive cache health check scenario."""
         memory_manager = validator._memory_manager
         thumbnails_dir = validator._thumbnails_dir

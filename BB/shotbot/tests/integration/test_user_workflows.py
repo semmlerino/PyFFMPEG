@@ -192,7 +192,7 @@ class TestUserWorkflows:
     def _track_signal(self, signal_name: str) -> Any:
         """Create a signal handler that tracks emissions for verification."""
 
-        def handler(*args):
+        def handler(*args) -> None:
             self.signal_events.append((signal_name, args, time.time()))
 
         return handler
@@ -353,7 +353,7 @@ class TestUserWorkflows:
         # Track scene selection signal
         scene_selected_events = []
 
-        def on_scene_selected(scene_path):
+        def on_scene_selected(scene_path) -> None:
             scene_selected_events.append(scene_path)
 
         if hasattr(main_window.threede_shot_grid, "scene_selected"):
@@ -417,10 +417,10 @@ class TestUserWorkflows:
         refresh_started_events = []
         refresh_completed_events = []
 
-        def on_refresh_started():
+        def on_refresh_started() -> None:
             refresh_started_events.append(time.time())
 
-        def on_refresh_completed(success: bool, has_changes: bool):
+        def on_refresh_completed(success: bool, has_changes: bool) -> None:
             refresh_completed_events.append((success, has_changes, time.time()))
 
         if hasattr(main_window, "refresh_started"):
@@ -497,13 +497,13 @@ class TestUserWorkflows:
         execution_started_events = []
         execution_finished_events = []
 
-        def on_launcher_added(launcher_id: str):
+        def on_launcher_added(launcher_id: str) -> None:
             launcher_added_events.append(launcher_id)
 
-        def on_execution_started(launcher_id: str):
+        def on_execution_started(launcher_id: str) -> None:
             execution_started_events.append(launcher_id)
 
-        def on_execution_finished(launcher_id: str, success: bool):
+        def on_execution_finished(launcher_id: str, success: bool) -> None:
             execution_finished_events.append((launcher_id, success))
 
         launcher_manager.launcher_added.connect(on_launcher_added)
@@ -617,10 +617,10 @@ class TestUserWorkflows:
         ui_updated_events = []
         thumbnail_loaded_events = []
 
-        def on_ui_updated(shot_name: str):
+        def on_ui_updated(shot_name: str) -> None:
             ui_updated_events.append(shot_name)
 
-        def on_thumbnail_loaded(shot_name: str):
+        def on_thumbnail_loaded(shot_name: str) -> None:
             thumbnail_loaded_events.append(shot_name)
 
         # Connect to relevant signals if available
@@ -718,10 +718,10 @@ class TestUserWorkflows:
         thumbnail_loaded_events = []
         thumbnail_failed_events = []
 
-        def on_thumbnail_loaded(shot_name: str):
+        def on_thumbnail_loaded(shot_name: str) -> None:
             thumbnail_loaded_events.append(shot_name)
 
-        def on_thumbnail_failed(shot_name: str, error: str):
+        def on_thumbnail_failed(shot_name: str, error: str) -> None:
             thumbnail_failed_events.append((shot_name, error))
 
         if hasattr(main_window, "thumbnail_loaded"):
@@ -778,10 +778,10 @@ class TestUserWorkflows:
         error_events = []
         recovery_events = []
 
-        def on_error_occurred(error_type: str, message: str):
+        def on_error_occurred(error_type: str, message: str) -> None:
             error_events.append((error_type, message))
 
-        def on_recovery_attempted():
+        def on_recovery_attempted() -> None:
             recovery_events.append(time.time())
 
         if hasattr(main_window, "error_occurred"):
@@ -959,10 +959,10 @@ class TestUserWorkflows:
         scan_started_events = []
         scan_completed_events = []
 
-        def on_scan_started():
+        def on_scan_started() -> None:
             scan_started_events.append(time.time())
 
-        def on_scan_completed(shot_count: int):
+        def on_scan_completed(shot_count: int) -> None:
             scan_completed_events.append(shot_count)
 
         if hasattr(main_window, "previous_scan_started"):
@@ -1043,7 +1043,7 @@ class TestUserWorkflows:
         execution_events = []
         active_process_counts = []
 
-        def track_execution(launcher_id: str):
+        def track_execution(launcher_id: str) -> None:
             execution_events.append((launcher_id, time.time()))
             active_count = launcher_manager.get_active_process_count()
             active_process_counts.append(active_count)
@@ -1177,13 +1177,13 @@ if __name__ == "__main__":
         try:
             # Create a minimal qtbot-like object for standalone testing
             class StandaloneQtBot:
-                def addWidget(self, widget):
+                def addWidget(self, widget) -> None:
                     pass
 
-                def wait(self, ms):
+                def wait(self, ms) -> None:
                     QTest.qWait(ms)
 
-                def waitUntil(self, condition, timeout=1000):
+                def waitUntil(self, condition, timeout=1000) -> bool:
                     start_time = time.time()
                     while time.time() - start_time < timeout / 1000:
                         if condition():

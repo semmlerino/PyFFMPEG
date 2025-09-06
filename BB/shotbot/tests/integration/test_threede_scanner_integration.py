@@ -33,7 +33,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.slow]
 class TestThreeDEScannerIntegration:
     """Integration tests for 3DE file discovery and cache integration following UNIFIED_TESTING_GUIDE."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
         """Minimal setup to avoid pytest fixture overhead."""
@@ -49,7 +49,7 @@ class TestThreeDEScannerIntegration:
         self.shots_dir = self.show_dir / "shots"
         self.shots_dir.mkdir(parents=True, exist_ok=True)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Direct cleanup without fixture dependencies."""
         try:
             if self.temp_dir.exists():
@@ -57,7 +57,7 @@ class TestThreeDEScannerIntegration:
         except Exception:
             pass  # Ignore cleanup errors
 
-    def test_threede_scanner_file_discovery_integration(self):
+    def test_threede_scanner_file_discovery_integration(self) -> None:
         """Test 3DE scanner finding .3de files across directory structure."""
         # Create realistic VFX workspace with 3DE files
         seq_dir = self.shots_dir / "seq01" / "seq01_0010"
@@ -116,7 +116,7 @@ class TestThreeDEScannerIntegration:
                 bg_scene = scene_by_path[bg_scene_path]
                 assert bg_scene.plate == "BG01"
 
-    def test_threede_scanner_cache_integration(self):
+    def test_threede_scanner_cache_integration(self) -> None:
         """Test 3DE scanner integration with cache system."""
         # Create VFX workspace with 3DE file
         seq_dir = self.shots_dir / "seq01" / "seq01_0020"
@@ -177,7 +177,7 @@ class TestThreeDEScannerIntegration:
             assert success2
             # Note: has_changes2 may be True due to cache TTL refresh, which is expected behavior
 
-    def test_threede_scanner_filtering_and_deduplication(self):
+    def test_threede_scanner_filtering_and_deduplication(self) -> None:
         """Test 3DE scanner filtering and deduplication logic."""
         # Create workspace with duplicate scenes for same shot
         seq_dir = self.shots_dir / "seq01" / "seq01_0030"
@@ -241,7 +241,7 @@ class TestThreeDEScannerIntegration:
             assert "scene_v002.3de" in scene_path
             assert selected_scene.plate == "FG01"
 
-    def test_threede_scanner_user_exclusion_integration(self):
+    def test_threede_scanner_user_exclusion_integration(self) -> None:
         """Test 3DE scanner excluding current user's shots."""
         # Create workspace with files from different users
         seq_dir = self.shots_dir / "seq01" / "seq01_0040"
@@ -307,7 +307,7 @@ class TestThreeDEScannerIntegration:
         all_paths = {str(scene.scene_path) for scene in found_scenes_all}
         assert str(current_user_file) in all_paths
 
-    def test_threede_scanner_background_scanning_workflow(self):
+    def test_threede_scanner_background_scanning_workflow(self) -> None:
         """Test 3DE scanner background scanning with progress reporting."""
         # Create a single VFX workspace with 3DE file for simpler testing
         seq_dir = self.shots_dir / "seq01" / "seq01_0070"
@@ -353,7 +353,7 @@ class TestThreeDEScannerIntegration:
             success2, has_changes2 = scene_model.refresh_scenes([shot])
             assert success2, "Second refresh should also succeed"
 
-    def test_threede_scanner_error_handling_integration(self):
+    def test_threede_scanner_error_handling_integration(self) -> None:
         """Test 3DE scanner error handling with inaccessible directories."""
         # Create mixed accessible and problematic workspaces
 

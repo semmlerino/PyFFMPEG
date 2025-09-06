@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 
-def pytest_configure(config):
+def pytest_configure(config) -> None:
     """Configure custom pytest markers."""
     config.addinivalue_line(
         "markers",
@@ -17,7 +17,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "integration: mark test as an integration test")
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(config, items) -> None:
     """Modify test collection to handle custom markers."""
     # Add integration marker to all tests in this directory
     for item in items:

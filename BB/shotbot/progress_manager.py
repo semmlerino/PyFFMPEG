@@ -100,7 +100,7 @@ class ProgressOperation:
     operation, including progress tracking, cancellation, and UI updates.
     """
 
-    def __init__(self, config: ProgressConfig):
+    def __init__(self, config: ProgressConfig) -> None:
         """Initialize a progress operation.
 
         Args:
@@ -289,7 +289,7 @@ class ProgressManager:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if hasattr(self, "_initialized"):
             return
 

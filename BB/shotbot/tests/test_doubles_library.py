@@ -49,7 +49,7 @@ class TestCompletedProcess:
         returncode: int = 0,
         stdout: str = "",
         stderr: str = "",
-    ):
+    ) -> None:
         """Initialize test completed process."""
         self.args = args
         self.returncode = returncode
@@ -603,7 +603,7 @@ class TestLauncherEnvironment:
 
     def __init__(
         self, type: str = "none", packages: list[str] = None, command_prefix: str = ""
-    ):
+    ) -> None:
         self.type = type
         self.packages = packages or []
         self.command_prefix = command_prefix
@@ -614,7 +614,7 @@ class TestLauncherTerminal:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    def __init__(self, persist: bool = False):
+    def __init__(self, persist: bool = False) -> None:
         self.persist = persist
 
 
@@ -1267,7 +1267,7 @@ class TestProgressOperation:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    def __init__(self, title: str = "Test Operation", cancelable: bool = False):
+    def __init__(self, title: str = "Test Operation", cancelable: bool = False) -> None:
         """Initialize test progress operation."""
         self.title = title
         self.cancelable = cancelable

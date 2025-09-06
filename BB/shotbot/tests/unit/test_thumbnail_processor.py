@@ -40,14 +40,14 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 class PILImageDouble:
     """Test double for PIL Image objects with basic functionality."""
 
-    def __init__(self, width: int = 100, height: int = 100):
+    def __init__(self, width: int = 100, height: int = 100) -> None:
         """Initialize PIL-compatible image double."""
         self.width = width
         self.height = height
         self.size = (width, height)
         self._loaded = False
 
-    def load(self):
+    def load(self) -> None:
         """Mock PIL Image load method."""
         self._loaded = True
 
@@ -59,7 +59,7 @@ class PILImageDouble:
         """Mock PIL Image resize method."""
         return PILImageDouble(size[0], size[1])
 
-    def save(self, path: str, format: str = None, **kwargs):
+    def save(self, path: str, format: str = None, **kwargs) -> bool:
         """Mock PIL Image save method."""
         # Create a minimal file to simulate successful save
         from pathlib import Path
@@ -71,21 +71,21 @@ class PILImageDouble:
 class TestThumbnailProcessorInitialization:
     """Test ThumbnailProcessor initialization and configuration."""
 
-    def test_default_initialization(self):
+    def test_default_initialization(self) -> None:
         """ThumbnailProcessor should initialize with default config values."""
         processor = ThumbnailProcessor()
 
         assert processor._thumbnail_size == Config.CACHE_THUMBNAIL_SIZE
         assert processor._heavy_formats == [".exr", ".tiff", ".tif"]
 
-    def test_custom_thumbnail_size(self):
+    def test_custom_thumbnail_size(self) -> None:
         """ThumbnailProcessor should accept custom thumbnail size."""
         custom_size = 256
         processor = ThumbnailProcessor(thumbnail_size=custom_size)
 
         assert processor._thumbnail_size == custom_size
 
-    def test_heavy_formats_configuration(self):
+    def test_heavy_formats_configuration(self) -> None:
         """ThumbnailProcessor should configure heavy formats from config."""
         processor = ThumbnailProcessor()
 
@@ -95,7 +95,7 @@ class TestThumbnailProcessorInitialization:
         )
         assert processor._heavy_formats == expected_formats
 
-    def test_repr_string(self):
+    def test_repr_string(self) -> None:
         """ThumbnailProcessor should provide meaningful string representation."""
         processor = ThumbnailProcessor(thumbnail_size=128)
 
@@ -143,7 +143,7 @@ class TestThumbnailProcessorBasicProcessing:
             )
         return png_file
 
-    def test_process_jpeg_success(self, processor, test_jpeg, tmp_path):
+    def test_process_jpeg_success(self, processor, test_jpeg, tmp_path) -> None:
         """JPEG processing should succeed with Qt backend."""
         cache_path = tmp_path / "cache" / "thumbnail.jpg"
 
@@ -153,7 +153,7 @@ class TestThumbnailProcessorBasicProcessing:
         assert cache_path.exists()
         assert cache_path.stat().st_size > 0
 
-    def test_process_png_success(self, processor, test_png, tmp_path):
+    def test_process_png_success(self, processor, test_png, tmp_path) -> None:
         """PNG processing should succeed with Qt backend."""
         cache_path = tmp_path / "cache" / "thumbnail.jpg"
 
@@ -163,7 +163,7 @@ class TestThumbnailProcessorBasicProcessing:
         assert cache_path.exists()
         assert cache_path.stat().st_size > 0
 
-    def test_cache_directory_creation(self, processor, test_jpeg, tmp_path):
+    def test_cache_directory_creation(self, processor, test_jpeg, tmp_path) -> None:
         """Cache directory should be created automatically."""
         nested_cache = tmp_path / "deep" / "nested" / "cache" / "thumbnail.jpg"
 
@@ -173,7 +173,7 @@ class TestThumbnailProcessorBasicProcessing:
         assert nested_cache.parent.exists()
         assert nested_cache.exists()
 
-    def test_atomic_file_operations(self, processor, test_jpeg, tmp_path):
+    def test_atomic_file_operations(self, processor, test_jpeg, tmp_path) -> None:
         """Thumbnail should be saved atomically with temporary file."""
         cache_path = tmp_path / "cache" / "thumbnail.jpg"
 
@@ -217,7 +217,7 @@ class TestThumbnailProcessorMultiFormat:
         tiff_file.write_bytes(large_data)
         return tiff_file
 
-    def test_file_analysis_small_file(self, processor, small_tiff):
+    def test_file_analysis_small_file(self, processor, small_tiff) -> None:
         """Small files should be analyzed for Qt processing."""
         file_info = processor._analyze_source_file(small_tiff)
 
@@ -226,7 +226,7 @@ class TestThumbnailProcessorMultiFormat:
         # Small file should not use PIL (under 1MB threshold)
         assert file_info["use_pil"] is False
 
-    def test_file_analysis_large_heavy_format(self, processor, large_tiff):
+    def test_file_analysis_large_heavy_format(self, processor, large_tiff) -> None:
         """Large heavy format files should be analyzed for PIL processing."""
         file_info = processor._analyze_source_file(large_tiff)
 
@@ -236,7 +236,7 @@ class TestThumbnailProcessorMultiFormat:
         # Large heavy format should use PIL
         assert file_info["use_pil"] is True
 
-    def test_qt_processing_path(self, processor, small_tiff, tmp_path):
+    def test_qt_processing_path(self, processor, small_tiff, tmp_path) -> None:
         """Small TIFF should be processed with Qt backend."""
         cache_path = tmp_path / "qt_thumbnail.jpg"
 
@@ -247,7 +247,7 @@ class TestThumbnailProcessorMultiFormat:
                 assert result is True
                 mock_pil.assert_not_called()
 
-    def test_pil_processing_path(self, processor, large_tiff, tmp_path):
+    def test_pil_processing_path(self, processor, large_tiff, tmp_path) -> None:
         """Large heavy format should be processed with PIL backend."""
         cache_path = tmp_path / "pil_thumbnail.jpg"
 
@@ -276,7 +276,7 @@ class TestThumbnailProcessorEXRProcessing:
         exr_file.write_bytes(exr_data)
         return exr_file
 
-    def test_exr_backend_selection_openexr(self, processor, mock_exr, tmp_path):
+    def test_exr_backend_selection_openexr(self, processor, mock_exr, tmp_path) -> None:
         """EXR processing should successfully load with OpenEXR backend."""
         tmp_path / "exr_thumbnail.jpg"
 
@@ -297,7 +297,7 @@ class TestThumbnailProcessorEXRProcessing:
                         mock_system.assert_not_called()
                         mock_imageio.assert_not_called()
 
-    def test_exr_fallback_to_system_tools(self, processor, mock_exr, tmp_path):
+    def test_exr_fallback_to_system_tools(self, processor, mock_exr, tmp_path) -> None:
         """EXR processing should fallback to ImageMagick when OpenEXR fails."""
         tmp_path / "exr_thumbnail.jpg"
 
@@ -317,7 +317,7 @@ class TestThumbnailProcessorEXRProcessing:
                     assert result is not None
                     mock_imageio.assert_not_called()
 
-    def test_exr_fallback_to_imageio(self, processor, mock_exr, tmp_path):
+    def test_exr_fallback_to_imageio(self, processor, mock_exr, tmp_path) -> None:
         """EXR processing should fallback to imageio when system tools fail."""
         tmp_path / "exr_thumbnail.jpg"
 
@@ -340,7 +340,7 @@ class TestThumbnailProcessorEXRProcessing:
                     # Test behavior: Imageio fallback should succeed
                     assert result is not None
 
-    def test_exr_all_backends_fail(self, processor, mock_exr):
+    def test_exr_all_backends_fail(self, processor, mock_exr) -> None:
         """EXR processing should return None when all backends fail."""
         with patch.object(
             processor, "_load_exr_with_openexr", side_effect=Exception("OpenEXR failed")
@@ -360,7 +360,7 @@ class TestThumbnailProcessorEXRProcessing:
                     assert result is None
 
     # Use TestSubprocess instead
-    def test_exr_system_tools_imagemagick(self, processor, mock_exr):
+    def test_exr_system_tools_imagemagick(self, processor, mock_exr) -> None:
         """EXR system tools should use ImageMagick convert command."""
         # Use TestSubprocess instead of Mock for subprocess operations
         test_subprocess = TestSubprocess()
@@ -413,7 +413,7 @@ class TestThumbnailProcessorFallbackMechanisms:
         )
         return image_file
 
-    def test_pil_fallback_to_qt(self, processor, test_image, tmp_path):
+    def test_pil_fallback_to_qt(self, processor, test_image, tmp_path) -> None:
         """PIL processing should fallback to Qt when PIL fails."""
         cache_path = tmp_path / "fallback_thumbnail.jpg"
 
@@ -425,7 +425,7 @@ class TestThumbnailProcessorFallbackMechanisms:
 
                 assert result is True
 
-    def test_pil_exception_fallback(self, processor, test_image, tmp_path):
+    def test_pil_exception_fallback(self, processor, test_image, tmp_path) -> None:
         """PIL processing should fallback to Qt on general exceptions."""
         cache_path = tmp_path / "exception_thumbnail.jpg"
 
@@ -439,7 +439,7 @@ class TestThumbnailProcessorFallbackMechanisms:
 
                 assert result is True
 
-    def test_qt_null_image_fallback(self, processor, tmp_path):
+    def test_qt_null_image_fallback(self, processor, tmp_path) -> None:
         """Qt processing should handle null images gracefully."""
         # Create invalid image file
         bad_image = tmp_path / "bad.jpg"
@@ -461,7 +461,7 @@ class TestThumbnailProcessorErrorHandling:
         """Create ThumbnailProcessor for testing."""
         return ThumbnailProcessor(thumbnail_size=100)
 
-    def test_missing_source_file(self, processor, tmp_path):
+    def test_missing_source_file(self, processor, tmp_path) -> None:
         """Processing should fail gracefully for missing source files."""
         nonexistent = tmp_path / "missing.jpg"
         cache_path = tmp_path / "thumbnail.jpg"
@@ -471,7 +471,7 @@ class TestThumbnailProcessorErrorHandling:
         assert result is False
         assert not cache_path.exists()
 
-    def test_none_source_path(self, processor, tmp_path):
+    def test_none_source_path(self, processor, tmp_path) -> None:
         """Processing should handle None source path gracefully."""
         cache_path = tmp_path / "thumbnail.jpg"
 
@@ -479,7 +479,7 @@ class TestThumbnailProcessorErrorHandling:
 
         assert result is False
 
-    def test_none_cache_path(self, processor, tmp_path):
+    def test_none_cache_path(self, processor, tmp_path) -> None:
         """Processing should handle None cache path gracefully."""
         source = tmp_path / "test.jpg"
         source.write_bytes(
@@ -490,7 +490,7 @@ class TestThumbnailProcessorErrorHandling:
 
         assert result is False
 
-    def test_cache_directory_permission_error(self, processor, tmp_path):
+    def test_cache_directory_permission_error(self, processor, tmp_path) -> None:
         """Processing should handle cache directory creation failures."""
         source = tmp_path / "test.jpg"
         source.write_bytes(
@@ -503,7 +503,7 @@ class TestThumbnailProcessorErrorHandling:
 
             assert result is False
 
-    def test_memory_error_handling(self, processor, tmp_path):
+    def test_memory_error_handling(self, processor, tmp_path) -> None:
         """Processing should handle memory errors gracefully."""
         source = tmp_path / "test.jpg"
         source.write_bytes(
@@ -519,7 +519,7 @@ class TestThumbnailProcessorErrorHandling:
             assert result is False
             assert not cache_path.exists()
 
-    def test_image_dimension_validation(self, processor, tmp_path):
+    def test_image_dimension_validation(self, processor, tmp_path) -> None:
         """Processing should validate image dimensions against max_dimension."""
         source = tmp_path / "huge.jpg"
         source.write_bytes(
@@ -547,7 +547,7 @@ class TestThumbnailProcessorResourceManagement:
         """Create ThumbnailProcessor for testing."""
         return ThumbnailProcessor(thumbnail_size=100)
 
-    def test_temporary_file_cleanup_on_success(self, processor, tmp_path):
+    def test_temporary_file_cleanup_on_success(self, processor, tmp_path) -> None:
         """Temporary files should be cleaned up after successful processing."""
         source = tmp_path / "test.jpg"
         # Create valid JPEG
@@ -568,7 +568,7 @@ class TestThumbnailProcessorResourceManagement:
         temp_files = list(cache_path.parent.glob("*.tmp_*"))
         assert len(temp_files) == 0
 
-    def test_temporary_file_cleanup_on_failure(self, processor, tmp_path):
+    def test_temporary_file_cleanup_on_failure(self, processor, tmp_path) -> None:
         """Temporary files should be cleaned up after processing failures."""
         source = tmp_path / "test.jpg"
         source.write_bytes(
@@ -585,7 +585,7 @@ class TestThumbnailProcessorResourceManagement:
             temp_files = list(cache_path.parent.glob("*.tmp_*"))
             assert len(temp_files) == 0
 
-    def test_garbage_collection_behavior(self, processor, tmp_path):
+    def test_garbage_collection_behavior(self, processor, tmp_path) -> None:
         """Processing should handle memory management correctly."""
         source = tmp_path / "test.jpg"
         source.write_bytes(
@@ -608,7 +608,7 @@ class TestThumbnailProcessorResourceManagement:
         gc_count_after = len(gc.get_objects())
         assert gc_count_after - gc_count_before < 1000  # Reasonable object growth
 
-    def test_qt_resource_cleanup(self, processor, tmp_path):
+    def test_qt_resource_cleanup(self, processor, tmp_path) -> None:
         """Qt image resources should be properly cleaned up."""
         # Create valid JPEG
         source = tmp_path / "test.jpg"
@@ -654,7 +654,7 @@ class TestThumbnailProcessorThreadSafety:
             images.append(image_file)
         return images
 
-    def test_concurrent_processing(self, processor, test_images, tmp_path):
+    def test_concurrent_processing(self, processor, test_images, tmp_path) -> None:
         """Multiple thumbnails should be processable concurrently."""
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
@@ -677,12 +677,12 @@ class TestThumbnailProcessorThreadSafety:
         cache_files = list(cache_dir.glob("thumb_*.jpg"))
         assert len(cache_files) == len(test_images)
 
-    def test_thread_safe_image_operations(self, tmp_path):
+    def test_thread_safe_image_operations(self, tmp_path) -> None:
         """Qt image operations should use thread-safe patterns."""
         # Create ThreadSafeTestImage for testing
         test_image = ThreadSafeTestImage(width=200, height=200)
 
-        def process_in_thread():
+        def process_in_thread() -> bool:
             # Simulate image processing operations
             test_image.fill(QColor(255, 0, 0))  # Red fill
             # Use the underlying QImage's scaled method
@@ -701,7 +701,7 @@ class TestThumbnailProcessorThreadSafety:
         # All thread operations should succeed
         assert all(results)
 
-    def test_memory_management_under_load(self, processor, tmp_path):
+    def test_memory_management_under_load(self, processor, tmp_path) -> None:
         """Memory management should work correctly under concurrent load."""
         # Create multiple valid images
         large_images = []
@@ -739,7 +739,7 @@ class TestThumbnailProcessorIntegration:
         """Create ThumbnailProcessor for testing."""
         return ThumbnailProcessor(thumbnail_size=200)
 
-    def test_end_to_end_jpeg_processing(self, processor, tmp_path):
+    def test_end_to_end_jpeg_processing(self, processor, tmp_path) -> None:
         """Complete JPEG processing workflow should work end-to-end."""
         # Create valid source image
         source = tmp_path / "source.jpg"
@@ -767,7 +767,7 @@ class TestThumbnailProcessorIntegration:
         temp_files = list(cache_path.parent.glob("*.tmp_*"))
         assert len(temp_files) == 0
 
-    def test_processing_pipeline_error_recovery(self, processor, tmp_path):
+    def test_processing_pipeline_error_recovery(self, processor, tmp_path) -> None:
         """Processing pipeline should recover gracefully from various errors."""
         # Test with various problematic inputs
         test_cases = [

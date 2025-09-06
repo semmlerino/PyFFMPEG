@@ -62,7 +62,7 @@ class FakePreviousShotsModel(QObject):
     scan_finished = Signal()
     scan_progress = Signal(int, int)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._shots = []
         self._scanning = False
@@ -74,12 +74,12 @@ class FakePreviousShotsModel(QObject):
     def get_shot_count(self):
         return len(self._shots)
 
-    def set_shots(self, shots):
+    def set_shots(self, shots) -> None:
         """Configure shots for testing."""
         self._shots = shots
         self.shots_updated.emit()
 
-    def refresh_shots(self):
+    def refresh_shots(self) -> bool:
         """Simulate refresh with signals."""
         self.refresh_calls.append(True)
         self._scanning = True
@@ -126,7 +126,7 @@ class TestPreviousShotsView:
         qtbot.waitExposed(view)  # Wait for widget to be visible
         return view
 
-    def test_grid_initialization(self, grid_widget, test_model, test_cache_manager):
+    def test_grid_initialization(self, grid_widget, test_model, test_cache_manager) -> None:
         """Test grid widget initialization."""
         # View has the item model, which wraps the test_model
         assert grid_widget.model is not None
@@ -143,7 +143,7 @@ class TestPreviousShotsView:
         assert hasattr(grid_widget, "refresh")
         assert hasattr(grid_widget, "get_selected_shot")
 
-    def test_refresh_button_interaction(self, grid_widget, test_model, qtbot):
+    def test_refresh_button_interaction(self, grid_widget, test_model, qtbot) -> None:
         """Test refresh button click behavior with signal waiting."""
         # Initially button should be enabled
         assert grid_widget._refresh_button.isEnabled()
@@ -165,7 +165,7 @@ class TestPreviousShotsView:
         # Verify refresh was attempted (the important behavior)
         assert len(test_model.refresh_calls) >= 1
 
-    def test_scan_state_signal_handling(self, grid_widget, test_model, qtbot):
+    def test_scan_state_signal_handling(self, grid_widget, test_model, qtbot) -> None:
         """Test handling of scan state signals."""
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
         with patch(
@@ -187,14 +187,14 @@ class TestPreviousShotsView:
         # The key test is that signals don't crash the widget
         assert grid_widget is not None
 
-    def test_scan_progress_updates(self, grid_widget, test_model, qtbot):
+    def test_scan_progress_updates(self, grid_widget, test_model, qtbot) -> None:
         """Test scan progress signal handling."""
         test_model.scan_progress.emit(50, 100)
 
         status_text = grid_widget._status_label.text()
         assert "50%" in status_text
 
-    def test_empty_state_display(self, grid_widget, test_model, qtbot):
+    def test_empty_state_display(self, grid_widget, test_model, qtbot) -> None:
         """Test display when no shots are available."""
         # Model has no shots
         test_model.set_shots([])
@@ -204,7 +204,7 @@ class TestPreviousShotsView:
         assert grid_widget.container.isVisible()
         assert len(grid_widget.thumbnails) == 0
 
-    def test_grid_population_with_real_thumbnails(self, grid_widget, test_model, qtbot):
+    def test_grid_population_with_real_thumbnails(self, grid_widget, test_model, qtbot) -> None:
         """Test grid population with real ThumbnailWidget components.
 
         Following UNIFIED_TESTING_GUIDE:
@@ -229,7 +229,7 @@ class TestPreviousShotsView:
         # Status should show shot count
         assert "3" in grid_widget._status_label.text()
 
-    def test_thumbnail_signal_connections(self, grid_widget, test_model, qtbot):
+    def test_thumbnail_signal_connections(self, grid_widget, test_model, qtbot) -> None:
         """Test that thumbnail signals are properly connected."""
         # Add a shot
         shot = create_test_shot("test", "seq01", "shot01")
@@ -249,7 +249,7 @@ class TestPreviousShotsView:
         assert shot_selected_spy.count() == 1
         assert shot_selected_spy.at(0)[0] == shot
 
-    def test_shot_selection_behavior(self, grid_widget, test_model, qtbot):
+    def test_shot_selection_behavior(self, grid_widget, test_model, qtbot) -> None:
         """Test shot selection and visual feedback."""
         shot1 = create_test_shot("show1", "seq1", "shot1")
         shot2 = create_test_shot("show1", "seq1", "shot2")
@@ -269,7 +269,7 @@ class TestPreviousShotsView:
         assert shot_selected_spy.count() == 1
         assert shot_selected_spy.at(0)[0] is shot1
 
-    def test_shot_double_click_behavior(self, grid_widget, qtbot):
+    def test_shot_double_click_behavior(self, grid_widget, qtbot) -> None:
         """Test shot double-click signal emission."""
         shot = create_test_shot("show1", "seq1", "shot1")
 
@@ -283,7 +283,7 @@ class TestPreviousShotsView:
         assert shot_double_clicked_spy.count() == 1
         assert shot_double_clicked_spy.at(0)[0] is shot
 
-    def test_grid_clear_functionality(self, grid_widget, test_model, qtbot):
+    def test_grid_clear_functionality(self, grid_widget, test_model, qtbot) -> None:
         """Test clearing grid widgets properly."""
         # Add shots
         test_model.set_shots(create_test_shots(2))
@@ -297,7 +297,7 @@ class TestPreviousShotsView:
         assert grid_widget.thumbnails == {}
         assert grid_widget.selected_item is None
 
-    def test_resize_debouncing(self, grid_widget, test_model, qtbot):
+    def test_resize_debouncing(self, grid_widget, test_model, qtbot) -> None:
         """Test that resize events are debounced for performance.
 
         Following UNIFIED_TESTING_GUIDE:
@@ -312,7 +312,7 @@ class TestPreviousShotsView:
         # The refactored code uses _reflow_grid for resize handling
         original_reflow = grid_widget._reflow_grid
 
-        def track_reflow():
+        def track_reflow() -> None:
             refresh_calls.append(True)
             original_reflow()
 
@@ -333,7 +333,7 @@ class TestPreviousShotsView:
         # The BaseGridWidget calls reflow directly on resize, so we'll check it's been called
         assert len(refresh_calls) > 0, "Grid should reflow after resize events"
 
-    def test_grid_column_calculation(self, grid_widget, test_model, qtbot):
+    def test_grid_column_calculation(self, grid_widget, test_model, qtbot) -> None:
         """Test that grid columns are calculated correctly based on width."""
         # Set specific size
         grid_widget.resize(1000, 600)
@@ -355,7 +355,7 @@ class TestPreviousShotsView:
         # Grid layout doesn't have columnCount, check column count calculation
         assert grid_widget._get_column_count() <= expected_columns
 
-    def test_refresh_method_delegation(self, grid_widget, test_model):
+    def test_refresh_method_delegation(self, grid_widget, test_model) -> None:
         """Test that refresh method delegates to model."""
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
         with patch(
@@ -371,7 +371,7 @@ class TestPreviousShotsView:
         # The important thing is the refresh call was attempted
         assert len(test_model.refresh_calls) >= 1
 
-    def test_get_selected_shot(self, grid_widget):
+    def test_get_selected_shot(self, grid_widget) -> None:
         """Test getting currently selected shot."""
         # Initially no selection
         assert grid_widget.get_selected_shot() is None
@@ -410,7 +410,7 @@ class TestPreviousShotsViewIntegration:
             previous_model.stop_auto_refresh()
         previous_model.deleteLater()
 
-    def test_integration_grid_creation(self, integration_grid, qtbot):
+    def test_integration_grid_creation(self, integration_grid, qtbot) -> None:
         """Test that integration grid creates successfully."""
         grid = integration_grid
 

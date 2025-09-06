@@ -17,7 +17,7 @@ class TestCacheScenarios:
         """Create OptimizedShotModel with real cache."""
         return OptimizedShotModel(real_cache_manager)
 
-    def test_cache_hit_scenario(self, optimized_model_with_cache):
+    def test_cache_hit_scenario(self, optimized_model_with_cache) -> None:
         """Test performance when cache data is available."""
         model = optimized_model_with_cache
 
@@ -54,7 +54,7 @@ class TestCacheScenarios:
         assert metrics["cache_miss_count"] == 0
         assert metrics["cache_hit_rate"] == 1.0
 
-    def test_cache_miss_scenario(self, optimized_model_with_cache):
+    def test_cache_miss_scenario(self, optimized_model_with_cache) -> None:
         """Test behavior when no cache data available."""
         model = optimized_model_with_cache
 
@@ -75,7 +75,7 @@ class TestCacheScenarios:
         assert metrics["cache_miss_count"] == 1
         assert metrics["cache_hit_rate"] == 0.0
 
-    def test_mixed_cache_scenarios(self, optimized_model_with_cache):
+    def test_mixed_cache_scenarios(self, optimized_model_with_cache) -> None:
         """Test multiple cache operations to verify hit rate calculation."""
         model = optimized_model_with_cache
 
@@ -106,7 +106,7 @@ class TestCacheScenarios:
         assert metrics["cache_miss_count"] == 1
         assert metrics["cache_hit_rate"] == 2 / 3  # 2 hits out of 3 total
 
-    def test_manual_refresh_behavior(self, optimized_model_with_cache, qtbot):
+    def test_manual_refresh_behavior(self, optimized_model_with_cache, qtbot) -> None:
         """Test that manual refresh works when no cache is available."""
         model = optimized_model_with_cache
 
@@ -131,7 +131,7 @@ class TestCacheScenarios:
             # In the current system, cache expiration doesn't automatically trigger refresh
             # Instead, refresh happens when initialize_async is called
 
-    def test_performance_metrics_accuracy(self, optimized_model_with_cache):
+    def test_performance_metrics_accuracy(self, optimized_model_with_cache) -> None:
         """Test that performance metrics accurately track operations."""
         model = optimized_model_with_cache
 
@@ -153,7 +153,7 @@ class TestCacheScenarios:
         assert final_metrics["cache_hit_count"] == 1
         assert final_metrics["cache_miss_count"] == 1
 
-    def test_session_warming_performance(self, optimized_model_with_cache):
+    def test_session_warming_performance(self, optimized_model_with_cache) -> None:
         """Test that session pre-warming improves subsequent performance."""
         model = optimized_model_with_cache
 
@@ -179,7 +179,7 @@ class TestCacheScenarios:
         assert len(test_pool.commands) == 1
         assert test_pool.commands[0] == "echo warming"
 
-    def test_concurrent_cache_access(self, optimized_model_with_cache):
+    def test_concurrent_cache_access(self, optimized_model_with_cache) -> None:
         """Test cache behavior with concurrent access (thread safety)."""
         model = optimized_model_with_cache
 

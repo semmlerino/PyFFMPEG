@@ -27,7 +27,7 @@ pytestmark = pytest.mark.unit
 class TestThumbnailPriority:
     """Test that lightweight formats are preferred over EXR."""
 
-    def test_jpg_preferred_over_exr(self, tmp_path):
+    def test_jpg_preferred_over_exr(self, tmp_path) -> None:
         """JPG should be chosen when both JPG and EXR exist."""
         test_dir = tmp_path / "thumbnails"
         test_dir.mkdir()
@@ -40,7 +40,7 @@ class TestThumbnailPriority:
         assert result is not None
         assert result.suffix == ".jpg"
 
-    def test_exr_used_as_fallback(self, tmp_path):
+    def test_exr_used_as_fallback(self, tmp_path) -> None:
         """EXR should be used when no lightweight formats exist."""
         test_dir = tmp_path / "thumbnails"
         test_dir.mkdir()
@@ -52,7 +52,7 @@ class TestThumbnailPriority:
         assert result is not None
         assert result.suffix == ".exr"
 
-    def test_no_fallback_returns_none(self, tmp_path):
+    def test_no_fallback_returns_none(self, tmp_path) -> None:
         """Should return None when fallback disabled and only EXR exists."""
         test_dir = tmp_path / "thumbnails"
         test_dir.mkdir()
@@ -66,7 +66,7 @@ class TestThumbnailPriority:
 class TestShotThumbnailDiscovery:
     """Test shot's thumbnail discovery with EXR fallback."""
 
-    def test_shot_finds_jpg_first(self, tmp_path):
+    def test_shot_finds_jpg_first(self, tmp_path) -> None:
         """Shot should find JPG when available."""
         # Setup directory structure
         shows_root = tmp_path / "shows"
@@ -92,7 +92,7 @@ class TestShotThumbnailDiscovery:
             assert thumb_path is not None
             assert thumb_path.suffix == ".jpg"
 
-    def test_shot_falls_back_to_turnover_plate(self, tmp_path):
+    def test_shot_falls_back_to_turnover_plate(self, tmp_path) -> None:
         """Shot should find turnover plate EXR when no editorial thumbnail."""
         shows_root = tmp_path / "shows"
 
@@ -138,7 +138,7 @@ class TestShotThumbnailDiscovery:
 class TestPlateDiscoveryPriority:
     """Test plate discovery priority (FG > BG > others)."""
 
-    def test_fg_preferred_over_bg(self, tmp_path):
+    def test_fg_preferred_over_bg(self, tmp_path) -> None:
         """FG plates should be preferred over BG plates."""
         shows_root = tmp_path / "shows"
         base_path = (
@@ -172,7 +172,7 @@ class TestPlateDiscoveryPriority:
 class TestCacheManagerIntegration:
     """Test cache manager with real file operations (minimal mocking)."""
 
-    def test_cache_small_jpg(self, tmp_path):
+    def test_cache_small_jpg(self, tmp_path) -> None:
         """Cache manager should handle small JPG files."""
         # Create test JPG
         jpg_file = tmp_path / "test.jpg"
@@ -189,7 +189,7 @@ class TestCacheManagerIntegration:
         # But we're testing that it doesn't crash
         assert result is None or isinstance(result, Path)
 
-    def test_cache_creates_directory_structure(self, tmp_path):
+    def test_cache_creates_directory_structure(self, tmp_path) -> None:
         """Cache manager should create proper directory structure."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
@@ -201,7 +201,7 @@ class TestCacheManagerIntegration:
 class TestEndToEndPriority:
     """Test complete workflow with minimal mocking."""
 
-    def test_jpg_preferred_in_full_workflow(self, tmp_path):
+    def test_jpg_preferred_in_full_workflow(self, tmp_path) -> None:
         """Full workflow should prefer JPG over EXR."""
         # Setup complete directory structure
         shows_root = tmp_path / "shows"
@@ -234,7 +234,7 @@ class TestEndToEndPriority:
             assert first_image is not None
             assert first_image.suffix == ".jpg"
 
-    def test_exr_fallback_in_full_workflow(self, tmp_path):
+    def test_exr_fallback_in_full_workflow(self, tmp_path) -> None:
         """Full workflow should use EXR when no JPG available."""
         shows_root = tmp_path / "shows"
         shot_dir = shows_root / "testshow" / "shots" / "seq01" / "seq01_0010"

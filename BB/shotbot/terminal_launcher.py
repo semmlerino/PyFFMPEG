@@ -74,7 +74,7 @@ class TerminalLauncher(QObject):
         "wt.exe",  # Windows Terminal
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._detected_terminals: list[str] = []
         self._preferred_terminal: str | None = None

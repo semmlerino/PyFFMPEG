@@ -444,7 +444,7 @@ def qt_signal_blocker():
     Use this when you need to ensure signals are delivered in tests.
     """
 
-    def _process_events(timeout_ms=1000):
+    def _process_events(timeout_ms=1000) -> bool:
         """Process Qt events for specified timeout."""
         timer = QTimer()
         timer.setSingleShot(True)
@@ -980,12 +980,12 @@ def thread_safety_monitor():
     import threading
 
     class ThreadSafetyMonitor:
-        def __init__(self):
+        def __init__(self) -> None:
             self.lock = threading.Lock()
             self.violations = []
             self.operations = []
 
-        def record_operation(self, op_name, thread_id=None):
+        def record_operation(self, op_name, thread_id=None) -> None:
             """Record an operation for analysis."""
             if thread_id is None:
                 thread_id = threading.current_thread().ident
@@ -993,12 +993,12 @@ def thread_safety_monitor():
             with self.lock:
                 self.operations.append((op_name, thread_id, time.time()))
 
-        def record_violation(self, message):
+        def record_violation(self, message) -> None:
             """Record a thread safety violation."""
             with self.lock:
                 self.violations.append(message)
 
-        def assert_no_violations(self):
+        def assert_no_violations(self) -> None:
             """Assert no violations were recorded."""
             assert not self.violations, (
                 f"Thread safety violations detected: {self.violations}"
@@ -1102,7 +1102,7 @@ def mock_gui_blocking_components(monkeypatch):
     class MockPersistentTerminalManager:
         """Mock PersistentTerminalManager that does nothing."""
 
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args, **kwargs) -> None:
             pass
 
         def send_command(self, command: str, ensure_terminal: bool = True) -> bool:

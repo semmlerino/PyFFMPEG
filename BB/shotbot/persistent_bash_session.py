@@ -69,7 +69,7 @@ class PersistentBashSession:
     MAX_POLL_INTERVAL = ThreadingConfig.MAX_POLL_INTERVAL  # 500ms
     POLL_BACKOFF_FACTOR = ThreadingConfig.POLL_BACKOFF_FACTOR
 
-    def __init__(self, session_id: str):
+    def __init__(self, session_id: str) -> None:
         """Initialize persistent bash session.
 
         Args:
@@ -89,7 +89,7 @@ class PersistentBashSession:
         self._consecutive_empty_polls = 0
         self._start_session()
 
-    def _start_session(self, with_backoff: bool = False):
+    def _start_session(self, with_backoff: bool = False) -> None:
         """Start persistent bash session with optional exponential backoff.
 
         Args:
@@ -794,7 +794,7 @@ class PersistentBashSession:
         """
         return self._process is not None and self._process.poll() is None
 
-    def _kill_session(self):
+    def _kill_session(self) -> None:
         """Kill the current session."""
         if self._process:
             try:
@@ -831,7 +831,7 @@ class PersistentBashSession:
             "idle_seconds": idle_time,
         }
 
-    def close(self):
+    def close(self) -> None:
         """Close the session gracefully."""
         self._kill_session()
         logger.info(f"Closed bash session: {self.session_id}")

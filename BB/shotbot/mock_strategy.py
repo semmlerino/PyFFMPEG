@@ -30,7 +30,7 @@ class MockDataStrategy(ABC):
 class FilesystemMockStrategy(MockDataStrategy):
     """Load mock data from filesystem structure."""
     
-    def __init__(self, mock_root: Path | None = None):
+    def __init__(self, mock_root: Path | None = None) -> None:
         """Initialize filesystem strategy.
         
         Args:
@@ -104,7 +104,7 @@ class FilesystemMockStrategy(MockDataStrategy):
 class JSONMockStrategy(MockDataStrategy):
     """Load mock data from JSON file."""
     
-    def __init__(self, json_path: Path | str | None = None):
+    def __init__(self, json_path: Path | str | None = None) -> None:
         """Initialize JSON strategy.
         
         Args:
@@ -160,7 +160,7 @@ class JSONMockStrategy(MockDataStrategy):
 class ProductionDataStrategy(MockDataStrategy):
     """Load real production data from captured JSON."""
     
-    def __init__(self, capture_file: Path | str | None = None):
+    def __init__(self, capture_file: Path | str | None = None) -> None:
         """Initialize production data strategy.
         
         Args:
@@ -207,7 +207,7 @@ class ProductionDataStrategy(MockDataStrategy):
 class UnifiedMockPool:
     """Unified mock pool using strategy pattern for data sources."""
     
-    def __init__(self, strategy: MockDataStrategy | None = None):
+    def __init__(self, strategy: MockDataStrategy | None = None) -> None:
         """Initialize mock pool with data loading strategy.
         
         Args:
@@ -322,7 +322,7 @@ class UnifiedMockPool:
         
         return results
     
-    def invalidate_cache(self, pattern: str | None = None):
+    def invalidate_cache(self, pattern: str | None = None) -> None:
         """Invalidate cache entries.
         
         Args:
@@ -335,7 +335,7 @@ class UnifiedMockPool:
             for key in to_remove:
                 del self._cache[key]
     
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Shutdown the pool."""
         self._cache.clear()
         logger.info("UnifiedMockPool shutdown complete")

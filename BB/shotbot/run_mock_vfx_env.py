@@ -19,7 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def setup_mock_vfx_environment():
+def setup_mock_vfx_environment() -> bool:
     """Set up environment to simulate VFX workstation."""
     
     # Check for mock filesystem
@@ -91,7 +91,7 @@ def setup_mock_vfx_environment():
     return True
 
 
-def create_shows_symlink():
+def create_shows_symlink() -> bool:
     """Create /shows symlink for path compatibility."""
     
     # Try different approaches

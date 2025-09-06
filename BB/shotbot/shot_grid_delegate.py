@@ -57,7 +57,7 @@ class ShotGridDelegate(QStyledItemDelegate):
     thumbnail_clicked = Signal(QModelIndex)
     thumbnail_double_clicked = Signal(QModelIndex)
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the delegate.
 
         Args:

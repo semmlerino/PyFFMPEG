@@ -37,7 +37,7 @@ class LauncherWorker(ThreadSafeWorker):
         launcher_id: str,
         command: str,
         working_dir: str | None = None,
-    ):
+    ) -> None:
         """Initialize launcher worker.
 
         Args:
@@ -142,7 +142,7 @@ class LauncherWorker(ThreadSafeWorker):
                 f"Command could not be parsed safely and was blocked: {str(e)}"
             )
 
-    def do_work(self):
+    def do_work(self) -> None:
         """Execute the launcher command with proper lifecycle management.
 
         This method is called by the base class run() method and includes
@@ -209,7 +209,7 @@ class LauncherWorker(ThreadSafeWorker):
             # Ensure process is cleaned up
             self._cleanup_process()
 
-    def _terminate_process(self):
+    def _terminate_process(self) -> None:
         """Safely terminate the subprocess."""
         if not self._process:
             return
@@ -229,7 +229,7 @@ class LauncherWorker(ThreadSafeWorker):
         except Exception as e:
             logger.error(f"Error terminating process for '{self.launcher_id}': {e}")
 
-    def _cleanup_process(self):
+    def _cleanup_process(self) -> None:
         """Clean up process resources."""
         if self._process:
             # Ensure process is terminated

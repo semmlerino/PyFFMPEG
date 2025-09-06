@@ -57,7 +57,7 @@ def threede_grid(qtbot, scene_model):
 class TestThreeDEGridViewInitialization:
     """Test ThreeDEGridView initialization."""
 
-    def test_initialization(self, threede_grid, scene_model):
+    def test_initialization(self, threede_grid, scene_model) -> None:
         """Test grid initialization."""
         assert threede_grid.scene_model == scene_model
         assert threede_grid.thumbnails == {}
@@ -65,7 +65,7 @@ class TestThreeDEGridViewInitialization:
         assert threede_grid._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
         assert threede_grid._is_loading is False
 
-    def test_ui_setup(self, threede_grid):
+    def test_ui_setup(self, threede_grid) -> None:
         """Test UI components are created."""
         assert threede_grid.size_slider is not None
         assert threede_grid.size_label is not None
@@ -81,7 +81,7 @@ class TestThreeDEGridViewInitialization:
         assert threede_grid.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE
         assert threede_grid.size_label.text() == f"{Config.DEFAULT_THUMBNAIL_SIZE}px"
 
-    def test_focus_policy(self, threede_grid):
+    def test_focus_policy(self, threede_grid) -> None:
         """Test widget has proper focus policy."""
         assert threede_grid.focusPolicy() == Qt.FocusPolicy.StrongFocus
 
@@ -89,7 +89,7 @@ class TestThreeDEGridViewInitialization:
 class TestThreeDEGridViewLoadingState:
     """Test loading state management."""
 
-    def test_set_loading_true(self, threede_grid, qtbot):
+    def test_set_loading_true(self, threede_grid, qtbot) -> None:
         """Test setting loading state to true."""
         # Show the widget first
         threede_grid.show()
@@ -102,7 +102,7 @@ class TestThreeDEGridViewLoadingState:
         assert threede_grid.loading_label.isVisible() is True
         assert threede_grid.loading_label.text() == "Loading test..."
 
-    def test_set_loading_false(self, threede_grid):
+    def test_set_loading_false(self, threede_grid) -> None:
         """Test setting loading state to false."""
         threede_grid.set_loading(True)
         threede_grid.set_loading(False)
@@ -111,7 +111,7 @@ class TestThreeDEGridViewLoadingState:
         assert threede_grid.loading_bar.isVisible() is False
         assert threede_grid.loading_label.isVisible() is False
 
-    def test_set_loading_progress(self, threede_grid):
+    def test_set_loading_progress(self, threede_grid) -> None:
         """Test setting loading progress."""
         threede_grid.set_loading_progress(5, 10)
 
@@ -120,7 +120,7 @@ class TestThreeDEGridViewLoadingState:
         assert threede_grid.loading_bar.value() == 5
         assert "5/10" in threede_grid.loading_label.text()
 
-    def test_set_loading_progress_zero_total(self, threede_grid):
+    def test_set_loading_progress_zero_total(self, threede_grid) -> None:
         """Test setting progress with zero total."""
         # Should not crash with zero total
         threede_grid.set_loading_progress(0, 0)
@@ -130,7 +130,7 @@ class TestThreeDEGridViewLoadingState:
 class TestThreeDEGridViewSceneDisplay:
     """Test scene display functionality."""
 
-    def test_refresh_scenes_with_scenes(self, threede_grid, sample_scenes):
+    def test_refresh_scenes_with_scenes(self, threede_grid, sample_scenes) -> None:
         """Test refreshing grid with scenes."""
         # Replace methods temporarily with test doubles
         original_clear = threede_grid._clear_grid
@@ -138,7 +138,7 @@ class TestThreeDEGridViewSceneDisplay:
 
         clear_called = []
 
-        def test_clear_grid():
+        def test_clear_grid() -> None:
             clear_called.append(True)
             original_clear()
 
@@ -161,7 +161,7 @@ class TestThreeDEGridViewSceneDisplay:
             assert isinstance(thumbnail, ThreeDEThumbnailWidget)
             assert thumbnail.scene == scene
 
-    def test_refresh_scenes_empty(self, threede_grid):
+    def test_refresh_scenes_empty(self, threede_grid) -> None:
         """Test refreshing with no scenes."""
         threede_grid.scene_model.scenes = []
 
@@ -169,7 +169,7 @@ class TestThreeDEGridViewSceneDisplay:
         original_show_empty = threede_grid._show_empty_state
         empty_state_shown = []
 
-        def test_show_empty():
+        def test_show_empty() -> None:
             empty_state_shown.append(True)
             original_show_empty()
 
@@ -183,7 +183,7 @@ class TestThreeDEGridViewSceneDisplay:
 
         assert len(threede_grid.thumbnails) == 0
 
-    def test_show_empty_state(self, threede_grid):
+    def test_show_empty_state(self, threede_grid) -> None:
         """Test showing empty state message."""
         threede_grid._show_empty_state()
 
@@ -195,7 +195,7 @@ class TestThreeDEGridViewSceneDisplay:
         assert widget is not None
         assert "No 3DE scenes" in widget.text()
 
-    def test_clear_grid(self, threede_grid, sample_scenes):
+    def test_clear_grid(self, threede_grid, sample_scenes) -> None:
         """Test clearing the grid."""
         # First add some thumbnails
         threede_grid.refresh_scenes()
@@ -211,7 +211,7 @@ class TestThreeDEGridViewSceneDisplay:
 class TestThreeDEGridViewColumnCalculation:
     """Test column count calculation."""
 
-    def test_get_column_count_default(self, threede_grid):
+    def test_get_column_count_default(self, threede_grid) -> None:
         """Test default column count."""
         # Replace viewport width method temporarily
         viewport = threede_grid.scroll_area.viewport()
@@ -225,7 +225,7 @@ class TestThreeDEGridViewColumnCalculation:
 
         assert count == Config.GRID_COLUMNS
 
-    def test_get_column_count_calculated(self, threede_grid):
+    def test_get_column_count_calculated(self, threede_grid) -> None:
         """Test calculated column count."""
         # Replace viewport width temporarily
         viewport_width = 500
@@ -245,7 +245,7 @@ class TestThreeDEGridViewColumnCalculation:
         )
         assert count == expected
 
-    def test_get_column_count_minimum(self, threede_grid):
+    def test_get_column_count_minimum(self, threede_grid) -> None:
         """Test minimum column count is 1."""
         viewport = threede_grid.scroll_area.viewport()
         original_width = viewport.width
@@ -262,13 +262,13 @@ class TestThreeDEGridViewColumnCalculation:
 class TestThreeDEGridViewSizeControl:
     """Test thumbnail size control."""
 
-    def test_size_slider_range(self, threede_grid):
+    def test_size_slider_range(self, threede_grid) -> None:
         """Test size slider configuration."""
         assert threede_grid.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE
         assert threede_grid.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE
         assert threede_grid.size_slider.value() == Config.DEFAULT_THUMBNAIL_SIZE
 
-    def test_on_size_changed(self, threede_grid, sample_scenes):
+    def test_on_size_changed(self, threede_grid, sample_scenes) -> None:
         """Test handling size change."""
         # Add some thumbnails
         threede_grid.refresh_scenes()
@@ -279,7 +279,7 @@ class TestThreeDEGridViewSizeControl:
         original_reflow = threede_grid._reflow_grid
         reflow_called = []
 
-        def test_reflow():
+        def test_reflow() -> None:
             reflow_called.append(True)
             # Don't call original to avoid complex layout operations in test
 
@@ -299,7 +299,7 @@ class TestThreeDEGridViewSizeControl:
             # The thumbnail's set_size method should have been called
             pass  # We'd need to mock set_size to verify
 
-    def test_wheel_event_with_ctrl(self, threede_grid):
+    def test_wheel_event_with_ctrl(self, threede_grid) -> None:
         """Test wheel event with Ctrl for size adjustment."""
         from PySide6.QtCore import QPoint
         from PySide6.QtGui import QWheelEvent
@@ -323,7 +323,7 @@ class TestThreeDEGridViewSizeControl:
         # Size should increase
         assert threede_grid.size_slider.value() > initial_size
 
-    def test_wheel_event_without_ctrl(self, threede_grid):
+    def test_wheel_event_without_ctrl(self, threede_grid) -> None:
         """Test wheel event without Ctrl passes through."""
         from PySide6.QtCore import QPoint
         from PySide6.QtGui import QWheelEvent
@@ -351,7 +351,7 @@ class TestThreeDEGridViewSizeControl:
 class TestThreeDEGridViewSelection:
     """Test scene selection functionality."""
 
-    def test_thumbnail_click(self, threede_grid, qtbot, sample_scenes):
+    def test_thumbnail_click(self, threede_grid, qtbot, sample_scenes) -> None:
         """Test handling thumbnail click."""
         threede_grid.refresh_scenes()
 
@@ -371,7 +371,7 @@ class TestThreeDEGridViewSelection:
         # Check selection state
         assert thumbnail._selected is True
 
-    def test_thumbnail_double_click(self, threede_grid, qtbot, sample_scenes):
+    def test_thumbnail_double_click(self, threede_grid, qtbot, sample_scenes) -> None:
         """Test handling thumbnail double click."""
         threede_grid.refresh_scenes()
 
@@ -386,7 +386,7 @@ class TestThreeDEGridViewSelection:
         assert spy.count() == 1
         assert spy.at(0)[0] == scene
 
-    def test_select_scene_programmatically(self, threede_grid, sample_scenes):
+    def test_select_scene_programmatically(self, threede_grid, sample_scenes) -> None:
         """Test selecting scene programmatically."""
         threede_grid.refresh_scenes()
 
@@ -400,7 +400,7 @@ class TestThreeDEGridViewSelection:
         thumbnail = threede_grid.thumbnails[scene.display_name]
         assert thumbnail._selected is True
 
-    def test_selection_change(self, threede_grid, sample_scenes):
+    def test_selection_change(self, threede_grid, sample_scenes) -> None:
         """Test changing selection between scenes."""
         threede_grid.refresh_scenes()
 
@@ -425,7 +425,7 @@ class TestThreeDEGridViewSelection:
 class TestThreeDEGridViewKeyboardNavigation:
     """Test keyboard navigation."""
 
-    def test_arrow_key_right(self, threede_grid, sample_scenes):
+    def test_arrow_key_right(self, threede_grid, sample_scenes) -> None:
         """Test right arrow navigation."""
         threede_grid.refresh_scenes()
         threede_grid.select_scene(sample_scenes[0])
@@ -443,7 +443,7 @@ class TestThreeDEGridViewKeyboardNavigation:
         # Verify navigation moved to next scene
         assert threede_grid.selected_scene == sample_scenes[1]
 
-    def test_arrow_key_left(self, threede_grid, sample_scenes):
+    def test_arrow_key_left(self, threede_grid, sample_scenes) -> None:
         """Test left arrow navigation."""
         threede_grid.refresh_scenes()
         threede_grid.select_scene(sample_scenes[2])
@@ -461,7 +461,7 @@ class TestThreeDEGridViewKeyboardNavigation:
         # Verify navigation moved to previous scene
         assert threede_grid.selected_scene == sample_scenes[1]
 
-    def test_arrow_key_down(self, threede_grid, sample_scenes):
+    def test_arrow_key_down(self, threede_grid, sample_scenes) -> None:
         """Test down arrow navigation."""
         threede_grid.refresh_scenes()
         threede_grid.select_scene(sample_scenes[0])
@@ -486,7 +486,7 @@ class TestThreeDEGridViewKeyboardNavigation:
         # Should move down by column count (3 positions)
         assert threede_grid.selected_scene == sample_scenes[3]
 
-    def test_home_key(self, threede_grid, sample_scenes):
+    def test_home_key(self, threede_grid, sample_scenes) -> None:
         """Test Home key navigation."""
         threede_grid.refresh_scenes()
         threede_grid.select_scene(sample_scenes[3])
@@ -504,7 +504,7 @@ class TestThreeDEGridViewKeyboardNavigation:
         # Should move to first scene
         assert threede_grid.selected_scene == sample_scenes[0]
 
-    def test_end_key(self, threede_grid, sample_scenes):
+    def test_end_key(self, threede_grid, sample_scenes) -> None:
         """Test End key navigation."""
         threede_grid.refresh_scenes()
         threede_grid.select_scene(sample_scenes[0])
@@ -522,7 +522,7 @@ class TestThreeDEGridViewKeyboardNavigation:
         # Should move to last scene
         assert threede_grid.selected_scene == sample_scenes[-1]
 
-    def test_enter_key(self, threede_grid, qtbot, sample_scenes):
+    def test_enter_key(self, threede_grid, qtbot, sample_scenes) -> None:
         """Test Enter key triggers double click."""
         threede_grid.refresh_scenes()
         threede_grid.select_scene(sample_scenes[0])
@@ -541,7 +541,7 @@ class TestThreeDEGridViewKeyboardNavigation:
         assert spy.count() == 1
         assert spy.at(0)[0] == sample_scenes[0]
 
-    def test_app_launch_shortcuts(self, threede_grid, qtbot, sample_scenes):
+    def test_app_launch_shortcuts(self, threede_grid, qtbot, sample_scenes) -> None:
         """Test application launch keyboard shortcuts."""
         from PySide6.QtCore import QEvent
         from PySide6.QtGui import QKeyEvent
@@ -567,7 +567,7 @@ class TestThreeDEGridViewKeyboardNavigation:
             assert spy.count() == 1
             assert spy.at(0)[0] == app_name
 
-    def test_keyboard_nav_empty_grid(self, threede_grid):
+    def test_keyboard_nav_empty_grid(self, threede_grid) -> None:
         """Test keyboard navigation with empty grid."""
         threede_grid.scene_model.scenes = []
         threede_grid.refresh_scenes()
@@ -588,7 +588,7 @@ class TestThreeDEGridViewKeyboardNavigation:
         # Selection should remain unchanged since no scenes available
         assert threede_grid.selected_scene == initial_selection
 
-    def test_ensure_widget_visible(self, threede_grid, sample_scenes):
+    def test_ensure_widget_visible(self, threede_grid, sample_scenes) -> None:
         """Test ensuring selected widget is visible after navigation."""
         threede_grid.refresh_scenes()
         threede_grid.select_scene(sample_scenes[0])
@@ -615,7 +615,7 @@ class TestThreeDEGridViewKeyboardNavigation:
 class TestThreeDEGridViewReflow:
     """Test grid reflow functionality."""
 
-    def test_reflow_grid(self, threede_grid, sample_scenes):
+    def test_reflow_grid(self, threede_grid, sample_scenes) -> None:
         """Test reflowing grid layout."""
         threede_grid.refresh_scenes()
 
@@ -635,12 +635,12 @@ class TestThreeDEGridViewReflow:
                 i % 2
                 # We'd need to check actual grid positions here
 
-    def test_reflow_empty_grid(self, threede_grid):
+    def test_reflow_empty_grid(self, threede_grid) -> None:
         """Test reflowing empty grid doesn't crash."""
         threede_grid.thumbnails = {}
         threede_grid._reflow_grid()  # Should not crash
 
-    def test_resize_event_triggers_reflow(self, threede_grid, sample_scenes):
+    def test_resize_event_triggers_reflow(self, threede_grid, sample_scenes) -> None:
         """Test resize event triggers reflow."""
         threede_grid.refresh_scenes()
 
@@ -666,7 +666,7 @@ class TestThreeDEGridViewReflow:
 class TestThreeDEGridViewSignalConnections:
     """Test signal connections."""
 
-    def test_thumbnail_signal_connections(self, threede_grid, sample_scenes):
+    def test_thumbnail_signal_connections(self, threede_grid, sample_scenes) -> None:
         """Test thumbnail signals are connected properly during refresh."""
         # Just verify that refresh_scenes creates thumbnails correctly
         threede_grid.refresh_scenes()
@@ -681,7 +681,7 @@ class TestThreeDEGridViewSignalConnections:
             assert isinstance(thumbnail, ThreeDEThumbnailWidget)
             assert thumbnail.scene == scene
 
-    def test_size_slider_connection(self, threede_grid):
+    def test_size_slider_connection(self, threede_grid) -> None:
         """Test size slider is connected."""
         # Change slider value
         new_value = 200
@@ -690,7 +690,7 @@ class TestThreeDEGridViewSignalConnections:
         original_on_size = threede_grid._on_size_changed
         size_changed_calls = []
 
-        def test_on_size_changed(value):
+        def test_on_size_changed(value) -> None:
             size_changed_calls.append(value)
             # Don't call original to avoid side effects
 

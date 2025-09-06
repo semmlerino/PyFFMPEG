@@ -36,7 +36,7 @@ workspace /shows/broken_eggs/shots/BRX_070/BRX_070_0010
 workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
 
-def test_shot_extraction():
+def test_shot_extraction() -> None:
     """Test shot name extraction from various directory formats."""
     print("\n=== Testing Shot Extraction Logic ===")
 
@@ -132,7 +132,7 @@ def parse_ws_sg_output(output: str) -> List[Shot]:
     return shots
 
 
-def test_ws_sg_parsing():
+def test_ws_sg_parsing() -> None:
     """Test parsing of ws -sg output."""
     print("\n=== Testing ws -sg Output Parsing ===")
 
@@ -161,7 +161,7 @@ def test_ws_sg_parsing():
     print(f"  All {len(shots)} shots parsed correctly!")
 
 
-def test_show_extraction():
+def test_show_extraction() -> None:
     """Test extraction of unique shows from shots."""
     print("\n=== Testing Show Extraction ===")
 
@@ -174,7 +174,7 @@ def test_show_extraction():
     print(f"  ✓ Extracted shows: {', '.join(sorted(shows))}")
 
 
-def test_targeted_shot_finder():
+def test_targeted_shot_finder() -> None:
     """Test TargetedShotsFinder with mock data."""
     print("\n=== Testing Targeted Shot Finder ===")
 
@@ -215,13 +215,13 @@ def test_targeted_shot_finder():
         assert False, f"TargetedShotsFinder test failed: {e}"
 
 
-def test_3de_scene_discovery():
+def test_3de_scene_discovery() -> None:
     """Test 3DE scene discovery logic."""
     print("\n=== Testing 3DE Scene Discovery ===")
 
     try:
         # Test file-first discovery approach
-        finder = OptimizedThreeDESceneFinder()
+        OptimizedThreeDESceneFinder()
 
         # Test shot extraction from file paths
         test_paths = [
@@ -280,7 +280,7 @@ def test_3de_scene_discovery():
         assert False, f"3DE scene discovery test failed: {e}"
 
 
-def test_thumbnail_discovery():
+def test_thumbnail_discovery() -> None:
     """Test thumbnail discovery logic."""
     print("\n=== Testing Thumbnail Discovery ===")
 
@@ -306,7 +306,7 @@ def test_thumbnail_discovery():
         assert False, f"Thumbnail discovery test failed: {e}"
 
 
-def test_integration():
+def test_integration() -> None:
     """Test complete integration of the pipeline."""
     print("\n=== Testing Complete Pipeline Integration ===")
 
@@ -364,7 +364,7 @@ def test_integration():
         assert False, f"Pipeline integration test failed: {e}"
 
 
-def main():
+def main() -> int:
     """Run all tests."""
     print("=" * 60)
     print("SHOT PROCESSING PIPELINE VALIDATION")

@@ -27,7 +27,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 class TestNukeScriptGenerator:
     """Test NukeScriptGenerator with real components."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test NukeScriptGenerator initializes correctly."""
         NukeScriptGenerator()
 
@@ -37,7 +37,7 @@ class TestNukeScriptGenerator:
         assert isinstance(NukeScriptGenerator._temp_files, set)
         assert isinstance(NukeScriptGenerator._cleanup_registered, bool)
 
-    def test_cleanup_registration(self):
+    def test_cleanup_registration(self) -> None:
         """Test cleanup function registration happens when tracking files."""
         # Reset cleanup state for testing
         NukeScriptGenerator._cleanup_registered = False
@@ -53,7 +53,7 @@ class TestNukeScriptGenerator:
         assert NukeScriptGenerator._cleanup_registered is True
         assert temp_file in NukeScriptGenerator._temp_files
 
-    def test_generate_script_basic(self):
+    def test_generate_script_basic(self) -> None:
         """Test basic script generation."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -77,7 +77,7 @@ class TestNukeScriptGenerator:
             assert "test_plate.exr" in content
             assert "linear" in content
 
-    def test_generate_script_with_undistortion(self):
+    def test_generate_script_with_undistortion(self) -> None:
         """Test script generation with undistortion file."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -106,7 +106,7 @@ class TestNukeScriptGenerator:
                 or "StickyNote {" in content
             )
 
-    def test_colorspace_detection(self, monkeypatch):
+    def test_colorspace_detection(self, monkeypatch) -> None:
         """Test colorspace detection from file paths."""
         NukeScriptGenerator()
 
@@ -128,7 +128,7 @@ class TestNukeScriptGenerator:
             assert len(colorspace) > 0
             assert isinstance(use_raw, bool)
 
-    def test_shot_name_sanitization(self):
+    def test_shot_name_sanitization(self) -> None:
         """Test shot name sanitization for script generation."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -149,7 +149,7 @@ class TestNukeScriptGenerator:
             # Test that problematic characters are handled
             assert "shot_with_special_chars" in content
 
-    def test_temporary_file_tracking(self):
+    def test_temporary_file_tracking(self) -> None:
         """Test that temporary files are properly tracked."""
         initial_count = len(NukeScriptGenerator._temp_files)
 
@@ -166,7 +166,7 @@ class TestNukeScriptGenerator:
             assert len(NukeScriptGenerator._temp_files) > initial_count
             assert script_path in NukeScriptGenerator._temp_files
 
-    def test_cleanup_temp_files(self):
+    def test_cleanup_temp_files(self) -> None:
         """Test temporary file cleanup functionality."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -188,7 +188,7 @@ class TestNukeScriptGenerator:
             assert not Path(script_path).exists()
             assert script_path not in NukeScriptGenerator._temp_files
 
-    def test_error_handling_missing_plate(self):
+    def test_error_handling_missing_plate(self) -> None:
         """Test error handling for missing plate file."""
         # Test with non-existent file
         script_path = NukeScriptGenerator.create_plate_script(
@@ -200,7 +200,7 @@ class TestNukeScriptGenerator:
         if script_path is not None:
             assert isinstance(script_path, str)
 
-    def test_multiple_script_generation(self):
+    def test_multiple_script_generation(self) -> None:
         """Test generating multiple scripts in sequence."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -226,7 +226,7 @@ class TestNukeScriptGenerator:
             for path in script_paths:
                 assert path in NukeScriptGenerator._temp_files
 
-    def test_colorspace_with_spaces(self, monkeypatch):
+    def test_colorspace_with_spaces(self, monkeypatch) -> None:
         """Test colorspace handling with spaces in names."""
         # Test colorspace names that contain spaces
         test_colorspace = "Input - Sony - S-Gamut3.Cine - Linear"
@@ -256,7 +256,7 @@ class TestNukeScriptGenerator:
                 or test_colorspace.replace(" ", "_") in content
             )
 
-    def test_undistortion_node_name_sanitization(self):
+    def test_undistortion_node_name_sanitization(self) -> None:
         """Test that import methods sanitize node names with illegal characters.
 
         This test verifies the fix for the segmentation fault issue where
@@ -309,7 +309,7 @@ Group {{
             # Test that the undistortion file path reference is included
             assert undist_path.name in content
 
-    def test_generate_complete_comp_script(self):
+    def test_generate_complete_comp_script(self) -> None:
         """Test generating complete comp script with Read and Write nodes."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)

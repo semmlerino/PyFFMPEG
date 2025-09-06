@@ -33,7 +33,7 @@ class ThreadSafeTestImage:
     Based on Qt's canonical threading pattern for image operations.
     """
 
-    def __init__(self, width: int = 100, height: int = 100):
+    def __init__(self, width: int = 100, height: int = 100) -> None:
         """Create a thread-safe test image."""
         # Use QImage which is thread-safe, unlike QPixmap
         self._image = QImage(width, height, QImage.Format.Format_RGB32)
@@ -82,7 +82,7 @@ class SignalDouble:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the test signal."""
         self.emissions: list[tuple[Any, ...]] = []
         self.callbacks: list[Callable] = []
@@ -137,7 +137,7 @@ class TestProcessPoolManager:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the test process pool."""
         self.commands: list[str] = []
         self.outputs: list[str] = ["workspace /test/path"]
@@ -222,7 +222,7 @@ class MockMainWindow(QObject):
     refresh_started = Signal()
     refresh_finished = Signal(bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         """Initialize the mock main window."""
         super().__init__(parent)
 
@@ -262,7 +262,7 @@ class ImagePool:
     allows reusing instances in tests that create many images.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the image pool."""
         self._pool: list[ThreadSafeTestImage] = []
         self._created_count = 0

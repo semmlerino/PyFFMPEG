@@ -33,7 +33,7 @@ class LauncherWorkerDouble:
     Uses SignalDouble for proper test signal behavior.
     """
 
-    def __init__(self, launcher_id: str, command: str):
+    def __init__(self, launcher_id: str, command: str) -> None:
         """Initialize test launcher worker.
 
         Args:
@@ -54,7 +54,7 @@ class LauncherWorkerDouble:
         self._should_succeed = not command.startswith("fail")
         self._output_lines = ["Test output line 1", "Test output line 2"]
 
-    def start(self):
+    def start(self) -> None:
         """Start the test worker (simulate thread start)."""
         self.started.emit()
 
@@ -66,11 +66,11 @@ class LauncherWorkerDouble:
             self.error.emit(self.launcher_id, "Test error")
             self.finished.emit(self.launcher_id, 1)  # Failure
 
-    def quit(self):
+    def quit(self) -> None:
         """Stop the test worker."""
         pass
 
-    def wait(self, timeout: int = 1000):
+    def wait(self, timeout: int = 1000) -> None:
         """Wait for test worker to finish.
 
         Args:
@@ -86,7 +86,7 @@ class MockCacheManager:
     is at the system boundary dealing with filesystem operations.
     """
 
-    def __init__(self, cache_dir: Path | None = None):
+    def __init__(self, cache_dir: Path | None = None) -> None:
         """Initialize mock cache manager.
 
         Args:
@@ -162,7 +162,7 @@ class MockCacheManager:
 class ImagePoolDouble:
     """Test double for image pooling behavior."""
 
-    def __init__(self, pool_size: int = 10):
+    def __init__(self, pool_size: int = 10) -> None:
         """Initialize image pool.
 
         Args:
@@ -187,7 +187,7 @@ class ImagePoolDouble:
             return image
         return ThreadSafeTestImage(width, height)
 
-    def return_image(self, image):
+    def return_image(self, image) -> None:
         """Return image to pool for reuse.
 
         Args:

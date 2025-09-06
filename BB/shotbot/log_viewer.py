@@ -9,12 +9,12 @@ from config import Config
 class LogViewer(QWidget):
     """Widget for displaying command execution logs."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._setup_ui()
         self._line_count = 0
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Set up the UI."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -48,15 +48,15 @@ class LogViewer(QWidget):
 
         layout.addLayout(button_layout)
 
-    def add_command(self, timestamp: str, command: str):
+    def add_command(self, timestamp: str, command: str) -> None:
         """Add a command to the log."""
         self._add_entry(timestamp, command, "#4ec9b0")  # Cyan color for commands
 
-    def add_error(self, timestamp: str, error: str):
+    def add_error(self, timestamp: str, error: str) -> None:
         """Add an error to the log."""
         self._add_entry(timestamp, f"ERROR: {error}", "#f44747")  # Red color for errors
 
-    def _add_entry(self, timestamp: str, text: str, color: str):
+    def _add_entry(self, timestamp: str, text: str, color: str) -> None:
         """Add an entry to the log with color."""
         # Format the entry
         entry = f'<span style="color: #666">[{timestamp}]</span> <span style="color: {color}">{text}</span>'
@@ -76,7 +76,7 @@ class LogViewer(QWidget):
         if self._line_count > Config.LOG_MAX_LINES:
             self._trim_log()
 
-    def _trim_log(self):
+    def _trim_log(self) -> None:
         """Trim log to maximum lines."""
         cursor = self.log_text.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.Start)
@@ -88,7 +88,7 @@ class LogViewer(QWidget):
         cursor.removeSelectedText()
         self._line_count = Config.LOG_MAX_LINES
 
-    def clear_log(self):
+    def clear_log(self) -> None:
         """Clear the log."""
         self.log_text.clear()
         self._line_count = 0

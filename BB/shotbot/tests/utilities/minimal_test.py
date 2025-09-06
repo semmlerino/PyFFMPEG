@@ -6,12 +6,12 @@ from pathlib import Path
 sys.path.insert(0, ".")
 
 
-def test_basic_import():
+def test_basic_import() -> None:
     print("Testing basic imports...")
     print("PathUtils imported successfully")
 
 
-def test_path_validation():
+def test_path_validation() -> None:
     print("Testing path validation...")
     from utils import PathUtils
 
@@ -25,7 +25,7 @@ def test_path_validation():
     test_path.rmdir()
 
 
-def test_find_thumbnail():
+def test_find_thumbnail() -> None:
     print("Testing find_turnover_plate_thumbnail...")
     from utils import PathUtils
 

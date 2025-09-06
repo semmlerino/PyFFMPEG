@@ -36,7 +36,7 @@ def run_command(cmd: list[str], description: str) -> bool:
         return False
 
 
-def main():
+def main() -> int:
     """Run type checking and linting."""
 
     # Ensure we're in the right directory

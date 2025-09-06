@@ -42,7 +42,7 @@ OptimizedProcessPoolManager = ProcessPoolManager
 class MockProcessPoolManager:
     """Mock ProcessPoolManager that simulates slow performance without subprocess calls."""
 
-    def __init__(self, execution_time_ms: float = 50.0):
+    def __init__(self, execution_time_ms: float = 50.0) -> None:
         self.execution_time_ms = execution_time_ms
         self.cache = {}
         self._metrics = {"cache_hit_rate": 0.0}
@@ -79,7 +79,7 @@ class MockProcessPoolManager:
 class MockOptimizedProcessPoolManager:
     """Mock optimized ProcessPoolManager that simulates improved performance."""
 
-    def __init__(self, execution_time_ms: float = 20.0):
+    def __init__(self, execution_time_ms: float = 20.0) -> None:
         self.execution_time_ms = execution_time_ms
         self.cache = {}
         self._metrics = {"cache_hit_rate": 0.8}  # Higher cache hit rate
@@ -123,13 +123,13 @@ class MockOptimizedProcessPoolManager:
 class BenchmarkResult:
     """Container for benchmark results."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.name = name
         self.timings: list[float] = []
         self.original_time: float = 0
         self.optimized_time: float = 0
 
-    def add_timing(self, elapsed: float):
+    def add_timing(self, elapsed: float) -> None:
         """Add a timing measurement."""
         self.timings.append(elapsed)
 
@@ -188,7 +188,7 @@ class TestProcessPoolManagerPerformance:
             "ws -h",
         ]
 
-    def test_subprocess_startup_performance(self, test_commands, qtbot):
+    def test_subprocess_startup_performance(self, test_commands, qtbot) -> None:
         """Test subprocess startup time improvements using fast mock implementations."""
         result = BenchmarkResult("Subprocess Startup")
 
@@ -214,7 +214,7 @@ class TestProcessPoolManagerPerformance:
             f"Expected ≥50% improvement, got {result.improvement_percentage:.1f}%"
         )
 
-    def test_cache_effectiveness(self, test_commands, qtbot):
+    def test_cache_effectiveness(self, test_commands, qtbot) -> None:
         """Test cache TTL and hit rate improvements using fast mock implementations."""
         result = BenchmarkResult("Cache Effectiveness")
 
@@ -273,7 +273,7 @@ class TestProcessPoolManagerPerformance:
     @pytest.mark.parametrize("workspace_commands", [5], indirect=True)
     def test_parallel_execution_performance(
         self, workspace_commands, command_multiplier, qtbot
-    ):
+    ) -> None:
         """Test parallel execution improvements."""
         result = BenchmarkResult("Parallel Execution")
 
@@ -344,7 +344,7 @@ class TestThumbnailProcessorPerformance:
 
         return images
 
-    def test_sequential_vs_parallel_processing(self, test_images, tmp_path):
+    def test_sequential_vs_parallel_processing(self, test_images, tmp_path) -> None:
         """Test sequential vs parallel thumbnail processing."""
         result = BenchmarkResult("Thumbnail Processing")
 
@@ -386,7 +386,7 @@ class TestThumbnailProcessorPerformance:
             f"  Parallel vs Sequential: {result.improvement_percentage:.1f}% ({'improvement' if result.improvement_percentage > 0 else 'overhead'})"
         )
 
-    def test_smart_backend_selection(self, test_images, tmp_path):
+    def test_smart_backend_selection(self, test_images, tmp_path) -> None:
         """Test smart backend selection performance."""
         result = BenchmarkResult("Backend Selection")
 
@@ -427,7 +427,7 @@ class TestThumbnailProcessorPerformance:
         )
 
     @pytest.mark.slow
-    def test_memory_efficiency(self, test_images, tmp_path):
+    def test_memory_efficiency(self, test_images, tmp_path) -> None:
         """Test memory efficiency of parallel processing."""
         import os
 
@@ -484,7 +484,7 @@ class TestCachePerformance:
             for i in range(50)
         ]
 
-    def test_cache_ttl_extension(self, tmp_path, sample_shots):
+    def test_cache_ttl_extension(self, tmp_path, sample_shots) -> None:
         """Test cache TTL extension from 30s to 5-10 minutes."""
         result = BenchmarkResult("Cache TTL")
 
@@ -527,7 +527,7 @@ class TestCachePerformance:
             f"Cache access too slow: {result.optimized_time:.2f}ms"
         )
 
-    def test_memory_cache_performance(self, tmp_path):
+    def test_memory_cache_performance(self, tmp_path) -> None:
         """Test in-memory cache performance."""
         result = BenchmarkResult("Memory Cache")
 
@@ -569,7 +569,7 @@ class TestCachePerformance:
 class TestOverallPerformance:
     """Test overall application performance improvements."""
 
-    def test_combined_optimizations(self, tmp_path):
+    def test_combined_optimizations(self, tmp_path) -> None:
         """Test combined effect of all optimizations."""
         print("\n" + "=" * 60)
         print("OVERALL PERFORMANCE SUMMARY")

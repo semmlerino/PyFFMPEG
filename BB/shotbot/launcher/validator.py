@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class LauncherValidator:
     """Validates launcher configurations and commands."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the validator with security patterns."""
         # Define valid placeholder variables
         self.valid_variables = {

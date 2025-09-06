@@ -2,7 +2,7 @@
 """Test shot parsing logic to ensure consistency between ws -sg and finders."""
 
 
-def test_shot_extraction():
+def test_shot_extraction() -> None:
     """Test that shot extraction logic works correctly."""
 
     test_cases = [

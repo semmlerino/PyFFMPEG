@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class LauncherConfigManager:
     """Manages persistence of custom launcher configurations."""
 
-    def __init__(self, config_dir: str | Path | None = None):
+    def __init__(self, config_dir: str | Path | None = None) -> None:
         if config_dir is not None:
             self.config_dir = Path(config_dir)
         else:

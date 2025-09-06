@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-def test_mock_environment():
+def test_mock_environment() -> bool:
     """Test that mock environment is working."""
     print("=" * 60)
     print("SHOTBOT MOCK MODE DEMONSTRATION")

@@ -9,7 +9,7 @@ from pathlib import Path
 # Set environment for mock
 os.environ['SHOWS_ROOT'] = '/tmp/mock_vfx'
 
-def test_json_error_handling():
+def test_json_error_handling() -> bool:
     """Test various JSON error scenarios."""
     from mock_workspace_pool import create_mock_pool_from_filesystem
     

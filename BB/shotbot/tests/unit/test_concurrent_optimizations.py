@@ -15,7 +15,7 @@ class TestProcessPoolDouble:
 
     __test__ = False  # Prevents pytest collection
 
-    def __init__(self, workspace_response="workspace /test/concurrent/0010"):
+    def __init__(self, workspace_response="workspace /test/concurrent/0010") -> None:
         self.workspace_response = workspace_response
         self.call_count = 0
 
@@ -39,12 +39,12 @@ class TestConcurrentOperations:
 
         return model
 
-    def test_concurrent_refresh_operations(self, concurrent_model):
+    def test_concurrent_refresh_operations(self, concurrent_model) -> None:
         """Test multiple refresh operations don't interfere."""
         results = []
         exceptions = []
 
-        def refresh_worker():
+        def refresh_worker() -> None:
             try:
                 result = concurrent_model.refresh_shots()
                 results.append(result)
@@ -68,12 +68,12 @@ class TestConcurrentOperations:
         assert len(results) == 5
         assert all(r.success for r in results)
 
-    def test_concurrent_initialize_async_calls(self, concurrent_model):
+    def test_concurrent_initialize_async_calls(self, concurrent_model) -> None:
         """Test multiple initialize_async calls are handled safely."""
         results = []
         exceptions = []
 
-        def init_worker():
+        def init_worker() -> None:
             try:
                 result = concurrent_model.initialize_async()
                 results.append(result)
@@ -95,7 +95,7 @@ class TestConcurrentOperations:
         # Only one background load should be in progress
         assert concurrent_model._loading_in_progress in [True, False]
 
-    def test_cleanup_during_background_load(self, concurrent_model, qtbot):
+    def test_cleanup_during_background_load(self, concurrent_model, qtbot) -> None:
         """Test cleanup called while background load is active."""
         # Start background load
         concurrent_model.initialize_async()
@@ -114,7 +114,7 @@ class TestConcurrentOperations:
         if concurrent_model._async_loader:
             assert not concurrent_model._async_loader.isRunning()
 
-    def test_memory_pressure_simulation(self, concurrent_model):
+    def test_memory_pressure_simulation(self, concurrent_model) -> None:
         """Test behavior under memory pressure conditions."""
         # Simulate many rapid initialization calls
         for i in range(20):
@@ -130,15 +130,15 @@ class TestConcurrentOperations:
         metrics = concurrent_model.get_performance_metrics()
         assert isinstance(metrics, dict)
 
-    def test_signal_emission_thread_safety(self, concurrent_model, qtbot):
+    def test_signal_emission_thread_safety(self, concurrent_model, qtbot) -> None:
         """Test that signal emissions are thread-safe."""
         # Connect to signals
         signals_received = []
 
-        def on_shots_loaded(shots):
+        def on_shots_loaded(shots) -> None:
             signals_received.append(("loaded", len(shots)))
 
-        def on_shots_changed(shots):
+        def on_shots_changed(shots) -> None:
             signals_received.append(("changed", len(shots)))
 
         concurrent_model.shots_loaded.connect(on_shots_loaded)

@@ -4,6 +4,7 @@
 import re
 import time
 from typing import NamedTuple
+
 from config import Config
 
 
@@ -84,7 +85,7 @@ def parse_workspace_line_inline(line: str) -> ParseResult | None:
     return ParseResult(show, sequence, shot_dir, workspace_path)
 
 
-def benchmark_all_approaches(iterations: int = 100000):
+def benchmark_all_approaches(iterations: int = 100000) -> None:
     """Benchmark all parsing approaches."""
     test_lines = [
         f"workspace {Config.SHOWS_ROOT}/demo/shots/seq01/seq01_0010",
@@ -125,7 +126,7 @@ def benchmark_all_approaches(iterations: int = 100000):
     print(f"Global regex:    {total_ops/global_time:,.0f} ops/s ({global_time:.3f}s)")
     print(f"Inline parsing:  {total_ops/inline_time:,.0f} ops/s ({inline_time:.3f}s)")
     print(f"Class-based:     {total_ops/class_time:,.0f} ops/s ({class_time:.3f}s)")
-    print(f"\nTarget: 3,000,000 ops/s")
+    print("\nTarget: 3,000,000 ops/s")
     print(f"Best approach: {'Global' if global_time < inline_time and global_time < class_time else 'Inline' if inline_time < class_time else 'Class'}")
     
     # Verify correctness

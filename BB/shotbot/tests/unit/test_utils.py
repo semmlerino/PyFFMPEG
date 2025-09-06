@@ -50,20 +50,20 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 class TestPathUtils:
     """Test PathUtils functionality with real filesystem operations."""
 
-    def test_build_path_basic(self):
+    def test_build_path_basic(self) -> None:
         """Test basic path construction."""
         result = PathUtils.build_path("/base", "dir1", "dir2", "file.txt")
         expected = Path("/base/dir1/dir2/file.txt")
         assert result == expected
 
-    def test_build_path_with_path_object(self):
+    def test_build_path_with_path_object(self) -> None:
         """Test path construction with Path object as base."""
         base = Path("/base")
         result = PathUtils.build_path(base, "dir1", "file.txt")
         expected = Path("/base/dir1/file.txt")
         assert result == expected
 
-    def test_build_path_empty_base_raises_error(self):
+    def test_build_path_empty_base_raises_error(self) -> None:
         """Test that empty base path raises ValueError."""
         with pytest.raises(ValueError, match="Base path cannot be empty"):
             PathUtils.build_path("", "dir1")
@@ -71,7 +71,7 @@ class TestPathUtils:
         with pytest.raises(ValueError, match="Base path cannot be empty"):
             PathUtils.build_path(None, "dir1")
 
-    def test_build_path_empty_segments_are_skipped(self, caplog):
+    def test_build_path_empty_segments_are_skipped(self, caplog) -> None:
         """Test that empty segments are skipped with warning."""
         result = PathUtils.build_path("/base", "dir1", "", "dir2", None, "file.txt")
         expected = Path("/base/dir1/dir2/file.txt")
@@ -83,7 +83,7 @@ class TestPathUtils:
             for record in caplog.records
         )
 
-    def test_build_thumbnail_path(self):
+    def test_build_thumbnail_path(self) -> None:
         """Test thumbnail path construction following VFX conventions."""
         result = PathUtils.build_thumbnail_path("/shows", "myshow", "seq01", "shot01")
 
@@ -93,13 +93,13 @@ class TestPathUtils:
         )
         assert result == expected
 
-    def test_build_raw_plate_path(self):
+    def test_build_raw_plate_path(self) -> None:
         """Test raw plate path construction."""
         result = PathUtils.build_raw_plate_path("/workspace/shot")
         expected = Path("/workspace/shot") / Path(*Config.RAW_PLATE_SEGMENTS)
         assert result == expected
 
-    def test_build_undistortion_path(self):
+    def test_build_undistortion_path(self) -> None:
         """Test undistortion path construction with username."""
         result = PathUtils.build_undistortion_path("/workspace", "testuser")
 
@@ -108,14 +108,14 @@ class TestPathUtils:
         expected = Path("/workspace") / Path(*expected_segments)
         assert result == expected
 
-    def test_build_threede_scene_path(self):
+    def test_build_threede_scene_path(self) -> None:
         """Test 3DE scene path construction."""
         result = PathUtils.build_threede_scene_path("/workspace", "testuser")
         expected_segments = ["user", "testuser"] + Config.THREEDE_SCENE_SEGMENTS
         expected = Path("/workspace") / Path(*expected_segments)
         assert result == expected
 
-    def test_validate_path_exists_with_real_files(self, tmp_path):
+    def test_validate_path_exists_with_real_files(self, tmp_path) -> None:
         """Test path validation with actual filesystem operations."""
         # Clear cache before test
         clear_all_caches()
@@ -133,12 +133,12 @@ class TestPathUtils:
             PathUtils.validate_path_exists(non_existing, "Non-existing file") is False
         )
 
-    def test_validate_path_exists_empty_path(self):
+    def test_validate_path_exists_empty_path(self) -> None:
         """Test validation of empty paths."""
         assert PathUtils.validate_path_exists("", "Empty path") is False
         assert PathUtils.validate_path_exists(None, "None path") is False
 
-    def test_validate_path_exists_caching_behavior(self, tmp_path):
+    def test_validate_path_exists_caching_behavior(self, tmp_path) -> None:
         """Test that path validation uses caching correctly."""
         # Use context manager to temporarily enable caching for this test
 
@@ -169,7 +169,7 @@ class TestPathUtils:
             # Always restore caching state
             disable_caching()
 
-    def test_validate_path_exists_manual_refresh_mode(self, tmp_path):
+    def test_validate_path_exists_manual_refresh_mode(self, tmp_path) -> None:
         """Test that path validation works in manual refresh mode (TTL = 0)."""
         # Use context manager to temporarily enable caching for this test
 
@@ -204,7 +204,7 @@ class TestPathUtils:
             # Always restore caching state
             disable_caching()
 
-    def test_batch_validate_paths(self, tmp_path):
+    def test_batch_validate_paths(self, tmp_path) -> None:
         """Test batch path validation for performance."""
         clear_all_caches()
 
@@ -227,7 +227,7 @@ class TestPathUtils:
         for missing_file in non_existing_files:
             assert results[str(missing_file)] is False
 
-    def test_safe_mkdir_success(self, tmp_path):
+    def test_safe_mkdir_success(self, tmp_path) -> None:
         """Test successful directory creation."""
         new_dir = tmp_path / "new" / "nested" / "directory"
 
@@ -236,7 +236,7 @@ class TestPathUtils:
         assert new_dir.exists()
         assert new_dir.is_dir()
 
-    def test_safe_mkdir_already_exists(self, tmp_path):
+    def test_safe_mkdir_already_exists(self, tmp_path) -> None:
         """Test mkdir with existing directory."""
         existing_dir = tmp_path / "existing"
         existing_dir.mkdir()
@@ -244,7 +244,7 @@ class TestPathUtils:
         result = PathUtils.safe_mkdir(existing_dir, "Existing directory")
         assert result is True
 
-    def test_safe_mkdir_empty_path(self):
+    def test_safe_mkdir_empty_path(self) -> None:
         """Test mkdir with empty path."""
         result = PathUtils.safe_mkdir("", "Empty path")
         assert result is False
@@ -253,14 +253,14 @@ class TestPathUtils:
         assert result is False
 
     @patch("pathlib.Path.mkdir")
-    def test_safe_mkdir_permission_error(self, mock_mkdir):
+    def test_safe_mkdir_permission_error(self, mock_mkdir) -> None:
         """Test mkdir with permission error."""
         mock_mkdir.side_effect = PermissionError("Permission denied")
 
         result = PathUtils.safe_mkdir("/some/path", "Permission test")
         assert result is False
 
-    def test_cache_cleanup_when_size_exceeded(self, tmp_path):
+    def test_cache_cleanup_when_size_exceeded(self, tmp_path) -> None:
         """Test that cache cleanup occurs when size limit is exceeded."""
         # Use context manager to temporarily enable caching for this test
 
@@ -285,7 +285,7 @@ class TestPathUtils:
             # Always restore caching state
             disable_caching()
 
-    def test_discover_plate_directories(self, tmp_path):
+    def test_discover_plate_directories(self, tmp_path) -> None:
         """Test plate directory discovery with priority ordering."""
         # Create plate directories
         base_path = tmp_path / "plates"
@@ -307,7 +307,7 @@ class TestPathUtils:
         assert "BG01" in plate_names
         assert "FG02" in plate_names
 
-    def test_discover_plate_directories_nonexistent_path(self):
+    def test_discover_plate_directories_nonexistent_path(self) -> None:
         """Test plate discovery with non-existent base path."""
         result = PathUtils.discover_plate_directories("/nonexistent/path")
         assert result == []
@@ -316,7 +316,7 @@ class TestPathUtils:
 class TestFileUtils:
     """Test FileUtils functionality with real filesystem operations."""
 
-    def test_find_files_by_extension_single_extension(self, tmp_path):
+    def test_find_files_by_extension_single_extension(self, tmp_path) -> None:
         """Test finding files with single extension."""
         # Create test files
         (tmp_path / "file1.txt").write_text("content1")
@@ -330,7 +330,7 @@ class TestFileUtils:
         assert len(result) == 3
         assert all(f.suffix.lower() == ".txt" for f in result)
 
-    def test_find_files_by_extension_multiple_extensions(self, tmp_path):
+    def test_find_files_by_extension_multiple_extensions(self, tmp_path) -> None:
         """Test finding files with multiple extensions."""
         # Create test files
         (tmp_path / "image1.jpg").write_text("image1")
@@ -344,7 +344,7 @@ class TestFileUtils:
         extensions = {f.suffix.lower() for f in result}
         assert extensions == {".jpg", ".jpeg", ".png"}
 
-    def test_find_files_by_extension_with_leading_dots(self, tmp_path):
+    def test_find_files_by_extension_with_leading_dots(self, tmp_path) -> None:
         """Test extension matching with leading dots."""
         (tmp_path / "test.py").write_text("code")
         (tmp_path / "test.js").write_text("script")
@@ -360,7 +360,7 @@ class TestFileUtils:
         # Results should be identical
         assert {f.name for f in result1} == {f.name for f in result2}
 
-    def test_find_files_by_extension_with_limit(self, tmp_path):
+    def test_find_files_by_extension_with_limit(self, tmp_path) -> None:
         """Test file finding with result limit."""
         # Create many test files
         for i in range(10):
@@ -371,12 +371,12 @@ class TestFileUtils:
         assert len(result) == 3
         assert all(f.suffix == ".txt" for f in result)
 
-    def test_find_files_by_extension_nonexistent_directory(self):
+    def test_find_files_by_extension_nonexistent_directory(self) -> None:
         """Test file finding in non-existent directory."""
         result = FileUtils.find_files_by_extension("/nonexistent", "txt")
         assert result == []
 
-    def test_find_files_by_extension_permission_error(self, tmp_path, caplog):
+    def test_find_files_by_extension_permission_error(self, tmp_path, caplog) -> None:
         """Test handling of permission errors during file discovery."""
         # Create directory
         test_dir = tmp_path / "restricted"
@@ -396,7 +396,7 @@ class TestFileUtils:
             "Error scanning directory" in record.message for record in caplog.records
         )
 
-    def test_find_files_by_extension_ignores_directories(self, tmp_path):
+    def test_find_files_by_extension_ignores_directories(self, tmp_path) -> None:
         """Test that directories are ignored even if they match extension pattern."""
         # Create directory with extension-like name
         dir_with_ext = tmp_path / "directory.txt"
@@ -412,7 +412,7 @@ class TestFileUtils:
         assert result[0].name == "file.txt"
         assert result[0].is_file()
 
-    def test_get_first_image_file(self, tmp_path):
+    def test_get_first_image_file(self, tmp_path) -> None:
         """Test finding first image file with extension priority."""
         # Create files in reverse priority order to test preference
         (tmp_path / "image.png").write_text("png image")
@@ -426,14 +426,14 @@ class TestFileUtils:
         assert result.exists()
         assert result.suffix.lower() in [ext.lower() for ext in Config.IMAGE_EXTENSIONS]
 
-    def test_get_first_image_file_no_images(self, tmp_path):
+    def test_get_first_image_file_no_images(self, tmp_path) -> None:
         """Test finding first image when no images exist."""
         (tmp_path / "document.txt").write_text("not an image")
 
         result = FileUtils.get_first_image_file(tmp_path)
         assert result is None
 
-    def test_validate_file_size_within_limit(self, tmp_path):
+    def test_validate_file_size_within_limit(self, tmp_path) -> None:
         """Test file size validation within limits."""
         test_file = tmp_path / "small_file.txt"
         test_file.write_text("small content")
@@ -441,7 +441,7 @@ class TestFileUtils:
         result = FileUtils.validate_file_size(test_file, max_size_mb=1)
         assert result is True
 
-    def test_validate_file_size_exceeds_limit(self, tmp_path, caplog):
+    def test_validate_file_size_exceeds_limit(self, tmp_path, caplog) -> None:
         """Test file size validation when file exceeds limit."""
         test_file = tmp_path / "large_file.txt"
         # Create file with content larger than limit
@@ -454,12 +454,12 @@ class TestFileUtils:
         # Check warning was logged
         assert any("File too large" in record.message for record in caplog.records)
 
-    def test_validate_file_size_nonexistent_file(self):
+    def test_validate_file_size_nonexistent_file(self) -> None:
         """Test file size validation with non-existent file."""
         result = FileUtils.validate_file_size("/nonexistent/file.txt")
         assert result is False
 
-    def test_validate_file_size_uses_config_default(self, tmp_path):
+    def test_validate_file_size_uses_config_default(self, tmp_path) -> None:
         """Test that file size validation uses Config.MAX_FILE_SIZE_MB when no limit specified."""
         test_file = tmp_path / "test_file.txt"
         test_file.write_text("test content")
@@ -473,7 +473,7 @@ class TestFileUtils:
 class TestVersionUtils:
     """Test VersionUtils functionality with real filesystem operations."""
 
-    def test_find_version_directories(self, tmp_path):
+    def test_find_version_directories(self, tmp_path) -> None:
         """Test finding version directories with proper sorting."""
         # Create version directories
         (tmp_path / "v001").mkdir()
@@ -491,7 +491,7 @@ class TestVersionUtils:
         assert result[2] == (3, "v003")
         assert result[3] == (10, "v010")
 
-    def test_find_version_directories_caching(self, tmp_path):
+    def test_find_version_directories_caching(self, tmp_path) -> None:
         """Test that version directory scanning uses caching."""
         VersionUtils.clear_version_cache()
 
@@ -510,12 +510,12 @@ class TestVersionUtils:
         result2 = VersionUtils.find_version_directories(tmp_path)
         assert result1 == result2
 
-    def test_find_version_directories_nonexistent_path(self):
+    def test_find_version_directories_nonexistent_path(self) -> None:
         """Test version finding with non-existent path."""
         result = VersionUtils.find_version_directories("/nonexistent")
         assert result == []
 
-    def test_find_version_directories_permission_error(self, tmp_path, caplog):
+    def test_find_version_directories_permission_error(self, tmp_path, caplog) -> None:
         """Test handling of permission errors during version scanning."""
         with patch.object(
             Path,
@@ -530,7 +530,7 @@ class TestVersionUtils:
             for record in caplog.records
         )
 
-    def test_get_latest_version(self, tmp_path):
+    def test_get_latest_version(self, tmp_path) -> None:
         """Test getting latest version from directory."""
         # Create version directories
         (tmp_path / "v001").mkdir()
@@ -540,12 +540,12 @@ class TestVersionUtils:
         result = VersionUtils.get_latest_version(tmp_path)
         assert result == "v005"
 
-    def test_get_latest_version_no_versions(self, tmp_path):
+    def test_get_latest_version_no_versions(self, tmp_path) -> None:
         """Test getting latest version when no versions exist."""
         result = VersionUtils.get_latest_version(tmp_path)
         assert result is None
 
-    def test_extract_version_from_path(self):
+    def test_extract_version_from_path(self) -> None:
         """Test version extraction from file/directory paths."""
         # Test various path patterns
         assert (
@@ -558,7 +558,7 @@ class TestVersionUtils:
         assert VersionUtils.extract_version_from_path("/no/version/here.txt") is None
         assert VersionUtils.extract_version_from_path("") is None
 
-    def test_extract_version_from_path_caching(self):
+    def test_extract_version_from_path_caching(self) -> None:
         """Test that version extraction uses LRU cache."""
         # Clear cache
         VersionUtils.extract_version_from_path.cache_clear()
@@ -574,7 +574,7 @@ class TestVersionUtils:
         assert cache_info.hits == 4  # 4 cache hits after first miss
         assert cache_info.misses == 1
 
-    def test_version_cache_cleanup(self, tmp_path):
+    def test_version_cache_cleanup(self, tmp_path) -> None:
         """Test version cache cleanup when size limit exceeded."""
         VersionUtils.clear_version_cache()
 
@@ -596,12 +596,12 @@ class TestVersionUtils:
 class TestValidationUtils:
     """Test ValidationUtils functionality."""
 
-    def test_validate_not_empty_all_valid(self):
+    def test_validate_not_empty_all_valid(self) -> None:
         """Test validation with all valid values."""
         result = ValidationUtils.validate_not_empty("value1", "value2", "value3")
         assert result is True
 
-    def test_validate_not_empty_with_names(self):
+    def test_validate_not_empty_with_names(self) -> None:
         """Test validation with names for better error messages."""
         result = ValidationUtils.validate_not_empty(
             "valid",
@@ -610,7 +610,7 @@ class TestValidationUtils:
         )
         assert result is True
 
-    def test_validate_not_empty_with_none(self, caplog):
+    def test_validate_not_empty_with_none(self, caplog) -> None:
         """Test validation fails with None values."""
         result = ValidationUtils.validate_not_empty("valid", None, "also_valid")
         assert result is False
@@ -618,7 +618,7 @@ class TestValidationUtils:
             "Empty or None value 1" in record.message for record in caplog.records
         )
 
-    def test_validate_not_empty_with_empty_string(self, caplog):
+    def test_validate_not_empty_with_empty_string(self, caplog) -> None:
         """Test validation fails with empty strings."""
         result = ValidationUtils.validate_not_empty("valid", "", "also_valid")
         assert result is False
@@ -626,7 +626,7 @@ class TestValidationUtils:
             "Empty or None value 1" in record.message for record in caplog.records
         )
 
-    def test_validate_not_empty_names_length_mismatch(self):
+    def test_validate_not_empty_names_length_mismatch(self) -> None:
         """Test that mismatched names length raises ValueError."""
         with pytest.raises(ValueError, match="Names list must match values length"):
             ValidationUtils.validate_not_empty(
@@ -635,12 +635,12 @@ class TestValidationUtils:
                 names=["name1"],  # Only one name for two values
             )
 
-    def test_validate_shot_components_all_valid(self):
+    def test_validate_shot_components_all_valid(self) -> None:
         """Test shot component validation with valid inputs."""
         result = ValidationUtils.validate_shot_components("show1", "seq01", "shot01")
         assert result is True
 
-    def test_validate_shot_components_with_empty(self):
+    def test_validate_shot_components_with_empty(self) -> None:
         """Test shot component validation with empty values."""
         result = ValidationUtils.validate_shot_components("", "seq01", "shot01")
         assert result is False
@@ -648,7 +648,7 @@ class TestValidationUtils:
         result = ValidationUtils.validate_shot_components("show1", None, "shot01")
         assert result is False
 
-    def test_get_current_username_from_env(self):
+    def test_get_current_username_from_env(self) -> None:
         """Test username detection from environment variables."""
         # Test each environment variable in priority order
         env_vars = ["USER", "USERNAME", "LOGNAME"]
@@ -658,14 +658,14 @@ class TestValidationUtils:
                 result = ValidationUtils.get_current_username()
                 assert result == "testuser"
 
-    def test_get_current_username_fallback_to_default(self):
+    def test_get_current_username_fallback_to_default(self) -> None:
         """Test username fallback when no environment variables are set."""
         # Clear all username environment variables
         with patch.dict(os.environ, {}, clear=True):
             result = ValidationUtils.get_current_username()
             assert result == Config.DEFAULT_USERNAME
 
-    def test_get_excluded_users_default(self):
+    def test_get_excluded_users_default(self) -> None:
         """Test getting excluded users with current user only."""
         with patch.object(
             ValidationUtils,
@@ -675,7 +675,7 @@ class TestValidationUtils:
             result = ValidationUtils.get_excluded_users()
             assert result == {"currentuser"}
 
-    def test_get_excluded_users_with_additional(self):
+    def test_get_excluded_users_with_additional(self) -> None:
         """Test getting excluded users with additional users."""
         additional = {"user1", "user2"}
         with patch.object(
@@ -686,7 +686,7 @@ class TestValidationUtils:
             result = ValidationUtils.get_excluded_users(additional)
             assert result == {"currentuser", "user1", "user2"}
 
-    def test_get_excluded_users_no_duplicates(self):
+    def test_get_excluded_users_no_duplicates(self) -> None:
         """Test that current user isn't duplicated if in additional users."""
         additional = {"currentuser", "user1"}  # Includes current user
         with patch.object(
@@ -701,7 +701,7 @@ class TestValidationUtils:
 class TestImageUtils:
     """Test ImageUtils functionality."""
 
-    def test_validate_image_dimensions_within_limits(self):
+    def test_validate_image_dimensions_within_limits(self) -> None:
         """Test image dimension validation within acceptable limits."""
         result = ImageUtils.validate_image_dimensions(
             1920,
@@ -711,7 +711,7 @@ class TestImageUtils:
         )
         assert result is True
 
-    def test_validate_image_dimensions_exceeds_dimension_limit(self, caplog):
+    def test_validate_image_dimensions_exceeds_dimension_limit(self, caplog) -> None:
         """Test image dimension validation when dimensions exceed limits."""
         result = ImageUtils.validate_image_dimensions(
             5000,
@@ -724,7 +724,7 @@ class TestImageUtils:
             "Image dimensions too large" in record.message for record in caplog.records
         )
 
-    def test_validate_image_dimensions_exceeds_memory_limit(self, caplog):
+    def test_validate_image_dimensions_exceeds_memory_limit(self, caplog) -> None:
         """Test image dimension validation when estimated memory exceeds limits."""
         # 4000x4000 = 16M pixels * 4 bytes = 64MB
         result = ImageUtils.validate_image_dimensions(
@@ -739,19 +739,19 @@ class TestImageUtils:
             for record in caplog.records
         )
 
-    def test_validate_image_dimensions_uses_config_defaults(self):
+    def test_validate_image_dimensions_uses_config_defaults(self) -> None:
         """Test that image validation uses config defaults when not specified."""
         with patch.object(Config, "MAX_THUMBNAIL_DIMENSION_PX", 2048):
             with patch.object(Config, "MAX_THUMBNAIL_MEMORY_MB", 10):
                 result = ImageUtils.validate_image_dimensions(1920, 1080)
                 assert result is True
 
-    def test_get_safe_dimensions_for_thumbnail(self):
+    def test_get_safe_dimensions_for_thumbnail(self) -> None:
         """Test getting safe thumbnail dimensions."""
         result = ImageUtils.get_safe_dimensions_for_thumbnail(256)
         assert result == (256, 256)
 
-    def test_get_safe_dimensions_for_thumbnail_uses_config_default(self):
+    def test_get_safe_dimensions_for_thumbnail_uses_config_default(self) -> None:
         """Test that safe dimensions use config default when not specified."""
         with patch.object(Config, "CACHE_THUMBNAIL_SIZE", 512):
             result = ImageUtils.get_safe_dimensions_for_thumbnail()
@@ -761,7 +761,7 @@ class TestImageUtils:
 class TestCacheManagement:
     """Test cache management and utility functions."""
 
-    def test_clear_all_caches(self):
+    def test_clear_all_caches(self) -> None:
         """Test that clear_all_caches clears all cache systems."""
         # Use context manager to temporarily enable caching for this test
 
@@ -782,7 +782,7 @@ class TestCacheManagement:
             # Always restore caching state
             disable_caching()
 
-    def test_get_cache_stats(self):
+    def test_get_cache_stats(self) -> None:
         """Test cache statistics reporting."""
         # Use context manager to temporarily enable caching for this test
 
@@ -805,7 +805,7 @@ class TestCacheManagement:
             # Always restore caching state
             disable_caching()
 
-    def test_path_cache_manual_refresh_mode(self, tmp_path):
+    def test_path_cache_manual_refresh_mode(self, tmp_path) -> None:
         """Test that path cache works in manual refresh mode (TTL = 0)."""
         # Use context manager to temporarily enable caching for this test
 
@@ -844,7 +844,7 @@ class TestCacheManagement:
 class TestFindTurnoverPlateThumbnail:
     """Test the complex turnover plate thumbnail discovery logic."""
 
-    def test_find_turnover_plate_thumbnail_success(self, tmp_path):
+    def test_find_turnover_plate_thumbnail_success(self, tmp_path) -> None:
         """Test successful turnover plate thumbnail discovery."""
         # Create directory structure:
         # /shows/myshow/shots/seq01/seq01_shot01/publish/turnover/plate/input_plate/FG01/v001/exr/1920x1080/
@@ -883,7 +883,7 @@ class TestFindTurnoverPlateThumbnail:
         )
         assert result.exists()
 
-    def test_find_turnover_plate_thumbnail_priority_order(self, tmp_path):
+    def test_find_turnover_plate_thumbnail_priority_order(self, tmp_path) -> None:
         """Test that FG plates are preferred over BG plates."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
@@ -912,7 +912,7 @@ class TestFindTurnoverPlateThumbnail:
         assert result is not None
         assert "FG01" in result.name
 
-    def test_find_turnover_plate_thumbnail_frame_number_sorting(self, tmp_path):
+    def test_find_turnover_plate_thumbnail_frame_number_sorting(self, tmp_path) -> None:
         """Test that frame numbers are sorted correctly."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
@@ -944,7 +944,7 @@ class TestFindTurnoverPlateThumbnail:
         assert result is not None
         assert "1001" in result.name  # Should get the earliest frame
 
-    def test_find_turnover_plate_thumbnail_no_base_path(self):
+    def test_find_turnover_plate_thumbnail_no_base_path(self) -> None:
         """Test turnover plate discovery when base path doesn't exist."""
         result = PathUtils.find_turnover_plate_thumbnail(
             "/nonexistent",
@@ -954,7 +954,7 @@ class TestFindTurnoverPlateThumbnail:
         )
         assert result is None
 
-    def test_find_turnover_plate_thumbnail_no_plates(self, tmp_path):
+    def test_find_turnover_plate_thumbnail_no_plates(self, tmp_path) -> None:
         """Test turnover plate discovery when no plate directories exist."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
@@ -973,7 +973,7 @@ class TestFindTurnoverPlateThumbnail:
 class TestFindAnyPublishThumbnail:
     """Test the fallback EXR discovery in publish folders."""
 
-    def test_find_any_publish_thumbnail_success(self, tmp_path):
+    def test_find_any_publish_thumbnail_success(self, tmp_path) -> None:
         """Test successful discovery of 1001 EXR files in publish folder."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
@@ -997,7 +997,7 @@ class TestFindAnyPublishThumbnail:
         assert "1001" in result.name
         assert result.suffix.lower() == ".exr"
 
-    def test_find_any_publish_thumbnail_depth_limit(self, tmp_path):
+    def test_find_any_publish_thumbnail_depth_limit(self, tmp_path) -> None:
         """Test that search respects maximum depth limit."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
@@ -1023,7 +1023,7 @@ class TestFindAnyPublishThumbnail:
         # Should not find the deeply nested file
         assert result is None
 
-    def test_find_any_publish_thumbnail_no_1001_files(self, tmp_path):
+    def test_find_any_publish_thumbnail_no_1001_files(self, tmp_path) -> None:
         """Test that files without 1001 are ignored."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
@@ -1043,7 +1043,7 @@ class TestFindAnyPublishThumbnail:
         )
         assert result is None
 
-    def test_find_any_publish_thumbnail_permission_error(self, tmp_path, caplog):
+    def test_find_any_publish_thumbnail_permission_error(self, tmp_path, caplog) -> None:
         """Test handling of permission errors during recursive search."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
@@ -1073,7 +1073,7 @@ class TestFindAnyPublishThumbnail:
         # The important thing is that the function handles the error gracefully and returns None
         assert len(debug_messages) >= 0  # Just verify no crash occurred
 
-    def test_find_any_publish_thumbnail_custom_max_depth(self, tmp_path):
+    def test_find_any_publish_thumbnail_custom_max_depth(self, tmp_path) -> None:
         """Test custom max_depth parameter."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"

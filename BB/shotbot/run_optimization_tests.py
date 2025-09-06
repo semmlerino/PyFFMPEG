@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 
-def run_optimization_tests():
+def run_optimization_tests() -> None:
     """Run the new optimization tests with proper setup."""
 
     test_files = [

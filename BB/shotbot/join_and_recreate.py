@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='Join split VFX structure JSONs and recreate environment'
     )

@@ -43,7 +43,7 @@ class ModernButton(QPushButton):
         text: str = "",
         variant: str = "default",
         icon: QIcon | None = None,
-    ):
+    ) -> None:
         super().__init__(text)
         self.variant = variant
         self._setup_style()
@@ -56,7 +56,7 @@ class ModernButton(QPushButton):
         # Add keyboard shortcut hint to tooltip
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-    def _setup_style(self):
+    def _setup_style(self) -> None:
         """Apply modern styling based on variant."""
 
         if self.variant == "primary":
@@ -68,7 +68,7 @@ class ModernButton(QPushButton):
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-    def _setup_animations(self):
+    def _setup_animations(self) -> None:
         """Set up hover and click animations."""
         self.opacity_effect = QGraphicsOpacityEffect()
         self.setGraphicsEffect(self.opacity_effect)
@@ -91,7 +91,7 @@ class ModernButton(QPushButton):
         self.hover_animation.start()
         super().leaveEvent(event)
 
-    def set_loading(self, loading: bool):
+    def set_loading(self, loading: bool) -> None:
         """Show loading state."""
         self.setEnabled(not loading)
         if loading:
@@ -103,7 +103,7 @@ class ModernButton(QPushButton):
 class LoadingSpinner(QWidget):
     """Animated loading spinner widget."""
 
-    def __init__(self, size: int = 40, parent: QWidget | None = None):
+    def __init__(self, size: int = 40, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._size = size
         self.angle = 0
@@ -111,7 +111,7 @@ class LoadingSpinner(QWidget):
         self.timer.timeout.connect(self._rotate)
         self.setFixedSize(size, size)
 
-    def _rotate(self):
+    def _rotate(self) -> None:
         """Rotate the spinner."""
         self.angle = (self.angle + 10) % 360
         self.update()
@@ -130,12 +130,12 @@ class LoadingSpinner(QWidget):
         rect = QRect(5, 5, self._size - 10, self._size - 10)
         painter.drawArc(rect, self.angle * 16, 120 * 16)
 
-    def start(self):
+    def start(self) -> None:
         """Start spinning."""
         self.timer.start(50)
         self.show()
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop spinning."""
         self.timer.stop()
         self.hide()
@@ -146,13 +146,13 @@ class NotificationBanner(QFrame):
 
     closed = Signal()
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._setup_ui()
         self._setup_animations()
         self.hide()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Set up the banner UI."""
         self.setObjectName("notificationBanner")
         self.setFrameStyle(QFrame.Shape.NoFrame)
@@ -190,7 +190,7 @@ class NotificationBanner(QFrame):
         """)
         layout.addWidget(self.close_button)
 
-    def _setup_animations(self):
+    def _setup_animations(self) -> None:
         """Set up slide and fade animations."""
         self.opacity_effect = QGraphicsOpacityEffect()
         self.setGraphicsEffect(self.opacity_effect)
@@ -209,7 +209,7 @@ class NotificationBanner(QFrame):
         self.animation_group.addAnimation(self.slide_animation)
         self.animation_group.addAnimation(self.fade_animation)
 
-    def show_message(self, message: str, msg_type: str = "info", duration: int = 5000):
+    def show_message(self, message: str, msg_type: str = "info", duration: int = 5000) -> None:
         """Show a notification message."""
         self.message_label.setText(message)
 
@@ -260,7 +260,7 @@ class NotificationBanner(QFrame):
         if duration > 0:
             QTimer.singleShot(duration, self.hide_banner)
 
-    def hide_banner(self):
+    def hide_banner(self) -> None:
         """Hide the banner with animation."""
         parent_widget = self.parent()
         if isinstance(parent_widget, QWidget):
@@ -285,12 +285,12 @@ class ProgressOverlay(QWidget):
 
     canceled = Signal()
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._setup_ui()
         self.hide()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Set up the overlay UI."""
         self.setStyleSheet(f"""
             QWidget {{
@@ -347,7 +347,7 @@ class ProgressOverlay(QWidget):
 
         layout.addWidget(card)
 
-    def show_progress(self, title: str = "Processing...", can_cancel: bool = True):
+    def show_progress(self, title: str = "Processing...", can_cancel: bool = True) -> None:
         """Show the progress overlay."""
         self.title_label.setText(title)
         self.cancel_button.setVisible(can_cancel)
@@ -362,12 +362,12 @@ class ProgressOverlay(QWidget):
         self.show()
         self.raise_()
 
-    def update_progress(self, value: int, status: str = ""):
+    def update_progress(self, value: int, status: str = "") -> None:
         """Update progress value and status."""
         self.progress_bar.setValue(value)
         self.status_label.setText(status)
 
-    def hide_progress(self):
+    def hide_progress(self) -> None:
         """Hide the progress overlay."""
         self.spinner.stop()
         self.hide()
@@ -385,11 +385,11 @@ class EmptyStateWidget(QWidget):
         description: str = "",
         action_text: str = "",
         parent: QWidget | None = None,
-    ):
+    ) -> None:
         super().__init__(parent)
         self._setup_ui(icon, title, description, action_text)
 
-    def _setup_ui(self, icon: str, title: str, description: str, action_text: str):
+    def _setup_ui(self, icon: str, title: str, description: str, action_text: str) -> None:
         """Set up the empty state UI."""
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -430,7 +430,7 @@ class EmptyStateWidget(QWidget):
 class ThumbnailPlaceholder(QLabel):
     """Placeholder widget shown while thumbnail is loading."""
 
-    def __init__(self, size: int = 200):
+    def __init__(self, size: int = 200) -> None:
         super().__init__()
         self.setFixedSize(size, size)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -454,7 +454,7 @@ class ThumbnailPlaceholder(QLabel):
         self.shimmer_animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
         self.shimmer_animation.start()
 
-    def set_error(self):
+    def set_error(self) -> None:
         """Show error state."""
         self.shimmer_animation.stop()
         self.setText("❌\nFailed to load")
@@ -471,13 +471,13 @@ class ThumbnailPlaceholder(QLabel):
 class FloatingActionButton(QPushButton):
     """Material Design style floating action button."""
 
-    def __init__(self, icon: str = "+", parent: QWidget | None = None):
+    def __init__(self, icon: str = "+", parent: QWidget | None = None) -> None:
         super().__init__(icon, parent)
         self._setup_style()
         self._setup_animations()
         self._position_button()
 
-    def _setup_style(self):
+    def _setup_style(self) -> None:
         """Apply FAB styling."""
         self.setFixedSize(56, 56)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -507,13 +507,13 @@ class FloatingActionButton(QPushButton):
         shadow.setColor(QColor(0, 0, 0, 80))
         self.setGraphicsEffect(shadow)
 
-    def _setup_animations(self):
+    def _setup_animations(self) -> None:
         """Set up hover animations."""
         self.hover_animation = QPropertyAnimation(self, b"geometry")
         self.hover_animation.setDuration(design_system.animation.duration_fast)
         self.hover_animation.setEasingCurve(QEasingCurve.Type.OutBack)
 
-    def _position_button(self):
+    def _position_button(self) -> None:
         """Position the FAB in bottom-right corner."""
         parent_widget = self.parent()
         if isinstance(parent_widget, QWidget):

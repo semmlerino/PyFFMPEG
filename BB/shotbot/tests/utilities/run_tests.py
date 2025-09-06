@@ -152,7 +152,7 @@ def build_pytest_args(args):
     return pytest_args
 
 
-def main():
+def main() -> None:
     """Main entry point for test runner."""
     args = parse_arguments()
     pytest_args = build_pytest_args(args)

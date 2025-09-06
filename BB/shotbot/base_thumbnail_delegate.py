@@ -9,6 +9,7 @@ colors, fonts, and specific data roles.
 from __future__ import annotations
 
 import logging
+
 # Note: Can't use ABC with Qt classes due to metaclass conflict
 from dataclasses import dataclass, field
 from typing import Any
@@ -27,7 +28,6 @@ from PySide6.QtGui import (
     QBrush,
     QColor,
     QFont,
-    QFontMetrics,
     QPainter,
     QPainterPath,
     QPen,
@@ -92,7 +92,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
     thumbnail_clicked = Signal(QModelIndex)
     thumbnail_double_clicked = Signal(QModelIndex)
     
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the delegate.
         
         Args:

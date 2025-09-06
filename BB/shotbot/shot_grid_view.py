@@ -62,7 +62,7 @@ class ShotGridView(QWidget):
         self,
         model: ShotItemModel | None = None,
         parent: QWidget | None = None,
-    ):
+    ) -> None:
         """Initialize the grid view.
 
         Args:

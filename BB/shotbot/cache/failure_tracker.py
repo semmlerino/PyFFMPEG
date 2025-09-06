@@ -29,7 +29,7 @@ class FailureTracker:
         retry_multiplier: int = 3,
         max_failed_attempts: int = 4,
         cleanup_age_hours: int = 24,
-    ):
+    ) -> None:
         """Initialize failure tracker with configurable parameters.
 
         Args:

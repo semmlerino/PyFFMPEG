@@ -32,12 +32,12 @@ class TestThreeDEWorkerWorkflow:
     the ThreadSafeProgressTracker parameter bug in production.
     """
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_worker_test_"))
         self.shows_root = self.temp_dir / "shows"
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directories."""
         import shutil
 
@@ -78,7 +78,7 @@ class TestThreeDEWorkerWorkflow:
 
         return test_shots
 
-    def test_worker_full_production_workflow(self, qtbot):
+    def test_worker_full_production_workflow(self, qtbot) -> None:
         """Test complete worker workflow as triggered by user - would catch parameter bug.
 
         This test exercises the exact workflow that failed in production:
@@ -100,7 +100,7 @@ class TestThreeDEWorkerWorkflow:
 
         # Following Qt Widget Pattern (lines 82-102): Register for cleanup
         # Note: QThread doesn't inherit from QWidget but needs proper cleanup
-        def cleanup_worker():
+        def cleanup_worker() -> None:
             if worker.isRunning():
                 worker.requestInterruption()
                 worker.quit()
@@ -113,13 +113,13 @@ class TestThreeDEWorkerWorkflow:
 
         def on_progress(
             current: int, total: int, percentage: float, status: str, eta: str
-        ):
+        ) -> None:
             progress_updates.append((current, total, percentage, status, eta))
 
-        def on_error(error_msg: str):
+        def on_error(error_msg: str) -> None:
             error_messages.append(error_msg)
 
-        def on_finished(scenes: list):
+        def on_finished(scenes: list) -> None:
             nonlocal final_scenes
             final_scenes = scenes
 
@@ -150,7 +150,7 @@ class TestThreeDEWorkerWorkflow:
         finally:
             cleanup_worker()
 
-    def test_worker_progressive_scan_with_cancellation(self, qtbot):
+    def test_worker_progressive_scan_with_cancellation(self, qtbot) -> None:
         """Test worker cancellation during progressive scan."""
         test_shots = self._create_test_vfx_structure()
 
@@ -169,7 +169,7 @@ class TestThreeDEWorkerWorkflow:
         worker.started.connect(lambda: started_signals.append(True))
         worker.finished.connect(lambda scenes: finished_signals.append(len(scenes)))
 
-        def cleanup_worker():
+        def cleanup_worker() -> None:
             if worker.isRunning():
                 worker.requestInterruption()
                 worker.quit()
@@ -199,7 +199,7 @@ class TestThreeDEWorkerWorkflow:
         finally:
             cleanup_worker()
 
-    def test_worker_error_handling_workflow(self, qtbot):
+    def test_worker_error_handling_workflow(self, qtbot) -> None:
         """Test worker error handling when parallel discovery encounters issues."""
         # Create invalid shot paths to trigger errors
         invalid_shots = [
@@ -215,12 +215,11 @@ class TestThreeDEWorkerWorkflow:
         )
 
         error_messages = []
-        final_scenes = None
 
         worker.error.connect(lambda msg: error_messages.append(msg))
         worker.finished.connect(lambda scenes: globals().update(final_scenes=scenes))
 
-        def cleanup_worker():
+        def cleanup_worker() -> None:
             if worker.isRunning():
                 worker.requestInterruption()
                 worker.quit()
@@ -239,7 +238,7 @@ class TestThreeDEWorkerWorkflow:
         finally:
             cleanup_worker()
 
-    def test_worker_signal_emission_patterns(self, qtbot):
+    def test_worker_signal_emission_patterns(self, qtbot) -> None:
         """Test that worker emits signals correctly throughout the workflow."""
         test_shots = self._create_test_vfx_structure()
 
@@ -263,7 +262,7 @@ class TestThreeDEWorkerWorkflow:
             lambda scenes: finished_signals.append((time.time(), len(scenes)))
         )
 
-        def cleanup_worker():
+        def cleanup_worker() -> None:
             if worker.isRunning():
                 worker.requestInterruption()
                 worker.quit()
@@ -293,7 +292,7 @@ class TestThreeDEWorkerWorkflow:
         finally:
             cleanup_worker()
 
-    def test_worker_memory_and_resource_cleanup(self, qtbot):
+    def test_worker_memory_and_resource_cleanup(self, qtbot) -> None:
         """Test that worker properly cleans up resources after completion."""
         test_shots = self._create_test_vfx_structure()
 
@@ -301,7 +300,7 @@ class TestThreeDEWorkerWorkflow:
             shots=test_shots[:3], excluded_users=set(), enable_progressive=True
         )
 
-        def cleanup_worker():
+        def cleanup_worker() -> None:
             if worker.isRunning():
                 worker.requestInterruption()
                 worker.quit()
@@ -332,7 +331,7 @@ class TestThreeDEWorkerWorkflow:
         finally:
             cleanup_worker()
 
-    def test_worker_concurrent_signal_handling(self, qtbot):
+    def test_worker_concurrent_signal_handling(self, qtbot) -> None:
         """Test worker signal handling when multiple signals are emitted rapidly."""
         # Create larger structure to generate more signals
         test_shots = self._create_test_vfx_structure()
@@ -350,7 +349,7 @@ class TestThreeDEWorkerWorkflow:
         signal_lock = threading.Lock()
         all_signals = []
 
-        def track_signal(signal_name: str, *args):
+        def track_signal(signal_name: str, *args) -> None:
             with signal_lock:
                 all_signals.append((time.time(), signal_name, args))
 
@@ -359,7 +358,7 @@ class TestThreeDEWorkerWorkflow:
         worker.finished.connect(lambda scenes: track_signal("finished", len(scenes)))
         worker.error.connect(lambda msg: track_signal("error", msg))
 
-        def cleanup_worker():
+        def cleanup_worker() -> None:
             if worker.isRunning():
                 worker.requestInterruption()
                 worker.quit()
@@ -385,7 +384,7 @@ class TestThreeDEWorkerWorkflow:
         finally:
             cleanup_worker()
 
-    def test_worker_timeout_handling(self, qtbot):
+    def test_worker_timeout_handling(self, qtbot) -> None:
         """Test worker behavior with realistic timeouts."""
         test_shots = self._create_test_vfx_structure()
 
@@ -398,7 +397,7 @@ class TestThreeDEWorkerWorkflow:
         completed = []
         worker.finished.connect(lambda scenes: completed.append(len(scenes)))
 
-        def cleanup_worker():
+        def cleanup_worker() -> None:
             if worker.isRunning():
                 worker.requestInterruption()
                 worker.quit()
@@ -414,7 +413,7 @@ class TestThreeDEWorkerWorkflow:
         finally:
             cleanup_worker()
 
-    def test_production_simulation_workflow(self, qtbot):
+    def test_production_simulation_workflow(self, qtbot) -> None:
         """Simulate the exact production workflow that triggered the bug.
 
         This test simulates:
@@ -439,7 +438,7 @@ class TestThreeDEWorkerWorkflow:
         # Track the complete workflow
         workflow_events = []
 
-        def track_event(event: str, *args):
+        def track_event(event: str, *args) -> None:
             workflow_events.append((time.time(), event, args))
 
         worker.started.connect(lambda: track_event("worker_started"))
@@ -449,7 +448,7 @@ class TestThreeDEWorkerWorkflow:
         )
         worker.error.connect(lambda msg: track_event("error_occurred", msg))
 
-        def cleanup_worker():
+        def cleanup_worker() -> None:
             if worker.isRunning():
                 worker.requestInterruption()
                 worker.quit()

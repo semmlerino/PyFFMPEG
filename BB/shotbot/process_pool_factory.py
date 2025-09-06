@@ -68,7 +68,7 @@ class ProcessPoolFactory:
     _factory_mode: str = "production"  # production, mock, custom
     
     @classmethod
-    def set_implementation(cls, implementation: ProcessPoolInterface | None):
+    def set_implementation(cls, implementation: ProcessPoolInterface | None) -> None:
         """Set a custom implementation to use instead of the default.
         
         This must be called BEFORE any code imports ProcessPoolManager.
@@ -88,7 +88,7 @@ class ProcessPoolFactory:
                 logger.info("ProcessPoolFactory: Custom implementation injected")
     
     @classmethod
-    def set_mock_mode(cls, mock_mode: bool = True):
+    def set_mock_mode(cls, mock_mode: bool = True) -> None:
         """Enable or disable mock mode.
         
         When enabled, TestProcessPool will be used instead of ProcessPoolManager.
@@ -207,7 +207,7 @@ class ProcessPoolFactory:
             return mock_pool
     
     @classmethod
-    def reset(cls):
+    def reset(cls) -> None:
         """Reset the factory to initial state.
         
         Useful for testing to ensure clean state between tests.

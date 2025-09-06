@@ -23,12 +23,12 @@ from terminal_launcher import Launcher, TerminalLauncher  # noqa: E402
 class CustomLauncherManager:
     """Manages custom application launchers for ShotBot."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.terminal_launcher = TerminalLauncher()
         self.custom_launchers = {}
         self._load_default_launchers()
 
-    def _load_default_launchers(self):
+    def _load_default_launchers(self) -> None:
         """Load default custom launchers."""
 
         # ShotBot Debug Launcher
@@ -166,11 +166,11 @@ class CustomLauncherManager:
 
         return result
 
-    def add_custom_launcher(self, launcher_id, launcher):
+    def add_custom_launcher(self, launcher_id, launcher) -> None:
         """Add a new custom launcher."""
         self.custom_launchers[launcher_id] = launcher
 
-    def remove_custom_launcher(self, launcher_id):
+    def remove_custom_launcher(self, launcher_id) -> bool:
         """Remove a custom launcher."""
         if launcher_id in self.custom_launchers:
             del self.custom_launchers[launcher_id]
@@ -182,7 +182,7 @@ class CustomLauncherManager:
         return self.terminal_launcher.get_available_terminals()
 
 
-def demo_integration():
+def demo_integration() -> None:
     """Demonstrate the custom launcher integration."""
     print("🎬 ShotBot Custom Launcher Integration Demo\n")
 

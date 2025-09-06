@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class SimpleTestWorker(ThreadSafeWorker):
     """Lightweight test worker without timeouts."""
 
-    def __init__(self, work_steps: int = 5, fail_on_purpose: bool = False):
+    def __init__(self, work_steps: int = 5, fail_on_purpose: bool = False) -> None:
         super().__init__()
         self.work_steps = work_steps
         self.fail_on_purpose = fail_on_purpose
@@ -30,7 +30,7 @@ class SimpleTestWorker(ThreadSafeWorker):
         self.work_completed = False
         self.steps_completed = 0
 
-    def do_work(self):
+    def do_work(self) -> None:
         """Quick work implementation without sleep."""
         self.work_started = True
 
@@ -100,12 +100,12 @@ def launcher_manager(qtbot, test_subprocess, monkeypatch):
 class TestQTimerCascadePrevention:
     """Test QTimer cascade prevention without timeouts."""
 
-    def test_rapid_cleanup_requests(self, launcher_manager, qtbot):
+    def test_rapid_cleanup_requests(self, launcher_manager, qtbot) -> None:
         """Test rapid cleanup requests don't cascade timers."""
         timer_activations = []
         original_start = launcher_manager._cleanup_retry_timer.start
 
-        def track_timer_start(interval):
+        def track_timer_start(interval) -> None:
             timer_activations.append(time.time())
             original_start(interval)
 
@@ -123,7 +123,7 @@ class TestQTimerCascadePrevention:
         assert hasattr(launcher_manager, "_cleanup_scheduled")
         launcher_manager._cleanup_retry_timer.start = original_start
 
-    def test_cleanup_coordination(self, launcher_manager, qtbot):
+    def test_cleanup_coordination(self, launcher_manager, qtbot) -> None:
         """Test cleanup coordination behavior."""
         mock_worker = MagicMock()
         mock_worker.get_state.return_value = WorkerState.STOPPED
@@ -142,7 +142,7 @@ class TestWorkerStateTransitions:
     """Test WorkerState transitions without timeouts."""
 
     @pytest.mark.timeout(5)
-    def test_basic_state_transitions(self, qtbot):
+    def test_basic_state_transitions(self, qtbot) -> None:
         """Test basic state transitions."""
         worker = SimpleTestWorker(work_steps=3)
 
@@ -169,7 +169,7 @@ class TestWorkerStateTransitions:
         assert final_state in [WorkerState.STOPPED, WorkerState.DELETED]
 
     @pytest.mark.timeout(5)
-    def test_state_validation(self, qtbot):
+    def test_state_validation(self, qtbot) -> None:
         """Test state validation."""
         worker = SimpleTestWorker(work_steps=2)
 
@@ -187,7 +187,7 @@ class TestWorkerStateTransitions:
         assert worker.get_state() in [WorkerState.STOPPED, WorkerState.DELETED]
 
     @pytest.mark.timeout(10)
-    def test_multiple_workers_lifecycle(self, qtbot):
+    def test_multiple_workers_lifecycle(self, qtbot) -> None:
         """Test multiple workers."""
         workers = []
 
@@ -216,7 +216,7 @@ class TestWorkerStateTransitions:
 class TestPerformanceImprovements:
     """Test performance improvements without cache operations."""
 
-    def test_timer_efficiency(self, launcher_manager, qtbot):
+    def test_timer_efficiency(self, launcher_manager, qtbot) -> None:
         """Test timer efficiency."""
         start_time = time.time()
 
@@ -233,7 +233,7 @@ class TestSimpleThreadingIntegration:
     """Simple threading integration tests."""
 
     @pytest.mark.timeout(5)
-    def test_basic_worker_integration(self, qtbot):
+    def test_basic_worker_integration(self, qtbot) -> None:
         """Test basic worker integration without cache."""
         worker = SimpleTestWorker(work_steps=2)
         worker.start()

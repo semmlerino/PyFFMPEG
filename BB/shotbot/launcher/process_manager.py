@@ -47,7 +47,7 @@ class LauncherProcessManager(QObject):
         ThreadingConfig.SUBPROCESS_TIMEOUT * 1000  # Convert seconds to ms
     )
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the process manager."""
         super().__init__()
 
@@ -191,7 +191,7 @@ class LauncherProcessManager(QObject):
             self.process_error.emit(launcher_id, str(e))
             return False
 
-    def _on_worker_finished(self, launcher_id: str, success: bool, return_code: int):
+    def _on_worker_finished(self, launcher_id: str, success: bool, return_code: int) -> None:
         """Handle worker thread completion.
 
         Args:
@@ -389,7 +389,7 @@ class LauncherProcessManager(QObject):
                         del self._active_processes[key]
                 logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
 
-    def _cleanup_finished_workers(self):
+    def _cleanup_finished_workers(self) -> None:
         """Clean up finished worker threads."""
         if self._shutting_down:
             return
@@ -433,7 +433,7 @@ class LauncherProcessManager(QObject):
         except Exception as e:
             logger.error(f"Error during periodic cleanup: {e}")
 
-    def _perform_cleanup_with_reset(self):
+    def _perform_cleanup_with_reset(self) -> None:
         """Perform cleanup and reset the scheduled flag."""
         with QMutexLocker(self._cleanup_lock):
             self._cleanup_scheduled = False

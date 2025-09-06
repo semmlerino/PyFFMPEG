@@ -28,12 +28,12 @@ class ThumbnailWidget(ThumbnailWidgetBase):
     clicked = Signal(object)  # Shot
     double_clicked = Signal(object)  # Shot
 
-    def __init__(self, shot: Shot, size: int = Config.DEFAULT_THUMBNAIL_SIZE):
+    def __init__(self, shot: Shot, size: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
         # Store shot reference for backward compatibility
         self.shot = shot
         super().__init__(shot, size)
 
-    def _setup_custom_ui(self):
+    def _setup_custom_ui(self) -> None:
         """Set up custom UI elements specific to shot thumbnails."""
         # Shot name label
         self.name_label = QLabel(self.shot.full_name)

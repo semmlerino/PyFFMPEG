@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 
-def test_python311_compatibility():
+def test_python311_compatibility() -> bool:
     """Test if all Python files are compatible with Python 3.11."""
 
     # Get all Python files

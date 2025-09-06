@@ -14,6 +14,8 @@ from PySide6.QtWidgets import QApplication
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from typing import Optional
+
 from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
 from shot_model import RefreshResult
@@ -24,7 +26,7 @@ from tests.test_doubles_library import TestProcessPool
 class TestConditionVariableFix:
     """Test that the condition variable fix prevents race conditions."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.app = QApplication.instance() or QApplication([])
 
@@ -50,7 +52,7 @@ class TestConditionVariableFix:
             "Expected real ProcessPoolManager with _session_creation_in_progress"
         )
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test environment."""
         # Clean up the ProcessPoolManager instance
         if hasattr(self.manager, "shutdown"):
@@ -59,13 +61,13 @@ class TestConditionVariableFix:
             except Exception:
                 pass  # Ignore cleanup errors
 
-    def test_no_race_in_session_creation(self):
+    def test_no_race_in_session_creation(self) -> None:
         """Test that concurrent command execution doesn't cause race conditions."""
         # Simple test focusing on thread safety without complex mocking
         results = []
         errors = []
 
-        def execute_command_concurrent(thread_id):
+        def execute_command_concurrent(thread_id) -> None:
             """Execute command from a thread."""
             try:
                 # Use unique command per thread to avoid caching
@@ -100,14 +102,14 @@ class TestConditionVariableFix:
         # The key test is that concurrent access didn't cause crashes or deadlocks
         # The ProcessPoolManager should handle concurrent access safely
 
-    def test_condition_variable_prevents_deadlock(self):
+    def test_condition_variable_prevents_deadlock(self) -> None:
         """Test that condition variable doesn't cause deadlocks."""
         # This tests the fix for the lock release-reacquire pattern
 
         # Track exceptions from threads so test fails if threads have issues
         thread_exceptions = []
 
-        def slow_session_creation():
+        def slow_session_creation() -> None:
             try:
                 # Simulate slow session creation
                 with self.manager._session_lock:
@@ -118,7 +120,7 @@ class TestConditionVariableFix:
             except Exception as e:
                 thread_exceptions.append(f"slow_session_creation: {e}")
 
-        def waiting_thread():
+        def waiting_thread() -> Optional[bool]:
             try:
                 # This thread should wait properly without deadlock
                 with self.manager._session_lock:
@@ -158,16 +160,16 @@ class TestConditionVariableFix:
 class TestQThreadInterruptionFix:
     """Test that QThread uses safe interruption instead of terminate()."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.app = QApplication.instance() or QApplication([])
         self.temp_dir = tempfile.TemporaryDirectory()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test environment."""
         self.temp_dir.cleanup()
 
-    def test_no_terminate_call_in_cleanup(self):
+    def test_no_terminate_call_in_cleanup(self) -> None:
         """Test that cleanup never calls terminate()."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         model = OptimizedShotModel(cache_manager)
@@ -189,7 +191,7 @@ class TestQThreadInterruptionFix:
         original_terminate = loader.terminate if hasattr(loader, "terminate") else None
         terminate_called = [False]
 
-        def track_terminate():
+        def track_terminate() -> None:
             terminate_called[0] = True
             if original_terminate:
                 original_terminate()
@@ -206,7 +208,7 @@ class TestQThreadInterruptionFix:
         # Verify loader was properly stopped (behavior, not mock calls)
         assert not loader.isRunning(), "Loader should be stopped after cleanup"
 
-    def test_interruption_request_used_in_thread(self):
+    def test_interruption_request_used_in_thread(self) -> None:
         """Test that AsyncShotLoader uses interruption requests."""
         # Use real test double at system boundary
         from tests.test_helpers import TestProcessPoolManager
@@ -229,7 +231,7 @@ class TestQThreadInterruptionFix:
         # Test behavior: no commands should have been executed due to stop
         assert len(test_pool.commands) == 0, "No commands should execute after stop"
 
-    def test_stop_event_and_interruption_work_together(self):
+    def test_stop_event_and_interruption_work_together(self) -> None:
         """Test that both stop mechanisms work together."""
         from tests.test_helpers import TestProcessPoolManager
 
@@ -249,16 +251,16 @@ class TestQThreadInterruptionFix:
 class TestDoubleCheckedLockingFix:
     """Test that double-checked locking pattern is fixed."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.app = QApplication.instance() or QApplication([])
         self.temp_dir = tempfile.TemporaryDirectory()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test environment."""
         self.temp_dir.cleanup()
 
-    def test_loading_flag_always_checked_under_lock(self):
+    def test_loading_flag_always_checked_under_lock(self) -> None:
         """Test that _loading_in_progress is protected by lock via concurrent access."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         model = OptimizedShotModel(cache_manager)
@@ -271,7 +273,7 @@ class TestDoubleCheckedLockingFix:
         # Track race conditions through concurrent access
         race_detected = []
 
-        def attempt_refresh():
+        def attempt_refresh() -> None:
             try:
                 # Try to start background refresh multiple times
                 # If lock isn't protecting _loading_in_progress, we'd get multiple loaders
@@ -301,7 +303,7 @@ class TestDoubleCheckedLockingFix:
         # Verify that only one loader was created (lock prevented races)
         # This is implicitly tested by no exceptions being raised
 
-    def test_concurrent_refresh_calls_safe(self):
+    def test_concurrent_refresh_calls_safe(self) -> None:
         """Test that concurrent refresh calls don't cause race conditions."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         model = OptimizedShotModel(cache_manager)
@@ -309,7 +311,7 @@ class TestDoubleCheckedLockingFix:
         results = []
         errors = []
 
-        def refresh_concurrent():
+        def refresh_concurrent() -> None:
             try:
                 # This internally calls _start_background_refresh
                 result = model.refresh_shots()
@@ -337,11 +339,11 @@ class TestDoubleCheckedLockingFix:
 class TestSignalThreadSafety:
     """Test that signals are emitted safely from threads."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.app = QApplication.instance() or QApplication([])
 
-    def test_signals_emitted_safely_from_background_thread(self):
+    def test_signals_emitted_safely_from_background_thread(self) -> None:
         """Test that background thread can safely emit signals."""
         test_process_pool = TestProcessPool()
         test_process_pool.set_outputs("workspace /shows/TEST/shots/SEQ01/0010")
@@ -367,7 +369,7 @@ class TestSignalThreadSafety:
         # Verify signal was emitted
         assert len(shots_received) > 0 or len(errors_received) > 0
 
-    def test_no_signals_after_stop(self):
+    def test_no_signals_after_stop(self) -> None:
         """Test that no signals are emitted after stop is called."""
         test_process_pool = TestProcessPool()
         # Simulate slow command by setting empty output (loader will stop early)
@@ -397,16 +399,16 @@ class TestSignalThreadSafety:
 class TestMemoryLeakPrevention:
     """Test that signal connections don't cause memory leaks."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.app = QApplication.instance() or QApplication([])
         self.temp_dir = tempfile.TemporaryDirectory()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test environment."""
         self.temp_dir.cleanup()
 
-    def test_loader_cleanup_prevents_leaks(self):
+    def test_loader_cleanup_prevents_leaks(self) -> None:
         """Test that loader cleanup prevents memory leaks."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         model = OptimizedShotModel(cache_manager)
@@ -424,18 +426,18 @@ class TestMemoryLeakPrevention:
         # Verify no loader references remain
         assert model._async_loader is None
 
-    def test_deleted_objects_dont_receive_signals(self):
+    def test_deleted_objects_dont_receive_signals(self) -> None:
         """Test that deleted objects don't receive signals."""
         test_process_pool = TestProcessPool()
         loader = AsyncShotLoader(test_process_pool)
 
         # Create a receiver that will be deleted
         class Receiver(QObject):
-            def __init__(self):
+            def __init__(self) -> None:
                 super().__init__()
                 self.received = []
 
-            def on_shots_loaded(self, shots):
+            def on_shots_loaded(self, shots) -> None:
                 self.received.append(shots)
 
         receiver = Receiver()
@@ -455,16 +457,16 @@ class TestMemoryLeakPrevention:
 class TestStressConditions:
     """Stress tests for thread safety under load."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.app = QApplication.instance() or QApplication([])
         self.temp_dir = tempfile.TemporaryDirectory()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test environment."""
         self.temp_dir.cleanup()
 
-    def test_many_concurrent_refreshes(self):
+    def test_many_concurrent_refreshes(self) -> None:
         """Test many concurrent refresh operations."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         model = OptimizedShotModel(cache_manager)
@@ -476,7 +478,7 @@ class TestStressConditions:
 
         errors = []
 
-        def stress_refresh():
+        def stress_refresh() -> None:
             try:
                 for _ in range(10):
                     model.refresh_shots()

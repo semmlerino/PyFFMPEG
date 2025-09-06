@@ -136,7 +136,7 @@ class ShotModel(BaseShotModel):
         self,
         cache_manager: CacheManager | None = None,
         load_cache: bool = True,
-    ):
+    ) -> None:
         """Initialize synchronous shot model.
 
         Args:

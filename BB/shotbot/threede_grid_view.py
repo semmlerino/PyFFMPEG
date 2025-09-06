@@ -35,12 +35,12 @@ from PySide6.QtWidgets import (
 
 from config import Config
 from threede_grid_delegate_refactored import ThreeDEGridDelegate
-from threede_item_model import ThreeDEItemModel
 from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QKeyEvent
-    
+
+    from threede_item_model import ThreeDEItemModel
     from threede_scene_model import ThreeDEScene
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ class ThreeDEGridView(QWidget):
         self,
         model: ThreeDEItemModel | None = None,
         parent: QWidget | None = None,
-    ):
+    ) -> None:
         """Initialize the 3DE grid view.
         
         Args:

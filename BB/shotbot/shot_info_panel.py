@@ -29,13 +29,13 @@ logger = logging.getLogger(__name__)
 class ShotInfoPanel(QWidget):
     """Panel displaying current shot information."""
 
-    def __init__(self, cache_manager: CacheManager | None = None):
+    def __init__(self, cache_manager: CacheManager | None = None) -> None:
         super().__init__()
         self._current_shot: Shot | None = None
         self.cache_manager = cache_manager or CacheManager()  # Make public
         self._setup_ui()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Set up the UI."""
         # Main layout
         layout = QHBoxLayout(self)
@@ -101,12 +101,12 @@ class ShotInfoPanel(QWidget):
         # Set minimum height
         self.setMinimumHeight(150)
 
-    def set_shot(self, shot: Shot | None):
+    def set_shot(self, shot: Shot | None) -> None:
         """Set the current shot to display."""
         self._current_shot = shot
         self._update_display()
 
-    def _update_display(self):
+    def _update_display(self) -> None:
         """Update the display with current shot info."""
         if self._current_shot:
             # Update labels
@@ -125,7 +125,7 @@ class ShotInfoPanel(QWidget):
             self.path_label.setText("")
             self._set_placeholder_thumbnail()
 
-    def _load_thumbnail(self):
+    def _load_thumbnail(self) -> None:
         """Load thumbnail for current shot."""
         if not self._current_shot:
             return
@@ -160,7 +160,7 @@ class ShotInfoPanel(QWidget):
                 # Fall back to placeholder
                 self._set_placeholder_thumbnail()
 
-    def _load_pixmap_from_path(self, path: str | Path):
+    def _load_pixmap_from_path(self, path: str | Path) -> None:
         """Load and display pixmap from path with bounds checking and error handling."""
         if not path:
             logger.debug("No path provided for thumbnail loading")
@@ -235,7 +235,7 @@ class ShotInfoPanel(QWidget):
         sequence: str,
         shot: str,
         cache_path: str,
-    ):
+    ) -> None:
         """Handle thumbnail cached signal."""
         # Update display if this is still the current shot
         if (
@@ -246,7 +246,7 @@ class ShotInfoPanel(QWidget):
         ):
             self._load_pixmap_async(cache_path)
 
-    def _set_placeholder_thumbnail(self):
+    def _set_placeholder_thumbnail(self) -> None:
         """Set placeholder thumbnail."""
         placeholder = QPixmap(128, 128)
         placeholder.fill(Qt.GlobalColor.transparent)
@@ -261,7 +261,7 @@ class ShotInfoPanel(QWidget):
             }
         """)
 
-    def _load_pixmap_async(self, path: str | Path):
+    def _load_pixmap_async(self, path: str | Path) -> None:
         """Load pixmap asynchronously to avoid blocking UI."""
         # Create and start async loader
         loader = InfoPanelPixmapLoader(self, path)
@@ -269,12 +269,12 @@ class ShotInfoPanel(QWidget):
         loader.signals.failed.connect(self._on_pixmap_failed)
         QThreadPool.globalInstance().start(loader)
 
-    def _on_pixmap_loaded(self, image: QImage):
+    def _on_pixmap_loaded(self, image: QImage) -> None:
         """Handle successful image loading - convert to pixmap in main thread."""
         pixmap = QPixmap.fromImage(image)
         self.thumbnail_label.setPixmap(pixmap)
 
-    def _on_pixmap_failed(self):
+    def _on_pixmap_failed(self) -> None:
         """Handle failed pixmap loading."""
         self._set_placeholder_thumbnail()
 
@@ -286,13 +286,13 @@ class InfoPanelPixmapLoader(QRunnable):
         loaded = Signal(QImage)
         failed = Signal()
 
-    def __init__(self, panel, path: str | Path):
+    def __init__(self, panel, path: str | Path) -> None:
         super().__init__()
         self.panel = panel  # Keep reference to prevent GC
         self.path = path
         self.signals = self.Signals()
 
-    def run(self):
+    def run(self) -> None:
         """Load pixmap in background thread."""
         tracker = get_tracker()
         metadata = {

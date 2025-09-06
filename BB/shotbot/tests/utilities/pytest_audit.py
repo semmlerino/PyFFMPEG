@@ -135,7 +135,7 @@ def test_individual_file(test_file, timeout=10):
         }
 
 
-def main():
+def main() -> int:
     """Run audit of all test files."""
     print("PyTest Suite Audit")
     print("=" * 70)

@@ -33,7 +33,7 @@ class CacheValidator:
         thumbnails_directory: Path,
         memory_manager: MemoryManager,
         storage_backend: StorageBackend | None = None,
-    ):
+    ) -> None:
         """Initialize cache validator.
 
         Args:

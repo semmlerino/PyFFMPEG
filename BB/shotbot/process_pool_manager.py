@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 from PySide6.QtWidgets import QApplication
@@ -62,7 +62,7 @@ if HAS_DEBUG_UTILS:
 class CommandCache:
     """TTL-based cache for command results."""
 
-    def __init__(self, default_ttl: int = 30):
+    def __init__(self, default_ttl: int = 30) -> None:
         """Initialize command cache.
 
         Args:
@@ -101,7 +101,7 @@ class CommandCache:
             self._misses += 1
             return None
 
-    def set(self, command: str, result: Any, ttl: int | None = None):
+    def set(self, command: str, result: Any, ttl: int | None = None) -> None:
         """Cache command result with TTL.
 
         Args:
@@ -118,7 +118,7 @@ class CommandCache:
             self._cache[key] = (result, time.time(), ttl, command)
             self._cleanup_expired()
 
-    def invalidate(self, pattern: str | None = None):
+    def invalidate(self, pattern: str | None = None) -> None:
         """Invalidate cache entries.
 
         Args:
@@ -169,7 +169,7 @@ class CommandCache:
         """
         return hashlib.sha256(command.encode()).hexdigest()
 
-    def _cleanup_expired(self):
+    def _cleanup_expired(self) -> None:
         """Remove expired entries."""
         if len(self._cache) <= 100:  # Don't cleanup small caches
             return
@@ -202,7 +202,7 @@ class ProcessPoolManager(QObject):
     command_completed = Signal(str, object)  # command_id, result
     command_failed = Signal(str, str)  # command_id, error
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety using double-checked locking.
 
         This implementation uses double-checked locking pattern which optimizes
@@ -219,7 +219,7 @@ class ProcessPoolManager(QObject):
                     cls._instance = instance
         return cls._instance
 
-    def __init__(self, max_workers: int = 4, sessions_per_type: int = 3):
+    def __init__(self, max_workers: int = 4, sessions_per_type: int = 3) -> None:
         """Initialize process pool manager.
 
         Args:
@@ -243,7 +243,7 @@ class ProcessPoolManager(QObject):
             # Replace session pools with secure executor
             self._secure_executor = get_secure_executor()
             self._session_pools: dict[
-                str, List[PersistentBashSession]
+                str, list[PersistentBashSession]
             ] = {}  # Deprecated, kept for compatibility
             self._session_round_robin: dict[str, int] = {}  # Track next session to use
             self._session_creation_in_progress: dict[
@@ -601,7 +601,7 @@ class ProcessPoolManager(QObject):
 
             return session
 
-    def invalidate_cache(self, pattern: str | None = None):
+    def invalidate_cache(self, pattern: str | None = None) -> None:
         """Invalidate command cache.
 
         Args:
@@ -634,7 +634,7 @@ class ProcessPoolManager(QObject):
 
         return result
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Shutdown the process pool manager."""
         # Clear round-robin tracking
         with self._session_lock:
@@ -649,7 +649,7 @@ class ProcessPoolManager(QObject):
 class ProcessMetrics:
     """Track process optimization metrics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize process metrics tracking."""
         super().__init__()
         self.subprocess_calls = 0
@@ -660,7 +660,7 @@ class ProcessMetrics:
         self.response_count = 0
         self.start_time = time.time()
 
-    def update_response_time(self, time_ms: float):
+    def update_response_time(self, time_ms: float) -> None:
         """Update response time metrics.
 
         Args:

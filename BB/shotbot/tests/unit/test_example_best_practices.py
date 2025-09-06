@@ -168,14 +168,14 @@ class SignalDoubleTestingPatterns:
         from tests.test_doubles_library import SignalDouble
 
         class TestLauncherWorker:
-            def __init__(self, launcher_id, command):
+            def __init__(self, launcher_id, command) -> None:
                 self.launcher_id = launcher_id
                 self.command = command
                 self.output = SignalDouble()
                 self.started = SignalDouble()
                 self.finished = SignalDouble()
 
-            def start(self):
+            def start(self) -> None:
                 self.started.emit()
                 self.output.emit(self.launcher_id, "Test output")
                 self.finished.emit()
@@ -204,7 +204,7 @@ class SignalDoubleTestingPatterns:
         class RealQtComponent(QObject):
             data_changed = Signal(str)
 
-            def update_data(self, value: str):
+            def update_data(self, value: str) -> None:
                 self.data_changed.emit(value)
 
         # Create real Qt component
@@ -248,7 +248,7 @@ class TestNoSleepPattern:
         # Use Event for synchronization
         ready = threading.Event()
 
-        def worker():
+        def worker() -> None:
             # Do work
             ready.set()  # Signal ready
 

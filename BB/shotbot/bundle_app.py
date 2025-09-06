@@ -23,7 +23,7 @@ from typing import Any
 class GitIgnoreParser:
     """Parse and apply .gitignore patterns."""
 
-    def __init__(self, gitignore_path: str | None = None):
+    def __init__(self, gitignore_path: str | None = None) -> None:
         """Initialize with optional .gitignore file path."""
         self.patterns: list[str] = []
         self.always_exclude = {
@@ -47,7 +47,7 @@ class GitIgnoreParser:
         if gitignore_path and os.path.exists(gitignore_path):
             self._parse_gitignore(gitignore_path)
 
-    def _parse_gitignore(self, gitignore_path: str):
+    def _parse_gitignore(self, gitignore_path: str) -> None:
         """Parse .gitignore file and extract patterns."""
         with open(gitignore_path) as f:
             for line in f:
@@ -102,7 +102,7 @@ class GitIgnoreParser:
 class ApplicationBundler:
     """Bundle application files for transfer."""
 
-    def __init__(self, config_path: str | None = None, verbose: bool = False):
+    def __init__(self, config_path: str | None = None, verbose: bool = False) -> None:
         """Initialize the bundler.
 
         Args:
@@ -405,7 +405,7 @@ class ApplicationBundler:
         return output_file
 
 
-def main():
+def main() -> None:
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
         description="Bundle application files for base64 encoding",

@@ -65,7 +65,7 @@ def run_performance_tests():
     return len(result.failures) == 0 and len(result.errors) == 0
 
 
-def main():
+def main() -> int:
     """Main entry point for the test runner."""
     parser = argparse.ArgumentParser(description="Run thread safety validation tests")
     parser.add_argument(

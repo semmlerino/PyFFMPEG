@@ -38,7 +38,7 @@ if not hasattr(ThreeDESceneFinder, "get_cache_stats"):
                 return cls._directory_cache.get_stats()  # type: ignore[reportUnknownMemberType]
             return {"hits": 0, "misses": 0, "evictions": 0}
 
-        def clear_cache(cls):
+        def clear_cache(cls) -> None:
             """Clear the directory cache."""
             if hasattr(cls, "_directory_cache"):
                 cls._directory_cache.cache.clear()  # type: ignore[reportUnknownMemberType]

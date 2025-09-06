@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import logging
 from enum import IntEnum
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import (
     QAbstractListModel,
@@ -28,7 +27,11 @@ from PySide6.QtGui import QImage, QPixmap
 from typing_extensions import override
 
 from cache_manager import CacheManager
-from threede_scene_model import ThreeDEScene
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from threede_scene_model import ThreeDEScene
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +85,7 @@ class ThreeDEItemModel(QAbstractListModel):
         self,
         cache_manager: CacheManager | None = None,
         parent: QObject | None = None,
-    ):
+    ) -> None:
         """Initialize the 3DE item model.
         
         Args:
@@ -227,7 +230,7 @@ class ThreeDEItemModel(QAbstractListModel):
         return None
     
     @Slot()
-    def _load_visible_thumbnails(self):
+    def _load_visible_thumbnails(self) -> None:
         """Load thumbnails for visible scenes."""
         for row in range(self._visible_start, min(self._visible_end + 1, len(self._scenes))):
             scene = self._scenes[row]
@@ -247,7 +250,7 @@ class ThreeDEItemModel(QAbstractListModel):
                 self._loading_states[cache_key] = "loading"
             self._load_thumbnail_async(scene, row)
     
-    def _load_thumbnail_async(self, scene: ThreeDEScene, row: int):
+    def _load_thumbnail_async(self, scene: ThreeDEScene, row: int) -> None:
         """Start async thumbnail loading for a scene.
         
         Args:
@@ -261,7 +264,7 @@ class ThreeDEItemModel(QAbstractListModel):
         # Use cache manager to load thumbnail
         from PySide6.QtCore import Q_ARG, QMetaObject
         
-        def on_thumbnail_loaded(path: Path | None):
+        def on_thumbnail_loaded(path: Path | None) -> None:
             """Handle loaded thumbnail."""
             if path and path.exists():
                 image = QImage(str(path))
@@ -293,7 +296,7 @@ class ThreeDEItemModel(QAbstractListModel):
         )
     
     @Slot(object, object)
-    def _do_load_thumbnail(self, scene: ThreeDEScene, callback):
+    def _do_load_thumbnail(self, scene: ThreeDEScene, callback) -> None:
         """Load thumbnail in main thread.
         
         Args:
@@ -304,7 +307,7 @@ class ThreeDEItemModel(QAbstractListModel):
         if thumb_path:
             callback(thumb_path)
     
-    def set_visible_range(self, start: int, end: int):
+    def set_visible_range(self, start: int, end: int) -> None:
         """Set the visible range for lazy loading.
         
         Args:
@@ -318,7 +321,7 @@ class ThreeDEItemModel(QAbstractListModel):
         if not self._thumbnail_timer.isActive():
             self._thumbnail_timer.start()
     
-    def set_scenes(self, scenes: list[ThreeDEScene], reset: bool = True):
+    def set_scenes(self, scenes: list[ThreeDEScene], reset: bool = True) -> None:
         """Set the scenes for the model.
         
         Args:
@@ -356,7 +359,7 @@ class ThreeDEItemModel(QAbstractListModel):
             return None
         return self._scenes[index.row()]
     
-    def set_selected(self, index: QModelIndex):
+    def set_selected(self, index: QModelIndex) -> None:
         """Set the selected scene.
         
         Args:
@@ -379,7 +382,7 @@ class ThreeDEItemModel(QAbstractListModel):
             
             self.selection_changed.emit(index)
     
-    def set_loading_state(self, loading: bool):
+    def set_loading_state(self, loading: bool) -> None:
         """Set the loading state.
         
         Args:
@@ -391,7 +394,7 @@ class ThreeDEItemModel(QAbstractListModel):
         else:
             self.loading_finished.emit()
     
-    def update_loading_progress(self, current: int, total: int):
+    def update_loading_progress(self, current: int, total: int) -> None:
         """Update loading progress.
         
         Args:

@@ -8,7 +8,7 @@ import sys
 from secure_command_executor import SecureCommandExecutor
 
 
-def test_command_injection_blocked():
+def test_command_injection_blocked() -> bool:
     """Test that command injection attempts are blocked."""
     executor = SecureCommandExecutor()
 
@@ -91,7 +91,7 @@ def test_command_injection_blocked():
         return False
 
 
-def test_bash_removed_from_whitelist():
+def test_bash_removed_from_whitelist() -> bool:
     """Test that bash/sh are removed from launcher whitelist."""
     print("\nTesting launcher whitelist...")
 
@@ -123,7 +123,7 @@ def test_bash_removed_from_whitelist():
         return False
 
 
-def test_thread_safety_fix():
+def test_thread_safety_fix() -> bool:
     """Test that QPixmap caching was fixed to use QImage."""
     print("\nTesting thread safety fix...")
 

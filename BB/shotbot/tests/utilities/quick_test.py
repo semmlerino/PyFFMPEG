@@ -4,6 +4,7 @@
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 # Set up environment
 # Add the project root directory (two levels up from utilities)
@@ -101,7 +102,7 @@ def test_basic_functionality():
     return tests_failed == 0
 
 
-def test_qt_components():
+def test_qt_components() -> Optional[bool]:
     """Test Qt components can be imported."""
     print("\nTesting Qt components...")
 
@@ -113,7 +114,7 @@ def test_qt_components():
         return False
 
 
-def main():
+def main() -> int:
     """Run quick tests."""
     print("🚀 Quick Test Suite (No pytest)")
     print("=" * 40)

@@ -46,14 +46,14 @@ class TestShotItemModelThreadSafety:
             for i in range(10)
         ]
 
-    def test_concurrent_shot_lookup_thread_safety(self, thread_safe_model, test_shots):
+    def test_concurrent_shot_lookup_thread_safety(self, thread_safe_model, test_shots) -> None:
         """Test _find_shot_by_full_name under concurrent access."""
         thread_safe_model.set_shots(test_shots)
 
         results = []
         errors = []
 
-        def lookup_worker(shot_names):
+        def lookup_worker(shot_names) -> None:
             """Worker function for concurrent lookups."""
             try:
                 for name in shot_names:
@@ -81,14 +81,14 @@ class TestShotItemModelThreadSafety:
 
     def test_shot_removal_during_concurrent_callbacks(
         self, thread_safe_model, test_shots, qtbot
-    ):
+    ) -> None:
         """Test shot removal while async callbacks are executing."""
         thread_safe_model.set_shots(test_shots)
 
         callback_results = []
         callback_errors = []
 
-        def simulate_async_callback(shot_full_name):
+        def simulate_async_callback(shot_full_name) -> None:
             """Simulate an async callback that might arrive after shot removal."""
             try:
                 # Simulate delay as if coming from background thread
@@ -140,14 +140,14 @@ class TestShotItemModelThreadSafety:
         found_count = sum(1 for name, found in callback_results if found)
         assert found_count == 5  # Only remaining shots should be found
 
-    def test_thumbnail_cache_concurrent_access(self, thread_safe_model, test_shots):
+    def test_thumbnail_cache_concurrent_access(self, thread_safe_model, test_shots) -> None:
         """Test concurrent access to thumbnail cache."""
         thread_safe_model.set_shots(test_shots)
 
         cache_operations = []
         cache_errors = []
 
-        def cache_worker(worker_id):
+        def cache_worker(worker_id) -> None:
             """Worker that performs cache operations."""
             try:
                 for i, shot in enumerate(test_shots):
@@ -189,14 +189,14 @@ class TestShotItemModelThreadSafety:
 
     def test_model_reset_with_pending_callbacks(
         self, thread_safe_model, test_shots, qtbot
-    ):
+    ) -> None:
         """Test model reset while callbacks are pending."""
         thread_safe_model.set_shots(test_shots)
 
         reset_errors = []
         callback_count = 0
 
-        def delayed_callback(shot_full_name):
+        def delayed_callback(shot_full_name) -> None:
             """Callback that executes after model reset."""
             nonlocal callback_count
             try:
@@ -258,7 +258,7 @@ class TestShotInfoPanelThreadSafety:
         yield panel
         panel.deleteLater()
 
-    def test_concurrent_pixmap_loading(self, thread_safe_panel, tmp_path, qtbot):
+    def test_concurrent_pixmap_loading(self, thread_safe_panel, tmp_path, qtbot) -> None:
         """Test concurrent InfoPanelPixmapLoader operations."""
         # Create test images
         image_paths = []
@@ -272,10 +272,10 @@ class TestShotInfoPanelThreadSafety:
         loading_results = []
         loading_errors = []
 
-        def loading_complete(success, path):
+        def loading_complete(success, path) -> None:
             loading_results.append((success, str(path)))
 
-        def loading_error(path):
+        def loading_error(path) -> None:
             loading_errors.append(str(path))
 
         # Start concurrent loaders
@@ -303,7 +303,7 @@ class TestShotInfoPanelThreadSafety:
         success_count = sum(1 for success, _ in loading_results if success)
         assert success_count == len(image_paths)
 
-    def test_rapid_shot_changes_thread_safety(self, thread_safe_panel, tmp_path, qtbot, monkeypatch):
+    def test_rapid_shot_changes_thread_safety(self, thread_safe_panel, tmp_path, qtbot, monkeypatch) -> None:
         """Test rapid shot changes don't cause race conditions."""
         # Create test shots with images
         shots = []
@@ -326,7 +326,7 @@ class TestShotInfoPanelThreadSafety:
 
         change_errors = []
 
-        def rapid_changer():
+        def rapid_changer() -> None:
             """Rapidly change shots from background thread."""
             try:
                 for shot in shots:
@@ -367,7 +367,7 @@ class TestShotInfoPanelThreadSafety:
     )
     def test_loader_memory_safety_under_stress(
         self, thread_safe_panel, tmp_path, qtbot
-    ):
+    ) -> None:
         """Test memory safety of loaders under high load."""
         # Create many small images
         image_paths = []
@@ -382,7 +382,7 @@ class TestShotInfoPanelThreadSafety:
         completed = threading.Event()
         completion_count = 0
 
-        def on_completion():
+        def on_completion() -> None:
             nonlocal completion_count
             completion_count += 1
             if completion_count >= len(image_paths):
@@ -412,7 +412,7 @@ class TestShotInfoPanelThreadSafety:
 class TestCrossComponentThreadSafety:
     """Test thread safety across multiple components."""
 
-    def test_model_and_panel_concurrent_operations(self, qtbot, tmp_path, monkeypatch):
+    def test_model_and_panel_concurrent_operations(self, qtbot, tmp_path, monkeypatch) -> None:
         """Test model and panel operating concurrently without interference."""
         # Create test setup
         image_path = tmp_path / "concurrent.jpg"
@@ -440,7 +440,7 @@ class TestCrossComponentThreadSafety:
 
             operation_errors = []
 
-            def model_worker():
+            def model_worker() -> None:
                 """Concurrent model operations."""
                 try:
                     for i in range(10):
@@ -450,7 +450,7 @@ class TestCrossComponentThreadSafety:
                 except Exception as e:
                     operation_errors.append(f"Model: {str(e)}")
 
-            def panel_worker():
+            def panel_worker() -> None:
                 """Concurrent panel operations."""
                 try:
                     for i in range(10):

@@ -215,7 +215,7 @@ def capture_structure(shows: List[str] = None):
     
     return structure
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='Capture VFX filesystem structure for mock environment'
     )
@@ -270,7 +270,7 @@ def main():
     total_dirs = 0
     total_files = 0
     
-    def count_items(node):
+    def count_items(node) -> None:
         nonlocal total_dirs, total_files
         if node['type'] == 'dir':
             total_dirs += 1

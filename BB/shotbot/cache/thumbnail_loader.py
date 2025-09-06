@@ -32,7 +32,7 @@ class ThumbnailCacheResult:
     thumbnail processing with synchronization support.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize result container."""
         super().__init__()
         self.future: Future[Path | None] = Future()
@@ -156,7 +156,7 @@ class ThumbnailLoader(QRunnable):
         sequence: str,
         shot: str,
         result: ThumbnailCacheResult | None = None,
-    ):
+    ) -> None:
         """Initialize thumbnail loader.
 
         Args:

@@ -9,15 +9,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 # Qt imports needed at runtime for Protocol definitions
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import (
-    QListView,
-    QPushButton,
-    QSlider,
-    QStatusBar,
-    QTabWidget,
-    QWidget,
-)
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QAction
+    from PySide6.QtWidgets import (
+        QListView,
+        QPushButton,
+        QSlider,
+        QStatusBar,
+        QTabWidget,
+        QWidget,
+    )
 
 
 @runtime_checkable
@@ -259,7 +261,7 @@ class AccessibilityManager:
             if tab_widget is not None and shot_grid is not None:
                 size_slider = getattr(shot_grid, "size_slider", None)
                 if size_slider is not None:
-                    window.setTabOrder(tab_widget, size_slider)
+                    window.setTabOrder(tab_widget, cast("QWidget", size_slider))
 
             # Then shot grid controls - with complete null safety
             if (window.shot_grid is not None 
@@ -268,7 +270,8 @@ class AccessibilityManager:
                 and window.shot_grid.size_slider is not None
                 and window.shot_grid.list_view is not None):
                 window.setTabOrder(
-                    window.shot_grid.size_slider, window.shot_grid.list_view
+                    cast("QWidget", window.shot_grid.size_slider), 
+                    cast("QWidget", window.shot_grid.list_view)
                 )
 
             # Then launcher buttons in order - with null safety
@@ -286,7 +289,7 @@ class AccessibilityManager:
                     if (app_name in window.app_buttons 
                         and prev_widget is not None
                         and window.app_buttons[app_name] is not None):
-                        window.setTabOrder(prev_widget, window.app_buttons[app_name])
+                        window.setTabOrder(cast("QWidget", prev_widget), window.app_buttons[app_name])
                         prev_widget = window.app_buttons[app_name]
 
     @staticmethod

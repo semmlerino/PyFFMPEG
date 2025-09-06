@@ -95,7 +95,7 @@ class SettingsDialog(QDialog):
         settings_manager: SettingsManager,
         parent: QWidget | None = None,
         initial_tab: str = "general",
-    ):
+    ) -> None:
         """Initialize settings dialog.
 
         Args:

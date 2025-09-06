@@ -48,7 +48,7 @@ class TestThreeDESceneFinder:
     _class_should_raise_error = False
     _class_error_to_raise = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.find_scenes_calls = []
         self.progressive_calls = []
         self.estimate_calls = []
@@ -132,8 +132,7 @@ class TestThreeDESceneFinder:
         )
 
         # Yield configured batches
-        for batch_data in self._progressive_batches:
-            yield batch_data
+        yield from self._progressive_batches
 
     def estimate_scan_size(
         self, shot_tuples: list[tuple[str, str, str, str]], excluded_users: set[str]
@@ -172,8 +171,7 @@ class TestThreeDESceneFinder:
     ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
         """Class method version for progressive scanning."""
         # Yield configured batches from class data
-        for batch_data in cls._class_progressive_batches:
-            yield batch_data
+        yield from cls._class_progressive_batches
 
     @classmethod
     def estimate_scan_size(  # noqa: F811
@@ -232,7 +230,7 @@ class TestThreeDESceneFinder:
 class TestProgressCalculator:
     """Test the progress calculation helper class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test calculator initialization with default values."""
         calc = ProgressCalculator(smoothing_window=5)
 
@@ -241,7 +239,7 @@ class TestProgressCalculator:
         assert calc.total_files_estimate == 0
         assert len(calc.processing_times) == 0
 
-    def test_progress_calculation(self):
+    def test_progress_calculation(self) -> None:
         """Test progress percentage calculation."""
         calc = ProgressCalculator()
 
@@ -258,7 +256,7 @@ class TestProgressCalculator:
         progress, eta = calc.update(150, total_estimate=100)
         assert progress == 100.0
 
-    def test_eta_calculation(self):
+    def test_eta_calculation(self) -> None:
         """Test ETA string generation."""
         calc = ProgressCalculator(smoothing_window=3)
 
@@ -322,7 +320,7 @@ class TestThreeDESceneWorker:
             worker.stop()
             worker.wait(5000)
 
-    def test_worker_initialization(self, worker, test_shots):
+    def test_worker_initialization(self, worker, test_shots) -> None:
         """Test worker initializes with correct parameters."""
         assert worker.shots == test_shots
         assert worker.user_shots == test_shots
@@ -332,7 +330,7 @@ class TestThreeDESceneWorker:
         assert worker.enable_progressive is True
         assert not worker._is_paused
 
-    def test_stop_mechanism(self, worker):
+    def test_stop_mechanism(self, worker) -> None:
         """Test worker stop functionality."""
         assert not worker.should_stop()
 
@@ -340,7 +338,7 @@ class TestThreeDESceneWorker:
 
         assert worker.should_stop()
 
-    def test_pause_resume_mechanism(self, worker):
+    def test_pause_resume_mechanism(self, worker) -> None:
         """Test pause and resume functionality."""
         assert not worker._is_paused
 
@@ -352,7 +350,7 @@ class TestThreeDESceneWorker:
         worker.resume()
         assert not worker._is_paused
 
-    def test_signal_existence(self, worker):
+    def test_signal_existence(self, worker) -> None:
         """Test all required signals exist."""
         # Check signals are defined
         assert hasattr(worker, "started")
@@ -364,7 +362,7 @@ class TestThreeDESceneWorker:
         assert hasattr(worker, "paused")
         assert hasattr(worker, "resumed")
 
-    def test_run_with_no_shots(self, qtbot):
+    def test_run_with_no_shots(self, qtbot) -> None:
         """Test worker behavior with empty shot list."""
         worker = ThreeDESceneWorker(shots=[], enable_progressive=False)
 
@@ -391,7 +389,7 @@ class TestThreeDESceneWorker:
             worker.stop()
             worker.wait(1000)
 
-    def test_scene_discovery_with_test_double(self, qtbot, test_shots, test_finder):
+    def test_scene_discovery_with_test_double(self, qtbot, test_shots, test_finder) -> None:
         """Test scene discovery using test double (replaces Mock usage)."""
         # Configure test double to return test scenes
         test_scenes = [
@@ -474,7 +472,7 @@ class TestThreeDESceneWorker:
             if original_finder:
                 threede_scene_worker.ThreeDESceneFinder = original_finder
 
-    def test_batch_processing(self, qtbot, test_shots, test_finder):
+    def test_batch_processing(self, qtbot, test_shots, test_finder) -> None:
         """Test progressive batch processing using test double."""
         # Configure test double for progressive batches
         test_scene = ThreeDEScene(
@@ -525,7 +523,7 @@ class TestThreeDESceneWorker:
             if original_finder:
                 threede_scene_worker.ThreeDESceneFinder = original_finder
 
-    def test_error_handling(self, qtbot, test_shots, test_finder):
+    def test_error_handling(self, qtbot, test_shots, test_finder) -> None:
         """Test error handling during scene discovery using test double."""
         # Configure test double to raise an exception
         test_finder.raise_error_on_next_call(Exception("Test error"))
@@ -590,7 +588,7 @@ class TestThreeDESceneWorkerIntegration:
         return shows_root, shots
 
     @pytest.mark.integration  # This is actually an integration test
-    def test_real_filesystem_discovery(self, qtbot, test_structure):
+    def test_real_filesystem_discovery(self, qtbot, test_structure) -> None:
         """Test with real filesystem operations."""
         shows_root, shots = test_structure
 

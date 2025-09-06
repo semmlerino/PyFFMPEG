@@ -38,7 +38,7 @@ class TestLogViewer:
     for Qt widgets. Also uses qapp to ensure QApplication exists.
     """
 
-    def test_initialization(self, qtbot):
+    def test_initialization(self, qtbot) -> None:
         """Test LogViewer initializes with proper UI components."""
         # Create real LogViewer widget
         log_viewer = LogViewer()
@@ -53,7 +53,7 @@ class TestLogViewer:
         assert isinstance(log_viewer.log_text, QTextEdit)
         assert isinstance(log_viewer.clear_button, QPushButton)
 
-    def test_ui_components_properties(self, qtbot):
+    def test_ui_components_properties(self, qtbot) -> None:
         """Test UI components have correct properties and styling."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -71,7 +71,7 @@ class TestLogViewer:
         assert "background-color" in style_sheet
         assert "#1e1e1e" in style_sheet  # Dark background
 
-    def test_layout_structure(self, qtbot):
+    def test_layout_structure(self, qtbot) -> None:
         """Test widget layout structure is correct."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -91,7 +91,7 @@ class TestLogViewer:
         button_layout_item = main_layout.itemAt(1)
         assert isinstance(button_layout_item.layout(), QHBoxLayout)
 
-    def test_add_command_basic(self, qtbot):
+    def test_add_command_basic(self, qtbot) -> None:
         """Test add_command method adds formatted command entry."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -110,7 +110,7 @@ class TestLogViewer:
         # Test line count updated
         assert log_viewer._line_count == 1
 
-    def test_add_error_basic(self, qtbot):
+    def test_add_error_basic(self, qtbot) -> None:
         """Test add_error method adds formatted error entry."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -129,7 +129,7 @@ class TestLogViewer:
         # Test line count updated
         assert log_viewer._line_count == 1
 
-    def test_entry_formatting_and_colors(self, qtbot):
+    def test_entry_formatting_and_colors(self, qtbot) -> None:
         """Test _add_entry method formats entries with correct colors."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -155,7 +155,7 @@ class TestLogViewer:
         # Test line breaks (Qt may use <br /> instead of <br>)
         assert "<br" in html_content
 
-    def test_auto_scroll_behavior(self, qtbot):
+    def test_auto_scroll_behavior(self, qtbot) -> None:
         """Test that new entries auto-scroll to bottom."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -175,7 +175,7 @@ class TestLogViewer:
         # After adding entries, scroll should be at or very close to maximum
         assert scroll_bar.value() >= scroll_bar.maximum() - 10  # Allow small tolerance
 
-    def test_clear_log_method(self, qtbot):
+    def test_clear_log_method(self, qtbot) -> None:
         """Test clear_log method clears text and resets line count."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -195,7 +195,7 @@ class TestLogViewer:
         assert log_viewer._line_count == 0
         assert log_viewer.log_text.toPlainText() == ""
 
-    def test_clear_button_connection(self, qtbot):
+    def test_clear_button_connection(self, qtbot) -> None:
         """Test clear button click triggers clear_log method."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -217,7 +217,7 @@ class TestLogViewer:
         assert log_viewer._line_count == 0
         assert log_viewer.log_text.toPlainText() == ""
 
-    def test_log_trimming_at_max_lines(self, qtbot):
+    def test_log_trimming_at_max_lines(self, qtbot) -> None:
         """Test log trimming when LOG_MAX_LINES is exceeded."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -239,7 +239,7 @@ class TestLogViewer:
         html_content = log_viewer.log_text.toHtml()
         assert "Overflow command" in html_content
 
-    def test_line_count_tracking(self, qtbot):
+    def test_line_count_tracking(self, qtbot) -> None:
         """Test internal _line_count is properly tracked."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -261,7 +261,7 @@ class TestLogViewer:
         log_viewer.clear_log()
         assert log_viewer._line_count == 0
 
-    def test_multiple_entries_order(self, qtbot):
+    def test_multiple_entries_order(self, qtbot) -> None:
         """Test that multiple entries appear in correct chronological order."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -292,7 +292,7 @@ class TestLogViewer:
         # All should be found and in order
         assert first_pos < error_pos < second_pos < second_error_pos
 
-    def test_empty_text_handling(self, qtbot):
+    def test_empty_text_handling(self, qtbot) -> None:
         """Test handling of empty or whitespace-only text."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -309,7 +309,7 @@ class TestLogViewer:
         assert "10:00:00" in html_content
         assert "10:01:00" in html_content
 
-    def test_special_characters_handling(self, qtbot):
+    def test_special_characters_handling(self, qtbot) -> None:
         """Test handling of special characters and HTML-sensitive content."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -329,7 +329,7 @@ class TestLogViewer:
         # Test line count updated
         assert log_viewer._line_count == 2
 
-    def test_very_long_text_handling(self, qtbot):
+    def test_very_long_text_handling(self, qtbot) -> None:
         """Test handling of very long log entries."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -344,7 +344,7 @@ class TestLogViewer:
         html_content = log_viewer.log_text.toHtml()
         assert long_text in html_content
 
-    def test_cursor_position_after_entries(self, qtbot):
+    def test_cursor_position_after_entries(self, qtbot) -> None:
         """Test cursor position is at end after adding entries."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -356,7 +356,7 @@ class TestLogViewer:
         cursor = log_viewer.log_text.textCursor()
         assert cursor.position() == cursor.document().characterCount() - 1
 
-    def test_html_escaping_behavior(self, qtbot):
+    def test_html_escaping_behavior(self, qtbot) -> None:
         """Test that HTML content is properly handled by Qt."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
@@ -375,7 +375,7 @@ class TestLogViewer:
         # Test line count is correct
         assert log_viewer._line_count == 1
 
-    def test_timestamp_consistency(self, qtbot):
+    def test_timestamp_consistency(self, qtbot) -> None:
         """Test that timestamps appear consistently across different entry types."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)

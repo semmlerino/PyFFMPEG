@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 
-def test_mock_setup():
+def test_mock_setup() -> bool:
     """Test that mock mode can be set up correctly."""
     print("Testing ShotBot Mock Mode Setup")
     print("=" * 50)

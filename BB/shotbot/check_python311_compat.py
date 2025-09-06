@@ -56,7 +56,7 @@ def check_file_syntax(filepath: Path) -> List[str]:
     return issues
 
 
-def main():
+def main() -> int:
     """Check all Python files in the project."""
     # Get all Python files, excluding venv and test_venv
     python_files = []

@@ -28,14 +28,14 @@ logger = logging.getLogger(__name__)
 class ThreadSafetyValidationTests(unittest.TestCase):
     """Test suite validating thread safety fixes."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         self.test_timeout = 30  # seconds
         logger.info(f"\n{'=' * 60}")
         logger.info(f"Starting test: {self._testMethodName}")
         logger.info(f"{'=' * 60}")
 
-    def test_threading_utils_import(self):
+    def test_threading_utils_import(self) -> None:
         """Test that threading utilities can be imported successfully."""
         try:
             from threading_utils import (
@@ -61,7 +61,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         except Exception as e:
             self.fail(f"❌ Failed to instantiate components: {e}")
 
-    def test_threadsafe_progress_tracker(self):
+    def test_threadsafe_progress_tracker(self) -> None:
         """Test ThreadSafeProgressTracker eliminates race conditions."""
         try:
             from threading_utils import ThreadSafeProgressTracker
@@ -71,7 +71,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         # Track progress updates
         progress_updates = []
 
-        def mock_callback(total: int, status: str):
+        def mock_callback(total: int, status: str) -> None:
             progress_updates.append((total, status))
 
         tracker = ThreadSafeProgressTracker(
@@ -79,7 +79,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         )
 
         # Simulate concurrent workers
-        def simulate_worker(worker_id: str, max_files: int):
+        def simulate_worker(worker_id: str, max_files: int) -> None:
             for i in range(max_files):
                 tracker.report_progress(
                     worker_id, i + 1, f"Worker {worker_id} processing file {i + 1}"
@@ -129,7 +129,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         logger.info(f"   - Progress updates: {len(progress_updates)}")
         logger.info(f"   - Completed in: {elapsed:.3f}s")
 
-    def test_cancellation_event_system(self):
+    def test_cancellation_event_system(self) -> None:
         """Test CancellationEvent provides proper cleanup."""
         try:
             from threading_utils import CancellationEvent
@@ -139,7 +139,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         cancel_event = CancellationEvent()
         cleanup_calls = []
 
-        def cleanup_callback():
+        def cleanup_callback() -> None:
             cleanup_calls.append(time.time())
 
         # Add cleanup callbacks
@@ -171,7 +171,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         logger.info(f"   - Cancellation response time: {elapsed:.6f}s")
         logger.info(f"   - Cleanup callbacks executed: {len(cleanup_calls)}")
 
-    def test_threadpool_manager(self):
+    def test_threadpool_manager(self) -> None:
         """Test ThreadPoolManager provides proper resource cleanup."""
         try:
             from threading_utils import CancellationEvent, ThreadPoolManager
@@ -181,7 +181,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         cancel_event = CancellationEvent()
         completed_tasks = []
 
-        def test_task(task_id: str):
+        def test_task(task_id: str) -> str:
             # Check for cancellation
             if cancel_event.is_cancelled():
                 return f"cancelled_{task_id}"
@@ -232,7 +232,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         logger.info(f"   - Tasks cancelled: {cancelled_count}")
         logger.info(f"   - Total results: {len(results)}")
 
-    def test_performance_baseline(self):
+    def test_performance_baseline(self) -> None:
         """Test basic performance characteristics."""
         try:
             from threading_utils import ThreadSafeProgressTracker
@@ -242,7 +242,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         # Test performance overhead of thread safety
         progress_calls = []
 
-        def progress_callback(total: int, status: str):
+        def progress_callback(total: int, status: str) -> None:
             progress_calls.append((total, status))
 
         tracker = ThreadSafeProgressTracker(
@@ -260,7 +260,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         progress_calls.clear()
 
         # Parallel test
-        def parallel_worker(worker_id: str, count: int):
+        def parallel_worker(worker_id: str, count: int) -> None:
             for i in range(count):
                 tracker.report_progress(
                     worker_id, i + 1, f"Worker {worker_id} file {i}"
@@ -291,7 +291,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         logger.info(f"   - Speedup ratio: {speedup:.2f}x")
         logger.info(f"   - Progress callbacks: {len(progress_calls)}")
 
-    def test_parallel_scanner_integration(self):
+    def test_parallel_scanner_integration(self) -> None:
         """Test integration with parallel scanning code (basic import test)."""
         try:
             # Test that the updated parallel scanner can be imported

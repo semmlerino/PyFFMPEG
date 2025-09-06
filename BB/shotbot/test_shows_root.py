@@ -14,7 +14,7 @@ from previous_shots_finder import PreviousShotsFinder
 from targeted_shot_finder import TargetedShotsFinder
 
 
-def test_shows_root_configuration():
+def test_shows_root_configuration() -> bool:
     """Test that all components use the configured SHOWS_ROOT."""
     print("Testing SHOWS_ROOT configuration...")
     print(f"Environment SHOWS_ROOT: {os.environ.get('SHOWS_ROOT')}")

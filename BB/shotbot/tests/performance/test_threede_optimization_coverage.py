@@ -43,7 +43,7 @@ pytestmark = [pytest.mark.performance]
 class TestDirectoryCache:
     """Test the directory caching system thoroughly."""
 
-    def test_cache_basic_operations(self):
+    def test_cache_basic_operations(self) -> None:
         """Test basic cache operations."""
         cache = DirectoryCache(ttl_seconds=1)
 
@@ -65,7 +65,7 @@ class TestDirectoryCache:
         assert stats["total_entries"] == 1
 
     @patch("time.time")
-    def test_cache_ttl_expiration(self, mock_time):
+    def test_cache_ttl_expiration(self, mock_time) -> None:
         """Test TTL expiration behavior - OPTIMIZED: Mock time instead of sleep."""
         cache = DirectoryCache(
             ttl_seconds=0.1, enable_auto_expiry=True
@@ -86,13 +86,13 @@ class TestDirectoryCache:
         stats = cache.get_stats()
         assert stats["evictions"] >= 1
 
-    def test_cache_thread_safety(self):
+    def test_cache_thread_safety(self) -> None:
         """Test cache thread safety - OPTIMIZED: Reduced from 500 to 50 items."""
         cache = DirectoryCache(ttl_seconds=1)
         results = []
         errors = []
 
-        def cache_worker(worker_id: int):
+        def cache_worker(worker_id: int) -> None:
             try:
                 # OPTIMIZED: Reduced from 100 to 10 iterations per worker
                 for i in range(10):
@@ -131,7 +131,7 @@ class TestDirectoryCache:
 
     @pytest.mark.slow
     @patch("time.time")
-    def test_cache_cleanup(self, mock_time):
+    def test_cache_cleanup(self, mock_time) -> None:
         """Test cache cleanup when it gets large - OPTIMIZED: Reduced from 1300 to 100 entries."""
         cache = DirectoryCache(ttl_seconds=0.1)
 
@@ -161,7 +161,7 @@ class TestDirectoryCache:
 class TestOptimizedFileFinding:
     """Test the optimized file finding methods."""
 
-    def test_python_method_performance(self, tmp_path):
+    def test_python_method_performance(self, tmp_path) -> None:
         """Test Python-only file finding method."""
         # Create test structure
         user_dir = tmp_path / "user"
@@ -189,7 +189,7 @@ class TestOptimizedFileFinding:
         assert "artist2" in users_found
         assert "excluded" not in users_found
 
-    def test_subprocess_method_with_exclusions(self, tmp_path):
+    def test_subprocess_method_with_exclusions(self, tmp_path) -> None:
         """Test subprocess method with user exclusions."""
         user_dir = tmp_path / "user"
 
@@ -211,7 +211,7 @@ class TestOptimizedFileFinding:
         users_found = {user for user, _ in file_pairs}
         assert users_found == {"keep1", "keep2"}
 
-    def test_subprocess_fallback_behavior(self, tmp_path):
+    def test_subprocess_fallback_behavior(self, tmp_path) -> None:
         """Test subprocess fallback to Python method."""
         user_dir = tmp_path / "user"
         artist_dir = user_dir / "artist"
@@ -233,7 +233,7 @@ class TestOptimizedFileFinding:
         assert len(file_pairs) == 1
         assert file_pairs[0][0] == "artist"
 
-    def test_subprocess_timeout_handling(self, tmp_path):
+    def test_subprocess_timeout_handling(self, tmp_path) -> None:
         """Test subprocess timeout handling."""
         user_dir = tmp_path / "user"
         artist_dir = user_dir / "artist"
@@ -258,7 +258,7 @@ class TestOptimizedFileFinding:
 class TestOptimizedPlateExtraction:
     """Test optimized plate extraction with various path patterns."""
 
-    def test_plate_extraction_fast_path(self, tmp_path):
+    def test_plate_extraction_fast_path(self, tmp_path) -> None:
         """Test plate extraction fast path (parent directory check)."""
         user_path = tmp_path / "user" / "artist"
 
@@ -278,7 +278,7 @@ class TestOptimizedPlateExtraction:
             )
             assert plate == expected_plate, f"Fast path failed for {file_path}"
 
-    def test_plate_extraction_pattern_matching(self, tmp_path):
+    def test_plate_extraction_pattern_matching(self, tmp_path) -> None:
         """Test plate extraction with various patterns."""
         user_path = tmp_path / "user" / "artist"
 
@@ -305,7 +305,7 @@ class TestOptimizedPlateExtraction:
                 f"Pattern matching failed for {file_path} -> expected {expected_plate}, got {plate}"
             )
 
-    def test_plate_extraction_error_handling(self):
+    def test_plate_extraction_error_handling(self) -> None:
         """Test plate extraction error handling."""
         # Test with paths that can't be made relative
         file_path = Path("/completely/different/path/scene.3de")
@@ -322,7 +322,7 @@ class TestOptimizedPlateExtraction:
 class TestOptimizedSceneFinding:
     """Test the complete optimized scene finding workflow."""
 
-    def test_find_scenes_strategy_selection(self, tmp_path):
+    def test_find_scenes_strategy_selection(self, tmp_path) -> None:
         """Test that correct strategy is selected based on workload size."""
 
         # Create small workload (should use Python method)
@@ -380,7 +380,7 @@ class TestOptimizedSceneFinding:
         # Subprocess method should have been called
         # Test behavior instead: assert result is True
 
-    def test_find_scenes_with_published_files(self, tmp_path):
+    def test_find_scenes_with_published_files(self, tmp_path) -> None:
         """Test finding scenes including published files."""
         shot_path = tmp_path / "shot_with_published"
 
@@ -410,7 +410,7 @@ class TestOptimizedSceneFinding:
         assert "artist" in users
         assert "published-mm" in users
 
-    def test_find_scenes_error_handling(self, tmp_path):
+    def test_find_scenes_error_handling(self, tmp_path) -> None:
         """Test error handling in scene finding."""
 
         # Test with invalid shot components
@@ -435,7 +435,7 @@ class TestOptimizedSceneFinding:
 
         assert scenes == []
 
-    def test_find_scenes_file_verification(self, tmp_path):
+    def test_find_scenes_file_verification(self, tmp_path) -> None:
         """Test that unreadable files are skipped."""
         shot_path = tmp_path / "shot_with_bad_files"
         user_dir = shot_path / "user" / "artist"
@@ -475,7 +475,7 @@ class TestOptimizedSceneFinding:
 class TestOptimizedUtilityMethods:
     """Test utility methods in the optimized finder."""
 
-    def test_quick_3de_exists_check(self, tmp_path):
+    def test_quick_3de_exists_check(self, tmp_path) -> None:
         """Test optimized quick existence check."""
 
         # Create structure with .3de files
@@ -512,7 +512,7 @@ class TestOptimizedUtilityMethods:
             is False
         )
 
-    def test_quick_check_depth_limit(self, tmp_path):
+    def test_quick_check_depth_limit(self, tmp_path) -> None:
         """Test that quick check respects depth limits."""
         # Create very deep structure
         deep_dir = tmp_path / "deep"
@@ -533,7 +533,7 @@ class TestOptimizedUtilityMethods:
         # Result depends on actual depth limit implementation
         assert isinstance(result, bool)  # At least doesn't crash
 
-    def test_verify_scene_exists(self, tmp_path):
+    def test_verify_scene_exists(self, tmp_path) -> None:
         """Test optimized scene existence verification."""
 
         # Create valid .3de file
@@ -566,7 +566,7 @@ class TestOptimizedUtilityMethods:
 class TestCacheIntegration:
     """Test cache integration with the optimized finder."""
 
-    def test_cache_effectiveness_with_repeated_scans(self, tmp_path):
+    def test_cache_effectiveness_with_repeated_scans(self, tmp_path) -> None:
         """Test that cache improves performance on repeated scans."""
 
         # Create test structure
@@ -623,7 +623,7 @@ class TestCacheIntegration:
 class TestPerformanceRegression:
     """Test for performance regressions in optimized implementation."""
 
-    def test_performance_baseline(self, tmp_path):
+    def test_performance_baseline(self, tmp_path) -> None:
         """Test that optimized version meets performance baselines."""
 
         # Create medium-sized test structure

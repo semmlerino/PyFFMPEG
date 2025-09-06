@@ -21,7 +21,7 @@ from cache_manager import CacheManager
 class MockSettingsManager:
     """Mock settings manager for testing."""
     
-    def __init__(self, memory_mb: int = 100, expiry_min: int = 30):
+    def __init__(self, memory_mb: int = 100, expiry_min: int = 30) -> None:
         self._memory_mb = memory_mb
         self._expiry_min = expiry_min
         self._change_callbacks = []
@@ -37,7 +37,6 @@ class MockSettingsManager:
     
     def update_memory_limit(self, new_mb: int) -> None:
         """Simulate settings change."""
-        old_mb = self._memory_mb
         self._memory_mb = new_mb
         # Emit settings changed signal
         for callback in self._change_callbacks:
@@ -45,7 +44,6 @@ class MockSettingsManager:
     
     def update_expiry_time(self, new_min: int) -> None:
         """Simulate settings change."""
-        old_min = self._expiry_min
         self._expiry_min = new_min
         # Emit settings changed signal
         for callback in self._change_callbacks:
@@ -55,18 +53,18 @@ class MockSettingsManager:
 class MockSignal:
     """Mock Qt signal for testing."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._callbacks = []
     
-    def connect(self, callback):
+    def connect(self, callback) -> None:
         self._callbacks.append(callback)
         
-    def emit(self, *args):
+    def emit(self, *args) -> None:
         for callback in self._callbacks:
             callback(*args)
 
 
-def test_unified_cache_strategy():
+def test_unified_cache_strategy() -> bool:
     """Test the complete unified cache strategy implementation."""
     
     print("=" * 60)
@@ -171,7 +169,7 @@ def test_unified_cache_strategy():
     return True
 
 
-def demonstrate_benefits():
+def demonstrate_benefits() -> None:
     """Demonstrate the benefits of the unified cache strategy."""
     
     print("\nUnified Cache Strategy Benefits:")

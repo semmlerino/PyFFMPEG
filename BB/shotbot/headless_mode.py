@@ -190,7 +190,7 @@ class HeadlessMode:
         Returns:
             Wrapped function that skips in headless mode
         """
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Any:
             if HeadlessMode.is_headless_environment():
                 logger.debug(f"Skipping {func.__name__} in headless mode")
                 return None
@@ -212,7 +212,7 @@ class HeadlessMode:
         Returns:
             Wrapped function that checks for display
         """
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Any:
             if not HeadlessMode.is_display_available():
                 raise RuntimeError(
                     f"{func.__name__} requires a display but none is available. "
@@ -232,7 +232,7 @@ class HeadlessMainWindow:
     useful for testing core functionality without UI.
     """
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """Initialize headless main window."""
         from cache_manager import CacheManager
         from process_pool_factory import ProcessPoolFactory

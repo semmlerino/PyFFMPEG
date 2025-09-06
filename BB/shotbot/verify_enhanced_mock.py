@@ -3,10 +3,10 @@
 Verify enhanced mock environment has 3DE files for both tabs.
 """
 
-import os
 from pathlib import Path
 
-def verify_mock_environment(shows_root):
+
+def verify_mock_environment(shows_root) -> bool:
     """Verify the enhanced mock environment has both gabriel-h and other user 3DE files."""
     shows_path = Path(shows_root)
     
@@ -21,14 +21,14 @@ def verify_mock_environment(shows_root):
     gabrielh_3de_files = [f for f in all_3de_files if "/user/gabriel-h/" in str(f)]
     other_users_3de_files = [f for f in all_3de_files if "/user/gabriel-h/" not in str(f)]
     
-    print(f"\n📊 3DE File Statistics:")
+    print("\n📊 3DE File Statistics:")
     print(f"   Total 3DE files: {len(all_3de_files)}")
     print(f"   Gabriel-h files (My Shots): {len(gabrielh_3de_files)}")
     print(f"   Other users files (Other 3DE Scenes): {len(other_users_3de_files)}")
     
     # Show sample files
     if gabrielh_3de_files:
-        print(f"\n✅ My Shots tab will be populated:")
+        print("\n✅ My Shots tab will be populated:")
         for f in gabrielh_3de_files[:3]:
             # Extract shot info
             parts = f.parts
@@ -40,10 +40,10 @@ def verify_mock_environment(shows_root):
         if len(gabrielh_3de_files) > 3:
             print(f"   ... and {len(gabrielh_3de_files) - 3} more")
     else:
-        print(f"\n❌ My Shots tab will be empty (no gabriel-h 3DE files)")
+        print("\n❌ My Shots tab will be empty (no gabriel-h 3DE files)")
     
     if other_users_3de_files:
-        print(f"\n✅ Other 3DE Scenes tab will be populated:")
+        print("\n✅ Other 3DE Scenes tab will be populated:")
         users = set()
         shots = set()
         for f in other_users_3de_files:
@@ -60,21 +60,21 @@ def verify_mock_environment(shows_root):
         print(f"   Users: {', '.join(sorted(users))}")
         print(f"   Sample shots: {', '.join(sorted(list(shots))[:5])}")
     else:
-        print(f"\n❌ Other 3DE Scenes tab will be empty (no other user 3DE files)")
+        print("\n❌ Other 3DE Scenes tab will be empty (no other user 3DE files)")
     
-    print(f"\n🎯 Summary:")
+    print("\n🎯 Summary:")
     if gabrielh_3de_files and other_users_3de_files:
-        print(f"   ✅ Both 'My Shots' and 'Other 3DE Scenes' tabs will be populated")
-        print(f"   🚀 Mock environment is ready for testing!")
+        print("   ✅ Both 'My Shots' and 'Other 3DE Scenes' tabs will be populated")
+        print("   🚀 Mock environment is ready for testing!")
         return True
     elif gabrielh_3de_files:
-        print(f"   ⚠️  Only 'My Shots' tab will be populated")
+        print("   ⚠️  Only 'My Shots' tab will be populated")
         return False
     elif other_users_3de_files:
-        print(f"   ⚠️  Only 'Other 3DE Scenes' tab will be populated")
+        print("   ⚠️  Only 'Other 3DE Scenes' tab will be populated")
         return False
     else:
-        print(f"   ❌ Neither tab will be populated")
+        print("   ❌ Neither tab will be populated")
         return False
 
 if __name__ == "__main__":
@@ -84,10 +84,10 @@ if __name__ == "__main__":
     success = verify_mock_environment(shows_root)
     
     if success:
-        print(f"\n🎉 Enhanced mock environment verification PASSED!")
-        print(f"\n📋 To test ShotBot with this environment:")
+        print("\n🎉 Enhanced mock environment verification PASSED!")
+        print("\n📋 To test ShotBot with this environment:")
         print(f"   SHOWS_ROOT={shows_root} python shotbot.py --mock")
     else:
-        print(f"\n❌ Enhanced mock environment verification FAILED!")
+        print("\n❌ Enhanced mock environment verification FAILED!")
     
     exit(0 if success else 1)

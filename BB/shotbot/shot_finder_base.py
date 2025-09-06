@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class ShotFinderBase(ABC):
     """Abstract base class for shot finders with common functionality."""
     
-    def __init__(self, username: str | None = None):
+    def __init__(self, username: str | None = None) -> None:
         """Initialize the shot finder with sanitized username.
         
         Args:

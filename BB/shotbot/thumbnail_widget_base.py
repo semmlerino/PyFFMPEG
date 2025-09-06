@@ -51,7 +51,7 @@ class FolderOpenerSignals(QObject):
 class FolderOpenerWorker(QRunnable):
     """Worker to open folders in a non-blocking way."""
 
-    def __init__(self, folder_path: str):
+    def __init__(self, folder_path: str) -> None:
         """Initialize the worker.
 
         Args:
@@ -62,7 +62,7 @@ class FolderOpenerWorker(QRunnable):
         self.signals = FolderOpenerSignals()
 
     @Slot()
-    def run(self):
+    def run(self) -> None:
         """Open the folder using the appropriate method for the platform."""
         tracker = get_tracker()
         metadata = {
@@ -186,13 +186,13 @@ class BaseThumbnailLoader(QRunnable):
         loaded = Signal(object, QPixmap)  # widget, pixmap
         failed = Signal(object)  # widget
 
-    def __init__(self, widget: ThumbnailWidgetBase, path: Path):
+    def __init__(self, widget: ThumbnailWidgetBase, path: Path) -> None:
         super().__init__()
         self.widget = widget
         self.path = path
         self.signals = self.Signals()
 
-    def run(self):
+    def run(self) -> None:
         """Load the thumbnail with memory bounds checking and proper error handling.
 
         Uses QImage for thread safety - QPixmap can only be used in the main GUI thread.
@@ -315,11 +315,11 @@ class ThumbnailWidgetBase(QFrame):
     _cache_manager = CacheManager()
 
     @classmethod
-    def set_cache_manager(cls, cache_manager: CacheManager):
+    def set_cache_manager(cls, cache_manager: CacheManager) -> None:
         """Set the shared cache manager for all thumbnail widgets."""
         cls._cache_manager = cache_manager
 
-    def __init__(self, data: ThumbnailDataProtocol, size: int = Config.DEFAULT_THUMBNAIL_SIZE):
+    def __init__(self, data: ThumbnailDataProtocol, size: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
         super().__init__()
         self.data = data
         self._thumbnail_size = size
@@ -336,7 +336,7 @@ class ThumbnailWidgetBase(QFrame):
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.setFixedHeight(self._calculate_widget_height())
 
-    def _setup_base_ui(self):
+    def _setup_base_ui(self) -> None:
         """Set up the common UI elements."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -406,7 +406,7 @@ class ThumbnailWidgetBase(QFrame):
         """Create and return the context menu for this widget."""
         pass
 
-    def _set_placeholder(self):
+    def _set_placeholder(self) -> None:
         """Set placeholder image."""
         placeholder = QPixmap(self._thumbnail_size, self._thumbnail_size)
         placeholder.fill(QColor(Config.PLACEHOLDER_COLOR))
@@ -420,7 +420,7 @@ class ThumbnailWidgetBase(QFrame):
 
         self.thumbnail_label.setPixmap(placeholder)
 
-    def _load_thumbnail(self):
+    def _load_thumbnail(self) -> None:
         """Load thumbnail from cache or source."""
         # Set loading state and show indicator
         self._loading_state = LoadingState.LOADING
@@ -462,7 +462,7 @@ class ThumbnailWidgetBase(QFrame):
                 # No thumbnail available
                 self._on_thumbnail_failed(self)
 
-    def _on_thumbnail_loaded(self, widget: ThumbnailWidgetBase, pixmap: QPixmap):
+    def _on_thumbnail_loaded(self, widget: ThumbnailWidgetBase, pixmap: QPixmap) -> None:
         """Handle loaded thumbnail."""
         if widget == self:
             self._loading_state = LoadingState.LOADED
@@ -470,14 +470,14 @@ class ThumbnailWidgetBase(QFrame):
             self._pixmap = pixmap
             self._update_thumbnail()
 
-    def _on_thumbnail_failed(self, widget: ThumbnailWidgetBase):
+    def _on_thumbnail_failed(self, widget: ThumbnailWidgetBase) -> None:
         """Handle failed thumbnail loading."""
         if widget == self:
             self._loading_state = LoadingState.FAILED
             self.loading_indicator.stop()
             # Keep the placeholder image
 
-    def _update_thumbnail(self):
+    def _update_thumbnail(self) -> None:
         """Update thumbnail display."""
         if self._pixmap:
             scaled = self._pixmap.scaled(
@@ -498,7 +498,7 @@ class ThumbnailWidgetBase(QFrame):
 
         return base_height + content_height
 
-    def set_size(self, size: int):
+    def set_size(self, size: int) -> None:
         """Set thumbnail size."""
         self._thumbnail_size = size
         self.thumbnail_label.setFixedSize(size, size)
@@ -518,12 +518,12 @@ class ThumbnailWidgetBase(QFrame):
         # Update fixed height
         self.setFixedHeight(self._calculate_widget_height())
 
-    def set_selected(self, selected: bool):
+    def set_selected(self, selected: bool) -> None:
         """Set selection state."""
         self._selected = selected
         self._update_style()
 
-    def _update_style(self):
+    def _update_style(self) -> None:
         """Update widget style based on state."""
         if self._selected:
             self.setStyleSheet(self._get_selected_style())
@@ -534,7 +534,7 @@ class ThumbnailWidgetBase(QFrame):
         self.update()
 
     # Base context menu actions
-    def _open_shot_folder(self):
+    def _open_shot_folder(self) -> None:
         """Open the shot's workspace folder in system file manager (non-blocking)."""
         folder_path = self.data.workspace_path
 
@@ -555,7 +555,7 @@ class ThumbnailWidgetBase(QFrame):
         QThreadPool.globalInstance().start(worker)
 
     @Slot(str)
-    def _on_folder_open_error(self, error_msg: str):
+    def _on_folder_open_error(self, error_msg: str) -> None:
         """Handle folder opening errors.
 
         Args:
@@ -565,7 +565,7 @@ class ThumbnailWidgetBase(QFrame):
         # Could emit a signal here to show error in UI if needed
 
     @Slot()
-    def _on_folder_open_success(self):
+    def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
         logger.debug("Folder opened successfully")
 
@@ -575,12 +575,12 @@ class ThumbnailWidgetBase(QFrame):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.data)
 
-    def mouseDoubleClickEvent(self, event: QMouseEvent):
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         """Handle double click - can be overridden by derived classes."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.double_clicked.emit(self.data)
 
-    def contextMenuEvent(self, event: QContextMenuEvent):
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu."""
         menu = self._create_context_menu()
         menu.exec(event.globalPos())

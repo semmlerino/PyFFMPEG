@@ -36,7 +36,7 @@ pytestmark = pytest.mark.integration
 class TestCacheIntegration:
     """Integration tests for cache manager modular components following UNIFIED_TESTING_GUIDE."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
         self.test_subprocess = TestSubprocess()
         """Minimal setup to avoid pytest fixture overhead."""
@@ -65,7 +65,7 @@ class TestCacheIntegration:
                 img_path.write_text(f"Test image {i}")
                 self.test_images.append(img_path)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Direct cleanup without fixture dependencies."""
         try:
             if self.temp_dir.exists():
@@ -73,7 +73,7 @@ class TestCacheIntegration:
         except Exception:
             pass  # Ignore cleanup errors
 
-    def test_cache_manager_thumbnail_workflow_integration(self):
+    def test_cache_manager_thumbnail_workflow_integration(self) -> None:
         """Test complete thumbnail caching workflow with modular components."""
         # Import locally to avoid pytest environment issues
 
@@ -108,7 +108,7 @@ class TestCacheIntegration:
         assert "thumbnail_count" in usage_stats
         assert usage_stats["thumbnail_count"] > 0
 
-    def test_cache_manager_storage_backend_integration(self):
+    def test_cache_manager_storage_backend_integration(self) -> None:
         """Test storage backend atomic operations integration."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -149,7 +149,7 @@ class TestCacheIntegration:
         assert final_data["new_key"] == "new_value"
         assert final_data["test_key"] == "test_value"  # Original data preserved
 
-    def test_cache_manager_failure_tracking_integration(self):
+    def test_cache_manager_failure_tracking_integration(self) -> None:
         """Test failure tracking with exponential backoff integration."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -197,7 +197,7 @@ class TestCacheIntegration:
         )
         assert should_retry is True
 
-    def test_cache_manager_memory_management_integration(self):
+    def test_cache_manager_memory_management_integration(self) -> None:
         """Test memory management with LRU eviction integration."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -242,7 +242,7 @@ class TestCacheIntegration:
             # Restore original limit
             cache_manager._memory_manager._max_memory_bytes = original_limit
 
-    def test_cache_manager_shot_cache_integration(self):
+    def test_cache_manager_shot_cache_integration(self) -> None:
         """Test shot cache TTL validation and storage integration."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -312,7 +312,7 @@ class TestCacheIntegration:
             # Restore original TTL
             cache_manager._shot_cache._expiry_minutes = original_ttl
 
-    def test_cache_manager_validation_and_repair_integration(self):
+    def test_cache_manager_validation_and_repair_integration(self) -> None:
         """Test cache validation and repair workflow integration."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -354,7 +354,7 @@ class TestCacheIntegration:
         assert "issues_fixed" in validation_result
         assert validation_result["issues_found"] >= 0
 
-    def test_cache_manager_concurrent_access_integration(self):
+    def test_cache_manager_concurrent_access_integration(self) -> None:
         """Test cache manager handling concurrent access safely."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -365,7 +365,7 @@ class TestCacheIntegration:
         results = []
         errors = []
 
-        def cache_thumbnail_worker(worker_id):
+        def cache_thumbnail_worker(worker_id) -> None:
             try:
                 source_path = str(self.test_images[worker_id % len(self.test_images)])
                 cached_path = cache_manager.cache_thumbnail(
@@ -402,7 +402,7 @@ class TestCacheIntegration:
             assert cached_path is not None
             assert Path(cached_path).exists()
 
-    def test_cache_manager_backward_compatibility_integration(self):
+    def test_cache_manager_backward_compatibility_integration(self) -> None:
         """Test cache manager maintains backward compatibility with existing API."""
 
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))

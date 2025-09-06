@@ -42,7 +42,7 @@ class BashSessionDouble:
     This is the ONLY place we mock - at the actual system boundary.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize with predictable behavior."""
         self.executed_commands: list[str] = []
         self.responses: dict[str, str] = {}
@@ -80,15 +80,15 @@ class BashSessionDouble:
         else:
             return f"Output for: {command}"
 
-    def set_response(self, command: str, response: str):
+    def set_response(self, command: str, response: str) -> None:
         """Configure specific response for testing."""
         self.responses[command] = response
 
-    def close(self):
+    def close(self) -> None:
         """Close the session."""
         self.is_closed = True
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset for fresh test."""
         self.executed_commands.clear()
         self.responses.clear()
@@ -103,7 +103,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
     Bypasses singleton pattern to ensure fresh instances for each test.
     """
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> TestableProcessPoolManager:
         """Override to bypass singleton pattern in tests."""
         # Don't use singleton for test instances - use QObject's __new__
         from PySide6.QtCore import QObject
@@ -111,7 +111,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         instance = QObject.__new__(cls)
         return instance
 
-    def __init__(self, max_workers: int = 4):
+    def __init__(self, max_workers: int = 4) -> None:
         """Initialize with optional session injection."""
         # Initialize directly without calling super().__init__() to avoid singleton issues
         import concurrent.futures
@@ -137,7 +137,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         self._initialized = True
         self._test_session: BashSessionDouble | None = None
 
-    def set_test_session(self, session: BashSessionDouble):
+    def set_test_session(self, session: BashSessionDouble) -> None:
         """Inject test session for testing."""
         self._test_session = session
 
@@ -228,7 +228,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 class TestCommandCacheBehavior:
     """Test CommandCache behavior through state changes."""
 
-    def test_cache_stores_and_retrieves_values(self):
+    def test_cache_stores_and_retrieves_values(self) -> None:
         """Test that cache correctly stores and retrieves values.
 
         CORRECT: Testing actual behavior, not implementation.
@@ -246,7 +246,7 @@ class TestCommandCacheBehavior:
         result = cache.get("nonexistent")
         assert result is None
 
-    def test_cache_respects_ttl(self):
+    def test_cache_respects_ttl(self) -> None:
         """Test that cache respects TTL expiration.
 
         CORRECT: Testing time-based behavior, not mocking time.
@@ -265,7 +265,7 @@ class TestCommandCacheBehavior:
         # Test BEHAVIOR: Value expired
         assert cache.get("temp_key") is None
 
-    def test_cache_tracks_statistics(self):
+    def test_cache_tracks_statistics(self) -> None:
         """Test that cache tracks hit/miss statistics.
 
         CORRECT: Testing observable behavior through stats.
@@ -288,7 +288,7 @@ class TestCommandCacheBehavior:
         assert stats["misses"] == 3
         assert stats["hit_rate"] == 40.0  # 40%
 
-    def test_cache_invalidation_by_pattern(self):
+    def test_cache_invalidation_by_pattern(self) -> None:
         """Test selective cache invalidation.
 
         CORRECT: Testing outcome of invalidation, not method calls.
@@ -316,7 +316,7 @@ class TestCommandCacheBehavior:
 class TestProcessMetricsBehavior:
     """Test ProcessMetrics behavior and calculations."""
 
-    def test_metrics_track_operations(self):
+    def test_metrics_track_operations(self) -> None:
         """Test that metrics track operations correctly.
 
         CORRECT: Testing state changes, not internal counters.
@@ -340,7 +340,7 @@ class TestProcessMetricsBehavior:
         assert report["python_operations"] == 5
         assert report["average_response_ms"] == 150  # (100+200+150)/3
 
-    def test_metrics_reset_functionality(self):
+    def test_metrics_reset_functionality(self) -> None:
         """Test that metrics can be reinitialized.
 
         CORRECT: Testing observable state after creating new instance.
@@ -363,7 +363,7 @@ class TestProcessMetricsBehavior:
 class TestProcessPoolManagerBehavior:
     """Test ProcessPoolManager behavior with injected dependencies."""
 
-    def test_singleton_ensures_single_instance(self):
+    def test_singleton_ensures_single_instance(self) -> None:
         """Test that singleton pattern creates only one instance.
 
         CORRECT: Testing behavior (single instance), not implementation.
@@ -384,7 +384,7 @@ class TestProcessPoolManagerBehavior:
         manager1.shutdown()
         ProcessPoolManager._instance = None
 
-    def test_command_execution_with_caching(self, qapp):
+    def test_command_execution_with_caching(self, qapp) -> None:
         """Test that commands are cached and reused.
 
         CORRECT: Using test double at system boundary, testing behavior.
@@ -417,7 +417,7 @@ class TestProcessPoolManagerBehavior:
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)
         manager.shutdown()
 
-    def test_batch_command_execution(self):
+    def test_batch_command_execution(self) -> None:
         """Test batch execution of multiple commands.
 
         CORRECT: Testing actual batch behavior, not mocked responses.
@@ -451,7 +451,7 @@ class TestProcessPoolManagerBehavior:
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)
         manager.shutdown()
 
-    def test_error_recovery_during_execution(self):
+    def test_error_recovery_during_execution(self) -> None:
         """Test that manager recovers from execution errors.
 
         CORRECT: Testing error recovery behavior, not error detection.
@@ -484,7 +484,7 @@ class TestProcessPoolManagerBehavior:
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)
         manager.shutdown()
 
-    def test_concurrent_access_thread_safety(self):
+    def test_concurrent_access_thread_safety(self) -> None:
         """Test thread-safe access to singleton.
 
         CORRECT: Testing actual concurrent behavior, not locking mechanism.
@@ -499,7 +499,7 @@ class TestProcessPoolManagerBehavior:
         managers = []
         results = []
 
-        def access_manager(index):
+        def access_manager(index) -> None:
             """Thread function to access existing manager."""
             # Access the already-created singleton (don't create new QObject in thread)
             manager = ProcessPoolManager()  # This returns the existing singleton
@@ -535,7 +535,7 @@ class TestProcessPoolManagerBehavior:
 class TestPythonFileOperations:
     """Test Python-based file operations without subprocess."""
 
-    def test_find_files_in_directory(self, tmp_path):
+    def test_find_files_in_directory(self, tmp_path) -> None:
         """Test file finding using Python glob.
 
         CORRECT: Using real filesystem with temp directory.
@@ -576,7 +576,7 @@ class TestPythonFileOperations:
         manager.shutdown()
         ProcessPoolManager._instance = None
 
-    def test_nonexistent_directory_handling(self):
+    def test_nonexistent_directory_handling(self) -> None:
         """Test behavior with nonexistent directories.
 
         CORRECT: Testing actual error handling behavior.
@@ -605,7 +605,7 @@ class TestPythonFileOperations:
 class TestCacheInvalidation:
     """Test cache invalidation strategies."""
 
-    def test_selective_cache_invalidation(self):
+    def test_selective_cache_invalidation(self) -> None:
         """Test that cache can be selectively invalidated.
 
         CORRECT: Testing behavior through observable state changes.

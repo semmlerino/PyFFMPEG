@@ -19,6 +19,8 @@ from PySide6.QtTest import QSignalSpy
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from typing import NoReturn
+
 from cache_manager import CacheManager
 from shot_model import RefreshResult, Shot, ShotModel
 
@@ -58,7 +60,7 @@ def shot_model_with_test_pool(real_cache_manager):
 class TestShotModelRefreshCriticalPaths:
     """Test critical paths in ShotModel.refresh_shots() with real components."""
 
-    def test_refresh_shots_success_with_changes(self, shot_model_with_test_pool, qtbot):
+    def test_refresh_shots_success_with_changes(self, shot_model_with_test_pool, qtbot) -> None:
         """Test successful refresh when shot list changes."""
         model, test_pool = shot_model_with_test_pool
 
@@ -101,7 +103,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         assert shots[1].full_name == "seq01_shot02"
         assert shots[2].full_name == "seq02_shot01"
 
-    def test_refresh_shots_no_changes(self, shot_model_with_test_pool, qtbot):
+    def test_refresh_shots_no_changes(self, shot_model_with_test_pool, qtbot) -> None:
         """Test refresh when shot list hasn't changed."""
         model, test_pool = shot_model_with_test_pool
 
@@ -118,12 +120,12 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         assert second_result.success is True
         assert second_result.has_changes is False
 
-    def test_refresh_shots_timeout_handling(self, shot_model_with_test_pool, qtbot):
+    def test_refresh_shots_timeout_handling(self, shot_model_with_test_pool, qtbot) -> None:
         """Test timeout handling in refresh_shots()."""
         model, test_pool = shot_model_with_test_pool
 
         # Simulate timeout by raising TimeoutError
-        def timeout_execute(*args, **kwargs):
+        def timeout_execute(*args, **kwargs) -> NoReturn:
             raise TimeoutError("Command timed out")
 
         model._process_pool.execute_workspace_command = timeout_execute
@@ -142,7 +144,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         assert result.success is False
         assert result.has_changes is False
 
-    def test_refresh_shots_parse_error_handling(self, shot_model_with_test_pool, qtbot):
+    def test_refresh_shots_parse_error_handling(self, shot_model_with_test_pool, qtbot) -> None:
         """Test handling of malformed workspace output."""
         model, test_pool = shot_model_with_test_pool
 
@@ -159,7 +161,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
 
     def test_refresh_shots_with_cache_integration(
         self, shot_model_with_test_pool, real_cache_manager
-    ):
+    ) -> None:
         """Test that refresh properly updates cache (real cache, not mocked)."""
         model, test_pool = shot_model_with_test_pool
         cache = real_cache_manager
@@ -179,7 +181,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         assert len(cached_shots) == 1
         assert cached_shots[0]["shot"] == "shot01"
 
-    def test_change_detection_algorithm(self, shot_model_with_test_pool):
+    def test_change_detection_algorithm(self, shot_model_with_test_pool) -> None:
         """Test the change detection algorithm with various scenarios."""
         model, test_pool = shot_model_with_test_pool
 
@@ -214,7 +216,7 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
         result4 = model.refresh_shots()
         assert result4.has_changes is True  # Path changed
 
-    def test_refresh_result_namedtuple_usage(self, shot_model_with_test_pool):
+    def test_refresh_result_namedtuple_usage(self, shot_model_with_test_pool) -> None:
         """Test RefreshResult NamedTuple provides proper interface."""
         model, test_pool = shot_model_with_test_pool
 
@@ -231,7 +233,7 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
         assert result.success in (True, False)
         assert result.has_changes in (True, False)
 
-    def test_concurrent_refresh_handling(self, shot_model_with_test_pool, qtbot):
+    def test_concurrent_refresh_handling(self, shot_model_with_test_pool, qtbot) -> None:
         """Test that concurrent refresh attempts are handled safely."""
         model, test_pool = shot_model_with_test_pool
 
@@ -254,7 +256,7 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
         assert len(shots) == 1
         assert shots[0].shot == "shot02"
 
-    def test_cache_invalidation_workflow(self, shot_model_with_test_pool):
+    def test_cache_invalidation_workflow(self, shot_model_with_test_pool) -> None:
         """Test that cache invalidation forces fresh data fetch."""
         model, test_pool = shot_model_with_test_pool
 
@@ -284,7 +286,7 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
 class TestShotModelSignalIntegration:
     """Test signal emission and connection patterns."""
 
-    def test_signal_emission_order(self, shot_model_with_test_pool, qtbot):
+    def test_signal_emission_order(self, shot_model_with_test_pool, qtbot) -> None:
         """Test that signals are emitted in correct order."""
         model, test_pool = shot_model_with_test_pool
 
@@ -305,12 +307,12 @@ class TestShotModelSignalIntegration:
         assert "changed" in signal_order
         assert "cache" in signal_order
 
-    def test_error_signal_on_failure(self, shot_model_with_test_pool, qtbot):
+    def test_error_signal_on_failure(self, shot_model_with_test_pool, qtbot) -> None:
         """Test that error_occurred signal is emitted on failures."""
         model, test_pool = shot_model_with_test_pool
 
         # Cause an error
-        def raise_error(*args, **kwargs):
+        def raise_error(*args, **kwargs) -> NoReturn:
             raise RuntimeError("Test error")
 
         model._process_pool.execute_workspace_command = raise_error

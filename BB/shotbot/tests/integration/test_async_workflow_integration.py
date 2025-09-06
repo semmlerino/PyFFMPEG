@@ -85,7 +85,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_shot_selection_with_async_thumbnail_loading(
         self, integration_components, test_shots, qtbot
-    ):
+    ) -> None:
         """Test shot selection triggers async loading in both model and panel."""
         item_model, info_panel, cache_manager = integration_components
 
@@ -93,7 +93,7 @@ class TestAsyncWorkflowIntegration:
         item_model.set_shots(test_shots)
 
         # Set up signal spies
-        model_thumbnail_spy = QSignalSpy(item_model.thumbnail_loaded)
+        QSignalSpy(item_model.thumbnail_loaded)
 
         # Select first shot in model
         first_index = item_model.index(0, 0)
@@ -120,7 +120,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_concurrent_model_updates_with_panel_sync(
         self, integration_components, test_shots, qtbot
-    ):
+    ) -> None:
         """Test model updates while panel is also loading asynchronously."""
         item_model, info_panel, cache_manager = integration_components
 
@@ -149,7 +149,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_rapid_shot_changes_stress_test(
         self, integration_components, test_shots, qtbot
-    ):
+    ) -> None:
         """Stress test rapid shot changes across components."""
         item_model, info_panel, cache_manager = integration_components
 
@@ -175,7 +175,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_cache_coherence_across_components(
         self, integration_components, test_shots, qtbot
-    ):
+    ) -> None:
         """Test cache coherence when multiple components access same thumbnails."""
         item_model, info_panel, cache_manager = integration_components
 
@@ -206,7 +206,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_memory_management_during_async_operations(
         self, integration_components, test_shots, qtbot
-    ):
+    ) -> None:
         """Test memory management during concurrent async operations."""
         item_model, info_panel, cache_manager = integration_components
 
@@ -231,7 +231,7 @@ class TestAsyncWorkflowIntegration:
 
     def test_error_propagation_across_components(
         self, integration_components, test_shots, qtbot, monkeypatch
-    ):
+    ) -> None:
         """Test error handling doesn't cascade between components."""
         item_model, info_panel, cache_manager = integration_components
 
@@ -271,17 +271,17 @@ class TestAsyncWorkflowIntegration:
 
     def test_threading_safety_across_components(
         self, integration_components, test_shots, qtbot
-    ):
+    ) -> None:
         """Test thread safety when components operate concurrently."""
         item_model, info_panel, cache_manager = integration_components
 
         # Set up concurrent operations
-        def model_operations():
+        def model_operations() -> None:
             for i in range(5):
                 item_model.set_shots(test_shots[i % len(test_shots) :])
                 time.sleep(0.05)
 
-        def panel_operations():
+        def panel_operations() -> None:
             for i in range(5):
                 info_panel.set_shot(test_shots[i % len(test_shots)])
                 time.sleep(0.05)
@@ -309,7 +309,7 @@ class TestAsyncWorkflowIntegration:
 class TestAsyncCallbackIntegration:
     """Test async callback integration scenarios."""
 
-    def test_model_reset_during_async_callbacks(self, qtbot, tmp_path, monkeypatch):
+    def test_model_reset_during_async_callbacks(self, qtbot, tmp_path, monkeypatch) -> None:
         """Test model reset while async callbacks are in progress."""
         # Create test setup
         image_path = tmp_path / "test.jpg"
@@ -351,7 +351,7 @@ class TestAsyncCallbackIntegration:
         finally:
             model.deleteLater()
 
-    def test_info_panel_shot_change_during_loading(self, qtbot, tmp_path, monkeypatch):
+    def test_info_panel_shot_change_during_loading(self, qtbot, tmp_path, monkeypatch) -> None:
         """Test info panel shot changes while async loading is in progress."""
         # Create test image
         image_path = tmp_path / "test.jpg"

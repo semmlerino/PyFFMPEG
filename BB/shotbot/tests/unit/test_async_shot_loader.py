@@ -42,12 +42,12 @@ class TestAsyncShotLoader:
             loader.quit()
             loader.wait(1000)
 
-    def test_loader_signals_exist(self, loader):
+    def test_loader_signals_exist(self, loader) -> None:
         """Test that AsyncShotLoader has required signals."""
         assert hasattr(loader, "shots_loaded")
         assert hasattr(loader, "load_failed")
 
-    def test_successful_shot_loading_signal_emission(self, loader, qtbot):
+    def test_successful_shot_loading_signal_emission(self, loader, qtbot) -> None:
         """Test shots_loaded signal is emitted with correct data."""
         # Use QSignalSpy to verify signal emission
         spy = QSignalSpy(loader.shots_loaded)
@@ -68,7 +68,7 @@ class TestAsyncShotLoader:
         assert shots[0].sequence == "seq01"
         assert shots[0].shot == "0010"
 
-    def test_failed_loading_signal_emission(self, qtbot):
+    def test_failed_loading_signal_emission(self, qtbot) -> None:
         """Test load_failed signal is emitted on exception."""
         # Create failing process pool
         failing_pool = TestProcessPool()
@@ -94,7 +94,7 @@ class TestAsyncShotLoader:
                 loader.quit()
                 loader.wait(1000)
 
-    def test_loader_stop_request(self, qtbot):
+    def test_loader_stop_request(self, qtbot) -> None:
         """Test that stop() request prevents signal emission."""
         # Create slow process pool
         slow_pool = TestProcessPool()
@@ -119,7 +119,7 @@ class TestAsyncShotLoader:
                 loader.quit()
                 loader.wait(1000)
 
-    def test_thread_cleanup(self, loader, qtbot):
+    def test_thread_cleanup(self, loader, qtbot) -> None:
         """Test proper thread resource cleanup."""
         loader.start()
         assert loader.wait(5000)
@@ -128,7 +128,7 @@ class TestAsyncShotLoader:
         assert loader.isFinished()
         assert not loader.isRunning()
 
-    def test_concurrent_loader_instances(self, qtbot):
+    def test_concurrent_loader_instances(self, qtbot) -> None:
         """Test multiple AsyncShotLoader instances don't interfere."""
         pool1 = TestProcessPool()
         pool1.set_outputs("workspace /shows/SHOW1/shots/seq01/SHOW1_seq01_0010")
@@ -180,7 +180,7 @@ class TestOptimizedShotModelSignals:
         # model is a QObject, not a widget
         return model
 
-    def test_background_load_signals(self, optimized_model, qtbot):
+    def test_background_load_signals(self, optimized_model, qtbot) -> None:
         """Test background_load_started/finished signals."""
         started_spy = QSignalSpy(optimized_model.background_load_started)
         finished_spy = QSignalSpy(optimized_model.background_load_finished)
@@ -203,7 +203,7 @@ class TestOptimizedShotModelSignals:
         assert started_spy.count() == 1
         assert finished_spy.count() == 1
 
-    def test_shots_changed_signal_on_background_update(self, optimized_model, qtbot):
+    def test_shots_changed_signal_on_background_update(self, optimized_model, qtbot) -> None:
         """Test shots_changed signal emitted when background load finds changes."""
         # Pre-populate with initial shots
         optimized_model.shots = []

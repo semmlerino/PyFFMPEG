@@ -56,7 +56,7 @@ class SecureCommandExecutor:
         re.compile(r"%2e%2e"),  # URL-encoded traversal
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize secure command executor."""
         self._cache: dict[str, tuple[str, float]] = {}
         self._cache_lock = threading.Lock()

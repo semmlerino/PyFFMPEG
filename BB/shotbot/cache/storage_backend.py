@@ -20,7 +20,7 @@ class StorageBackend:
     fallback mechanisms.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize storage backend."""
         self._fallback_directories: dict[Path, Path] = {}  # Maps original to fallback
 

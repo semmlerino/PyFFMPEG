@@ -32,7 +32,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 class TestCorruptedFiles:
     """Test handling of corrupted or invalid EXR files."""
 
-    def test_corrupted_exr_header(self, tmp_path):
+    def test_corrupted_exr_header(self, tmp_path) -> None:
         """Corrupted EXR header should be handled gracefully."""
         bad_exr = tmp_path / "corrupted.exr"
         bad_exr.write_bytes(b"NOT_AN_EXR_HEADER" + b"x" * 100)
@@ -46,7 +46,7 @@ class TestCorruptedFiles:
 
         assert result is None or isinstance(result, Path)
 
-    def test_empty_exr_file(self, tmp_path):
+    def test_empty_exr_file(self, tmp_path) -> None:
         """Empty EXR file should be handled without crash."""
         empty_exr = tmp_path / "empty.exr"
         empty_exr.touch()  # Creates empty file
@@ -63,7 +63,7 @@ class TestCorruptedFiles:
         # Should handle gracefully (return None or empty cache)
         assert cached is None or cached.stat().st_size == 0
 
-    def test_truncated_exr_file(self, tmp_path):
+    def test_truncated_exr_file(self, tmp_path) -> None:
         """Truncated EXR file should not crash the application."""
         truncated = tmp_path / "truncated.exr"
         # Write partial EXR magic number
@@ -84,7 +84,7 @@ class TestPermissionErrors:
     """Test handling of file permission issues."""
 
     @pytest.mark.skipif(os.name == "nt", reason="Unix-specific permissions")
-    def test_no_read_permission(self, tmp_path):
+    def test_no_read_permission(self, tmp_path) -> None:
         """Files without read permission should be handled."""
         protected_exr = tmp_path / "protected.exr"
         protected_exr.write_bytes(b"EXR" + b"x" * 100)
@@ -101,7 +101,7 @@ class TestPermissionErrors:
             # Restore permissions for cleanup
             protected_exr.chmod(stat.S_IREAD | stat.S_IWRITE)
 
-    def test_directory_no_execute_permission(self, tmp_path):
+    def test_directory_no_execute_permission(self, tmp_path) -> None:
         """Directory without execute permission should be handled."""
         if os.name == "nt":
             pytest.skip("Unix-specific permissions")
@@ -126,7 +126,7 @@ class TestPermissionErrors:
             # Restore permissions
             restricted_dir.chmod(stat.S_IRWXU)
 
-    def test_cache_dir_not_writable(self, tmp_path):
+    def test_cache_dir_not_writable(self, tmp_path) -> None:
         """Cache directory without write permission should fallback."""
         cache_dir = tmp_path / "readonly_cache"
         cache_dir.mkdir()
@@ -167,7 +167,7 @@ class TestUnusualFormats:
             ("very_long_filename_" + "x" * 200 + ".exr", b"EXR"),
         ],
     )
-    def test_unusual_filenames(self, tmp_path, filename, content):
+    def test_unusual_filenames(self, tmp_path, filename, content) -> None:
         """Various unusual filenames should be handled."""
         file_path = tmp_path / filename
         try:
@@ -181,7 +181,7 @@ class TestUnusualFormats:
         assert result is not None
         assert result.name.lower().endswith(".exr")
 
-    def test_symlink_to_exr(self, tmp_path):
+    def test_symlink_to_exr(self, tmp_path) -> None:
         """Symlinks to EXR files should work."""
         if os.name == "nt":
             pytest.skip("Symlink test requires Unix")
@@ -207,7 +207,7 @@ class TestUnusualFormats:
         # Should process the linked file
         assert cached is None or isinstance(cached, Path)
 
-    def test_very_deep_directory_structure(self, tmp_path):
+    def test_very_deep_directory_structure(self, tmp_path) -> None:
         """Very deep directory structures should be handled."""
         # Create deep path
         deep_path = tmp_path
@@ -225,7 +225,7 @@ class TestUnusualFormats:
         assert result == exr_file
 
     @pytest.mark.skipif(os.name == "nt", reason="Unix-specific")
-    def test_unix_special_device_files(self, tmp_path):
+    def test_unix_special_device_files(self, tmp_path) -> None:
         """Special device files should not be processed as images."""
         # Create a named pipe (FIFO)
         fifo_path = tmp_path / "fake.exr"
@@ -242,7 +242,7 @@ class TestUnusualFormats:
 class TestConcurrentEdgeCases:
     """Test edge cases in concurrent scenarios."""
 
-    def test_file_deleted_during_processing(self, tmp_path):
+    def test_file_deleted_during_processing(self, tmp_path) -> None:
         """File deleted while being processed should be handled."""
 
         exr_file = tmp_path / "vanishing.exr"
@@ -250,7 +250,7 @@ class TestConcurrentEdgeCases:
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
-        def delete_file():
+        def delete_file() -> None:
             QCoreApplication.processEvents()  # Process events instead of sleep
             if exr_file.exists():
                 exr_file.unlink()
@@ -279,7 +279,7 @@ class TestConcurrentEdgeCases:
         # Should handle gracefully
         assert result is None
 
-    def test_file_modified_during_processing(self, tmp_path):
+    def test_file_modified_during_processing(self, tmp_path) -> None:
         """File modified while being processed should be handled."""
 
         exr_file = tmp_path / "changing.exr"
@@ -287,7 +287,7 @@ class TestConcurrentEdgeCases:
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
-        def modify_file():
+        def modify_file() -> None:
             QCoreApplication.processEvents()  # Process events instead of sleep
             if exr_file.exists():
                 # Change file content
@@ -310,7 +310,7 @@ class TestConcurrentEdgeCases:
 class TestResourceExhaustion:
     """Test behavior under resource exhaustion conditions."""
 
-    def test_many_small_exr_files(self, tmp_path):
+    def test_many_small_exr_files(self, tmp_path) -> None:
         """Many small EXR files should not exhaust file handles."""
         # Create many small EXR files
         for i in range(100):
@@ -346,7 +346,7 @@ class TestResourceExhaustion:
         # (actual file handle checking is OS-specific)
         assert True  # If we get here, handles were managed properly
 
-    def test_cache_cleanup_under_pressure(self, tmp_path):
+    def test_cache_cleanup_under_pressure(self, tmp_path) -> None:
         """Cache should clean up under memory pressure."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 

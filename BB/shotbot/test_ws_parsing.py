@@ -20,7 +20,7 @@ workspace /shows/broken_eggs/shots/BRX_070/BRX_070_0010
 workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
 
-def test_parsing():
+def test_parsing() -> None:
     """Test parsing of actual ws output."""
     parse_pattern = re.compile(
         r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+_\w+))",

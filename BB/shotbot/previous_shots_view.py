@@ -66,7 +66,7 @@ class PreviousShotsView(QWidget):
         self,
         model: PreviousShotsItemModel | None = None,
         parent: QWidget | None = None,
-    ):
+    ) -> None:
         """Initialize the previous shots view.
 
         Args:

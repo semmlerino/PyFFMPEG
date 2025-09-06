@@ -28,19 +28,19 @@ from shot_model import Shot
 class FakeSignal:
     """Lightweight signal test double from UNIFIED_TESTING_GUIDE."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.emissions = []
         self.callbacks = []
 
-    def emit(self, *args):
+    def emit(self, *args) -> None:
         self.emissions.append(args)
         for callback in self.callbacks:
             callback(*args)
 
-    def connect(self, callback):
+    def connect(self, callback) -> None:
         self.callbacks.append(callback)
 
-    def disconnect(self, callback=None):
+    def disconnect(self, callback=None) -> None:
         if callback:
             if callback in self.callbacks:
                 self.callbacks.remove(callback)
@@ -67,7 +67,7 @@ class FakeShotModel(QObject):
     refresh_started = Signal()
     refresh_finished = Signal()
 
-    def __init__(self, initial_shots=None):
+    def __init__(self, initial_shots=None) -> None:
         super().__init__()
         self.shots = initial_shots or []
         self.refresh_calls = []
@@ -78,12 +78,12 @@ class FakeShotModel(QObject):
         self.get_shots_calls += 1
         return self.shots.copy()
 
-    def set_shots(self, shots: list[Shot]):
+    def set_shots(self, shots: list[Shot]) -> None:
         """Configure shots for testing."""
         self.shots = shots
         self.shots_updated.emit()
 
-    def refresh_shots(self):
+    def refresh_shots(self) -> bool:
         """Record refresh call."""
         self.refresh_calls.append(True)
         self.refresh_started.emit()
@@ -95,7 +95,7 @@ class FakeShotModel(QObject):
 class FakePreviousShotsFinder:
     """Test double for PreviousShotsFinder with predictable behavior."""
 
-    def __init__(self, username="testuser"):
+    def __init__(self, username="testuser") -> None:
         self.username = username
         self.user_path_pattern = f"/user/{username}"
 
@@ -171,7 +171,7 @@ class FakeCacheManager(QObject):
     # Real Qt signal for compatibility
     cache_updated = Signal()
 
-    def __init__(self, cache_dir=None):
+    def __init__(self, cache_dir=None) -> None:
         super().__init__()
         self.cache_dir = cache_dir
 
@@ -230,7 +230,7 @@ class FakePreviousShotsWorker(QObject):
     scan_finished = Signal(list)
     error_occurred = Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
 
         # Control behavior
@@ -242,13 +242,13 @@ class FakePreviousShotsWorker(QObject):
         self.start_calls = 0
         self.stop_calls = 0
 
-    def start(self):
+    def start(self) -> None:
         """Start the worker (simulate thread start)."""
         self.start_calls += 1
         self.started.emit()
         # For testing, we don't automatically run - tests will trigger completion manually
 
-    def run(self):
+    def run(self) -> None:
         """Simulate worker execution."""
         self.run_calls += 1
 
@@ -280,12 +280,12 @@ class FakePreviousShotsWorker(QObject):
             ]
             self.scan_finished.emit(shot_dicts)
 
-    def stop(self):
+    def stop(self) -> None:
         """Request stop."""
         self.stop_calls += 1
         self.should_stop_flag = True
 
-    def wait(self, timeout_ms=1000):
+    def wait(self, timeout_ms=1000) -> bool:
         """Simulate thread wait."""
         return True  # Always succeeds in test
 

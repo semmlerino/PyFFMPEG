@@ -101,7 +101,7 @@ class ToastNotification(QFrame):
         notification_type: NotificationType,
         duration: int = 4000,
         parent: QWidget | None = None,
-    ):
+    ) -> None:
         super().__init__(parent)
         self.notification_type = notification_type
         self.duration = duration
@@ -276,7 +276,7 @@ class NotificationManager(QObject):
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if hasattr(self, "_initialized"):
             return
 

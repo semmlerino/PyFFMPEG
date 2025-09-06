@@ -20,12 +20,12 @@ class ThreeDEThumbnailWidget(ThumbnailWidgetBase):
     clicked = Signal(object)  # ThreeDEScene
     double_clicked = Signal(object)  # ThreeDEScene
 
-    def __init__(self, scene: ThreeDEScene, size: int = Config.DEFAULT_THUMBNAIL_SIZE):
+    def __init__(self, scene: ThreeDEScene, size: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
         # Store scene reference for backward compatibility
         self.scene = scene
         super().__init__(scene, size)
 
-    def _setup_custom_ui(self):
+    def _setup_custom_ui(self) -> None:
         """Set up custom UI elements specific to 3DE scene thumbnails."""
         # Shot name label (larger, bold)
         self.shot_label = QLabel(self.scene.full_name)

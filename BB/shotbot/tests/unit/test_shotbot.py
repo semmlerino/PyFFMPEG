@@ -14,7 +14,7 @@ from PySide6.QtGui import QColor, QPalette
 class _TestQApplicationDouble:
     """Test double for QApplication following UNIFIED_TESTING_GUIDE principles."""
 
-    def __init__(self, args: list[str]):
+    def __init__(self, args: list[str]) -> None:
         """Initialize test QApplication."""
         self.args = args
         self.application_name = ""
@@ -48,7 +48,7 @@ class _TestQApplicationDouble:
 class _TestMainWindowDouble:
     """Test double for MainWindow following UNIFIED_TESTING_GUIDE principles."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize test MainWindow."""
         self.shown = False
 
@@ -60,7 +60,7 @@ class _TestMainWindowDouble:
 class TestShotbotLogging:
     """Test logging setup behavior without Mock()."""
 
-    def test_setup_logging_creates_log_directory(self, tmp_path):
+    def test_setup_logging_creates_log_directory(self, tmp_path) -> None:
         """Test that setup_logging creates the log directory structure."""
         # UNIFIED_TESTING_GUIDE: Test actual behavior with real filesystem
         with patch("shotbot.Path.home") as mock_home:
@@ -80,7 +80,7 @@ class TestShotbotLogging:
             expected_log_file = expected_log_dir / "shotbot.log"
             assert expected_log_file.exists()
 
-    def test_setup_logging_configures_root_logger(self, tmp_path):
+    def test_setup_logging_configures_root_logger(self, tmp_path) -> None:
         """Test that setup_logging properly configures the root logger."""
         with patch("shotbot.Path.home") as mock_home:
             mock_home.return_value = tmp_path
@@ -103,7 +103,7 @@ class TestShotbotLogging:
             assert "FileHandler" in handler_types
             assert "StreamHandler" in handler_types
 
-    def test_setup_logging_handles_debug_environment(self, tmp_path):
+    def test_setup_logging_handles_debug_environment(self, tmp_path) -> None:
         """Test that SHOTBOT_DEBUG environment variable affects console logging."""
         with patch("shotbot.Path.home") as mock_home:
             mock_home.return_value = tmp_path
@@ -128,7 +128,7 @@ class TestShotbotLogging:
                 assert len(console_handlers) >= 1
                 assert any(h.level == logging.DEBUG for h in console_handlers)
 
-    def test_setup_logging_suppresses_pil_loggers(self, tmp_path):
+    def test_setup_logging_suppresses_pil_loggers(self, tmp_path) -> None:
         """Test that PIL loggers are properly suppressed."""
         with patch("shotbot.Path.home") as mock_home:
             mock_home.return_value = tmp_path
@@ -151,7 +151,7 @@ class TestShotbotLogging:
 class TestShotbotMain:
     """Test main() function behavior without Mock()."""
 
-    def test_main_calls_setup_logging(self, tmp_path):
+    def test_main_calls_setup_logging(self, tmp_path) -> None:
         """Test that main() calls setup_logging first."""
         with patch("shotbot.Path.home") as mock_home, patch(
             "PySide6.QtWidgets.QApplication"
@@ -175,7 +175,7 @@ class TestShotbotMain:
             expected_log_dir = tmp_path / ".shotbot" / "logs"
             assert expected_log_dir.exists()
 
-    def test_main_creates_qapplication_with_correct_settings(self):
+    def test_main_creates_qapplication_with_correct_settings(self) -> None:
         """Test that main() creates QApplication with proper configuration."""
         with patch("shotbot.setup_logging"), patch(
             "PySide6.QtWidgets.QApplication"
@@ -199,7 +199,7 @@ class TestShotbotMain:
             assert test_app.organization_name == "VFX"
             assert test_app.style == "Fusion"
 
-    def test_main_sets_dark_palette(self):
+    def test_main_sets_dark_palette(self) -> None:
         """Test that main() configures dark theme palette."""
         with patch("shotbot.setup_logging"), patch(
             "PySide6.QtWidgets.QApplication"
@@ -231,7 +231,7 @@ class TestShotbotMain:
             highlight_color = palette.color(QPalette.ColorRole.Highlight)
             assert highlight_color == QColor(13, 115, 119)
 
-    def test_main_creates_and_shows_main_window(self):
+    def test_main_creates_and_shows_main_window(self) -> None:
         """Test that main() creates and shows MainWindow."""
         with patch("shotbot.setup_logging"), patch(
             "PySide6.QtWidgets.QApplication"
@@ -253,7 +253,7 @@ class TestShotbotMain:
             # The test double's 'shown' property proves the window was created and displayed
             assert test_window.shown is True
 
-    def test_main_executes_application_and_exits(self):
+    def test_main_executes_application_and_exits(self) -> None:
         """Test that main() executes the app and calls sys.exit."""
         with patch("shotbot.setup_logging"), patch(
             "PySide6.QtWidgets.QApplication"
@@ -277,7 +277,7 @@ class TestShotbotMain:
             assert mock_exit.called
             assert mock_exit.call_args[0][0] == 0  # Exit code should be 0
 
-    def test_main_import_order(self):
+    def test_main_import_order(self) -> None:
         """Test that Qt imports happen after logging setup."""
         # This tests the critical requirement that logging is configured
         # before any imports that might trigger PIL
@@ -302,7 +302,7 @@ class TestShotbotMain:
 class TestShotbotIntegration:
     """Integration tests for shotbot main module."""
 
-    def test_can_import_main_components(self):
+    def test_can_import_main_components(self) -> None:
         """Test that all main components can be imported without errors."""
         # UNIFIED_TESTING_GUIDE: Test real import behavior
         try:
@@ -313,7 +313,7 @@ class TestShotbotIntegration:
         except ImportError as e:
             pytest.fail(f"Failed to import shotbot components: {e}")
 
-    def test_logging_configuration_persists(self, tmp_path):
+    def test_logging_configuration_persists(self, tmp_path) -> None:
         """Test that logging configuration persists across calls."""
         with patch("shotbot.Path.home") as mock_home:
             mock_home.return_value = tmp_path
@@ -333,7 +333,7 @@ class TestShotbotIntegration:
             assert final_handler_count >= initial_handler_count
 
     @pytest.mark.parametrize("debug_value", ["1", "true", "True", "DEBUG"])
-    def test_debug_environment_variations(self, debug_value, tmp_path):
+    def test_debug_environment_variations(self, debug_value, tmp_path) -> None:
         """Test various debug environment variable values."""
         with patch("shotbot.Path.home") as mock_home:
             mock_home.return_value = tmp_path

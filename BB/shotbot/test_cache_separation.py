@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def test_cache_config():
+def test_cache_config() -> None:
     """Test CacheConfig mode detection and directory selection."""
     logger.info("=" * 50)
     logger.info("Testing CacheConfig")
@@ -56,7 +56,7 @@ def test_cache_config():
         os.environ.update(original_env)
 
 
-def test_cache_manager_separation():
+def test_cache_manager_separation() -> None:
     """Test that CacheManager uses separate directories."""
     logger.info("=" * 50)
     logger.info("Testing CacheManager directory separation")
@@ -101,7 +101,7 @@ def test_cache_manager_separation():
         os.environ.update(original_env)
 
 
-def test_cache_isolation():
+def test_cache_isolation() -> None:
     """Test that data written to one cache doesn't appear in another."""
     logger.info("=" * 50)
     logger.info("Testing cache isolation")
@@ -177,7 +177,7 @@ def test_cache_isolation():
         CacheConfig.TEST_CACHE_DIR = Path.home() / ".shotbot" / "cache_test"
 
 
-def test_cache_info():
+def test_cache_info() -> None:
     """Test cache information reporting."""
     logger.info("=" * 50)
     logger.info("Testing cache info")
@@ -197,7 +197,7 @@ def test_cache_info():
     logger.info("✅ Cache info contains expected fields")
 
 
-def main():
+def main() -> None:
     """Run all cache separation tests."""
     logger.info("Starting cache separation tests...")
     

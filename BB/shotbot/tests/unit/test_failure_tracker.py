@@ -70,7 +70,7 @@ class TestFailureTracker:
             {"advance": advance_time, "now": get_current_time, "base_time": base_time},
         )()
 
-    def test_initial_state(self, failure_tracker):
+    def test_initial_state(self, failure_tracker) -> None:
         """Test that a new FailureTracker starts in clean state."""
         assert len(failure_tracker) == 0
         assert failure_tracker.get_failure_count() == 0
@@ -78,14 +78,14 @@ class TestFailureTracker:
         assert "test_key" not in failure_tracker
         assert repr(failure_tracker) == "FailureTracker(failures=0, max_delay=120min)"
 
-    def test_should_retry_no_previous_failures(self, failure_tracker):
+    def test_should_retry_no_previous_failures(self, failure_tracker) -> None:
         """Test should_retry returns True when no failures are recorded."""
         should_retry, reason = failure_tracker.should_retry("new_key")
 
         assert should_retry is True
         assert reason == "No previous failures recorded"
 
-    def test_should_retry_with_source_path(self, failure_tracker):
+    def test_should_retry_with_source_path(self, failure_tracker) -> None:
         """Test should_retry works correctly with optional source_path parameter."""
         source_path = Path("/test/path/image.jpg")
         should_retry, reason = failure_tracker.should_retry("test_key", source_path)
@@ -93,7 +93,7 @@ class TestFailureTracker:
         assert should_retry is True
         assert reason == "No previous failures recorded"
 
-    def test_record_failure_first_attempt(self, failure_tracker):
+    def test_record_failure_first_attempt(self, failure_tracker) -> None:
         """Test recording the first failure creates correct state."""
         cache_key = "test_key"
         error_message = "Test error"
@@ -126,7 +126,7 @@ class TestFailureTracker:
         time_diff = (next_retry - datetime.now()).total_seconds() / 60
         assert 4.8 <= time_diff <= 5.2  # Allow small tolerance for execution time
 
-    def test_record_failure_without_source_path(self, failure_tracker):
+    def test_record_failure_without_source_path(self, failure_tracker) -> None:
         """Test recording failure without source_path uses cache_key as fallback."""
         cache_key = "test_key"
         error_message = "Test error"
@@ -137,7 +137,7 @@ class TestFailureTracker:
         failure_info = status[cache_key]
         assert failure_info["source_path"] == cache_key
 
-    def test_exponential_backoff_progression(self):
+    def test_exponential_backoff_progression(self) -> None:
         """Test exponential backoff follows expected progression: 5min → 15min → 45min → 120min."""
         # Create tracker with known configuration for predictable testing
         tracker = FailureTracker(
@@ -170,7 +170,7 @@ class TestFailureTracker:
             # Allow small tolerance for execution time
             assert expected_delay - 0.1 <= actual_delay <= expected_delay + 0.1
 
-    def test_should_retry_within_backoff_period(self, failure_tracker):
+    def test_should_retry_within_backoff_period(self, failure_tracker) -> None:
         """Test should_retry returns False when within backoff period."""
         cache_key = "test_key"
         source_path = Path("/test/image.jpg")
@@ -186,7 +186,7 @@ class TestFailureTracker:
         assert "attempt 1" in reason
         # Don't check exact retry time as it depends on current time
 
-    def test_should_retry_after_backoff_period(self):
+    def test_should_retry_after_backoff_period(self) -> None:
         """Test should_retry returns True after backoff period expires."""
         # Use very short delays for testing without actual waiting
         tracker = FailureTracker(
@@ -214,7 +214,7 @@ class TestFailureTracker:
         assert should_retry is True
         assert reason == "Retry allowed after 1 previous attempts"
 
-    def test_should_retry_exact_boundary_condition(self):
+    def test_should_retry_exact_boundary_condition(self) -> None:
         """Test should_retry behavior exactly at retry time boundary."""
         # Use very short delay for precise testing
         tracker = FailureTracker(
@@ -245,7 +245,7 @@ class TestFailureTracker:
         should_retry, _ = tracker.should_retry(cache_key)
         assert should_retry is True
 
-    def test_clear_failures_specific_key(self, failure_tracker):
+    def test_clear_failures_specific_key(self, failure_tracker) -> None:
         """Test clearing failures for a specific cache key."""
         # Record failures for multiple keys
         failure_tracker.record_failure("key1", "Error 1")
@@ -262,7 +262,7 @@ class TestFailureTracker:
         assert "key2" not in failure_tracker
         assert "key3" in failure_tracker
 
-    def test_clear_failures_nonexistent_key(self, failure_tracker):
+    def test_clear_failures_nonexistent_key(self, failure_tracker) -> None:
         """Test clearing failures for non-existent key is safe."""
         failure_tracker.record_failure("existing_key", "Error")
 
@@ -272,7 +272,7 @@ class TestFailureTracker:
         assert len(failure_tracker) == 1
         assert "existing_key" in failure_tracker
 
-    def test_clear_all_failures(self, failure_tracker):
+    def test_clear_all_failures(self, failure_tracker) -> None:
         """Test clearing all failures at once."""
         # Record multiple failures
         for i in range(5):
@@ -286,7 +286,7 @@ class TestFailureTracker:
         assert len(failure_tracker) == 0
         assert failure_tracker.get_failure_status() == {}
 
-    def test_clear_all_failures_when_empty(self, failure_tracker):
+    def test_clear_all_failures_when_empty(self, failure_tracker) -> None:
         """Test clearing all failures when tracker is already empty."""
         assert len(failure_tracker) == 0
 
@@ -295,7 +295,7 @@ class TestFailureTracker:
 
         assert len(failure_tracker) == 0
 
-    def test_cleanup_old_failures(self):
+    def test_cleanup_old_failures(self) -> None:
         """Test automatic cleanup of old failure records."""
         # Use very short cleanup age for testing
         tracker = FailureTracker(
@@ -325,7 +325,7 @@ class TestFailureTracker:
         assert "old_key" not in tracker
         assert "recent_key" in tracker
 
-    def test_automatic_cleanup_trigger(self, failure_tracker):
+    def test_automatic_cleanup_trigger(self, failure_tracker) -> None:
         """Test that cleanup is automatically triggered when failure count exceeds threshold."""
         # Record more than 10 failures to trigger automatic cleanup
         for i in range(12):
@@ -335,7 +335,7 @@ class TestFailureTracker:
         # (Though without time advancement, nothing would be cleaned)
         assert len(failure_tracker) == 12
 
-    def test_custom_configuration(self, custom_failure_tracker):
+    def test_custom_configuration(self, custom_failure_tracker) -> None:
         """Test FailureTracker with custom configuration parameters."""
         cache_key = "test_key"
 
@@ -368,7 +368,7 @@ class TestFailureTracker:
         delay_minutes = (next_retry - before_second).total_seconds() / 60
         assert 3.9 <= delay_minutes <= 4.1  # 4 minute delay with tolerance
 
-    def test_thread_safety_concurrent_failures(self, failure_tracker):
+    def test_thread_safety_concurrent_failures(self, failure_tracker) -> None:
         """Test thread safety when recording failures concurrently."""
         num_threads = 10
         failures_per_thread = 5
@@ -406,7 +406,7 @@ class TestFailureTracker:
                 assert key in status
                 assert status[key]["attempts"] == 1
 
-    def test_thread_safety_concurrent_should_retry(self, failure_tracker):
+    def test_thread_safety_concurrent_should_retry(self, failure_tracker) -> None:
         """Test thread safety of should_retry method under concurrent access."""
         cache_key = "shared_key"
 
@@ -439,7 +439,7 @@ class TestFailureTracker:
             assert should_retry is False
             assert "Skipping recently failed operation" in reason
 
-    def test_thread_safety_mixed_operations(self, failure_tracker):
+    def test_thread_safety_mixed_operations(self, failure_tracker) -> None:
         """Test thread safety with mixed concurrent operations."""
         operations_per_thread = 50
         num_threads = 8
@@ -503,7 +503,7 @@ class TestFailureTracker:
         assert final_count >= 0  # Some failures may have been cleared
         assert isinstance(final_count, int)
 
-    def test_get_failure_status_returns_copy(self, failure_tracker):
+    def test_get_failure_status_returns_copy(self, failure_tracker) -> None:
         """Test that get_failure_status returns a copy of internal state."""
         failure_tracker.record_failure("test_key", "Test error")
 
@@ -521,7 +521,7 @@ class TestFailureTracker:
         assert "fake_key" not in status3
         assert len(status3) == 1
 
-    def test_dunder_len_method(self, failure_tracker):
+    def test_dunder_len_method(self, failure_tracker) -> None:
         """Test __len__ magic method returns correct count."""
         assert len(failure_tracker) == 0
 
@@ -537,7 +537,7 @@ class TestFailureTracker:
         failure_tracker.clear_failures()
         assert len(failure_tracker) == 0
 
-    def test_dunder_contains_method(self, failure_tracker):
+    def test_dunder_contains_method(self, failure_tracker) -> None:
         """Test __contains__ magic method for membership testing."""
         assert "nonexistent" not in failure_tracker
 
@@ -549,7 +549,7 @@ class TestFailureTracker:
         failure_tracker.clear_failures("existing_key")
         assert "existing_key" not in failure_tracker
 
-    def test_dunder_repr_method(self, failure_tracker, custom_failure_tracker):
+    def test_dunder_repr_method(self, failure_tracker, custom_failure_tracker) -> None:
         """Test __repr__ magic method returns informative string."""
         # Empty tracker
         assert repr(failure_tracker) == "FailureTracker(failures=0, max_delay=120min)"
@@ -565,7 +565,7 @@ class TestFailureTracker:
             == "FailureTracker(failures=0, max_delay=60min)"
         )
 
-    def test_cleanup_age_configuration(self):
+    def test_cleanup_age_configuration(self) -> None:
         """Test cleanup with custom age configuration."""
         # Create tracker with very short cleanup age for testing
         tracker = FailureTracker(cleanup_age_hours=0.001)  # About 3.6 seconds
@@ -585,7 +585,7 @@ class TestFailureTracker:
         assert cleaned_count == 1
         assert len(tracker) == 0
 
-    def test_max_attempts_capping(self):
+    def test_max_attempts_capping(self) -> None:
         """Test that delays are capped at max_failed_attempts."""
         # Create tracker with known configuration
         tracker = FailureTracker(
@@ -621,7 +621,7 @@ class TestFailureTracker:
 
             time.sleep(0.01)
 
-    def test_edge_case_zero_cleanup_age(self):
+    def test_edge_case_zero_cleanup_age(self) -> None:
         """Test edge case with zero cleanup age (immediate cleanup)."""
         tracker = FailureTracker(cleanup_age_hours=0)
 
@@ -637,7 +637,7 @@ class TestFailureTracker:
         assert cleaned_count == 1
         assert len(tracker) == 0
 
-    def test_pathlib_path_handling(self, failure_tracker):
+    def test_pathlib_path_handling(self, failure_tracker) -> None:
         """Test proper handling of pathlib.Path objects in source_path."""
         cache_key = "test_key"
         source_path = Path("/complex/path/with spaces/image file.jpg")
@@ -655,7 +655,7 @@ class TestFailureTracker:
         assert should_retry is False
         assert "image file.jpg" in reason  # Should show just the filename
 
-    def test_memory_cleanup_pattern(self, failure_tracker):
+    def test_memory_cleanup_pattern(self, failure_tracker) -> None:
         """Test that FailureTracker properly cleans up references."""
 
         # Create a large object to test memory management
@@ -678,7 +678,7 @@ class TestFailureTracker:
         assert len(failure_tracker) == 0
         assert failure_tracker.get_failure_status() == {}
 
-    def test_concurrent_cleanup_safety(self, failure_tracker):
+    def test_concurrent_cleanup_safety(self, failure_tracker) -> None:
         """Test that concurrent cleanup operations are thread-safe."""
         # Pre-populate with failures
         for i in range(20):

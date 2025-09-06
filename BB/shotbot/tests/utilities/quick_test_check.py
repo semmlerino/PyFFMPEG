@@ -4,13 +4,14 @@
 import os
 import subprocess
 from pathlib import Path
+from typing import Optional
 
 # Set headless mode
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"
 
 
-def check_test_file(test_path: str, timeout: int = 5):
+def check_test_file(test_path: str, timeout: int = 5) -> Optional[str]:
     """Check if a test file runs successfully."""
     try:
         result = subprocess.run(
@@ -40,7 +41,7 @@ def check_test_file(test_path: str, timeout: int = 5):
         return f"💥 ERROR: {e}"
 
 
-def main():
+def main() -> None:
     # Test a few key test files first
     test_files = [
         "tests/unit/test_cache_manager.py",

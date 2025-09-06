@@ -98,7 +98,7 @@ class ProcessInfo:
         launcher_name: str,
         command: str,
         timestamp: float,
-    ):
+    ) -> None:
         self.process = process
         self.launcher_id = launcher_id
         self.launcher_name = launcher_name

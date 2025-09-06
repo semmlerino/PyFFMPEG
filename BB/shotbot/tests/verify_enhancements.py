@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def verify_property_based_tests():
+def verify_property_based_tests() -> bool:
     """Verify property-based test file exists and is structured correctly."""
     test_file = Path(__file__).parent / "unit" / "test_property_based.py"
 
@@ -36,7 +36,7 @@ def verify_property_based_tests():
     return True
 
 
-def verify_conftest_enhancements():
+def verify_conftest_enhancements() -> bool:
     """Verify conftest.py has been enhanced with new fixtures."""
     conftest = Path(__file__).parent / "conftest.py"
 
@@ -75,7 +75,7 @@ def verify_conftest_enhancements():
     return True
 
 
-def verify_marker_consistency():
+def verify_marker_consistency() -> bool:
     """Verify test files have consistent markers."""
     test_files = [
         Path(__file__).parent / "unit" / "test_launcher_manager_coverage.py",
@@ -99,7 +99,7 @@ def verify_marker_consistency():
     return True
 
 
-def verify_test_doubles():
+def verify_test_doubles() -> bool:
     """Verify test doubles follow UNIFIED_TESTING_GUIDE patterns."""
     test_doubles_file = Path(__file__).parent / "unit" / "test_doubles.py"
 
@@ -130,7 +130,7 @@ def verify_test_doubles():
     return True
 
 
-def main():
+def main() -> int:
     """Run all verification checks."""
     print("=" * 60)
     print("VERIFYING TEST SUITE ENHANCEMENTS")

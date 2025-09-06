@@ -7,7 +7,7 @@ used throughout the application for better type safety.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal, NamedTuple, Protocol, TypedDict, TypeVar
+from typing import Literal, NamedTuple, Protocol, TypedDict, TypeVar
 
 from PySide6.QtCore import Signal
 
