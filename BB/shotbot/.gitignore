@@ -45,3 +45,8 @@ encoded_app_*.txt
 
 # Post-commit hook output (fixed location)
 .post-commit-output/
+
+# Large generated JSON files
+ruff_output.json
+vfx_structure_complete.json
+vfxstructure*.json
