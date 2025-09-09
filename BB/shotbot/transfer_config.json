@@ -14,7 +14,8 @@
     "Dockerfile",
     ".dockerignore",
     "pytest.ini",
-    "pyrightconfig.json"
+    "pyrightconfig.json",
+    "wrapper/*"
   ],
   "exclude_patterns": [
     "test_*.py",
