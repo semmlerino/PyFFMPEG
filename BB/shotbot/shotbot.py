@@ -184,7 +184,7 @@ Examples:
 Environment Variables:
   SHOTBOT_DEBUG=1         # Enable debug logging
   SHOTBOT_MOCK=1          # Enable mock mode via environment
-"""
+""",
     )
     parser.add_argument(
         "--mock",
@@ -200,34 +200,43 @@ Environment Variables:
 
     # Initialize logging first - BEFORE any imports that might trigger PIL
     setup_logging()
-    
+
     logger = logging.getLogger(__name__)
 
     # Check for headless mode
-    headless_mode = args.headless or os.environ.get("SHOTBOT_HEADLESS", "").lower() in ("1", "true", "yes")
-    
+    headless_mode = args.headless or os.environ.get("SHOTBOT_HEADLESS", "").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
     # Check for mock mode from either command line or environment
-    mock_mode = args.mock or os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes")
-    
+    mock_mode = args.mock or os.environ.get("SHOTBOT_MOCK", "").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
     if headless_mode:
         logger.info("Starting ShotBot in HEADLESS MODE - no display required")
         from headless_mode import HeadlessMode
+
         HeadlessMode.configure_qt_for_headless()
-        
+
         # Headless mode usually wants mock data too
         if not mock_mode:
             logger.info("Enabling mock mode for headless operation")
             mock_mode = True
-    
+
     if mock_mode:
         logger.info("Starting ShotBot in MOCK MODE - using test data")
         # Use the new ProcessPoolFactory for clean dependency injection
         from process_pool_factory import ProcessPoolFactory
-        
+
         # Enable mock mode in the factory
         ProcessPoolFactory.set_mock_mode(True)
         logger.info("Mock mode enabled via ProcessPoolFactory")
-        
+
         # The factory will automatically load demo_shots.json when needed
 
     # Now import Qt and main window AFTER logging is configured
@@ -238,10 +247,11 @@ Environment Variables:
     # Create application (headless-aware)
     if headless_mode:
         from headless_mode import HeadlessMode
+
         app = HeadlessMode.create_headless_application(sys.argv)
     else:
         app = QApplication(sys.argv)
-    
+
     from main_window import MainWindow
 
     # Set application info
@@ -297,13 +307,14 @@ Environment Variables:
 
     # Create main window
     window = MainWindow()
-    
+
     # In headless mode, patch the window to prevent display operations
     if headless_mode:
         from headless_mode import HeadlessMode
+
         HeadlessMode.patch_for_headless(window)
         logger.info("MainWindow patched for headless operation")
-    
+
     # Show window (will be no-op in headless mode due to patching)
     window.show()
 

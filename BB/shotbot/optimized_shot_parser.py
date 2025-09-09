@@ -15,6 +15,7 @@ from config import Config
 
 class ParseResult(NamedTuple):
     """Result of parsing a shot path."""
+
     show: str
     sequence: str
     shot: str
@@ -33,84 +34,92 @@ _GLOBAL_PATH_PATTERN = re.compile(
 
 class OptimizedShotParser:
     """Optimized shot parser with single-pass processing for 72% improvement."""
-    
+
     def __init__(self) -> None:
         """Initialize optimized parser using global patterns."""
         # Use global patterns for better performance
         self._ws_pattern = _GLOBAL_WS_PATTERN
         self._path_pattern = _GLOBAL_PATH_PATTERN
-    
+
     def parse_workspace_line(self, line: str) -> ParseResult | None:
         """Ultra-optimized parser maintaining correctness with maximum performance.
-        
+
         Args:
             line: Line from 'ws -sg' command output
-            
+
         Returns:
             ParseResult if parsed successfully, None otherwise
         """
         match = self._ws_pattern.search(line)
         if not match:
             return None
-            
+
         workspace_path, show, sequence, shot_dir = match.groups()
-        
+
         # Optimized: Use startswith which is C-optimized in Python
         # This is actually faster than manual slicing for prefix check
         if shot_dir.startswith(sequence):
             seq_len = len(sequence)
             # Fast check for underscore at expected position
-            if len(shot_dir) > seq_len and shot_dir[seq_len] == '_':
+            if len(shot_dir) > seq_len and shot_dir[seq_len] == "_":
                 # Direct slice after validation
-                return ParseResult(show, sequence, shot_dir[seq_len + 1:], workspace_path)
-        
+                return ParseResult(
+                    show, sequence, shot_dir[seq_len + 1 :], workspace_path
+                )
+
         # Fallback: rfind is faster than rsplit for single character search
-        underscore_pos = shot_dir.rfind('_')
+        underscore_pos = shot_dir.rfind("_")
         if underscore_pos > 0:
-            return ParseResult(show, sequence, shot_dir[underscore_pos + 1:], workspace_path)
-        
+            return ParseResult(
+                show, sequence, shot_dir[underscore_pos + 1 :], workspace_path
+            )
+
         # Edge case: No underscore, use full directory
         return ParseResult(show, sequence, shot_dir, workspace_path)
-    
+
     def parse_shot_path(self, path: str) -> ParseResult | None:
         """Ultra-optimized path parser with same optimization strategy.
-        
+
         Args:
             path: Filesystem path containing shot information
-            
+
         Returns:
             ParseResult if parsed successfully, None otherwise
         """
         match = self._path_pattern.search(path)
         if not match:
             return None
-            
+
         show, sequence, shot_dir = match.groups()
-        
+
         # Pre-compute workspace path once
         workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
-        
+
         # Use C-optimized startswith for prefix check
         if shot_dir.startswith(sequence):
             seq_len = len(sequence)
-            if len(shot_dir) > seq_len and shot_dir[seq_len] == '_':
-                return ParseResult(show, sequence, shot_dir[seq_len + 1:], workspace_path)
-        
+            if len(shot_dir) > seq_len and shot_dir[seq_len] == "_":
+                return ParseResult(
+                    show, sequence, shot_dir[seq_len + 1 :], workspace_path
+                )
+
         # Fast fallback: Single rfind
-        underscore_pos = shot_dir.rfind('_')
+        underscore_pos = shot_dir.rfind("_")
         if underscore_pos > 0:
-            return ParseResult(show, sequence, shot_dir[underscore_pos + 1:], workspace_path)
-        
+            return ParseResult(
+                show, sequence, shot_dir[underscore_pos + 1 :], workspace_path
+            )
+
         # Edge case: No underscore
         return ParseResult(show, sequence, shot_dir, workspace_path)
 
 
 def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
     """Benchmark parsing performance with test data.
-    
+
     Args:
         iterations: Number of test iterations
-        
+
     Returns:
         Performance metrics dictionary
     """
@@ -122,7 +131,7 @@ def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
         f"workspace {Config.SHOWS_ROOT}/jack_ryan/shots/100/100_0010",
         f"workspace {Config.SHOWS_ROOT}/show_abc/shots/seq05/seq05_0230",
     ]
-    
+
     # Original implementation with same logic as before optimization
     def parse_original(line: str) -> ParseResult | None:
         """Original parser implementation for fair comparison."""
@@ -133,25 +142,25 @@ def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
         if not match:
             return None
         workspace_path, show, sequence, shot_dir = match.groups()
-        
+
         # Original logic
         if shot_dir.startswith(sequence):
-            if len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == '_':
-                shot = shot_dir[len(sequence) + 1:]
+            if len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == "_":
+                shot = shot_dir[len(sequence) + 1 :]
                 return ParseResult(show, sequence, shot, workspace_path)
-        if '_' in shot_dir:
-            shot = shot_dir.rsplit('_', 1)[-1]
+        if "_" in shot_dir:
+            shot = shot_dir.rsplit("_", 1)[-1]
             return ParseResult(show, sequence, shot, workspace_path)
         return ParseResult(show, sequence, shot_dir, workspace_path)
-    
+
     # Create single compiled pattern for original
     original_pattern = re.compile(
         rf"workspace\s+({re.escape(Config.SHOWS_ROOT)}/([^/]+)/shots/([^/]+)/([^/]+))"
     )
-    
+
     # Optimized parser
     optimized_parser = OptimizedShotParser()
-    
+
     # Benchmark original implementation (regex + logic)
     start_time = time.perf_counter()
     for _ in range(iterations):
@@ -161,28 +170,28 @@ def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
                 workspace_path, show, sequence, shot_dir = match.groups()
                 # Original slow logic
                 if shot_dir.startswith(sequence):
-                    if len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == '_':
-                        shot = shot_dir[len(sequence) + 1:]
+                    if len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == "_":
+                        shot = shot_dir[len(sequence) + 1 :]
                         ParseResult(show, sequence, shot, workspace_path)
-                elif '_' in shot_dir:
-                    shot = shot_dir.rsplit('_', 1)[-1]
+                elif "_" in shot_dir:
+                    shot = shot_dir.rsplit("_", 1)[-1]
                     ParseResult(show, sequence, shot, workspace_path)
                 else:
                     ParseResult(show, sequence, shot_dir, workspace_path)
     original_time = time.perf_counter() - start_time
-    
+
     # Benchmark optimized parser
     start_time = time.perf_counter()
     for _ in range(iterations):
         for line in test_lines:
             optimized_parser.parse_workspace_line(line)
     optimized_time = time.perf_counter() - start_time
-    
+
     # Calculate metrics
     original_ops_per_sec = (iterations * len(test_lines)) / original_time
     optimized_ops_per_sec = (iterations * len(test_lines)) / optimized_time
     improvement_percent = ((original_time - optimized_time) / original_time) * 100
-    
+
     return {
         "original_time": original_time,
         "optimized_time": optimized_time,
@@ -196,19 +205,21 @@ def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
 if __name__ == "__main__":
     # Demo the optimized parser
     parser = OptimizedShotParser()
-    
+
     # Test parsing
     test_line = f"workspace {Config.SHOWS_ROOT}/demo/shots/seq01/seq01_0010"
     result = parser.parse_workspace_line(test_line)
     print(f"Parsed: {result}")
-    
+
     # Benchmark performance
     print("\nRunning performance benchmark...")
     metrics = benchmark_parser_performance(50000)
-    
+
     print(f"Original time: {metrics['original_time']:.3f}s")
     print(f"Optimized time: {metrics['optimized_time']:.3f}s")
     print(f"Original ops/sec: {metrics['original_ops_per_sec']:,.0f}")
     print(f"Optimized ops/sec: {metrics['optimized_ops_per_sec']:,.0f}")
     print(f"Performance improvement: {metrics['improvement_percent']:.1f}%")
-    print(f"Target met: {metrics['optimized_ops_per_sec'] >= metrics['target_ops_per_sec']}")
+    print(
+        f"Target met: {metrics['optimized_ops_per_sec'] >= metrics['target_ops_per_sec']}"
+    )

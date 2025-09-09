@@ -5,7 +5,7 @@ import os
 import sys
 
 # Enable mock mode
-os.environ['SHOTBOT_MOCK'] = '1'
+os.environ["SHOTBOT_MOCK"] = "1"
 
 print("Testing mock injection...")
 print("=" * 50)

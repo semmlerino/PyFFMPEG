@@ -97,7 +97,9 @@ class TestMemoryTracking:
         """Create MemoryManager with small limit for testing."""
         return MemoryManager(max_memory_mb=1)  # 1MB limit
 
-    def test_track_item_with_file_size(self, manager: MemoryManager, temp_file: Path) -> None:
+    def test_track_item_with_file_size(
+        self, manager: MemoryManager, temp_file: Path
+    ) -> None:
         """Tracking should detect file size automatically."""
         result = manager.track_item(temp_file)
 
@@ -137,7 +139,9 @@ class TestMemoryTracking:
         assert manager.memory_usage_bytes == 0
         assert len(manager) == 0
 
-    def test_track_item_update_size(self, manager: MemoryManager, temp_file: Path) -> None:
+    def test_track_item_update_size(
+        self, manager: MemoryManager, temp_file: Path
+    ) -> None:
         """Re-tracking item should update size correctly."""
         # Track with initial size
         manager.track_item(temp_file, size_bytes=1000)
@@ -176,7 +180,9 @@ class TestMemoryTracking:
         assert result is False
         assert manager.memory_usage_bytes == 0
 
-    def test_memory_usage_setter_backward_compatibility(self, manager: MemoryManager) -> None:
+    def test_memory_usage_setter_backward_compatibility(
+        self, manager: MemoryManager
+    ) -> None:
         """Memory usage setter should work for backward compatibility."""
         # Set memory usage directly
         manager.memory_usage_bytes = 5000
@@ -229,7 +235,9 @@ class TestLRUEviction:
         assert not large_file.exists()  # File should be deleted
         assert not manager_small.is_over_limit()
 
-    def test_lru_eviction_order(self, manager_small: MemoryManager, tmp_path: Path) -> None:
+    def test_lru_eviction_order(
+        self, manager_small: MemoryManager, tmp_path: Path
+    ) -> None:
         """LRU eviction should remove oldest files first."""
         files = []
 
@@ -321,7 +329,9 @@ class TestUsageStatistics:
 
         assert stats == expected_stats
 
-    def test_get_usage_stats_with_items(self, manager: MemoryManager, tmp_path: Path) -> None:
+    def test_get_usage_stats_with_items(
+        self, manager: MemoryManager, tmp_path: Path
+    ) -> None:
         """Usage stats should calculate correctly with tracked items."""
         # Track multiple files
         total_size = 0
@@ -392,7 +402,9 @@ class TestCacheValidation:
         """Create MemoryManager for validation testing."""
         return MemoryManager(max_memory_mb=10)
 
-    def test_validate_tracking_all_valid(self, manager: MemoryManager, tmp_path: Path) -> None:
+    def test_validate_tracking_all_valid(
+        self, manager: MemoryManager, tmp_path: Path
+    ) -> None:
         """Validation should pass when all tracked items are valid."""
         # Track valid files
         files = []
@@ -542,7 +554,9 @@ class TestThreadSafety:
         """Create MemoryManager for thread safety testing."""
         return MemoryManager(max_memory_mb=10)
 
-    def test_concurrent_track_untrack(self, manager: MemoryManager, tmp_path: Path) -> None:
+    def test_concurrent_track_untrack(
+        self, manager: MemoryManager, tmp_path: Path
+    ) -> None:
         """Concurrent tracking and untracking should be thread-safe."""
         # Create multiple files
         files = []
@@ -586,7 +600,9 @@ class TestThreadSafety:
         validation = manager.validate_tracking()
         assert validation["tracked_usage_bytes"] == final_usage
 
-    def test_concurrent_statistics_access(self, manager: MemoryManager, tmp_path: Path) -> None:
+    def test_concurrent_statistics_access(
+        self, manager: MemoryManager, tmp_path: Path
+    ) -> None:
         """Concurrent access to statistics should be thread-safe."""
         # Track some files
         for i in range(5):
@@ -640,7 +656,9 @@ class TestThreadSafety:
             assert stats["total_bytes"] >= 0
             assert stats["tracked_items"] >= 0
 
-    def test_concurrent_validation(self, manager: MemoryManager, tmp_path: Path) -> None:
+    def test_concurrent_validation(
+        self, manager: MemoryManager, tmp_path: Path
+    ) -> None:
         """Concurrent validation should be thread-safe."""
         # Create and track files
         files = []

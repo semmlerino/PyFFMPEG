@@ -30,31 +30,33 @@ def test_parsing():
     """Test the parsing with actual VFX output."""
     print("Testing shot parsing with actual VFX environment output")
     print("=" * 60)
-    
+
     print(f"Config.SHOWS_ROOT: {Config.SHOWS_ROOT}")
-    
+
     # Initialize parser
     parser = OptimizedShotParser()
     print(f"Parser regex pattern: {parser._ws_pattern.pattern}")
     print()
-    
-    lines = ACTUAL_OUTPUT.strip().split('\n')
+
+    lines = ACTUAL_OUTPUT.strip().split("\n")
     successful_shots = []
     failed_lines = []
-    
+
     for i, line in enumerate(lines, 1):
         print(f"Line {i}: {line}")
-        
+
         # Test regex match
         match = parser._ws_pattern.search(line)
         if match:
             print(f"  ✅ Regex groups: {match.groups()}")
-            
+
             # Test full parsing
             result = parser.parse_workspace_line(line)
             if result:
-                print(f"  ✅ Parse result: show={result.show}, sequence={result.sequence}, shot={result.shot}")
-                
+                print(
+                    f"  ✅ Parse result: show={result.show}, sequence={result.sequence}, shot={result.shot}"
+                )
+
                 # Create Shot object
                 shot = Shot(
                     show=result.show,
@@ -62,7 +64,7 @@ def test_parsing():
                     shot=result.shot,
                     workspace_path=result.workspace_path,
                 )
-                
+
                 print(f"  ✅ Shot object: full_name={shot.full_name}")
                 successful_shots.append(shot)
                 print()
@@ -74,22 +76,24 @@ def test_parsing():
             print("  ❌ No regex match")
             failed_lines.append(line)
             print()
-    
+
     print("SUMMARY")
     print("=" * 30)
     print(f"Successful parses: {len(successful_shots)}")
     print(f"Failed parses: {len(failed_lines)}")
-    
+
     if successful_shots:
         print("\nSuccessful shot objects:")
         for shot in successful_shots:
-            print(f"  - {shot.full_name} (show={shot.show}, seq={shot.sequence}, shot={shot.shot})")
-    
+            print(
+                f"  - {shot.full_name} (show={shot.show}, seq={shot.sequence}, shot={shot.shot})"
+            )
+
     if failed_lines:
         print("\nFailed lines:")
         for line in failed_lines:
             print(f"  - {line}")
-    
+
     return len(successful_shots) == len(lines)
 
 
@@ -99,20 +103,20 @@ def test_shot_item_model():
     from PySide6.QtWidgets import QApplication
 
     from shot_item_model import ShotItemModel
-    
+
     # Create QApplication if not exists (required for Qt operations)
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
-    
+
     print("\nTesting ShotItemModel...")
     print("=" * 40)
-    
+
     # Parse shots
     parser = OptimizedShotParser()
-    lines = ACTUAL_OUTPUT.strip().split('\n')
+    lines = ACTUAL_OUTPUT.strip().split("\n")
     shots = []
-    
+
     for line in lines:
         result = parser.parse_workspace_line(line)
         if result:
@@ -123,34 +127,36 @@ def test_shot_item_model():
                 workspace_path=result.workspace_path,
             )
             shots.append(shot)
-    
+
     # Test model
     model = ShotItemModel()
     model.set_shots(shots)
-    
+
     print(f"Model row count: {model.rowCount()}")
     print("\nDisplayRole data from model:")
-    
+
     for i in range(model.rowCount()):
         index = model.index(i, 0)
         display_text = model.data(index, Qt.ItemDataRole.DisplayRole)
         print(f"  Row {i}: {display_text}")
-    
+
     return model.rowCount() > 0
 
 
 if __name__ == "__main__":
     print("VFX Environment Shot Parsing Test")
     print("=" * 50)
-    
+
     # Test parsing
     parsing_success = test_parsing()
-    
+
     # Test model
     model_success = test_shot_item_model()
-    
-    print(f"\nOVERALL RESULT: {'✅ SUCCESS' if parsing_success and model_success else '❌ FAILURE'}")
-    
+
+    print(
+        f"\nOVERALL RESULT: {'✅ SUCCESS' if parsing_success and model_success else '❌ FAILURE'}"
+    )
+
     if not parsing_success:
         print("❌ Parsing failed - this explains why shot names don't appear!")
     elif not model_success:

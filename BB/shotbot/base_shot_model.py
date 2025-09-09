@@ -76,10 +76,11 @@ class BaseShotModel(QObject):
         # Initialize ProcessPoolManager via factory for dependency injection support
         if DEBUG_VERBOSE:
             logger.debug("Getting ProcessPoolManager instance via factory")
-        
+
         # Use the factory for clean dependency injection support
         try:
             from process_pool_factory import get_process_pool
+
             self._process_pool = get_process_pool()
             if DEBUG_VERBOSE:
                 logger.debug("Using factory-provided process pool instance")

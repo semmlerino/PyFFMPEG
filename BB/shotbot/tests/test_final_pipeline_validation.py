@@ -31,7 +31,9 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 class MockShot:
     """Mock Shot class for testing without PySide6 dependency."""
 
-    def __init__(self, show: str, sequence: str, shot: str, workspace_path: str) -> None:
+    def __init__(
+        self, show: str, sequence: str, shot: str, workspace_path: str
+    ) -> None:
         self.show = show
         self.sequence = sequence
         self.shot = shot

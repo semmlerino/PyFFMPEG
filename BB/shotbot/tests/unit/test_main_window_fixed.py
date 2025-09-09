@@ -34,7 +34,7 @@ class TestMainWindowNoHang:
         """Create MainWindow with test doubles for subprocess operations."""
         # Force legacy ShotModel for predictable synchronous behavior in tests
         monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
-        
+
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir(exist_ok=True)
         cache_manager = CacheManager(cache_dir=cache_dir)

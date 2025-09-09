@@ -6,7 +6,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from cache_manager import CacheManager
 from config import Config
@@ -32,7 +32,7 @@ class ThreeDEScene:
     user: str
     plate: str
     scene_path: Path
-    _cached_thumbnail_path: Any = field(
+    _cached_thumbnail_path: object | Path | None = field(
         default=_NOT_SEARCHED,
         init=False,
         repr=False,
@@ -71,7 +71,8 @@ class ThreeDEScene:
         """
         # Return cached result if we've already searched
         if self._cached_thumbnail_path is not _NOT_SEARCHED:
-            return self._cached_thumbnail_path
+            # Type narrowing: if it's not the sentinel, it must be Path | None
+            return self._cached_thumbnail_path  # type: ignore[return-value]
 
         # Use the unified thumbnail discovery method
         thumbnail = PathUtils.find_shot_thumbnail(  # type: ignore[reportUnknownMemberType]
@@ -210,7 +211,7 @@ class ThreeDESceneModel:
                 return scene
         return None
 
-    def to_dict(self) -> list[dict[str, Any]]:
+    def to_dict(self) -> list[dict[str, str | Path]]:
         """Convert scenes to dictionary format for caching."""
         return [scene.to_dict() for scene in self.scenes]
 

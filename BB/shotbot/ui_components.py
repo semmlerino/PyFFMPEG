@@ -209,7 +209,9 @@ class NotificationBanner(QFrame):
         self.animation_group.addAnimation(self.slide_animation)
         self.animation_group.addAnimation(self.fade_animation)
 
-    def show_message(self, message: str, msg_type: str = "info", duration: int = 5000) -> None:
+    def show_message(
+        self, message: str, msg_type: str = "info", duration: int = 5000
+    ) -> None:
         """Show a notification message."""
         self.message_label.setText(message)
 
@@ -347,7 +349,9 @@ class ProgressOverlay(QWidget):
 
         layout.addWidget(card)
 
-    def show_progress(self, title: str = "Processing...", can_cancel: bool = True) -> None:
+    def show_progress(
+        self, title: str = "Processing...", can_cancel: bool = True
+    ) -> None:
         """Show the progress overlay."""
         self.title_label.setText(title)
         self.cancel_button.setVisible(can_cancel)
@@ -389,7 +393,9 @@ class EmptyStateWidget(QWidget):
         super().__init__(parent)
         self._setup_ui(icon, title, description, action_text)
 
-    def _setup_ui(self, icon: str, title: str, description: str, action_text: str) -> None:
+    def _setup_ui(
+        self, icon: str, title: str, description: str, action_text: str
+    ) -> None:
         """Set up the empty state UI."""
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)

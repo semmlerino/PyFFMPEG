@@ -468,12 +468,10 @@ class ShotGridView(QWidget):
 
         # Connect signals with QueuedConnection for thread safety
         worker.signals.error.connect(
-            self._on_folder_open_error,
-            Qt.ConnectionType.QueuedConnection
+            self._on_folder_open_error, Qt.ConnectionType.QueuedConnection
         )
         worker.signals.success.connect(
-            self._on_folder_open_success,
-            Qt.ConnectionType.QueuedConnection
+            self._on_folder_open_success, Qt.ConnectionType.QueuedConnection
         )
 
         # Start the worker

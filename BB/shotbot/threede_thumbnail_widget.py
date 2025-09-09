@@ -20,7 +20,9 @@ class ThreeDEThumbnailWidget(ThumbnailWidgetBase):
     clicked = Signal(object)  # ThreeDEScene
     double_clicked = Signal(object)  # ThreeDEScene
 
-    def __init__(self, scene: ThreeDEScene, size: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
+    def __init__(
+        self, scene: ThreeDEScene, size: int = Config.DEFAULT_THUMBNAIL_SIZE
+    ) -> None:
         # Store scene reference for backward compatibility
         self.scene = scene
         super().__init__(scene, size)

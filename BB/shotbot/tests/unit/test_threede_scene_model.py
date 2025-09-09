@@ -319,7 +319,9 @@ class TestThreeDESceneModel:
         assert len(scenes) == 2
         assert all(isinstance(s, ThreeDEScene) for s in scenes)
 
-    def test_find_scene_by_display_name(self, real_cache_manager, make_real_3de_file) -> None:
+    def test_find_scene_by_display_name(
+        self, real_cache_manager, make_real_3de_file
+    ) -> None:
         """Test finding scene by display name."""
         model = ThreeDESceneModel(cache_manager=real_cache_manager)
 

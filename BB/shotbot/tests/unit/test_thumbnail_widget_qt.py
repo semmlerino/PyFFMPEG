@@ -116,7 +116,9 @@ class TestThumbnailWidgetBase:
 
         qtbot.wait(10)  # Allow UI processing after signal
 
-    def test_mouse_double_click_signal_emission(self, qtbot, thumbnail_widget_base) -> None:
+    def test_mouse_double_click_signal_emission(
+        self, qtbot, thumbnail_widget_base
+    ) -> None:
         """Test mouse double clicks emit correct signals."""
         widget = thumbnail_widget_base
 
@@ -500,7 +502,9 @@ class TestThumbnailWidgetIntegration:
         qtbot.addWidget(widget)
         return widget
 
-    def test_cache_manager_integration(self, integrated_widget, real_cache_manager) -> None:
+    def test_cache_manager_integration(
+        self, integrated_widget, real_cache_manager
+    ) -> None:
         """Test widget integrates with cache manager."""
         widget = integrated_widget
 

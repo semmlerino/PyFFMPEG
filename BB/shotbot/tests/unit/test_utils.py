@@ -1043,7 +1043,9 @@ class TestFindAnyPublishThumbnail:
         )
         assert result is None
 
-    def test_find_any_publish_thumbnail_permission_error(self, tmp_path, caplog) -> None:
+    def test_find_any_publish_thumbnail_permission_error(
+        self, tmp_path, caplog
+    ) -> None:
         """Test handling of permission errors during recursive search."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"

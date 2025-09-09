@@ -468,7 +468,9 @@ workspace /shows/test/shots/seq01/shot02""")
         if hasattr(window.launcher_manager, "execution_finished"):
             assert callable(window.launcher_manager.execution_finished.emit)
 
-    def test_custom_launcher_integration(self, main_window_with_real_components, qtbot) -> None:
+    def test_custom_launcher_integration(
+        self, main_window_with_real_components, qtbot
+    ) -> None:
         """Test custom launcher creation and execution."""
         window = main_window_with_real_components
 
@@ -545,7 +547,9 @@ workspace /shows/test/shots/seq01/shot02""")
 class TestMainWindowKeyboardShortcuts:
     """Test keyboard shortcuts and navigation."""
 
-    def test_keyboard_shortcuts_work(self, main_window_with_real_components, qtbot) -> None:
+    def test_keyboard_shortcuts_work(
+        self, main_window_with_real_components, qtbot
+    ) -> None:
         """Test that keyboard shortcuts trigger correct actions."""
         window = main_window_with_real_components
 

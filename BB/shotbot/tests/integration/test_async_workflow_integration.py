@@ -54,11 +54,11 @@ class TestAsyncWorkflowIntegration:
             shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
             shots.append(shot)
             thumbnail_map[shot.full_name] = thumbnail_path
-        
+
         # Mock get_thumbnail_path to return correct path for each shot
         def mock_get_thumbnail(self):
             return thumbnail_map.get(self.full_name)
-        
+
         monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
 
         return shots
@@ -237,14 +237,15 @@ class TestAsyncWorkflowIntegration:
 
         # Create shot with problematic thumbnail path
         bad_shot = Shot("error_show", "error_seq", "error_shot", "/nonexistent")
-        
+
         # Mock get_thumbnail_path to return nonexistent path for bad shot
         original_get_thumbnail = Shot.get_thumbnail_path
+
         def mock_get_thumbnail(self):
             if self == bad_shot:
                 return Path("/nonexistent/image.jpg")
             return original_get_thumbnail(self)
-        
+
         monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
 
         # Set in both components
@@ -309,7 +310,9 @@ class TestAsyncWorkflowIntegration:
 class TestAsyncCallbackIntegration:
     """Test async callback integration scenarios."""
 
-    def test_model_reset_during_async_callbacks(self, qtbot, tmp_path, monkeypatch) -> None:
+    def test_model_reset_during_async_callbacks(
+        self, qtbot, tmp_path, monkeypatch
+    ) -> None:
         """Test model reset while async callbacks are in progress."""
         # Create test setup
         image_path = tmp_path / "test.jpg"
@@ -351,7 +354,9 @@ class TestAsyncCallbackIntegration:
         finally:
             model.deleteLater()
 
-    def test_info_panel_shot_change_during_loading(self, qtbot, tmp_path, monkeypatch) -> None:
+    def test_info_panel_shot_change_during_loading(
+        self, qtbot, tmp_path, monkeypatch
+    ) -> None:
         """Test info panel shot changes while async loading is in progress."""
         # Create test image
         image_path = tmp_path / "test.jpg"

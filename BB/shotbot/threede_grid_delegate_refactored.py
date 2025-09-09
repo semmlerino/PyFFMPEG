@@ -24,24 +24,24 @@ logger = logging.getLogger(__name__)
 
 class ThreeDEGridDelegate(BaseThumbnailDelegate):
     """Delegate for rendering 3DE scene thumbnails in a grid.
-    
+
     Inherits common painting logic from BaseThumbnailDelegate and
     provides 3DE-specific data extraction and theming.
     """
-    
+
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the 3DE grid delegate.
-        
+
         Args:
             parent: Optional parent widget
         """
         super().__init__(parent)
         logger.debug("ThreeDEGridDelegate initialized")
-    
+
     @override
     def get_theme(self) -> DelegateTheme:
         """Get the 3DE grid theme configuration.
-        
+
         Returns:
             Theme configuration for 3DE grid
         """
@@ -64,20 +64,22 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
             name_font_size=9,
             info_font_size=7,  # Smaller for user/timestamp
         )
-    
+
     @override
-    def get_item_data(self, index: QModelIndex | QPersistentModelIndex) -> dict[str, Any]:
+    def get_item_data(
+        self, index: QModelIndex | QPersistentModelIndex
+    ) -> dict[str, Any]:
         """Extract 3DE scene data from model index.
-        
+
         Args:
             index: Model index
-            
+
         Returns:
             Dictionary with 3DE scene data
         """
         if not index.isValid():
             return {}
-        
+
         # Get timestamp and format it if available
         timestamp_str = ""
         if timestamp := index.data(ThreeDERole.ModifiedTimeRole):
@@ -86,7 +88,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
                 timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M")
             except (AttributeError, ValueError):
                 timestamp_str = str(timestamp)
-        
+
         return {
             "name": index.data(ThreeDERole.DisplayRole) or "Unknown",
             "show": index.data(ThreeDERole.ShowRole),

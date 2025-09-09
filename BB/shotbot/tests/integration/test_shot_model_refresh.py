@@ -60,7 +60,9 @@ def shot_model_with_test_pool(real_cache_manager):
 class TestShotModelRefreshCriticalPaths:
     """Test critical paths in ShotModel.refresh_shots() with real components."""
 
-    def test_refresh_shots_success_with_changes(self, shot_model_with_test_pool, qtbot) -> None:
+    def test_refresh_shots_success_with_changes(
+        self, shot_model_with_test_pool, qtbot
+    ) -> None:
         """Test successful refresh when shot list changes."""
         model, test_pool = shot_model_with_test_pool
 
@@ -120,7 +122,9 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         assert second_result.success is True
         assert second_result.has_changes is False
 
-    def test_refresh_shots_timeout_handling(self, shot_model_with_test_pool, qtbot) -> None:
+    def test_refresh_shots_timeout_handling(
+        self, shot_model_with_test_pool, qtbot
+    ) -> None:
         """Test timeout handling in refresh_shots()."""
         model, test_pool = shot_model_with_test_pool
 
@@ -144,7 +148,9 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         assert result.success is False
         assert result.has_changes is False
 
-    def test_refresh_shots_parse_error_handling(self, shot_model_with_test_pool, qtbot) -> None:
+    def test_refresh_shots_parse_error_handling(
+        self, shot_model_with_test_pool, qtbot
+    ) -> None:
         """Test handling of malformed workspace output."""
         model, test_pool = shot_model_with_test_pool
 
@@ -233,7 +239,9 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
         assert result.success in (True, False)
         assert result.has_changes in (True, False)
 
-    def test_concurrent_refresh_handling(self, shot_model_with_test_pool, qtbot) -> None:
+    def test_concurrent_refresh_handling(
+        self, shot_model_with_test_pool, qtbot
+    ) -> None:
         """Test that concurrent refresh attempts are handled safely."""
         model, test_pool = shot_model_with_test_pool
 

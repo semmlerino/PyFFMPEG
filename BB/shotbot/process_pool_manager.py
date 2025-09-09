@@ -230,7 +230,7 @@ class ProcessPoolManager(QObject):
         with QMutexLocker(ProcessPoolManager._lock):
             if self._initialized:
                 return
-            
+
             # Mark as initialized FIRST to prevent race conditions
             self._initialized = True
 
@@ -272,12 +272,12 @@ class ProcessPoolManager(QObject):
         # Check if factory has an override first
         try:
             from process_pool_factory import ProcessPoolFactory
-            
+
             # If factory has a custom instance, and it's not us, return it
             factory_instance = ProcessPoolFactory._override
             if factory_instance is not None and factory_instance is not cls._instance:
                 # This allows mock injection
-                if hasattr(factory_instance, '__class__'):
+                if hasattr(factory_instance, "__class__"):
                     logger.debug(
                         f"Using injected instance: {factory_instance.__class__.__name__}"
                     )
@@ -285,7 +285,7 @@ class ProcessPoolManager(QObject):
         except ImportError:
             # Factory not available, proceed normally
             pass
-        
+
         # Standard singleton pattern
         if cls._instance is None:
             cls._instance = cls()

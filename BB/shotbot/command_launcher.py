@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from persistent_terminal_manager import PersistentTerminalManager
     from raw_plate_finder import RawPlateFinder as RawPlateFinderType
     from shot_model import Shot
+    from threede_latest_finder import ThreeDELatestFinder as ThreeDELatestFinderType
     from threede_scene_model import ThreeDEScene
     from undistortion_finder import UndistortionFinder as UndistortionFinderType
 else:
@@ -43,6 +44,7 @@ class CommandLauncher(QObject):
         raw_plate_finder: type[RawPlateFinderType] | None = None,
         undistortion_finder: type[UndistortionFinderType] | None = None,
         nuke_script_generator: type[NukeScriptGeneratorType] | None = None,
+        threede_latest_finder: type[ThreeDELatestFinderType] | None = None,
         persistent_terminal: PersistentTerminalManager | None = None,
     ) -> None:
         """Initialize CommandLauncher with optional dependencies.
@@ -51,6 +53,7 @@ class CommandLauncher(QObject):
             raw_plate_finder: Class for finding raw plates (defaults to RawPlateFinder)
             undistortion_finder: Class for finding undistortion files (defaults to UndistortionFinder)
             nuke_script_generator: Class for generating Nuke scripts (defaults to NukeScriptGenerator)
+            threede_latest_finder: Class for finding latest 3DE scenes (defaults to ThreeDELatestFinder)
             persistent_terminal: Optional persistent terminal manager for single terminal mode
         """
         super().__init__()
@@ -78,6 +81,13 @@ class CommandLauncher(QObject):
             self._nuke_script_generator = NukeScriptGenerator
         else:
             self._nuke_script_generator = nuke_script_generator
+
+        if threede_latest_finder is None:
+            from threede_latest_finder import ThreeDELatestFinder
+
+            self._threede_latest_finder = ThreeDELatestFinder
+        else:
+            self._threede_latest_finder = threede_latest_finder
 
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context."""
@@ -182,6 +192,7 @@ class CommandLauncher(QObject):
         app_name: str,
         include_undistortion: bool = False,
         include_raw_plate: bool = False,
+        open_latest_threede: bool = False,
     ) -> bool:
         """Launch an application in the current shot context.
 
@@ -189,6 +200,7 @@ class CommandLauncher(QObject):
             app_name: Name of the application to launch
             include_undistortion: Whether to include undistortion nodes (Nuke only)
             include_raw_plate: Whether to include raw plate Read node (Nuke only)
+            open_latest_threede: Whether to open the latest 3DE scene file (3DE only)
 
         Returns:
             True if launch was successful, False otherwise
@@ -358,6 +370,35 @@ class CommandLauncher(QObject):
                         timestamp,
                         "Warning: Undistortion file not found for this shot",
                     )
+
+        # Handle 3DE with latest scene file
+        if app_name == "3de" and open_latest_threede:
+            latest_scene = self._threede_latest_finder.find_latest_threede_scene(
+                self.current_shot.workspace_path,
+                self.current_shot.full_name,
+            )
+            if latest_scene:
+                # Add the scene file to the command
+                try:
+                    safe_scene_path = self._validate_path_for_shell(str(latest_scene))
+                    command = f"{command} -open {safe_scene_path}"
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.command_executed.emit(
+                        timestamp,
+                        f"Opening latest 3DE scene: {latest_scene.name}",
+                    )
+                except ValueError as e:
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.command_executed.emit(
+                        timestamp,
+                        f"Warning: Invalid 3DE scene path: {str(e)}",
+                    )
+            else:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp,
+                    "Info: No 3DE scene files found in workspace",
+                )
 
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection

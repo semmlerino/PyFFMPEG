@@ -73,7 +73,9 @@ class SettingsManager(QObject):
     category_changed = Signal(str)  # Category name
     settings_reset = Signal()  # All settings reset to defaults
 
-    def __init__(self, organization: str = "ShotBot", application: str = "ShotBot") -> None:
+    def __init__(
+        self, organization: str = "ShotBot", application: str = "ShotBot"
+    ) -> None:
         """Initialize settings manager.
 
         Args:

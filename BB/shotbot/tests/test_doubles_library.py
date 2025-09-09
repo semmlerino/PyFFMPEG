@@ -401,7 +401,9 @@ class TestShotModel(QObject):
         if shot:
             self._selected_shot = shot
             # Handle both TestShot and real Shot objects
-            shot_name = getattr(shot, 'name', None) or getattr(shot, 'full_name', str(shot))
+            shot_name = getattr(shot, "name", None) or getattr(
+                shot, "full_name", str(shot)
+            )
             self.shot_selected.emit(shot_name)
 
     def clear(self) -> None:

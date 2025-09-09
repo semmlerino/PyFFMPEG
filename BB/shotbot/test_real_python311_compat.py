@@ -73,5 +73,5 @@ result = f"File {name} is {size:.1f}MB"  # This works in Python 3.11
 try:
     compile(test_code, "<test>", "exec")
     print("✓ Format specifications in f-strings are Python 3.11 compatible")
-except:
+except SyntaxError:
     print("✗ Format specifications would fail in Python 3.11")

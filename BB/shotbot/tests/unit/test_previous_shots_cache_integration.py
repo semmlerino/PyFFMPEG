@@ -228,7 +228,9 @@ class TestPreviousShootsCacheIntegration:
         assert shots[0].show == "cached_show"
         assert shots[0].shot == "cached_shot"
 
-    def test_model_cache_integration_on_refresh(self, previous_shots_model, qtbot) -> None:
+    def test_model_cache_integration_on_refresh(
+        self, previous_shots_model, qtbot
+    ) -> None:
         """Test model saves to cache after refresh."""
         # Mock finder to return approved shots
         mock_approved = [
@@ -262,7 +264,9 @@ class TestPreviousShootsCacheIntegration:
 
     # Performance test removed to prevent test suite timeout
 
-    def test_cache_corruption_recovery(self, temp_cache_dir, mock_shot_model, qtbot) -> None:
+    def test_cache_corruption_recovery(
+        self, temp_cache_dir, mock_shot_model, qtbot
+    ) -> None:
         """Test recovery from corrupted cache files."""
         # Create corrupted cache file
         cache_file = temp_cache_dir / "previous_shots.json"

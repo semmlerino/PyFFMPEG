@@ -187,7 +187,9 @@ class TestPreviousShotsWorkerWorkflow:
         # 3 found shots - 0 matching active shots = 3 approved shots
         assert len(shot_found_signals) == 3
 
-    def test_workflow_with_no_results(self, worker_with_cleanup, qtbot, monkeypatch) -> None:
+    def test_workflow_with_no_results(
+        self, worker_with_cleanup, qtbot, monkeypatch
+    ) -> None:
         """Test workflow when no shots are found."""
         worker = worker_with_cleanup
 
@@ -220,7 +222,9 @@ class TestPreviousShotsWorkerWorkflow:
         final_result = scan_finished_spy.at(0)[0]
         assert len(final_result) == 0
 
-    def test_workflow_with_stop_request(self, worker_with_cleanup, qtbot, monkeypatch) -> None:
+    def test_workflow_with_stop_request(
+        self, worker_with_cleanup, qtbot, monkeypatch
+    ) -> None:
         """Test workflow interruption with stop request."""
         worker = worker_with_cleanup
 

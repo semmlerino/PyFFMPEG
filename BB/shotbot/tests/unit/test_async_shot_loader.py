@@ -203,7 +203,9 @@ class TestOptimizedShotModelSignals:
         assert started_spy.count() == 1
         assert finished_spy.count() == 1
 
-    def test_shots_changed_signal_on_background_update(self, optimized_model, qtbot) -> None:
+    def test_shots_changed_signal_on_background_update(
+        self, optimized_model, qtbot
+    ) -> None:
         """Test shots_changed signal emitted when background load finds changes."""
         # Pre-populate with initial shots
         optimized_model.shots = []

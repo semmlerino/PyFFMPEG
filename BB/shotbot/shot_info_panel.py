@@ -300,7 +300,7 @@ class InfoPanelPixmapLoader(QRunnable):
             "path": str(self.path),
         }
         tracker.register(self, metadata)
-        
+
         try:
             from config import Config
 

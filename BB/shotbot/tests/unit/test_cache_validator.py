@@ -263,7 +263,9 @@ class TestCacheValidator:
         for thumb_file in sample_thumbnail_files:
             assert validator._memory_manager.is_item_tracked(thumb_file)
 
-    def test_clean_empty_directories(self, validator: CacheValidator, tmp_path: Path) -> None:
+    def test_clean_empty_directories(
+        self, validator: CacheValidator, tmp_path: Path
+    ) -> None:
         """Test removal of empty subdirectories in cache."""
         thumbnails_dir = validator._thumbnails_dir
 
@@ -332,7 +334,9 @@ class TestCacheValidator:
         assert len(analysis["recommendations"]) > 0
         assert any("very high" in rec for rec in analysis["recommendations"])
 
-    def test_analyze_cache_efficiency_low_usage(self, validator: CacheValidator) -> None:
+    def test_analyze_cache_efficiency_low_usage(
+        self, validator: CacheValidator
+    ) -> None:
         """Test cache efficiency analysis with low memory usage."""
         # Empty cache should have low utilization
         analysis = validator.analyze_cache_efficiency()

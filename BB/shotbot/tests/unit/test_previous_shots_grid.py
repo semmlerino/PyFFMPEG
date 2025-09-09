@@ -126,7 +126,9 @@ class TestPreviousShotsView:
         qtbot.waitExposed(view)  # Wait for widget to be visible
         return view
 
-    def test_grid_initialization(self, grid_widget, test_model, test_cache_manager) -> None:
+    def test_grid_initialization(
+        self, grid_widget, test_model, test_cache_manager
+    ) -> None:
         """Test grid widget initialization."""
         # View has the item model, which wraps the test_model
         assert grid_widget.model is not None
@@ -204,7 +206,9 @@ class TestPreviousShotsView:
         assert grid_widget.container.isVisible()
         assert len(grid_widget.thumbnails) == 0
 
-    def test_grid_population_with_real_thumbnails(self, grid_widget, test_model, qtbot) -> None:
+    def test_grid_population_with_real_thumbnails(
+        self, grid_widget, test_model, qtbot
+    ) -> None:
         """Test grid population with real ThumbnailWidget components.
 
         Following UNIFIED_TESTING_GUIDE:

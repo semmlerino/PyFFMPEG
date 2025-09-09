@@ -307,7 +307,9 @@ class TestThumbnailProcessorThreadSafety:
         successful = sum(1 for r in results if r)
         assert successful >= 5, f"Too few successful operations: {successful}/10"
 
-    def test_race_condition_file_operations(self, processor, test_images, tmp_path) -> None:
+    def test_race_condition_file_operations(
+        self, processor, test_images, tmp_path
+    ) -> None:
         """Test for race conditions in file I/O operations."""
         cache_dir = tmp_path / "race_cache"
         cache_dir.mkdir(exist_ok=True)
@@ -591,7 +593,9 @@ class TestThumbnailProcessorThreadSafety:
         )
 
     @pytest.mark.slow
-    def test_resource_cleanup_under_stress(self, processor, test_images, tmp_path) -> None:
+    def test_resource_cleanup_under_stress(
+        self, processor, test_images, tmp_path
+    ) -> None:
         """Test resource cleanup with many concurrent operations."""
         cache_dir = tmp_path / "cleanup_cache"
         cache_dir.mkdir(exist_ok=True)

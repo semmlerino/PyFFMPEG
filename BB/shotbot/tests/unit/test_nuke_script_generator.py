@@ -315,7 +315,7 @@ Group {{
             temp_path = Path(temp_dir)
             plate_path = temp_path / "test_plate.%04d.exr"
             undist_path = temp_path / "undist.nk"
-            
+
             # Create mock undistortion file
             undist_path.write_text("""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
 version 16.0 v4
@@ -330,7 +330,7 @@ Lens2 {
             script_path = NukeScriptGenerator.create_plate_script_with_undistortion(
                 plate_path=str(plate_path),
                 undistortion_path=str(undist_path),
-                shot_name="test_shot"
+                shot_name="test_shot",
             )
 
             assert script_path is not None

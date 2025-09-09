@@ -112,7 +112,9 @@ class TestPreviousShotsModel:
         model.stop_auto_refresh()
         model.deleteLater()
 
-    def test_model_initialization(self, model, test_shot_model, test_cache_manager) -> None:
+    def test_model_initialization(
+        self, model, test_shot_model, test_cache_manager
+    ) -> None:
         """Test model initialization with dependencies."""
         assert model._shot_model is test_shot_model
         assert model._cache_manager is test_cache_manager
@@ -137,7 +139,9 @@ class TestPreviousShotsModel:
         model.stop_auto_refresh()
         # Timer should be stopped (or never started in test environment)
 
-    def test_refresh_shots_signal_emission_no_race(self, model, test_finder, qtbot) -> None:
+    def test_refresh_shots_signal_emission_no_race(
+        self, model, test_finder, qtbot
+    ) -> None:
         """Test signal emission during shot refresh without race conditions.
 
         Following UNIFIED_TESTING_GUIDE:
@@ -405,7 +409,9 @@ class TestPreviousShotsModel:
         assert len(shots) == 2
         assert shots[0].show == "show1"
 
-    def test_cache_loading_error_recovery(self, temp_cache_dir, test_shot_model) -> None:
+    def test_cache_loading_error_recovery(
+        self, temp_cache_dir, test_shot_model
+    ) -> None:
         """Test handling of corrupted cache data."""
         # Create invalid cache file
         cache_file = temp_cache_dir / "previous_shots.json"
@@ -418,7 +424,9 @@ class TestPreviousShotsModel:
         assert len(model.get_shots()) == 0
         model.deleteLater()
 
-    def test_clear_cache_functionality(self, model_with_real_cache, temp_cache_dir) -> None:
+    def test_clear_cache_functionality(
+        self, model_with_real_cache, temp_cache_dir
+    ) -> None:
         """Test cache clearing functionality."""
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
@@ -456,7 +464,9 @@ class TestPreviousShotsModel:
         # Cache file should be removed
         assert not cache_file.exists()
 
-    def test_timer_triggered_refresh(self, test_shot_model, test_cache_manager, qtbot) -> None:
+    def test_timer_triggered_refresh(
+        self, test_shot_model, test_cache_manager, qtbot
+    ) -> None:
         """Test refresh triggered by timer with proper signal handling."""
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 

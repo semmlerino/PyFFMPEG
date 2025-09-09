@@ -42,9 +42,9 @@ def capture_screenshot() -> None:
     # Make sure window is shown
     main_window.show()
     main_window.raise_()
-    
+
     # Switch to "Other 3DE Scenes" tab to show the issue
-    if hasattr(main_window, 'tab_widget'):
+    if hasattr(main_window, "tab_widget"):
         # Tab 0: My Shots, Tab 1: Other 3DE Scenes, Tab 2: Previous Shots
         main_window.tab_widget.setCurrentIndex(1)
 
@@ -58,7 +58,9 @@ def capture_screenshot() -> None:
         numbers = []
         for filename in existing_screenshots:
             try:
-                num = int(filename.replace("shotbot_screenshot_", "").replace(".png", ""))
+                num = int(
+                    filename.replace("shotbot_screenshot_", "").replace(".png", "")
+                )
                 numbers.append(num)
             except ValueError:
                 continue
@@ -70,23 +72,23 @@ def capture_screenshot() -> None:
     if pixmap.save(filename):
         print(f"Screenshot saved to {filename}")
         print(f"Window size: {main_window.width()}x{main_window.height()}")
-        
+
         # ShotBot-specific debug info
-        if hasattr(main_window, 'tab_widget'):
+        if hasattr(main_window, "tab_widget"):
             print("Tab widget present: True")
             print(f"Current tab index: {main_window.tab_widget.currentIndex()}")
             print(f"Tab count: {main_window.tab_widget.count()}")
             for i in range(main_window.tab_widget.count()):
                 print(f"Tab {i}: {main_window.tab_widget.tabText(i)}")
-        
-        if hasattr(main_window, 'threede_item_model'):
+
+        if hasattr(main_window, "threede_item_model"):
             scene_count = len(main_window.threede_item_model.scenes)
             print(f"3DE Item Model scenes: {scene_count}")
-            
-        if hasattr(main_window, 'threede_scene_model'):
+
+        if hasattr(main_window, "threede_scene_model"):
             scene_count = len(main_window.threede_scene_model.scenes)
             print(f"3DE Scene Model scenes: {scene_count}")
-            
+
     else:
         print(f"Failed to save screenshot to {filename}")
 
@@ -96,9 +98,9 @@ def capture_screenshot() -> None:
 
 def main() -> None:
     """Main entry point."""
-    # Set offscreen platform for headless environment 
+    # Set offscreen platform for headless environment
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    
+
     # Enable mock mode in ProcessPoolFactory
     ProcessPoolFactory.set_mock_mode(True)
 
@@ -111,22 +113,22 @@ def main() -> None:
     def check_and_capture() -> None:
         """Check if 3DE discovery is complete and capture screenshot."""
         # Check if 3DE discovery has completed
-        if hasattr(window, 'threede_item_model'):
+        if hasattr(window, "threede_item_model"):
             scene_count = len(window.threede_item_model.scenes)
             print(f"Current 3DE scenes in model: {scene_count}")
-            
+
             if scene_count > 0:
                 print("3DE discovery complete, capturing screenshot...")
                 capture_screenshot()
                 return
-        
+
         # If we've been waiting too long, just capture anyway to show the current state
-        check_and_capture.attempts = getattr(check_and_capture, 'attempts', 0) + 1
+        check_and_capture.attempts = getattr(check_and_capture, "attempts", 0) + 1
         if check_and_capture.attempts >= 5:  # After 5 attempts (10 seconds total)
             print("Capturing screenshot anyway to show current state...")
             capture_screenshot()
             return
-            
+
         # If not ready, check again in 2 seconds
         QTimer.singleShot(2000, check_and_capture)
 

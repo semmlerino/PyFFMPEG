@@ -76,10 +76,10 @@ class PreviousShotsModel(QObject):
         """Stop automatic refresh of previous shots."""
         self._refresh_timer.stop()
         logger.info("Stopped auto-refresh for previous shots")
-    
+
     def _cleanup_worker_safely(self) -> None:
         """Centralized worker cleanup to prevent race conditions and crashes.
-        
+
         This method ensures proper cleanup sequence:
         1. Request stop first
         2. Wait with timeout to prevent hanging
@@ -90,10 +90,10 @@ class PreviousShotsModel(QObject):
         with QMutexLocker(self._scan_lock):
             if self._worker is not None:
                 logger.debug("Safely cleaning up worker thread")
-                
+
                 # 1. Request stop first
                 self._worker.stop()
-                
+
                 # 2. Wait with timeout (prevent hanging)
                 if not self._worker.wait(2000):
                     logger.warning("Worker did not stop gracefully within 2s")
@@ -101,20 +101,20 @@ class PreviousShotsModel(QObject):
                     if self._worker.isRunning():
                         self._worker.terminate()
                         self._worker.wait(1000)
-                
+
                 # 3. Clear reference BEFORE scheduling deletion
                 worker = self._worker
                 self._worker = None
-                
+
                 # 4. Disconnect all signals to prevent late emissions
                 try:
                     worker.scan_finished.disconnect()
                     worker.error_occurred.disconnect()
-                    if hasattr(worker, 'progress'):
-                        getattr(worker, 'progress').disconnect()
+                    if hasattr(worker, "progress"):
+                        getattr(worker, "progress").disconnect()
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
-                
+
                 # 5. Schedule deletion on event loop
                 worker.deleteLater()
                 logger.debug("Worker thread cleanup completed")
@@ -148,7 +148,7 @@ class PreviousShotsModel(QObject):
 
             # Create and configure worker thread
             from config import Config
-            
+
             self._worker = PreviousShotsWorker(
                 active_shots=active_shots,
                 username=self._finder.username,
@@ -158,12 +158,10 @@ class PreviousShotsModel(QObject):
 
             # Connect worker signals with QueuedConnection for thread safety
             self._worker.scan_finished.connect(
-                self._on_scan_finished,
-                Qt.ConnectionType.QueuedConnection
+                self._on_scan_finished, Qt.ConnectionType.QueuedConnection
             )
             self._worker.error_occurred.connect(
-                self._on_scan_error,
-                Qt.ConnectionType.QueuedConnection
+                self._on_scan_error, Qt.ConnectionType.QueuedConnection
             )
 
             # Start worker thread
@@ -188,14 +186,19 @@ class PreviousShotsModel(QObject):
         """
         try:
             # Convert dictionaries to Shot objects
-            shot_objects: list[Shot] = [
-                Shot(
-                    show=shot_dict["show"],
-                    sequence=shot_dict["sequence"],
-                    shot=shot_dict["shot"],
-                    workspace_path=shot_dict["workspace_path"]
-                ) for shot_dict in approved_shots
-            ] if approved_shots else []
+            shot_objects: list[Shot] = (
+                [
+                    Shot(
+                        show=shot_dict["show"],
+                        sequence=shot_dict["sequence"],
+                        shot=shot_dict["shot"],
+                        workspace_path=shot_dict["workspace_path"],
+                    )
+                    for shot_dict in approved_shots
+                ]
+                if approved_shots
+                else []
+            )
 
             # Check if there are changes
             has_changes = self._has_changes(shot_objects)

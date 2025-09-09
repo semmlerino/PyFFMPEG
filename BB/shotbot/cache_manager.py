@@ -75,7 +75,11 @@ class CacheManager(QObject):
     # Signals - maintain backward compatibility
     cache_updated = Signal()
 
-    def __init__(self, cache_dir: Path | None = None, settings_manager: SettingsManager | None = None) -> None:
+    def __init__(
+        self,
+        cache_dir: Path | None = None,
+        settings_manager: SettingsManager | None = None,
+    ) -> None:
         """Initialize cache manager facade with modular components.
 
         Args:
@@ -86,7 +90,7 @@ class CacheManager(QObject):
 
         # Thread safety for coordination
         self._lock: QMutex = QMutex()
-        
+
         # Initialize unified cache configuration if settings manager provided
         self._unified_config: UnifiedCacheConfig | None = None
         if settings_manager:
@@ -99,6 +103,7 @@ class CacheManager(QObject):
         # Set up cache directory structure using CacheConfig for mode separation
         if cache_dir is None:
             from cache_config import CacheConfig
+
             self.cache_dir = CacheConfig.get_cache_directory()
             logger.debug(f"Using mode-based cache directory: {self.cache_dir}")
         else:
@@ -111,38 +116,41 @@ class CacheManager(QObject):
         # Initialize modular components
         self._storage_backend = StorageBackend()
         self._failure_tracker = FailureTracker()
-        
+
         # Use unified config for memory manager if available
         if self._unified_config:
             self._memory_manager = self._unified_config.create_memory_manager()
             # Connect to configuration changes
-            self._unified_config.memory_limit_changed.connect(self._on_memory_limit_changed)
-            self._unified_config.expiry_time_changed.connect(self._on_expiry_time_changed)
+            self._unified_config.memory_limit_changed.connect(
+                self._on_memory_limit_changed
+            )
+            self._unified_config.expiry_time_changed.connect(
+                self._on_expiry_time_changed
+            )
         else:
             self._memory_manager = MemoryManager()
-            
+
         self._thumbnail_processor = ThumbnailProcessor()
 
         # Initialize data caches with unified config if available
         expiry_minutes = (
-            self._unified_config.expiry_minutes if self._unified_config 
+            self._unified_config.expiry_minutes
+            if self._unified_config
             else None  # Use config defaults
         )
-        
+
         self._shot_cache = ShotCache(
-            self.shots_cache_file, 
-            self._storage_backend, 
-            expiry_minutes=expiry_minutes
+            self.shots_cache_file, self._storage_backend, expiry_minutes=expiry_minutes
         )
         self._threede_cache = ThreeDECache(
-            self.threede_scenes_cache_file, 
+            self.threede_scenes_cache_file,
             self._storage_backend,
-            expiry_minutes=expiry_minutes
+            expiry_minutes=expiry_minutes,
         )
         self._previous_shots_cache = ShotCache(
-            self.previous_shots_cache_file, 
+            self.previous_shots_cache_file,
             self._storage_backend,
-            expiry_minutes=expiry_minutes
+            expiry_minutes=expiry_minutes,
         )
 
         # Initialize validator (will be created after directory setup)
@@ -440,11 +448,13 @@ class CacheManager(QObject):
             data: Data to cache
         """
         if key == "previous_shots":
-            self.cache_previous_shots(data)
+            # Type-safe casting: assume caller passes correct type for previous_shots  
+            self.cache_previous_shots(data)  # type: ignore[arg-type]
         else:
-            # For other generic data, use storage backend directly
+            # For other generic data, use storage backend directly  
             cache_file = self.cache_dir / f"{key}.json"
-            _ = self._storage_backend.write_json(cache_file, data)
+            # Type-safe casting: assume data is dict for JSON serialization
+            _ = self._storage_backend.write_json(cache_file, data)  # type: ignore[arg-type]
 
     def get_cached_data(self, key: str) -> object | None:
         """Get cached generic data by key (for backward compatibility).
@@ -615,16 +625,18 @@ class CacheManager(QObject):
 
     def _on_memory_limit_changed(self, new_limit_mb: int) -> None:
         """Handle unified cache config memory limit changes.
-        
+
         Args:
             new_limit_mb: New memory limit in MB
         """
         self._memory_manager.set_memory_limit(new_limit_mb)
-        logger.info(f"Cache memory limit updated to {new_limit_mb}MB via unified config")
+        logger.info(
+            f"Cache memory limit updated to {new_limit_mb}MB via unified config"
+        )
 
     def _on_expiry_time_changed(self, new_expiry_minutes: int) -> None:
         """Handle unified cache config expiry time changes.
-        
+
         Args:
             new_expiry_minutes: New expiry time in minutes
         """
@@ -632,7 +644,9 @@ class CacheManager(QObject):
         self._shot_cache.set_expiry_minutes(new_expiry_minutes)
         self._threede_cache.set_expiry_minutes(new_expiry_minutes)
         self._previous_shots_cache.set_expiry_minutes(new_expiry_minutes)
-        logger.info(f"Cache expiry time updated to {new_expiry_minutes} minutes via unified config")
+        logger.info(
+            f"Cache expiry time updated to {new_expiry_minutes} minutes via unified config"
+        )
 
     def set_expiry_minutes(self, expiry_minutes: int) -> None:
         """Set cache expiry time in minutes.
@@ -731,11 +745,11 @@ class CacheManager(QObject):
         return self._max_memory_bytes
 
     @property
-    def test_lock(self) -> threading.RLock:
+    def test_lock(self) -> QMutex:
         """Test-only access to the coordination lock.
 
         Returns:
-            The RLock used for thread-safe coordination.
+            The QMutex used for thread-safe coordination.
 
         Warning:
             This is for testing thread safety only. Production code
@@ -799,7 +813,7 @@ class ThumbnailCacheLoader(QRunnable):
         self.result = self._loader.result
 
     @override
-    def run(self):
+    def run(self) -> None:
         """Run the thumbnail processing."""
         return self._loader.run()
 

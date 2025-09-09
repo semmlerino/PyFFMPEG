@@ -333,7 +333,9 @@ class TestLauncherEditDialog:
         assert not dialog._validate_name()
         assert "border: 1px solid #f44336" in dialog.name_field.styleSheet()
 
-    def test_name_validation_duplicate_self_edit(self, qtbot, mock_launcher_manager) -> None:
+    def test_name_validation_duplicate_self_edit(
+        self, qtbot, mock_launcher_manager
+    ) -> None:
         """Test name validation allows same name when editing same launcher."""
         # Create launcher using real behavior
         launcher_id = mock_launcher_manager.create_launcher(
@@ -561,7 +563,9 @@ class TestLauncherEditDialog:
 class TestLauncherManagerDialog:
     """Test the main launcher manager dialog."""
 
-    def test_initialization(self, qtbot, mock_launcher_manager, sample_launchers) -> None:
+    def test_initialization(
+        self, qtbot, mock_launcher_manager, sample_launchers
+    ) -> None:
         """Test dialog initialization and setup."""
         # Add sample launchers to manager
         for launcher in sample_launchers:
@@ -648,7 +652,9 @@ class TestLauncherManagerDialog:
         assert dialog.preview_panel.name_label.text() == selected_launcher.name
         assert dialog.preview_panel._current_launcher_id == selected_launcher.id
 
-    def test_search_filtering(self, qtbot, mock_launcher_manager, sample_launchers) -> None:
+    def test_search_filtering(
+        self, qtbot, mock_launcher_manager, sample_launchers
+    ) -> None:
         """Test search filtering functionality."""
         # Add sample launchers to manager
         for launcher in sample_launchers:
@@ -822,7 +828,9 @@ class TestLauncherManagerDialog:
             == initial_launcher_count - 1
         )
 
-    def test_keyboard_shortcuts(self, qtbot, mock_launcher_manager, sample_launchers) -> None:
+    def test_keyboard_shortcuts(
+        self, qtbot, mock_launcher_manager, sample_launchers
+    ) -> None:
         """Test keyboard shortcuts work correctly."""
         # Add sample launchers to manager
         launcher_ids = []

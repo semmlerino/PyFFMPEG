@@ -66,8 +66,11 @@ class TargetedShotsFinder:
 
         # Pattern for parsing shot paths (dynamic based on configured SHOWS_ROOT)
         import re
+
         shows_root_escaped = re.escape(Config.SHOWS_ROOT)
-        self._shot_pattern = re.compile(rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/")
+        self._shot_pattern = re.compile(
+            rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
+        )
 
         logger.info(f"TargetedShotsFinder initialized for user: {self.username}")
 
@@ -118,7 +121,7 @@ class TargetedShotsFinder:
             List of Shot objects found in this show
         """
         from config import Config
-        
+
         shots: list[Shot] = []
 
         if self._stop_requested:
@@ -129,7 +132,7 @@ class TargetedShotsFinder:
             shows_root = Path(Config.SHOWS_ROOT)
         elif isinstance(shows_root, str):
             shows_root = Path(shows_root)
-            
+
         show_path = shows_root / show_name / "shots"
         if not show_path.exists():
             logger.debug(f"Shots directory does not exist: {show_path}")
@@ -238,7 +241,7 @@ class TargetedShotsFinder:
             Shot objects as they are discovered
         """
         from config import Config
-        
+
         if not target_shows:
             logger.warning("No target shows provided for search")
             return

@@ -234,7 +234,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         self._files_processed = 0
         # Progress reporter will be created in do_work() to prevent race condition
         self._progress_reporter: QtProgressReporter | None = None
-        
+
         # Thread safety for finished signal emission (simplified)
         self._finished_mutex = QMutex()
         self._finished_emitted = False
@@ -320,12 +320,14 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             # Ensure finished signal is emitted exactly once
             self._emit_finished_signal_once()
 
-    def _emit_finished_signal_once(self, scenes: list[ThreeDEScene] | None = None) -> bool:
+    def _emit_finished_signal_once(
+        self, scenes: list[ThreeDEScene] | None = None
+    ) -> bool:
         """Emit finished signal exactly once, thread-safely.
-        
+
         Args:
             scenes: Optional list of scenes to emit. If None, uses self._all_scenes
-            
+
         Returns:
             bool: True if signal was emitted, False if already emitted
         """
@@ -333,15 +335,21 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             if self._finished_emitted:
                 return False
             self._finished_emitted = True
-            
+
         # Emit outside the lock to prevent deadlocks
-        scenes_to_emit = scenes if scenes is not None else (self._all_scenes if self._all_scenes else [])
-        
+        scenes_to_emit = (
+            scenes
+            if scenes is not None
+            else (self._all_scenes if self._all_scenes else [])
+        )
+
         if not scenes_to_emit:
             logger.debug("Worker finishing, emitting finished signal with empty list")
         else:
-            logger.debug(f"Worker finishing, emitting finished signal with {len(scenes_to_emit)} scenes")
-            
+            logger.debug(
+                f"Worker finishing, emitting finished signal with {len(scenes_to_emit)} scenes"
+            )
+
         self.finished.emit(scenes_to_emit)
         return True
 
@@ -365,7 +373,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 status,  # current status message
                 "",  # ETA not available during parallel scan
             )
-            
+
             # Also emit scan progress for compatibility
             self.scan_progress.emit(files_found, 0, status)
 
@@ -409,7 +417,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             # Create progress reporter in worker thread to prevent race condition
             # This ensures it's created in the correct thread context from the start
             self._progress_reporter = QtProgressReporter()
-            
+
             # Connect the reporter's signal to our handler with QueuedConnection
             # This ensures all signal emission happens in the correct Qt thread
             self._progress_reporter.progress_update.connect(

@@ -80,11 +80,12 @@ class LauncherManager(QObject):
         # ProcessPoolManager for optimized command execution (via factory for DI)
         try:
             from process_pool_factory import get_process_pool
+
             self._process_pool = get_process_pool()
         except ImportError:
             # Fallback to direct access if factory not available
             self._process_pool = ProcessPoolManager.get_instance()
-        
+
         self._use_process_pool = (
             os.environ.get("SHOTBOT_USE_PROCESS_POOL", "true").lower() == "true"
         )
@@ -599,7 +600,7 @@ class LauncherManager(QObject):
     def shutdown(self) -> None:
         """Shutdown the launcher manager and clean up resources."""
         logger.info("Shutting down LauncherManager")
-        
+
         # Disconnect signals to prevent memory leaks
         try:
             self._process_manager.process_started.disconnect(self.command_started)
@@ -608,7 +609,7 @@ class LauncherManager(QObject):
         except (RuntimeError, TypeError):
             # Signals may already be disconnected
             pass
-        
+
         self._process_manager.shutdown()
         logger.info("LauncherManager shutdown complete")
 

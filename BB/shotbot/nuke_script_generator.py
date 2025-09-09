@@ -46,7 +46,7 @@ class NukeScriptGenerator:
 }"""
 
     # onCreate Python script for undistortion loader
-    UNDISTORTION_ONCREATE_SCRIPT = '''import nuke
+    UNDISTORTION_ONCREATE_SCRIPT = """import nuke
 import os
 import sys
 import re
@@ -121,7 +121,7 @@ try:
 except Exception as e:
     print(f'ERROR: Unexpected error in Python executor: {e}')
     import traceback
-    traceback.print_exc()'''
+    traceback.print_exc()"""
 
     @classmethod
     def _register_cleanup(cls) -> None:
@@ -376,45 +376,45 @@ Viewer {{
     @staticmethod
     def _adjust_ypos_in_line(line: str, ypos_offset: int) -> str:
         """Adjust ypos values in a line by the given offset.
-        
+
         Args:
             line: The line to process
             ypos_offset: Amount to add to ypos values
-            
+
         Returns:
             Line with adjusted ypos values
         """
         import re
-        
+
         if "ypos" not in line or ypos_offset == 0:
             return line
-            
+
         def adjust_ypos(match: re.Match[str]) -> str:
             old_ypos = int(match.group(1))
             new_ypos = old_ypos + ypos_offset
             return f"ypos {new_ypos}"
-            
+
         ypos_pattern = re.compile(r"ypos\s+(-?\d+)")
         return ypos_pattern.sub(adjust_ypos, line)
 
     @staticmethod
     def _sanitize_node_names_in_line(line: str) -> str:
         """Sanitize node names in a line to be Nuke-compatible.
-        
+
         Args:
             line: The line to process
-            
+
         Returns:
             Line with sanitized node names
         """
         import logging
         import re
-        
+
         if " name " not in line:
             return line
-            
+
         logger = logging.getLogger(__name__)
-        
+
         def sanitize_name(match: re.Match[str]) -> str:
             prefix = match.group(1)
             name = match.group(2)
@@ -423,38 +423,38 @@ Viewer {{
             if sanitized != name:
                 logger.debug(f"Sanitized node name: {name} -> {sanitized}")
             return prefix + sanitized
-            
+
         name_pattern = re.compile(r"(\s+name\s+)([^\s]+)")
         return name_pattern.sub(sanitize_name, line)
 
     @staticmethod
     def _should_skip_boilerplate_line(line: str, stripped: str) -> bool:
         """Check if a line should be skipped as boilerplate.
-        
+
         Args:
             line: The full line
             stripped: The stripped line
-            
+
         Returns:
             True if this line should be skipped
         """
         # Skip version line (will be in main script already)
         if stripped.startswith("version "):
             return True
-            
+
         # Skip shebang line
         if stripped.startswith("#!"):
             return True
-            
+
         # Skip copy/paste specific lines
         if "set cut_paste_input" in line:
             return True
-            
+
         if stripped.startswith("push") and (
             "push $cut_paste_input" in line or "push 0" in stripped
         ):
             return True
-            
+
         return False
 
     @staticmethod
@@ -553,7 +553,9 @@ Viewer {{
                     continue
 
                 # Apply ypos offset if this line contains ypos
-                adjusted_line = NukeScriptGenerator._adjust_ypos_in_line(line, ypos_offset)
+                adjusted_line = NukeScriptGenerator._adjust_ypos_in_line(
+                    line, ypos_offset
+                )
                 if adjusted_line != line:
                     logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
                     line = adjusted_line
@@ -751,7 +753,9 @@ Viewer {{
                     continue
 
                 # Apply ypos offset if this line contains ypos
-                adjusted_line = NukeScriptGenerator._adjust_ypos_in_line(line, ypos_offset)
+                adjusted_line = NukeScriptGenerator._adjust_ypos_in_line(
+                    line, ypos_offset
+                )
                 if adjusted_line != line:
                     logger.debug(f"Adjusted ypos in line: {stripped[:50]}...")
                     line = adjusted_line
@@ -873,7 +877,6 @@ Viewer {{
             logger.debug(f"Full traceback: {traceback.format_exc()}")
             return ""
 
-
     @staticmethod
     def create_loader_script(
         plate_path: str,
@@ -914,10 +917,11 @@ Viewer {{
             # Prepare the onCreate script for the NoOp node
             # Need to escape quotes and newlines for Nuke script format
             backslash = chr(92)  # Avoid backslash in f-string
-            quote = chr(34)      # Avoid quote escaping in f-string
+            quote = chr(34)  # Avoid quote escaping in f-string
             formatted_oncreate_script = (
-                NukeScriptGenerator.UNDISTORTION_ONCREATE_SCRIPT
-                .replace(chr(10), backslash + 'n')  # Replace newlines with \n
+                NukeScriptGenerator.UNDISTORTION_ONCREATE_SCRIPT.replace(
+                    chr(10), backslash + "n"
+                )  # Replace newlines with \n
                 .replace(quote, backslash + quote)  # Escape quotes
                 .format(undist_file=nuke_undist_path)
             )

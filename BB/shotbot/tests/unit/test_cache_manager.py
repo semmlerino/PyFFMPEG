@@ -427,7 +427,9 @@ class TestCacheManager:
 class TestCacheManagerIntegration:
     """Integration tests for CacheManager with other components."""
 
-    def test_integration_with_shot_model(self, cache_manager, shot_model_with_shots) -> None:
+    def test_integration_with_shot_model(
+        self, cache_manager, shot_model_with_shots
+    ) -> None:
         """Test CacheManager integration with ShotModel."""
         # shot_model_with_shots already has shots populated
         model = shot_model_with_shots
@@ -732,7 +734,9 @@ class TestThreeDECaching:
         assert len(data["scenes"]) == 1
         assert data["scenes"][0]["show"] == sample_3de_scene.show
 
-    def test_get_cached_threede_scenes_valid(self, cache_manager, sample_3de_scene) -> None:
+    def test_get_cached_threede_scenes_valid(
+        self, cache_manager, sample_3de_scene
+    ) -> None:
         """Test retrieving valid cached 3DE scenes."""
         # Cache some scenes
         scenes = [sample_3de_scene.to_dict()]
@@ -745,7 +749,9 @@ class TestThreeDECaching:
         assert len(cached) == 1
         assert cached[0]["show"] == sample_3de_scene.show
 
-    def test_get_cached_threede_scenes_expired(self, cache_manager, sample_3de_scene) -> None:
+    def test_get_cached_threede_scenes_expired(
+        self, cache_manager, sample_3de_scene
+    ) -> None:
         """Test expired 3DE cache returns None."""
         # Cache some scenes
         scenes = [sample_3de_scene.to_dict()]
@@ -791,7 +797,9 @@ class TestThreeDECaching:
         # Should be valid now
         assert cache_manager.has_valid_threede_cache() is True
 
-    def test_cache_threede_scenes_with_metadata(self, cache_manager, sample_3de_scene) -> None:
+    def test_cache_threede_scenes_with_metadata(
+        self, cache_manager, sample_3de_scene
+    ) -> None:
         """Test caching 3DE scenes with metadata."""
         scenes = [sample_3de_scene.to_dict()]
         metadata = {
@@ -915,7 +923,7 @@ class TestThreadSafety:
     def test_thread_safety_lock_exists(self, cache_manager) -> None:
         """Test that cache manager has thread safety lock."""
         from PySide6.QtCore import QMutexLocker
-        
+
         # Verify the lock exists for thread safety
         assert hasattr(cache_manager, "_lock")
         assert cache_manager._lock is not None
@@ -1100,6 +1108,7 @@ class TestCacheManagerThreading:
         def add_memory_usage(thread_id: int, amount: int) -> None:
             """Add memory usage from multiple threads."""
             from PySide6.QtCore import QMutexLocker
+
             try:
                 QMutexLocker(manager._lock)
                 current = manager._memory_usage_bytes
@@ -1194,6 +1203,7 @@ class TestCacheManagerThreading:
         def cleanup_cache() -> None:
             """Perform cache cleanup."""
             from PySide6.QtCore import QMutexLocker
+
             try:
                 QMutexLocker(manager._lock)
                 # Simulate cleanup work
@@ -1207,6 +1217,7 @@ class TestCacheManagerThreading:
         def access_cache() -> None:
             """Access cache during cleanup."""
             from PySide6.QtCore import QMutexLocker
+
             try:
                 QMutexLocker(manager._lock)
                 # Simulate cache access
@@ -1339,6 +1350,7 @@ class TestCacheManagerThreading:
         # We just verify the structure is correct
         assert hasattr(result, "_completed_mutex")
         from PySide6.QtCore import QMutex
+
         assert isinstance(result._completed_mutex, QMutex)
 
     # NOTE: Removed test_concurrent_cache_retrieval - was causing hangs with threading and patches
@@ -1347,6 +1359,7 @@ class TestCacheManagerThreading:
     def test_lock_basic_behavior(self, cache_manager) -> None:
         """Test that QMutex provides basic thread safety."""
         from PySide6.QtCore import QMutexLocker
+
         manager = cache_manager
 
         def single_lock_access():

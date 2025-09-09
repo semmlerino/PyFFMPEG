@@ -389,7 +389,9 @@ class TestThreeDESceneWorker:
             worker.stop()
             worker.wait(1000)
 
-    def test_scene_discovery_with_test_double(self, qtbot, test_shots, test_finder) -> None:
+    def test_scene_discovery_with_test_double(
+        self, qtbot, test_shots, test_finder
+    ) -> None:
         """Test scene discovery using test double (replaces Mock usage)."""
         # Configure test double to return test scenes
         test_scenes = [

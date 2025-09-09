@@ -37,10 +37,10 @@ class GridWidget(Protocol):
 @runtime_checkable
 class MainWindowProtocol(Protocol):
     """Protocol for main window with UI elements for accessibility setup."""
-    
+
     # Core window methods
     def setTabOrder(self, first: QWidget, second: QWidget) -> None: ...
-    
+
     # Menu actions (optional - checked with hasattr)
     refresh_action: QAction | None
     settings_action: QAction | None
@@ -50,7 +50,7 @@ class MainWindowProtocol(Protocol):
     reset_layout_action: QAction | None
     shortcuts_action: QAction | None
     about_action: QAction | None
-    
+
     # UI components (optional - checked with hasattr)
     status_bar: QStatusBar | None
     tab_widget: QTabWidget | None
@@ -222,13 +222,22 @@ class AccessibilityManager:
             window.exit_action.setToolTip("Exit ShotBot application")
 
         # View menu tooltips
-        if hasattr(window, "increase_size_action") and window.increase_size_action is not None:
+        if (
+            hasattr(window, "increase_size_action")
+            and window.increase_size_action is not None
+        ):
             window.increase_size_action.setToolTip("Increase thumbnail size (Ctrl++)")
 
-        if hasattr(window, "decrease_size_action") and window.decrease_size_action is not None:
+        if (
+            hasattr(window, "decrease_size_action")
+            and window.decrease_size_action is not None
+        ):
             window.decrease_size_action.setToolTip("Decrease thumbnail size (Ctrl+-)")
 
-        if hasattr(window, "reset_layout_action") and window.reset_layout_action is not None:
+        if (
+            hasattr(window, "reset_layout_action")
+            and window.reset_layout_action is not None
+        ):
             window.reset_layout_action.setToolTip(
                 "Reset window layout to default configuration"
             )
@@ -264,14 +273,16 @@ class AccessibilityManager:
                     window.setTabOrder(tab_widget, cast("QWidget", size_slider))
 
             # Then shot grid controls - with complete null safety
-            if (window.shot_grid is not None 
+            if (
+                window.shot_grid is not None
                 and hasattr(window.shot_grid, "list_view")
                 and hasattr(window.shot_grid, "size_slider")
                 and window.shot_grid.size_slider is not None
-                and window.shot_grid.list_view is not None):
+                and window.shot_grid.list_view is not None
+            ):
                 window.setTabOrder(
-                    cast("QWidget", window.shot_grid.size_slider), 
-                    cast("QWidget", window.shot_grid.list_view)
+                    cast("QWidget", window.shot_grid.size_slider),
+                    cast("QWidget", window.shot_grid.list_view),
                 )
 
             # Then launcher buttons in order - with null safety
@@ -284,12 +295,16 @@ class AccessibilityManager:
             else:
                 prev_widget = None
             # Add null safety for app_buttons access
-            if hasattr(window, 'app_buttons') and window.app_buttons is not None:
+            if hasattr(window, "app_buttons") and window.app_buttons is not None:
                 for app_name in ["3de", "nuke", "maya", "rv", "publish"]:
-                    if (app_name in window.app_buttons 
+                    if (
+                        app_name in window.app_buttons
                         and prev_widget is not None
-                        and window.app_buttons[app_name] is not None):
-                        window.setTabOrder(cast("QWidget", prev_widget), window.app_buttons[app_name])
+                        and window.app_buttons[app_name] is not None
+                    ):
+                        window.setTabOrder(
+                            cast("QWidget", prev_widget), window.app_buttons[app_name]
+                        )
                         prev_widget = window.app_buttons[app_name]
 
     @staticmethod

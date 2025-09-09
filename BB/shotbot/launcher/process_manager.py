@@ -191,7 +191,9 @@ class LauncherProcessManager(QObject):
             self.process_error.emit(launcher_id, str(e))
             return False
 
-    def _on_worker_finished(self, launcher_id: str, success: bool, return_code: int) -> None:
+    def _on_worker_finished(
+        self, launcher_id: str, success: bool, return_code: int
+    ) -> None:
         """Handle worker thread completion.
 
         Args:

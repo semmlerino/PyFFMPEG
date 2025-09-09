@@ -448,13 +448,13 @@ class OptimizedShotModel(BaseShotModel):
     def clear_selection(self) -> None:
         """Clear the current shot selection."""
         self.select_shot(None)
-    
+
     def wait_for_async_load(self, timeout_ms: int = 5000) -> bool:
         """Wait for async loading to complete.
-        
+
         Args:
             timeout_ms: Maximum time to wait in milliseconds
-            
+
         Returns:
             True if loading completed, False if timed out
         """

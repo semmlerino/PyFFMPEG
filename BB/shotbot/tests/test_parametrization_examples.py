@@ -29,7 +29,9 @@ class TestParametrizationPatterns:
             pytest.param("special/chars", True, id="special_characters"),
         ],
     )
-    def test_basic_parametrization_with_ids(self, input_value: Any, expected: bool) -> None:
+    def test_basic_parametrization_with_ids(
+        self, input_value: Any, expected: bool
+    ) -> None:
         """Basic parametrization with descriptive test IDs."""
         # Implementation would go here
         pass
@@ -71,7 +73,9 @@ class TestParametrizationPatterns:
             ),
         ],
     )
-    def test_complex_structure_combinations(self, show: str, sequence: str, shot: str) -> None:
+    def test_complex_structure_combinations(
+        self, show: str, sequence: str, shot: str
+    ) -> None:
         """Replace nested loops with explicit parametrized combinations."""
         # Implementation would go here
         pass
@@ -109,7 +113,9 @@ class TestParametrizationPatterns:
             ),
         ],
     )
-    def test_application_startup_times(self, app_name: str, startup_time: float) -> None:
+    def test_application_startup_times(
+        self, app_name: str, startup_time: float
+    ) -> None:
         """Test application startup with appropriate performance marks."""
         # Implementation would go here
         pass
@@ -132,7 +138,9 @@ class TestParametrizationPatterns:
             ],
         ],
     )
-    def test_file_processing_scalability(self, file_count: int, processing_time: float) -> None:
+    def test_file_processing_scalability(
+        self, file_count: int, processing_time: float
+    ) -> None:
         """Test file processing with grouped parameter sets."""
         # Implementation would go here
         pass

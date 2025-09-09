@@ -7,11 +7,15 @@ import logging
 import threading
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 
 from config import Config
+
+if TYPE_CHECKING:
+    from PIL import Image as PIL
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +99,7 @@ class ThumbnailProcessor:
             # Force garbage collection for large images
             gc.collect()
 
-    def _analyze_source_file(self, source_path: Path) -> dict:
+    def _analyze_source_file(self, source_path: Path) -> dict[str, object]:
         """Analyze source file to determine processing strategy.
 
         Args:
@@ -123,7 +127,7 @@ class ThumbnailProcessor:
         }
 
     def _process_with_pil(
-        self, source_path: Path, cache_path: Path, file_info: dict
+        self, source_path: Path, cache_path: Path, file_info: dict[str, object]
     ) -> bool:
         """Process image using PIL with multi-backend support.
 
@@ -180,7 +184,7 @@ class ThumbnailProcessor:
         self,
         source_path: Path,
         cache_path: Path,
-        file_info: dict,
+        file_info: dict[str, object],
         max_dimension: int = 20000,
     ) -> bool:
         """Process image using Qt.
@@ -244,7 +248,9 @@ class ThumbnailProcessor:
             if scaled is not None:
                 del scaled
 
-    def _load_image_with_pil(self, source_path: Path, file_info: dict) -> PIL.Image.Image | None:
+    def _load_image_with_pil(
+        self, source_path: Path, file_info: dict[str, object]
+    ) -> PIL.Image | None:
         """Load image using PIL with format-specific handling.
 
         Args:
@@ -278,7 +284,7 @@ class ThumbnailProcessor:
             logger.debug(f"PIL loading failed for {source_path}: {e}")
             return None
 
-    def _get_rez_environment_info(self) -> dict:
+    def _get_rez_environment_info(self) -> dict[str, object]:
         """Get Rez environment information for debugging.
 
         Returns:
@@ -306,7 +312,7 @@ class ThumbnailProcessor:
 
         return rez_info
 
-    def _load_exr_image(self, source_path: Path) -> PIL.Image.Image | None:
+    def _load_exr_image(self, source_path: Path) -> PIL.Image | None:
         """Load EXR image with specialized backends and Rez environment support.
 
         Args:
@@ -360,12 +366,12 @@ class ThumbnailProcessor:
         # Final error summary for Rez environments
         if rez_info["in_rez_env"]:
             logger.error(
-                f"All EXR backends failed in Rez environment. Check package configurations for: {[pkg for pkg in rez_info['used_resolve'] if 'openexr' in pkg.lower() or 'imageio' in pkg.lower()]}"
+                f"All EXR backends failed in Rez environment. Check package configurations for: {[pkg for pkg in rez_info['used_resolve'] if 'openexr' in pkg.lower() or 'imageio' in pkg.lower()]}"  # type: ignore[misc]
             )
 
         return None
 
-    def _load_exr_with_system_tools(self, source_path: Path) -> PIL.Image.Image | None:
+    def _load_exr_with_system_tools(self, source_path: Path) -> PIL.Image | None:
         """Load EXR using system tools (ImageMagick + OpenEXR native tools).
 
         This method uses external system tools that we confirmed are working
@@ -483,7 +489,7 @@ class ThumbnailProcessor:
                 except Exception:
                     pass  # Best effort cleanup
 
-    def _load_exr_with_openexr(self, source_path: Path) -> PIL.Image.Image | None:
+    def _load_exr_with_openexr(self, source_path: Path) -> PIL.Image | None:
         """Load EXR using OpenEXR library with Rez environment support.
 
         Handles both official OpenEXR package and alternative openexr packages
@@ -534,7 +540,7 @@ class ThumbnailProcessor:
                     imath_module = Imath
                 except ImportError:
                     # Some packages bundle Imath differently
-                    import imath as Imath
+                    import imath as Imath  # type: ignore[import-untyped]
 
                     imath_module = Imath
                 openexr_module = openexr
@@ -600,7 +606,7 @@ class ThumbnailProcessor:
         logger.debug(f"Successfully loaded EXR using {api_style} OpenEXR API")
         return PILImage.fromarray(img_array, mode="RGB")
 
-    def _load_exr_with_imageio(self, source_path: Path) -> PIL.Image.Image | None:
+    def _load_exr_with_imageio(self, source_path: Path) -> PIL.Image | None:
         """Load EXR using imageio library with Rez environment support.
 
         Args:
@@ -703,7 +709,9 @@ class ThumbnailProcessor:
             # If we can't check, assume it's safe and let Qt handle it
             return True
 
-    def _save_pil_thumbnail(self, pil_image, cache_path: Path, file_info: dict) -> bool:
+    def _save_pil_thumbnail(
+        self, pil_image: PIL.Image, cache_path: Path, file_info: dict[str, object]
+    ) -> bool:
         """Save PIL image as thumbnail with atomic write.
 
         Args:
@@ -749,7 +757,7 @@ class ThumbnailProcessor:
             return False
 
     def _save_qt_thumbnail(
-        self, qt_image: QImage, cache_path: Path, file_info: dict
+        self, qt_image: QImage, cache_path: Path, file_info: dict[str, object]
     ) -> bool:
         """Save Qt image as thumbnail with atomic write.
 
@@ -814,7 +822,7 @@ class ThumbnailProcessor:
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         start_time = time.time()
-        results = [None] * len(images)  # Pre-allocate results list
+        results: list[Path | None] = [None] * len(images)  # Pre-allocate results list
 
         # Create a mapping of future to index for ordered results
         with ThreadPoolExecutor(max_workers=max_workers) as executor:

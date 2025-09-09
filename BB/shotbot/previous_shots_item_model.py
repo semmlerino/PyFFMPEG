@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 class PreviousShotsItemModel(QAbstractListModel):
     """Qt item model for previous/approved shots.
-    
+
     This model wraps PreviousShotsModel and provides the Qt Model/View
     interface for efficient display in views. It handles:
     - Data provision for views
@@ -51,7 +51,9 @@ class PreviousShotsItemModel(QAbstractListModel):
 
     # Signals
     shots_updated = Signal()
-    selection_changed = Signal(object)  # Shot | None - using object for Qt signal compatibility
+    selection_changed = Signal(
+        object
+    )  # Shot | None - using object for Qt signal compatibility
 
     def __init__(
         self,
@@ -67,7 +69,7 @@ class PreviousShotsItemModel(QAbstractListModel):
             parent: Optional parent object
         """
         super().__init__(parent)
-        
+
         self._model = previous_shots_model
         self._cache_manager = cache_manager
         self._shots: list[Shot] = []
@@ -79,16 +81,13 @@ class PreviousShotsItemModel(QAbstractListModel):
 
         # Connect to underlying model signals with QueuedConnection for thread safety
         self._model.shots_updated.connect(
-            self._on_shots_updated,
-            Qt.ConnectionType.QueuedConnection
+            self._on_shots_updated, Qt.ConnectionType.QueuedConnection
         )
-        
+
         # Initialize with current shots
         self._update_shots()
-        
-        logger.info(
-            f"PreviousShotsItemModel initialized with {len(self._shots)} shots"
-        )
+
+        logger.info(f"PreviousShotsItemModel initialized with {len(self._shots)} shots")
 
     @property
     def shots(self) -> list[Shot]:
@@ -99,7 +98,9 @@ class PreviousShotsItemModel(QAbstractListModel):
         """
         return self._shots
 
-    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+    def rowCount(
+        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+    ) -> int:
         """Return the number of rows (shots) in the model.
 
         Args:
@@ -206,7 +207,7 @@ class PreviousShotsItemModel(QAbstractListModel):
         """
         self._visible_start = max(0, start)
         self._visible_end = min(end, len(self._shots))
-        
+
         # Trigger thumbnail loading for visible items
         if self._cache_manager:
             for i in range(self._visible_start, self._visible_end):
@@ -236,19 +237,19 @@ class PreviousShotsItemModel(QAbstractListModel):
         # Mark as loading
         index = self.index(row, 0)
         self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
-        
+
         # Import here to avoid circular dependency
         from cache.thumbnail_loader import ThumbnailCacheResult
-        
+
         # Use cache manager to cache the thumbnail
         cached_result = self._cache_manager.cache_thumbnail(
             thumbnail_path,
             shot.show,
             shot.sequence,
             shot.shot,
-            wait=False  # Don't block UI - load asynchronously
+            wait=False,  # Don't block UI - load asynchronously
         )
-        
+
         # Handle both sync and async results
         if isinstance(cached_result, ThumbnailCacheResult):
             # Async result - set up callback with immutable shot identifier
@@ -272,10 +273,10 @@ class PreviousShotsItemModel(QAbstractListModel):
     def _update_shots(self) -> None:
         """Update the shot list from the underlying model."""
         self.beginResetModel()
-        
+
         # Get shots from PreviousShotsModel
         self._shots = self._model.get_shots()
-        
+
         # Clear thumbnail cache for removed shots (thread-safe)
         current_names = {shot.full_name for shot in self._shots}
         with QMutexLocker(self._cache_mutex):
@@ -284,15 +285,15 @@ class PreviousShotsItemModel(QAbstractListModel):
                 for name, pixmap in self._thumbnail_cache.items()
                 if name in current_names
             }
-        
+
         # Clear selection if shot was removed
         if self._selected_shot and self._selected_shot not in self._shots:
             self._selected_shot = None
             self.selection_changed.emit(None)
-        
+
         self.endResetModel()
         self.shots_updated.emit()
-        
+
         logger.debug(f"Updated model with {len(self._shots)} previous shots")
 
     def get_selected_shot(self) -> Shot | None:
@@ -319,7 +320,7 @@ class PreviousShotsItemModel(QAbstractListModel):
 
     def get_underlying_model(self) -> PreviousShotsModel:
         """Get the underlying PreviousShotsModel.
-        
+
         Returns:
             The underlying previous shots model
         """
@@ -364,7 +365,7 @@ class PreviousShotsItemModel(QAbstractListModel):
 
     def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
         """Find a shot and its row index by full_name.
-        
+
         Returns None if not found.
         """
         for row, shot in enumerate(self._shots):

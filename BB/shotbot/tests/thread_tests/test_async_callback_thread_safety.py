@@ -46,7 +46,9 @@ class TestShotItemModelThreadSafety:
             for i in range(10)
         ]
 
-    def test_concurrent_shot_lookup_thread_safety(self, thread_safe_model, test_shots) -> None:
+    def test_concurrent_shot_lookup_thread_safety(
+        self, thread_safe_model, test_shots
+    ) -> None:
         """Test _find_shot_by_full_name under concurrent access."""
         thread_safe_model.set_shots(test_shots)
 
@@ -140,7 +142,9 @@ class TestShotItemModelThreadSafety:
         found_count = sum(1 for name, found in callback_results if found)
         assert found_count == 5  # Only remaining shots should be found
 
-    def test_thumbnail_cache_concurrent_access(self, thread_safe_model, test_shots) -> None:
+    def test_thumbnail_cache_concurrent_access(
+        self, thread_safe_model, test_shots
+    ) -> None:
         """Test concurrent access to thumbnail cache."""
         thread_safe_model.set_shots(test_shots)
 
@@ -258,7 +262,9 @@ class TestShotInfoPanelThreadSafety:
         yield panel
         panel.deleteLater()
 
-    def test_concurrent_pixmap_loading(self, thread_safe_panel, tmp_path, qtbot) -> None:
+    def test_concurrent_pixmap_loading(
+        self, thread_safe_panel, tmp_path, qtbot
+    ) -> None:
         """Test concurrent InfoPanelPixmapLoader operations."""
         # Create test images
         image_paths = []
@@ -303,7 +309,9 @@ class TestShotInfoPanelThreadSafety:
         success_count = sum(1 for success, _ in loading_results if success)
         assert success_count == len(image_paths)
 
-    def test_rapid_shot_changes_thread_safety(self, thread_safe_panel, tmp_path, qtbot, monkeypatch) -> None:
+    def test_rapid_shot_changes_thread_safety(
+        self, thread_safe_panel, tmp_path, qtbot, monkeypatch
+    ) -> None:
         """Test rapid shot changes don't cause race conditions."""
         # Create test shots with images
         shots = []
@@ -317,11 +325,11 @@ class TestShotInfoPanelThreadSafety:
             shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
             shots.append(shot)
             thumbnail_paths[shot.full_name] = image_path
-        
+
         # Mock get_thumbnail_path to return correct path for each shot
         def mock_get_thumbnail(self):
             return thumbnail_paths.get(self.full_name)
-        
+
         monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
 
         change_errors = []
@@ -412,7 +420,9 @@ class TestShotInfoPanelThreadSafety:
 class TestCrossComponentThreadSafety:
     """Test thread safety across multiple components."""
 
-    def test_model_and_panel_concurrent_operations(self, qtbot, tmp_path, monkeypatch) -> None:
+    def test_model_and_panel_concurrent_operations(
+        self, qtbot, tmp_path, monkeypatch
+    ) -> None:
         """Test model and panel operating concurrently without interference."""
         # Create test setup
         image_path = tmp_path / "concurrent.jpg"

@@ -159,7 +159,9 @@ class TestAsyncCallbackRaceConditions:
                     assert "/cache/thumbnail.jpg" in handler_calls[0][1]
                 # If handler wasn't called, that's OK - the key test is that loading state was set
 
-    def test_qmetaobject_invoke_method_thread_safety(self, model, test_shots, qtbot) -> None:
+    def test_qmetaobject_invoke_method_thread_safety(
+        self, model, test_shots, qtbot
+    ) -> None:
         """Test cross-thread callback safety with string-based invocation.
 
         Tests that the _handle_thumbnail_success_atomically method can be
@@ -196,7 +198,9 @@ class TestAsyncCallbackRaceConditions:
             assert result["shot_full_name"] == test_shots[0].full_name
             assert result["cached_path"] == "/cache/test.jpg"
 
-    def test_concurrent_thumbnail_loading(self, model, test_shots, qtbot, tmp_path, monkeypatch) -> None:
+    def test_concurrent_thumbnail_loading(
+        self, model, test_shots, qtbot, tmp_path, monkeypatch
+    ) -> None:
         """Test multiple simultaneous thumbnail load operations for thread safety."""
         # Create fake thumbnail files for each shot
         thumbnail_paths = {}
@@ -204,11 +208,11 @@ class TestAsyncCallbackRaceConditions:
             thumbnail_path = tmp_path / f"thumbnail_{i}.jpg"
             thumbnail_path.touch()
             thumbnail_paths[shot.full_name] = thumbnail_path
-        
+
         # Mock get_thumbnail_path to return correct path for each shot
         def mock_get_thumbnail(self):
             return thumbnail_paths.get(self.full_name)
-        
+
         monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
 
         model.set_shots(test_shots)

@@ -191,7 +191,7 @@ class ThumbnailLoader(QRunnable):
             "sequence": self.sequence,
         }
         tracker.register(self, metadata)
-        
+
         cache_key = f"{self.show}_{self.sequence}_{self.shot}"
 
         try:
@@ -210,6 +210,7 @@ class ThumbnailLoader(QRunnable):
                         # Check if signal object still exists before emission
                         try:
                             import sip
+
                             if not sip.isdeleted(self.signals):
                                 self.signals.loaded.emit(
                                     self.show,
@@ -218,7 +219,9 @@ class ThumbnailLoader(QRunnable):
                                     self.cache_path,
                                 )
                             else:
-                                logger.debug("Signal object deleted, skipping loaded emission")
+                                logger.debug(
+                                    "Signal object deleted, skipping loaded emission"
+                                )
                         except ImportError:
                             # Fallback if sip not available
                             self.signals.loaded.emit(
@@ -246,6 +249,7 @@ class ThumbnailLoader(QRunnable):
                         # Check if signal object still exists before emission
                         try:
                             import sip
+
                             if not sip.isdeleted(self.signals):
                                 self.signals.failed.emit(
                                     self.show,
@@ -254,7 +258,9 @@ class ThumbnailLoader(QRunnable):
                                     error_msg,
                                 )
                             else:
-                                logger.debug("Signal object deleted, skipping failed emission")
+                                logger.debug(
+                                    "Signal object deleted, skipping failed emission"
+                                )
                         except ImportError:
                             # Fallback if sip not available
                             self.signals.failed.emit(
@@ -282,6 +288,7 @@ class ThumbnailLoader(QRunnable):
                     # Check if signal object still exists before emission
                     try:
                         import sip
+
                         if not sip.isdeleted(self.signals):
                             self.signals.failed.emit(
                                 self.show,
@@ -290,7 +297,9 @@ class ThumbnailLoader(QRunnable):
                                 str(e),
                             )
                         else:
-                            logger.debug("Signal object deleted, skipping exception emission")
+                            logger.debug(
+                                "Signal object deleted, skipping exception emission"
+                            )
                     except ImportError:
                         # Fallback if sip not available
                         self.signals.failed.emit(

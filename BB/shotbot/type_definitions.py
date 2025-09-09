@@ -68,6 +68,7 @@ class RefreshResult(NamedTuple):
     success: bool
     has_changes: bool
 
+
 # ==============================================================================
 # TypedDict Definitions for Data Structures
 # ==============================================================================
@@ -223,7 +224,8 @@ class LauncherProtocol(Protocol):
 
 
 # Generic type variable for finder results
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class FinderProtocol(Protocol[T]):
     """Protocol for file/scene finders."""
@@ -283,7 +285,9 @@ CommandDict = dict[str, str | list[str] | dict[str, str]]
 # Cache keys
 CacheKey = str
 # Cache data can be various types of serializable data
-CacheData = dict[str, str | int | float | bool | None] | list[dict[str, str]] | str | bytes
+CacheData = (
+    dict[str, str | int | float | bool | None] | list[dict[str, str]] | str | bytes
+)
 
 # Time types
 Timestamp = float

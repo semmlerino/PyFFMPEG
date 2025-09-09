@@ -70,7 +70,7 @@ class FolderOpenerWorker(QRunnable):
             "folder_path": self.folder_path,
         }
         tracker.register(self, metadata)
-        
+
         try:
             # Ensure we have a proper absolute path
             folder_path = self.folder_path
@@ -203,7 +203,7 @@ class BaseThumbnailLoader(QRunnable):
             "path": str(self.path),
         }
         tracker.register(self, metadata)
-        
+
         if not self.path or not self.path.exists():
             logger.warning(f"Thumbnail path does not exist: {self.path}")
             # Safe signal emission
@@ -319,7 +319,9 @@ class ThumbnailWidgetBase(QFrame):
         """Set the shared cache manager for all thumbnail widgets."""
         cls._cache_manager = cache_manager
 
-    def __init__(self, data: ThumbnailDataProtocol, size: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
+    def __init__(
+        self, data: ThumbnailDataProtocol, size: int = Config.DEFAULT_THUMBNAIL_SIZE
+    ) -> None:
         super().__init__()
         self.data = data
         self._thumbnail_size = size
@@ -462,7 +464,9 @@ class ThumbnailWidgetBase(QFrame):
                 # No thumbnail available
                 self._on_thumbnail_failed(self)
 
-    def _on_thumbnail_loaded(self, widget: ThumbnailWidgetBase, pixmap: QPixmap) -> None:
+    def _on_thumbnail_loaded(
+        self, widget: ThumbnailWidgetBase, pixmap: QPixmap
+    ) -> None:
         """Handle loaded thumbnail."""
         if widget == self:
             self._loading_state = LoadingState.LOADED
@@ -543,12 +547,10 @@ class ThumbnailWidgetBase(QFrame):
 
         # Connect signals with QueuedConnection for thread safety
         worker.signals.error.connect(
-            self._on_folder_open_error,
-            Qt.ConnectionType.QueuedConnection
+            self._on_folder_open_error, Qt.ConnectionType.QueuedConnection
         )
         worker.signals.success.connect(
-            self._on_folder_open_success,
-            Qt.ConnectionType.QueuedConnection
+            self._on_folder_open_success, Qt.ConnectionType.QueuedConnection
         )
 
         # Start the worker

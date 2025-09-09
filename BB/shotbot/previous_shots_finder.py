@@ -47,9 +47,11 @@ class PreviousShotsFinder:
 
         self.user_path_pattern = f"/user/{self.username}"
         # Optimized regex pattern for shot parsing
-        # [^/]+ is faster than \w+ for path components  
+        # [^/]+ is faster than \w+ for path components
         shows_root_escaped = re.escape(Config.SHOWS_ROOT)
-        self._shot_pattern = re.compile(rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/")
+        self._shot_pattern = re.compile(
+            rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
+        )
         logger.info(f"PreviousShotsFinder initialized for user: {self.username}")
 
     def find_user_shots(self, shows_root: Path | None = None) -> list[Shot]:
@@ -62,9 +64,9 @@ class PreviousShotsFinder:
             List of Shot objects where user has work directories.
         """
         from config import Config
-        
+
         shots: list[Shot] = []
-        
+
         # Ensure shows_root is always a Path object
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
@@ -140,11 +142,13 @@ class PreviousShotsFinder:
         if match:
             # Extract show, sequence, and shot directory, then parse shot number
             show, sequence, shot_dir = match.groups()
-            
+
             # Extract shot number from directory name (consistent with base_shot_model logic)
             if shot_dir.startswith(f"{sequence}_"):
-                shot = shot_dir[len(sequence) + 1:]  # +1 for underscore
-                workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
+                shot = shot_dir[len(sequence) + 1 :]  # +1 for underscore
+                workspace_path = (
+                    f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
+                )
             else:
                 # Non-standard naming, skip
                 logger.debug(f"Non-standard shot naming: {shot_dir}")
@@ -154,11 +158,13 @@ class PreviousShotsFinder:
             match = self._shot_pattern_fallback.search(path)
             if match:
                 show, sequence, shot_dir = match.groups()
-                
+
                 # Extract shot number from directory name
                 if shot_dir.startswith(f"{sequence}_"):
-                    shot = shot_dir[len(sequence) + 1:]  # +1 for underscore
-                    workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
+                    shot = shot_dir[len(sequence) + 1 :]  # +1 for underscore
+                    workspace_path = (
+                        f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
+                    )
                 else:
                     # Non-standard naming, skip
                     logger.debug(f"Non-standard shot naming: {shot_dir}")
@@ -227,13 +233,13 @@ class PreviousShotsFinder:
             List of approved/completed shots.
         """
         from config import Config
-        
+
         # Ensure shows_root is always a Path object
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
         elif isinstance(shows_root, str):
             shows_root = Path(shows_root)
-            
+
         all_user_shots = self.find_user_shots(shows_root)
         return self.filter_approved_shots(all_user_shots, active_shots)
 
@@ -411,7 +417,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         """
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
-        
+
         if not shows_root.exists():
             logger.warning(f"Shows root does not exist: {shows_root}")
             return
@@ -482,13 +488,13 @@ class ParallelShotsFinder(PreviousShotsFinder):
             List of Shot objects where user has work directories
         """
         from config import Config
-        
+
         # Ensure shows_root is always a Path object
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
         elif isinstance(shows_root, str):
             shows_root = Path(shows_root)
-            
+
         # Check for legacy mode fallback
         if os.environ.get("USE_LEGACY_SHOT_FINDER"):
             logger.info("Using legacy sequential shot finder")
@@ -524,7 +530,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         """
         from config import Config
         from targeted_shot_finder import TargetedShotsFinder
-        
+
         # Ensure shows_root is always a Path object
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)

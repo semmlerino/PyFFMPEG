@@ -91,7 +91,7 @@ def main() -> int:
                 content = f.read()
                 if "match " in content and "case " in content:
                     print(f"  - {filepath}")
-        except:
+        except (OSError, UnicodeDecodeError):
             pass
 
     return 0 if not all_issues else 1

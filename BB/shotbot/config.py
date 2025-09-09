@@ -342,7 +342,9 @@ class Config:
     SHOW_SEARCH_ENABLED = (
         True  # Enable searching all shots in shows (not just user's shots)
     )
-    SHOW_ROOT_PATHS = [SHOWS_ROOT]  # Root directories where shows are stored (uses configured SHOWS_ROOT)
+    SHOW_ROOT_PATHS = [
+        SHOWS_ROOT
+    ]  # Root directories where shows are stored (uses configured SHOWS_ROOT)
     MAX_SHOTS_PER_SHOW = 1000  # Limit to prevent excessive searching in huge shows
     SKIP_SEQUENCE_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]
     SKIP_SHOT_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]

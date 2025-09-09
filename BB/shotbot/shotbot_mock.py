@@ -11,20 +11,20 @@ import os
 import sys
 
 # CRITICAL: Set mock mode FIRST
-os.environ['SHOTBOT_MOCK'] = '1'
+os.environ["SHOTBOT_MOCK"] = "1"
 
 # CRITICAL: Set SHOWS_ROOT immediately to ensure Config uses mock path
 # This MUST happen before ANY module imports that might load Config
 # Respect SHOWS_ROOT if already set (e.g., by run_mock_vfx_env.py)
-if 'SHOWS_ROOT' not in os.environ:
+if "SHOWS_ROOT" not in os.environ:
     # Default to the shows directory within mock VFX structure for consistent paths
-    os.environ['SHOWS_ROOT'] = '/tmp/mock_vfx/shows'
+    os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx/shows"
 
 # Set up logging immediately
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,9 @@ logger.info("🚀 Starting ShotBot in MOCK MODE")
 from pathlib import Path
 
 MOCK_VFX_PATHS = [
-    Path('/tmp/mock_vfx/shows'),
-    Path('/tmp/shows'),  # Symlink
-    Path.home() / 'mock_vfx' / 'shows'
+    Path("/tmp/mock_vfx/shows"),
+    Path("/tmp/shows"),  # Symlink
+    Path.home() / "mock_vfx" / "shows",
 ]
 
 mock_filesystem_found = False
@@ -46,16 +46,18 @@ for mock_path in MOCK_VFX_PATHS:
         logger.info(f"🎬 Using mock VFX filesystem at: {mock_path}")
         logger.info(f"   SHOWS_ROOT is: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")
         mock_filesystem_found = True
-        
+
         # Also check if we have the marker file
-        marker = mock_path.parent / 'MOCK_VFX_ENVIRONMENT.txt'
+        marker = mock_path.parent / "MOCK_VFX_ENVIRONMENT.txt"
         if marker.exists():
             logger.info("   ✅ Valid mock environment detected")
         break
 
 if not mock_filesystem_found:
     # SHOWS_ROOT should already be set correctly by earlier logic
-    logger.info("ℹ️  No mock filesystem found. Run recreate_vfx_structure.py to create one.")
+    logger.info(
+        "ℹ️  No mock filesystem found. Run recreate_vfx_structure.py to create one."
+    )
     logger.info("   The app will work but paths won't exist.")
     logger.info(f"   SHOWS_ROOT is: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")
 
@@ -80,19 +82,20 @@ from shotbot import main
 if __name__ == "__main__":
     # The main() in shotbot.py will still parse args and check for --mock,
     # but our early injection ensures it works properly
-    
+
     # For WSL compatibility, set some defaults
-    if 'WSL' in os.uname().release or 'Microsoft' in os.uname().release:
+    if "WSL" in os.uname().release or "Microsoft" in os.uname().release:
         logger.info("🖥️  WSL detected - using compatibility settings")
         # Use xcb platform for WSL
-        os.environ.setdefault('QT_QPA_PLATFORM', 'xcb')
+        os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
         # Ensure display is set
-        os.environ.setdefault('DISPLAY', ':0')
-    
+        os.environ.setdefault("DISPLAY", ":0")
+
     try:
         main()
     except Exception as e:
         logger.error(f"❌ Error running ShotBot: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

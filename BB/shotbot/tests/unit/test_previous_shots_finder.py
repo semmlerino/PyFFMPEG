@@ -188,7 +188,9 @@ class TestPreviousShotsFinder:
             assert shot.shot == shot_name
             assert f"/shows/{show}/shots/{sequence}/{shot_name}" in shot.workspace_path
 
-    def test_find_user_shots_with_real_structure(self, finder, real_shows_structure) -> None:
+    def test_find_user_shots_with_real_structure(
+        self, finder, real_shows_structure
+    ) -> None:
         """Test finding user shots with real directory structure.
 
         Following UNIFIED_TESTING_GUIDE:
@@ -272,7 +274,9 @@ class TestPreviousShotsFinder:
 
         assert shots == []
 
-    def test_find_user_shots_subprocess_timeout(self, finder, real_shows_structure) -> None:
+    def test_find_user_shots_subprocess_timeout(
+        self, finder, real_shows_structure
+    ) -> None:
         """Test handling of subprocess timeout."""
 
         # Use test double that simulates timeout
@@ -287,7 +291,9 @@ class TestPreviousShotsFinder:
 
         assert shots == []
 
-    def test_find_user_shots_subprocess_error(self, finder, real_shows_structure) -> None:
+    def test_find_user_shots_subprocess_error(
+        self, finder, real_shows_structure
+    ) -> None:
         """Test handling of subprocess errors."""
         # Use test double for subprocess error
         test_subprocess = TestSubprocess()
@@ -343,7 +349,9 @@ class TestPreviousShotsFinder:
         approved = finder.filter_approved_shots([], [])
         assert approved == []
 
-    def test_find_approved_shots_integration(self, finder, real_shows_structure) -> None:
+    def test_find_approved_shots_integration(
+        self, finder, real_shows_structure
+    ) -> None:
         """Test complete workflow from finding to filtering.
 
         Integration test with real filesystem and subprocess mocking.

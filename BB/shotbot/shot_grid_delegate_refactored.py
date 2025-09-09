@@ -24,24 +24,24 @@ logger = logging.getLogger(__name__)
 
 class ShotGridDelegate(BaseThumbnailDelegate):
     """Delegate for rendering shot thumbnails in a grid.
-    
+
     Inherits common painting logic from BaseThumbnailDelegate and
     provides shot-specific data extraction and theming.
     """
-    
+
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the shot grid delegate.
-        
+
         Args:
             parent: Optional parent widget
         """
         super().__init__(parent)
         logger.debug("ShotGridDelegate initialized")
-    
+
     @override
     def get_theme(self) -> DelegateTheme:
         """Get the shot grid theme configuration.
-        
+
         Returns:
             Theme configuration for shot grid
         """
@@ -56,27 +56,29 @@ class ShotGridDelegate(BaseThumbnailDelegate):
             text_color=QColor("#ffffff"),
             text_selected_color=QColor("#14ffec"),
             # Dimensions
-            text_height=40,
+            text_height=50,
             padding=8,
             border_radius=8,
             # Font sizes
-            name_font_size=9,
-            info_font_size=8,
+            name_font_size=11,
+            info_font_size=10,
         )
-    
+
     @override
-    def get_item_data(self, index: QModelIndex | QPersistentModelIndex) -> dict[str, Any]:
+    def get_item_data(
+        self, index: QModelIndex | QPersistentModelIndex
+    ) -> dict[str, Any]:
         """Extract shot data from model index.
-        
+
         Args:
             index: Model index
-            
+
         Returns:
             Dictionary with shot data
         """
         if not index.isValid():
             return {}
-        
+
         return {
             "name": index.data(ShotRole.FullNameRole) or "Unknown",
             "show": index.data(ShotRole.ShowRole),
