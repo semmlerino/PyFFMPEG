@@ -19,12 +19,12 @@ if TYPE_CHECKING:
 class CacheableProtocol(Protocol):
     """Protocol for objects that can be cached."""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """Convert object to dictionary for caching."""
         ...
 
     @classmethod
-    def from_dict(cls, data: dict) -> CacheableProtocol:
+    def from_dict(cls, data: dict[str, object]) -> CacheableProtocol:
         """Create object from cached dictionary."""
         ...
 
@@ -88,7 +88,7 @@ class ValidatableProtocol(Protocol):
 class DataModelProtocol(Protocol):
     """Protocol for data model classes."""
 
-    def get_data(self) -> list[dict]:
+    def get_data(self) -> list[dict[str, object]]:
         """Get all data items."""
         ...
 
@@ -96,7 +96,7 @@ class DataModelProtocol(Protocol):
         """Refresh data from source."""
         ...
 
-    def find_item_by_name(self, name: str) -> dict | None:
+    def find_item_by_name(self, name: str) -> dict[str, object] | None:
         """Find item by name."""
         ...
 

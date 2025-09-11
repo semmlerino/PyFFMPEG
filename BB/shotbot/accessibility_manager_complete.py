@@ -191,7 +191,7 @@ class KeyboardNavigationManager:
 
         for key_sequence, callback in shortcuts.items():
             shortcut = QShortcut(QKeySequence(key_sequence), window)
-            shortcut.activated.connect(callback)  # type: ignore[arg-type]
+            shortcut.activated.connect(callback)
 
     @staticmethod
     def setup_widget_navigation(widget: QWidget) -> None:
@@ -339,7 +339,7 @@ class AccessibilityAnnouncer:
 
         # Enabled applications
         if hasattr(window, "app_buttons"):
-            app_buttons: dict[str, Any] = getattr(window, "app_buttons", {})
+            app_buttons: dict[str, QPushButton | None] = getattr(window, "app_buttons", {})
             if isinstance(app_buttons, dict):
                 enabled_apps = [
                     name

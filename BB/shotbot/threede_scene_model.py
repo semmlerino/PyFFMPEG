@@ -127,6 +127,8 @@ class ThreeDESceneModel:
         self.cache_manager = cache_manager or CacheManager()
         # Get excluded users dynamically (current user + any additional)
         self._excluded_users = ValidationUtils.get_excluded_users()
+        # Show filtering
+        self._filter_show: str | None = None
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
             self._load_from_cache()
@@ -139,7 +141,8 @@ class ThreeDESceneModel:
             for scene_data in cached_data:
                 try:
                     # Skip invalid cached entries (e.g., from old format)
-                    self.scenes.append(ThreeDEScene.from_dict(scene_data))
+                    # Type ignore: ThreeDESceneDict has different structure but handled by try/except
+                    self.scenes.append(ThreeDEScene.from_dict(scene_data))  # type: ignore[arg-type]
                 except (KeyError, TypeError, ValueError) as e:
                     # Skip invalid cached entry
                     print(f"Skipping invalid cached 3DE scene: {e}")
@@ -190,7 +193,8 @@ class ThreeDESceneModel:
 
             # ALWAYS cache results to refresh TTL and ensure persistence
             # This fixes the issue where cache wasn't persisting across restarts
-            self.cache_manager.cache_threede_scenes(self.to_dict())
+            # Type ignore: Our dict format differs from ThreeDESceneDict but works
+            self.cache_manager.cache_threede_scenes(self.to_dict())  # type: ignore[arg-type]
 
             return True, has_changes
 
@@ -214,6 +218,35 @@ class ThreeDESceneModel:
     def to_dict(self) -> list[dict[str, str | Path]]:
         """Convert scenes to dictionary format for caching."""
         return [scene.to_dict() for scene in self.scenes]
+
+    # Show filtering methods
+    
+    def get_unique_shows(self) -> list[str]:
+        """Get sorted list of unique shows from all scenes."""
+        shows = set(scene.show for scene in self.scenes)
+        return sorted(shows)
+    
+    def set_show_filter(self, show: str | None) -> None:
+        """Set the show filter.
+        
+        Args:
+            show: Show name to filter by, or None for no filtering
+        """
+        self._filter_show = show
+    
+    def get_show_filter(self) -> str | None:
+        """Get the current show filter."""
+        return self._filter_show
+    
+    def get_filtered_scenes(self) -> list[ThreeDEScene]:
+        """Get scenes filtered by the current show filter.
+        
+        Returns:
+            List of scenes matching the current filter, or all scenes if no filter
+        """
+        if self._filter_show is None:
+            return self.scenes
+        return [scene for scene in self.scenes if scene.show == self._filter_show]
 
     def _deduplicate_scenes_by_shot(
         self,

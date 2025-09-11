@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from PySide6.QtCore import (
     QAbstractListModel,
@@ -31,9 +31,31 @@ from cache_manager import CacheManager
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from threede_scene_model import ThreeDEScene
+    from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 logger = logging.getLogger(__name__)
+
+# Thread-safe logging mutex to prevent recursion issues in VFX environments
+_log_mutex = QMutex()
+
+def safe_log_info(message: str) -> None:
+    """Thread-safe logging wrapper to prevent RecursionError in logging system.
+    
+    This addresses a known issue in Qt/PySide6 applications where Python's 
+    logging formatter can enter infinite recursion in the usesTime() method.
+    
+    Args:
+        message: Log message to output safely
+    """
+    try:
+        with QMutexLocker(_log_mutex):
+            logger.info(message)
+    except RecursionError:
+        # Fallback: print directly to avoid crashing the application
+        print(f"LOG: {message}")
+    except Exception:
+        # Fallback: silent failure to prevent crashes
+        pass
 
 # Maximum cache size to prevent memory leaks (100 thumbnails max)
 MAX_CACHE_SIZE = 100
@@ -80,6 +102,7 @@ class ThreeDEItemModel(QAbstractListModel):
     loading_started = Signal()
     loading_progress = Signal(int, int)  # current, total
     loading_finished = Signal()
+    show_filter_changed = Signal(str)  # show name or "All Shows"
 
     def __init__(
         self,
@@ -112,7 +135,7 @@ class ThreeDEItemModel(QAbstractListModel):
         self._visible_start = 0
         self._visible_end = 0
 
-        logger.info("ThreeDEItemModel initialized with Model/View architecture")
+        safe_log_info("ThreeDEItemModel initialized with Model/View architecture")
 
     @override
     def rowCount(
@@ -135,7 +158,7 @@ class ThreeDEItemModel(QAbstractListModel):
         self,
         index: QModelIndex | QPersistentModelIndex,
         role: int = Qt.ItemDataRole.DisplayRole,
-    ) -> Any:
+    ) -> Any:  # type: ignore[reportExplicitAny]
         """Get data for the given index and role.
 
         Args:
@@ -154,7 +177,7 @@ class ThreeDEItemModel(QAbstractListModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return scene.full_name
         elif role == Qt.ItemDataRole.ToolTipRole:
-            tooltip = f"Scene: {scene.shot_name}\n"
+            tooltip = f"Scene: {scene.shot}\n"
             tooltip += f"User: {scene.user}\n"
             tooltip += f"Path: {scene.scene_path}"
             return tooltip
@@ -299,8 +322,8 @@ class ThreeDEItemModel(QAbstractListModel):
             Q_ARG(object, on_thumbnail_loaded),
         )
 
-    @Slot(object, object)
-    def _do_load_thumbnail(self, scene: ThreeDEScene, callback) -> None:
+    @Slot(object, object)  # type: ignore[arg-type]
+    def _do_load_thumbnail(self, scene: ThreeDEScene, callback: Callable[[Path | None], None]) -> None:
         """Load thumbnail in main thread.
 
         Args:
@@ -348,7 +371,23 @@ class ThreeDEItemModel(QAbstractListModel):
             self.endResetModel()
             self.scenes_updated.emit()
 
-        logger.info(f"Set {len(scenes)} 3DE scenes in model")
+        safe_log_info(f"Set {len(scenes)} 3DE scenes in model")
+
+    def set_show_filter(self, threede_scene_model: ThreeDESceneModel, show: str | None) -> None:
+        """Set show filter and update the model.
+        
+        Args:
+            threede_scene_model: The scene model to get filtered scenes from
+            show: Show name to filter by, or None for all shows
+        """
+        threede_scene_model.set_show_filter(show)
+        filtered_scenes = threede_scene_model.get_filtered_scenes()
+        self.set_scenes(filtered_scenes, reset=True)
+        
+        # Emit filter changed signal for UI updates
+        filter_display = show if show is not None else "All Shows"
+        self.show_filter_changed.emit(filter_display)
+        safe_log_info(f"Applied show filter: {filter_display}, {len(filtered_scenes)} scenes")
 
     def get_scene(self, index: QModelIndex) -> ThreeDEScene | None:
         """Get scene at the given index.
@@ -465,7 +504,7 @@ class ThreeDEItemModel(QAbstractListModel):
         except (RuntimeError, TypeError):
             pass
 
-        logger.info("ThreeDEItemModel resources cleaned up")
+        safe_log_info("ThreeDEItemModel resources cleaned up")
 
     def deleteLater(self) -> None:
         """Override deleteLater to ensure cleanup."""

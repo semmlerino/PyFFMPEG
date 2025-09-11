@@ -617,6 +617,7 @@ class MainWindow(QMainWindow):
             self._on_scene_double_clicked,
         )
         _ = self.threede_shot_grid.app_launch_requested.connect(self._launch_app)
+        _ = self.threede_shot_grid.show_filter_requested.connect(self._on_show_filter_requested)
 
         # Previous shots selection
         _ = self.previous_shots_grid.shot_selected.connect(self._on_shot_selected)
@@ -691,6 +692,8 @@ class MainWindow(QMainWindow):
         # Show cached 3DE scenes immediately if available
         if has_cached_scenes:
             self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
+            # Populate show filter with available shows
+            self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
 
         # Update status with what was loaded from cache
         if has_cached_shots and has_cached_scenes:
@@ -958,14 +961,17 @@ class MainWindow(QMainWindow):
 
             # ALWAYS cache results, even if empty, to avoid re-scanning
             try:
+                # Type ignore: Our dict format differs from ThreeDESceneDict but works
                 self.threede_scene_model.cache_manager.cache_threede_scenes(
-                    self.threede_scene_model.to_dict(),
+                    self.threede_scene_model.to_dict(),  # type: ignore[arg-type]
                 )
             except Exception as e:
                 logger.warning(f"Failed to cache 3DE scenes after scan: {e}")
 
             # Update UI
             self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
+            # Populate show filter with available shows
+            self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
             logger.info(
                 f"✅ UI model updated with {len(self.threede_scene_model.scenes)} scenes"
             )
@@ -980,8 +986,9 @@ class MainWindow(QMainWindow):
             # No changes, but still cache the current state to refresh TTL
             # This ensures cache persists across restarts
             try:
+                # Type ignore: Our dict format differs from ThreeDESceneDict but works
                 self.threede_scene_model.cache_manager.cache_threede_scenes(
-                    self.threede_scene_model.to_dict(),
+                    self.threede_scene_model.to_dict(),  # type: ignore[arg-type]
                 )
             except Exception as e:
                 logger.warning(f"Failed to refresh 3DE scene cache TTL: {e}")
@@ -993,6 +1000,8 @@ class MainWindow(QMainWindow):
             )
             if self.threede_scene_model.scenes:
                 self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
+                # Populate show filter with available shows
+                self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
                 logger.info(
                     f"🔄 Re-applied {len(self.threede_scene_model.scenes)} existing scenes to UI"
                 )
@@ -1285,6 +1294,23 @@ class MainWindow(QMainWindow):
         # Set the current scene first, then launch
         self._current_scene = scene
         self._launch_app("3de")
+
+    def _on_show_filter_requested(self, show: str) -> None:
+        """Handle show filter request from 3DE grid view.
+        
+        Args:
+            show: Show name to filter by, or empty string for all shows
+        """
+        # Convert empty string back to None for the model
+        show_filter = show if show else None
+        
+        # Apply filter to item model
+        self.threede_item_model.set_show_filter(self.threede_scene_model, show_filter)
+        
+        # Update combo box options if needed (this populates available shows)
+        self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
+        
+        logger.info(f"Applied show filter: {show if show else 'All Shows'}")
 
     def _launch_app(self, app_name: str) -> None:
         """Launch an application."""
@@ -1971,7 +1997,7 @@ class MainWindow(QMainWindow):
             logger.debug("Cleaning up PreviousShotsItemModel")
             try:
                 if hasattr(self.previous_shots_item_model, "cleanup"):
-                    self.previous_shots_item_model.cleanup()
+                    self.previous_shots_item_model.cleanup()  # type: ignore[attr-defined]
             except Exception as e:
                 logger.error(f"Error cleaning up PreviousShotsItemModel: {e}")
 

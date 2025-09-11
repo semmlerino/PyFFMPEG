@@ -23,6 +23,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QListView,
@@ -41,7 +42,7 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QKeyEvent
 
     from threede_item_model import ThreeDEItemModel
-    from threede_scene_model import ThreeDEScene
+    from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class ThreeDEGridView(QWidget):
     scene_selected = Signal(object)  # ThreeDEScene object
     scene_double_clicked = Signal(object)  # ThreeDEScene object
     app_launch_requested = Signal(str, object)  # app_name, scene
+    show_filter_requested = Signal(str)  # show name or None for all
 
     def __init__(
         self,
@@ -118,6 +120,18 @@ class ThreeDEGridView(QWidget):
         loading_layout.addWidget(self.loading_label)
 
         layout.addLayout(loading_layout)
+
+        # Show filter combo box
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Show:"))
+
+        self.show_combo = QComboBox()
+        self.show_combo.addItem("All Shows")
+        self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
+        filter_layout.addWidget(self.show_combo)
+
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
 
         # Size control slider
         size_layout = QHBoxLayout()
@@ -205,6 +219,32 @@ class ThreeDEGridView(QWidget):
 
         # Update scene count
         self._update_scene_count()
+
+    def populate_show_filter(self, threede_scene_model: ThreeDESceneModel) -> None:
+        """Populate the show filter combo box with available shows.
+        
+        Args:
+            threede_scene_model: The scene model to get shows from
+        """
+        # Save current selection
+        current_text = self.show_combo.currentText()
+        
+        # Clear and repopulate
+        self.show_combo.clear()
+        self.show_combo.addItem("All Shows")
+        
+        unique_shows = threede_scene_model.get_unique_shows()
+        for show in unique_shows:
+            self.show_combo.addItem(show)
+        
+        # Restore selection if possible
+        index = self.show_combo.findText(current_text)
+        if index >= 0:
+            self.show_combo.setCurrentIndex(index)
+        else:
+            self.show_combo.setCurrentIndex(0)  # Default to "All Shows"
+        
+        logger.info(f"Populated show filter with {len(unique_shows)} shows")
 
     @Slot()
     def _on_scenes_updated(self) -> None:
@@ -310,6 +350,18 @@ class ThreeDEGridView(QWidget):
 
         # Trigger view update
         self.list_view.viewport().update()
+
+    @Slot(str)
+    def _on_show_filter_changed(self, show_text: str) -> None:
+        """Handle show filter change.
+        
+        Args:
+            show_text: Selected show text from combo box
+        """
+        # Convert "All Shows" to None for the model
+        show_filter = None if show_text == "All Shows" else show_text
+        self.show_filter_requested.emit(show_filter or "")  # Emit empty string for None
+        logger.info(f"Show filter requested: {show_text}")
 
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""

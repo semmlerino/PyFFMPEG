@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Sequence, cast
 
 from PySide6.QtCore import (
     QMutex,
@@ -43,7 +43,6 @@ from config import Config
 from exceptions import CacheError, ThumbnailError
 
 if TYPE_CHECKING:
-    import threading
 
     from settings_manager import SettingsManager
     from shot_model import Shot
@@ -492,7 +491,7 @@ class CacheManager(QObject):
     def get_memory_usage(self) -> dict[str, float | int]:
         """Get current cache memory usage statistics (backward compatible)."""
         stats = self._memory_manager.get_usage_stats()
-        total_bytes = stats.get("total_bytes", 0)
+        total_bytes = cast(int, stats.get("total_bytes", 0))
         max_bytes = self._memory_manager.max_memory_bytes
 
         # Return old format for backward compatibility

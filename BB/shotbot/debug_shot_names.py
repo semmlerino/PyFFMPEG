@@ -26,7 +26,7 @@ def debug_environment() -> None:
     print()
 
 
-def debug_workspace_output():
+def debug_workspace_output() -> list[str]:
     """Debug the actual workspace command output."""
     print("=== WORKSPACE COMMAND DEBUG ===")
     try:
@@ -64,7 +64,7 @@ def debug_workspace_output():
         return []
 
 
-def debug_parser_matching(lines):
+def debug_parser_matching(lines: list[str]) -> bool:
     """Debug the parser regex matching."""
     print("\n=== PARSER DEBUG ===")
 
