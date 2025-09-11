@@ -232,3 +232,107 @@ APPS = {
 - `Union[str, Path]` for flexible path APIs
 - Comprehensive `Optional[QWidget]` handling
 - Type checking: `basedpyright` (config in `tests/pyrightconfig.json`)
+
+## Bundling and Distribution System
+
+The project uses an automated bundling system for creating distributable releases via post-commit hooks.
+
+### Bundle Creation Process
+
+1. **Post-commit hook** triggers `bundle_app.py` automatically
+2. **File collection** based on patterns in `transfer_config.json`  
+3. **Base64 encoding** creates portable releases in `encoded_releases/` branch
+4. **Auto-push** to remote `encoded-releases` branch
+
+### Critical Bundling Configuration
+
+**File:** `transfer_config.json`
+```json
+{
+  "include_patterns": [
+    "*.py", "*.json", "*.md", "*.sh", "*.pyi", 
+    "wrapper/*",  // Custom scripts without extensions
+    "pyrightconfig.json"
+  ],
+  "exclude_patterns": [
+    "test_*.py", "*_test.py", "tests/",  // Test files
+    "venv_py311/*", "test_venv/*"        // Virtual environments
+  ]
+}
+```
+
+### Common Bundling Issues and Solutions
+
+#### 🚨 **Critical Bug: Regex Pattern Anchoring**
+**Problem**: Patterns like `test_*.py` incorrectly matched ANY file containing "test" (e.g., `threede_latest_finder.py`)
+
+**Root Cause**: Pattern `test_*.py` converted to `test_.*\.py$` instead of `^test_.*\.py$`
+
+**Fix Applied**: Anchor patterns to start of string when they don't begin with `*`
+```python
+# Fixed in bundle_app.py
+if pattern.startswith("*"):
+    regex_pattern = pattern.replace(".", r"\.").replace("*", ".*") + "$"
+else:
+    regex_pattern = "^" + pattern.replace(".", r"\.").replace("*", ".*") + "$"
+```
+
+#### Files Without Extensions
+**Problem**: Custom scripts like `wrapper/3de-local` have no file extension
+
+**Solution**: Add explicit directory patterns to `include_patterns`
+```json
+"include_patterns": ["wrapper/*"]
+```
+
+### Debugging Bundle Issues
+
+#### Verify File Inclusion
+```bash
+# List all files that would be bundled
+python3 bundle_app.py --list-files -c transfer_config.json
+
+# Check specific files
+python3 bundle_app.py --list-files -c transfer_config.json | grep "your_file"
+```
+
+#### Test Pattern Matching
+```python
+from bundle_app import ApplicationBundler
+bundler = ApplicationBundler('transfer_config.json', verbose=True)
+result = bundler.should_include_file('your_file.py')  # Returns True/False
+```
+
+#### Manual Bundle Creation
+```bash
+# Create bundle without committing
+python3 bundle_app.py -c transfer_config.json -o test_bundle.txt --keep-bundle -v
+```
+
+### Bundle Contents Verification
+- ✅ **Always verify** new files appear in bundle after adding them
+- ✅ **Count check**: Bundle should include ~189 files (as of current version)  
+- ✅ **Critical files**: Ensure core functionality files are never excluded
+- ✅ **Size check**: Bundle should be ~1.8MB compressed
+
+### Post-Commit Hook Workflow
+1. **Commit triggers** automatic bundling
+2. **Files collected** according to config patterns
+3. **Bundle created** in `/tmp/shotbot_bundle_temp`
+4. **Encoded** using `transfer_cli.py` with base64
+5. **Saved** to `encoded_releases/shotbot_latest.txt`
+6. **Auto-pushed** to `encoded-releases` branch
+7. **Cleanup** removes temporary directories
+
+**Hook logs** available at: `.post-commit-output/`
+
+### Best Practices
+
+1. **Test before committing**: Use `--list-files` to verify inclusion
+2. **Pattern precision**: Use anchored patterns (`^test_*`) not loose ones (`test_*`)  
+3. **Extension-less files**: Add explicit directory patterns for scripts
+4. **Size monitoring**: Watch for unexpected bundle size increases
+5. **Branch separation**: Bundle content separate from source code
+6. **Automated verification**: Post-commit hooks validate bundle creation
+
+This system ensures all production code is automatically packaged and distributed while maintaining separation between source and release artifacts.

@@ -15,6 +15,7 @@ import argparse
 import json
 import random
 from pathlib import Path
+from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -22,7 +23,7 @@ from PIL import Image, ImageDraw, ImageFont
 class VFXStructureRecreator:
     """Recreate VFX filesystem structure with placeholder files."""
 
-    def __init__(self, root_path: str = None) -> None:
+    def __init__(self, root_path: str | None = None) -> None:
         """Initialize recreator.
 
         Args:
@@ -37,7 +38,7 @@ class VFXStructureRecreator:
         }
 
     def create_placeholder_image(
-        self, path: Path, text: str = None, width: int = 256, height: int = 144
+        self, path: Path, text: str | None = None, width: int = 256, height: int = 144
     ) -> None:
         """Create a placeholder thumbnail image.
 
@@ -67,7 +68,7 @@ class VFXStructureRecreator:
             r = int(color_set[0][0] + (color_set[1][0] - color_set[0][0]) * ratio)
             g = int(color_set[0][1] + (color_set[1][1] - color_set[0][1]) * ratio)
             b = int(color_set[0][2] + (color_set[1][2] - color_set[0][2]) * ratio)
-            draw.rectangle([(0, y), (width, y + 1)], fill=(r, g, b))
+            draw.rectangle(((0, y), (width, y + 1)), fill=(r, g, b))
 
         # Add text
         if text:
@@ -77,7 +78,7 @@ class VFXStructureRecreator:
                 font = ImageFont.truetype(
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14
                 )
-            except (OSError, IOError):
+            except OSError:
                 font = ImageFont.load_default()
 
             # Draw text with shadow for better visibility
@@ -98,7 +99,7 @@ class VFXStructureRecreator:
 
         # Add border
         draw.rectangle(
-            [(0, 0), (width - 1, height - 1)], outline=(100, 100, 100), width=1
+            ((0, 0), (width - 1, height - 1)), outline=(100, 100, 100), width=1
         )
 
         # Save
@@ -327,8 +328,10 @@ class VFXStructureRecreator:
                 structure = show_data.get("structure", {})
                 gabrielh_3de_paths = []
 
-                def find_gabrielh_3de_scenes(node, path_parts=[]) -> None:
+                def find_gabrielh_3de_scenes(node: dict[str, Any], path_parts: list[str] | None = None) -> None:  # type: ignore[type-arg]
                     """Recursively find gabriel-h 3DE scenes directories."""
+                    if path_parts is None:
+                        path_parts = []
                     if node.get("type") == "dir":
                         current_path = path_parts + [node["name"]]
 
@@ -433,7 +436,7 @@ class VFXStructureRecreator:
         print(f"  3DE files created: {self.stats['3de_files_created']}")
 
 
-def merge_structures(json_files):
+def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[type-arg]
     """Merge multiple VFX structure JSON files.
 
     Args:
@@ -478,33 +481,33 @@ def merge_structures(json_files):
         # Merge shows
         for show, show_data_list in data.get("shows", {}).items():
             if show not in merged["shows"]:
-                merged["shows"][show] = []
+                merged["shows"][show] = []  # type: ignore[index]
 
             # Add show data, avoiding duplicates
             for show_data in show_data_list:
                 # Check if this root/structure combo already exists
                 exists = False
                 for existing in merged["shows"][show]:
-                    if existing.get("root") == show_data.get("root"):
+                    if existing.get("root") == show_data.get("root"):  # type: ignore[attr-defined]
                         # Merge or replace - use the one with more data
-                        existing_size = count_nodes(existing.get("structure", {}))
-                        new_size = count_nodes(show_data.get("structure", {}))
+                        existing_size = count_nodes(existing.get("structure", {}))  # type: ignore[attr-defined]
+                        new_size = count_nodes(show_data.get("structure", {}))  # type: ignore[attr-defined]
                         if new_size > existing_size:
-                            existing["structure"] = show_data["structure"]
+                            existing["structure"] = show_data["structure"]  # type: ignore[index, attr-defined]
                         exists = True
                         break
 
                 if not exists:
-                    merged["shows"][show].append(show_data)
+                    merged["shows"][show].append(show_data)  # type: ignore[attr-defined]
 
         # Merge patterns
         for key, value in data.get("patterns", {}).items():
             if key not in merged["patterns"]:
-                merged["patterns"][key] = []
+                merged["patterns"][key] = []  # type: ignore[index]
             if isinstance(value, list):
                 for item in value:
                     if item not in merged["patterns"][key]:
-                        merged["patterns"][key].append(item)
+                        merged["patterns"][key].append(item)  # type: ignore[attr-defined]
 
     # Convert sets back to lists
     merged["workspace_shots"] = sorted(list(workspace_shots_set))

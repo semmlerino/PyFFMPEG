@@ -10,6 +10,7 @@ import logging
 
 from PySide6.QtCore import (
     QEasingCurve,
+    QEvent,
     QParallelAnimationGroup,
     QPropertyAnimation,
     QRect,
@@ -84,7 +85,7 @@ class ModernButton(QPushButton):
         self.hover_animation.start()
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:
+    def leaveEvent(self, event: QEvent) -> None:
         """Animate on leave."""
         self.hover_animation.setStartValue(0.9)
         self.hover_animation.setEndValue(1.0)
@@ -542,7 +543,7 @@ class FloatingActionButton(QPushButton):
         self.hover_animation.start()
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:
+    def leaveEvent(self, event: QEvent) -> None:
         """Scale back on leave."""
         current_rect = self.geometry()
         normal_rect = QRect(

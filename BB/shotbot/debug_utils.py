@@ -17,7 +17,7 @@ import sys
 import time
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any
+from typing import Any, Generator
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class TimingProfiler:
         self.enabled = DEBUG_TIMING or DEBUG_ALL
 
     @contextmanager
-    def measure(self, operation_name: str):
+    def measure(self, operation_name: str) -> Generator[None, None, None]:
         """Context manager to measure operation timing.
 
         Args:
@@ -84,7 +84,7 @@ class TimingProfiler:
         finally:
             self.active_timers.pop(operation_name, None)
 
-    def get_report(self) -> dict[str, Any]:
+    def get_report(self) -> dict[str, Any]:  # type: ignore[type-arg]
         """Get timing report.
 
         Returns:
@@ -215,7 +215,7 @@ class SystemDiagnostics:
     """Capture and log system diagnostic information."""
 
     @staticmethod
-    def get_system_info() -> dict[str, Any]:
+    def get_system_info() -> dict[str, Any]:  # type: ignore[type-arg]
         """Get comprehensive system information.
 
         Returns:
@@ -234,7 +234,7 @@ class SystemDiagnostics:
 
         # Add PATH (first few entries)
         path_entries = os.environ.get("PATH", "").split(":")
-        info["PATH"] = path_entries[:5] if path_entries else []
+        info["PATH"] = path_entries[:5] if path_entries else []  # type: ignore[assignment]
 
         # File descriptor count (Linux only)
         if os.path.exists("/proc/self/fd"):
@@ -248,7 +248,7 @@ class SystemDiagnostics:
             import psutil
 
             process = psutil.Process()
-            info["memory"] = {
+            info["memory"] = {  # type: ignore[assignment]
                 "rss_mb": process.memory_info().rss / 1024 / 1024,
                 "percent": process.memory_percent(),
             }
@@ -265,7 +265,7 @@ class SystemDiagnostics:
                     timeout=1,
                 )
                 if result.returncode == 0:
-                    info["ulimits"] = result.stdout.split("\n")[:5]
+                    info["ulimits"] = result.stdout.split("\n")[:5]  # type: ignore[assignment]
             except (subprocess.SubprocessError, OSError):
                 pass
 
