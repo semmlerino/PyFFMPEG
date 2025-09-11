@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QModelIndex,
+    QMutex,
+    QMutexLocker,
     QPoint,
     QSize,
     Qt,
@@ -45,6 +47,28 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 logger = logging.getLogger(__name__)
+
+# Thread-safe logging mutex to prevent recursion issues in VFX environments
+_log_mutex = QMutex()
+
+def safe_log_info(message: str) -> None:
+    """Thread-safe logging wrapper to prevent RecursionError in logging system.
+    
+    This addresses a known issue in Qt/PySide6 applications where Python's 
+    logging formatter can enter infinite recursion in the usesTime() method.
+    
+    Args:
+        message: Log message to output safely
+    """
+    try:
+        with QMutexLocker(_log_mutex):
+            logger.info(message)
+    except RecursionError:
+        # Fallback: silent failure to prevent crashes
+        pass
+    except Exception:
+        # Fallback: silent failure to prevent crashes  
+        pass
 
 
 class ThreeDEGridView(QWidget):
@@ -95,7 +119,7 @@ class ThreeDEGridView(QWidget):
         self._visibility_timer.setInterval(100)
         self._visibility_timer.start()
 
-        logger.info("ThreeDEGridView initialized with Model/View architecture")
+        safe_log_info("ThreeDEGridView initialized with Model/View architecture")
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
@@ -244,7 +268,7 @@ class ThreeDEGridView(QWidget):
         else:
             self.show_combo.setCurrentIndex(0)  # Default to "All Shows"
         
-        logger.info(f"Populated show filter with {len(unique_shows)} shows")
+        safe_log_info(f"Populated show filter with {len(unique_shows)} shows")
 
     @Slot()
     def _on_scenes_updated(self) -> None:
@@ -361,7 +385,7 @@ class ThreeDEGridView(QWidget):
         # Convert "All Shows" to None for the model
         show_filter = None if show_text == "All Shows" else show_text
         self.show_filter_requested.emit(show_filter or "")  # Emit empty string for None
-        logger.info(f"Show filter requested: {show_text}")
+        safe_log_info(f"Show filter requested: {show_text}")
 
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""
@@ -455,7 +479,7 @@ class ThreeDEGridView(QWidget):
 
         clipboard = QApplication.clipboard()
         clipboard.setText(str(scene.scene_path))
-        logger.info(f"Copied path to clipboard: {scene.scene_path}")
+        safe_log_info(f"Copied path to clipboard: {scene.scene_path}")
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events.

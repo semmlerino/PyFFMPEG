@@ -80,30 +80,30 @@ class ThreadingManager(QObject):
             # Create new worker
             worker_name = "threede_discovery"
             self._current_threede_worker = ThreeDESceneWorker(
-                threede_model,
-                shot_model.get_shots(),
+                shots=shot_model.get_shots(),
+                excluded_users=None,  # Use default excluded users
             )
 
             # Connect worker signals to our consolidated signals
-            self._current_threede_worker.discovery_started.connect(
+            self._current_threede_worker.started.connect(
                 self.threede_discovery_started.emit
             )
-            self._current_threede_worker.progress_updated.connect(
+            self._current_threede_worker.progress_update.connect(
                 self.threede_discovery_progress.emit
             )
             self._current_threede_worker.batch_ready.connect(
                 self.threede_discovery_batch_ready.emit
             )
-            self._current_threede_worker.discovery_finished.connect(
+            self._current_threede_worker.finished.connect(
                 self._on_threede_discovery_finished
             )
-            self._current_threede_worker.discovery_error.connect(
+            self._current_threede_worker.error.connect(
                 self._on_threede_discovery_error
             )
-            self._current_threede_worker.discovery_paused.connect(
+            self._current_threede_worker.paused.connect(
                 self.threede_discovery_paused.emit
             )
-            self._current_threede_worker.discovery_resumed.connect(
+            self._current_threede_worker.resumed.connect(
                 self.threede_discovery_resumed.emit
             )
 
@@ -167,7 +167,7 @@ class ThreadingManager(QObject):
         """
         with QMutexLocker(self._mutex):
             if self._current_threede_worker and self._threede_discovery_active:
-                self._current_threede_worker.resume_discovery()
+                self._current_threede_worker.resume()
                 return True
             return False
 
@@ -179,7 +179,7 @@ class ThreadingManager(QObject):
         """
         with QMutexLocker(self._mutex):
             if self._current_threede_worker and self._threede_discovery_active:
-                self._current_threede_worker.request_stop()
+                self._current_threede_worker.stop()
                 self._threede_discovery_active = False
                 return True
             return False
@@ -198,7 +198,7 @@ class ThreadingManager(QObject):
         if self._current_threede_worker:
             if self._current_threede_worker.isRunning():
                 logger.debug("Stopping existing 3DE worker")
-                self._current_threede_worker.request_stop()
+                self._current_threede_worker.stop()
                 if not self._current_threede_worker.wait(5000):  # 5 second timeout
                     logger.warning("3DE worker did not stop gracefully")
 
@@ -263,7 +263,7 @@ class ThreadingManager(QObject):
         with QMutexLocker(self._mutex):
             # Stop 3DE discovery if active
             if self._current_threede_worker:
-                self._current_threede_worker.request_stop()
+                self._current_threede_worker.stop()
                 self._threede_discovery_active = False
 
             # Wait for all threads to finish
@@ -318,8 +318,8 @@ class ThreadingManager(QObject):
 
             # Stop if running
             if worker.isRunning():
-                if hasattr(worker, "request_stop"):
-                    worker.request_stop()
+                if hasattr(worker, "stop"):
+                    worker.stop()
                 if not worker.wait(2000):
                     logger.warning(f"Worker {name} did not stop gracefully")
 

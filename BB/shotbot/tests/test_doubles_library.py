@@ -320,6 +320,7 @@ class TestShotModel(QObject):
     shot_selected = Signal(str)
     refresh_started = Signal()
     refresh_finished = Signal(bool)
+    error_occurred = Signal(str)  # Added to match real ShotModel interface
 
     def __init__(self, parent: QObject | None = None) -> None:
         """Initialize test shot model."""

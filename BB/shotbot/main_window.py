@@ -1307,9 +1307,6 @@ class MainWindow(QMainWindow):
         # Apply filter to item model
         self.threede_item_model.set_show_filter(self.threede_scene_model, show_filter)
         
-        # Update combo box options if needed (this populates available shows)
-        self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
-        
         logger.info(f"Applied show filter: {show if show else 'All Shows'}")
 
     def _launch_app(self, app_name: str) -> None:
@@ -1928,18 +1925,27 @@ class MainWindow(QMainWindow):
 
             # Step 5: Disconnect signals only AFTER worker has stopped
             # This prevents signal emission during disconnection
-            try:
-                worker_to_cleanup.started.disconnect()
-                worker_to_cleanup.batch_ready.disconnect()
-                worker_to_cleanup.progress.disconnect()
-                worker_to_cleanup.scan_progress.disconnect()
-                worker_to_cleanup.finished.disconnect()
-                worker_to_cleanup.error.disconnect()
-                worker_to_cleanup.paused.disconnect()
-                worker_to_cleanup.resumed.disconnect()
-            except (RuntimeError, TypeError):
-                # Signals may already be disconnected or deleted
-                pass
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                signals_to_disconnect = [
+                    worker_to_cleanup.started,
+                    worker_to_cleanup.batch_ready,
+                    worker_to_cleanup.progress,
+                    worker_to_cleanup.scan_progress,
+                    worker_to_cleanup.finished,
+                    worker_to_cleanup.error,
+                    worker_to_cleanup.paused,
+                    worker_to_cleanup.resumed,
+                ]
+                
+                for signal in signals_to_disconnect:
+                    try:
+                        if hasattr(signal, 'disconnect'):
+                            signal.disconnect()
+                    except (RuntimeError, TypeError):
+                        # Signal may already be disconnected or deleted
+                        pass
 
             # Step 6: NOW clear the reference and clean up
             with QMutexLocker(self._worker_mutex):
