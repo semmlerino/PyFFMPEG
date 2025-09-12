@@ -2,7 +2,7 @@
 
 import threading
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Sequence
 
 from PySide6.QtCore import QObject, QRunnable, Signal
 

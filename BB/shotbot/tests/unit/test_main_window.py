@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 from pytestqt.qtbot import QtBot
+from typing_extensions import Self
 
 from cache_manager import CacheManager
 from config import Config
@@ -231,7 +232,7 @@ class TestApplicationLaunching:
                 self.stderr = ""
                 self.pid = 12345  # Mock PID for persistent terminal
 
-            def __enter__(self) -> "MockSubprocess":
+            def __enter__(self) -> Self:
                 return self
 
             def __exit__(self, exc_type, exc_val, exc_tb) -> None:

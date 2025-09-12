@@ -110,6 +110,7 @@ class BaseShotModel(QObject):
 
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
+            # Type annotation to help the type checker understand ShotDict compatibility
             self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
             self.shots_loaded.emit(self.shots)
             self._cache_hits += 1

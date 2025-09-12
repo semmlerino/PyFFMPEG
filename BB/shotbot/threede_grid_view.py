@@ -8,6 +8,8 @@ loading indicators, and proper Model/View integration for 3DE scenes.
 from __future__ import annotations
 
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -50,6 +52,8 @@ logger = logging.getLogger(__name__)
 
 # Thread-safe logging mutex to prevent recursion issues in VFX environments
 _log_mutex = QMutex()
+_log_recursion_depth = 0
+_max_log_recursion = 3
 
 def safe_log_info(message: str) -> None:
     """Thread-safe logging wrapper to prevent RecursionError in logging system.
@@ -60,15 +64,32 @@ def safe_log_info(message: str) -> None:
     Args:
         message: Log message to output safely
     """
+    global _log_recursion_depth
+    
+    # Guard against deep recursion
+    if _log_recursion_depth >= _max_log_recursion:
+        # Write directly to stderr to avoid any further recursion
+        try:
+            os.write(2, f"[RECURSION GUARD] {message}\n".encode('utf-8'))
+        except:
+            pass
+        return
+    
+    _log_recursion_depth += 1
     try:
         with QMutexLocker(_log_mutex):
             logger.info(message)
     except RecursionError:
-        # Fallback: silent failure to prevent crashes
-        pass
+        # Fallback: write directly to stderr
+        try:
+            os.write(2, f"[RECURSION ERROR] {message}\n".encode('utf-8'))
+        except:
+            pass
     except Exception:
         # Fallback: silent failure to prevent crashes  
         pass
+    finally:
+        _log_recursion_depth -= 1
 
 
 class ThreeDEGridView(QWidget):
@@ -107,6 +128,7 @@ class ThreeDEGridView(QWidget):
         self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
         self._selected_scene = None
         self._is_loading = False
+        self._updating_filter = False  # Recursion guard for filter updates
 
         self._setup_ui()
 
@@ -250,23 +272,40 @@ class ThreeDEGridView(QWidget):
         Args:
             threede_scene_model: The scene model to get shows from
         """
-        # Save current selection
-        current_text = self.show_combo.currentText()
-        
-        # Clear and repopulate
-        self.show_combo.clear()
-        self.show_combo.addItem("All Shows")
-        
-        unique_shows = threede_scene_model.get_unique_shows()
-        for show in unique_shows:
-            self.show_combo.addItem(show)
-        
-        # Restore selection if possible
-        index = self.show_combo.findText(current_text)
-        if index >= 0:
-            self.show_combo.setCurrentIndex(index)
-        else:
-            self.show_combo.setCurrentIndex(0)  # Default to "All Shows"
+        # Guard against recursion
+        if self._updating_filter:
+            return
+            
+        self._updating_filter = True
+        try:
+            # Save current selection
+            current_text = self.show_combo.currentText()
+            
+            # Temporarily disconnect signal to prevent recursion
+            try:
+                self.show_combo.currentTextChanged.disconnect()
+            except:
+                pass
+            
+            # Clear and repopulate
+            self.show_combo.clear()
+            self.show_combo.addItem("All Shows")
+            
+            unique_shows = threede_scene_model.get_unique_shows()
+            for show in unique_shows:
+                self.show_combo.addItem(show)
+            
+            # Restore selection if possible
+            index = self.show_combo.findText(current_text)
+            if index >= 0:
+                self.show_combo.setCurrentIndex(index)
+            else:
+                self.show_combo.setCurrentIndex(0)  # Default to "All Shows"
+            
+            # Reconnect signal
+            self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
+        finally:
+            self._updating_filter = False
         
         safe_log_info(f"Populated show filter with {len(unique_shows)} shows")
 
@@ -382,10 +421,18 @@ class ThreeDEGridView(QWidget):
         Args:
             show_text: Selected show text from combo box
         """
-        # Convert "All Shows" to None for the model
-        show_filter = None if show_text == "All Shows" else show_text
-        self.show_filter_requested.emit(show_filter or "")  # Emit empty string for None
-        safe_log_info(f"Show filter requested: {show_text}")
+        # Guard against recursion
+        if self._updating_filter:
+            return
+            
+        self._updating_filter = True
+        try:
+            # Convert "All Shows" to None for the model
+            show_filter = None if show_text == "All Shows" else show_text
+            self.show_filter_requested.emit(show_filter or "")  # Emit empty string for None
+            safe_log_info(f"Show filter requested: {show_text}")
+        finally:
+            self._updating_filter = False
 
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""

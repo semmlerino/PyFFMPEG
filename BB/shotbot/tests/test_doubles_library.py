@@ -31,6 +31,10 @@ from typing import Any, Callable
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtGui import QColor, QImage
 
+# Import types for type annotations
+from cache.failure_tracker import FailureTracker
+from cache.thumbnail_processor import ThumbnailProcessor
+
 # =============================================================================
 # SUBPROCESS TEST DOUBLES
 # =============================================================================

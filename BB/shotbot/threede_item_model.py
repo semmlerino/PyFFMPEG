@@ -8,6 +8,8 @@ and proper update notifications.
 from __future__ import annotations
 
 import logging
+import os
+import sys
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -37,6 +39,8 @@ logger = logging.getLogger(__name__)
 
 # Thread-safe logging mutex to prevent recursion issues in VFX environments
 _log_mutex = QMutex()
+_log_recursion_depth = 0
+_max_log_recursion = 3
 
 def safe_log_info(message: str) -> None:
     """Thread-safe logging wrapper to prevent RecursionError in logging system.
@@ -47,15 +51,32 @@ def safe_log_info(message: str) -> None:
     Args:
         message: Log message to output safely
     """
+    global _log_recursion_depth
+    
+    # Guard against deep recursion
+    if _log_recursion_depth >= _max_log_recursion:
+        # Write directly to stderr to avoid any further recursion
+        try:
+            os.write(2, f"[RECURSION GUARD] {message}\n".encode('utf-8'))
+        except:
+            pass
+        return
+    
+    _log_recursion_depth += 1
     try:
         with QMutexLocker(_log_mutex):
             logger.info(message)
     except RecursionError:
-        # Fallback: print directly to avoid crashing the application
-        print(f"LOG: {message}")
+        # Fallback: write directly to stderr
+        try:
+            os.write(2, f"[RECURSION ERROR] {message}\n".encode('utf-8'))
+        except:
+            pass
     except Exception:
         # Fallback: silent failure to prevent crashes
         pass
+    finally:
+        _log_recursion_depth -= 1
 
 # Maximum cache size to prevent memory leaks (100 thumbnails max)
 MAX_CACHE_SIZE = 100
@@ -125,6 +146,7 @@ class ThreeDEItemModel(QAbstractListModel):
         self._cache_mutex = QMutex()  # Thread-safe cache access
         self._selected_index = QPersistentModelIndex()
         self._is_loading = False
+        self._updating_filter = False  # Recursion guard for filter updates
 
         # Lazy loading timer for thumbnails
         self._thumbnail_timer = QTimer()
@@ -380,14 +402,22 @@ class ThreeDEItemModel(QAbstractListModel):
             threede_scene_model: The scene model to get filtered scenes from
             show: Show name to filter by, or None for all shows
         """
-        threede_scene_model.set_show_filter(show)
-        filtered_scenes = threede_scene_model.get_filtered_scenes()
-        self.set_scenes(filtered_scenes, reset=True)
-        
-        # Emit filter changed signal for UI updates
-        filter_display = show if show is not None else "All Shows"
-        self.show_filter_changed.emit(filter_display)
-        safe_log_info(f"Applied show filter: {filter_display}, {len(filtered_scenes)} scenes")
+        # Guard against recursion
+        if self._updating_filter:
+            return
+            
+        self._updating_filter = True
+        try:
+            threede_scene_model.set_show_filter(show)
+            filtered_scenes = threede_scene_model.get_filtered_scenes()
+            self.set_scenes(filtered_scenes, reset=True)
+            
+            # Emit filter changed signal for UI updates
+            filter_display = show if show is not None else "All Shows"
+            self.show_filter_changed.emit(filter_display)
+            safe_log_info(f"Applied show filter: {filter_display}, {len(filtered_scenes)} scenes")
+        finally:
+            self._updating_filter = False
 
     def get_scene(self, index: QModelIndex) -> ThreeDEScene | None:
         """Get scene at the given index.

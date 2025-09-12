@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 
 import pytest
+from typing_extensions import Self
 
 from process_pool_manager import (
     CommandCache,
@@ -103,7 +104,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
     Bypasses singleton pattern to ensure fresh instances for each test.
     """
 
-    def __new__(cls, *args, **kwargs) -> TestableProcessPoolManager:
+    def __new__(cls, *args, **kwargs) -> Self:
         """Override to bypass singleton pattern in tests."""
         # Don't use singleton for test instances - use QObject's __new__
         from PySide6.QtCore import QObject

@@ -98,13 +98,17 @@ class UnifiedCacheConfig(QObject):
             new_value: The new value for the setting
         """
         if setting_key == "performance/max_cache_memory_mb":
-            logger.info(f"Cache memory limit changed to {new_value}MB")
-            self.memory_limit_changed.emit(int(new_value))
-            self.config_updated.emit()
+            # Type narrowing for numeric values from QSettings
+            if isinstance(new_value, (int, float, str)):
+                logger.info(f"Cache memory limit changed to {new_value}MB")
+                self.memory_limit_changed.emit(int(new_value))
+                self.config_updated.emit()
         elif setting_key == "performance/cache_expiry_minutes":
-            logger.info(f"Cache expiry time changed to {new_value} minutes")
-            self.expiry_time_changed.emit(int(new_value))
-            self.config_updated.emit()
+            # Type narrowing for numeric values from QSettings  
+            if isinstance(new_value, (int, float, str)):
+                logger.info(f"Cache expiry time changed to {new_value} minutes")
+                self.expiry_time_changed.emit(int(new_value))
+                self.config_updated.emit()
 
     def apply_to_memory_manager(self, memory_manager: MemoryManager) -> None:
         """Apply current settings to a MemoryManager instance.

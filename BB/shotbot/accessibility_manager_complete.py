@@ -10,7 +10,7 @@ Provides comprehensive accessibility support including:
 
 from __future__ import annotations
 
-from typing import Any, Protocol, cast, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QColor, QKeyEvent, QKeySequence, QPalette, QShortcut

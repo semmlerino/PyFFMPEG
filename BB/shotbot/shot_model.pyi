@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from cache_manager import CacheManager
+from type_definitions import ShotDict
 
 class RefreshResult(NamedTuple):
     """Result of shot refresh operation."""
@@ -32,9 +33,9 @@ class Shot:
     @property
     def thumbnail_dir(self) -> Path: ...
     def get_thumbnail_path(self) -> Path | None: ...
-    def to_dict(self) -> dict[str, str]: ...
+    def to_dict(self) -> ShotDict: ...
     @classmethod
-    def from_dict(cls, data: dict[str, str]) -> Shot: ...
+    def from_dict(cls, data: ShotDict) -> Shot: ...
 
 class ShotModel:
     """Manages shot data and parsing."""

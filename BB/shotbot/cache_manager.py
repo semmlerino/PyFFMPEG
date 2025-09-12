@@ -491,7 +491,7 @@ class CacheManager(QObject):
     def get_memory_usage(self) -> dict[str, float | int]:
         """Get current cache memory usage statistics (backward compatible)."""
         stats = self._memory_manager.get_usage_stats()
-        total_bytes = cast(int, stats.get("total_bytes", 0))
+        total_bytes = cast("int", stats.get("total_bytes", 0))
         max_bytes = self._memory_manager.max_memory_bytes
 
         # Return old format for backward compatibility

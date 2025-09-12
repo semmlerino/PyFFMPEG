@@ -768,8 +768,9 @@ class LauncherManagerDialog(QDialog):
             else:
                 logger.error(f"Failed to launch: {launcher.name}")
 
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def closeEvent(self, arg__1: QCloseEvent) -> None:
         """Clean up signal connections on close."""
+        event = arg__1  # Use a more readable name internally
         # Disconnect launcher manager signals
         try:
             self.launcher_manager.launchers_changed.disconnect(self._load_launchers)

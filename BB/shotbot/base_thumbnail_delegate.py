@@ -12,7 +12,6 @@ import logging
 
 # Note: Can't use ABC with Qt classes due to metaclass conflict
 from dataclasses import dataclass, field
-from typing import Any
 
 from PySide6.QtCore import (
     QModelIndex,
@@ -39,11 +38,24 @@ from PySide6.QtWidgets import (
     QStyleOptionViewItem,
     QWidget,
 )
-from typing_extensions import override
+from typing_extensions import TypedDict, override
 
 from config import Config
 
 logger = logging.getLogger(__name__)
+
+
+class ThumbnailItemData(TypedDict, total=False):
+    """Type definition for thumbnail item data."""
+    
+    name: str  # Required - item name
+    show: str  # Optional - show name  
+    sequence: str  # Optional - sequence name
+    thumbnail: QPixmap | None  # thumbnail image
+    loading_state: str  # Loading state string
+    is_selected: bool  # Selection state
+    user: str  # Optional - user name
+    timestamp: str  # Optional - timestamp
 
 
 @dataclass
@@ -136,7 +148,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
     def get_item_data(
         self, index: QModelIndex | QPersistentModelIndex
-    ) -> dict[str, Any]:
+    ) -> ThumbnailItemData:
         """Extract item data from model index.
 
         Args:
@@ -331,7 +343,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             self._loading_timer.start(50)
 
     def _draw_text(
-        self, painter: QPainter, rect: QRect, data: dict[str, Any], is_selected: bool
+        self, painter: QPainter, rect: QRect, data: ThumbnailItemData, is_selected: bool
     ) -> None:
         """Draw the text labels below the thumbnail."""
         text_rect = QRect(
@@ -416,7 +428,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         self._loading_angle = (self._loading_angle + 10) % 360
         # Trigger repaint for all loading items
         if parent := self.parent():
-            parent.update()
+            if isinstance(parent, QWidget):
+                parent.update()
 
     @override
     def sizeHint(
@@ -448,7 +461,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
 
         # Trigger layout update
         if parent := self.parent():
-            parent.update()
+            if isinstance(parent, QWidget):
+                parent.update()
 
     def cleanup(self) -> None:
         """Clean up resources."""
