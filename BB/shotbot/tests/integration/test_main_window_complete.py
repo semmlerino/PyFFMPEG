@@ -130,7 +130,7 @@ class TestMainWindowCompleteWorkflows:
         # Step 1: Start 3DE scene discovery and create spy
         window._refresh_threede_scenes()
         qtbot.wait(50)  # Allow worker to be created
-        
+
         if window._threede_worker:
             discovery_started_spy = QSignalSpy(window._threede_worker.started)
             # Trigger another refresh to test the signal
@@ -147,7 +147,7 @@ class TestMainWindowCompleteWorkflows:
 
         test_scene = ThreeDEScene(
             show="test",
-            sequence="seq1", 
+            sequence="seq1",
             shot="0010",
             workspace_path="/shows/test/shots/seq1/seq1_0010",
             user="testuser",
@@ -157,19 +157,19 @@ class TestMainWindowCompleteWorkflows:
 
         # Step 3: Test basic 3DE model and workflow components
         # Verify the 3DE scene model exists and is accessible
-        assert hasattr(window, 'threede_scene_model')
+        assert hasattr(window, "threede_scene_model")
         assert window.threede_scene_model is not None
-        
+
         # Verify the 3DE scene grid exists
-        assert hasattr(window, 'threede_shot_grid')
+        assert hasattr(window, "threede_shot_grid")
         assert window.threede_shot_grid is not None
-        
+
         # Step 4: Test scene launching workflow (simplified)
         with patch("main_window.MainWindow._launch_app_with_scene") as mock_launch:
             mock_launch.return_value = True
-            
+
             # Test the launch method exists and can be called
-            if hasattr(window, '_launch_app_with_scene'):
+            if hasattr(window, "_launch_app_with_scene"):
                 window._launch_app_with_scene("3de", test_scene)
                 mock_launch.assert_called_once_with("3de", test_scene)
             else:
@@ -360,7 +360,9 @@ class TestMainWindowCompleteWorkflows:
 
         if settings_action:
             # Mock file dialog to prevent actual UI popup
-            with patch("PySide6.QtWidgets.QFileDialog.getOpenFileName") as mock_file_dialog:
+            with patch(
+                "PySide6.QtWidgets.QFileDialog.getOpenFileName"
+            ) as mock_file_dialog:
                 mock_file_dialog.return_value = ("", "")  # No file selected
 
                 # Trigger settings
@@ -433,6 +435,7 @@ class TestMainWindowCompleteWorkflows:
 
         # Test close event handling
         from PySide6.QtGui import QCloseEvent
+
         close_event = QCloseEvent()
 
         # Process close event

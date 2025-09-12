@@ -97,9 +97,7 @@ class ThreadingManager(QObject):
             self._current_threede_worker.finished.connect(
                 self._on_threede_discovery_finished
             )
-            self._current_threede_worker.error.connect(
-                self._on_threede_discovery_error
-            )
+            self._current_threede_worker.error.connect(self._on_threede_discovery_error)
             self._current_threede_worker.paused.connect(
                 self.threede_discovery_paused.emit
             )

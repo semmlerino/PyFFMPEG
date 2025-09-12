@@ -339,7 +339,9 @@ class AccessibilityAnnouncer:
 
         # Enabled applications
         if hasattr(window, "app_buttons"):
-            app_buttons: dict[str, QPushButton | None] = getattr(window, "app_buttons", {})
+            app_buttons: dict[str, QPushButton | None] = getattr(
+                window, "app_buttons", {}
+            )
             if isinstance(app_buttons, dict):
                 enabled_apps = [
                     name

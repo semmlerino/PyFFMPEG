@@ -25,7 +25,20 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
+
+from typing_extensions import TypedDict
+
+
+class StructureDict(TypedDict, total=False):
+    """Type definition for the structure dictionary."""
+
+    capture_time: float
+    capture_host: str
+    workspace_shots: list[str]
+    shows: dict[str, list[dict[str, Any]]]
+    show_roots: list[str]
+    patterns: dict[str, list[str]]
 
 
 def get_workspace_shots() -> tuple[list[str], list[str]]:
@@ -61,7 +74,7 @@ def get_workspace_shots() -> tuple[list[str], list[str]]:
 
 def scan_directory(
     path: Path, base_path: Path, max_depth: int = 10, current_depth: int = 0
-) -> Dict[str, Any]:
+) -> Dict[str, Any] | None:
     """Recursively scan directory structure.
 
     Returns dict with:
@@ -167,10 +180,8 @@ def scan_directory(
             "children": children,
         }
 
-    return None
 
-
-def capture_structure(shows: List[str] | None = None) -> Dict[str, Any]:
+def capture_structure(shows: List[str] | None = None) -> StructureDict:
     """Capture the VFX filesystem structure."""
 
     print("Capturing VFX filesystem structure...", file=sys.stderr)
@@ -194,7 +205,7 @@ def capture_structure(shows: List[str] | None = None) -> Dict[str, Any]:
 
     print(f"Capturing structure for shows: {', '.join(target_shows)}", file=sys.stderr)
 
-    structure = {
+    structure: StructureDict = {
         "capture_time": time.time(),
         "capture_host": os.uname().nodename,
         "workspace_shots": workspace_shots,
@@ -261,16 +272,18 @@ def main() -> None:
 
     # Capture structure
     structure = capture_structure(args.shows)
+    # Cast to dict for proper access
+    structure_dict = cast(Dict[str, Any], structure)
 
     # Output as JSON
-    output = json.dumps(structure, indent=2, sort_keys=True)
+    output = json.dumps(structure_dict, indent=2, sort_keys=True)
 
     # Determine output destination
     if args.stdout:
         # Explicitly requested stdout
         print(output)
         print(
-            f"\nCapture complete! Found {len(structure['shows'])} shows",
+            f"\nCapture complete! Found {len(structure_dict['shows'])} shows",
             file=sys.stderr,
         )
     else:
@@ -290,7 +303,7 @@ def main() -> None:
             f.write(output)
 
         print(f"✅ Structure saved to: {output_file}")
-        print(f"\nCapture complete! Found {len(structure['shows'])} shows")
+        print(f"\nCapture complete! Found {len(structure_dict['shows'])} shows")
 
     # Summary statistics
     total_dirs = 0
@@ -305,7 +318,7 @@ def main() -> None:
         elif node["type"] == "file":
             total_files += 1
 
-    for show, show_data in structure["shows"].items():
+    for show, show_data in structure_dict["shows"].items():
         for root_data in show_data:
             count_items(root_data["structure"])
 

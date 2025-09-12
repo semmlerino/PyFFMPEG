@@ -52,6 +52,10 @@ class PreviousShotsFinder:
         self._shot_pattern = re.compile(
             rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
         )
+        # Fallback pattern for non-standard naming
+        self._shot_pattern_fallback = re.compile(
+            rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
+        )
         logger.info(f"PreviousShotsFinder initialized for user: {self.username}")
 
     def find_user_shots(self, shows_root: Path | None = None) -> list[Shot]:

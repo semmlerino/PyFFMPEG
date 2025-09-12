@@ -220,27 +220,27 @@ class ThreeDESceneModel:
         return [scene.to_dict() for scene in self.scenes]
 
     # Show filtering methods
-    
+
     def get_unique_shows(self) -> list[str]:
         """Get sorted list of unique shows from all scenes."""
         shows = set(scene.show for scene in self.scenes)
         return sorted(shows)
-    
+
     def set_show_filter(self, show: str | None) -> None:
         """Set the show filter.
-        
+
         Args:
             show: Show name to filter by, or None for no filtering
         """
         self._filter_show = show
-    
+
     def get_show_filter(self) -> str | None:
         """Get the current show filter."""
         return self._filter_show
-    
+
     def get_filtered_scenes(self) -> list[ThreeDEScene]:
         """Get scenes filtered by the current show filter.
-        
+
         Returns:
             List of scenes matching the current filter, or all scenes if no filter
         """

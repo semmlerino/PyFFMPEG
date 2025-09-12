@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -42,26 +41,27 @@ _log_mutex = QMutex()
 _log_recursion_depth = 0
 _max_log_recursion = 3
 
+
 def safe_log_info(message: str) -> None:
     """Thread-safe logging wrapper to prevent RecursionError in logging system.
-    
-    This addresses a known issue in Qt/PySide6 applications where Python's 
+
+    This addresses a known issue in Qt/PySide6 applications where Python's
     logging formatter can enter infinite recursion in the usesTime() method.
-    
+
     Args:
         message: Log message to output safely
     """
     global _log_recursion_depth
-    
+
     # Guard against deep recursion
     if _log_recursion_depth >= _max_log_recursion:
         # Write directly to stderr to avoid any further recursion
         try:
-            os.write(2, f"[RECURSION GUARD] {message}\n".encode('utf-8'))
+            os.write(2, f"[RECURSION GUARD] {message}\n".encode())
         except:
             pass
         return
-    
+
     _log_recursion_depth += 1
     try:
         with QMutexLocker(_log_mutex):
@@ -69,7 +69,7 @@ def safe_log_info(message: str) -> None:
     except RecursionError:
         # Fallback: write directly to stderr
         try:
-            os.write(2, f"[RECURSION ERROR] {message}\n".encode('utf-8'))
+            os.write(2, f"[RECURSION ERROR] {message}\n".encode())
         except:
             pass
     except Exception:
@@ -77,6 +77,7 @@ def safe_log_info(message: str) -> None:
         pass
     finally:
         _log_recursion_depth -= 1
+
 
 # Maximum cache size to prevent memory leaks (100 thumbnails max)
 MAX_CACHE_SIZE = 100
@@ -345,7 +346,9 @@ class ThreeDEItemModel(QAbstractListModel):
         )
 
     @Slot(object, object)  # type: ignore[arg-type]
-    def _do_load_thumbnail(self, scene: ThreeDEScene, callback: Callable[[Path | None], None]) -> None:
+    def _do_load_thumbnail(
+        self, scene: ThreeDEScene, callback: Callable[[Path | None], None]
+    ) -> None:
         """Load thumbnail in main thread.
 
         Args:
@@ -395,9 +398,11 @@ class ThreeDEItemModel(QAbstractListModel):
 
         safe_log_info(f"Set {len(scenes)} 3DE scenes in model")
 
-    def set_show_filter(self, threede_scene_model: ThreeDESceneModel, show: str | None) -> None:
+    def set_show_filter(
+        self, threede_scene_model: ThreeDESceneModel, show: str | None
+    ) -> None:
         """Set show filter and update the model.
-        
+
         Args:
             threede_scene_model: The scene model to get filtered scenes from
             show: Show name to filter by, or None for all shows
@@ -405,17 +410,19 @@ class ThreeDEItemModel(QAbstractListModel):
         # Guard against recursion
         if self._updating_filter:
             return
-            
+
         self._updating_filter = True
         try:
             threede_scene_model.set_show_filter(show)
             filtered_scenes = threede_scene_model.get_filtered_scenes()
             self.set_scenes(filtered_scenes, reset=True)
-            
+
             # Emit filter changed signal for UI updates
             filter_display = show if show is not None else "All Shows"
             self.show_filter_changed.emit(filter_display)
-            safe_log_info(f"Applied show filter: {filter_display}, {len(filtered_scenes)} scenes")
+            safe_log_info(
+                f"Applied show filter: {filter_display}, {len(filtered_scenes)} scenes"
+            )
         finally:
             self._updating_filter = False
 

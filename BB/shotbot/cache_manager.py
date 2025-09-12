@@ -43,7 +43,6 @@ from config import Config
 from exceptions import CacheError, ThumbnailError
 
 if TYPE_CHECKING:
-
     from settings_manager import SettingsManager
     from shot_model import Shot
     from type_definitions import (
@@ -447,10 +446,10 @@ class CacheManager(QObject):
             data: Data to cache
         """
         if key == "previous_shots":
-            # Type-safe casting: assume caller passes correct type for previous_shots  
+            # Type-safe casting: assume caller passes correct type for previous_shots
             self.cache_previous_shots(data)  # type: ignore[arg-type]
         else:
-            # For other generic data, use storage backend directly  
+            # For other generic data, use storage backend directly
             cache_file = self.cache_dir / f"{key}.json"
             # Type-safe casting: assume data is dict for JSON serialization
             _ = self._storage_backend.write_json(cache_file, data)  # type: ignore[arg-type]

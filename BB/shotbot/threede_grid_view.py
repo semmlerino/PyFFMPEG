@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -55,26 +54,27 @@ _log_mutex = QMutex()
 _log_recursion_depth = 0
 _max_log_recursion = 3
 
+
 def safe_log_info(message: str) -> None:
     """Thread-safe logging wrapper to prevent RecursionError in logging system.
-    
-    This addresses a known issue in Qt/PySide6 applications where Python's 
+
+    This addresses a known issue in Qt/PySide6 applications where Python's
     logging formatter can enter infinite recursion in the usesTime() method.
-    
+
     Args:
         message: Log message to output safely
     """
     global _log_recursion_depth
-    
+
     # Guard against deep recursion
     if _log_recursion_depth >= _max_log_recursion:
         # Write directly to stderr to avoid any further recursion
         try:
-            os.write(2, f"[RECURSION GUARD] {message}\n".encode('utf-8'))
+            os.write(2, f"[RECURSION GUARD] {message}\n".encode())
         except:
             pass
         return
-    
+
     _log_recursion_depth += 1
     try:
         with QMutexLocker(_log_mutex):
@@ -82,11 +82,11 @@ def safe_log_info(message: str) -> None:
     except RecursionError:
         # Fallback: write directly to stderr
         try:
-            os.write(2, f"[RECURSION ERROR] {message}\n".encode('utf-8'))
+            os.write(2, f"[RECURSION ERROR] {message}\n".encode())
         except:
             pass
     except Exception:
-        # Fallback: silent failure to prevent crashes  
+        # Fallback: silent failure to prevent crashes
         pass
     finally:
         _log_recursion_depth -= 1
@@ -268,45 +268,45 @@ class ThreeDEGridView(QWidget):
 
     def populate_show_filter(self, threede_scene_model: ThreeDESceneModel) -> None:
         """Populate the show filter combo box with available shows.
-        
+
         Args:
             threede_scene_model: The scene model to get shows from
         """
         # Guard against recursion
         if self._updating_filter:
             return
-            
+
         self._updating_filter = True
         try:
             # Save current selection
             current_text = self.show_combo.currentText()
-            
+
             # Temporarily disconnect signal to prevent recursion
             try:
                 self.show_combo.currentTextChanged.disconnect()
             except:
                 pass
-            
+
             # Clear and repopulate
             self.show_combo.clear()
             self.show_combo.addItem("All Shows")
-            
+
             unique_shows = threede_scene_model.get_unique_shows()
             for show in unique_shows:
                 self.show_combo.addItem(show)
-            
+
             # Restore selection if possible
             index = self.show_combo.findText(current_text)
             if index >= 0:
                 self.show_combo.setCurrentIndex(index)
             else:
                 self.show_combo.setCurrentIndex(0)  # Default to "All Shows"
-            
+
             # Reconnect signal
             self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
         finally:
             self._updating_filter = False
-        
+
         safe_log_info(f"Populated show filter with {len(unique_shows)} shows")
 
     @Slot()
@@ -417,19 +417,21 @@ class ThreeDEGridView(QWidget):
     @Slot(str)
     def _on_show_filter_changed(self, show_text: str) -> None:
         """Handle show filter change.
-        
+
         Args:
             show_text: Selected show text from combo box
         """
         # Guard against recursion
         if self._updating_filter:
             return
-            
+
         self._updating_filter = True
         try:
             # Convert "All Shows" to None for the model
             show_filter = None if show_text == "All Shows" else show_text
-            self.show_filter_requested.emit(show_filter or "")  # Emit empty string for None
+            self.show_filter_requested.emit(
+                show_filter or ""
+            )  # Emit empty string for None
             safe_log_info(f"Show filter requested: {show_text}")
         finally:
             self._updating_filter = False

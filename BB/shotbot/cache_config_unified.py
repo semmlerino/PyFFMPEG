@@ -104,7 +104,7 @@ class UnifiedCacheConfig(QObject):
                 self.memory_limit_changed.emit(int(new_value))
                 self.config_updated.emit()
         elif setting_key == "performance/cache_expiry_minutes":
-            # Type narrowing for numeric values from QSettings  
+            # Type narrowing for numeric values from QSettings
             if isinstance(new_value, (int, float, str)):
                 logger.info(f"Cache expiry time changed to {new_value} minutes")
                 self.expiry_time_changed.emit(int(new_value))

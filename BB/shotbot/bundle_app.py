@@ -227,9 +227,13 @@ class ApplicationBundler:
                 else:
                     # General wildcard pattern - anchor to start if pattern doesn't start with *
                     if pattern.startswith("*"):
-                        regex_pattern = pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                        regex_pattern = (
+                            pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                        )
                     else:
-                        regex_pattern = "^" + pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                        regex_pattern = (
+                            "^" + pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                        )
                     if re.search(regex_pattern, file_path) or re.search(
                         regex_pattern,
                         file_name,
@@ -250,9 +254,13 @@ class ApplicationBundler:
                 else:
                     # General wildcard pattern - anchor to start if pattern doesn't start with *
                     if pattern.startswith("*"):
-                        regex_pattern = pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                        regex_pattern = (
+                            pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                        )
                     else:
-                        regex_pattern = "^" + pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                        regex_pattern = (
+                            "^" + pattern.replace(".", r"\.").replace("*", ".*") + "$"
+                        )
                     if re.search(regex_pattern, file_path) or re.search(
                         regex_pattern,
                         file_name,

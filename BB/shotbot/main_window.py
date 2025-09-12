@@ -617,7 +617,9 @@ class MainWindow(QMainWindow):
             self._on_scene_double_clicked,
         )
         _ = self.threede_shot_grid.app_launch_requested.connect(self._launch_app)
-        _ = self.threede_shot_grid.show_filter_requested.connect(self._on_show_filter_requested)
+        _ = self.threede_shot_grid.show_filter_requested.connect(
+            self._on_show_filter_requested
+        )
 
         # Previous shots selection
         _ = self.previous_shots_grid.shot_selected.connect(self._on_shot_selected)
@@ -1297,16 +1299,16 @@ class MainWindow(QMainWindow):
 
     def _on_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from 3DE grid view.
-        
+
         Args:
             show: Show name to filter by, or empty string for all shows
         """
         # Convert empty string back to None for the model
         show_filter = show if show else None
-        
+
         # Apply filter to item model
         self.threede_item_model.set_show_filter(self.threede_scene_model, show_filter)
-        
+
         logger.info(f"Applied show filter: {show if show else 'All Shows'}")
 
     def _launch_app(self, app_name: str) -> None:
@@ -1926,6 +1928,7 @@ class MainWindow(QMainWindow):
             # Step 5: Disconnect signals only AFTER worker has stopped
             # This prevents signal emission during disconnection
             import warnings
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 signals_to_disconnect = [
@@ -1938,10 +1941,10 @@ class MainWindow(QMainWindow):
                     worker_to_cleanup.paused,
                     worker_to_cleanup.resumed,
                 ]
-                
+
                 for signal in signals_to_disconnect:
                     try:
-                        if hasattr(signal, 'disconnect'):
+                        if hasattr(signal, "disconnect"):
                             signal.disconnect()
                     except (RuntimeError, TypeError):
                         # Signal may already be disconnected or deleted

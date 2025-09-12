@@ -147,13 +147,18 @@ class MainWindowUI:
         tab_widget = QTabWidget()
 
         # My Shots tab
+        # Create a ShotItemModel from the shot_model
+        from shot_item_model import ShotItemModel
+        shot_item_model = ShotItemModel()
+        shot_item_model.set_shots(shot_model.shots)
+        
         shot_grid_view = ShotGridView(
-            model=shot_model.shot_item_model, cache_manager=cache_manager
+            model=shot_item_model
         )
         tab_widget.addTab(shot_grid_view, "My Shots")
 
         # 3DE Scenes tab
-        threede_grid_view = ThreeDEGridView(threede_item_model, cache_manager)
+        threede_grid_view = ThreeDEGridView(threede_item_model)
         tab_widget.addTab(threede_grid_view, "Other 3DE Scenes")
 
         # Create shot info panel
@@ -195,7 +200,7 @@ class MainWindowUI:
 
         # Previous Shots tab
         previous_shots_view = PreviousShotsView(
-            model=previous_shots_model, launcher_manager=launcher_manager
+            model=previous_shots_model
         )
         self.tab_widget.addTab(previous_shots_view, "Previous Shots")
 
@@ -289,12 +294,12 @@ class MainWindowUI:
         help_menu.addAction(about_action)
 
         # Store references for signal connection
-        self.main_window.refresh_action = refresh_action
-        self.main_window.settings_action = settings_action
-        self.main_window.exit_action = exit_action
-        self.main_window.increase_size_action = increase_size_action
-        self.main_window.decrease_size_action = decrease_size_action
-        self.main_window.about_action = about_action
+        self.refresh_action = refresh_action
+        self.settings_action = settings_action
+        self.exit_action = exit_action
+        self.increase_size_action = increase_size_action
+        self.decrease_size_action = decrease_size_action
+        self.about_action = about_action
 
     def _setup_status_bar(self) -> None:
         """Set up the status bar."""

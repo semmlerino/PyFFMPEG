@@ -47,9 +47,9 @@ logger = logging.getLogger(__name__)
 
 class ThumbnailItemData(TypedDict, total=False):
     """Type definition for thumbnail item data."""
-    
+
     name: str  # Required - item name
-    show: str  # Optional - show name  
+    show: str  # Optional - show name
     sequence: str  # Optional - sequence name
     thumbnail: QPixmap | None  # thumbnail image
     loading_state: str  # Loading state string
