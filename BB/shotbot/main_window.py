@@ -55,15 +55,12 @@ from typing import TYPE_CHECKING, cast
 from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer, Slot
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
-    QCheckBox,
-    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QMenu,
     QMessageBox,
-    QPushButton,
     QSplitter,
     QStatusBar,
     QTabWidget,
@@ -86,8 +83,12 @@ if TYPE_CHECKING:
 from cache_manager import CacheManager  # Need at runtime for instantiation
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
+from controllers.settings_controller import (
+    SettingsController,  # Refactored settings handling
+)
 from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
 from launcher_manager import LauncherManager  # Need at runtime
+from launcher_panel import LauncherPanel  # Improved launcher UI
 from log_viewer import LogViewer
 from notification_manager import NotificationManager, NotificationType
 from persistent_terminal_manager import PersistentTerminalManager
@@ -182,6 +183,9 @@ class MainWindow(QMainWindow):
         # Store reference to settings dialog
         self._settings_dialog: SettingsDialog | None = None
 
+        # Initialize settings controller (refactored from MainWindow methods)
+        self.settings_controller = SettingsController(self)  # type: ignore[arg-type] # Protocol works functionally
+
         # Create 3DE item model for Model/View architecture
         self.threede_item_model = ThreeDEItemModel(cache_manager=self.cache_manager)
 
@@ -242,7 +246,7 @@ class MainWindow(QMainWindow):
         self._setup_menu()
         self._setup_accessibility()  # Add accessibility support
         self._connect_signals()
-        self._load_settings()
+        self.settings_controller.load_settings()  # Use refactored settings controller
 
         # Initial shot load - immediately, no delay
         self._initial_load()
@@ -316,118 +320,18 @@ class MainWindow(QMainWindow):
         self.shot_info_panel = ShotInfoPanel(self.cache_manager)
         right_layout.addWidget(self.shot_info_panel)
 
-        # App launcher buttons
-        self.launcher_group = QGroupBox("Launch Applications")
-        launcher_layout = QVBoxLayout(self.launcher_group)
+        # App launcher panel (improved UI)
+        self.launcher_panel = LauncherPanel()
+        self.launcher_panel.app_launch_requested.connect(self._launch_app)
+        self.launcher_panel.custom_launcher_requested.connect(self._execute_custom_launcher)
+        self.launcher_panel.setMinimumHeight(400)  # Ensure adequate space
+        right_layout.addWidget(self.launcher_panel)
 
-        # Style the launcher group to make it more visible
-        self.launcher_group.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                border: 2px solid #444;
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-            }
-        """)
-
-        self.app_buttons: dict[str, QPushButton] = {}
-        # Keyboard shortcuts for each app
-        app_shortcuts = {
-            "3de": "3",
-            "nuke": "N",
-            "maya": "M",
-            "rv": "R",
-            "publish": "P",
-        }
-
-        # Add informational label at the top
-        info_label = QLabel("Select a shot to enable app launching")
-        info_label.setWordWrap(True)
-        info_label.setStyleSheet(
-            "QLabel { color: #888; font-style: italic; padding: 5px; }",
-        )
-        launcher_layout.addWidget(info_label)
-        self.launcher_info_label = info_label
-
-        for app_name, command in Config.APPS.items():
-            button = QPushButton(app_name.upper())
-            button.setObjectName("builtInLauncherButton")
-            _ = button.clicked.connect(
-                lambda checked=False, app=app_name: self._launch_app(app)
-            )
-            button.setEnabled(False)  # Disabled until shot selected
-
-            # Add tooltip with keyboard shortcut
-            shortcut = app_shortcuts.get(app_name, "")
-            if shortcut:
-                button.setToolTip(f"Launch {app_name.upper()} (Shortcut: {shortcut})")
-
-            # Apply styling to built-in launchers
-            button.setStyleSheet("""
-                QPushButton#builtInLauncherButton {
-                    background-color: #2b3e50;
-                    color: #ecf0f1;
-                    border: 1px solid #34495e;
-                    border-radius: 4px;
-                    padding: 6px;
-                    font-weight: bold;
-                }
-                QPushButton#builtInLauncherButton:hover {
-                    background-color: #34495e;
-                    border-color: #4e6d8c;
-                }
-                QPushButton#builtInLauncherButton:pressed {
-                    background-color: #1a252f;
-                    border-color: #2b3e50;
-                }
-                QPushButton#builtInLauncherButton:disabled {
-                    background-color: #1e2a35;
-                    color: #666;
-                    border-color: #1e2a35;
-                }
-            """)
-
-            launcher_layout.addWidget(button)
-            self.app_buttons[app_name] = button
-
-        # Add undistortion checkbox
-        self.undistortion_checkbox = QCheckBox("Include undistortion nodes (Nuke)")
-        self.undistortion_checkbox.setToolTip(
-            "When launching Nuke, automatically include the latest undistortion .nk file",
-        )
-        launcher_layout.addWidget(self.undistortion_checkbox)
-
-        # Add raw plate checkbox
-        self.raw_plate_checkbox = QCheckBox("Include raw plate (Nuke)")
-        self.raw_plate_checkbox.setToolTip(
-            "When launching Nuke, automatically create a Read node for the raw plate",
-        )
-        launcher_layout.addWidget(self.raw_plate_checkbox)
-
-        # Add open latest 3DE scene checkbox
-        self.open_latest_threede_checkbox = QCheckBox(
-            "Open latest 3DE scene (when available)"
-        )
-        self.open_latest_threede_checkbox.setToolTip(
-            "When launching 3DE, automatically open the latest scene file from the workspace",
-        )
-        self.open_latest_threede_checkbox.setChecked(True)  # On by default
-        launcher_layout.addWidget(self.open_latest_threede_checkbox)
-
-        # Add custom launchers section
-        self._add_custom_launchers_section(launcher_layout)
-
-        # Ensure launcher group has minimum height and doesn't get hidden
-        self.launcher_group.setMinimumHeight(
-            350,
-        )  # Increased to accommodate custom launchers
-        right_layout.addWidget(self.launcher_group)
+        # Keep references to checkboxes for backward compatibility
+        # (These are now managed by the launcher_panel)
+        self.undistortion_checkbox = None  # Will access via launcher_panel.get_checkbox_state
+        self.raw_plate_checkbox = None  # Will access via launcher_panel.get_checkbox_state
+        self.open_latest_threede_checkbox = None  # Will access via launcher_panel.get_checkbox_state
 
         # Log viewer
         log_group = QGroupBox("Command Log")
@@ -485,11 +389,11 @@ class MainWindow(QMainWindow):
 
         # Settings import/export
         import_settings_action = QAction("&Import Settings...", self)
-        _ = import_settings_action.triggered.connect(self._import_settings)
+        _ = import_settings_action.triggered.connect(self.settings_controller.import_settings)
         file_menu.addAction(import_settings_action)
 
         export_settings_action = QAction("&Export Settings...", self)
-        _ = export_settings_action.triggered.connect(self._export_settings)
+        _ = export_settings_action.triggered.connect(self.settings_controller.export_settings)
         file_menu.addAction(export_settings_action)
 
         _ = file_menu.addSeparator()
@@ -516,7 +420,7 @@ class MainWindow(QMainWindow):
 
         # Reset layout action
         reset_layout_action = QAction("&Reset Layout", self)
-        _ = reset_layout_action.triggered.connect(self._reset_layout)
+        _ = reset_layout_action.triggered.connect(self.settings_controller.reset_layout)
         view_menu.addAction(reset_layout_action)
 
         # Edit menu
@@ -524,7 +428,7 @@ class MainWindow(QMainWindow):
 
         preferences_action = QAction("&Preferences...", self)
         preferences_action.setShortcut("Ctrl+,")  # Standard preferences shortcut
-        _ = preferences_action.triggered.connect(self._show_preferences)
+        _ = preferences_action.triggered.connect(self.settings_controller.show_preferences)
         edit_menu.addAction(preferences_action)
 
         # Tools menu
@@ -572,8 +476,8 @@ class MainWindow(QMainWindow):
             self.previous_shots_grid, "previous"
         )
 
-        # Set up launcher buttons
-        AccessibilityManager.setup_launcher_buttons_accessibility(self.app_buttons)
+        # Set up launcher panel (improved accessibility built into LauncherPanel)
+        # AccessibilityManager.setup_launcher_buttons_accessibility is no longer needed
 
         # Set up tab widget
         AccessibilityManager.setup_tab_widget_accessibility(self.tab_widget)
@@ -1202,10 +1106,8 @@ class MainWindow(QMainWindow):
             self.command_launcher.set_current_shot(None)
             self.shot_info_panel.set_shot(None)
 
-            # Disable app buttons and show info label
-            for button in self.app_buttons.values():
-                button.setEnabled(False)
-            self.launcher_info_label.show()
+            # Update launcher panel to disable buttons
+            self.launcher_panel.set_shot(None)
 
             # Update custom launcher menu availability
             self._update_launcher_menu_availability(False)
@@ -1221,7 +1123,7 @@ class MainWindow(QMainWindow):
 
             # Clear saved selection
             self._last_selected_shot_name = None
-            self._save_settings()
+            self.settings_controller.save_settings()
         else:
             # Handle selection
             self.command_launcher.set_current_shot(shot)
@@ -1229,10 +1131,8 @@ class MainWindow(QMainWindow):
             # Update shot info panel
             self.shot_info_panel.set_shot(shot)
 
-            # Enable app buttons and hide info label
-            for button in self.app_buttons.values():
-                button.setEnabled(True)
-            self.launcher_info_label.hide()
+            # Update launcher panel to enable buttons
+            self.launcher_panel.set_shot(shot)
 
             # Update custom launcher menu availability
             self._update_launcher_menu_availability(True)
@@ -1248,7 +1148,7 @@ class MainWindow(QMainWindow):
 
             # Save selection
             self._last_selected_shot_name = shot.full_name
-            self._save_settings()
+            self.settings_controller.save_settings()
 
     def _on_shot_double_clicked(self, shot: Shot) -> None:
         """Handle shot double click - launch default app."""
@@ -1270,10 +1170,8 @@ class MainWindow(QMainWindow):
         # Update shot info panel
         self.shot_info_panel.set_shot(shot)
 
-        # Enable all app buttons (not just 3de) and hide info label
-        for button in self.app_buttons.values():
-            button.setEnabled(True)
-        self.launcher_info_label.hide()
+        # Update launcher panel to enable buttons (showing scene context)
+        self.launcher_panel.set_shot(shot)
 
         # Update custom launcher menu availability
         self._update_launcher_menu_availability(True)
@@ -1329,14 +1227,14 @@ class MainWindow(QMainWindow):
             # Regular shot launch
             # Check if we should include undistortion and/or raw plate for Nuke
             include_undistortion = (
-                app_name == "nuke" and self.undistortion_checkbox.isChecked()
+                app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
             )
             include_raw_plate = (
-                app_name == "nuke" and self.raw_plate_checkbox.isChecked()
+                app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
             )
             # Check if we should open the latest 3DE scene
             open_latest_threede = (
-                app_name == "3de" and self.open_latest_threede_checkbox.isChecked()
+                app_name == "3de" and self.launcher_panel.get_checkbox_state("3de", "open_latest_threede")
             )
 
             success = self.command_launcher.launch_app(
@@ -1369,9 +1267,9 @@ class MainWindow(QMainWindow):
         """Launch an application in the context of a 3DE scene (without the scene file itself)."""
         # Check if we should include undistortion and/or raw plate for Nuke
         include_undistortion = (
-            app_name == "nuke" and self.undistortion_checkbox.isChecked()
+            app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
         )
-        include_raw_plate = app_name == "nuke" and self.raw_plate_checkbox.isChecked()
+        include_raw_plate = app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
 
         if self.command_launcher.launch_app_with_scene_context(
             app_name,
@@ -1676,216 +1574,28 @@ class MainWindow(QMainWindow):
                 f"Failed to launch custom launcher: {launcher.name}",
             )
 
-    def _load_settings(self) -> None:
-        """Load settings from settings manager."""
-        try:
-            # Restore window geometry and state
-            geometry = self.settings_manager.get_window_geometry()
-            if not geometry.isEmpty():
-                _ = self.restoreGeometry(geometry)
 
-            state = self.settings_manager.get_window_state()
-            if not state.isEmpty():
-                _ = self.restoreState(state)
 
-            # Restore splitter states
-            main_splitter_state = self.settings_manager.get_splitter_state("main")
-            if not main_splitter_state.isEmpty():
-                _ = self.splitter.restoreState(main_splitter_state)
-
-            # Apply window maximized state
-            if self.settings_manager.is_window_maximized():
-                self.showMaximized()
-
-            # Restore current tab
-            self.tab_widget.setCurrentIndex(self.settings_manager.get_current_tab())
-
-            # Apply thumbnail size
-            thumbnail_size = self.settings_manager.get_thumbnail_size()
-            if hasattr(self.shot_grid, "size_slider"):
-                self.shot_grid.size_slider.setValue(thumbnail_size)
-            if hasattr(self.threede_shot_grid, "size_slider"):
-                self.threede_shot_grid.size_slider.setValue(thumbnail_size)
-            if hasattr(self.previous_shots_grid, "size_slider"):
-                self.previous_shots_grid.size_slider.setValue(thumbnail_size)
-
-            # Apply UI preferences
-            self._apply_ui_settings()
-
-            # Apply cache settings
-            self._apply_cache_settings()
-
-            logger.info("Settings loaded successfully")
-
-        except Exception as e:
-            logger.error(f"Error loading settings: {e}")
-            # Fallback to default window size
-            self.resize(self.settings_manager.get_window_size())
-
-    def _save_settings(self) -> None:
-        """Save settings to settings manager."""
-        try:
-            # Save window geometry and state
-            self.settings_manager.set_window_geometry(self.saveGeometry())
-            self.settings_manager.set_window_state(self.saveState())
-            self.settings_manager.set_window_maximized(self.isMaximized())
-
-            # Save splitter states
-            self.settings_manager.set_splitter_state("main", self.splitter.saveState())
-
-            # Save current tab
-            self.settings_manager.set_current_tab(self.tab_widget.currentIndex())
-
-            # Save thumbnail size
-            if hasattr(self.shot_grid, "size_slider"):
-                self.settings_manager.set_thumbnail_size(
-                    self.shot_grid.size_slider.value()
-                )
-
-            # Sync to disk
-            self.settings_manager.sync()
-
-            logger.info("Settings saved successfully")
-
-        except Exception as e:
-            logger.error(f"Error saving settings: {e}")
-
-    def _add_custom_launchers_section(self, parent_layout: QVBoxLayout) -> None:
-        """Add custom launchers section to the launcher panel."""
-        # Add separator
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet("QFrame { color: #555; margin: 10px 0; }")
-        parent_layout.addWidget(separator)
-
-        # Add custom launchers label
-        custom_label = QLabel("Custom Launchers")
-        custom_label.setObjectName("customLaunchersLabel")
-        custom_label.setStyleSheet("""
-            QLabel#customLaunchersLabel {
-                color: #aaa;
-                font-size: 11px;
-                font-weight: bold;
-                padding: 5px 0 2px 0;
-            }
-        """)
-        parent_layout.addWidget(custom_label)
-
-        # Container for custom launcher buttons
-        self.custom_launcher_container = QVBoxLayout()
-        self.custom_launcher_container.setSpacing(5)
-        parent_layout.addLayout(self.custom_launcher_container)
-
-        # Dictionary to store custom launcher buttons
-        self.custom_launcher_buttons: dict[str, QPushButton] = {}
-
-        # Initial update
-        self._update_custom_launcher_buttons()
+    # The _add_custom_launchers_section method is no longer needed
+    # Custom launchers are now managed by the LauncherPanel
 
     def _update_custom_launcher_buttons(self) -> None:
-        """Update the custom launcher buttons based on available launchers."""
-        # Clear existing buttons with immediate deletion to prevent memory leaks
-        while self.custom_launcher_container.count():
-            item = self.custom_launcher_container.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.setParent(None)  # Remove from parent immediately
-                widget.deleteLater()  # Schedule for deletion
-        self.custom_launcher_buttons.clear()
-
+        """Update the custom launcher buttons in the launcher panel."""
         # Get all launchers
         launchers = self.launcher_manager.list_launchers()
-
-        if not launchers:
-            # Add placeholder text
-            no_launchers_label = QLabel("No custom launchers configured")
-            no_launchers_label.setStyleSheet("""
-                QLabel {
-                    color: #666;
-                    font-style: italic;
-                    padding: 10px;
-                }
-            """)
-            self.custom_launcher_container.addWidget(no_launchers_label)
-            return
-
-        # Group by category
-        categories: dict[str, list[CustomLauncher]] = {}
-        for launcher in launchers:
-            category = launcher.category or "custom"
-            if category not in categories:
-                categories[category] = []
-            categories[category].append(launcher)
-
-        # Add buttons for each launcher
-        for category in sorted(categories.keys()):
-            category_launchers = categories[category]
-
-            # Add category header if multiple categories
-            if len(categories) > 1:
-                category_label = QLabel(category.title())
-                category_label.setStyleSheet("""
-                    QLabel {
-                        color: #888;
-                        font-size: 10px;
-                        padding: 5px 0 2px 0;
-                    }
-                """)
-                self.custom_launcher_container.addWidget(category_label)
-
-            for launcher in category_launchers:
-                button = QPushButton(f"🚀 {launcher.name}")
-                button.setObjectName("customLauncherButton")
-                button.setToolTip(launcher.description or f"Launch {launcher.name}")
-                _ = button.clicked.connect(
-                    lambda checked=False,
-                    lid=launcher.id: self._execute_custom_launcher(lid),
-                )
-
-                # Apply custom styling
-                button.setStyleSheet("""
-                    QPushButton#customLauncherButton {
-                        background-color: #1a4d2e;
-                        color: #e0e0e0;
-                        border: 1px solid #245938;
-                        border-radius: 4px;
-                        padding: 6px;
-                        text-align: left;
-                        font-weight: normal;
-                    }
-                    QPushButton#customLauncherButton:hover {
-                        background-color: #245938;
-                        border-color: #2d6b47;
-                    }
-                    QPushButton#customLauncherButton:pressed {
-                        background-color: #0f3620;
-                        border-color: #1a4d2e;
-                    }
-                    QPushButton#customLauncherButton:disabled {
-                        background-color: #1a2e20;
-                        color: #666;
-                        border-color: #1a2e20;
-                    }
-                """)
-
-                # Initially disabled until shot selected
-                button.setEnabled(False)
-
-                self.custom_launcher_container.addWidget(button)
-                self.custom_launcher_buttons[launcher.id] = button
-
-        # Update button states based on current selection
-        has_selection = (
-            hasattr(self, "_last_selected_shot_name") or self._current_scene is not None
-        )
-        self._enable_custom_launcher_buttons(has_selection)
+        launcher_list = [(launcher.id, launcher.name) for launcher in launchers]
+        self.launcher_panel.update_custom_launchers(launcher_list)
 
     def _enable_custom_launcher_buttons(self, enabled: bool) -> None:
         """Enable or disable all custom launcher buttons."""
-        for button in self.custom_launcher_buttons.values():
-            if button is not None:
-                button.setEnabled(enabled)
+        # Custom launcher buttons are now managed by the launcher panel
+        # and automatically enabled/disabled when shot is set
+        pass
+
+    def get_window_size(self) -> tuple[int, int]:
+        """Get window size as tuple for SettingsTarget protocol compliance."""
+        size = self.size()
+        return (size.width(), size.height())
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Thread-safe close event handler.
@@ -2031,164 +1741,7 @@ class MainWindow(QMainWindow):
         logger.debug("Cleaning up tracked QRunnables")
         cleanup_all_runnables()
 
-        self._save_settings()
+        self.settings_controller.save_settings()  # Use refactored settings controller
         event.accept()
-
-    # Settings Management Methods
-    def _apply_ui_settings(self) -> None:
-        """Apply UI settings from settings manager."""
-        try:
-            # Apply grid settings
-            # grid_columns = self.settings_manager.get_grid_columns()
-            # TODO: Apply grid columns to grids when they support it
-
-            # Apply tooltip settings
-            # show_tooltips = self.settings_manager.get_show_tooltips()
-            # TODO: Apply tooltip settings
-
-            # Apply theme settings
-            dark_theme = self.settings_manager.get_dark_theme()
-            if dark_theme:
-                self._apply_dark_theme()
-
-            logger.debug("UI settings applied")
-
-        except Exception as e:
-            logger.error(f"Error applying UI settings: {e}")
-
-    def _apply_cache_settings(self) -> None:
-        """Apply cache settings from settings manager."""
-        try:
-            # Apply cache memory limit
-            max_memory = self.settings_manager.get_max_cache_memory_mb()
-            if hasattr(self.cache_manager, "set_memory_limit"):
-                self.cache_manager.set_memory_limit(max_memory)
-
-            # Apply cache expiry
-            expiry_minutes = self.settings_manager.get_cache_expiry_minutes()
-            if hasattr(self.cache_manager, "set_expiry_minutes"):
-                self.cache_manager.set_expiry_minutes(expiry_minutes)
-
-            logger.debug("Cache settings applied")
-
-        except Exception as e:
-            logger.error(f"Error applying cache settings: {e}")
-
-    def _apply_dark_theme(self) -> None:
-        """Apply dark theme to the application."""
-        # TODO: Implement dark theme application
-        # This would involve setting stylesheets or using a dark palette
-        pass
-
-    def _show_preferences(self) -> None:
-        """Show the preferences dialog."""
-        if self._settings_dialog is None:
-            self._settings_dialog = SettingsDialog(self.settings_manager, self)
-            _ = self._settings_dialog.settings_applied.connect(
-                self._on_settings_applied
-            )
-
-        if self._settings_dialog is not None:
-            self._settings_dialog.load_current_settings()
-            self._settings_dialog.show()
-            self._settings_dialog.raise_()
-            self._settings_dialog.activateWindow()
-
-    def _on_settings_applied(self) -> None:
-        """Handle settings being applied from preferences dialog."""
-        # Reload and apply all settings
-        self._apply_ui_settings()
-        self._apply_cache_settings()
-
-        # Update thumbnail sizes in grids
-        thumbnail_size = self.settings_manager.get_thumbnail_size()
-        if (
-            hasattr(self.shot_grid, "size_slider")
-            and self.shot_grid.size_slider is not None
-        ):
-            self.shot_grid.size_slider.setValue(thumbnail_size)
-        if (
-            hasattr(self.threede_shot_grid, "size_slider")
-            and self.threede_shot_grid.size_slider is not None
-        ):
-            self.threede_shot_grid.size_slider.setValue(thumbnail_size)
-        if (
-            hasattr(self.previous_shots_grid, "size_slider")
-            and self.previous_shots_grid.size_slider is not None
-        ):
-            self.previous_shots_grid.size_slider.setValue(thumbnail_size)
-
-        logger.info("Settings applied successfully")
-
-    def _import_settings(self) -> None:
-        """Import settings from file."""
-        from PySide6.QtWidgets import QFileDialog
-
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Import Settings", "", "JSON Files (*.json);;All Files (*)"
-        )
-
-        if file_path:
-            if self.settings_manager.import_settings(file_path):
-                # Reload settings
-                self._apply_ui_settings()
-                self._apply_cache_settings()
-                _ = QMessageBox.information(
-                    self, "Import Success", "Settings imported successfully."
-                )
-            else:
-                _ = QMessageBox.warning(
-                    self,
-                    "Import Error",
-                    "Failed to import settings. Check the file format.",
-                )
-
-    def _export_settings(self) -> None:
-        """Export settings to file."""
-        from PySide6.QtWidgets import QFileDialog
-
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Export Settings",
-            "shotbot_settings.json",
-            "JSON Files (*.json);;All Files (*)",
-        )
-
-        if file_path:
-            if self.settings_manager.export_settings(file_path):
-                _ = QMessageBox.information(
-                    self, "Export Success", f"Settings exported to:\n{file_path}"
-                )
-            else:
-                _ = QMessageBox.warning(
-                    self, "Export Error", "Failed to export settings."
-                )
-
-    def _reset_layout(self) -> None:
-        """Reset window layout to defaults."""
-        reply = QMessageBox.question(
-            self,
-            "Reset Layout",
-            "Reset window layout to defaults?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            # Reset window size
-            self.resize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
-
-            # Reset splitter
-            self.splitter.setSizes([840, 360])  # 70/30 split
-
-            # Reset to first tab
-            self.tab_widget.setCurrentIndex(0)
-
-            # Reset window state
-            self.settings_manager.set_window_maximized(False)
-            self.showNormal()
-
-            logger.info("Layout reset to defaults")
-
 
 # Background refresh methods and BackgroundRefreshWorker removed - ShotModel now uses reactive signals instead of polling

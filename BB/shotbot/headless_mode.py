@@ -115,7 +115,7 @@ class HeadlessMode:
         HeadlessMode.configure_qt_for_headless()
 
         # Set application attributes before creating QApplication
-        QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)  # type: ignore
+        QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
         # Create application with offscreen platform
         app = QApplication(argv)

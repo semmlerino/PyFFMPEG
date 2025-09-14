@@ -273,7 +273,7 @@ def main() -> None:
     # Capture structure
     structure = capture_structure(args.shows)
     # Cast to dict for proper access
-    structure_dict = cast(Dict[str, Any], structure)
+    structure_dict = cast("Dict[str, Any]", structure)
 
     # Output as JSON
     output = json.dumps(structure_dict, indent=2, sort_keys=True)

@@ -471,5 +471,9 @@ class PreviousShotsItemModel(QAbstractListModel):
             qimage = self._thumbnail_cache.get(shot.full_name)
         if qimage:
             # Convert QImage to QPixmap in main thread
-            return QPixmap.fromImage(qimage)
+            if isinstance(qimage, QImage):
+                return QPixmap.fromImage(qimage)
+            elif isinstance(qimage, QPixmap):
+                return qimage
+            # Handle None case implicitly
         return None
