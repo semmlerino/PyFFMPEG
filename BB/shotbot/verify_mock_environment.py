@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
-def test_mock_pool():
+def test_mock_pool() -> int:
     """Test the mock workspace pool directly."""
     from mock_workspace_pool import create_mock_pool_from_filesystem
 
@@ -64,7 +64,7 @@ def test_mock_pool():
     return len(shots)
 
 
-def test_shot_model():
+def test_shot_model() -> int:
     """Test that ShotModel properly loads all shots."""
     from cache_manager import CacheManager
     from process_pool_factory import ProcessPoolFactory
@@ -115,7 +115,7 @@ def test_shot_model():
         return 0
 
 
-def test_headless_app():
+def test_headless_app() -> int:
     """Test running the app in headless mode."""
     from headless_mode import HeadlessMainWindow
 

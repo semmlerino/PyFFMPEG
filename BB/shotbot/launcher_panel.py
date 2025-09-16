@@ -297,6 +297,18 @@ class LauncherPanel(QWidget):
                 shortcut="N",
                 checkboxes=[
                     CheckboxConfig(
+                        label="Open latest scene",
+                        tooltip="Open the most recent Nuke script from workspace (creates v001 if none exist)",
+                        key="open_latest_scene",
+                        default=True,
+                    ),
+                    CheckboxConfig(
+                        label="Create new file",
+                        tooltip="Always create a new version of the Nuke script",
+                        key="create_new_file",
+                        default=False,
+                    ),
+                    CheckboxConfig(
                         label="Include undistortion nodes",
                         tooltip="Automatically include the latest undistortion .nk file",
                         key="include_undistortion",

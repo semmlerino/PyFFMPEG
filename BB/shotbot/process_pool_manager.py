@@ -634,14 +634,41 @@ class ProcessPoolManager(QObject):
 
         return result
 
-    def shutdown(self) -> None:
-        """Shutdown the process pool manager."""
+    def shutdown(self, timeout: float = 5.0) -> None:
+        """Shutdown the process pool manager.
+
+        Args:
+            timeout: Maximum time to wait for executor shutdown in seconds
+        """
         # Clear round-robin tracking
         with self._session_lock:
             self._session_round_robin.clear()
 
-        # Shutdown executor
-        self._executor.shutdown(wait=True)
+        # Shutdown executor with timeout
+        logger.debug(f"Shutting down ProcessPoolManager executor with timeout={timeout}s")
+        try:
+            # First signal shutdown without waiting
+            self._executor.shutdown(wait=False)
+
+            # Then wait with timeout
+            import time
+            start_time = time.time()
+
+            # Check if threads are finished, with polling
+            while time.time() - start_time < timeout:
+                # Access the internal _threads set to check if empty
+                if hasattr(self._executor, '_threads') and not self._executor._threads:
+                    logger.debug("ProcessPoolManager executor threads completed gracefully")
+                    break
+                time.sleep(0.1)  # Small polling interval
+            else:
+                logger.warning(
+                    f"ProcessPoolManager executor shutdown timeout after {timeout}s, "
+                    f"some threads may still be running"
+                )
+
+        except Exception as e:
+            logger.error(f"Error during ProcessPoolManager executor shutdown: {e}")
 
         logger.info("ProcessPoolManager shutdown complete")
 

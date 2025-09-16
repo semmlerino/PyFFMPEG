@@ -91,7 +91,7 @@ class Config:
     # Rez Environment Configuration
     USE_REZ_ENVIRONMENT = True  # Enable rez environment wrapper when available
     REZ_AUTO_DETECT = True  # Automatically detect rez availability via REZ_USED env var
-    REZ_NUKE_PACKAGES = ["nuke"]  # Default rez packages for Nuke (can be overridden)
+    REZ_NUKE_PACKAGES = ["nuke", "python-3.11"]  # Default rez packages for Nuke with Python 3.11 compatibility
     REZ_MAYA_PACKAGES = ["maya"]  # Default rez packages for Maya
     REZ_3DE_PACKAGES = ["3de"]  # Default rez packages for 3DE
 
@@ -101,6 +101,19 @@ class Config:
     )
     NUKE_USE_LOADER_SCRIPT = (
         True  # Use loader script when combining plate + undistortion
+    )
+    NUKE_FIX_OCIO_CRASH = (
+        True  # Whether to apply environment fixes to prevent OCIO plugin crashes
+    )
+    NUKE_SKIP_PROBLEMATIC_PLUGINS = (
+        True  # Whether to skip known problematic plugins that cause crashes
+    )
+    NUKE_PROBLEMATIC_PLUGIN_PATHS = [
+        "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4.0.0rc9/python-3.11/init",
+        # Add other problematic plugin paths here
+    ]
+    NUKE_OCIO_FALLBACK_CONFIG = (
+        "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
     )
 
     # Persistent Terminal Settings

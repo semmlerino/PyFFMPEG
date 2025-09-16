@@ -50,6 +50,12 @@ from config import ThreadingConfig
 
 logger = logging.getLogger(__name__)
 
+# Log a debug message if this module is imported (helps track unexpected imports)
+logger.debug(
+    "threading_utils module imported - if this appears during normal application "
+    "usage, there may be an unexpected import chain"
+)
+
 
 class ThreadSafeProgressTracker:
     """Thread-safe progress tracking for concurrent operations.
@@ -485,7 +491,8 @@ class ThreadPoolManager:
         """
         self.max_workers = max_workers or ThreadingConfig.MAX_WORKER_THREADS
         self.cancel_event = cancel_event
-        self.shutdown_timeout = shutdown_timeout or ThreadingConfig.THREAD_POOL_TIMEOUT
+        # Reduce default timeout to be less noisy
+        self.shutdown_timeout = shutdown_timeout or 3.0
         self.executor: concurrent.futures.ThreadPoolExecutor | None = None
         self._entered = False
 
@@ -545,10 +552,10 @@ class ThreadPoolManager:
 
                 time.sleep(0.05)  # Short polling interval
             else:
-                # Timeout reached
-                logger.warning(
+                # Timeout reached - use debug level to be less noisy
+                logger.debug(
                     f"Executor shutdown timeout after {self.shutdown_timeout}s, "
-                    f"some threads may still be running"
+                    f"some threads may still be running (this is usually not critical)"
                 )
 
             logger.debug("ThreadPoolManager executor shutdown completed gracefully")

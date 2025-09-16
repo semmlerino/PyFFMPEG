@@ -10,12 +10,17 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
+from typing_extensions import ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
+
+# Type variables for proper generic typing
+P = ParamSpec('P')
+T = TypeVar('T')
 
 
 class HeadlessMode:
@@ -181,7 +186,7 @@ class HeadlessMode:
             return False
 
     @staticmethod
-    def skip_if_headless(func):
+    def skip_if_headless(func: Callable[P, T]) -> Callable[P, T | None]:
         """Decorator to skip function execution in headless mode.
 
         Useful for UI operations that should be skipped when no display.
@@ -193,7 +198,7 @@ class HeadlessMode:
             Wrapped function that skips in headless mode
         """
 
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
             if HeadlessMode.is_headless_environment():
                 logger.debug(f"Skipping {func.__name__} in headless mode")
                 return None
@@ -204,7 +209,7 @@ class HeadlessMode:
         return wrapper
 
     @staticmethod
-    def require_display(func):
+    def require_display(func: Callable[P, T]) -> Callable[P, T]:
         """Decorator that raises an error if no display is available.
 
         Use for functions that absolutely require a display.
@@ -216,7 +221,7 @@ class HeadlessMode:
             Wrapped function that checks for display
         """
 
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             if not HeadlessMode.is_display_available():
                 raise RuntimeError(
                     f"{func.__name__} requires a display but none is available. "

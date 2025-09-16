@@ -288,10 +288,11 @@ class TestMainWindowUICoordination:
         assert window.threede_shot_grid is not None
         assert window.previous_shots_grid is not None
 
-        # Verify app launcher buttons created
-        assert len(window.app_buttons) > 0
-        assert "3de" in window.app_buttons
-        assert "nuke" in window.app_buttons
+        # Verify app launcher sections created in launcher panel
+        assert window.launcher_panel is not None
+        assert len(window.launcher_panel.app_sections) > 0
+        assert "3de" in window.launcher_panel.app_sections
+        assert "nuke" in window.launcher_panel.app_sections
 
     def test_shot_selection_enables_launchers(
         self, main_window_with_real_components, qtbot
@@ -300,8 +301,8 @@ class TestMainWindowUICoordination:
         window = main_window_with_real_components
 
         # Initially buttons should be disabled
-        for button in window.app_buttons.values():
-            assert not button.isEnabled()
+        for section in window.launcher_panel.app_sections.values():
+            assert not section.launch_button.isEnabled()
 
         # Create and select a test shot
         test_shot = Shot("testshow", "seq01", "shot01", "/test/workspace")
@@ -314,8 +315,8 @@ class TestMainWindowUICoordination:
         qtbot.wait(10)
 
         # Buttons should now be enabled
-        for button in window.app_buttons.values():
-            assert button.isEnabled()
+        for section in window.launcher_panel.app_sections.values():
+            assert section.launch_button.isEnabled()
 
     def test_tab_switching_updates_context(
         self, main_window_with_real_components, qtbot
@@ -392,8 +393,9 @@ workspace /shows/test/shots/seq01/shot02""")
         qtbot.wait(10)
 
         # Click 3de button
-        button_3de = window.app_buttons.get("3de")
-        assert button_3de is not None
+        section_3de = window.launcher_panel.app_sections.get("3de")
+        assert section_3de is not None
+        button_3de = section_3de.launch_button
         assert button_3de.isEnabled()
 
         # Simulate button click
@@ -512,7 +514,7 @@ workspace /shows/test/shots/seq01/shot02""")
         window.shot_grid.size_slider.setValue(test_size)
 
         # Save settings
-        window._save_settings()
+        window.settings_controller.save_settings()
 
         # Create new window to test restoration
         new_window = MainWindow(cache_manager=window.cache_manager)

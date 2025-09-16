@@ -173,7 +173,7 @@ class LauncherParameter:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "LauncherParameter":
+    def from_dict(cls, data: dict[str, Any]) -> LauncherParameter:
         """Create parameter from dictionary.
 
         Args:
@@ -326,7 +326,7 @@ class Launcher:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Launcher":
+    def from_dict(cls, data: dict[str, Any]) -> Launcher:
         """Create launcher from dictionary.
 
         Args:
@@ -351,7 +351,7 @@ class Launcher:
         except (TypeError, ValueError) as e:
             raise ValueError(f"Invalid launcher data: {e}")
 
-    def clone(self, new_id: str | None = None, new_name: str | None = None) -> "Launcher":
+    def clone(self, new_id: str | None = None, new_name: str | None = None) -> Launcher:
         """Create a copy of this launcher with optional new ID/name.
 
         Args:

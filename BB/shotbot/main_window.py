@@ -78,6 +78,7 @@ if TYPE_CHECKING:
     from launcher.models import CustomLauncher
     from launcher_dialog import LauncherManagerDialog
     from launcher_manager import LauncherManager
+    from settings_dialog import SettingsDialog
 
 # Runtime imports (needed at runtime)
 from cache_manager import CacheManager  # Need at runtime for instantiation
@@ -97,7 +98,6 @@ from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
 from process_pool_manager import ProcessPoolManager
 from progress_manager import ProgressManager
-from settings_dialog import SettingsDialog
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
@@ -1009,8 +1009,9 @@ class MainWindow(QMainWindow):
 
     def _on_refresh_started(self) -> None:
         """Handle refresh started signal from model."""
-        # Progress is already shown by _refresh_shots context manager
-        pass
+        # Update status bar to show refresh in progress
+        self._update_status("Refreshing shots...")
+        # Note: When called via _refresh_shots(), ProgressManager also shows progress
 
     def _on_refresh_finished(self, success: bool, has_changes: bool) -> None:
         """Handle refresh finished signal from model.
@@ -1236,12 +1237,25 @@ class MainWindow(QMainWindow):
             open_latest_threede = (
                 app_name == "3de" and self.launcher_panel.get_checkbox_state("3de", "open_latest_threede")
             )
+            # Check Nuke workspace script options
+            open_latest_scene = (
+                app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "open_latest_scene")
+            )
+            create_new_file = (
+                app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "create_new_file")
+            )
+
+            # Note: open_latest_scene takes priority if both are checked
+            if open_latest_scene and create_new_file:
+                create_new_file = False
 
             success = self.command_launcher.launch_app(
                 app_name,
                 include_undistortion,
                 include_raw_plate,
                 open_latest_threede,
+                open_latest_scene,
+                create_new_file,
             )
 
         if success:

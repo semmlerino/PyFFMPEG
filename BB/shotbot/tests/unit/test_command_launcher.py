@@ -164,14 +164,20 @@ class TestSignalEmissions:
 
         # Test behavior, not implementation
         assert result is True
-        assert len(self.emitted_commands) == 1
+        # With Nuke environment fixes, we may emit multiple log messages
+        assert len(self.emitted_commands) >= 1
         assert len(self.emitted_errors) == 0
 
-        timestamp, command = self.emitted_commands[0]
-        assert isinstance(timestamp, str)
-        assert len(timestamp.split(":")) == 3  # HH:MM:SS format
-        assert "ws /tmp/test_workspace" in command
-        assert "nuke" in command
+        # Check the actual command is in the emissions (may have setup logs first)
+        final_command_found = False
+        for timestamp, command in self.emitted_commands:
+            assert isinstance(timestamp, str)
+            assert len(timestamp.split(":")) == 3  # HH:MM:SS format
+            if "ws /tmp/test_workspace" in command and "nuke" in command:
+                final_command_found = True
+                break
+
+        assert final_command_found, "Expected command with workspace and nuke not found"
 
     def test_command_error_signal(self, qtbot) -> None:
         """Test command_error signal emission behavior."""

@@ -88,6 +88,8 @@ class VersionUtils:
     @staticmethod
     @lru_cache(maxsize=256)
     def extract_version_from_path(path: str | Path) -> str | None: ...
+    @staticmethod
+    def get_next_version_number(directory: str | Path, pattern: str) -> int: ...
 
 class FileUtils:
     """Utilities for file operations and validation."""

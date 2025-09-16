@@ -16,13 +16,11 @@ from filesystem_scanner import FileSystemScanner
 from logging_mixin import LoggingMixin, log_execution
 from scene_cache import SceneCache
 from scene_discovery_strategy import (
-    SceneDiscoveryStrategy,
     create_discovery_strategy,
 )
 from scene_parser import SceneParser
 
 if TYPE_CHECKING:
-    from pathlib import Path
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
@@ -43,7 +41,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         strategy_type: str = "local",
         enable_caching: bool = True,
         cache_ttl: int = 1800,  # 30 minutes
-        **strategy_kwargs: object
+        **strategy_kwargs: object,
     ) -> None:
         """Initialize scene discovery coordinator.
 
@@ -71,7 +69,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             "errors": 0,
         }
 
-        self.logger.info(f"Initialized SceneDiscoveryCoordinator with {strategy_type} strategy")
+        self.logger.info(
+            f"Initialized SceneDiscoveryCoordinator with {strategy_type} strategy"
+        )
 
     # Template Method - defines the algorithm skeleton
     @log_execution(include_args=False)
@@ -119,7 +119,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                     self.stats["cache_misses"] += 1
 
             # Step 3: Discover scenes using strategy
-            with self.logger.context(operation="scene_discovery", shot=f"{show}/{sequence}/{shot}"):
+            with self.logger.context(
+                operation="scene_discovery", shot=f"{show}/{sequence}/{shot}"
+            ):
                 scenes = self.strategy.find_scenes_for_shot(
                     shot_workspace_path, show, sequence, shot, excluded_users
                 )
@@ -141,7 +143,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         except Exception as e:
             self.stats["errors"] += 1
-            self.logger.error(f"Error discovering scenes for {show}/{sequence}/{shot}: {e}")
+            self.logger.error(
+                f"Error discovering scenes for {show}/{sequence}/{shot}: {e}"
+            )
             return []
 
     @log_execution(include_args=False)
@@ -199,9 +203,13 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                         all_scenes.extend(valid_scenes)
                         self.stats["scenes_discovered"] += len(valid_scenes)
 
-                        self.logger.info(f"Discovered {len(valid_scenes)} scenes in show {show}")
+                        self.logger.info(
+                            f"Discovered {len(valid_scenes)} scenes in show {show}"
+                        )
 
-            self.logger.info(f"Total scenes discovered across all shows: {len(all_scenes)}")
+            self.logger.info(
+                f"Total scenes discovered across all shows: {len(all_scenes)}"
+            )
             return all_scenes
 
         except Exception as e:
@@ -284,12 +292,14 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         return True
 
-    def _validate_and_filter_scenes(self, scenes: list[ThreeDEScene]) -> list[ThreeDEScene]:
+    def _validate_and_filter_scenes(
+        self, scenes: list[ThreeDEScene]
+    ) -> list[ThreeDEScene]:
         """Validate and filter discovered scenes.
 
         This is a hook method that can be overridden by subclasses.
         """
-        valid_scenes = []
+        valid_scenes: list[ThreeDEScene] = []
 
         for scene in scenes:
             if self._is_valid_scene(scene):
@@ -326,9 +336,17 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             show_root = None
 
             # Find the parent directory containing "shots"
-            for parent in workspace_path.parents:
-                if parent.name == "shots":
-                    show_root = str(parent.parent)
+            # The show root should be the parent of the show directory (e.g., /shows)
+            for i, parent in enumerate(workspace_path.parents):
+                if parent.name == "shots" and i > 0:
+                    # The parent of "shots" is the show directory
+                    # The parent of that is the shows root
+                    show_dir = parent.parent  # This is the show directory
+                    if show_dir.parent:  # This is the shows root
+                        show_root = str(show_dir.parent)
+                    else:
+                        # If there's no parent, use the show directory itself
+                        show_root = str(show_dir)
                     break
 
             if show_root:
@@ -338,7 +356,9 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         # Fallback if no show roots found
         if not show_info:
-            self.logger.warning("No show roots found from workspace paths, using default /shows")
+            self.logger.warning(
+                "No show roots found from workspace paths, using default /shows"
+            )
             unique_shows = {shot.show for shot in user_shots}
             show_info["/shows"] = unique_shows
 
@@ -353,10 +373,12 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         # Add cache statistics if caching is enabled
         if self.enable_caching and self.cache:
             cache_stats = self.cache.get_cache_stats()
-            stats.update({
-                f"cache_{k}": v for k, v in cache_stats.items()
+            cache_updates = {
+                f"cache_{k}": int(v)
+                for k, v in cache_stats.items()
                 if k not in ["hit_rate_percent", "average_age_seconds"]
-            })
+            }
+            stats.update(cache_updates)
 
         return stats
 
@@ -429,7 +451,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
 
 # Backward compatibility interface
-class RefactoredThreeDESceneFinder(SceneDiscoveryCoordinator):
+class RefactoredThreeDESceneFinder:
     """Backward compatible interface to the refactored scene finder.
 
     This class maintains the same interface as the original monolithic
@@ -438,25 +460,39 @@ class RefactoredThreeDESceneFinder(SceneDiscoveryCoordinator):
 
     def __init__(self, strategy_type: str = "local") -> None:
         """Initialize with backward compatible defaults."""
-        super().__init__(
+        self._coordinator = SceneDiscoveryCoordinator(
             strategy_type=strategy_type,
             enable_caching=True,
-            cache_ttl=1800  # 30 minutes
+            cache_ttl=1800,  # 30 minutes
         )
 
-    @staticmethod
+    # Delegate instance methods to the coordinator
     def find_scenes_for_shot(
+        self,
         shot_workspace_path: str,
         show: str,
         sequence: str,
         shot: str,
         excluded_users: set[str] | None = None,
     ) -> list[ThreeDEScene]:
-        """Static method for backward compatibility."""
-        coordinator = RefactoredThreeDESceneFinder()
-        return coordinator.find_scenes_for_shot(
+        """Find scenes for a shot using coordinator."""
+        return self._coordinator.find_scenes_for_shot(
             shot_workspace_path, show, sequence, shot, excluded_users
         )
+
+    def find_all_scenes_in_shows(
+        self, user_shots: list[Shot], excluded_users: set[str] | None = None
+    ) -> list[ThreeDEScene]:
+        """Find all scenes in shows using coordinator."""
+        return self._coordinator.find_all_scenes_in_shows(user_shots, excluded_users)
+
+    def get_strategy_name(self) -> str:
+        """Get strategy name from coordinator."""
+        return self._coordinator.get_strategy_name()
+
+    def get_statistics(self) -> dict[str, int]:
+        """Get statistics from coordinator."""
+        return self._coordinator.get_statistics()
 
     @staticmethod
     def find_all_scenes_in_shows_truly_efficient(
@@ -474,6 +510,17 @@ class RefactoredThreeDESceneFinder(SceneDiscoveryCoordinator):
         progress_callback: Callable[[int, str], None] | None = None,
         cancel_flag: Callable[[], bool] | None = None,
     ) -> list[ThreeDEScene]:
-        """Static method for backward compatibility with parallel discovery."""
-        coordinator = RefactoredThreeDESceneFinder(strategy_type="parallel")
-        return coordinator.find_all_scenes_in_shows(user_shots, excluded_users)
+        """Static method for backward compatibility with parallel discovery.
+
+        Since the refactored architecture doesn't yet support cancellation properly,
+        we delegate to the monolithic implementation which has proper support.
+        """
+        # Import the monolithic implementation that has proper cancellation support
+        from threede_scene_finder_optimized_monolithic_backup import (
+            OptimizedThreeDESceneFinder as MonolithicFinder,
+        )
+
+        # Use the monolithic version that properly handles cancellation
+        return MonolithicFinder.find_all_scenes_in_shows_truly_efficient_parallel(
+            user_shots, excluded_users, progress_callback, cancel_flag
+        )

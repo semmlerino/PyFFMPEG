@@ -6,7 +6,7 @@ Verify enhanced mock environment has 3DE files for both tabs.
 from pathlib import Path
 
 
-def verify_mock_environment(shows_root) -> bool:
+def verify_mock_environment(shows_root: str | Path) -> bool:
     """Verify the enhanced mock environment has both gabriel-h and other user 3DE files."""
     shows_path = Path(shows_root)
 

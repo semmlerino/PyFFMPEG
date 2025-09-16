@@ -10,7 +10,7 @@ Part of the Phase 2 refactoring to break down the monolithic scene finder.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable, Generator
+from typing import TYPE_CHECKING, Generator
 
 from filesystem_scanner import FileSystemScanner
 from logging_mixin import LoggingMixin
@@ -19,6 +19,7 @@ from scene_parser import SceneParser
 
 if TYPE_CHECKING:
     from pathlib import Path
+
     from threede_scene_model import ThreeDEScene
 
 
@@ -109,6 +110,7 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
 
         try:
             from pathlib import Path
+
             from utils import ValidationUtils
 
             # Input validation
@@ -205,9 +207,7 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                 return []
 
             # Use targeted search for efficiency
-            from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
-
-            file_results = OptimizedThreeDESceneFinder.find_all_3de_files_in_show_targeted(
+            file_results = self.scanner.find_all_3de_files_in_show_targeted(
                 show_root, show, excluded_users
             )
 
@@ -342,16 +342,10 @@ class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
                 self.logger.warning(f"Show path does not exist: {show_path}")
                 return []
 
-            # Use parallel search for efficiency
-            from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
-
-            file_results = OptimizedThreeDESceneFinder.find_all_3de_files_in_show_parallel(
-                show_root,
-                show,
-                excluded_users,
-                num_workers=self.num_workers,
-                progress_callback=None,  # Could be exposed as parameter
-                cancel_flag=None  # Could be exposed as parameter
+            # Use parallel search for efficiency - for now delegate to targeted search
+            # TODO: Implement parallel version in filesystem_scanner
+            file_results = self.scanner.find_all_3de_files_in_show_targeted(
+                show_root, show, excluded_users
             )
 
             self.logger.info(f"Found {len(file_results)} .3de files in {show} (parallel)")
@@ -561,4 +555,4 @@ def create_discovery_strategy(strategy_type: str = "local", **kwargs: object) ->
         raise ValueError(f"Unknown strategy type: {strategy_type}. Available: {list(strategies.keys())}")
 
     strategy_class = strategies[strategy_type]
-    return strategy_class(**kwargs)  # type: ignore
+    return strategy_class(**kwargs)  # type: ignore[misc]

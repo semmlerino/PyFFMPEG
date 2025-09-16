@@ -295,6 +295,10 @@ class ShotItemModel(QAbstractListModel):
         """
         self.beginResetModel()
 
+        # Stop any active thumbnail loading
+        if self._thumbnail_timer.isActive():
+            self._thumbnail_timer.stop()
+
         self._shots = shots
         self._thumbnail_cache.clear()
         self._loading_states.clear()

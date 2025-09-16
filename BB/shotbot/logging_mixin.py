@@ -25,6 +25,7 @@ import threading
 import time
 from contextlib import contextmanager
 from typing import Any, Callable, Generator, TypeVar, cast
+
 from typing_extensions import ParamSpec
 
 # Type variables for generic decorator
@@ -140,7 +141,7 @@ class LoggingMixin:
         if not hasattr(self, cache_attr):
             setattr(self, cache_attr, ContextualLogger(base_logger))
 
-        return cast(ContextualLogger, getattr(self, cache_attr))
+        return cast('ContextualLogger', getattr(self, cache_attr))
 
 
 def log_execution(

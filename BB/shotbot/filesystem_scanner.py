@@ -239,14 +239,18 @@ class FileSystemScanner(LoggingMixin):
                                 if threede_file.is_file():
                                     files.append((entry_name, threede_file))
                                     found_count += 1
-                                    self.logger.debug(f"Found .3de file: {threede_file}")
+                                    self.logger.debug(
+                                        f"Found .3de file: {threede_file}"
+                                    )
 
                         if found_count > 0:
                             self.logger.info(
                                 f"Found {found_count} .3de files for user {entry_name}"
                             )
                     except (OSError, PermissionError) as e:
-                        self.logger.warning(f"Permission denied accessing {user_path}: {e}")
+                        self.logger.warning(
+                            f"Permission denied accessing {user_path}: {e}"
+                        )
                         continue
 
         except (OSError, PermissionError) as e:
@@ -347,7 +351,9 @@ class FileSystemScanner(LoggingMixin):
             else:
                 # Larger workload: use subprocess approach
                 self.logger.debug(f"Using subprocess method for {user_count} users")
-                files = self.find_3de_files_subprocess_optimized(user_dir, excluded_users)
+                files = self.find_3de_files_subprocess_optimized(
+                    user_dir, excluded_users
+                )
 
         except Exception as e:
             self.logger.warning(f"Error in progressive discovery: {e}")
@@ -471,7 +477,9 @@ class FileSystemScanner(LoggingMixin):
         return shots
 
     def estimate_scan_size(
-        self, shot_tuples: list[tuple[str, str, str, str]], excluded_users: set[str] | None = None
+        self,
+        shot_tuples: list[tuple[str, str, str, str]],
+        excluded_users: set[str] | None = None,
     ) -> tuple[int, int]:
         """Estimate the size of a scan operation.
 
@@ -552,7 +560,9 @@ class FileSystemScanner(LoggingMixin):
 
                 if user_dir.exists():
                     # Find files for this shot using progressive discovery
-                    file_pairs = self.find_3de_files_progressive(user_dir, excluded_users)
+                    file_pairs = self.find_3de_files_progressive(
+                        user_dir, excluded_users
+                    )
                     current_batch.extend(file_pairs)
 
                 # Yield batch when it reaches the target size
@@ -571,3 +581,219 @@ class FileSystemScanner(LoggingMixin):
         # Yield any remaining files in the final batch
         if current_batch:
             yield current_batch, total_shots, total_shots, "Scan complete"
+
+    def find_all_3de_files_in_show_targeted(
+        self, show_root: str, show: str, excluded_users: set[str] | None = None
+    ) -> list[tuple[Path, str, str, str, str, str]]:
+        """Find all .3de files using a single efficient search.
+
+        Uses a single find command to locate all .3de files in user and publish
+        directories, avoiding unnecessary iteration through empty shot directories.
+
+        Args:
+            show_root: Root path for shows (e.g., '/shows')
+            show: Show name
+            excluded_users: Set of usernames to exclude
+
+        Returns:
+            List of tuples: (file_path, show, sequence, shot, user, plate)
+        """
+        import subprocess
+        import traceback
+
+        from scene_parser import SceneParser
+
+        if not hasattr(self, "parser"):
+            self.parser = SceneParser()
+
+        self.logger.info(
+            "=== STARTING find_all_3de_files_in_show_targeted (optimized) ==="
+        )
+        self.logger.info(f"  show_root: {show_root}")
+        self.logger.info(f"  show: {show}")
+
+        show_path = Path(show_root) / show
+        shots_dir = show_path / "shots"
+
+        if not shots_dir.exists():
+            self.logger.warning(f"No shots directory found: {shots_dir}")
+            return []
+
+        results: list[tuple[Path, str, str, str, str, str]] = []
+        excluded_users = excluded_users or set()
+
+        start_time = time.time()
+        file_count = 0
+        parsed_count = 0
+        unique_shots = set()
+
+        try:
+            self.logger.info("Using single-search strategy to find all .3de files")
+
+            # Build find command to search only in user and publish directories
+            # This avoids checking every shot directory
+            find_cmd = [
+                "find",
+                str(shots_dir),
+                "-type",
+                "f",
+                "(",
+                "-path",
+                "*/user/*",
+                "-o",
+                "-path",
+                "*/publish/*",
+                ")",
+                "(",
+                "-name",
+                "*.3de",
+                "-o",
+                "-name",
+                "*.3DE",
+                ")",
+                "-print",
+            ]
+
+            self.logger.debug(f"Running find command: {' '.join(find_cmd)}")
+
+            try:
+                # Run find command with timeout
+                result = subprocess.run(
+                    find_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,  # 60 second timeout
+                )
+
+                if result.returncode == 0 and result.stdout:
+                    # Process each found file
+                    for line in result.stdout.strip().split("\n"):
+                        if not line:
+                            continue
+
+                        file_count += 1
+                        threede_file = Path(line)
+
+                        # Log progress
+                        if file_count <= 5 or file_count % 50 == 0:
+                            elapsed = time.time() - start_time
+                            self.logger.info(
+                                f"Progress: Found {file_count} .3de files, "
+                                f"parsed {parsed_count} valid scenes from {len(unique_shots)} shots "
+                                f"({elapsed:.1f}s)"
+                            )
+
+                        # Parse the file path using the extracted parser
+                        parsed = self.parser.parse_3de_file_path(
+                            threede_file, show_path, show, excluded_users
+                        )
+
+                        if parsed:
+                            results.append(parsed)
+                            parsed_count += 1
+
+                            # Track unique shots
+                            _, _, sequence, shot, _, _ = parsed
+                            unique_shots.add(f"{sequence}/{shot}")
+
+                            if parsed_count <= 3:
+                                self.logger.debug(
+                                    f"  Parsed: {threede_file.relative_to(show_path)}"
+                                )
+
+                elif result.returncode != 0:
+                    self.logger.warning(
+                        f"Find command failed with return code {result.returncode}"
+                    )
+                    self.logger.warning(f"stderr: {result.stderr}")
+                    # Fall back to Python-based search
+                    self.logger.info("Falling back to Python-based search")
+                    return self._fallback_python_search(
+                        shots_dir, show_path, show, excluded_users
+                    )
+
+            except subprocess.TimeoutExpired:
+                self.logger.error("Find command timed out after 60 seconds")
+                self.logger.info("Falling back to Python-based search")
+                return self._fallback_python_search(
+                    shots_dir, show_path, show, excluded_users
+                )
+            except FileNotFoundError:
+                self.logger.warning(
+                    "'find' command not available, using Python-based search"
+                )
+                return self._fallback_python_search(
+                    shots_dir, show_path, show, excluded_users
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error in optimized search: {e}")
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+
+        elapsed = time.time() - start_time
+        self.logger.info(
+            "=== COMPLETED find_all_3de_files_in_show_targeted (optimized) ==="
+        )
+        self.logger.info(f"  Found {file_count} .3de files in {elapsed:.2f}s")
+        self.logger.info(f"  Parsed {parsed_count} valid scenes")
+        self.logger.info(f"  Unique shots with 3DE files: {len(unique_shots)}")
+
+        # Log sample of unique shots
+        if unique_shots:
+            sample_shots = list(unique_shots)[:5]
+            self.logger.debug(f"  Sample shots: {', '.join(sample_shots)}")
+
+        return results
+
+    def _fallback_python_search(
+        self,
+        shots_dir: Path,
+        show_path: Path,
+        show: str,
+        excluded_users: set[str] | None,
+    ) -> list[tuple[Path, str, str, str, str, str]]:
+        """Fallback Python-based search when find command is not available.
+
+        This uses a more efficient approach than the original by using
+        glob patterns directly on the shots directory.
+        """
+        from scene_parser import SceneParser
+
+        if not hasattr(self, "parser"):
+            self.parser = SceneParser()
+
+        results: list[tuple[Path, str, str, str, str, str]] = []
+        excluded_users = excluded_users or set()
+
+        self.logger.info("Using Python-based fallback search")
+        start_time = time.time()
+        file_count = 0
+
+        try:
+            # Search for .3de files in user directories
+            for pattern in ["*/*/user/**/*.3de", "*/*/user/**/*.3DE"]:
+                for threede_file in shots_dir.glob(pattern):
+                    file_count += 1
+                    parsed = self.parser.parse_3de_file_path(
+                        threede_file, show_path, show, excluded_users
+                    )
+                    if parsed:
+                        results.append(parsed)
+
+            # Search for .3de files in publish directories
+            for pattern in ["*/*/publish/**/*.3de", "*/*/publish/**/*.3DE"]:
+                for threede_file in shots_dir.glob(pattern):
+                    file_count += 1
+                    parsed = self.parser.parse_3de_file_path(
+                        threede_file, show_path, show, excluded_users
+                    )
+                    if parsed:
+                        results.append(parsed)
+
+        except Exception as e:
+            self.logger.error(f"Error in Python fallback search: {e}")
+
+        elapsed = time.time() - start_time
+        self.logger.info(f"Python search found {file_count} files in {elapsed:.2f}s")
+
+        return results

@@ -187,12 +187,83 @@ class CommandLauncher(QObject):
         # This adds single quotes around the string and escapes any single quotes within
         return shlex.quote(path)
 
+    def _get_nuke_environment_fixes(self) -> str:
+        """Generate environment variable exports to fix Nuke OCIO crashes.
+
+        Returns:
+            String containing bash export statements for environment fixes
+        """
+        if not Config.NUKE_FIX_OCIO_CRASH:
+            return ""
+
+        env_exports: list[str] = []
+
+        # Skip problematic plugin paths by modifying NUKE_PATH
+        if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS and Config.NUKE_PROBLEMATIC_PLUGIN_PATHS:
+            logger.info(
+                f"Excluding {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
+                f"plugin paths from NUKE_PATH"
+            )
+
+            # Get current NUKE_PATH and filter out problematic paths
+            current_nuke_path = os.environ.get("NUKE_PATH", "")
+            nuke_paths = current_nuke_path.split(":") if current_nuke_path else []
+
+            # Filter out problematic paths
+            filtered_paths: list[str] = []
+            excluded_count = 0
+            for path in nuke_paths:
+                is_problematic = any(
+                    problematic_path in path
+                    for problematic_path in Config.NUKE_PROBLEMATIC_PLUGIN_PATHS
+                )
+                if not is_problematic:
+                    filtered_paths.append(path)
+                else:
+                    excluded_count += 1
+                    logger.debug(f"Excluding problematic plugin path: {path}")
+
+            if excluded_count > 0:
+                logger.info(f"Excluded {excluded_count} problematic paths from NUKE_PATH")
+
+            # Set the filtered NUKE_PATH
+            new_nuke_path = ":".join(filtered_paths)
+            env_exports.append(f'export NUKE_PATH="{new_nuke_path}"')
+
+        # Set fallback OCIO configuration if the default one might be problematic
+        if Config.NUKE_OCIO_FALLBACK_CONFIG:
+            # Check if a fallback config exists
+            fallback_config = Config.NUKE_OCIO_FALLBACK_CONFIG
+            if os.path.exists(fallback_config):
+                env_exports.append(f'export OCIO="{fallback_config}"')
+                logger.info(f"Using fallback OCIO config: {fallback_config}")
+            else:
+                # Unset OCIO to use Nuke's built-in default
+                env_exports.append("unset OCIO")
+                logger.info("Unsetting OCIO to use Nuke's built-in configuration")
+
+        # Additional stability environment variables
+        env_exports.extend([
+            'export NUKE_DISABLE_CRASH_REPORTING=1',  # Disable crash reporting to avoid hang
+            'export NUKE_TEMP_DIR="/tmp"',  # Ensure temp directory is accessible
+            'export NUKE_DISK_CACHE="/tmp/nuke_cache"',  # Set disk cache location
+        ])
+
+        if env_exports:
+            env_string = " && ".join(env_exports)
+            logger.debug(f"Generated Nuke environment fixes: {env_string}")
+            return env_string + " && "
+
+        return ""
+
     def launch_app(
         self,
         app_name: str,
         include_undistortion: bool = False,
         include_raw_plate: bool = False,
         open_latest_threede: bool = False,
+        open_latest_scene: bool = False,
+        create_new_file: bool = False,
     ) -> bool:
         """Launch an application in the current shot context.
 
@@ -201,6 +272,8 @@ class CommandLauncher(QObject):
             include_undistortion: Whether to include undistortion nodes (Nuke only)
             include_raw_plate: Whether to include raw plate Read node (Nuke only)
             open_latest_threede: Whether to open the latest 3DE scene file (3DE only)
+            open_latest_scene: Whether to open the latest Nuke script (Nuke only)
+            create_new_file: Whether to create a new version (Nuke only)
 
         Returns:
             True if launch was successful, False otherwise
@@ -216,8 +289,178 @@ class CommandLauncher(QObject):
         # Get the command
         command = Config.APPS[app_name]
 
-        # Handle raw plate and undistortion for Nuke (integrated approach)
-        if app_name == "nuke" and (include_raw_plate or include_undistortion):
+        # Apply Nuke-specific environment fixes to prevent crashes
+        if app_name == "nuke" and Config.NUKE_FIX_OCIO_CRASH:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.command_executed.emit(
+                timestamp,
+                "Applying Nuke environment fixes to prevent OCIO plugin crashes...",
+            )
+
+        # Handle Nuke workspace scripts (open latest or create new)
+        if app_name == "nuke" and (open_latest_scene or create_new_file):
+            from nuke_workspace_manager import NukeWorkspaceManager
+
+            manager = NukeWorkspaceManager()
+
+            # Note: open_latest_scene takes priority if both are checked
+            if open_latest_scene and create_new_file:
+                create_new_file = False
+
+            if open_latest_scene:
+                # Try to find existing script
+                script_dir = manager.get_workspace_script_directory(
+                    self.current_shot.workspace_path
+                )
+                latest_script = manager.find_latest_nuke_script(
+                    script_dir, self.current_shot.full_name
+                )
+
+                if latest_script:
+                    # Open existing script
+                    safe_script_path = self._validate_path_for_shell(str(latest_script))
+                    command = f"{command} {safe_script_path}"
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.command_executed.emit(
+                        timestamp,
+                        f"Opening existing Nuke script: {latest_script.name}",
+                    )
+                else:
+                    # No existing script, create v001
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.command_executed.emit(
+                        timestamp,
+                        "No existing Nuke scripts found, creating v001...",
+                    )
+
+                    saved_path = None
+                    # Create a basic script or with plate if requested
+                    if include_raw_plate:
+                        raw_plate_path = self._raw_plate_finder.find_latest_raw_plate(
+                            self.current_shot.workspace_path,
+                            self.current_shot.full_name,
+                        )
+                        if raw_plate_path and self._raw_plate_finder.verify_plate_exists(raw_plate_path):
+                            saved_path = self._nuke_script_generator.create_workspace_plate_script(
+                                raw_plate_path,
+                                self.current_shot.workspace_path,
+                                self.current_shot.full_name,
+                                version=1,
+                            )
+                        else:
+                            # Create empty script
+                            script_content = self._nuke_script_generator.create_plate_script(
+                                "", self.current_shot.full_name
+                            )
+                            if script_content:
+                                with open(script_content, encoding="utf-8") as f:
+                                    content = f.read()
+                                saved_path = self._nuke_script_generator.save_workspace_script(
+                                    content,
+                                    self.current_shot.workspace_path,
+                                    self.current_shot.full_name,
+                                    version=1,
+                                )
+                    else:
+                        # Create empty script
+                        script_content = self._nuke_script_generator.create_plate_script(
+                            "", self.current_shot.full_name
+                        )
+                        if script_content:
+                            with open(script_content, encoding="utf-8") as f:
+                                content = f.read()
+                            saved_path = self._nuke_script_generator.save_workspace_script(
+                                content,
+                                self.current_shot.workspace_path,
+                                self.current_shot.full_name,
+                                version=1,
+                            )
+
+                    if saved_path:
+                        safe_script_path = self._validate_path_for_shell(saved_path)
+                        command = f"{command} {safe_script_path}"
+                        self.command_executed.emit(
+                            timestamp,
+                            "Created and opening new Nuke script: v001",
+                        )
+                    else:
+                        self._emit_error("Failed to create Nuke script")
+                        return False
+
+            elif create_new_file:
+                # Always create new version
+                script_dir = manager.get_workspace_script_directory(
+                    self.current_shot.workspace_path
+                )
+                next_path, version = manager.get_next_script_path(
+                    script_dir, self.current_shot.full_name
+                )
+
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp,
+                    f"Creating new Nuke script version: v{version:03d}",
+                )
+
+                saved_path = None
+                # Create script with plate if requested
+                if include_raw_plate:
+                    raw_plate_path = self._raw_plate_finder.find_latest_raw_plate(
+                        self.current_shot.workspace_path,
+                        self.current_shot.full_name,
+                    )
+                    if raw_plate_path and self._raw_plate_finder.verify_plate_exists(raw_plate_path):
+                        saved_path = self._nuke_script_generator.create_workspace_plate_script(
+                            raw_plate_path,
+                            self.current_shot.workspace_path,
+                            self.current_shot.full_name,
+                            version=version,
+                        )
+                    else:
+                        # Create empty script
+                        script_content = self._nuke_script_generator.create_plate_script(
+                            "", self.current_shot.full_name
+                        )
+                        if script_content:
+                            with open(script_content, encoding="utf-8") as f:
+                                content = f.read()
+                            saved_path = self._nuke_script_generator.save_workspace_script(
+                                content,
+                                self.current_shot.workspace_path,
+                                self.current_shot.full_name,
+                                version=version,
+                            )
+                else:
+                    # Create empty script
+                    script_content = self._nuke_script_generator.create_plate_script(
+                        "", self.current_shot.full_name
+                    )
+                    if script_content:
+                        with open(script_content, encoding="utf-8") as f:
+                            content = f.read()
+                        saved_path = self._nuke_script_generator.save_workspace_script(
+                            content,
+                            self.current_shot.workspace_path,
+                            self.current_shot.full_name,
+                            version=version,
+                        )
+
+                if saved_path:
+                    safe_script_path = self._validate_path_for_shell(saved_path)
+                    command = f"{command} {safe_script_path}"
+                    self.command_executed.emit(
+                        timestamp,
+                        f"Created and opening new Nuke script: v{version:03d}",
+                    )
+                else:
+                    self._emit_error("Failed to create Nuke script")
+                    return False
+
+            # Skip the normal raw plate/undistortion handling if we've already handled it
+            # in workspace script creation
+
+        # Handle raw plate and undistortion for Nuke (integrated approach) - only if not using workspace scripts
+        elif app_name == "nuke" and (include_raw_plate or include_undistortion):
             raw_plate_path = None
             undistortion_path = None
 
@@ -406,6 +649,19 @@ class CommandLauncher(QObject):
             safe_workspace_path = self._validate_path_for_shell(
                 self.current_shot.workspace_path
             )
+
+            # Apply Nuke environment fixes if needed
+            env_fixes = ""
+            if app_name == "nuke":
+                env_fixes = self._get_nuke_environment_fixes()
+                if env_fixes:
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.command_executed.emit(
+                        timestamp,
+                        "Applied environment fixes to prevent Nuke crashes: "
+                        "filtered NUKE_PATH, set OCIO fallback, disabled crash reporting",
+                    )
+
             # For GUI apps in persistent terminal, add & inside the command
             if (
                 self.persistent_terminal
@@ -413,10 +669,10 @@ class CommandLauncher(QObject):
                 and Config.AUTO_BACKGROUND_GUI_APPS
                 and self._is_gui_app(app_name)
             ):
-                ws_command = f"ws {safe_workspace_path} && {command} &"
+                ws_command = f"ws {safe_workspace_path} && {env_fixes}{command} &"
                 logger.debug(f"Added & inside command for GUI app {app_name}")
             else:
-                ws_command = f"ws {safe_workspace_path} && {command}"
+                ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {str(e)}")
             return False
@@ -518,6 +774,19 @@ class CommandLauncher(QObject):
         # Validate and escape workspace path to prevent injection
         try:
             safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
+
+            # Apply Nuke environment fixes if needed (same as regular launch)
+            env_fixes = ""
+            if app_name == "nuke":
+                env_fixes = self._get_nuke_environment_fixes()
+                if env_fixes:
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.command_executed.emit(
+                        timestamp,
+                        "Applied environment fixes for Nuke scene launch: "
+                        "filtered NUKE_PATH, set OCIO fallback, disabled crash reporting",
+                    )
+
             # For GUI apps in persistent terminal, add & inside the command
             if (
                 self.persistent_terminal
@@ -525,12 +794,12 @@ class CommandLauncher(QObject):
                 and Config.AUTO_BACKGROUND_GUI_APPS
                 and self._is_gui_app(app_name)
             ):
-                ws_command = f"ws {safe_workspace_path} && {command} &"
+                ws_command = f"ws {safe_workspace_path} && {env_fixes}{command} &"
                 logger.debug(
                     f"Added & inside command for GUI app {app_name} with scene"
                 )
             else:
-                ws_command = f"ws {safe_workspace_path} && {command}"
+                ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {str(e)}")
             return False

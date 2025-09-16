@@ -341,3 +341,4 @@ class SceneParser(LoggingMixin):
             True if generic directory, False otherwise
         """
         return dir_name.lower() in self._GENERIC_DIRS
+

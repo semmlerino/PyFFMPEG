@@ -1246,3 +1246,116 @@ Viewer {{
         except Exception as e:
             print(f"Error creating Nuke script with undistortion: {e}")
             return None
+
+    @staticmethod
+    def save_workspace_script(
+        script_content: str,
+        workspace_path: str,
+        shot_name: str,
+        version: int | None = None,
+        user: str | None = None,
+        plate: str = "mm-default",
+        pass_name: str = "PL01",
+    ) -> str | None:
+        """Save a Nuke script in the workspace directory.
+
+        Args:
+            script_content: The Nuke script content to save
+            workspace_path: Base workspace path for the shot
+            shot_name: Shot name (e.g., "BRX_166_0010")
+            version: Version number (auto-determined if None)
+            user: Username (defaults to current user)
+            plate: Plate name (defaults to "mm-default")
+            pass_name: Pass name (defaults to "PL01")
+
+        Returns:
+            Path to the saved script, or None on error
+        """
+        try:
+            from nuke_workspace_manager import NukeWorkspaceManager
+
+            # Get user from environment if not provided
+            if user is None:
+                user = os.environ.get("USER", "gabriel-h")
+
+            # Get the script directory
+            script_dir = NukeWorkspaceManager.get_workspace_script_directory(
+                workspace_path, user, plate, pass_name
+            )
+
+            # Determine version if not provided
+            if version is None:
+                _, version = NukeWorkspaceManager.get_next_script_path(
+                    script_dir, shot_name, plate, pass_name
+                )
+
+            # Build the filename
+            filename = f"{shot_name}_{plate}_{pass_name}_scene_v{version:03d}.nk"
+            script_path = script_dir / filename
+
+            # Save the script
+            with open(script_path, "w", encoding="utf-8") as f:
+                f.write(script_content)
+
+            print(f"Saved Nuke script to workspace: {script_path}")
+            return str(script_path)
+
+        except Exception as e:
+            print(f"Error saving Nuke script to workspace: {e}")
+            return None
+
+    @staticmethod
+    def create_workspace_plate_script(
+        plate_path: str,
+        workspace_path: str,
+        shot_name: str,
+        version: int | None = None,
+        user: str | None = None,
+        plate_name: str = "mm-default",
+        pass_name: str = "PL01",
+    ) -> str | None:
+        """Create and save a Nuke script with plate in the workspace.
+
+        This is a convenience method that combines create_plate_script
+        and save_workspace_script.
+
+        Args:
+            plate_path: Path to the plate sequence
+            workspace_path: Base workspace path for the shot
+            shot_name: Shot name (e.g., "BRX_166_0010")
+            version: Version number (auto-determined if None)
+            user: Username (defaults to current user)
+            plate_name: Plate name (defaults to "mm-default")
+            pass_name: Pass name (defaults to "PL01")
+
+        Returns:
+            Path to the saved script, or None on error
+        """
+        # First create the script content
+        script_content = NukeScriptGenerator.create_plate_script(plate_path, shot_name)
+        if not script_content:
+            return None
+
+        # Read the temporary file content
+        try:
+            with open(script_content, encoding="utf-8") as f:
+                content = f.read()
+        except Exception as e:
+            print(f"Error reading temporary script: {e}")
+            return None
+
+        # Save to workspace
+        saved_path = NukeScriptGenerator.save_workspace_script(
+            content, workspace_path, shot_name, version, user, plate_name, pass_name
+        )
+
+        # Clean up the temporary file if save was successful
+        if saved_path and os.path.exists(script_content):
+            try:
+                os.unlink(script_content)
+                if script_content in NukeScriptGenerator._temp_files:
+                    NukeScriptGenerator._temp_files.remove(script_content)
+            except Exception:
+                pass  # Non-critical error
+
+        return saved_path

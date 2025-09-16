@@ -17,9 +17,9 @@ Performance improvements:
 from threede_scene_finder_optimized import (
     DirectoryCache,
     OptimizedThreeDESceneFinder,
-    ThreeDEScene,
     logger,
 )
+from threede_scene_model import ThreeDEScene
 
 # Re-export with original class name for backward compatibility
 ThreeDESceneFinder = OptimizedThreeDESceneFinder
