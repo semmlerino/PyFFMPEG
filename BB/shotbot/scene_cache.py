@@ -26,7 +26,7 @@ class SceneCacheEntry:
         self,
         scenes: list[ThreeDEScene],
         timestamp: float,
-        ttl_seconds: int = 1800  # 30 minutes default
+        ttl_seconds: int = 1800,  # 30 minutes default
     ) -> None:
         """Initialize cache entry.
 
@@ -85,10 +85,12 @@ class SceneCache(LoggingMixin):
             "misses": 0,
             "evictions": 0,
             "invalidations": 0,
-            "cache_warmings": 0
+            "cache_warmings": 0,
         }
 
-    def _make_key(self, show: str, sequence: str | None = None, shot: str | None = None) -> str:
+    def _make_key(
+        self, show: str, sequence: str | None = None, shot: str | None = None
+    ) -> str:
         """Create cache key from shot components.
 
         Args:
@@ -154,7 +156,9 @@ class SceneCache(LoggingMixin):
             if entry and entry.is_valid():
                 entry.touch()
                 self.stats["hits"] += 1
-                self.logger.debug(f"Cache hit for show {key}: {len(entry.scenes)} scenes")
+                self.logger.debug(
+                    f"Cache hit for show {key}: {len(entry.scenes)} scenes"
+                )
                 return entry.scenes.copy()
 
             if entry and entry.is_expired():
@@ -166,7 +170,12 @@ class SceneCache(LoggingMixin):
             return None
 
     def cache_scenes_for_shot(
-        self, show: str, sequence: str, shot: str, scenes: list[ThreeDEScene], ttl: int | None = None
+        self,
+        show: str,
+        sequence: str,
+        shot: str,
+        scenes: list[ThreeDEScene],
+        ttl: int | None = None,
     ) -> None:
         """Cache scenes for a specific shot.
 
@@ -211,7 +220,9 @@ class SceneCache(LoggingMixin):
             entry = SceneCacheEntry(scenes.copy(), time.time(), ttl)
             self.cache[key] = entry
 
-            self.logger.debug(f"Cached {len(scenes)} scenes for show {key} (TTL: {ttl}s)")
+            self.logger.debug(
+                f"Cached {len(scenes)} scenes for show {key} (TTL: {ttl}s)"
+            )
 
     def invalidate_shot(self, show: str, sequence: str, shot: str) -> bool:
         """Invalidate cached scenes for a specific shot.
@@ -247,14 +258,20 @@ class SceneCache(LoggingMixin):
 
         with self.lock:
             # Find all keys that start with the show name
-            keys_to_remove = [key for key in self.cache.keys() if key.startswith(f"{show}/") or key == show]
+            keys_to_remove = [
+                key
+                for key in self.cache.keys()
+                if key.startswith(f"{show}/") or key == show
+            ]
 
             for key in keys_to_remove:
                 del self.cache[key]
                 invalidated += 1
 
             self.stats["invalidations"] += invalidated
-            self.logger.debug(f"Invalidated {invalidated} cache entries for show {show}")
+            self.logger.debug(
+                f"Invalidated {invalidated} cache entries for show {show}"
+            )
 
         return invalidated
 
@@ -263,7 +280,7 @@ class SceneCache(LoggingMixin):
         cache_warmer: Callable[[str, str, str], list[ThreeDEScene]],
         show: str,
         sequence: str | None = None,
-        shot: str | None = None
+        shot: str | None = None,
     ) -> None:
         """Pre-populate cache with scenes using provided warmer function.
 
@@ -279,7 +296,9 @@ class SceneCache(LoggingMixin):
                 scenes = cache_warmer(show, sequence, shot)
                 self.cache_scenes_for_shot(show, sequence, shot, scenes)
                 self.stats["cache_warmings"] += 1
-                self.logger.info(f"Warmed cache for {show}/{sequence}/{shot}: {len(scenes)} scenes")
+                self.logger.info(
+                    f"Warmed cache for {show}/{sequence}/{shot}: {len(scenes)} scenes"
+                )
             else:
                 self.logger.warning("Cache warming requires both sequence and shot")
 
@@ -306,7 +325,9 @@ class SceneCache(LoggingMixin):
         removed = 0
 
         with self.lock:
-            expired_keys = [key for key, entry in self.cache.items() if entry.is_expired()]
+            expired_keys = [
+                key for key, entry in self.cache.items() if entry.is_expired()
+            ]
 
             for key in expired_keys:
                 del self.cache[key]
@@ -327,7 +348,11 @@ class SceneCache(LoggingMixin):
         """
         with self.lock:
             total_requests = self.stats["hits"] + self.stats["misses"]
-            hit_rate = (self.stats["hits"] / total_requests * 100) if total_requests > 0 else 0.0
+            hit_rate = (
+                (self.stats["hits"] / total_requests * 100)
+                if total_requests > 0
+                else 0.0
+            )
 
             # Calculate memory usage estimate
             total_scenes = sum(len(entry.scenes) for entry in self.cache.values())
@@ -342,7 +367,7 @@ class SceneCache(LoggingMixin):
                 "total_scenes_cached": total_scenes,
                 "hit_rate_percent": round(hit_rate, 1),
                 "average_age_seconds": round(avg_age, 1),
-                **self.stats
+                **self.stats,
             }
 
     def clear_cache(self) -> int:
@@ -387,5 +412,5 @@ class SceneCache(LoggingMixin):
                 "age_seconds": entry.age_seconds(),
                 "access_count": entry.access_count,
                 "is_expired": entry.is_expired(),
-                "ttl_seconds": entry.ttl_seconds
+                "ttl_seconds": entry.ttl_seconds,
             }

@@ -133,7 +133,9 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                 self.logger.debug(f"Scanning user directory: {user_dir}")
 
                 # Use progressive discovery for efficiency
-                file_pairs = self.scanner.find_3de_files_progressive(user_dir, excluded_users)
+                file_pairs = self.scanner.find_3de_files_progressive(
+                    user_dir, excluded_users
+                )
                 self.logger.debug(f"Found {len(file_pairs)} .3de files")
 
                 # Convert file pairs to ThreeDEScene objects
@@ -145,7 +147,9 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
 
                         # Extract plate using parser
                         user_path = user_dir / username
-                        plate = self.parser.extract_plate_from_path(threede_file, user_path)
+                        plate = self.parser.extract_plate_from_path(
+                            threede_file, user_path
+                        )
 
                         # Create scene object
                         scene = self.parser.create_scene_from_file_info(
@@ -155,7 +159,7 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                             shot,
                             username,
                             plate,
-                            shot_workspace_path
+                            shot_workspace_path,
                         )
                         scenes.append(scene)
 
@@ -175,7 +179,9 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
             # Cache the results
             self.cache.cache_scenes_for_shot(show, sequence, shot, scenes)
 
-            self.logger.info(f"Found {len(scenes)} total scenes for {show}/{sequence}/{shot}")
+            self.logger.info(
+                f"Found {len(scenes)} total scenes for {show}/{sequence}/{shot}"
+            )
 
         except Exception as e:
             self.logger.error(f"Error finding scenes for {show}/{sequence}/{shot}: {e}")
@@ -215,7 +221,9 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
 
             # Convert to ThreeDEScene objects
             for file_path, show_name, sequence, shot_name, user, plate in file_results:
-                workspace_path = show_path / "shots" / sequence / f"{sequence}_{shot_name}"
+                workspace_path = (
+                    show_path / "shots" / sequence / f"{sequence}_{shot_name}"
+                )
 
                 scene = self.parser.create_scene_from_file_info(
                     file_path,
@@ -224,7 +232,7 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                     shot_name,
                     user,
                     plate,
-                    str(workspace_path)
+                    str(workspace_path),
                 )
                 scenes.append(scene)
 
@@ -244,7 +252,7 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
         show: str,
         sequence: str,
         shot: str,
-        workspace_path: str
+        workspace_path: str,
     ) -> list[ThreeDEScene]:
         """Scan publish directory for additional scenes."""
         scenes = []
@@ -260,10 +268,14 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
 
                 try:
                     relative_path = threede_file.relative_to(publish_dir)
-                    department = relative_path.parts[0] if relative_path.parts else "unknown"
+                    department = (
+                        relative_path.parts[0] if relative_path.parts else "unknown"
+                    )
                     pseudo_user = f"published-{department}"
 
-                    plate = self.parser.extract_plate_from_path(threede_file, publish_dir)
+                    plate = self.parser.extract_plate_from_path(
+                        threede_file, publish_dir
+                    )
 
                     scene = self.parser.create_scene_from_file_info(
                         threede_file,
@@ -272,12 +284,14 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
                         shot,
                         pseudo_user,
                         plate,
-                        workspace_path
+                        workspace_path,
                     )
                     scenes.append(scene)
 
                 except Exception as e:
-                    self.logger.debug(f"Error processing published file {threede_file}: {e}")
+                    self.logger.debug(
+                        f"Error processing published file {threede_file}: {e}"
+                    )
                     continue
 
         except Exception as e:
@@ -348,11 +362,15 @@ class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
                 show_root, show, excluded_users
             )
 
-            self.logger.info(f"Found {len(file_results)} .3de files in {show} (parallel)")
+            self.logger.info(
+                f"Found {len(file_results)} .3de files in {show} (parallel)"
+            )
 
             # Convert to ThreeDEScene objects
             for file_path, show_name, sequence, shot_name, user, plate in file_results:
-                workspace_path = show_path / "shots" / sequence / f"{sequence}_{shot_name}"
+                workspace_path = (
+                    show_path / "shots" / sequence / f"{sequence}_{shot_name}"
+                )
 
                 scene = self.parser.create_scene_from_file_info(
                     file_path,
@@ -361,14 +379,16 @@ class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
                     shot_name,
                     user,
                     plate,
-                    str(workspace_path)
+                    str(workspace_path),
                 )
                 scenes.append(scene)
 
             # Cache the results
             self.cache.cache_scenes_for_show(show, scenes)
 
-            self.logger.info(f"Found {len(scenes)} total scenes in show {show} (parallel)")
+            self.logger.info(
+                f"Found {len(scenes)} total scenes in show {show} (parallel)"
+            )
 
         except Exception as e:
             self.logger.error(f"Error finding scenes in show {show} (parallel): {e}")
@@ -409,9 +429,12 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
         # For true progressive discovery, use find_scenes_progressive method
         scenes = []
 
-        for scene_batch, current_shot, total_shots, status in self.find_scenes_progressive(
-            show_root, show, excluded_users
-        ):
+        for (
+            scene_batch,
+            current_shot,
+            total_shots,
+            status,
+        ) in self.find_scenes_progressive(show_root, show, excluded_users):
             scenes.extend(scene_batch)
 
         return scenes
@@ -443,16 +466,21 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
                 return
 
             # Use scanner's progressive discovery
-            for file_batch, current_shot, total_shots, status in self.scanner.find_all_scenes_progressive(
+            for (
+                file_batch,
+                current_shot,
+                total_shots,
+                status,
+            ) in self.scanner.find_all_scenes_progressive(
                 shot_tuples, excluded_users, batch_size
             ):
-
                 # Convert file pairs to ThreeDEScene objects
                 scenes = []
                 for username, threede_file in file_batch:
                     try:
                         # Extract shot info from the file path
                         from pathlib import Path
+
                         show_path = Path(show_root) / show
 
                         parsed = self.parser.parse_3de_file_path(
@@ -460,8 +488,15 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
                         )
 
                         if parsed:
-                            file_path, show_name, sequence, shot_name, user, plate = parsed
-                            workspace_path = show_path / "shots" / sequence / f"{sequence}_{shot_name}"
+                            file_path, show_name, sequence, shot_name, user, plate = (
+                                parsed
+                            )
+                            workspace_path = (
+                                show_path
+                                / "shots"
+                                / sequence
+                                / f"{sequence}_{shot_name}"
+                            )
 
                             scene = self.parser.create_scene_from_file_info(
                                 file_path,
@@ -470,12 +505,14 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
                                 shot_name,
                                 user,
                                 plate,
-                                str(workspace_path)
+                                str(workspace_path),
                             )
                             scenes.append(scene)
 
                     except Exception as e:
-                        self.logger.warning(f"Error processing scene file {threede_file}: {e}")
+                        self.logger.warning(
+                            f"Error processing scene file {threede_file}: {e}"
+                        )
                         continue
 
                 yield scenes, current_shot, total_shots, status
@@ -531,7 +568,9 @@ class NetworkAwareStrategy(SceneDiscoveryStrategy):
 
 
 # Factory function for creating strategies
-def create_discovery_strategy(strategy_type: str = "local", **kwargs: object) -> SceneDiscoveryStrategy:
+def create_discovery_strategy(
+    strategy_type: str = "local", **kwargs: object
+) -> SceneDiscoveryStrategy:
     """Create a scene discovery strategy.
 
     Args:
@@ -552,7 +591,9 @@ def create_discovery_strategy(strategy_type: str = "local", **kwargs: object) ->
     }
 
     if strategy_type not in strategies:
-        raise ValueError(f"Unknown strategy type: {strategy_type}. Available: {list(strategies.keys())}")
+        raise ValueError(
+            f"Unknown strategy type: {strategy_type}. Available: {list(strategies.keys())}"
+        )
 
     strategy_class = strategies[strategy_type]
     return strategy_class(**kwargs)  # type: ignore[misc]

@@ -15,8 +15,7 @@ from logging_mixin import LoggingMixin, log_context, log_execution
 
 # Configure logging to see output
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 
@@ -40,6 +39,7 @@ class TestClass(LoggingMixin):
     def decorated_method(self, value: int) -> int:
         """Method with log_execution decorator."""
         import time
+
         time.sleep(0.1)  # Simulate work
         return value * 2
 

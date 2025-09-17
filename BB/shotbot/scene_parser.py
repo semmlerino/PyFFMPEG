@@ -228,7 +228,9 @@ class SceneParser(LoggingMixin):
         self.logger.debug(f"Created scene: {show}/{sequence}/{shot} - {user}/{plate}")
         return scene
 
-    def extract_shot_from_workspace_path(self, workspace_path: str) -> tuple[str, str, str] | None:
+    def extract_shot_from_workspace_path(
+        self, workspace_path: str
+    ) -> tuple[str, str, str] | None:
         """Extract show, sequence, and shot from a workspace path.
 
         Args:
@@ -260,7 +262,7 @@ class SceneParser(LoggingMixin):
 
             # Parse shot from shot directory name
             if shot_dir.startswith(f"{sequence}_"):
-                shot = shot_dir[len(sequence) + 1:]
+                shot = shot_dir[len(sequence) + 1 :]
             else:
                 shot_parts = shot_dir.rsplit("_", 1)
                 shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
@@ -341,4 +343,3 @@ class SceneParser(LoggingMixin):
             True if generic directory, False otherwise
         """
         return dir_name.lower() in self._GENERIC_DIRS
-

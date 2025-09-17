@@ -199,7 +199,10 @@ class CommandLauncher(QObject):
         env_exports: list[str] = []
 
         # Skip problematic plugin paths by modifying NUKE_PATH
-        if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS and Config.NUKE_PROBLEMATIC_PLUGIN_PATHS:
+        if (
+            Config.NUKE_SKIP_PROBLEMATIC_PLUGINS
+            and Config.NUKE_PROBLEMATIC_PLUGIN_PATHS
+        ):
             logger.info(
                 f"Excluding {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
                 f"plugin paths from NUKE_PATH"
@@ -224,7 +227,9 @@ class CommandLauncher(QObject):
                     logger.debug(f"Excluding problematic plugin path: {path}")
 
             if excluded_count > 0:
-                logger.info(f"Excluded {excluded_count} problematic paths from NUKE_PATH")
+                logger.info(
+                    f"Excluded {excluded_count} problematic paths from NUKE_PATH"
+                )
 
             # Set the filtered NUKE_PATH
             new_nuke_path = ":".join(filtered_paths)
@@ -243,11 +248,13 @@ class CommandLauncher(QObject):
                 logger.info("Unsetting OCIO to use Nuke's built-in configuration")
 
         # Additional stability environment variables
-        env_exports.extend([
-            'export NUKE_DISABLE_CRASH_REPORTING=1',  # Disable crash reporting to avoid hang
-            'export NUKE_TEMP_DIR="/tmp"',  # Ensure temp directory is accessible
-            'export NUKE_DISK_CACHE="/tmp/nuke_cache"',  # Set disk cache location
-        ])
+        env_exports.extend(
+            [
+                "export NUKE_DISABLE_CRASH_REPORTING=1",  # Disable crash reporting to avoid hang
+                'export NUKE_TEMP_DIR="/tmp"',  # Ensure temp directory is accessible
+                'export NUKE_DISK_CACHE="/tmp/nuke_cache"',  # Set disk cache location
+            ]
+        )
 
         if env_exports:
             env_string = " && ".join(env_exports)
@@ -340,7 +347,12 @@ class CommandLauncher(QObject):
                             self.current_shot.workspace_path,
                             self.current_shot.full_name,
                         )
-                        if raw_plate_path and self._raw_plate_finder.verify_plate_exists(raw_plate_path):
+                        if (
+                            raw_plate_path
+                            and self._raw_plate_finder.verify_plate_exists(
+                                raw_plate_path
+                            )
+                        ):
                             saved_path = self._nuke_script_generator.create_workspace_plate_script(
                                 raw_plate_path,
                                 self.current_shot.workspace_path,
@@ -349,31 +361,39 @@ class CommandLauncher(QObject):
                             )
                         else:
                             # Create empty script
-                            script_content = self._nuke_script_generator.create_plate_script(
-                                "", self.current_shot.full_name
+                            script_content = (
+                                self._nuke_script_generator.create_plate_script(
+                                    "", self.current_shot.full_name
+                                )
                             )
                             if script_content:
                                 with open(script_content, encoding="utf-8") as f:
                                     content = f.read()
-                                saved_path = self._nuke_script_generator.save_workspace_script(
+                                saved_path = (
+                                    self._nuke_script_generator.save_workspace_script(
+                                        content,
+                                        self.current_shot.workspace_path,
+                                        self.current_shot.full_name,
+                                        version=1,
+                                    )
+                                )
+                    else:
+                        # Create empty script
+                        script_content = (
+                            self._nuke_script_generator.create_plate_script(
+                                "", self.current_shot.full_name
+                            )
+                        )
+                        if script_content:
+                            with open(script_content, encoding="utf-8") as f:
+                                content = f.read()
+                            saved_path = (
+                                self._nuke_script_generator.save_workspace_script(
                                     content,
                                     self.current_shot.workspace_path,
                                     self.current_shot.full_name,
                                     version=1,
                                 )
-                    else:
-                        # Create empty script
-                        script_content = self._nuke_script_generator.create_plate_script(
-                            "", self.current_shot.full_name
-                        )
-                        if script_content:
-                            with open(script_content, encoding="utf-8") as f:
-                                content = f.read()
-                            saved_path = self._nuke_script_generator.save_workspace_script(
-                                content,
-                                self.current_shot.workspace_path,
-                                self.current_shot.full_name,
-                                version=1,
                             )
 
                     if saved_path:
@@ -409,26 +429,34 @@ class CommandLauncher(QObject):
                         self.current_shot.workspace_path,
                         self.current_shot.full_name,
                     )
-                    if raw_plate_path and self._raw_plate_finder.verify_plate_exists(raw_plate_path):
-                        saved_path = self._nuke_script_generator.create_workspace_plate_script(
-                            raw_plate_path,
-                            self.current_shot.workspace_path,
-                            self.current_shot.full_name,
-                            version=version,
+                    if raw_plate_path and self._raw_plate_finder.verify_plate_exists(
+                        raw_plate_path
+                    ):
+                        saved_path = (
+                            self._nuke_script_generator.create_workspace_plate_script(
+                                raw_plate_path,
+                                self.current_shot.workspace_path,
+                                self.current_shot.full_name,
+                                version=version,
+                            )
                         )
                     else:
                         # Create empty script
-                        script_content = self._nuke_script_generator.create_plate_script(
-                            "", self.current_shot.full_name
+                        script_content = (
+                            self._nuke_script_generator.create_plate_script(
+                                "", self.current_shot.full_name
+                            )
                         )
                         if script_content:
                             with open(script_content, encoding="utf-8") as f:
                                 content = f.read()
-                            saved_path = self._nuke_script_generator.save_workspace_script(
-                                content,
-                                self.current_shot.workspace_path,
-                                self.current_shot.full_name,
-                                version=version,
+                            saved_path = (
+                                self._nuke_script_generator.save_workspace_script(
+                                    content,
+                                    self.current_shot.workspace_path,
+                                    self.current_shot.full_name,
+                                    version=version,
+                                )
                             )
                 else:
                     # Create empty script

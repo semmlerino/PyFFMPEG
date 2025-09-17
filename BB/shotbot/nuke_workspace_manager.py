@@ -44,7 +44,17 @@ class NukeWorkspaceManager:
             user = os.environ.get("USER", "gabriel-h")
 
         # Build the path: {workspace}/user/{user}/mm/nuke/scripts/{plate}/scene/{pass}/
-        script_dir = Path(workspace_path) / "user" / user / "mm" / "nuke" / "scripts" / plate / "scene" / pass_name
+        script_dir = (
+            Path(workspace_path)
+            / "user"
+            / user
+            / "mm"
+            / "nuke"
+            / "scripts"
+            / plate
+            / "scene"
+            / pass_name
+        )
 
         # Create directory structure if it doesn't exist
         if not script_dir.exists():
@@ -58,7 +68,12 @@ class NukeWorkspaceManager:
         return script_dir
 
     @staticmethod
-    def find_latest_nuke_script(directory: Path, shot_name: str, plate: str = "mm-default", pass_name: str = "PL01") -> Path | None:
+    def find_latest_nuke_script(
+        directory: Path,
+        shot_name: str,
+        plate: str = "mm-default",
+        pass_name: str = "PL01",
+    ) -> Path | None:
         """Find the latest version of Nuke script for a shot.
 
         Args:
@@ -105,7 +120,9 @@ class NukeWorkspaceManager:
             return None
 
         if latest_file:
-            logger.info(f"Found latest Nuke script: {latest_file.name} (v{latest_version:03d})")
+            logger.info(
+                f"Found latest Nuke script: {latest_file.name} (v{latest_version:03d})"
+            )
         else:
             logger.debug(f"No Nuke scripts found in {directory} for shot {shot_name}")
 

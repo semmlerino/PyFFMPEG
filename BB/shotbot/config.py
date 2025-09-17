@@ -91,7 +91,10 @@ class Config:
     # Rez Environment Configuration
     USE_REZ_ENVIRONMENT = True  # Enable rez environment wrapper when available
     REZ_AUTO_DETECT = True  # Automatically detect rez availability via REZ_USED env var
-    REZ_NUKE_PACKAGES = ["nuke", "python-3.11"]  # Default rez packages for Nuke with Python 3.11 compatibility
+    REZ_NUKE_PACKAGES = [
+        "nuke",
+        "python-3.11",
+    ]  # Default rez packages for Nuke with Python 3.11 compatibility
     REZ_MAYA_PACKAGES = ["maya"]  # Default rez packages for Maya
     REZ_3DE_PACKAGES = ["3de"]  # Default rez packages for 3DE
 
@@ -112,9 +115,7 @@ class Config:
         "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4.0.0rc9/python-3.11/init",
         # Add other problematic plugin paths here
     ]
-    NUKE_OCIO_FALLBACK_CONFIG = (
-        "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
-    )
+    NUKE_OCIO_FALLBACK_CONFIG = "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
 
     # Persistent Terminal Settings
     USE_PERSISTENT_TERMINAL = True  # Use single terminal for all commands

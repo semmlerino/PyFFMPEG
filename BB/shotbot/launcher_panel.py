@@ -107,7 +107,9 @@ class AppLauncherSection(QWidget):
         # Launch button
         self.launch_button = QPushButton(f"Launch {self.config.name}")
         self.launch_button.setObjectName(f"launch_{self.config.name}")
-        self.launch_button.clicked.connect(lambda: self.launch_requested.emit(self.config.name))
+        self.launch_button.clicked.connect(
+            lambda: self.launch_requested.emit(self.config.name)
+        )
         self.launch_button.setEnabled(False)  # Disabled until shot selected
 
         # Apply button styling with app color
@@ -431,7 +433,9 @@ class LauncherPanel(QWidget):
         if launcher_id not in self.custom_launcher_buttons:
             button = QPushButton(name)
             button.setObjectName(f"customLauncher_{launcher_id}")
-            button.clicked.connect(lambda: self.custom_launcher_requested.emit(launcher_id))
+            button.clicked.connect(
+                lambda: self.custom_launcher_requested.emit(launcher_id)
+            )
             button.setEnabled(self._current_shot is not None)
             button.setStyleSheet("""
                 QPushButton {

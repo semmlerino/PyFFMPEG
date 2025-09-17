@@ -43,9 +43,11 @@ pytestmark = [pytest.mark.integration, pytest.mark.qt]
 # FACTORY FIXTURES FOR INTEGRATION TESTING
 # =============================================================================
 
+
 @pytest.fixture
 def make_shot():
     """Factory fixture for creating Shot objects."""
+
     def _make(
         show: str = "test_show",
         sequence: str = "test_seq",
@@ -53,6 +55,7 @@ def make_shot():
         workspace_path: str = "/test/path",
     ) -> Shot:
         return Shot(show, sequence, shot, workspace_path)
+
     return _make
 
 
@@ -74,13 +77,16 @@ def test_subprocess():
 # MAIN WINDOW INTEGRATION TESTS
 # =============================================================================
 
+
 class TestMainWindowLauncherIntegration:
     """Test launcher panel integration within MainWindow."""
 
     def test_launcher_panel_initialization_in_main_window(self, qtbot):
         """Test that launcher panel is properly initialized in main window."""
         # We need to patch process pool creation to avoid real VFX dependencies
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -90,7 +96,7 @@ class TestMainWindowLauncherIntegration:
             qtbot.waitExposed(window)
 
             # Verify launcher panel exists and is integrated
-            assert hasattr(window, 'launcher_panel')
+            assert hasattr(window, "launcher_panel")
             assert isinstance(window.launcher_panel, LauncherPanel)
 
             # Verify signal connections exist
@@ -100,7 +106,9 @@ class TestMainWindowLauncherIntegration:
 
     def test_shot_selection_enables_launcher_panel(self, qtbot, make_shot):
         """Test that selecting a shot properly enables the launcher panel."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -122,11 +130,15 @@ class TestMainWindowLauncherIntegration:
                 assert section.launch_button.isEnabled()
 
             # Verify info label is updated
-            assert "integration_test/seq01/0100" in window.launcher_panel.info_label.text()
+            assert (
+                "integration_test/seq01/0100" in window.launcher_panel.info_label.text()
+            )
 
     def test_app_launch_signal_flow_through_main_window(self, qtbot, make_shot):
         """Test complete signal flow from launcher panel through main window."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -144,8 +156,7 @@ class TestMainWindowLauncherIntegration:
                 launch_calls.append(app_name)
 
             # Patch the main window's app launch method
-            with patch.object(window, '_launch_app', side_effect=mock_launch_app):
-
+            with patch.object(window, "_launch_app", side_effect=mock_launch_app):
                 # Trigger app launch from launcher panel
                 nuke_section = window.launcher_panel.app_sections["nuke"]
                 qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
@@ -160,7 +171,9 @@ class TestMainWindowLauncherIntegration:
     @pytest.mark.slow
     def test_multiple_app_launches_through_main_window(self, qtbot, make_shot):
         """Test launching multiple applications through the integrated workflow."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -175,8 +188,7 @@ class TestMainWindowLauncherIntegration:
             def mock_launch_app(app_name):
                 launch_calls.append(app_name)
 
-            with patch.object(window, '_launch_app', side_effect=mock_launch_app):
-
+            with patch.object(window, "_launch_app", side_effect=mock_launch_app):
                 # Launch multiple apps in sequence
                 apps_to_launch = ["3de", "maya", "rv"]
                 for app_name in apps_to_launch:
@@ -192,7 +204,9 @@ class TestMainWindowLauncherIntegration:
 
     def test_checkbox_options_passed_through_main_window(self, qtbot, make_shot):
         """Test that checkbox options are properly accessed through main window."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -208,15 +222,21 @@ class TestMainWindowLauncherIntegration:
             nuke_section.checkboxes["include_raw_plate"].setChecked(False)
 
             # Test that main window can access checkbox states
-            undistortion_enabled = window.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
-            raw_plate_enabled = window.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
+            undistortion_enabled = window.launcher_panel.get_checkbox_state(
+                "nuke", "include_undistortion"
+            )
+            raw_plate_enabled = window.launcher_panel.get_checkbox_state(
+                "nuke", "include_raw_plate"
+            )
 
             assert undistortion_enabled is True
             assert raw_plate_enabled is False
 
     def test_custom_launcher_integration(self, qtbot, make_shot):
         """Test custom launcher functionality through main window."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -227,7 +247,9 @@ class TestMainWindowLauncherIntegration:
             window.launcher_panel.set_shot(shot)
 
             # Add custom launcher through the panel
-            window.launcher_panel.add_custom_launcher("test_custom", "Test Custom Launcher")
+            window.launcher_panel.add_custom_launcher(
+                "test_custom", "Test Custom Launcher"
+            )
 
             custom_launch_calls = []
 
@@ -235,10 +257,15 @@ class TestMainWindowLauncherIntegration:
                 custom_launch_calls.append(launcher_id)
 
             # Mock the custom launcher execution
-            with patch.object(window, '_execute_custom_launcher', side_effect=mock_execute_custom_launcher):
-
+            with patch.object(
+                window,
+                "_execute_custom_launcher",
+                side_effect=mock_execute_custom_launcher,
+            ):
                 # Trigger custom launcher
-                custom_button = window.launcher_panel.custom_launcher_buttons["test_custom"]
+                custom_button = window.launcher_panel.custom_launcher_buttons[
+                    "test_custom"
+                ]
                 qtbot.mouseClick(custom_button, Qt.MouseButton.LeftButton)
                 QApplication.processEvents()
 
@@ -251,13 +278,16 @@ class TestMainWindowLauncherIntegration:
 # END-TO-END INTEGRATION SCENARIOS
 # =============================================================================
 
+
 class TestEndToEndLauncherWorkflow:
     """Test complete end-to-end launcher workflows."""
 
     @pytest.mark.integration
     def test_complete_nuke_launch_workflow(self, qtbot, make_shot):
         """Test complete workflow: shot selection -> option configuration -> nuke launch."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -275,34 +305,47 @@ class TestEndToEndLauncherWorkflow:
 
             # Step 3: Verify UI state before launch
             assert nuke_section.launch_button.isEnabled()
-            assert window.launcher_panel.get_checkbox_state("nuke", "include_undistortion") is True
-            assert window.launcher_panel.get_checkbox_state("nuke", "include_raw_plate") is True
+            assert (
+                window.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
+                is True
+            )
+            assert (
+                window.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
+                is True
+            )
 
             # Step 4: Mock the app launch process
             launch_context = {}
 
             def mock_launch_nuke(app_name):
-                launch_context['app'] = app_name
-                launch_context['shot'] = window.launcher_panel._current_shot
-                launch_context['undistortion'] = window.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
-                launch_context['raw_plate'] = window.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
+                launch_context["app"] = app_name
+                launch_context["shot"] = window.launcher_panel._current_shot
+                launch_context["undistortion"] = (
+                    window.launcher_panel.get_checkbox_state(
+                        "nuke", "include_undistortion"
+                    )
+                )
+                launch_context["raw_plate"] = window.launcher_panel.get_checkbox_state(
+                    "nuke", "include_raw_plate"
+                )
 
-            with patch.object(window, '_launch_app', side_effect=mock_launch_nuke):
-
+            with patch.object(window, "_launch_app", side_effect=mock_launch_nuke):
                 # Step 5: Launch nuke
                 qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
                 QApplication.processEvents()
 
                 # Step 6: Verify complete context was captured
-                assert launch_context['app'] == "nuke"
-                assert launch_context['shot'] == shot
-                assert launch_context['undistortion'] is True
-                assert launch_context['raw_plate'] is True
+                assert launch_context["app"] == "nuke"
+                assert launch_context["shot"] == shot
+                assert launch_context["undistortion"] is True
+                assert launch_context["raw_plate"] is True
 
     @pytest.mark.integration
     def test_3de_launch_with_scene_options(self, qtbot, make_shot):
         """Test 3DE launch workflow with scene opening option."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -319,23 +362,30 @@ class TestEndToEndLauncherWorkflow:
             launch_context = {}
 
             def mock_launch_3de(app_name):
-                launch_context['app'] = app_name
-                launch_context['shot'] = window.launcher_panel._current_shot
-                launch_context['open_latest'] = window.launcher_panel.get_checkbox_state("3de", "open_latest_threede")
+                launch_context["app"] = app_name
+                launch_context["shot"] = window.launcher_panel._current_shot
+                launch_context["open_latest"] = (
+                    window.launcher_panel.get_checkbox_state(
+                        "3de", "open_latest_threede"
+                    )
+                )
 
-            with patch.object(window, '_launch_app', side_effect=mock_launch_3de):
-
-                qtbot.mouseClick(threede_section.launch_button, Qt.MouseButton.LeftButton)
+            with patch.object(window, "_launch_app", side_effect=mock_launch_3de):
+                qtbot.mouseClick(
+                    threede_section.launch_button, Qt.MouseButton.LeftButton
+                )
                 QApplication.processEvents()
 
-                assert launch_context['app'] == "3de"
-                assert launch_context['shot'] == shot
-                assert launch_context['open_latest'] is True
+                assert launch_context["app"] == "3de"
+                assert launch_context["shot"] == shot
+                assert launch_context["open_latest"] is True
 
     @pytest.mark.integration
     def test_launcher_panel_state_persistence(self, qtbot, make_shot):
         """Test that launcher panel maintains state correctly during shot changes."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -366,7 +416,9 @@ class TestEndToEndLauncherWorkflow:
     @pytest.mark.slow
     def test_rapid_shot_switching_stability(self, qtbot, make_shot):
         """Test launcher panel stability during rapid shot switching."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -401,12 +453,15 @@ class TestEndToEndLauncherWorkflow:
 # ERROR HANDLING AND EDGE CASES
 # =============================================================================
 
+
 class TestLauncherIntegrationErrorHandling:
     """Test error handling in integrated launcher scenarios."""
 
     def test_main_window_without_shot_model(self, qtbot):
         """Test launcher panel behavior when shot model is not available."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -419,7 +474,9 @@ class TestLauncherIntegrationErrorHandling:
 
     def test_launcher_panel_with_invalid_shot_data(self, qtbot):
         """Test launcher panel behavior with invalid shot data."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 
@@ -436,7 +493,9 @@ class TestLauncherIntegrationErrorHandling:
 
     def test_signal_disconnection_handling(self, qtbot, make_shot):
         """Test that launcher panel handles signal disconnection gracefully."""
-        with patch('process_pool_factory.ProcessPoolFactory.get_instance') as mock_factory:
+        with patch(
+            "process_pool_factory.ProcessPoolFactory.get_instance"
+        ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
 

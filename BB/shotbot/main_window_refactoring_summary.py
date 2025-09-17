@@ -125,9 +125,10 @@ class RefactoredMainWindow(QMainWindow):
         # Delegate UI setup to UI manager
         # Create ThreeDEItemModel from the scenes
         from threede_item_model import ThreeDEItemModel
+
         threede_item_model = ThreeDEItemModel()
         threede_item_model.set_scenes(self.threede_model.scenes)
-        
+
         self.ui_widgets = self.ui_manager.setup_ui(
             cache_manager=self.cache_manager,
             shot_model=self.shot_model,

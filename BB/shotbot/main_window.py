@@ -323,15 +323,23 @@ class MainWindow(QMainWindow):
         # App launcher panel (improved UI)
         self.launcher_panel = LauncherPanel()
         self.launcher_panel.app_launch_requested.connect(self._launch_app)
-        self.launcher_panel.custom_launcher_requested.connect(self._execute_custom_launcher)
+        self.launcher_panel.custom_launcher_requested.connect(
+            self._execute_custom_launcher
+        )
         self.launcher_panel.setMinimumHeight(400)  # Ensure adequate space
         right_layout.addWidget(self.launcher_panel)
 
         # Keep references to checkboxes for backward compatibility
         # (These are now managed by the launcher_panel)
-        self.undistortion_checkbox = None  # Will access via launcher_panel.get_checkbox_state
-        self.raw_plate_checkbox = None  # Will access via launcher_panel.get_checkbox_state
-        self.open_latest_threede_checkbox = None  # Will access via launcher_panel.get_checkbox_state
+        self.undistortion_checkbox = (
+            None  # Will access via launcher_panel.get_checkbox_state
+        )
+        self.raw_plate_checkbox = (
+            None  # Will access via launcher_panel.get_checkbox_state
+        )
+        self.open_latest_threede_checkbox = (
+            None  # Will access via launcher_panel.get_checkbox_state
+        )
 
         # Log viewer
         log_group = QGroupBox("Command Log")
@@ -389,11 +397,15 @@ class MainWindow(QMainWindow):
 
         # Settings import/export
         import_settings_action = QAction("&Import Settings...", self)
-        _ = import_settings_action.triggered.connect(self.settings_controller.import_settings)
+        _ = import_settings_action.triggered.connect(
+            self.settings_controller.import_settings
+        )
         file_menu.addAction(import_settings_action)
 
         export_settings_action = QAction("&Export Settings...", self)
-        _ = export_settings_action.triggered.connect(self.settings_controller.export_settings)
+        _ = export_settings_action.triggered.connect(
+            self.settings_controller.export_settings
+        )
         file_menu.addAction(export_settings_action)
 
         _ = file_menu.addSeparator()
@@ -428,7 +440,9 @@ class MainWindow(QMainWindow):
 
         preferences_action = QAction("&Preferences...", self)
         preferences_action.setShortcut("Ctrl+,")  # Standard preferences shortcut
-        _ = preferences_action.triggered.connect(self.settings_controller.show_preferences)
+        _ = preferences_action.triggered.connect(
+            self.settings_controller.show_preferences
+        )
         edit_menu.addAction(preferences_action)
 
         # Tools menu
@@ -1228,21 +1242,28 @@ class MainWindow(QMainWindow):
             # Regular shot launch
             # Check if we should include undistortion and/or raw plate for Nuke
             include_undistortion = (
-                app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
+                app_name == "nuke"
+                and self.launcher_panel.get_checkbox_state(
+                    "nuke", "include_undistortion"
+                )
             )
             include_raw_plate = (
-                app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
+                app_name == "nuke"
+                and self.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
             )
             # Check if we should open the latest 3DE scene
             open_latest_threede = (
-                app_name == "3de" and self.launcher_panel.get_checkbox_state("3de", "open_latest_threede")
+                app_name == "3de"
+                and self.launcher_panel.get_checkbox_state("3de", "open_latest_threede")
             )
             # Check Nuke workspace script options
             open_latest_scene = (
-                app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "open_latest_scene")
+                app_name == "nuke"
+                and self.launcher_panel.get_checkbox_state("nuke", "open_latest_scene")
             )
             create_new_file = (
-                app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "create_new_file")
+                app_name == "nuke"
+                and self.launcher_panel.get_checkbox_state("nuke", "create_new_file")
             )
 
             # Note: open_latest_scene takes priority if both are checked
@@ -1281,9 +1302,13 @@ class MainWindow(QMainWindow):
         """Launch an application in the context of a 3DE scene (without the scene file itself)."""
         # Check if we should include undistortion and/or raw plate for Nuke
         include_undistortion = (
-            app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
+            app_name == "nuke"
+            and self.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
         )
-        include_raw_plate = app_name == "nuke" and self.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
+        include_raw_plate = (
+            app_name == "nuke"
+            and self.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
+        )
 
         if self.command_launcher.launch_app_with_scene_context(
             app_name,
@@ -1588,8 +1613,6 @@ class MainWindow(QMainWindow):
                 f"Failed to launch custom launcher: {launcher.name}",
             )
 
-
-
     # The _add_custom_launchers_section method is no longer needed
     # Custom launchers are now managed by the LauncherPanel
 
@@ -1757,5 +1780,6 @@ class MainWindow(QMainWindow):
 
         self.settings_controller.save_settings()  # Use refactored settings controller
         event.accept()
+
 
 # Background refresh methods and BackgroundRefreshWorker removed - ShotModel now uses reactive signals instead of polling

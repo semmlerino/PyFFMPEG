@@ -10,6 +10,7 @@ import errno
 import logging
 import os
 import signal
+import stat
 import subprocess
 import time
 from pathlib import Path
@@ -88,11 +89,19 @@ class PersistentTerminalManager(QObject):
 
         # Verify it's actually a FIFO
         if not os.path.exists(self.fifo_path):
-            logger.error(f"FIFO does not exist after creation attempt: {self.fifo_path}")
+            logger.error(
+                f"FIFO does not exist after creation attempt: {self.fifo_path}"
+            )
             return False
 
-        if not os.path.isfifo(self.fifo_path):
-            logger.error(f"Path exists but is not a FIFO: {self.fifo_path}")
+        # Check if path is a FIFO using cross-platform compatible method
+        try:
+            file_stat = os.stat(self.fifo_path)
+            if not stat.S_ISFIFO(file_stat.st_mode):
+                logger.error(f"Path exists but is not a FIFO: {self.fifo_path}")
+                return False
+        except OSError as e:
+            logger.error(f"Could not stat FIFO path {self.fifo_path}: {e}")
             return False
 
         return True
@@ -259,7 +268,9 @@ class PersistentTerminalManager(QObject):
                     fifo.write(f"{command}\n")
                     fifo.flush()
 
-                logger.info(f"Successfully sent command to terminal via FIFO: {command}")
+                logger.info(
+                    f"Successfully sent command to terminal via FIFO: {command}"
+                )
                 logger.debug(
                     f"FIFO path: {self.fifo_path}, Terminal PID: {self.terminal_pid}"
                 )
@@ -270,7 +281,9 @@ class PersistentTerminalManager(QObject):
                 if e.errno == errno.ENOENT:
                     # FIFO doesn't exist
                     if attempt < max_retries - 1:
-                        logger.warning(f"FIFO disappeared during write, recreating (attempt {attempt + 1}/{max_retries})")
+                        logger.warning(
+                            f"FIFO disappeared during write, recreating (attempt {attempt + 1}/{max_retries})"
+                        )
                         if self._ensure_fifo():
                             time.sleep(0.2)
                             continue

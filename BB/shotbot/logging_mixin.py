@@ -29,8 +29,8 @@ from typing import Any, Callable, Generator, TypeVar, cast
 from typing_extensions import ParamSpec
 
 # Type variables for generic decorator
-P = ParamSpec('P')
-T = TypeVar('T')
+P = ParamSpec("P")
+T = TypeVar("T")
 
 # Thread-local storage for logging context
 _context_storage = threading.local()
@@ -45,9 +45,9 @@ class ContextualLogger:
 
     def _format_message(self, msg: str) -> str:
         """Format message with current context if available."""
-        context = getattr(_context_storage, 'context', None)
+        context = getattr(_context_storage, "context", None)
         if context:
-            context_str = ' | '.join(f"{k}={v}" for k, v in context.items())
+            context_str = " | ".join(f"{k}={v}" for k, v in context.items())
             return f"[{context_str}] {msg}"
         return msg
 
@@ -87,13 +87,13 @@ class ContextualLogger:
                 self.logger.info("Processing shot")  # Will include context
         """
         # Get current context or create empty dict
-        current_context = getattr(_context_storage, 'context', {})
+        current_context = getattr(_context_storage, "context", {})
 
         # Create new context by merging current with new
         new_context = {**current_context, **kwargs}
 
         # Store old context for restoration
-        old_context = getattr(_context_storage, 'context', None)
+        old_context = getattr(_context_storage, "context", None)
 
         try:
             # Set new context
@@ -105,8 +105,8 @@ class ContextualLogger:
                 _context_storage.context = old_context
             else:
                 # Remove context if there was none before
-                if hasattr(_context_storage, 'context'):
-                    delattr(_context_storage, 'context')
+                if hasattr(_context_storage, "context"):
+                    delattr(_context_storage, "context")
 
 
 class LoggingMixin:
@@ -137,17 +137,17 @@ class LoggingMixin:
         base_logger = logging.getLogger(logger_name)
 
         # Cache the contextual logger on the instance to avoid recreating
-        cache_attr = '_contextual_logger'
+        cache_attr = "_contextual_logger"
         if not hasattr(self, cache_attr):
             setattr(self, cache_attr, ContextualLogger(base_logger))
 
-        return cast('ContextualLogger', getattr(self, cache_attr))
+        return cast("ContextualLogger", getattr(self, cache_attr))
 
 
 def log_execution(
     include_args: bool = False,
     include_result: bool = False,
-    log_level: int = logging.INFO
+    log_level: int = logging.INFO,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator to automatically log method/function execution with timing.
 
@@ -167,11 +167,12 @@ def log_execution(
             # Logged with arguments at DEBUG level
             pass
     """
+
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Get logger - try to use instance logger if available, otherwise module logger
-            if args and hasattr(args[0], 'logger') and hasattr(args[0].logger, 'info'):
+            if args and hasattr(args[0], "logger") and hasattr(args[0].logger, "info"):
                 logger = args[0].logger  # type: ignore
             else:
                 logger = ContextualLogger(logging.getLogger(func.__module__))
@@ -184,17 +185,25 @@ def log_execution(
             if log_level <= logging.DEBUG and include_args:
                 # Safely format args (avoid logging sensitive data)
                 safe_args = []
-                for i, arg in enumerate(args[1:] if args and hasattr(args[0], 'logger') else args):
+                for i, arg in enumerate(
+                    args[1:] if args and hasattr(args[0], "logger") else args
+                ):
                     if isinstance(arg, (str, int, float, bool)):
                         safe_args.append(repr(arg))
                     else:
                         safe_args.append(f"<{type(arg).__name__}>")
 
-                safe_kwargs = {k: repr(v) if isinstance(v, (str, int, float, bool)) else f"<{type(v).__name__}>"
-                               for k, v in kwargs.items()}
+                safe_kwargs = {
+                    k: repr(v)
+                    if isinstance(v, (str, int, float, bool))
+                    else f"<{type(v).__name__}>"
+                    for k, v in kwargs.items()
+                }
 
                 if log_level == logging.DEBUG:
-                    logger.debug(f"Starting {func_name}({', '.join(safe_args)}, {safe_kwargs})")
+                    logger.debug(
+                        f"Starting {func_name}({', '.join(safe_args)}, {safe_kwargs})"
+                    )
                 else:
                     logger.info(f"Starting {func_name}")
             else:
@@ -220,7 +229,9 @@ def log_execution(
                             logger.info(f"{func_name} {time_str}")
                     else:
                         if log_level == logging.DEBUG:
-                            logger.debug(f"{func_name} {time_str} -> <{type(result).__name__}>")
+                            logger.debug(
+                                f"{func_name} {time_str} -> <{type(result).__name__}>"
+                            )
                         else:
                             logger.info(f"{func_name} {time_str}")
                 else:
@@ -240,6 +251,7 @@ def log_execution(
                 raise
 
         return wrapper
+
     return decorator
 
 
@@ -276,13 +288,13 @@ def log_context(**kwargs: str) -> Generator[None, None, None]:
             logger.info("Processing")  # Will include context
     """
     # Get current context or create empty dict
-    current_context = getattr(_context_storage, 'context', {})
+    current_context = getattr(_context_storage, "context", {})
 
     # Create new context by merging current with new
     new_context = {**current_context, **kwargs}
 
     # Store old context for restoration
-    old_context = getattr(_context_storage, 'context', None)
+    old_context = getattr(_context_storage, "context", None)
 
     try:
         # Set new context
@@ -294,5 +306,5 @@ def log_context(**kwargs: str) -> Generator[None, None, None]:
             _context_storage.context = old_context
         else:
             # Remove context if there was none before
-            if hasattr(_context_storage, 'context'):
-                delattr(_context_storage, 'context')
+            if hasattr(_context_storage, "context"):
+                delattr(_context_storage, "context")

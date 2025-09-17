@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from PySide6.QtWidgets import QMessageBox
 
 if TYPE_CHECKING:
-    from PySide6.QtCore import QByteArray
+    from PySide6.QtCore import QByteArray, QSize
     from PySide6.QtWidgets import QSplitter, QTabWidget
 
     from cache_manager import CacheManager
@@ -37,7 +37,9 @@ logger = logging.getLogger(__name__)
 
 class GridWidget(Protocol):
     """Protocol for grid widgets that have size sliders."""
+
     pass  # Empty protocol - accept anything, use hasattr() checks at runtime
+
 
 class SettingsTarget(Protocol):
     """Protocol defining the interface required by SettingsController.
@@ -54,8 +56,10 @@ class SettingsTarget(Protocol):
     def saveState(self) -> QByteArray: ...
     def isMaximized(self) -> bool: ...
     def showMaximized(self) -> None: ...
-    def resize(self, *args, **kwargs) -> None: ...  # Accept QMainWindow's flexible resize signature
-    def get_window_size(self) -> Any: ...  # Flexible return type for QSize or tuple
+    def resize(
+        self, *args: Any, **kwargs: Any  # noqa: ANN401
+    ) -> None: ...  # Accept QMainWindow's flexible resize signature
+    def get_window_size(self) -> QSize | tuple[int, int]: ...  # Flexible return type for QSize or tuple
 
     # Widget references needed for settings
     settings_manager: SettingsManager
@@ -104,7 +108,9 @@ class SettingsController:
                 _ = self.window.restoreState(state)
 
             # Restore splitter states
-            main_splitter_state = self.window.settings_manager.get_splitter_state("main")
+            main_splitter_state = self.window.settings_manager.get_splitter_state(
+                "main"
+            )
             if not main_splitter_state.isEmpty():
                 _ = self.window.splitter.restoreState(main_splitter_state)
 
@@ -143,7 +149,10 @@ class SettingsController:
             else:
                 # Fallback to config defaults
                 from config import Config
-                self.window.resize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
+
+                self.window.resize(
+                    Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT
+                )
 
     def save_settings(self) -> None:
         """Save settings to settings manager."""
@@ -228,7 +237,8 @@ class SettingsController:
 
         if self.window._settings_dialog is None:
             self.window._settings_dialog = SettingsDialog(
-                self.window.settings_manager, self.window  # type: ignore[arg-type]
+                self.window.settings_manager,
+                self.window,  # type: ignore[arg-type]
             )
             _ = self.window._settings_dialog.settings_applied.connect(
                 self.on_settings_applied
@@ -274,7 +284,10 @@ class SettingsController:
         main_window = self.window  # type: ignore[arg-type]
 
         file_path, _ = QFileDialog.getOpenFileName(
-            main_window, "Import Settings", "", "JSON Files (*.json);;All Files (*)"  # type: ignore[arg-type]
+            main_window,
+            "Import Settings",
+            "",
+            "JSON Files (*.json);;All Files (*)",  # type: ignore[arg-type]
         )
 
         if file_path:
@@ -283,7 +296,9 @@ class SettingsController:
                 self.apply_ui_settings()
                 self.apply_cache_settings()
                 _ = QMessageBox.information(
-                    main_window, "Import Success", "Settings imported successfully."  # type: ignore[arg-type]
+                    main_window,
+                    "Import Success",
+                    "Settings imported successfully.",  # type: ignore[arg-type]
                 )
             else:
                 _ = QMessageBox.warning(
@@ -309,11 +324,15 @@ class SettingsController:
         if file_path:
             if self.window.settings_manager.export_settings(file_path):
                 _ = QMessageBox.information(
-                    main_window, "Export Success", f"Settings exported to:\n{file_path}"  # type: ignore[arg-type]
+                    main_window,
+                    "Export Success",
+                    f"Settings exported to:\n{file_path}",  # type: ignore[arg-type]
                 )
             else:
                 _ = QMessageBox.warning(
-                    main_window, "Export Error", "Failed to export settings."  # type: ignore[arg-type]
+                    main_window,
+                    "Export Error",
+                    "Failed to export settings.",  # type: ignore[arg-type]
                 )
 
     def reset_layout(self) -> None:
@@ -333,7 +352,9 @@ class SettingsController:
 
         if reply == QMessageBox.StandardButton.Yes:
             # Reset window size - call with both width and height
-            self.window.resize(Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT)
+            self.window.resize(
+                Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT
+            )
 
             # Reset splitter
             self.window.splitter.setSizes([840, 360])  # 70/30 split

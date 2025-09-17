@@ -5,6 +5,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock
 
 # Mock PySide6 for demonstration
@@ -112,7 +113,7 @@ class CustomLauncherManager:
             persist_terminal=True,
         )
 
-    def get_launcher_categories(self):
+    def get_launcher_categories(self) -> dict[str, list[tuple[str, Any]]]:
         """Get all launcher categories."""
         categories = {}
         for launcher_id, launcher in self.custom_launchers.items():
@@ -122,7 +123,7 @@ class CustomLauncherManager:
             categories[category].append((launcher_id, launcher))
         return categories
 
-    def execute_custom_launcher(self, launcher_id, shot_context):
+    def execute_custom_launcher(self, launcher_id: str, shot_context: dict[str, Any]) -> Any:  # noqa: ANN401
         """Execute a custom launcher with shot context.
 
         Args:
@@ -166,18 +167,18 @@ class CustomLauncherManager:
 
         return result
 
-    def add_custom_launcher(self, launcher_id, launcher) -> None:
+    def add_custom_launcher(self, launcher_id: str, launcher: Any) -> None:  # noqa: ANN401
         """Add a new custom launcher."""
         self.custom_launchers[launcher_id] = launcher
 
-    def remove_custom_launcher(self, launcher_id) -> bool:
+    def remove_custom_launcher(self, launcher_id: str) -> bool:
         """Remove a custom launcher."""
         if launcher_id in self.custom_launchers:
             del self.custom_launchers[launcher_id]
             return True
         return False
 
-    def get_available_terminals(self):
+    def get_available_terminals(self) -> list[str]:
         """Get available terminal emulators."""
         return self.terminal_launcher.get_available_terminals()
 

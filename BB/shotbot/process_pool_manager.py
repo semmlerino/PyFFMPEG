@@ -645,20 +645,25 @@ class ProcessPoolManager(QObject):
             self._session_round_robin.clear()
 
         # Shutdown executor with timeout
-        logger.debug(f"Shutting down ProcessPoolManager executor with timeout={timeout}s")
+        logger.debug(
+            f"Shutting down ProcessPoolManager executor with timeout={timeout}s"
+        )
         try:
             # First signal shutdown without waiting
             self._executor.shutdown(wait=False)
 
             # Then wait with timeout
             import time
+
             start_time = time.time()
 
             # Check if threads are finished, with polling
             while time.time() - start_time < timeout:
                 # Access the internal _threads set to check if empty
-                if hasattr(self._executor, '_threads') and not self._executor._threads:
-                    logger.debug("ProcessPoolManager executor threads completed gracefully")
+                if hasattr(self._executor, "_threads") and not self._executor._threads:
+                    logger.debug(
+                        "ProcessPoolManager executor threads completed gracefully"
+                    )
                     break
                 time.sleep(0.1)  # Small polling interval
             else:

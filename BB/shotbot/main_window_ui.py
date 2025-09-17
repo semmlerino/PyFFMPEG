@@ -149,12 +149,11 @@ class MainWindowUI:
         # My Shots tab
         # Create a ShotItemModel from the shot_model
         from shot_item_model import ShotItemModel
+
         shot_item_model = ShotItemModel()
         shot_item_model.set_shots(shot_model.shots)
-        
-        shot_grid_view = ShotGridView(
-            model=shot_item_model
-        )
+
+        shot_grid_view = ShotGridView(model=shot_item_model)
         tab_widget.addTab(shot_grid_view, "My Shots")
 
         # 3DE Scenes tab
@@ -199,9 +198,7 @@ class MainWindowUI:
         self.tab_widget = QTabWidget()
 
         # Previous Shots tab
-        previous_shots_view = PreviousShotsView(
-            model=previous_shots_model
-        )
+        previous_shots_view = PreviousShotsView(model=previous_shots_model)
         self.tab_widget.addTab(previous_shots_view, "Previous Shots")
 
         # Log Viewer tab

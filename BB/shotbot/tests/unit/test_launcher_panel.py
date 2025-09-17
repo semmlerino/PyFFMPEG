@@ -31,9 +31,11 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 # FACTORY FIXTURES (Modern Best Practice)
 # =============================================================================
 
+
 @pytest.fixture
 def make_app_config():
     """Factory fixture for creating AppConfig objects."""
+
     def _make(
         name: str = "test_app",
         command: str = "test_command",
@@ -52,12 +54,14 @@ def make_app_config():
             shortcut=shortcut,
             checkboxes=checkboxes,
         )
+
     return _make
 
 
 @pytest.fixture
 def make_checkbox_config():
     """Factory fixture for creating CheckboxConfig objects."""
+
     def _make(
         label: str = "Test Option",
         tooltip: str = "Test tooltip",
@@ -70,12 +74,14 @@ def make_checkbox_config():
             key=key,
             default=default,
         )
+
     return _make
 
 
 @pytest.fixture
 def make_shot():
     """Factory fixture for creating Shot objects."""
+
     def _make(
         show: str = "test_show",
         sequence: str = "test_seq",
@@ -83,12 +89,14 @@ def make_shot():
         workspace_path: str = "/test/path",
     ) -> Shot:
         return Shot(show, sequence, shot, workspace_path)
+
     return _make
 
 
 # =============================================================================
 # APPLAUNCHER SECTION TESTS
 # =============================================================================
+
 
 class TestAppLauncherSection:
     """Test AppLauncherSection widget behavior."""
@@ -107,7 +115,9 @@ class TestAppLauncherSection:
         assert section.launch_button.text() == "Launch nuke"
         assert not section.launch_button.isEnabled()  # Disabled until shot selected
 
-    def test_initialization_with_checkboxes(self, qtbot, make_app_config, make_checkbox_config):
+    def test_initialization_with_checkboxes(
+        self, qtbot, make_app_config, make_checkbox_config
+    ):
         """Test section initialization with checkboxes."""
         checkbox_configs = [
             make_checkbox_config(label="Option 1", key="opt1", default=True),
@@ -188,7 +198,9 @@ class TestAppLauncherSection:
         assert section.is_expanded is True
         assert section.expand_button.arrowType() == Qt.ArrowType.DownArrow
 
-    def test_checkbox_state_retrieval(self, qtbot, make_app_config, make_checkbox_config):
+    def test_checkbox_state_retrieval(
+        self, qtbot, make_app_config, make_checkbox_config
+    ):
         """Test checkbox state retrieval."""
         checkbox_configs = [
             make_checkbox_config(key="option_a", default=True),
@@ -213,7 +225,9 @@ class TestAppLauncherSection:
 
     def test_color_manipulation(self, qtbot, make_app_config):
         """Test color lightening and darkening methods."""
-        config = make_app_config(color="#808080")  # Gray - can be lightened and darkened
+        config = make_app_config(
+            color="#808080"
+        )  # Gray - can be lightened and darkened
         section = AppLauncherSection(config)
         qtbot.addWidget(section)
 
@@ -239,6 +253,7 @@ class TestAppLauncherSection:
 # =============================================================================
 # LAUNCHER PANEL TESTS
 # =============================================================================
+
 
 class TestLauncherPanel:
     """Test LauncherPanel widget behavior."""
@@ -394,6 +409,7 @@ class TestLauncherPanel:
 # INTEGRATION TESTS
 # =============================================================================
 
+
 class TestLauncherPanelIntegration:
     """Test launcher panel integration scenarios."""
 
@@ -488,6 +504,7 @@ class TestLauncherPanelIntegration:
 # =============================================================================
 # ERROR HANDLING TESTS
 # =============================================================================
+
 
 class TestLauncherPanelErrorHandling:
     """Test error handling and edge cases."""
