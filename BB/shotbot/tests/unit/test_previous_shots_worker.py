@@ -142,10 +142,11 @@ class TestPreviousShotsWorkerWorkflow:
         worker = worker_with_cleanup
 
         # Mock subprocess.run (system boundary) to simulate find command output
+        # Must use VFX path format: /shows/{show}/shots/{seq}/{seq}_{shot}/user/{user}
         find_output = [
-            "/shows/show1/shots/seq1/shot1/user/testuser",
-            "/shows/show1/shots/seq1/shot2/user/testuser",
-            "/shows/show2/shots/seq2/shot1/user/testuser",
+            "/shows/show1/shots/seq1/seq1_shot1/user/testuser",
+            "/shows/show1/shots/seq1/seq1_shot2/user/testuser",
+            "/shows/show2/shots/seq2/seq2_shot1/user/testuser",
         ]
 
         test_result = TestCompletedProcess(
@@ -244,7 +245,7 @@ class TestPreviousShotsWorkerWorkflow:
             return TestCompletedProcess(
                 args=args[0] if args else [],
                 returncode=0,
-                stdout="/shows/show1/shots/seq1/shot1/user/testuser\n",
+                stdout="/shows/show1/shots/seq1/seq1_shot1/user/testuser\n",
             )
 
         QSignalSpy(worker.scan_finished)
@@ -323,7 +324,7 @@ class TestPreviousShotsWorkerWorkflow:
         test_result = TestCompletedProcess(
             args=[],
             returncode=0,
-            stdout="/shows/different_show/shots/testseq/testshot/user/testuser\n",
+            stdout="/shows/different_show/shots/testseq/testseq_testshot/user/testuser\n",
         )
 
         shot_found_spy = QSignalSpy(worker.shot_found)
@@ -356,7 +357,7 @@ class TestPreviousShotsWorkerWorkflow:
         assert shot_dict["shot"] == "testshot"
         assert (
             shot_dict["workspace_path"]
-            == "/shows/different_show/shots/testseq/testshot"
+            == "/shows/different_show/shots/testseq/testseq_testshot"
         )
 
         # Verify scan_finished signal data structure
@@ -387,8 +388,10 @@ class TestPreviousShotsWorkerIntegration:
         for show_name, show_data in shows_data.items():
             for seq_name in show_data["sequences"]:
                 for shot_idx in range(show_data["shots_per_seq"]):
-                    shot_name = f"shot_{shot_idx:03d}"
-                    shot_path = shows_root / show_name / "shots" / seq_name / shot_name
+                    # Use VFX naming convention: {seq}_{shot}
+                    shot_num = f"{shot_idx:03d}"
+                    shot_dir_name = f"{seq_name}_{shot_num}"
+                    shot_path = shows_root / show_name / "shots" / seq_name / shot_dir_name
 
                     # Some shots have user work
                     if shot_idx % 2 == 0:  # Even shots have user work
@@ -407,19 +410,19 @@ class TestPreviousShotsWorkerIntegration:
         """Test integration using real PreviousShotsFinder with mocked subprocess."""
 
         # Create active shots (some overlap with user work)
-        # Note: shot name must match what finder extracts from "shot_000" directory
-        # The finder will extract "000" from "shot_000" (takes part after last underscore)
+        # Note: shot name must match what finder extracts from "010_opening_000" directory
+        # The finder will extract "000" from "010_opening_000" (takes part after last underscore)
         active_shots = [
             Shot(
                 "feature_film",
                 "010_opening",
-                "000",  # Matches what finder extracts from "shot_000" directory
+                "000",  # Matches what finder extracts from "010_opening_000" directory
                 str(
                     real_shows_structure
                     / "feature_film"
                     / "shots"
                     / "010_opening"
-                    / "shot_000"
+                    / "010_opening_000"
                 ),
             ),
         ]
@@ -431,26 +434,27 @@ class TestPreviousShotsWorkerIntegration:
         )
 
         # Mock subprocess to return paths that exist in our test structure
+        # Using VFX naming convention: {seq}_{shot}
         find_output = [
             str(
                 real_shows_structure
-                / "feature_film/shots/010_opening/shot_000/user/testuser"
+                / "feature_film/shots/010_opening/010_opening_000/user/testuser"
             ),
             str(
                 real_shows_structure
-                / "feature_film/shots/010_opening/shot_002/user/testuser"
+                / "feature_film/shots/010_opening/010_opening_002/user/testuser"
             ),
             str(
                 real_shows_structure
-                / "feature_film/shots/020_chase/shot_000/user/testuser"
+                / "feature_film/shots/020_chase/020_chase_000/user/testuser"
             ),
             str(
                 real_shows_structure
-                / "feature_film/shots/020_chase/shot_002/user/testuser"
+                / "feature_film/shots/020_chase/020_chase_002/user/testuser"
             ),
             str(
                 real_shows_structure
-                / "commercial/shots/001_product/shot_000/user/testuser"
+                / "commercial/shots/001_product/001_product_000/user/testuser"
             ),
         ]
 

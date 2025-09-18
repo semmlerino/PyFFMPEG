@@ -10,11 +10,11 @@ import logging
 import os
 import sys
 from pathlib import Path
+
 from logging_mixin import LoggingMixin, get_module_logger
 
 # Module-level logger for static methods
 logger = get_module_logger(__name__)
-
 
 
 class CacheConfig(LoggingMixin):
@@ -130,7 +130,7 @@ class CacheConfig(LoggingMixin):
 
         if CacheConfig.TEST_CACHE_DIR.exists():
             shutil.rmtree(CacheConfig.TEST_CACHE_DIR)
-            self.logger.info(f"Cleared test cache: {CacheConfig.TEST_CACHE_DIR}")
+            logger.info(f"Cleared test cache: {CacheConfig.TEST_CACHE_DIR}")
 
     @staticmethod
     def clear_mock_cache() -> None:
@@ -142,7 +142,7 @@ class CacheConfig(LoggingMixin):
 
         if CacheConfig.MOCK_CACHE_DIR.exists():
             shutil.rmtree(CacheConfig.MOCK_CACHE_DIR)
-            self.logger.info(f"Cleared mock cache: {CacheConfig.MOCK_CACHE_DIR}")
+            logger.info(f"Cleared mock cache: {CacheConfig.MOCK_CACHE_DIR}")
 
     @staticmethod
     def get_cache_info() -> dict[str, object]:
@@ -189,7 +189,7 @@ class CacheConfig(LoggingMixin):
         import shutil
 
         if not from_dir.exists():
-            self.logger.warning(f"Source cache directory does not exist: {from_dir}")
+            logger.warning(f"Source cache directory does not exist: {from_dir}")
             return False
 
         try:
@@ -201,11 +201,11 @@ class CacheConfig(LoggingMixin):
                 shutil.rmtree(to_dir)
 
             shutil.copytree(from_dir, to_dir)
-            self.logger.info(f"Migrated cache from {from_dir} to {to_dir}")
+            logger.info(f"Migrated cache from {from_dir} to {to_dir}")
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to migrate cache: {e}")
+            logger.error(f"Failed to migrate cache: {e}")
             return False
 
 

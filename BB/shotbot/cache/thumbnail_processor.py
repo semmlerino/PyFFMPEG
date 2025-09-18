@@ -76,7 +76,9 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
         try:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
         except (OSError, PermissionError) as e:
-            self.logger.error(f"Failed to create cache directory {cache_path.parent}: {e}")
+            self.logger.error(
+                f"Failed to create cache directory {cache_path.parent}: {e}"
+            )
             return False
 
         try:
@@ -413,7 +415,9 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
             )
 
             if result.returncode != 0:
-                self.logger.debug(f"EXR validation failed with exrinfo: {result.stderr}")
+                self.logger.debug(
+                    f"EXR validation failed with exrinfo: {result.stderr}"
+                )
                 # Continue anyway - maybe convert will work
 
             # Log EXR info for debugging
@@ -528,7 +532,9 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
             api_style = "official"
             self.logger.debug("Using official OpenEXR package (uppercase)")
         except ImportError:
-            self.logger.debug("Official OpenEXR package not available, trying alternative")
+            self.logger.debug(
+                "Official OpenEXR package not available, trying alternative"
+            )
 
         # Strategy 2: Try alternative openexr (lowercase) - common in Rez
         if openexr_module is None:
@@ -728,7 +734,9 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
         try:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
         except (OSError, PermissionError) as e:
-            self.logger.error(f"Failed to create cache directory {cache_path.parent}: {e}")
+            self.logger.error(
+                f"Failed to create cache directory {cache_path.parent}: {e}"
+            )
             return False
 
         temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
@@ -853,7 +861,9 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
                         )
 
                 except Exception as e:
-                    self.logger.error(f"Failed to process thumbnail at index {index}: {e}")
+                    self.logger.error(
+                        f"Failed to process thumbnail at index {index}: {e}"
+                    )
                     results[index] = None
 
         # Log final statistics

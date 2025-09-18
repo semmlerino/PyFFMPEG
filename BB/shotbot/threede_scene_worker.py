@@ -629,18 +629,18 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             shot_id = f"{shot.show}/{shot.sequence}/{shot.shot}"
             user_shot_ids.add(shot_id)
 
-        # Filter out user's shots from the results (for "Other 3DE scenes")
+        # Filter to keep only scenes from user's shots (from other users)
         other_scenes = []
         for scene in all_scenes:
             if self.should_stop():
                 break
 
             scene_id = f"{scene.show}/{scene.sequence}/{scene.shot}"
-            if scene_id not in user_shot_ids:
+            if scene_id in user_shot_ids:  # Keep scenes FROM user's shots
                 other_scenes.append(scene)
 
         logger.info(
-            f"Found {len(all_scenes)} total scenes using parallel scan, {len(other_scenes)} are from other shots",
+            f"Found {len(all_scenes)} total scenes using parallel scan, {len(other_scenes)} are from other users on assigned shots",
         )
 
         # Emit final progress update
@@ -649,7 +649,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 len(other_scenes),
                 len(all_scenes),
                 100.0,
-                f"Completed: Found {len(other_scenes)} scenes from other shots",
+                f"Completed: Found {len(other_scenes)} scenes from other users",
                 "",
             )
 

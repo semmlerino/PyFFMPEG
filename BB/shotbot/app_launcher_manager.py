@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
 
 
-
 class AppLauncherManager(LoggingMixin, QObject):
     """Centralized application launching management.
 
@@ -100,7 +99,9 @@ class AppLauncherManager(LoggingMixin, QObject):
                 )
                 self.status_update.emit(f"{app_name} launched for {shot.full_name}")
             else:
-                self.logger.error(f"Failed to launch {app_name} for shot {shot.full_name}")
+                self.logger.error(
+                    f"Failed to launch {app_name} for shot {shot.full_name}"
+                )
                 self.launch_error.emit(app_name, "Launch command failed")
 
             return success
@@ -209,7 +210,9 @@ class AppLauncherManager(LoggingMixin, QObject):
             return self.command_launcher.launch_app_with_scene("3de", scene)
 
         except Exception as e:
-            self.logger.error(f"Failed to launch 3DE with scene {scene.scene_path}: {e}")
+            self.logger.error(
+                f"Failed to launch 3DE with scene {scene.scene_path}: {e}"
+            )
             return False
 
     def _launch_app_with_shot_context(self, app_name: str, shot: Shot) -> bool:

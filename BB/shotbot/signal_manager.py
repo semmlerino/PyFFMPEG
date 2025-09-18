@@ -83,9 +83,9 @@ class SignalManager(LoggingMixin):
         try:
             # Connect based on connection type
             if connection_type is not None:
-                signal.connect(slot, connection_type)
+                signal.connect(slot, connection_type)  # type: ignore[attr-defined]
             else:
-                signal.connect(slot)
+                signal.connect(slot)  # type: ignore[attr-defined]
 
             # Track the connection if requested
             if track:
@@ -100,7 +100,9 @@ class SignalManager(LoggingMixin):
             self.logger.error(f"Failed to connect signal: {e}")
             return False
 
-    def disconnect_safely(self, signal: Signal | SignalInstance, slot: Callable[..., Any]) -> bool:
+    def disconnect_safely(
+        self, signal: Signal | SignalInstance, slot: Callable[..., Any]
+    ) -> bool:
         """Safely disconnect a signal from a slot.
 
         Args:
@@ -111,7 +113,7 @@ class SignalManager(LoggingMixin):
             True if disconnection succeeded
         """
         try:
-            signal.disconnect(slot)
+            signal.disconnect(slot)  # type: ignore[attr-defined]
 
             # Remove from tracking
             self._connections = [
@@ -127,7 +129,9 @@ class SignalManager(LoggingMixin):
 
         except Exception as e:
             # Disconnection can fail if already disconnected, which is ok
-            self.logger.debug(f"Disconnection failed (may already be disconnected): {e}")
+            self.logger.debug(
+                f"Disconnection failed (may already be disconnected): {e}"
+            )
             return False
 
     def disconnect_all(self) -> int:
@@ -141,7 +145,7 @@ class SignalManager(LoggingMixin):
         # Disconnect in reverse order (LIFO)
         for signal, slot, _ in reversed(self._connections):
             try:
-                signal.disconnect(slot)
+                signal.disconnect(slot)  # type: ignore[attr-defined]
                 disconnected += 1
             except Exception as e:
                 # Connection might already be gone
@@ -186,9 +190,9 @@ class SignalManager(LoggingMixin):
         try:
             # For signal chaining, we connect to the emit method
             if connection_type is not None:
-                source_signal.connect(target_signal.emit, connection_type)
+                source_signal.connect(target_signal.emit, connection_type)  # type: ignore[attr-defined]
             else:
-                source_signal.connect(target_signal.emit)
+                source_signal.connect(target_signal.emit)  # type: ignore[attr-defined]
 
             self._signal_chains.append((source_signal, target_signal))
             self.logger.debug(f"Chained {source_signal} -> {target_signal}")
@@ -391,7 +395,7 @@ class SignalThrottler(QObject):
         self._timer.timeout.connect(self._emit_throttled)
 
         # Connect source signal
-        source_signal.connect(self._on_source_signal)
+        source_signal.connect(self._on_source_signal)  # type: ignore[attr-defined]
 
     def _on_source_signal(self, *args: Any) -> None:
         """Handle source signal emission."""
@@ -410,7 +414,7 @@ class SignalThrottler(QObject):
         """Stop throttling and disconnect."""
         self._timer.stop()
         try:
-            self.source_signal.disconnect(self._on_source_signal)
+            self.source_signal.disconnect(self._on_source_signal)  # type: ignore[attr-defined]
         except Exception:
             pass
 
@@ -446,13 +450,15 @@ class SignalDebugger(LoggingMixin):
 
         def trace_handler(*args: Any) -> None:
             """Log signal emission."""
-            self._signal_counts[signal_name] = self._signal_counts.get(signal_name, 0) + 1
+            self._signal_counts[signal_name] = (
+                self._signal_counts.get(signal_name, 0) + 1
+            )
             count = self._signal_counts[signal_name]
 
             args_str = ", ".join(str(arg) for arg in args) if args else "no args"
             self.logger.debug(f"Signal {signal_name}[{count}]: {args_str}")
 
-        signal.connect(trace_handler)
+        signal.connect(trace_handler)  # type: ignore[attr-defined]
 
     def get_stats(self) -> dict[str, int]:
         """Get signal emission statistics."""

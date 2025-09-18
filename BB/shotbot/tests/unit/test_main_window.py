@@ -120,9 +120,9 @@ class TestShotSelection:
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Initially buttons should be disabled
-        for button in main_window.app_buttons.values():
-            assert not button.isEnabled()
+        # Initially launcher panel's app buttons should be disabled
+        for section in main_window.launcher_panel.app_sections.values():
+            assert not section.launch_button.isEnabled()
 
         # Create a test shot
         shot = Shot("test_show", "seq01", "0010", "/shows/test/seq01/0010")
@@ -131,8 +131,8 @@ class TestShotSelection:
         main_window._on_shot_selected(shot)
 
         # Now buttons should be enabled
-        for button in main_window.app_buttons.values():
-            assert button.isEnabled()
+        for section in main_window.launcher_panel.app_sections.values():
+            assert section.launch_button.isEnabled()
 
         # Shot info panel should be updated with the shot
         # Test behavior: info panel should show shot information
@@ -151,15 +151,15 @@ class TestShotSelection:
         main_window._on_shot_selected(shot)
 
         # Verify buttons are enabled
-        for button in main_window.app_buttons.values():
-            assert button.isEnabled()
+        for section in main_window.launcher_panel.app_sections.values():
+            assert section.launch_button.isEnabled()
 
         # Deselect shot
         main_window._on_shot_selected(None)
 
         # Buttons should be disabled again
-        for button in main_window.app_buttons.values():
-            assert not button.isEnabled()
+        for section in main_window.launcher_panel.app_sections.values():
+            assert not section.launch_button.isEnabled()
 
 
 class TestShotRefresh:
@@ -216,8 +216,9 @@ class TestApplicationLaunching:
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Select a shot
-        shot = Shot("test_show", "seq01", "0010", "/shows/test/seq01/0010")
+        # Select a shot with tmp_path as workspace
+        workspace_path = str(tmp_path / "test_workspace")
+        shot = Shot("test_show", "seq01", "0010", workspace_path)
         main_window._on_shot_selected(shot)
 
         # Mock subprocess at the system boundary
@@ -301,8 +302,8 @@ class TestApplicationLaunching:
         qtbot.addWidget(main_window)
 
         # No shot selected - buttons should be disabled
-        for button in main_window.app_buttons.values():
-            assert not button.isEnabled()
+        for section in main_window.launcher_panel.app_sections.values():
+            assert not section.launch_button.isEnabled()
 
         # Test behavior: app launch should be prevented when no shot is selected
         # This is handled by UI state - buttons are disabled
@@ -368,9 +369,10 @@ class TestSignalConnections:
         # Verify launcher manager exists and is connected
         assert main_window.launcher_manager is not None
 
-        # Verify that custom launcher container exists
-        assert hasattr(main_window, "custom_launcher_container")
-        assert main_window.custom_launcher_container is not None
+        # Verify that custom launcher container exists in the launcher panel
+        assert hasattr(main_window, "launcher_panel")
+        assert hasattr(main_window.launcher_panel, "custom_launcher_container")
+        assert main_window.launcher_panel.custom_launcher_container is not None
 
 
 class TestWindowCleanup:
@@ -477,6 +479,8 @@ class TestMainWindowIntegration:
 
         # Set up test process pool for 'ws' command with different data than autouse fixture
         mock_gui_blocking_components.reset()
+        # Must use standard VFX format for parsing to work: /shows/{show}/shots/{seq}/{seq}_{shot}
+        # The path doesn't need to exist since subprocess is mocked
         mock_gui_blocking_components.set_outputs(
             "workspace /shows/workflow/shots/seq01/seq01_0010"
         )
@@ -493,11 +497,18 @@ class TestMainWindowIntegration:
         main_window._on_shot_selected(shot)
 
         # Verify buttons enabled (test behavior)
-        assert main_window.app_buttons["nuke"].isEnabled()
+        assert "nuke" in main_window.launcher_panel.app_sections
+        assert main_window.launcher_panel.app_sections["nuke"].launch_button.isEnabled()
 
         # Test complete workflow - just verify the app launch doesn't crash
         # The subprocess call is already mocked by our autouse fixture (no real process spawned)
         # We're testing the integration, not the implementation details
+
+        # Mock the workspace directory creation to avoid permission errors
+        def mock_mkdir(self, *args, **kwargs):
+            pass  # Don't actually create directories
+
+        monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
         main_window._launch_app("nuke")
 
         # Test behavior: app launch completed without errors

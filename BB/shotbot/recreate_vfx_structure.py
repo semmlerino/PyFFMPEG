@@ -330,7 +330,7 @@ class VFXStructureRecreator:
 
                 def find_gabrielh_3de_scenes(
                     node: dict[str, Any], path_parts: list[str] | None = None
-                ) -> None:  # type: ignore[type-arg]
+                ) -> None:
                     """Recursively find gabriel-h 3DE scenes directories."""
                     if path_parts is None:
                         path_parts = []

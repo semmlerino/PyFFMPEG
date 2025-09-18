@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import logging
 import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
+from logging_mixin import LoggingMixin
 from previous_shots_finder import ParallelShotsFinder
 from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
 
-from logging_mixin import LoggingMixin
 
 class PreviousShotsWorker(LoggingMixin, ThreadSafeWorker):
     """Background worker thread for finding approved shots.
@@ -177,7 +176,9 @@ class PreviousShotsWorker(LoggingMixin, ThreadSafeWorker):
                     shot_dicts.append(shot_dict)
                     self.shot_found.emit(shot_dict)
             else:
-                self.logger.debug("Skipping shot_found emission - signals already emitted")
+                self.logger.debug(
+                    "Skipping shot_found emission - signals already emitted"
+                )
                 # Still need to build shot_dicts for final emission
                 for shot in approved_shots:
                     shot_dict = {

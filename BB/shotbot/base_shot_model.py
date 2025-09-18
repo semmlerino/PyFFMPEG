@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -86,7 +85,9 @@ class BaseShotModel(LoggingMixin, QObject):
         except ImportError:
             # Fallback to direct access if factory not available
             if DEBUG_VERBOSE:
-                self.logger.debug("Factory not available, using direct singleton access")
+                self.logger.debug(
+                    "Factory not available, using direct singleton access"
+                )
             self._process_pool = ProcessPoolManager.get_instance()
 
         # Performance metrics
@@ -203,7 +204,9 @@ class BaseShotModel(LoggingMixin, QObject):
                     continue
             else:
                 # Log unmatched lines for debugging, but don't fail
-                self.logger.debug(f"Line {line_num}: No match for workspace pattern: {line}")
+                self.logger.debug(
+                    f"Line {line_num}: No match for workspace pattern: {line}"
+                )
 
         self.logger.info(f"Parsed {len(shots)} shots from ws -sg output")
         return shots

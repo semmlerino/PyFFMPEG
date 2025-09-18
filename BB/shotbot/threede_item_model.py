@@ -58,7 +58,7 @@ def safe_log_info(message: str) -> None:
         # Write directly to stderr to avoid any further recursion
         try:
             os.write(2, f"[RECURSION GUARD] {message}\n".encode())
-        except:
+        except Exception:
             pass
         return
 
@@ -70,7 +70,7 @@ def safe_log_info(message: str) -> None:
         # Fallback: write directly to stderr
         try:
             os.write(2, f"[RECURSION ERROR] {message}\n".encode())
-        except:
+        except Exception:
             pass
     except Exception:
         # Fallback: silent failure to prevent crashes

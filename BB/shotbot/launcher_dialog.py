@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -32,13 +31,12 @@ from launcher.models import (
     LauncherEnvironment,
     LauncherTerminal,
 )
-from notification_manager import NotificationManager, NotificationType
 from logging_mixin import LoggingMixin
+from notification_manager import NotificationManager, NotificationType
 from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
     from launcher_manager import LauncherManager
-
 
 
 class LauncherListWidget(LoggingMixin, QListWidget):
@@ -152,7 +150,7 @@ class LauncherPreviewPanel(QtWidgetMixin, LoggingMixin, QWidget):
             self.delete_requested.emit(self._current_launcher_id)
 
 
-class LauncherEditDialog(QtWidgetMixin, LoggingMixin, QDialog):
+class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc]
     """Dialog for creating/editing launchers."""
 
     def __init__(
@@ -424,7 +422,7 @@ class LauncherEditDialog(QtWidgetMixin, LoggingMixin, QDialog):
             NotificationManager.error("Save Error", f"Error saving launcher: {str(e)}")
 
 
-class LauncherManagerDialog(QtWidgetMixin, LoggingMixin, QDialog):
+class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc]
     """Main launcher management dialog."""
 
     def __init__(self, launcher_manager: LauncherManager, parent=None) -> None:

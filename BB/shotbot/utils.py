@@ -11,8 +11,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from config import Config
-from error_handling_mixin import ErrorHandlingMixin
-from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -1195,6 +1193,11 @@ class ValidationUtils:
         Returns:
             Current username, falling back to Config.DEFAULT_USERNAME if not found
         """
+        # In mock mode, always use gabriel-h to match the production data
+        if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
+            logger.debug("Mock mode: using production username 'gabriel-h'")
+            return "gabriel-h"
+
         # Try multiple environment variables in order of preference
         for env_var in ["USER", "USERNAME", "LOGNAME"]:
             username = os.environ.get(env_var)

@@ -7,7 +7,6 @@ and proper Model/View integration.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
@@ -30,9 +29,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from config import Config
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
-from config import Config
 from shot_grid_delegate_refactored import ShotGridDelegate
 from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
@@ -40,6 +39,7 @@ from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
+
 
 class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
     """Optimized grid view for displaying shot thumbnails.
@@ -186,7 +186,9 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
         if self._model:
             # Force a view update
             self.list_view.viewport().update()
-            self.logger.debug("View refresh requested (Model/View updates automatically)")
+            self.logger.debug(
+                "View refresh requested (Model/View updates automatically)"
+            )
 
     def set_model(self, model: ShotItemModel) -> None:
         """Set the data model for the view.
@@ -492,6 +494,7 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
         self.logger.debug("Folder opened successfully")
+
 
 # Example usage
 if __name__ == "__main__":

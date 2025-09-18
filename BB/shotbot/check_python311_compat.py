@@ -21,9 +21,11 @@ def check_file_syntax(filepath: Path) -> List[str]:
         # Check for specific patterns
         for node in ast.walk(tree):
             # Check for type parameter syntax (PEP 695) - Python 3.12+
-            if hasattr(ast, "TypeAlias") and isinstance(node, ast.TypeAlias):
+            if hasattr(ast, "TypeAlias") and isinstance(
+                node, getattr(ast, "TypeAlias", type)
+            ):
                 issues.append(
-                    f"Type parameter syntax (PEP 695) used at line {node.lineno}"
+                    f"Type parameter syntax (PEP 695) used at line {getattr(node, 'lineno', 0)}"
                 )
 
             # Check for improved f-strings (PEP 701) - Python 3.12+

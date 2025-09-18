@@ -88,7 +88,7 @@ class ThreadingManager(QObject):
             self._current_threede_worker.started.connect(
                 self.threede_discovery_started.emit
             )
-            self._current_threede_worker.progress_update.connect(
+            self._current_threede_worker.progress_update.connect(  # type: ignore[attr-defined]
                 self.threede_discovery_progress.emit
             )
             self._current_threede_worker.batch_ready.connect(
@@ -153,7 +153,7 @@ class ThreadingManager(QObject):
         """
         with QMutexLocker(self._mutex):
             if self._current_threede_worker and self._threede_discovery_active:
-                self._current_threede_worker.pause_discovery()
+                self._current_threede_worker.pause()
                 return True
             return False
 
@@ -316,8 +316,10 @@ class ThreadingManager(QObject):
 
             # Stop if running
             if worker.isRunning():
-                if hasattr(worker, "stop"):
-                    worker.stop()
+                if hasattr(worker, "request_stop"):
+                    worker.request_stop()  # type: ignore[attr-defined]
+                elif hasattr(worker, "stop"):
+                    worker.stop()  # type: ignore[attr-defined]
                 if not worker.wait(2000):
                     logger.warning(f"Worker {name} did not stop gracefully")
 

@@ -85,28 +85,29 @@ class TestMainWindowNoHang:
         assert safe_main_window.tab_widget.tabText(1) == "Other 3DE scenes"
         assert safe_main_window.tab_widget.tabText(2) == "Previous Shots"
 
-    def test_shot_selection_enables_buttons(self, safe_main_window) -> None:
+    def test_shot_selection_enables_buttons(self, safe_main_window, tmp_path) -> None:
         """Test that selecting a shot enables application launcher buttons."""
         # Initially disabled
-        for button in safe_main_window.app_buttons.values():
-            assert not button.isEnabled()
+        for section in safe_main_window.launcher_panel.app_sections.values():
+            assert not section.launch_button.isEnabled()
 
-        # Select shot
-        shot = Shot("test_show", "seq01", "0010", "/shows/test/seq01/0010")
+        # Select shot with tmp_path as workspace
+        workspace_path = str(tmp_path / "test_workspace")
+        shot = Shot("test_show", "seq01", "0010", workspace_path)
         safe_main_window._on_shot_selected(shot)
 
         # Now enabled
-        for button in safe_main_window.app_buttons.values():
-            assert button.isEnabled()
+        for section in safe_main_window.launcher_panel.app_sections.values():
+            assert section.launch_button.isEnabled()
 
         # Shot info updated
         assert safe_main_window.shot_info_panel._current_shot == shot
 
     def test_refresh_shots_with_test_pool(self, safe_main_window) -> None:
         """Test shot refresh with test process pool."""
-        # Configure test pool response
+        # Configure test pool response - must use /shows/ format for parser to recognize it
         test_pool = safe_main_window.shot_model._process_pool
-        test_pool.set_outputs("workspace /shows/test/shots/seq01/seq01_0010\n")
+        test_pool.set_outputs("workspace /shows/test_show/shots/seq01/seq01_0010\n")
 
         # Clear any existing shots
         safe_main_window.shot_model.shots = []
@@ -140,15 +141,36 @@ class TestApplicationLaunchingNoHang:
             if main_window._refresh_timer and main_window._refresh_timer.isActive():
                 main_window._refresh_timer.stop()
 
-        # Select a shot
-        shot = Shot("test_show", "seq01", "0010", "/shows/test/seq01/0010")
+        # Clear any existing shots to prevent interference
+        main_window.shot_model.shots = []
+
+        # Select a shot with tmp_path as workspace
+        workspace_path = str(tmp_path / "test_workspace")
+        shot = Shot("test_show", "seq01", "0010", workspace_path)
         main_window._on_shot_selected(shot)
+
+        # Verify the shot was correctly set
+        assert main_window.command_launcher.current_shot == shot
+        assert main_window.command_launcher.current_shot.workspace_path == workspace_path
 
         return main_window, shot
 
-    def test_launch_app_with_selected_shot(self, safe_window_with_shot) -> None:
+    def test_launch_app_with_selected_shot(self, safe_window_with_shot, monkeypatch, tmp_path) -> None:
         """Test launching an application with a selected shot."""
         main_window, shot = safe_window_with_shot
+
+        # Mock the NukeWorkspaceManager to avoid creating directories
+        from nuke_workspace_manager import NukeWorkspaceManager
+        from pathlib import Path
+
+        def mock_get_workspace_script_directory(workspace_path, user=None, plate="mm-default", pass_name="PL01"):
+            # Return a temp directory that exists
+            script_dir = tmp_path / "nuke_scripts"
+            script_dir.mkdir(parents=True, exist_ok=True)
+            return script_dir
+
+        monkeypatch.setattr(NukeWorkspaceManager, 'get_workspace_script_directory',
+                          classmethod(lambda cls, *args, **kwargs: mock_get_workspace_script_directory(*args, **kwargs)))
 
         # Replace command launcher's subprocess execution with test double
         executed_commands = []
@@ -196,7 +218,8 @@ class TestApplicationLaunchingNoHang:
                 main_window._refresh_timer.stop()
 
         # No shot selected - buttons should be disabled
-        assert not main_window.app_buttons["nuke"].isEnabled()
+        assert "nuke" in main_window.launcher_panel.app_sections
+        assert not main_window.launcher_panel.app_sections["nuke"].launch_button.isEnabled()
 
         # Try to launch without shot - button is disabled so can't be clicked
         # This is the correct behavior - UI prevents invalid operations

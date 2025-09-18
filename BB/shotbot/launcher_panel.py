@@ -19,8 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from qt_widget_mixin import QtWidgetMixin
 from logging_mixin import LoggingMixin
+from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
     from shot_model import Shot

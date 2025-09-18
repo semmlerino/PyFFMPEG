@@ -79,8 +79,10 @@ class TestCommandLauncherImproved:
 
         # Assert: Test BEHAVIOR, not mocks
         assert result is True  # Launch succeeded
-        assert len(self.emitted_commands) == 1  # Command was executed
-        timestamp, command = self.emitted_commands[0]  # Unpack timestamp and command
+        # Filter out informational messages, only count actual commands (ones starting with "ws")
+        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        assert len(actual_commands) == 1  # Command was executed
+        timestamp, command = actual_commands[0]  # Unpack timestamp and command
         assert "nuke" in command  # Correct app launched
         assert len(self.emitted_errors) == 0  # No errors
 
@@ -100,8 +102,9 @@ class TestCommandLauncherImproved:
         assert len(self.emitted_errors) == 1  # Error was emitted
         timestamp, error = self.emitted_errors[0]  # Unpack timestamp and error
         assert "Failed to launch" in error  # Correct error message
-        # Command is still logged before the failure
-        assert len(self.emitted_commands) == 1  # Command logged before error
+        # Command is still logged before the failure - filter for actual commands
+        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        assert len(actual_commands) == 1  # Command logged before error
 
     def test_launch_without_shot_behavior(self) -> None:
         """Test launching without shot context."""
@@ -132,9 +135,11 @@ class TestCommandLauncherImproved:
         self.launcher.launch_app("3de")  # Use valid app from Config.APPS
 
         # Assert: Test that commands were logged (behavior we care about)
-        assert len(self.emitted_commands) == 3  # All commands logged
+        # Filter for actual commands only
+        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        assert len(actual_commands) == 3  # All commands logged
         # Extract just the command part (second element) from each tuple
-        apps_launched = [cmd[1] for cmd in self.emitted_commands]
+        apps_launched = [cmd[1] for cmd in actual_commands]
         assert any("nuke" in app for app in apps_launched)
         assert any("maya" in app for app in apps_launched)
         assert any("3de" in app for app in apps_launched)
@@ -159,8 +164,10 @@ class TestCommandLauncherImproved:
         self.launcher.launch_app("nuke")
 
         # Assert: Test workspace path in command BEHAVIOR
-        assert len(self.emitted_commands) == 1
-        timestamp, command = self.emitted_commands[0]  # Unpack timestamp and command
+        # Filter for actual commands only
+        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        assert len(actual_commands) == 1
+        timestamp, command = actual_commands[0]  # Unpack timestamp and command
         assert "/shows/project_x/seq99/0420" in command  # Workspace path included
 
     def test_workspace_change_behavior(self) -> None:
@@ -186,10 +193,12 @@ class TestCommandLauncherImproved:
         self.launcher.launch_app("nuke")
 
         # Assert: Test workspace change BEHAVIOR
-        assert len(self.emitted_commands) == 2
+        # Filter for actual commands only
+        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        assert len(actual_commands) == 2
         # Check workspace paths in the commands (second element of tuple)
-        assert "/shows/show1" in self.emitted_commands[0][1]  # First command
-        assert "/shows/show2" in self.emitted_commands[1][1]  # Second command
+        assert "/shows/show1" in actual_commands[0][1]  # First command
+        assert "/shows/show2" in actual_commands[1][1]  # Second command
 
 
 class TestCommandLauncherIntegration:

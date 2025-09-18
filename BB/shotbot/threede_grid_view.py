@@ -38,10 +38,10 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
+from logging_mixin import LoggingMixin
+from qt_widget_mixin import QtWidgetMixin
 from threede_grid_delegate_refactored import ThreeDEGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
-from qt_widget_mixin import QtWidgetMixin
-from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QKeyEvent
@@ -73,7 +73,7 @@ def safe_log_info(message: str) -> None:
         # Write directly to stderr to avoid any further recursion
         try:
             os.write(2, f"[RECURSION GUARD] {message}\n".encode())
-        except:
+        except Exception:
             pass
         return
 
@@ -85,7 +85,7 @@ def safe_log_info(message: str) -> None:
         # Fallback: write directly to stderr
         try:
             os.write(2, f"[RECURSION ERROR] {message}\n".encode())
-        except:
+        except Exception:
             pass
     except Exception:
         # Fallback: silent failure to prevent crashes
@@ -286,8 +286,8 @@ class ThreeDEGridView(QtWidgetMixin, LoggingMixin, QWidget):
             # Temporarily disconnect signal to prevent recursion
             try:
                 self.show_combo.currentTextChanged.disconnect()
-            except:
-                pass
+            except RuntimeError:
+                pass  # No connections to disconnect
 
             # Clear and repopulate
             self.show_combo.clear()

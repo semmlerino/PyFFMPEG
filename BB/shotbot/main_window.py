@@ -48,11 +48,10 @@ Type Safety:
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, QTimer, Slot
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, QTimer, Slot
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -90,9 +89,8 @@ from controllers.settings_controller import (
 from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
 from launcher_manager import LauncherManager  # Need at runtime
 from launcher_panel import LauncherPanel  # Improved launcher UI
-from logging_mixin import LoggingMixin, get_module_logger
-from qt_widget_mixin import QtWidgetMixin
 from log_viewer import LogViewer
+from logging_mixin import LoggingMixin, get_module_logger
 from notification_manager import NotificationManager, NotificationType
 from persistent_terminal_manager import PersistentTerminalManager
 from previous_shots_item_model import PreviousShotsItemModel
@@ -100,15 +98,16 @@ from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
 from process_pool_manager import ProcessPoolManager
 from progress_manager import ProgressManager
+from qt_widget_mixin import QtWidgetMixin
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel  # Model/View data model
 from shot_model import Shot, ShotModel
 from shot_model_optimized import OptimizedShotModel  # Performance-optimized model
+from thread_safe_worker import ThreadSafeWorker
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
-from thread_safe_worker import ThreadSafeWorker
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 from threede_scene_worker import ThreeDESceneWorker
 
@@ -840,7 +839,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             f"🔍 3DE Discovery finished with {len(scenes)} total scenes discovered"
         )
         for i, scene in enumerate(scenes[:5]):  # Log first 5 scenes
-            self.logger.info(f"   Scene {i + 1}: {scene.full_name} (user: {scene.user})")
+            self.logger.info(
+                f"   Scene {i + 1}: {scene.full_name} (user: {scene.user})"
+            )
         if len(scenes) > 5:
             self.logger.info(f"   ... and {len(scenes) - 5} more scenes")
 
@@ -1713,8 +1714,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             if hasattr(self, "_session_warmer") and self._session_warmer:
                 if not self._session_warmer.isFinished():
                     self.logger.debug("Requesting session warmer to stop")
-                    # Use ThreadSafeWorker's stop method
-                    self._session_warmer.stop()
+                    # Use ThreadSafeWorker's request_stop method
+                    self._session_warmer.request_stop()
                     # Session warming is non-critical, give it max 2 seconds
                     if not self._session_warmer.wait(2000):
                         self.logger.warning(

@@ -16,13 +16,14 @@ from PySide6.QtWidgets import (
 )
 
 from cache_manager import CacheManager, ThumbnailCacheLoader
-from runnable_tracker import get_tracker
-from utils import ImageUtils
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
+from runnable_tracker import get_tracker
+from utils import ImageUtils
 
 if TYPE_CHECKING:
     from shot_model import Shot
+
 
 class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
     """Panel displaying current shot information."""

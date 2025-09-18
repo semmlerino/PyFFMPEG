@@ -7,7 +7,6 @@ with virtualization and proper Model/View architecture.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
@@ -33,8 +32,8 @@ from PySide6.QtWidgets import (
 
 from config import Config
 from logging_mixin import LoggingMixin
-from qt_widget_mixin import QtWidgetMixin
 from progress_manager import ProgressManager
+from qt_widget_mixin import QtWidgetMixin
 from shot_grid_delegate_refactored import ShotGridDelegate  # Reuse refactored delegate
 from shot_item_model import ShotRole
 from thumbnail_widget_base import FolderOpenerWorker

@@ -7,7 +7,6 @@ virtualization, and proper update notifications.
 
 from __future__ import annotations
 
-import logging
 from enum import IntEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -37,9 +36,10 @@ from PySide6.QtGui import QIcon, QImage, QPixmap
 
 from cache.thumbnail_loader import ThumbnailCacheResult
 from cache_manager import CacheManager
-from logging_mixin import LoggingMixin
 from config import Config
+from logging_mixin import LoggingMixin
 from shot_model import RefreshResult, Shot
+
 
 class ShotRole(LoggingMixin, IntEnum):
     """Custom roles for shot data access."""
@@ -62,7 +62,8 @@ class ShotRole(LoggingMixin, IntEnum):
     LoadingStateRole = Qt.ItemDataRole.UserRole + 9
     IsSelectedRole = Qt.ItemDataRole.UserRole + 10
 
-class ShotItemModel(QAbstractListModel):
+
+class ShotItemModel(LoggingMixin, QAbstractListModel):
     """Proper Qt Model implementation for shot data.
 
     This model provides:
@@ -392,7 +393,9 @@ class ShotItemModel(QAbstractListModel):
                     self._load_cached_pixmap(cached_path, row, shot, index)
                 else:
                     # Immediate failure
-                    self.logger.warning(f"Failed to cache thumbnail from {thumbnail_path}")
+                    self.logger.warning(
+                        f"Failed to cache thumbnail from {thumbnail_path}"
+                    )
                     self._loading_states[shot.full_name] = "failed"
                     self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
             else:
@@ -584,7 +587,9 @@ class ShotItemModel(QAbstractListModel):
             )
             self.thumbnail_loaded.emit(row)
         else:
-            self.logger.warning(f"Failed to load cached thumbnail pixmap from {cached_path}")
+            self.logger.warning(
+                f"Failed to load cached thumbnail pixmap from {cached_path}"
+            )
             self._loading_states[shot.full_name] = "failed"
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
 

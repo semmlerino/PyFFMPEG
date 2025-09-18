@@ -161,7 +161,9 @@ class StorageBackend(ErrorHandlingMixin, LoggingMixin):
 
             # Validate that we got a dictionary
             if not isinstance(data, dict):
-                self.logger.warning(f"JSON file does not contain a dictionary: {file_path}")
+                self.logger.warning(
+                    f"JSON file does not contain a dictionary: {file_path}"
+                )
                 return None
 
             self.logger.debug(f"Successfully read JSON data from {file_path}")

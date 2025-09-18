@@ -172,7 +172,7 @@ def log_execution(
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Get logger - try to use instance logger if available, otherwise module logger
-            if args and hasattr(args[0], "logger") and hasattr(args[0].logger, "info"):
+            if args and hasattr(args[0], "logger") and hasattr(args[0].logger, "info"):  # type: ignore[attr-defined]
                 logger = args[0].logger  # type: ignore[attr-defined]
             else:
                 logger = ContextualLogger(logging.getLogger(func.__module__))

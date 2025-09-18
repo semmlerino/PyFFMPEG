@@ -15,10 +15,9 @@ Thread Safety:
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, Signal, Slot
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, Signal, Slot
 from typing_extensions import override
 
 if TYPE_CHECKING:
@@ -27,10 +26,10 @@ if TYPE_CHECKING:
     from type_definitions import PerformanceMetricsDict
 
 from base_shot_model import BaseShotModel
+from logging_mixin import LoggingMixin
 from shot_model import RefreshResult, Shot
 from thread_safe_worker import ThreadSafeWorker
 
-from logging_mixin import LoggingMixin
 
 class AsyncShotLoader(LoggingMixin, ThreadSafeWorker):
     """Background worker for loading shots without blocking UI.
@@ -47,8 +46,10 @@ class AsyncShotLoader(LoggingMixin, ThreadSafeWorker):
     load_failed = Signal(str)  # Error message string
 
     def __init__(
-        self, process_pool: ProcessPoolManager, parse_function: Any = None,
-        parent: Any = None
+        self,
+        process_pool: ProcessPoolManager,
+        parse_function: Any = None,
+        parent: Any = None,
     ) -> None:
         super().__init__(parent)
         self.process_pool = process_pool
@@ -115,7 +116,16 @@ class AsyncShotLoader(LoggingMixin, ThreadSafeWorker):
             if not self.should_stop():
                 self.load_failed.emit(f"Unexpected error: {e}")
 
-    # stop() method is inherited from ThreadSafeWorker
+    def stop(self) -> bool:
+        """Stop the loader thread.
+
+        Provides compatibility with tests expecting a stop() method.
+
+        Returns:
+            True if stop was requested successfully
+        """
+        return self.request_stop()
+
 
 class OptimizedShotModel(BaseShotModel):
     """Optimized ShotModel with async loading and instant UI display.
@@ -199,7 +209,7 @@ class OptimizedShotModel(BaseShotModel):
             if self._async_loader:
                 if self._async_loader.isRunning():
                     self.logger.warning("Previous loader still running, stopping it")
-                    self._async_loader.stop()
+                    self._async_loader.request_stop()
                     self._async_loader.wait(1000)
                 self._async_loader.deleteLater()
                 self._async_loader = None
@@ -365,7 +375,7 @@ class OptimizedShotModel(BaseShotModel):
         if self._async_loader:
             if self._async_loader.isRunning():
                 self.logger.info("Stopping background loader")
-                self._async_loader.stop()  # Sets event and requests interruption
+                self._async_loader.request_stop()  # Sets event and requests interruption
 
                 # Give thread 2 seconds to stop gracefully
                 if not self._async_loader.wait(2000):
@@ -458,6 +468,7 @@ class OptimizedShotModel(BaseShotModel):
             return self._async_loader.wait(timeout_ms)
         return True  # Not loading, so already complete
 
+
 # Example usage for immediate UI display
 def create_optimized_shot_model(
     cache_manager: CacheManager | None = None,
@@ -479,15 +490,16 @@ def create_optimized_shot_model(
     """
     model = OptimizedShotModel(cache_manager)
 
-    # Connect to UI update signals
-    model.shots_loaded.connect(
-        lambda shots: self.logger.info(f"UI can display {len(shots)} shots")
-    )
-    model.shots_changed.connect(
-        lambda shots: self.logger.info(f"UI should update to {len(shots)} shots")
-    )
+    # Example: Connect to UI update signals
+    # model.shots_loaded.connect(
+    #     lambda shots: print(f"UI can display {len(shots)} shots")
+    # )
+    # model.shots_changed.connect(
+    #     lambda shots: print(f"UI should update to {len(shots)} shots")
+    # )
 
     return model
+
 
 if __name__ == "__main__":
     # Demo the optimized model

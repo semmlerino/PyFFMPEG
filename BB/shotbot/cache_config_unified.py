@@ -6,16 +6,18 @@ components use consistent, user-configurable settings from SettingsManager.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
-from logging_mixin import LoggingMixin
+
+from logging_mixin import LoggingMixin, get_module_logger
+
+# Module-level logger for static methods
+logger = get_module_logger(__name__)
 
 if TYPE_CHECKING:
     from cache.memory_manager import MemoryManager
     from settings_manager import SettingsManager
-
 
 
 class UnifiedCacheConfig(LoggingMixin, QObject):
@@ -117,7 +119,9 @@ class UnifiedCacheConfig(LoggingMixin, QObject):
             memory_manager: MemoryManager instance to configure
         """
         memory_manager.set_memory_limit(self.memory_limit_mb)
-        self.logger.debug(f"Applied memory limit {self.memory_limit_mb}MB to MemoryManager")
+        self.logger.debug(
+            f"Applied memory limit {self.memory_limit_mb}MB to MemoryManager"
+        )
 
     def create_memory_manager(self) -> MemoryManager:
         """Create a MemoryManager with current unified settings.

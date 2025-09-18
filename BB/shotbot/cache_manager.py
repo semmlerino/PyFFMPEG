@@ -7,7 +7,6 @@ monolithic CacheManager.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Sequence, cast
@@ -260,7 +259,9 @@ class CacheManager(LoggingMixin, QObject):
             Path(source_path) if isinstance(source_path, str) else source_path
         )
         if not source_path_obj or not source_path_obj.exists():
-            self.logger.warning(f"Source thumbnail path does not exist: {source_path_obj}")
+            self.logger.warning(
+                f"Source thumbnail path does not exist: {source_path_obj}"
+            )
             return None
 
         # Validate parameters

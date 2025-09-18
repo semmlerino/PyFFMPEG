@@ -30,7 +30,11 @@ class ShotFinderBase(ABC):
             username: Username to search for. If None, uses current user.
         """
         # Get raw username
-        raw_username = username or os.environ.get("USER") or os.getlogin()
+        # In mock mode, always use gabriel-h
+        if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
+            raw_username = username or "gabriel-h"
+        else:
+            raw_username = username or os.environ.get("USER") or os.getlogin()
 
         # Sanitize username to prevent path traversal attacks
         self.username = self._sanitize_username(raw_username)

@@ -10,8 +10,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from config import Config
-
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +21,8 @@ class MockWorkspacePool:
         self.shots: list[str] = []
         self._cache: dict[str, str] = {}
         self.commands_executed: list[str] = []
+        self.mock_root = Path("/tmp/mock_vfx")
+        self.shows_root = self.mock_root / "shows"
 
     def set_shots_from_filesystem(self, mock_root: Path | None = None) -> None:
         """Scan the mock filesystem and set up all available shots.
@@ -30,11 +30,12 @@ class MockWorkspacePool:
         Args:
             mock_root: Root of mock VFX filesystem (default: /tmp/mock_vfx)
         """
-        if mock_root is None:
-            mock_root = Path("/tmp/mock_vfx")
+        if mock_root is not None:
+            self.mock_root = mock_root
+            self.shows_root = mock_root / "shows"
 
         self.shots = []
-        shows_dir = mock_root / "shows"
+        shows_dir = self.shows_root
 
         if not shows_dir.exists():
             logger.warning(f"Shows directory not found: {shows_dir}")
@@ -75,9 +76,9 @@ class MockWorkspacePool:
                     if not shot_name.startswith(f"{seq_name}_"):
                         continue
 
-                    # Build workspace path
+                    # Build workspace path using actual mock root
                     workspace_path = (
-                        f"{Config.SHOWS_ROOT}/{show_name}/shots/{seq_name}/{shot_name}"
+                        f"{self.shows_root}/{show_name}/shots/{seq_name}/{shot_name}"
                     )
                     self.shots.append(f"workspace {workspace_path}")
 
@@ -94,7 +95,7 @@ class MockWorkspacePool:
             show = shot.get("show", "demo")
             seq = shot.get("seq", "seq01")
             shot_num = shot.get("shot", "0010")
-            workspace_path = f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot_num}"
+            workspace_path = f"{self.shows_root}/{show}/shots/{seq}/{seq}_{shot_num}"
             self.shots.append(f"workspace {workspace_path}")
 
         logger.info(f"Loaded {len(self.shots)} demo shots")

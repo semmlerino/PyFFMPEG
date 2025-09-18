@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -195,7 +194,9 @@ class ShotModel(BaseShotModel):
                         f"'ws -sg' command returned {len(output) if output else 0} bytes",
                     )
                     if output:
-                        self.logger.debug(f"First 200 chars of output: {output[:200]}...")
+                        self.logger.debug(
+                            f"First 200 chars of output: {output[:200]}..."
+                        )
             except TimeoutError as e:
                 error_msg = f"Timeout while running ws -sg command: {e}"
                 self.logger.error(error_msg)

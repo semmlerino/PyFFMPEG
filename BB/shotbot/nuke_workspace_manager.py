@@ -11,10 +11,9 @@ import os
 import re
 from pathlib import Path
 
-from logging_mixin import LoggingMixin
 from error_handling_mixin import ErrorHandlingMixin
+from logging_mixin import LoggingMixin
 from utils import VersionUtils
-
 
 
 class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
@@ -24,12 +23,13 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
     def _get_logger(cls):
         """Get a logger for static methods."""
         # Create a temporary instance to get the logger
-        if not hasattr(cls, '_logger_instance'):
+        if not hasattr(cls, "_logger_instance"):
             cls._logger_instance = cls()
         return cls._logger_instance.logger
 
-    @staticmethod
+    @classmethod
     def get_workspace_script_directory(
+        cls,
         workspace_path: str,
         user: str | None = None,
         plate: str = "mm-default",
@@ -75,8 +75,9 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
 
         return script_dir
 
-    @staticmethod
+    @classmethod
     def find_latest_nuke_script(
+        cls,
         directory: Path,
         shot_name: str,
         plate: str = "mm-default",
@@ -105,7 +106,9 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
         try:
             version_regex = re.compile(regex_pattern)
         except re.error:
-            cls._get_logger().error(f"Invalid pattern for Nuke script search: {pattern}")
+            cls._get_logger().error(
+                f"Invalid pattern for Nuke script search: {pattern}"
+            )
             return None
 
         latest_file = None
@@ -132,12 +135,15 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
                 f"Found latest Nuke script: {latest_file.name} (v{latest_version:03d})"
             )
         else:
-            cls._get_logger().debug(f"No Nuke scripts found in {directory} for shot {shot_name}")
+            cls._get_logger().debug(
+                f"No Nuke scripts found in {directory} for shot {shot_name}"
+            )
 
         return latest_file
 
-    @staticmethod
+    @classmethod
     def get_next_script_path(
+        cls,
         directory: Path,
         shot_name: str,
         plate: str = "mm-default",
@@ -164,12 +170,15 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
         filename = f"{shot_name}_{plate}_{pass_name}_scene_v{next_version:03d}.nk"
         script_path = directory / filename
 
-        cls._get_logger().info(f"Next Nuke script version: {filename} (v{next_version:03d})")
+        cls._get_logger().info(
+            f"Next Nuke script version: {filename} (v{next_version:03d})"
+        )
 
         return script_path, next_version
 
-    @staticmethod
+    @classmethod
     def list_all_nuke_scripts(
+        cls,
         workspace_path: str,
         user: str | None = None,
         plate: str = "mm-default",

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,9 +12,11 @@ from logging_mixin import LoggingMixin
 from previous_shots_finder import ParallelShotsFinder
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
+from type_definitions import ShotDict
 
 if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
+
 
 class PreviousShotsModel(LoggingMixin, QObject):
     """Model for managing approved shots that are no longer active.
@@ -293,7 +294,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             Dictionary with shot details.
         """
         # Type assertion since finder returns string values
-        return dict[str, str](self._finder.get_shot_details(shot))  # type: ignore[misc]
+        return dict[str, str](self._finder.get_shot_details(shot))
 
     def _load_from_cache(self) -> None:
         """Load previous shots from cache."""
@@ -319,18 +320,20 @@ class PreviousShotsModel(LoggingMixin, QObject):
     def _save_to_cache(self) -> None:
         """Save previous shots to cache."""
         try:
-            cache_data = [
-                {
-                    "show": s.show,
-                    "sequence": s.sequence,
-                    "shot": s.shot,
-                    "workspace_path": s.workspace_path,
-                }
+            cache_data: list[ShotDict] = [
+                ShotDict(
+                    show=s.show,
+                    sequence=s.sequence,
+                    shot=s.shot,
+                    workspace_path=s.workspace_path,
+                )
                 for s in self._previous_shots
             ]
             # Use the correct method: cache_previous_shots()
             self._cache_manager.cache_previous_shots(cache_data)
-            self.logger.debug(f"Saved {len(self._previous_shots)} previous shots to cache")
+            self.logger.debug(
+                f"Saved {len(self._previous_shots)} previous shots to cache"
+            )
         except Exception as e:
             self.logger.error(f"Error saving previous shots to cache: {e}")
 

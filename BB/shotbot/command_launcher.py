@@ -26,7 +26,6 @@ else:
     from threede_scene_model import ThreeDEScene  # noqa: TC001
 
 
-
 class CommandLauncher(LoggingMixin, QObject):
     """Handles launching applications in shot context.
 
@@ -713,7 +712,9 @@ class CommandLauncher(LoggingMixin, QObject):
                 # Use bash -ilc for interactive login shell to ensure shell functions like ws are loaded
                 # The -i flag is crucial for loading shell functions from configuration files
                 full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
-                self.logger.debug(f"Constructed rez command with bash -ilc: {full_command}")
+                self.logger.debug(
+                    f"Constructed rez command with bash -ilc: {full_command}"
+                )
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 self.command_executed.emit(
                     timestamp, f"Using rez environment with packages: {packages_str}"
@@ -862,14 +863,18 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Use persistent terminal if available and enabled
         if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            self.logger.info(f"Sending scene command to persistent terminal: {full_command}")
+            self.logger.info(
+                f"Sending scene command to persistent terminal: {full_command}"
+            )
             self.logger.debug(
                 f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
             )
 
             success = self.persistent_terminal.send_command(full_command)
             if success:
-                self.logger.debug("Scene command successfully sent to persistent terminal")
+                self.logger.debug(
+                    "Scene command successfully sent to persistent terminal"
+                )
                 return True
             else:
                 self.logger.warning(

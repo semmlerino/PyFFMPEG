@@ -515,10 +515,11 @@ class RefactoredThreeDESceneFinder:
         Provides parallel scene discovery with progress and cancellation support.
         """
         # Import components needed for parallel discovery
+        from pathlib import Path
+
+        from config import Config
         from filesystem_scanner import FileSystemScanner
         from scene_parser import SceneParser
-        from config import Config
-        from pathlib import Path
 
         # Check for early cancellation
         if cancel_flag and cancel_flag():
@@ -538,13 +539,16 @@ class RefactoredThreeDESceneFinder:
             workspace_path = Path(user_shots[0].workspace_path)
             # Walk up to find the "shows" directory
             for parent in workspace_path.parents:
-                if parent.name == "shows" or (parent / user_shots[0].show / "shots").exists():
+                if (
+                    parent.name == "shows"
+                    or (parent / user_shots[0].show / "shots").exists()
+                ):
                     shows_root = str(parent)
                     break
 
         all_scenes: list[ThreeDEScene] = []
         scanner = FileSystemScanner()
-        parser = SceneParser()
+        SceneParser()
 
         # Process each show
         for idx, show in enumerate(shows):
@@ -555,8 +559,7 @@ class RefactoredThreeDESceneFinder:
             # Progress update
             if progress_callback:
                 progress_callback(
-                    int((idx / len(shows)) * 100),
-                    f"Processing show {show}..."
+                    int((idx / len(shows)) * 100), f"Processing show {show}..."
                 )
 
             # Find .3de files in the show
@@ -577,13 +580,17 @@ class RefactoredThreeDESceneFinder:
 
                 # Find matching shot from user_shots for workspace path
                 matching_shot = next(
-                    (s for s in user_shots
-                     if s.show == show_name and s.sequence == seq and s.shot == shot),
-                    None
+                    (
+                        s
+                        for s in user_shots
+                        if s.show == show_name and s.sequence == seq and s.shot == shot
+                    ),
+                    None,
                 )
 
                 if matching_shot:
                     from threede_scene_model import ThreeDEScene
+
                     scene = ThreeDEScene(
                         show=show_name,
                         sequence=seq,

@@ -23,7 +23,7 @@ import logging
 import traceback
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Generator, TypeVar, cast
+from typing import Any, Callable, Generator, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -44,12 +44,12 @@ class ErrorHandlingMixin(LoggingMixin):
 
     def safe_execute(
         self,
-        operation: Callable[P, T],
-        *args: P.args,
+        operation: Callable[..., T],
+        *args: Any,
         default: T | None = None,
         log_error: bool = True,
         reraise: bool = False,
-        **kwargs: P.kwargs,
+        **kwargs: Any,
     ) -> T | None:
         """Execute an operation with standard error handling.
 
@@ -71,10 +71,15 @@ class ErrorHandlingMixin(LoggingMixin):
         Returns:
             Result of operation or default value on error
         """
+        # Extract wrapper parameters from kwargs
+        _default = kwargs.pop("_default", default)
+        _log_error = kwargs.pop("_log_error", log_error)
+        _reraise = kwargs.pop("_reraise", reraise)
+
         try:
             return operation(*args, **kwargs)
         except Exception as e:
-            if log_error:
+            if _log_error:
                 # Get operation name for logging
                 op_name = getattr(operation, "__name__", str(operation))
                 self.logger.error(f"{op_name} failed: {e}")
@@ -83,10 +88,10 @@ class ErrorHandlingMixin(LoggingMixin):
                 if self.logger.logger.isEnabledFor(logging.DEBUG):  # type: ignore[attr-defined]
                     self.logger.debug(f"Traceback:\n{traceback.format_exc()}")
 
-            if reraise:
+            if _reraise:
                 raise
 
-            return default
+            return _default
 
     def safe_file_operation(
         self,
@@ -205,7 +210,9 @@ class ErrorHandlingMixin(LoggingMixin):
                 self.logger.debug(f"{operation_name} debug: {e}")
 
             # Include traceback for error level
-            if log_level >= logging.ERROR and self.logger.logger.isEnabledFor(logging.DEBUG):  # type: ignore[attr-defined]
+            if log_level >= logging.ERROR and self.logger.logger.isEnabledFor(
+                logging.DEBUG
+            ):  # type: ignore[attr-defined]
                 self.logger.debug(f"Traceback:\n{traceback.format_exc()}")
 
             if reraise:
@@ -213,11 +220,11 @@ class ErrorHandlingMixin(LoggingMixin):
 
     def handle_timeout(
         self,
-        operation: Callable[P, T],
+        operation: Callable[..., T],
         timeout_seconds: float,
-        *args: P.args,
+        *args: Any,
         default: T | None = None,
-        **kwargs: P.kwargs,
+        **kwargs: Any,
     ) -> T | None:
         """Execute operation with timeout handling.
 
@@ -240,12 +247,12 @@ class ErrorHandlingMixin(LoggingMixin):
 
     def retry_on_error(
         self,
-        operation: Callable[P, T],
-        *args: P.args,
+        operation: Callable[..., T],
+        *args: Any,
         max_retries: int = 3,
         delay_seconds: float = 1.0,
         backoff_factor: float = 2.0,
-        **kwargs: P.kwargs,
+        **kwargs: Any,
     ) -> T | None:
         """Retry an operation on failure with exponential backoff.
 
@@ -262,7 +269,6 @@ class ErrorHandlingMixin(LoggingMixin):
         """
         import time
 
-        last_error = None
         current_delay = delay_seconds
 
         for attempt in range(max_retries + 1):
@@ -275,7 +281,6 @@ class ErrorHandlingMixin(LoggingMixin):
                 return result
 
             except Exception as e:
-                last_error = e
                 if attempt < max_retries:
                     self.logger.warning(
                         f"{operation.__name__} attempt {attempt + 1} failed: {e}. "
@@ -292,11 +297,11 @@ class ErrorHandlingMixin(LoggingMixin):
 
     def validate_and_execute(
         self,
-        operation: Callable[P, T],
-        *args: P.args,
+        operation: Callable[..., T],
+        *args: Any,
         validators: list[Callable[[], bool]] | None = None,
         validation_error: str = "Validation failed",
-        **kwargs: P.kwargs,
+        **kwargs: Any,
     ) -> T | None:
         """Execute operation only if all validators pass.
 
@@ -314,10 +319,14 @@ class ErrorHandlingMixin(LoggingMixin):
             for validator in validators:
                 try:
                     if not validator():
-                        self.logger.error(f"{validation_error}: {validator.__name__} failed")
+                        self.logger.error(
+                            f"{validation_error}: {validator.__name__} failed"
+                        )
                         return None
                 except Exception as e:
-                    self.logger.error(f"Validator {validator.__name__} raised error: {e}")
+                    self.logger.error(
+                        f"Validator {validator.__name__} raised error: {e}"
+                    )
                     return None
 
         return self.safe_execute(operation, *args, **kwargs)
@@ -390,7 +399,9 @@ class ErrorAggregator:
         self.errors.clear()
 
     @contextmanager
-    def collecting_errors(self, operation_name: str) -> Generator[ErrorAggregator, None, None]:
+    def collecting_errors(
+        self, operation_name: str
+    ) -> Generator[ErrorAggregator, None, None]:
         """Context manager for collecting errors during an operation.
 
         Usage:

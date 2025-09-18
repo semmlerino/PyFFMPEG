@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import concurrent.futures
-import logging
 import os
 import re
 import subprocess
@@ -11,9 +10,10 @@ import time
 from pathlib import Path
 from typing import Callable, Generator
 
-from logging_mixin import LoggingMixin
 from config import Config, ThreadingConfig
+from logging_mixin import LoggingMixin
 from shot_model import Shot
+
 
 class PreviousShotsFinder(LoggingMixin):
     """Finds shots that user has worked on but are no longer active.
@@ -29,10 +29,15 @@ class PreviousShotsFinder(LoggingMixin):
             username: Username to search for. If None, uses current user.
         """
         # Get raw username
-        raw_username = username or os.environ.get("USER") or os.getlogin()
+        # In mock mode, always use gabriel-h
+        if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
+            raw_username = username or "gabriel-h"
+        else:
+            raw_username = username or os.environ.get("USER") or os.getlogin()
 
         # SECURITY FIX: Sanitize username to prevent path traversal attacks
-        # Remove any path traversal characters (., /, \)
+        # Remove any path traversal characters (., /, \) but keep hyphens
+        # Hyphens are valid in usernames like gabriel-h
         self.username = re.sub(r"[./\\]", "", raw_username)
 
         # Validate that username is not empty after sanitization
@@ -271,6 +276,7 @@ class PreviousShotsFinder(LoggingMixin):
 
         return details
 
+
 class ParallelShotsFinder(PreviousShotsFinder):
     """Parallel implementation of PreviousShotsFinder for improved performance.
 
@@ -503,7 +509,9 @@ class ParallelShotsFinder(PreviousShotsFinder):
         shots = list(self.find_user_shots_parallel(shows_root))
 
         elapsed = time.time() - start_time
-        self.logger.info(f"Parallel scan found {len(shots)} shots in {elapsed:.1f} seconds")
+        self.logger.info(
+            f"Parallel scan found {len(shots)} shots in {elapsed:.1f} seconds"
+        )
 
         return shots
 

@@ -52,7 +52,6 @@ Type Safety:
 
 from __future__ import annotations
 
-import logging
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -69,7 +68,10 @@ if TYPE_CHECKING:
         QStatusBar,
     )
 
-from logging_mixin import LoggingMixin
+from logging_mixin import LoggingMixin, get_module_logger
+
+# Module-level logger
+logger = get_module_logger(__name__)
 
 
 class ProgressType(Enum):
@@ -190,7 +192,7 @@ class ProgressOperation:
             try:
                 self.config.cancel_callback()
             except Exception as e:
-                self.logger.error(f"Error in cancel callback: {e}")
+                logger.error(f"Error in cancel callback: {e}")
 
         logger.info(f"Progress operation cancelled: {self.config.title}")
 
@@ -429,7 +431,7 @@ class ProgressManager(LoggingMixin):
         instance = cls()
 
         if not instance._operation_stack:
-            self.logger.warning("Attempted to finish operation but stack is empty")
+            logger.warning("Attempted to finish operation but stack is empty")
             return
 
         operation = instance._operation_stack.pop()

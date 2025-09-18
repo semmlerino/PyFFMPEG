@@ -49,16 +49,16 @@ Type Safety:
 from __future__ import annotations
 
 import json
-import logging
 from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QByteArray, QObject, QSettings, QSize, Signal
 
-from logging_mixin import LoggingMixin
 from config import Config
+from logging_mixin import LoggingMixin
 
 # Set up logger for this module
+
 
 class SettingsManager(LoggingMixin, QObject):
     """Manages application settings with type safety and persistence.
@@ -101,7 +101,9 @@ class SettingsManager(LoggingMixin, QObject):
                 full_key = f"{category}/{key}"
                 if not self.settings.contains(full_key):
                     self.settings.setValue(full_key, value)
-                    self.logger.debug(f"Initialized default setting: {full_key} = {value}")
+                    self.logger.debug(
+                        f"Initialized default setting: {full_key} = {value}"
+                    )
 
     def _get_default_settings(self) -> dict[str, dict[str, Any]]:
         """Get default settings organized by category."""

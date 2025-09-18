@@ -108,11 +108,13 @@ class TestCommandLauncherCore:
 
         # Assert: Test behavior, not implementation
         assert result is True
-        assert len(self.emitted_commands) == 1
+        # Filter for actual commands only (ones starting with "ws")
+        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        assert len(actual_commands) == 1
         assert len(self.emitted_errors) == 0
 
         # Verify command contains expected elements
-        timestamp, command = self.emitted_commands[0]
+        timestamp, command = actual_commands[0]
         assert isinstance(timestamp, str)
         assert "nuke" in command
         assert "/test/workspace" in command
@@ -174,11 +176,13 @@ class TestCommandLauncherCore:
 
         # Assert: Test behavior
         assert all(results), "All launches should succeed"
-        assert len(self.emitted_commands) == 3
+        # Filter for actual commands only (ones starting with "ws")
+        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        assert len(actual_commands) == 3
         assert len(self.emitted_errors) == 0
 
         # Verify all apps were launched
-        commands = [cmd[1] for cmd in self.emitted_commands]
+        commands = [cmd[1] for cmd in actual_commands]
         for app in apps:
             assert any(app in cmd for cmd in commands), f"{app} not found in commands"
 
@@ -205,8 +209,10 @@ class TestCommandLauncherCore:
 
             # Assert: Test behavior
             assert result is True, f"Failed with path: {path}"
-            assert len(self.emitted_commands) == 1
-            assert path in self.emitted_commands[0][1]
+            # Filter for actual commands only (ones starting with "ws")
+            actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+            assert len(actual_commands) == 1
+            assert path in actual_commands[0][1]
 
     def test_command_formatting_behavior(self, qtbot) -> None:
         """Test command formatting with shot variables."""

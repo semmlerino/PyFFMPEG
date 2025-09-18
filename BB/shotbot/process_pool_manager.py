@@ -20,8 +20,11 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from config import ThreadingConfig
-from logging_mixin import LoggingMixin
+from logging_mixin import LoggingMixin, get_module_logger
 from secure_command_executor import get_secure_executor
+
+# Module-level logger
+logger = get_module_logger(__name__)
 
 if TYPE_CHECKING:
     from persistent_bash_session import PersistentBashSession
@@ -29,10 +32,7 @@ if TYPE_CHECKING:
 
 # Import debug utilities
 try:
-    from debug_utils import (
-        setup_enhanced_debugging,
-        timing_profiler,
-    )
+    from debug_utils import setup_enhanced_debugging
 
     _has_debug_utils = True
 except ImportError:
@@ -50,7 +50,9 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
     "yes",
 )
 if DEBUG_VERBOSE:
-    logger.setLevel(logging.DEBUG)
+    # ContextualLogger doesn't have setLevel, need to access underlying logger
+    if hasattr(logger, "logger"):
+        logger.logger.setLevel(logging.DEBUG)  # type: ignore[attr-defined]
     logger.info("VERBOSE DEBUG MODE ENABLED for ProcessPoolManager")
 
 # Setup enhanced debugging if available
@@ -93,7 +95,7 @@ class CommandCache:
                 result, timestamp, ttl, _ = self._cache[key]
                 if time.time() - timestamp < ttl:
                     self._hits += 1
-                    self.logger.debug(f"Cache hit for command: {command[:50]}...")
+                    logger.debug(f"Cache hit for command: {command[:50]}...")
                     return result
                 del self._cache[key]
 
@@ -126,7 +128,7 @@ class CommandCache:
         with self._lock:
             if pattern is None:
                 self._cache.clear()
-                self.logger.info("Cleared entire command cache")
+                logger.info("Cleared entire command cache")
             else:
                 # Check the original command (4th element in tuple) for pattern
                 keys_to_remove: list[str] = []
@@ -135,7 +137,7 @@ class CommandCache:
                         keys_to_remove.append(key)
                 for key in keys_to_remove:
                     del self._cache[key]
-                self.logger.info(
+                logger.info(
                     f"Invalidated {len(keys_to_remove)} cache entries matching '{pattern}'",
                 )
 
@@ -183,7 +185,7 @@ class CommandCache:
             del self._cache[key]
 
         if expired:
-            self.logger.debug(f"Cleaned up {len(expired)} expired cache entries")
+            logger.debug(f"Cleaned up {len(expired)} expired cache entries")
 
 
 class ProcessPoolManager(LoggingMixin, QObject):
@@ -275,7 +277,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             if factory_instance is not None and factory_instance is not cls._instance:
                 # This allows mock injection
                 if hasattr(factory_instance, "__class__"):
-                    self.logger.debug(
+                    logger.debug(
                         f"Using injected instance: {factory_instance.__class__.__name__}"
                     )
                 return factory_instance  # type: ignore[return-value]
@@ -319,7 +321,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
             return cached
 
         if DEBUG_VERBOSE:
-            self.logger.debug(f"Cache MISS for command: {command[:50]}... - will execute")
+            self.logger.debug(
+                f"Cache MISS for command: {command[:50]}... - will execute"
+            )
 
         self._metrics.cache_misses += 1
         self._metrics.subprocess_calls += 1

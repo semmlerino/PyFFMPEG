@@ -75,8 +75,8 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
-from qt_widget_mixin import QtWidgetMixin
 from logging_mixin import LoggingMixin
+from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
     from settings_manager import SettingsManager
@@ -85,7 +85,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class SettingsDialog(QtWidgetMixin, LoggingMixin, QDialog):
+class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc]
     """Comprehensive settings dialog with tabbed interface."""
 
     # Signals
@@ -117,6 +117,7 @@ class SettingsDialog(QtWidgetMixin, LoggingMixin, QDialog):
 
         # Use QtWidgetMixin for window geometry
         from PySide6.QtCore import QSize
+
         self.setup_window_geometry("settings_dialog", QSize(700, 600))
 
         # Setup UI
@@ -795,7 +796,9 @@ class SettingsDialog(QtWidgetMixin, LoggingMixin, QDialog):
                     launchers = []
                 self.settings_manager.set_custom_launchers(launchers)
         except json.JSONDecodeError:
-            self.logger.warning("Invalid custom launchers JSON, keeping existing settings")
+            self.logger.warning(
+                "Invalid custom launchers JSON, keeping existing settings"
+            )
 
         # Advanced settings
         self.settings_manager.set_debug_mode(self.debug_mode_check.isChecked())

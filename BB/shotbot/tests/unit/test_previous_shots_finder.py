@@ -60,6 +60,7 @@ class TestPreviousShotsFinder:
             for seq in ["101_ABC", "102_DEF"]:
                 for shot in ["0010", "0020", "0030"]:
                     # Create VFX structure for each shot
+                    # create_vfx_structure already handles the {seq}_{shot} naming
                     shot_path = fs.create_vfx_structure(show, seq, shot)
 
                     # Add user work files
@@ -96,6 +97,7 @@ class TestPreviousShotsFinder:
         fs = make_test_filesystem()
 
         # Create individual shot structure
+        # create_vfx_structure already handles the {seq}_{shot} naming
         shot_path = fs.create_vfx_structure(show, seq, shot)
         user_path = shot_path / "user" / "testuser"
         fs.create_file(user_path / "work.3de", "3DE scene content")
@@ -155,12 +157,12 @@ class TestPreviousShotsFinder:
         "path,expected_shot",
         [
             pytest.param(
-                "/shows/testshow/shots/101_ABC/0010/user/testuser",
+                "/shows/testshow/shots/101_ABC/101_ABC_0010/user/testuser",
                 ("testshow", "101_ABC", "0010"),
                 id="standard_vfx_structure",
             ),
             pytest.param(
-                "/shows/feature/shots/seq01/shot01/user/artist",
+                "/shows/feature/shots/seq01/seq01_shot01/user/artist",
                 ("feature", "seq01", "shot01"),
                 id="feature_structure",
             ),
@@ -186,7 +188,8 @@ class TestPreviousShotsFinder:
             assert shot.show == show
             assert shot.sequence == sequence
             assert shot.shot == shot_name
-            assert f"/shows/{show}/shots/{sequence}/{shot_name}" in shot.workspace_path
+            # VFX convention: workspace path includes full directory name with sequence prefix
+            assert f"/shows/{show}/shots/{sequence}/{sequence}_{shot_name}" in shot.workspace_path
 
     def test_find_user_shots_with_real_structure(
         self, finder, real_shows_structure
@@ -204,7 +207,7 @@ class TestPreviousShotsFinder:
                 / "testshow"
                 / "shots"
                 / "101_ABC"
-                / "0010"
+                / "101_ABC_0010"
                 / "user"
                 / "testuser"
             ),
@@ -213,7 +216,7 @@ class TestPreviousShotsFinder:
                 / "testshow"
                 / "shots"
                 / "101_ABC"
-                / "0020"
+                / "101_ABC_0020"
                 / "user"
                 / "testuser"
             ),
@@ -222,7 +225,7 @@ class TestPreviousShotsFinder:
                 / "anothershow"
                 / "shots"
                 / "102_DEF"
-                / "0010"
+                / "102_DEF_0010"
                 / "user"
                 / "testuser"
             ),
@@ -363,7 +366,7 @@ class TestPreviousShotsFinder:
                 / "testshow"
                 / "shots"
                 / "101_ABC"
-                / "0010"
+                / "101_ABC_0010"
                 / "user"
                 / "testuser"
             ),
@@ -372,7 +375,7 @@ class TestPreviousShotsFinder:
                 / "testshow"
                 / "shots"
                 / "101_ABC"
-                / "0020"
+                / "101_ABC_0020"
                 / "user"
                 / "testuser"
             ),
@@ -469,6 +472,7 @@ class TestPreviousShotsFinderPerformance:
                     shot = f"shot{shot_idx:04d}"
 
                     # Create full VFX structure
+                    # create_vfx_structure already handles the {seq}_{shot} naming
                     shot_path = fs.create_vfx_structure(show, seq, shot)
 
                     # Add user work files for realistic testing

@@ -421,7 +421,7 @@ class TestLauncherPanelIntegration:
 
         # Set up signal spies
         app_launch_spy = QSignalSpy(panel.app_launch_requested)
-        custom_launch_spy = QSignalSpy(panel.custom_launcher_requested)
+        QSignalSpy(panel.custom_launcher_requested)
 
         # 1. Select shot
         shot = make_shot(show="big_project", sequence="epic_seq", shot="1337")

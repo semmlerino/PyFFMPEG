@@ -230,6 +230,9 @@ Environment Variables:
 
     if mock_mode:
         logger.info("Starting ShotBot in MOCK MODE - using test data")
+        # Set environment variable so all code knows we're in mock mode
+        os.environ["SHOTBOT_MOCK"] = "1"
+
         # Use the new ProcessPoolFactory for clean dependency injection
         from process_pool_factory import ProcessPoolFactory
 

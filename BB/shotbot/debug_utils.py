@@ -8,7 +8,6 @@ state tracking, and system diagnostics.
 from __future__ import annotations
 
 import json
-import logging
 import os
 import platform
 import socket
@@ -19,8 +18,10 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Generator
 
-from logging_mixin import LoggingMixin
+from logging_mixin import LoggingMixin, get_module_logger
 
+# Module-level logger for static methods
+logger = get_module_logger(__name__)
 
 # Debug levels from environment
 DEBUG_LEVEL = os.environ.get("SHOTBOT_DEBUG_LEVEL", "0")
@@ -277,11 +278,11 @@ class SystemDiagnostics(LoggingMixin):
         """Log system information."""
         info = SystemDiagnostics.get_system_info()
 
-        self.logger.info("\n" + "=" * 60)
-        self.logger.info("System Diagnostics")
-        self.logger.info("=" * 60)
-        self.logger.info(json.dumps(info, indent=2))
-        self.logger.info("=" * 60 + "\n")
+        logger.info("\n" + "=" * 60)
+        logger.info("System Diagnostics")
+        logger.info("=" * 60)
+        logger.info(json.dumps(info, indent=2))
+        logger.info("=" * 60 + "\n")
 
 
 class IOBufferInspector(LoggingMixin):
@@ -300,13 +301,13 @@ class IOBufferInspector(LoggingMixin):
             return
 
         if not data:
-            self.logger.debug(f"[{session_id}] Buffer {context}: <empty>")
+            logger.debug(f"[{session_id}] Buffer {context}: <empty>")
             return
 
         lines = data.count("\n")
         non_printable = sum(1 for c in data if ord(c) < 32 and c not in "\n\r\t")
 
-        self.logger.debug(
+        logger.debug(
             f"[{session_id}] Buffer {context}: "
             f"{len(data)} bytes, {lines} lines, {non_printable} non-printable",
         )
@@ -315,13 +316,13 @@ class IOBufferInspector(LoggingMixin):
         if DEBUG_VERBOSE:
             # First 100 chars
             preview = data[:100].encode("unicode_escape").decode("ascii")
-            self.logger.debug(f"[{session_id}] └─ Preview: {preview}")
+            logger.debug(f"[{session_id}] └─ Preview: {preview}")
 
             # Show any markers or special strings
             if "SHOTBOT_INIT" in data:
-                self.logger.debug(f"[{session_id}] └─ Contains initialization marker")
+                logger.debug(f"[{session_id}] └─ Contains initialization marker")
             if "error" in data.lower():
-                self.logger.debug(f"[{session_id}] └─ Contains error message")
+                logger.debug(f"[{session_id}] └─ Contains error message")
 
 
 class CommandTracer(LoggingMixin):
@@ -341,17 +342,17 @@ class CommandTracer(LoggingMixin):
         # Truncate long commands
         cmd_preview = command[:200] + "..." if len(command) > 200 else command
 
-        self.logger.debug(f"[{session_id}] EXEC: {cmd_preview}")
+        logger.debug(f"[{session_id}] EXEC: {cmd_preview}")
 
         # Analyze command
         if DEBUG_VERBOSE:
             if "ws" in command:
-                self.logger.debug(f"[{session_id}] └─ Workspace command detected")
+                logger.debug(f"[{session_id}] └─ Workspace command detected")
             if "|" in command:
                 pipes = command.count("|")
-                self.logger.debug(f"[{session_id}] └─ Pipeline with {pipes} pipe(s)")
+                logger.debug(f"[{session_id}] └─ Pipeline with {pipes} pipe(s)")
             if "&&" in command or ";" in command:
-                self.logger.debug(f"[{session_id}] └─ Compound command")
+                logger.debug(f"[{session_id}] └─ Compound command")
 
 
 class DeadlockDetector(LoggingMixin):
@@ -390,7 +391,9 @@ class DeadlockDetector(LoggingMixin):
             resource, start_time = self.waiting_on[session_id]
             wait_time = time.time() - start_time
             if wait_time > 1.0:
-                self.logger.debug(f"[{session_id}] Waited {wait_time:.1f}s for {resource}")
+                self.logger.debug(
+                    f"[{session_id}] Waited {wait_time:.1f}s for {resource}"
+                )
             del self.waiting_on[session_id]
 
     def _check_long_waits(self) -> None:

@@ -4,8 +4,8 @@ from PySide6.QtGui import QFont, QTextCursor
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
 from config import Config
-from qt_widget_mixin import QtWidgetMixin
 from logging_mixin import LoggingMixin
+from qt_widget_mixin import QtWidgetMixin
 
 
 class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):

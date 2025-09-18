@@ -8,8 +8,6 @@ colors, fonts, and specific data roles.
 
 from __future__ import annotations
 
-import logging
-
 # Note: Can't use ABC with Qt classes due to metaclass conflict
 from dataclasses import dataclass, field
 
@@ -42,7 +40,6 @@ from typing_extensions import TypedDict, override
 
 from config import Config
 from logging_mixin import LoggingMixin
-
 
 
 class ThumbnailItemData(TypedDict, total=False):
@@ -133,7 +130,9 @@ class BaseThumbnailDelegate(LoggingMixin, QStyledItemDelegate):
         self._loading_angle = 0
         self._loading_timer: QTimer | None = None
 
-        self.logger.debug(f"{self.__class__.__name__} initialized with optimized painting")
+        self.logger.debug(
+            f"{self.__class__.__name__} initialized with optimized painting"
+        )
 
     def get_theme(self) -> DelegateTheme:
         """Get the theme configuration for this delegate.

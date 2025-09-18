@@ -6,7 +6,6 @@ specialized components for launcher management, validation, and execution.
 
 from __future__ import annotations
 
-import logging
 import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -24,8 +23,8 @@ from launcher.models import (
 from launcher.process_manager import LauncherProcessManager
 from launcher.repository import LauncherRepository
 from launcher.validator import LauncherValidator
-from process_pool_manager import ProcessPoolManager
 from logging_mixin import LoggingMixin
+from process_pool_manager import ProcessPoolManager
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -253,7 +252,9 @@ class LauncherManager(LoggingMixin, QObject):
 
         # Create through repository, preserving the launcher's ID
         if self._repository.create(launcher):
-            self.logger.info(f"Created launcher '{launcher.name}' with ID {launcher.id}")
+            self.logger.info(
+                f"Created launcher '{launcher.name}' with ID {launcher.id}"
+            )
             self.launcher_added.emit(launcher.id)
             self.launchers_changed.emit()
             return True
