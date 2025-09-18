@@ -9,10 +9,13 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from error_handling_mixin import ErrorHandlingMixin
+from logging_mixin import LoggingMixin
+
 logger = logging.getLogger(__name__)
 
 
-class StorageBackend:
+class StorageBackend(ErrorHandlingMixin, LoggingMixin):
     """Handles atomic file I/O operations and directory management for caching.
 
     This class provides thread-safe file operations with proper error handling,
@@ -37,11 +40,11 @@ class StorageBackend:
         for attempt in range(max_retries):
             try:
                 directory.mkdir(parents=True, exist_ok=True)
-                logger.debug(f"Ensured directory exists: {directory}")
+                self.logger.debug(f"Ensured directory exists: {directory}")
                 return True
 
             except (OSError, PermissionError) as e:
-                logger.error(
+                self.logger.error(
                     f"Failed to create directory (attempt {attempt + 1}/{max_retries}): {e}"
                 )
 
@@ -49,22 +52,22 @@ class StorageBackend:
                     # Last attempt failed, try fallback temp directory
                     try:
                         fallback_dir = Path(tempfile.mkdtemp(prefix="shotbot_cache_"))
-                        logger.warning(f"Using fallback directory: {fallback_dir}")
+                        self.logger.warning(f"Using fallback directory: {fallback_dir}")
                         # Store the fallback directory mapping
                         self._fallback_directories[directory] = fallback_dir
-                        logger.info(
+                        self.logger.info(
                             f"Mapped {directory} -> {fallback_dir} for fallback"
                         )
                         return True
 
                     except Exception as fallback_error:
-                        logger.critical(
+                        self.logger.critical(
                             f"Failed to create fallback directory: {fallback_error}"
                         )
                         return False
 
             except Exception as e:
-                logger.exception(f"Unexpected error creating directory: {e}")
+                self.logger.exception(f"Unexpected error creating directory: {e}")
                 if attempt == max_retries - 1:
                     return False
 
@@ -98,12 +101,12 @@ class StorageBackend:
             True if write succeeded, False otherwise
         """
         if not data:
-            logger.warning(f"Attempted to write empty data to {file_path}")
+            self.logger.warning(f"Attempted to write empty data to {file_path}")
             return False
 
         # Ensure parent directory exists and get actual path
         if not self.ensure_directory(file_path.parent):
-            logger.error(f"Failed to create parent directory for {file_path}")
+            self.logger.error(f"Failed to create parent directory for {file_path}")
             return False
 
         # Use actual directory (may be fallback)
@@ -124,21 +127,21 @@ class StorageBackend:
             # Atomic move to final location
             temp_file.replace(file_path)
 
-            logger.debug(f"Successfully wrote JSON data to {file_path}")
+            self.logger.debug(f"Successfully wrote JSON data to {file_path}")
             return True
 
         except OSError as e:
-            logger.error(f"I/O error writing JSON to {file_path}: {e}")
+            self.logger.error(f"I/O error writing JSON to {file_path}: {e}")
             self._cleanup_temp_file(temp_file)
             return False
 
         except (TypeError, ValueError) as e:
-            logger.error(f"JSON serialization error for {file_path}: {e}")
+            self.logger.error(f"JSON serialization error for {file_path}: {e}")
             self._cleanup_temp_file(temp_file)
             return False
 
         except Exception as e:
-            logger.exception(f"Unexpected error writing JSON to {file_path}: {e}")
+            self.logger.exception(f"Unexpected error writing JSON to {file_path}: {e}")
             self._cleanup_temp_file(temp_file)
             return False
 
@@ -158,30 +161,30 @@ class StorageBackend:
 
             # Validate that we got a dictionary
             if not isinstance(data, dict):
-                logger.warning(f"JSON file does not contain a dictionary: {file_path}")
+                self.logger.warning(f"JSON file does not contain a dictionary: {file_path}")
                 return None
 
-            logger.debug(f"Successfully read JSON data from {file_path}")
+            self.logger.debug(f"Successfully read JSON data from {file_path}")
             return data
 
         except FileNotFoundError:
-            logger.debug(f"JSON file not found: {file_path}")
+            self.logger.debug(f"JSON file not found: {file_path}")
             return None
 
         except PermissionError as e:
-            logger.error(f"Permission denied reading {file_path}: {e}")
+            self.logger.error(f"Permission denied reading {file_path}: {e}")
             return None
 
         except json.JSONDecodeError as e:
-            logger.warning(f"Corrupted JSON file {file_path}: {e}")
+            self.logger.warning(f"Corrupted JSON file {file_path}: {e}")
             return None
 
         except OSError as e:
-            logger.error(f"I/O error reading {file_path}: {e}")
+            self.logger.error(f"I/O error reading {file_path}: {e}")
             return None
 
         except Exception as e:
-            logger.exception(f"Unexpected error reading {file_path}: {e}")
+            self.logger.exception(f"Unexpected error reading {file_path}: {e}")
             return None
 
     def delete_file(self, file_path: Path) -> bool:
@@ -196,7 +199,7 @@ class StorageBackend:
         # Use EAFP pattern to avoid race condition
         try:
             file_path.unlink()
-            logger.debug(f"Deleted file: {file_path}")
+            self.logger.debug(f"Deleted file: {file_path}")
             return True
 
         except FileNotFoundError:
@@ -204,11 +207,11 @@ class StorageBackend:
             return True
 
         except (OSError, PermissionError) as e:
-            logger.error(f"Failed to delete file {file_path}: {e}")
+            self.logger.error(f"Failed to delete file {file_path}: {e}")
             return False
 
         except Exception as e:
-            logger.exception(f"Unexpected error deleting {file_path}: {e}")
+            self.logger.exception(f"Unexpected error deleting {file_path}: {e}")
             return False
 
     def move_file(self, source: Path, destination: Path) -> bool:
@@ -228,19 +231,19 @@ class StorageBackend:
                 return False
 
             source.replace(destination)
-            logger.debug(f"Moved file: {source} -> {destination}")
+            self.logger.debug(f"Moved file: {source} -> {destination}")
             return True
 
         except FileNotFoundError:
-            logger.error(f"Source file does not exist: {source}")
+            self.logger.error(f"Source file does not exist: {source}")
             return False
 
         except (OSError, PermissionError) as e:
-            logger.error(f"Failed to move file {source} -> {destination}: {e}")
+            self.logger.error(f"Failed to move file {source} -> {destination}: {e}")
             return False
 
         except Exception as e:
-            logger.exception(
+            self.logger.exception(
                 f"Unexpected error moving file {source} -> {destination}: {e}"
             )
             return False
@@ -258,7 +261,7 @@ class StorageBackend:
             return file_path.stat().st_size
 
         except OSError as e:
-            logger.debug(f"Failed to get size of {file_path}: {e}")
+            self.logger.debug(f"Failed to get size of {file_path}: {e}")
             return None
 
     def _cleanup_temp_file(self, temp_file: Path) -> None:
@@ -270,9 +273,9 @@ class StorageBackend:
         # Use EAFP pattern to avoid race condition
         try:
             temp_file.unlink()
-            logger.debug(f"Cleaned up temporary file: {temp_file}")
+            self.logger.debug(f"Cleaned up temporary file: {temp_file}")
         except FileNotFoundError:
             # Already gone, that's fine
             pass
         except OSError:
-            logger.debug(f"Failed to clean up temporary file: {temp_file}")
+            self.logger.debug(f"Failed to clean up temporary file: {temp_file}")

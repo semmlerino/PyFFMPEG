@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from config import Config
+from error_handling_mixin import ErrorHandlingMixin
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from types import TracebackType

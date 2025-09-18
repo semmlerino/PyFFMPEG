@@ -12,11 +12,12 @@ import re
 from pathlib import Path
 
 from logging_mixin import LoggingMixin
+from error_handling_mixin import ErrorHandlingMixin
 from utils import VersionUtils
 
 
 
-class NukeWorkspaceManager(LoggingMixin):
+class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
     """Manages Nuke scripts in the VFX pipeline workspace."""
 
     @classmethod

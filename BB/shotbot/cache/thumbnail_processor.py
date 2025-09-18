@@ -13,6 +13,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 
 from config import Config
+from error_handling_mixin import ErrorHandlingMixin
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from PIL import Image as PIL
@@ -20,7 +22,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ThumbnailProcessor:
+class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
     """Processes images into thumbnails with multi-format support.
 
     This class handles thumbnail generation from various image formats
@@ -45,7 +47,7 @@ class ThumbnailProcessor:
         # Thread lock for Qt operations
         self._qt_lock = threading.Lock()
 
-        logger.debug(
+        self.logger.debug(
             f"ThumbnailProcessor initialized with size {self._thumbnail_size}px"
         )
 
@@ -63,18 +65,18 @@ class ThumbnailProcessor:
             True if thumbnail was created successfully
         """
         if not source_path or not source_path.exists():
-            logger.warning(f"Source image does not exist: {source_path}")
+            self.logger.warning(f"Source image does not exist: {source_path}")
             return False
 
         if not cache_path:
-            logger.error("Cache path not provided")
+            self.logger.error("Cache path not provided")
             return False
 
         # Create cache directory
         try:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
         except (OSError, PermissionError) as e:
-            logger.error(f"Failed to create cache directory {cache_path.parent}: {e}")
+            self.logger.error(f"Failed to create cache directory {cache_path.parent}: {e}")
             return False
 
         try:
@@ -90,10 +92,10 @@ class ThumbnailProcessor:
                 )
 
         except MemoryError:
-            logger.error(f"Out of memory processing: {source_path}")
+            self.logger.error(f"Out of memory processing: {source_path}")
             return False
         except Exception as e:
-            logger.exception(f"Unexpected error processing {source_path}: {e}")
+            self.logger.exception(f"Unexpected error processing {source_path}: {e}")
             return False
         finally:
             # Force garbage collection for large images
@@ -146,7 +148,7 @@ class ThumbnailProcessor:
 
             # Validate image
             if pil_image.size[0] == 0 or pil_image.size[1] == 0:
-                logger.warning(f"Image has zero dimensions: {source_path}")
+                self.logger.warning(f"Image has zero dimensions: {source_path}")
                 return False
 
             # Convert to RGB if needed
@@ -174,10 +176,10 @@ class ThumbnailProcessor:
             return self._save_pil_thumbnail(pil_image, cache_path, file_info)
 
         except ImportError:
-            logger.warning("PIL not available, falling back to Qt")
+            self.logger.warning("PIL not available, falling back to Qt")
             return self._process_with_qt(source_path, cache_path, file_info)
         except Exception as e:
-            logger.warning(f"PIL processing failed for {source_path}: {e}")
+            self.logger.warning(f"PIL processing failed for {source_path}: {e}")
             return self._process_with_qt(source_path, cache_path, file_info)
 
     def _process_with_qt(
@@ -212,16 +214,16 @@ class ThumbnailProcessor:
                 # Load image with Qt
                 image = QImage(str(source_path))
                 if image.isNull():
-                    logger.warning(f"Qt failed to load image: {source_path}")
+                    self.logger.warning(f"Qt failed to load image: {source_path}")
                     if file_info["suffix_lower"] == ".exr":
-                        logger.info(
+                        self.logger.info(
                             "Note: Install OpenEXR with 'pip install OpenEXR' for EXR support"
                         )
                     return False
 
                 # Validate dimensions
                 if image.width() > max_dimension or image.height() > max_dimension:
-                    logger.warning(
+                    self.logger.warning(
                         f"Image too large ({image.width()}x{image.height()} > {max_dimension}): {source_path}"
                     )
                     return False
@@ -235,7 +237,7 @@ class ThumbnailProcessor:
                 )
 
                 if scaled.isNull():
-                    logger.warning(f"Failed to scale thumbnail: {source_path}")
+                    self.logger.warning(f"Failed to scale thumbnail: {source_path}")
                     return False
 
                 # Save with atomic write
@@ -281,7 +283,7 @@ class ThumbnailProcessor:
             return pil_image
 
         except Exception as e:
-            logger.debug(f"PIL loading failed for {source_path}: {e}")
+            self.logger.debug(f"PIL loading failed for {source_path}: {e}")
             return None
 
     def _get_rez_environment_info(self) -> dict[str, object]:
@@ -325,7 +327,7 @@ class ThumbnailProcessor:
         rez_info = self._get_rez_environment_info()
 
         if rez_info["in_rez_env"]:
-            logger.debug(
+            self.logger.debug(
                 f"Processing EXR in Rez environment. Resolved packages: {rez_info['used_resolve']}"
             )
 
@@ -335,7 +337,7 @@ class ThumbnailProcessor:
             if result is not None:
                 return result
         except Exception as e:
-            logger.debug(f"OpenEXR loading failed: {e}")
+            self.logger.debug(f"OpenEXR loading failed: {e}")
 
         # Try system tools (ImageMagick) as fallback
         try:
@@ -343,7 +345,7 @@ class ThumbnailProcessor:
             if result is not None:
                 return result
         except Exception as e:
-            logger.debug(f"System tools EXR loading failed: {e}")
+            self.logger.debug(f"System tools EXR loading failed: {e}")
 
         # Try imageio as fallback (likely to fail due to missing backends)
         try:
@@ -351,21 +353,21 @@ class ThumbnailProcessor:
         except ImportError as e:
             if rez_info["in_rez_env"]:
                 if rez_info["imageio_root"]:
-                    logger.warning(
+                    self.logger.warning(
                         f"imageio import failed in Rez environment (package at {rez_info['imageio_root']}): {e}"
                     )
                 else:
-                    logger.warning(
+                    self.logger.warning(
                         f"imageio import failed in Rez environment (no REZ_IMAGEIO_ROOT): {e}"
                     )
             else:
-                logger.debug("imageio not available")
+                self.logger.debug("imageio not available")
         except Exception as e:
-            logger.debug(f"imageio loading failed: {e}")
+            self.logger.debug(f"imageio loading failed: {e}")
 
         # Final error summary for Rez environments
         if rez_info["in_rez_env"]:
-            logger.error(
+            self.logger.error(
                 f"All EXR backends failed in Rez environment. Check package configurations for: {[pkg for pkg in rez_info['used_resolve'] if 'openexr' in pkg.lower() or 'imageio' in pkg.lower()]}"  # type: ignore[misc]
             )
 
@@ -388,7 +390,7 @@ class ThumbnailProcessor:
 
         from PIL import Image as PILImage
 
-        logger.debug(f"Using system tools for EXR processing: {source_path.name}")
+        self.logger.debug(f"Using system tools for EXR processing: {source_path.name}")
 
         # First, check if ImageMagick convert is available
         try:
@@ -398,7 +400,7 @@ class ThumbnailProcessor:
                 timeout=5,
             )
         except (FileNotFoundError, subprocess.SubprocessError) as e:
-            logger.debug(f"ImageMagick convert not available: {e}")
+            self.logger.debug(f"ImageMagick convert not available: {e}")
             raise ImportError("ImageMagick convert command not found")
 
         # Validate the EXR file using exrinfo (if available)
@@ -411,19 +413,19 @@ class ThumbnailProcessor:
             )
 
             if result.returncode != 0:
-                logger.debug(f"EXR validation failed with exrinfo: {result.stderr}")
+                self.logger.debug(f"EXR validation failed with exrinfo: {result.stderr}")
                 # Continue anyway - maybe convert will work
 
             # Log EXR info for debugging
             info_lines = result.stdout.strip().split("\n")[:3]  # First 3 lines
-            logger.debug(f"EXR file validated: {', '.join(info_lines)}")
+            self.logger.debug(f"EXR file validated: {', '.join(info_lines)}")
 
         except (
             subprocess.TimeoutExpired,
             FileNotFoundError,
             subprocess.SubprocessError,
         ) as e:
-            logger.debug(f"exrinfo validation failed: {e}")
+            self.logger.debug(f"exrinfo validation failed: {e}")
             # Continue anyway - maybe convert will work
 
         # Convert EXR to JPEG using ImageMagick (confirmed working)
@@ -451,20 +453,20 @@ class ThumbnailProcessor:
             )
 
             if result.returncode != 0:
-                logger.warning(f"ImageMagick conversion failed: {result.stderr}")
+                self.logger.warning(f"ImageMagick conversion failed: {result.stderr}")
                 return None
 
             # Check if output file was created
             temp_path = Path(temp_jpg)
             if not temp_path.exists() or temp_path.stat().st_size == 0:
-                logger.warning("ImageMagick produced no output file")
+                self.logger.warning("ImageMagick produced no output file")
                 return None
 
             # Load the converted JPEG with PIL
             pil_image = PILImage.open(temp_jpg)
             pil_image.load()  # Force load to ensure it's valid
 
-            logger.info(
+            self.logger.info(
                 f"✅ EXR converted using ImageMagick: {source_path.name} -> {pil_image.size}"
             )
             return pil_image
@@ -474,11 +476,11 @@ class ThumbnailProcessor:
             FileNotFoundError,
             subprocess.SubprocessError,
         ) as e:
-            logger.warning(f"ImageMagick EXR conversion failed: {e}")
+            self.logger.warning(f"ImageMagick EXR conversion failed: {e}")
             return None
 
         except Exception as e:
-            logger.warning(f"PIL loading of converted EXR failed: {e}")
+            self.logger.warning(f"PIL loading of converted EXR failed: {e}")
             return None
 
         finally:
@@ -509,7 +511,7 @@ class ThumbnailProcessor:
 
         rez_openexr_root = os.getenv("REZ_OPENEXR_ROOT")
         if rez_openexr_root:
-            logger.debug(f"Rez OpenEXR package detected at: {rez_openexr_root}")
+            self.logger.debug(f"Rez OpenEXR package detected at: {rez_openexr_root}")
 
         # Try dual import strategy for Rez compatibility
         openexr_module = None
@@ -524,9 +526,9 @@ class ThumbnailProcessor:
             openexr_module = OpenEXR
             imath_module = Imath
             api_style = "official"
-            logger.debug("Using official OpenEXR package (uppercase)")
+            self.logger.debug("Using official OpenEXR package (uppercase)")
         except ImportError:
-            logger.debug("Official OpenEXR package not available, trying alternative")
+            self.logger.debug("Official OpenEXR package not available, trying alternative")
 
         # Strategy 2: Try alternative openexr (lowercase) - common in Rez
         if openexr_module is None:
@@ -545,9 +547,9 @@ class ThumbnailProcessor:
                     imath_module = Imath
                 openexr_module = openexr
                 api_style = "alternative"
-                logger.debug("Using alternative openexr package (lowercase)")
+                self.logger.debug("Using alternative openexr package (lowercase)")
             except ImportError:
-                logger.debug("Alternative openexr package not available")
+                self.logger.debug("Alternative openexr package not available")
 
         if openexr_module is None or imath_module is None:
             # Enhanced error reporting for Rez environments
@@ -603,7 +605,7 @@ class ThumbnailProcessor:
         img_array = np.clip(img_array, 0, 1)  # Simple tone mapping
         img_array = (img_array * 255).astype(np.uint8)
 
-        logger.debug(f"Successfully loaded EXR using {api_style} OpenEXR API")
+        self.logger.debug(f"Successfully loaded EXR using {api_style} OpenEXR API")
         return PILImage.fromarray(img_array, mode="RGB")
 
     def _load_exr_with_imageio(self, source_path: Path) -> PIL.Image | None:
@@ -623,7 +625,7 @@ class ThumbnailProcessor:
         # Rez environment diagnostics
         rez_imageio_root = os.getenv("REZ_IMAGEIO_ROOT")
         if rez_imageio_root:
-            logger.debug(f"Rez imageio package detected at: {rez_imageio_root}")
+            self.logger.debug(f"Rez imageio package detected at: {rez_imageio_root}")
 
         # Try imageio import with version fallback
         imageio_module = None
@@ -631,13 +633,13 @@ class ThumbnailProcessor:
             import imageio.v3 as iio
 
             imageio_module = iio
-            logger.debug("Using imageio.v3 API")
+            self.logger.debug("Using imageio.v3 API")
         except ImportError:
             try:
                 import imageio as iio
 
                 imageio_module = iio
-                logger.debug("Using imageio v2 API (fallback)")
+                self.logger.debug("Using imageio v2 API (fallback)")
             except ImportError:
                 error_msg = "imageio not available"
                 if rez_imageio_root:
@@ -650,7 +652,7 @@ class ThumbnailProcessor:
         try:
             # Test backend detection by trying to read the file
             img_array = imageio_module.imread(str(source_path))
-            logger.debug("imageio successfully loaded EXR with available backend")
+            self.logger.debug("imageio successfully loaded EXR with available backend")
         except Exception as e:
             # Enhanced error reporting for missing backends
             error_details = str(e)
@@ -662,7 +664,7 @@ class ThumbnailProcessor:
                     backend_msg += (
                         " (install with: pip install imageio[opencv] or imageio[pyav])"
                     )
-                logger.warning(backend_msg)
+                self.logger.warning(backend_msg)
             raise
 
         # Normalize if needed
@@ -699,7 +701,7 @@ class ThumbnailProcessor:
             with PILImage.open(str(source_path)) as pil_img:
                 width, height = pil_img.size
                 if width > max_dimension or height > max_dimension:
-                    logger.warning(
+                    self.logger.warning(
                         f"Image too large ({width}x{height} > {max_dimension}): {source_path}"
                     )
                     return False
@@ -726,7 +728,7 @@ class ThumbnailProcessor:
         try:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
         except (OSError, PermissionError) as e:
-            logger.error(f"Failed to create cache directory {cache_path.parent}: {e}")
+            self.logger.error(f"Failed to create cache directory {cache_path.parent}: {e}")
             return False
 
         temp_path = cache_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
@@ -738,21 +740,21 @@ class ThumbnailProcessor:
 
             # Verify temp file was created successfully
             if not temp_path.exists() or temp_path.stat().st_size == 0:
-                logger.error(f"Temp file was not created or is empty: {temp_path}")
+                self.logger.error(f"Temp file was not created or is empty: {temp_path}")
                 return False
 
             # Atomic move to final location
             temp_path.replace(cache_path)
 
             file_size_kb = cache_path.stat().st_size / 1024
-            logger.debug(
+            self.logger.debug(
                 f"Saved PIL thumbnail: {cache_path.name} "
                 + f"({file_info['file_size_mb']:.1f}MB -> {file_size_kb:.1f}KB)"
             )
             return True
 
         except Exception as e:
-            logger.error(f"Failed to save PIL thumbnail: {e}")
+            self.logger.error(f"Failed to save PIL thumbnail: {e}")
             self._cleanup_temp_file(temp_path)
             return False
 
@@ -780,17 +782,17 @@ class ThumbnailProcessor:
                 temp_path.replace(cache_path)
 
                 file_size_kb = cache_path.stat().st_size / 1024
-                logger.debug(
+                self.logger.debug(
                     f"Saved Qt thumbnail: {cache_path.name} "
                     + f"({file_info['file_size_mb']:.1f}MB -> {file_size_kb:.1f}KB)"
                 )
                 return True
             else:
-                logger.warning(f"Qt failed to save thumbnail: {temp_path}")
+                self.logger.warning(f"Qt failed to save thumbnail: {temp_path}")
                 return False
 
         except Exception as e:
-            logger.error(f"Failed to save Qt thumbnail: {e}")
+            self.logger.error(f"Failed to save Qt thumbnail: {e}")
             return False
         finally:
             self._cleanup_temp_file(temp_path)
@@ -845,19 +847,19 @@ class ThumbnailProcessor:
                     if len(images) > 10 and completed % 10 == 0:
                         elapsed = time.time() - start_time
                         rate = completed / elapsed
-                        logger.info(
+                        self.logger.info(
                             f"Batch thumbnail progress: {completed}/{len(images)} "
                             f"({rate:.1f} imgs/sec)"
                         )
 
                 except Exception as e:
-                    logger.error(f"Failed to process thumbnail at index {index}: {e}")
+                    self.logger.error(f"Failed to process thumbnail at index {index}: {e}")
                     results[index] = None
 
         # Log final statistics
         elapsed = time.time() - start_time
         successful = sum(1 for r in results if r is not None)
-        logger.info(
+        self.logger.info(
             f"Batch thumbnail processing complete: {successful}/{len(images)} successful "
             f"in {elapsed:.2f}s ({len(images) / elapsed:.1f} imgs/sec)"
         )
@@ -889,7 +891,7 @@ class ThumbnailProcessor:
             return None
 
         except Exception as e:
-            logger.error(f"Error processing single thumbnail {source_path}: {e}")
+            self.logger.error(f"Error processing single thumbnail {source_path}: {e}")
             return None
 
     def _cleanup_temp_file(self, temp_path: Path) -> None:
