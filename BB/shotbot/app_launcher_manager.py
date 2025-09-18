@@ -7,10 +7,11 @@ error handling and status tracking.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal, Slot
+
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from command_launcher import CommandLauncher
@@ -18,10 +19,9 @@ if TYPE_CHECKING:
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
-logger = logging.getLogger(__name__)
 
 
-class AppLauncherManager(QObject):
+class AppLauncherManager(LoggingMixin, QObject):
     """Centralized application launching management.
 
     This class handles all application launching logic, including:
@@ -58,7 +58,7 @@ class AppLauncherManager(QObject):
         self.launcher_manager.command_finished.connect(self._on_launcher_finished)
         self.command_launcher.command_error.connect(self._on_command_error)
 
-        logger.debug("AppLauncherManager initialized")
+        self.logger.debug("AppLauncherManager initialized")
 
     def launch_app_with_shot(self, app_name: str, shot: Shot | None = None) -> bool:
         """Launch VFX application with shot context.
@@ -71,14 +71,14 @@ class AppLauncherManager(QObject):
             True if launch initiated successfully, False otherwise
         """
         if not shot:
-            logger.warning(f"Cannot launch {app_name}: No shot selected")
+            self.logger.warning(f"Cannot launch {app_name}: No shot selected")
             self.status_update.emit(f"No shot selected for {app_name} launch")
             return False
 
         try:
             # Validate shot has required paths
             if not hasattr(shot, "workspace_path") or not shot.workspace_path:
-                logger.error(f"Shot {shot.full_name} missing workspace path")
+                self.logger.error(f"Shot {shot.full_name} missing workspace path")
                 self.launch_error.emit(app_name, "Shot missing workspace path")
                 return False
 
@@ -95,18 +95,18 @@ class AppLauncherManager(QObject):
             success = self._execute_app_launch(app_name, shot, None)
 
             if success:
-                logger.info(
+                self.logger.info(
                     f"Successfully launched {app_name} for shot {shot.full_name}"
                 )
                 self.status_update.emit(f"{app_name} launched for {shot.full_name}")
             else:
-                logger.error(f"Failed to launch {app_name} for shot {shot.full_name}")
+                self.logger.error(f"Failed to launch {app_name} for shot {shot.full_name}")
                 self.launch_error.emit(app_name, "Launch command failed")
 
             return success
 
         except Exception as e:
-            logger.exception(
+            self.logger.exception(
                 f"Error launching {app_name} with shot {shot.full_name if shot else 'None'}: {e}"
             )
             self.launch_error.emit(app_name, str(e))
@@ -125,7 +125,7 @@ class AppLauncherManager(QObject):
         try:
             # Validate scene has required paths
             if not scene.scene_path or not scene.scene_path.exists():
-                logger.error(f"3DE scene path invalid: {scene.scene_path}")
+                self.logger.error(f"3DE scene path invalid: {scene.scene_path}")
                 self.launch_error.emit(app_name, "Invalid scene path")
                 return False
 
@@ -145,14 +145,14 @@ class AppLauncherManager(QObject):
             success = self._execute_app_launch(app_name, shot, scene)
 
             if success:
-                logger.info(
+                self.logger.info(
                     f"Successfully launched {app_name} with 3DE scene {scene.scene_path.name}"
                 )
                 self.status_update.emit(
                     f"{app_name} launched with {scene.scene_path.name}"
                 )
             else:
-                logger.error(
+                self.logger.error(
                     f"Failed to launch {app_name} with 3DE scene {scene.scene_path.name}"
                 )
                 self.launch_error.emit(app_name, "Launch command failed")
@@ -160,7 +160,7 @@ class AppLauncherManager(QObject):
             return success
 
         except Exception as e:
-            logger.exception(
+            self.logger.exception(
                 f"Error launching {app_name} with scene {scene.scene_path}: {e}"
             )
             self.launch_error.emit(app_name, str(e))
@@ -192,7 +192,7 @@ class AppLauncherManager(QObject):
             return self._launch_app_basic(app_name)
 
         except Exception as e:
-            logger.exception(f"Error executing {app_name} launch: {e}")
+            self.logger.exception(f"Error executing {app_name} launch: {e}")
             return False
 
     def _launch_threede_with_scene(self, scene: ThreeDEScene) -> bool:
@@ -209,7 +209,7 @@ class AppLauncherManager(QObject):
             return self.command_launcher.launch_app_with_scene("3de", scene)
 
         except Exception as e:
-            logger.error(f"Failed to launch 3DE with scene {scene.scene_path}: {e}")
+            self.logger.error(f"Failed to launch 3DE with scene {scene.scene_path}: {e}")
             return False
 
     def _launch_app_with_shot_context(self, app_name: str, shot: Shot) -> bool:
@@ -230,7 +230,7 @@ class AppLauncherManager(QObject):
             return self.command_launcher.launch_app(app_name)
 
         except Exception as e:
-            logger.error(f"Failed to launch {app_name} with shot context: {e}")
+            self.logger.error(f"Failed to launch {app_name} with shot context: {e}")
             return False
 
     def _launch_app_basic(self, app_name: str) -> bool:
@@ -250,7 +250,7 @@ class AppLauncherManager(QObject):
             return self.command_launcher.launch_app(app_name)
 
         except Exception as e:
-            logger.error(f"Failed to launch {app_name}: {e}")
+            self.logger.error(f"Failed to launch {app_name}: {e}")
             return False
 
     def _get_shot_for_scene(self, scene: ThreeDEScene) -> Shot | None:
@@ -295,7 +295,7 @@ class AppLauncherManager(QObject):
             return None
 
         except Exception as e:
-            logger.debug(
+            self.logger.debug(
                 f"Could not extract shot from scene path {scene.scene_path}: {e}"
             )
             return None
@@ -308,7 +308,7 @@ class AppLauncherManager(QObject):
             launcher_id: ID of started launcher
         """
         self.status_update.emit(f"Launcher {launcher_id} started")
-        logger.debug(f"Launcher started: {launcher_id}")
+        self.logger.debug(f"Launcher started: {launcher_id}")
 
     @Slot(str, bool)
     def _on_launcher_finished(self, launcher_id: str, success: bool) -> None:
@@ -320,10 +320,10 @@ class AppLauncherManager(QObject):
         """
         if success:
             self.status_update.emit(f"Launcher {launcher_id} completed successfully")
-            logger.info(f"Launcher completed: {launcher_id}")
+            self.logger.info(f"Launcher completed: {launcher_id}")
         else:
             self.status_update.emit(f"Launcher {launcher_id} failed")
-            logger.warning(f"Launcher failed: {launcher_id}")
+            self.logger.warning(f"Launcher failed: {launcher_id}")
 
     @Slot(str, str)
     def _on_command_error(self, timestamp: str, error: str) -> None:
@@ -334,7 +334,7 @@ class AppLauncherManager(QObject):
             error: Error message
         """
         self.status_update.emit(f"Command error: {error}")
-        logger.error(f"Command error at {timestamp}: {error}")
+        self.logger.error(f"Command error at {timestamp}: {error}")
 
     def get_available_applications(self) -> list[str]:
         """Get list of available applications for launching.

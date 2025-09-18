@@ -90,6 +90,7 @@ from controllers.settings_controller import (
 from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
 from launcher_manager import LauncherManager  # Need at runtime
 from launcher_panel import LauncherPanel  # Improved launcher UI
+from logging_mixin import LoggingMixin, get_module_logger
 from log_viewer import LogViewer
 from notification_manager import NotificationManager, NotificationType
 from persistent_terminal_manager import PersistentTerminalManager
@@ -106,14 +107,16 @@ from shot_model import Shot, ShotModel
 from shot_model_optimized import OptimizedShotModel  # Performance-optimized model
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
+from thread_safe_worker import ThreadSafeWorker
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 from threede_scene_worker import ThreeDESceneWorker
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
+# Module-level logger for non-class code (SessionWarmer, etc.)
+logger = get_module_logger(__name__)
 
 
-class SessionWarmer(QThread):
+class SessionWarmer(ThreadSafeWorker):
     """Background thread for pre-warming bash sessions without blocking UI.
 
     This thread runs during idle time after the UI is displayed, initializing
@@ -127,8 +130,8 @@ class SessionWarmer(QThread):
     def run(self) -> None:
         """Pre-warm bash sessions in background thread."""
         try:
-            # Check for interruption before starting
-            if self.isInterruptionRequested():
+            # Check if we should stop before starting
+            if self.should_stop():
                 return
 
             logger.debug("Starting background session pre-warming")
@@ -141,8 +144,8 @@ class SessionWarmer(QThread):
                 # Fallback to direct access if factory not available
                 pool = ProcessPoolManager.get_instance()
 
-            # Check for interruption before executing
-            if self.isInterruptionRequested():
+            # Check if we should stop before executing
+            if self.should_stop():
                 return
 
             _ = pool.execute_workspace_command(
@@ -156,7 +159,7 @@ class SessionWarmer(QThread):
             logger.warning(f"Session pre-warming failed (non-critical): {e}")
 
 
-class MainWindow(QMainWindow):
+class MainWindow(LoggingMixin, QMainWindow):
     """Main application window."""
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
@@ -198,26 +201,26 @@ class MainWindow(QMainWindow):
                 "yes",
             )
         except Exception as e:
-            logger.warning(
+            self.logger.warning(
                 f"Failed to read SHOTBOT_USE_LEGACY_MODEL environment variable: {e}"
             )
             use_legacy = False
 
         # Pass to models - OptimizedShotModel is now the default
         if use_legacy:
-            logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
+            self.logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
             # ShotModel inherits from BaseShotModel
             shot_model_instance = cast("BaseShotModel", ShotModel(self.cache_manager))
             self.shot_model = shot_model_instance
         else:
-            logger.info("Using OptimizedShotModel with 366x faster startup")
+            self.logger.info("Using OptimizedShotModel with 366x faster startup")
             # OptimizedShotModel inherits from BaseShotModel
             optimized_model = OptimizedShotModel(self.cache_manager)
             self.shot_model = cast("BaseShotModel", optimized_model)
             # Initialize async loading for immediate UI display
             init_result = optimized_model.initialize_async()
             if init_result.success:
-                logger.debug(
+                self.logger.debug(
                     f"Optimized model initialized with {len(self.shot_model.shots)} cached shots"
                 )
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
@@ -253,7 +256,7 @@ class MainWindow(QMainWindow):
 
         # No longer need background refresh for shots - they use signals now
         # Only keep background refresh for 3DE scenes if needed
-        logger.info(
+        self.logger.info(
             "Shot model now uses reactive signals - background polling disabled for shots"
         )
 
@@ -573,11 +576,11 @@ class MainWindow(QMainWindow):
         # Check if we're using OptimizedShotModel
         if isinstance(self.shot_model, OptimizedShotModel):
             # Async initialization was already called in __init__, just pre-warm sessions
-            logger.info("Using async initialization (already started in __init__)")
+            self.logger.info("Using async initialization (already started in __init__)")
             # Pre-warm sessions in background thread to avoid UI freeze
             self._session_warmer = SessionWarmer()
             self._session_warmer.start()
-            logger.debug("Session warmer thread started in background")
+            self.logger.debug("Session warmer thread started in background")
 
         has_cached_shots = bool(self.shot_model.shots)
         has_cached_scenes = bool(self.threede_scene_model.scenes)
@@ -585,18 +588,18 @@ class MainWindow(QMainWindow):
         # Show cached shots immediately if available (should already be loaded)
         if has_cached_shots:
             self._refresh_shot_display()
-            logger.info(
+            self.logger.info(
                 f"Displayed {len(self.shot_model.shots)} cached shots instantly"
             )
         else:
             # No cache, but let's check one more time
-            logger.info(
+            self.logger.info(
                 "No cached shots found on initial check, attempting explicit cache load"
             )
             if self.shot_model._load_from_cache():
                 has_cached_shots = True
                 self._refresh_shot_display()
-                logger.info(
+                self.logger.info(
                     f"Loaded and displayed {len(self.shot_model.shots)} shots from cache"
                 )
 
@@ -634,7 +637,7 @@ class MainWindow(QMainWindow):
         else:
             self._update_status("Loading shots and scenes...")
             # No cache exists - fetch immediately in background
-            logger.info(
+            self.logger.info(
                 "No cached data found - fetching fresh data in background",
             )
             # Schedule immediate background refresh
@@ -648,7 +651,7 @@ class MainWindow(QMainWindow):
 
         # If shots are already loaded from cache, trigger refresh immediately
         if self.shot_model.shots:
-            logger.info(
+            self.logger.info(
                 "Shots already loaded from cache, triggering previous shots refresh immediately"
             )
             QTimer.singleShot(100, self.previous_shots_model.refresh_shots)
@@ -658,10 +661,10 @@ class MainWindow(QMainWindow):
         if has_cached_shots:
             # Check if we have a valid cache (including valid empty results)
             if not self.cache_manager.has_valid_threede_cache():  # type: ignore[attr-defined]
-                logger.info("3DE cache invalid/expired - starting discovery")
+                self.logger.info("3DE cache invalid/expired - starting discovery")
                 QTimer.singleShot(100, self._refresh_threede_scenes)
             else:
-                logger.info("3DE cache is valid - skipping initial scan")
+                self.logger.info("3DE cache is valid - skipping initial scan")
                 # Cache is valid but might be empty - that's OK, we cached the "no scenes" state
 
     def _refresh_shots(self) -> None:
@@ -681,7 +684,7 @@ class MainWindow(QMainWindow):
         """Thread-safe refresh of 3DE scene list using background worker."""
         # First check if we're closing without holding mutex
         if self._closing:
-            logger.debug("Ignoring refresh request during shutdown")
+            self.logger.debug("Ignoring refresh request during shutdown")
             return
 
         # Store worker reference for cleanup outside mutex
@@ -695,7 +698,7 @@ class MainWindow(QMainWindow):
 
             # Check existing worker state
             if self._threede_worker and not self._threede_worker.isFinished():
-                logger.debug(
+                self.logger.debug(
                     "3DE worker still running, will stop before starting new one",
                 )
                 worker_to_stop = self._threede_worker
@@ -707,7 +710,7 @@ class MainWindow(QMainWindow):
             if not worker_to_stop.wait(
                 Config.WORKER_STOP_TIMEOUT_MS
             ):  # Wait up to 5 seconds
-                logger.warning(
+                self.logger.warning(
                     "Failed to stop 3DE worker gracefully, using safe termination",
                 )
                 # Use safe_terminate which avoids dangerous terminate() call
@@ -832,13 +835,13 @@ class MainWindow(QMainWindow):
             scenes: List of discovered ThreeDEScene objects
         """
         # DEBUG: Log the discovered scenes
-        logger.info(
+        self.logger.info(
             f"🔍 3DE Discovery finished with {len(scenes)} total scenes discovered"
         )
         for i, scene in enumerate(scenes[:5]):  # Log first 5 scenes
-            logger.info(f"   Scene {i + 1}: {scene.full_name} (user: {scene.user})")
+            self.logger.info(f"   Scene {i + 1}: {scene.full_name} (user: {scene.user})")
         if len(scenes) > 5:
-            logger.info(f"   ... and {len(scenes) - 5} more scenes")
+            self.logger.info(f"   ... and {len(scenes) - 5} more scenes")
 
         # Check if we're closing to avoid accessing deleted widgets
         if hasattr(self, "_closing") and self._closing:
@@ -856,23 +859,23 @@ class MainWindow(QMainWindow):
             (scene.full_name, scene.user, scene.plate, str(scene.scene_path))
             for scene in self.threede_scene_model.scenes
         }
-        logger.info(f"🗂️ Current model has {len(old_scene_data)} existing scenes")
+        self.logger.info(f"🗂️ Current model has {len(old_scene_data)} existing scenes")
 
         new_scene_data = {
             (scene.full_name, scene.user, scene.plate, str(scene.scene_path))
             for scene in scenes
         }
-        logger.info(f"🔍 New discovery has {len(new_scene_data)} scene data items")
+        self.logger.info(f"🔍 New discovery has {len(new_scene_data)} scene data items")
 
         has_changes = old_scene_data != new_scene_data
-        logger.info(f"🔄 Has changes: {has_changes}")
+        self.logger.info(f"🔄 Has changes: {has_changes}")
 
         if has_changes:
             # Update the model with new scenes (deduplication happens in model)
             self.threede_scene_model.scenes = (
                 self.threede_scene_model._deduplicate_scenes_by_shot(scenes)  # type: ignore[private-usage]
             )
-            logger.info(
+            self.logger.info(
                 f"🔧 After deduplication: {len(self.threede_scene_model.scenes)} scenes remain"
             )
 
@@ -886,13 +889,13 @@ class MainWindow(QMainWindow):
                     self.threede_scene_model.to_dict(),  # type: ignore[arg-type]
                 )
             except Exception as e:
-                logger.warning(f"Failed to cache 3DE scenes after scan: {e}")
+                self.logger.warning(f"Failed to cache 3DE scenes after scan: {e}")
 
             # Update UI
             self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
             # Populate show filter with available shows
             self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
-            logger.info(
+            self.logger.info(
                 f"✅ UI model updated with {len(self.threede_scene_model.scenes)} scenes"
             )
 
@@ -911,22 +914,22 @@ class MainWindow(QMainWindow):
                     self.threede_scene_model.to_dict(),  # type: ignore[arg-type]
                 )
             except Exception as e:
-                logger.warning(f"Failed to refresh 3DE scene cache TTL: {e}")
+                self.logger.warning(f"Failed to refresh 3DE scene cache TTL: {e}")
 
             # Ensure UI is populated if this is the first load
             # Update model with latest scenes if needed
-            logger.info(
+            self.logger.info(
                 f"❌ No changes detected - existing model has {len(self.threede_scene_model.scenes)} scenes"
             )
             if self.threede_scene_model.scenes:
                 self.threede_item_model.set_scenes(self.threede_scene_model.scenes)
                 # Populate show filter with available shows
                 self.threede_shot_grid.populate_show_filter(self.threede_scene_model)
-                logger.info(
+                self.logger.info(
                     f"🔄 Re-applied {len(self.threede_scene_model.scenes)} existing scenes to UI"
                 )
             else:
-                logger.info("📭 No existing scenes in model to apply")
+                self.logger.info("📭 No existing scenes in model to apply")
             self._update_status("3DE scene discovery complete (no changes)")
 
     def _on_threede_discovery_error(self, error_message: str) -> None:
@@ -957,7 +960,7 @@ class MainWindow(QMainWindow):
         if scene_batch:
             # Don't directly add to model - let _on_threede_discovery_finished handle deduplication
             # Just log the progress for now
-            logger.debug(f"Processed batch of {len(scene_batch)} scenes")
+            self.logger.debug(f"Processed batch of {len(scene_batch)} scenes")
 
             # Note: The scenes are accumulated in the worker itself
             # and will be deduplicated when discovery finishes
@@ -1005,7 +1008,7 @@ class MainWindow(QMainWindow):
         Args:
             shots: List of loaded Shot objects
         """
-        logger.info(f"Shots loaded signal received: {len(shots)} shots")
+        self.logger.info(f"Shots loaded signal received: {len(shots)} shots")
         self._refresh_shot_display()
         self._update_status(f"Loaded {len(shots)} shots")
         NotificationManager.info(f"{len(shots)} shots loaded from cache")
@@ -1016,7 +1019,7 @@ class MainWindow(QMainWindow):
         Args:
             shots: List of updated Shot objects
         """
-        logger.info(f"Shots changed signal received: {len(shots)} shots")
+        self.logger.info(f"Shots changed signal received: {len(shots)} shots")
         self._refresh_shot_display()
         self._update_status(f"Shot list updated: {len(shots)} shots")
         NotificationManager.success(f"Refreshed {len(shots)} shots")
@@ -1037,13 +1040,13 @@ class MainWindow(QMainWindow):
         if success:
             if has_changes:
                 # UI update already handled by shots_changed signal
-                logger.debug("Refresh completed with changes")
+                self.logger.debug("Refresh completed with changes")
             else:
                 self._update_status(f"{len(self.shot_model.shots)} shots (no changes)")
                 NotificationManager.info(
                     f"{len(self.shot_model.shots)} shots (no changes)"
                 )
-                logger.debug("Refresh completed without changes")
+                self.logger.debug("Refresh completed without changes")
 
             # Restore last selected shot if available
             if hasattr(self, "_last_selected_shot_name") and isinstance(
@@ -1071,7 +1074,7 @@ class MainWindow(QMainWindow):
         Args:
             error_msg: The error message
         """
-        logger.error(f"Shot model error: {error_msg}")
+        self.logger.error(f"Shot model error: {error_msg}")
         self._update_status(f"Error: {error_msg}")
 
     def _trigger_previous_shots_refresh(self, shots: list[Shot]) -> None:
@@ -1085,12 +1088,12 @@ class MainWindow(QMainWindow):
             shots: The loaded shots (from signal)
         """
         if shots:  # Only refresh if we actually have shots
-            logger.info(
+            self.logger.info(
                 f"Triggering previous shots refresh after loading {len(shots)} active shots"
             )
             self.previous_shots_model.refresh_shots()
         else:
-            logger.debug("No active shots loaded, skipping previous shots refresh")
+            self.logger.debug("No active shots loaded, skipping previous shots refresh")
 
     def _on_model_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selected signal from model.
@@ -1099,13 +1102,13 @@ class MainWindow(QMainWindow):
             shot: The selected Shot object or None
         """
         if shot:
-            logger.debug(f"Model shot selected: {shot.full_name}")
+            self.logger.debug(f"Model shot selected: {shot.full_name}")
         else:
-            logger.debug("Model shot selection cleared")
+            self.logger.debug("Model shot selection cleared")
 
     def _on_cache_updated(self) -> None:
         """Handle cache updated signal from model."""
-        logger.debug("Shot cache updated")
+        self.logger.debug("Shot cache updated")
 
     def _on_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selection or deselection.
@@ -1222,7 +1225,7 @@ class MainWindow(QMainWindow):
         # Apply filter to item model
         self.threede_item_model.set_show_filter(self.threede_scene_model, show_filter)
 
-        logger.info(f"Applied show filter: {show if show else 'All Shows'}")
+        self.logger.info(f"Applied show filter: {show if show else 'All Shows'}")
 
     def _launch_app(self, app_name: str) -> None:
         """Launch an application."""
@@ -1657,14 +1660,14 @@ class MainWindow(QMainWindow):
             # Step 3: Request worker to stop if not already finished
             # worker_to_cleanup is always ThreeDESceneWorker when not None
             if not worker_to_cleanup.isFinished():
-                logger.debug("Stopping 3DE worker during shutdown")
+                self.logger.debug("Stopping 3DE worker during shutdown")
                 worker_to_cleanup.stop()
 
                 # Step 4: Wait for worker to finish with timeout
                 if not worker_to_cleanup.wait(
                     Config.WORKER_STOP_TIMEOUT_MS
                 ):  # Wait up to 5 seconds
-                    logger.warning(
+                    self.logger.warning(
                         "3DE worker didn't stop gracefully, using safe termination",
                     )
                     # Use safe_terminate which avoids dangerous terminate() call
@@ -1708,23 +1711,21 @@ class MainWindow(QMainWindow):
             # Clean up session warmer if it exists
             if hasattr(self, "_session_warmer") and self._session_warmer:
                 if not self._session_warmer.isFinished():
-                    logger.debug("Requesting session warmer to stop")
-                    # Use safe interruption instead of dangerous terminate()
-                    self._session_warmer.requestInterruption()
+                    self.logger.debug("Requesting session warmer to stop")
+                    # Use ThreadSafeWorker's stop method
+                    self._session_warmer.stop()
                     # Session warming is non-critical, give it max 2 seconds
                     if not self._session_warmer.wait(2000):
-                        logger.warning(
-                            "Session warmer didn't finish gracefully, attempting quit"
+                        self.logger.warning(
+                            "Session warmer didn't finish gracefully, using safe termination"
                         )
-                        # Try quit() which is safer than terminate()
-                        self._session_warmer.quit()
+                        # Use safe_terminate from ThreadSafeWorker
+                        self._session_warmer.safe_terminate()
                         # Give it one more second
                         if not self._session_warmer.wait(1000):
-                            logger.warning(
+                            self.logger.warning(
                                 "Session warmer thread abandoned - will be cleaned on exit"
                             )
-                            # DO NOT use terminate() - just abandon the thread
-                            # Qt will clean it up on exit
                 self._session_warmer.deleteLater()
                 self._session_warmer = None
 
@@ -1734,48 +1735,48 @@ class MainWindow(QMainWindow):
 
         # Clean up OptimizedShotModel if using it
         if isinstance(self.shot_model, OptimizedShotModel):
-            logger.debug("Cleaning up OptimizedShotModel background threads")
+            self.logger.debug("Cleaning up OptimizedShotModel background threads")
             self.shot_model.cleanup()
 
         # Clean up previous shots model (stops auto-refresh timer and worker)
         if hasattr(self, "previous_shots_model") and self.previous_shots_model:
-            logger.debug("Cleaning up PreviousShotsModel")
+            self.logger.debug("Cleaning up PreviousShotsModel")
             try:
                 self.previous_shots_model.cleanup()
             except Exception as e:
-                logger.error(f"Error cleaning up PreviousShotsModel: {e}")
+                self.logger.error(f"Error cleaning up PreviousShotsModel: {e}")
 
         # Also clean up the item model if it exists
         if (
             hasattr(self, "previous_shots_item_model")
             and self.previous_shots_item_model
         ):
-            logger.debug("Cleaning up PreviousShotsItemModel")
+            self.logger.debug("Cleaning up PreviousShotsItemModel")
             try:
                 if hasattr(self.previous_shots_item_model, "cleanup"):
                     self.previous_shots_item_model.cleanup()  # type: ignore[attr-defined]
             except Exception as e:
-                logger.error(f"Error cleaning up PreviousShotsItemModel: {e}")
+                self.logger.error(f"Error cleaning up PreviousShotsItemModel: {e}")
 
         # Shutdown cache manager
         self.cache_manager.shutdown()
 
         # Clean up persistent terminal if it exists
         if hasattr(self, "persistent_terminal") and self.persistent_terminal:
-            logger.debug("Cleaning up persistent terminal")
+            self.logger.debug("Cleaning up persistent terminal")
             # Check if we should keep terminal open after exit
             if not getattr(Config, "KEEP_TERMINAL_ON_EXIT", False):
                 self.persistent_terminal.cleanup()
             else:
                 # Just cleanup FIFO but leave terminal running
-                logger.info("Keeping terminal open after application exit")
+                self.logger.info("Keeping terminal open after application exit")
                 if hasattr(self.persistent_terminal, "cleanup_fifo_only"):
                     self.persistent_terminal.cleanup_fifo_only()
 
         # Clean up any remaining QRunnables in the thread pool
         from runnable_tracker import cleanup_all_runnables
 
-        logger.debug("Cleaning up tracked QRunnables")
+        self.logger.debug("Cleaning up tracked QRunnables")
         cleanup_all_runnables()
 
         self.settings_controller.save_settings()  # Use refactored settings controller

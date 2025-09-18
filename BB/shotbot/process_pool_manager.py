@@ -20,10 +20,10 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from config import ThreadingConfig
-from persistent_bash_session import PersistentBashSession
 from secure_command_executor import get_secure_executor
 
 if TYPE_CHECKING:
+    from persistent_bash_session import PersistentBashSession
     from type_definitions import PerformanceMetricsDict
 
 # Import debug utilities
@@ -242,9 +242,7 @@ class ProcessPoolManager(QObject):
             # Session pools: type -> list of sessions
             # Replace session pools with secure executor
             self._secure_executor = get_secure_executor()
-            self._session_pools: dict[
-                str, list[PersistentBashSession]
-            ] = {}
+            self._session_pools: dict[str, list[PersistentBashSession]] = {}
             self._session_round_robin: dict[str, int] = {}  # Track next session to use
             self._session_creation_in_progress: dict[
                 str, bool

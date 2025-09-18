@@ -15,11 +15,10 @@ if TYPE_CHECKING:
     from type_definitions import PerformanceMetricsDict, RefreshResult
 
 from exceptions import WorkspaceError
+from logging_mixin import LoggingMixin
 from optimized_shot_parser import OptimizedShotParser
 from process_pool_manager import ProcessPoolManager
 from utils import ValidationUtils
-
-logger = logging.getLogger(__name__)
 
 # Enable verbose debug logging if environment variable is set
 DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
@@ -32,7 +31,7 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
 # Import RefreshResult from type_definitions to avoid circular imports
 
 
-class BaseShotModel(QObject):
+class BaseShotModel(LoggingMixin, QObject):
     """Abstract base class for shot models with shared functionality.
 
     This base class provides common signals, shot parsing logic, caching,
@@ -75,7 +74,7 @@ class BaseShotModel(QObject):
 
         # Initialize ProcessPoolManager via factory for dependency injection support
         if DEBUG_VERBOSE:
-            logger.debug("Getting ProcessPoolManager instance via factory")
+            self.logger.debug("Getting ProcessPoolManager instance via factory")
 
         # Use the factory for clean dependency injection support
         try:
@@ -83,11 +82,11 @@ class BaseShotModel(QObject):
 
             self._process_pool = get_process_pool()
             if DEBUG_VERBOSE:
-                logger.debug("Using factory-provided process pool instance")
+                self.logger.debug("Using factory-provided process pool instance")
         except ImportError:
             # Fallback to direct access if factory not available
             if DEBUG_VERBOSE:
-                logger.debug("Factory not available, using direct singleton access")
+                self.logger.debug("Factory not available, using direct singleton access")
             self._process_pool = ProcessPoolManager.get_instance()
 
         # Performance metrics
@@ -114,7 +113,7 @@ class BaseShotModel(QObject):
             self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
             self.shots_loaded.emit(self.shots)
             self._cache_hits += 1
-            logger.info(f"Loaded {len(self.shots)} shots from cache")
+            self.logger.info(f"Loaded {len(self.shots)} shots from cache")
             return True
         self._cache_misses += 1
         return False
@@ -143,16 +142,16 @@ class BaseShotModel(QObject):
 
         # If output is completely empty, that might indicate an issue
         if not output.strip():
-            logger.warning("ws -sg returned empty output")
+            self.logger.warning("ws -sg returned empty output")
             return shots
 
         # Log the first few lines of output for debugging
-        logger.info(f"Parsing ws output with {len(lines)} lines")
+        self.logger.info(f"Parsing ws output with {len(lines)} lines")
         if lines and len(lines) > 0:
-            logger.info(f"First line of ws output: {lines[0][:200]}")
+            self.logger.info(f"First line of ws output: {lines[0][:200]}")
             # Log first 3 lines for debugging
             for i, line in enumerate(lines[:3]):
-                logger.debug(f"ws output line {i + 1}: {line}")
+                self.logger.debug(f"ws output line {i + 1}: {line}")
 
         for line_num, line in enumerate(lines, 1):
             line = line.strip()
@@ -169,7 +168,7 @@ class BaseShotModel(QObject):
                     shot = result.shot
 
                     # Log what we extracted for debugging
-                    logger.debug(
+                    self.logger.debug(
                         f"Parsed line {line_num}: workspace_path={workspace_path}, "
                         f"show={show}, sequence={sequence}, shot={shot}"
                     )
@@ -182,7 +181,7 @@ class BaseShotModel(QObject):
                         shot,
                         names=["workspace_path", "show", "sequence", "shot"],
                     ):
-                        logger.warning(
+                        self.logger.warning(
                             f"Line {line_num}: Missing required components in: {line}",
                         )
                         continue
@@ -198,15 +197,15 @@ class BaseShotModel(QObject):
                         ),
                     )
                 except (IndexError, AttributeError) as e:
-                    logger.warning(
+                    self.logger.warning(
                         f"Line {line_num}: Failed to parse shot data from: {line} ({e})",
                     )
                     continue
             else:
                 # Log unmatched lines for debugging, but don't fail
-                logger.debug(f"Line {line_num}: No match for workspace pattern: {line}")
+                self.logger.debug(f"Line {line_num}: No match for workspace pattern: {line}")
 
-        logger.info(f"Parsed {len(shots)} shots from ws -sg output")
+        self.logger.info(f"Parsed {len(shots)} shots from ws -sg output")
         return shots
 
     def _check_for_changes(self, new_shots: list[Shot]) -> bool:

@@ -28,15 +28,16 @@ if TYPE_CHECKING:
 
 from base_shot_model import BaseShotModel
 from shot_model import RefreshResult, Shot
+from thread_safe_worker import ThreadSafeWorker
 
 logger = logging.getLogger(__name__)
 
 
-class AsyncShotLoader(QThread):
+class AsyncShotLoader(ThreadSafeWorker):
     """Background worker for loading shots without blocking UI.
 
     Thread Safety:
-    - Uses Qt's interruption mechanism for proper synchronization
+    - Inherits from ThreadSafeWorker for proper lifecycle management
     - Signal emissions are automatically thread-safe in Qt
     - Slots are connected with QueuedConnection to run in main thread
     - No shared mutable state
@@ -47,12 +48,12 @@ class AsyncShotLoader(QThread):
     load_failed = Signal(str)  # Error message string
 
     def __init__(
-        self, process_pool: ProcessPoolManager, parse_function: Any = None
+        self, process_pool: ProcessPoolManager, parse_function: Any = None,
+        parent: Any = None
     ) -> None:
-        super().__init__()
+        super().__init__(parent)
         self.process_pool = process_pool
         self.parse_function = parse_function  # Use base class's parse method
-        self._stop_requested = False  # Track stop requests independent of Qt
 
     @Slot()
     def run(self) -> None:
@@ -62,8 +63,8 @@ class AsyncShotLoader(QThread):
         mechanisms to check for stop requests.
         """
         try:
-            # Check for interruption before starting (both mechanisms)
-            if self._stop_requested or self.isInterruptionRequested():
+            # Check for stop request before starting
+            if self.should_stop():
                 return
 
             # Execute ws -sg command
@@ -74,7 +75,7 @@ class AsyncShotLoader(QThread):
             )
 
             # Thread-safe check for stop request
-            if self._stop_requested or self.isInterruptionRequested():
+            if self.should_stop():
                 return
 
             # Parse output using provided parse function or fallback
@@ -89,7 +90,7 @@ class AsyncShotLoader(QThread):
                 shots = []
                 for line in output.strip().split("\n"):
                     # Check for interruption in loop for faster response
-                    if self._stop_requested or self.isInterruptionRequested():
+                    if self.should_stop():
                         return
 
                     if line.startswith("workspace "):
@@ -101,24 +102,21 @@ class AsyncShotLoader(QThread):
                             # Don't create shots with wrong data
 
             # Thread-safe check before emitting signal
-            if not self._stop_requested and not self.isInterruptionRequested():
+            if not self.should_stop():
                 self.shots_loaded.emit(shots)
 
         except TimeoutError as e:
-            if not self._stop_requested and not self.isInterruptionRequested():
+            if not self.should_stop():
                 self.load_failed.emit(f"Command timed out: {e}")
         except RuntimeError as e:
-            if not self._stop_requested and not self.isInterruptionRequested():
+            if not self.should_stop():
                 self.load_failed.emit(f"Process pool error: {e}")
         except Exception as e:
             # Only emit error if not stopped
-            if not self._stop_requested and not self.isInterruptionRequested():
+            if not self.should_stop():
                 self.load_failed.emit(f"Unexpected error: {e}")
 
-    def stop(self) -> None:
-        """Request thread to stop using both flag and Qt's interruption mechanism."""
-        self._stop_requested = True  # Set flag for immediate checking
-        self.requestInterruption()  # Qt's safe interruption for running threads
+    # stop() method is inherited from ThreadSafeWorker
 
 
 class OptimizedShotModel(BaseShotModel):
@@ -376,17 +374,17 @@ class OptimizedShotModel(BaseShotModel):
                     logger.warning(
                         "Background loader did not stop gracefully within 2s"
                     )
-                    # Try quit() which is safer than terminate()
-                    self._async_loader.quit()
+                    # Use ThreadSafeWorker's safe_terminate method
+                    self._async_loader.safe_terminate()
 
-                    # Wait up to 2 more seconds for quit to work
+                    # Wait up to 2 more seconds for safe termination
                     if not self._async_loader.wait(2000):
                         # As last resort, we accept the thread will be abandoned
-                        # Never use terminate() as it can corrupt Qt state
+                        # safe_terminate already avoids dangerous terminate()
                         logger.error(
                             "Background loader thread abandoned - will be cleaned on exit"
                         )
-                        # Mark it for deletion but don't terminate
+                        # Mark it for deletion but don't force terminate
 
             # Clean up the loader object
             self._async_loader.deleteLater()

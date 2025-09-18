@@ -33,14 +33,14 @@ from launcher.models import (
     LauncherTerminal,
 )
 from notification_manager import NotificationManager, NotificationType
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from launcher_manager import LauncherManager
 
-logger = logging.getLogger(__name__)
 
 
-class LauncherListWidget(QListWidget):
+class LauncherListWidget(LoggingMixin, QListWidget):
     """Custom list widget with drag-and-drop reordering support."""
 
     def __init__(self) -> None:
@@ -51,7 +51,7 @@ class LauncherListWidget(QListWidget):
         self.setObjectName("launcherList")
 
 
-class LauncherPreviewPanel(QWidget):
+class LauncherPreviewPanel(LoggingMixin, QWidget):
     """Preview panel showing launcher details and action buttons."""
 
     # Signals
@@ -151,7 +151,7 @@ class LauncherPreviewPanel(QWidget):
             self.delete_requested.emit(self._current_launcher_id)
 
 
-class LauncherEditDialog(QDialog):
+class LauncherEditDialog(LoggingMixin, QDialog):
     """Dialog for creating/editing launchers."""
 
     def __init__(
@@ -421,7 +421,7 @@ class LauncherEditDialog(QDialog):
             NotificationManager.error("Save Error", f"Error saving launcher: {str(e)}")
 
 
-class LauncherManagerDialog(QDialog):
+class LauncherManagerDialog(LoggingMixin, QDialog):
     """Main launcher management dialog."""
 
     def __init__(self, launcher_manager: LauncherManager, parent=None) -> None:
@@ -757,16 +757,16 @@ class LauncherManagerDialog(QDialog):
         """Handle launcher execution start."""
         launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if launcher:
-            logger.info(f"Launching: {launcher.name}")
+            self.logger.info(f"Launching: {launcher.name}")
 
     def _on_execution_finished(self, launcher_id: str, success: bool) -> None:
         """Handle launcher execution finish."""
         launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
         if launcher:
             if success:
-                logger.info(f"Successfully launched: {launcher.name}")
+                self.logger.info(f"Successfully launched: {launcher.name}")
             else:
-                logger.error(f"Failed to launch: {launcher.name}")
+                self.logger.error(f"Failed to launch: {launcher.name}")
 
     def closeEvent(self, arg__1: QCloseEvent) -> None:
         """Clean up signal connections on close."""

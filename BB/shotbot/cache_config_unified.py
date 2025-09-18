@@ -10,15 +10,15 @@ import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from cache.memory_manager import MemoryManager
     from settings_manager import SettingsManager
 
-logger = logging.getLogger(__name__)
 
 
-class UnifiedCacheConfig(QObject):
+class UnifiedCacheConfig(LoggingMixin, QObject):
     """Unified cache configuration that integrates with SettingsManager.
 
     This class provides a single point of configuration for all cache components,
@@ -47,7 +47,7 @@ class UnifiedCacheConfig(QObject):
         # Connect to settings changes
         self._settings_manager.settings_changed.connect(self._on_settings_changed)
 
-        logger.debug("UnifiedCacheConfig initialized")
+        self.logger.debug("UnifiedCacheConfig initialized")
 
     @property
     def memory_limit_mb(self) -> int:
@@ -100,13 +100,13 @@ class UnifiedCacheConfig(QObject):
         if setting_key == "performance/max_cache_memory_mb":
             # Type narrowing for numeric values from QSettings
             if isinstance(new_value, (int, float, str)):
-                logger.info(f"Cache memory limit changed to {new_value}MB")
+                self.logger.info(f"Cache memory limit changed to {new_value}MB")
                 self.memory_limit_changed.emit(int(new_value))
                 self.config_updated.emit()
         elif setting_key == "performance/cache_expiry_minutes":
             # Type narrowing for numeric values from QSettings
             if isinstance(new_value, (int, float, str)):
-                logger.info(f"Cache expiry time changed to {new_value} minutes")
+                self.logger.info(f"Cache expiry time changed to {new_value} minutes")
                 self.expiry_time_changed.emit(int(new_value))
                 self.config_updated.emit()
 
@@ -117,7 +117,7 @@ class UnifiedCacheConfig(QObject):
             memory_manager: MemoryManager instance to configure
         """
         memory_manager.set_memory_limit(self.memory_limit_mb)
-        logger.debug(f"Applied memory limit {self.memory_limit_mb}MB to MemoryManager")
+        self.logger.debug(f"Applied memory limit {self.memory_limit_mb}MB to MemoryManager")
 
     def create_memory_manager(self) -> MemoryManager:
         """Create a MemoryManager with current unified settings.

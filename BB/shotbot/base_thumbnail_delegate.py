@@ -41,11 +41,11 @@ from PySide6.QtWidgets import (
 from typing_extensions import TypedDict, override
 
 from config import Config
+from logging_mixin import LoggingMixin
 
-logger = logging.getLogger(__name__)
 
 
-class ThumbnailItemData(TypedDict, total=False):
+class ThumbnailItemData(LoggingMixin, TypedDict, total=False):
     """Type definition for thumbnail item data."""
 
     name: str  # Required - item name
@@ -59,7 +59,7 @@ class ThumbnailItemData(TypedDict, total=False):
 
 
 @dataclass
-class DelegateTheme:
+class DelegateTheme(LoggingMixin):
     """Theme configuration for thumbnail delegates."""
 
     # Colors (use factory to avoid mutable default issue)
@@ -85,7 +85,7 @@ class DelegateTheme:
     info_font_size: int = 8
 
 
-class BaseThumbnailDelegate(QStyledItemDelegate):
+class BaseThumbnailDelegate(LoggingMixin, QStyledItemDelegate):
     """Base delegate for rendering thumbnails in a grid.
 
     This delegate provides:
@@ -133,7 +133,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         self._loading_angle = 0
         self._loading_timer: QTimer | None = None
 
-        logger.debug(f"{self.__class__.__name__} initialized with optimized painting")
+        self.logger.debug(f"{self.__class__.__name__} initialized with optimized painting")
 
     def get_theme(self) -> DelegateTheme:
         """Get the theme configuration for this delegate.

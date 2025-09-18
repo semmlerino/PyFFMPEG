@@ -232,5 +232,3 @@ class CacheError(ShotBotError):
         super().__init__(
             message=message, details=error_details, error_code="CACHE_ERROR"
         )
-
-

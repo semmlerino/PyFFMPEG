@@ -10,11 +10,11 @@ import logging
 import os
 import sys
 from pathlib import Path
+from logging_mixin import LoggingMixin
 
-logger = logging.getLogger(__name__)
 
 
-class CacheConfig:
+class CacheConfig(LoggingMixin):
     """Manage cache directory configuration based on mode."""
 
     # Default cache directories
@@ -32,18 +32,18 @@ class CacheConfig:
         # Check if we're in test mode (pytest or unittest running)
         if CacheConfig.is_test_mode():
             cache_dir = CacheConfig.TEST_CACHE_DIR
-            logger.debug(f"Using TEST cache directory: {cache_dir}")
+            self.logger.debug(f"Using TEST cache directory: {cache_dir}")
             return cache_dir
 
         # Check if we're in mock mode
         if CacheConfig.is_mock_mode():
             cache_dir = CacheConfig.MOCK_CACHE_DIR
-            logger.debug(f"Using MOCK cache directory: {cache_dir}")
+            self.logger.debug(f"Using MOCK cache directory: {cache_dir}")
             return cache_dir
 
         # Default to production cache
         cache_dir = CacheConfig.PRODUCTION_CACHE_DIR
-        logger.debug(f"Using PRODUCTION cache directory: {cache_dir}")
+        self.logger.debug(f"Using PRODUCTION cache directory: {cache_dir}")
         return cache_dir
 
     @staticmethod
@@ -127,7 +127,7 @@ class CacheConfig:
 
         if CacheConfig.TEST_CACHE_DIR.exists():
             shutil.rmtree(CacheConfig.TEST_CACHE_DIR)
-            logger.info(f"Cleared test cache: {CacheConfig.TEST_CACHE_DIR}")
+            self.logger.info(f"Cleared test cache: {CacheConfig.TEST_CACHE_DIR}")
 
     @staticmethod
     def clear_mock_cache() -> None:
@@ -139,7 +139,7 @@ class CacheConfig:
 
         if CacheConfig.MOCK_CACHE_DIR.exists():
             shutil.rmtree(CacheConfig.MOCK_CACHE_DIR)
-            logger.info(f"Cleared mock cache: {CacheConfig.MOCK_CACHE_DIR}")
+            self.logger.info(f"Cleared mock cache: {CacheConfig.MOCK_CACHE_DIR}")
 
     @staticmethod
     def get_cache_info() -> dict[str, object]:
@@ -186,7 +186,7 @@ class CacheConfig:
         import shutil
 
         if not from_dir.exists():
-            logger.warning(f"Source cache directory does not exist: {from_dir}")
+            self.logger.warning(f"Source cache directory does not exist: {from_dir}")
             return False
 
         try:
@@ -198,11 +198,11 @@ class CacheConfig:
                 shutil.rmtree(to_dir)
 
             shutil.copytree(from_dir, to_dir)
-            logger.info(f"Migrated cache from {from_dir} to {to_dir}")
+            self.logger.info(f"Migrated cache from {from_dir} to {to_dir}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to migrate cache: {e}")
+            self.logger.error(f"Failed to migrate cache: {e}")
             return False
 
 

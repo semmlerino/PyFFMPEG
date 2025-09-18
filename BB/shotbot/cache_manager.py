@@ -41,6 +41,7 @@ from cache.thumbnail_processor import ThumbnailProcessor
 from cache_config_unified import UnifiedCacheConfig, create_unified_cache_config
 from config import Config
 from exceptions import CacheError, ThumbnailError
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from settings_manager import SettingsManager
@@ -50,11 +51,10 @@ if TYPE_CHECKING:
         ThreeDESceneDict,
     )
 
-# Set up logger for this module
-logger = logging.getLogger(__name__)
+# Logger now provided by LoggingMixin
 
 
-class CacheManager(QObject):
+class CacheManager(LoggingMixin, QObject):
     """Manages caching of shot data and thumbnails with thread safety and memory monitoring.
 
     This is a facade that delegates to specialized components while maintaining
@@ -94,16 +94,16 @@ class CacheManager(QObject):
         if settings_manager:
             try:
                 self._unified_config = create_unified_cache_config(settings_manager)
-                logger.info("CacheManager using unified cache configuration")
+                self.logger.info("CacheManager using unified cache configuration")
             except Exception as e:
-                logger.warning(f"Failed to initialize unified cache config: {e}")
+                self.logger.warning(f"Failed to initialize unified cache config: {e}")
 
         # Set up cache directory structure using CacheConfig for mode separation
         if cache_dir is None:
             from cache_config import CacheConfig
 
             self.cache_dir = CacheConfig.get_cache_directory()
-            logger.debug(f"Using mode-based cache directory: {self.cache_dir}")
+            self.logger.debug(f"Using mode-based cache directory: {self.cache_dir}")
         else:
             self.cache_dir = cache_dir
         self.thumbnails_dir = self.cache_dir / "thumbnails"
@@ -169,7 +169,7 @@ class CacheManager(QObject):
             self.thumbnails_dir, self._memory_manager, self._storage_backend
         )
 
-        logger.debug("CacheManager facade initialized with modular architecture")
+        self.logger.debug("CacheManager facade initialized with modular architecture")
 
     # Backward compatibility properties for internal test access
     @property
@@ -223,9 +223,9 @@ class CacheManager(QObject):
         """Ensure cache directories exist using storage backend."""
         if not self._storage_backend.ensure_directory(self.thumbnails_dir):
             # If normal directory creation fails, try fallback
-            logger.warning("Using fallback cache directory setup")
+            self.logger.warning("Using fallback cache directory setup")
             # The storage backend handles fallback internally
-        logger.debug(f"Ensured cache directory exists: {self.thumbnails_dir}")
+        self.logger.debug(f"Ensured cache directory exists: {self.thumbnails_dir}")
 
     def ensure_cache_directory(self) -> bool:
         """Ensure cache directory exists, creating if necessary."""
@@ -260,13 +260,13 @@ class CacheManager(QObject):
             Path(source_path) if isinstance(source_path, str) else source_path
         )
         if not source_path_obj or not source_path_obj.exists():
-            logger.warning(f"Source thumbnail path does not exist: {source_path_obj}")
+            self.logger.warning(f"Source thumbnail path does not exist: {source_path_obj}")
             return None
 
         # Validate parameters
         if not all([show, sequence, shot]):
             error_msg = "Missing required parameters for thumbnail caching"
-            logger.error(error_msg)
+            self.logger.error(error_msg)
             raise ThumbnailError(
                 error_msg,
                 details={
@@ -290,7 +290,7 @@ class CacheManager(QObject):
             # Check if already cached
             cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
             if cache_path.exists():
-                logger.debug(f"Thumbnail already cached: {cache_path}")
+                self.logger.debug(f"Thumbnail already cached: {cache_path}")
                 _ = self._memory_manager.track_item(cache_path)
                 return cache_path
 
@@ -299,7 +299,7 @@ class CacheManager(QObject):
                 cache_key, source_path_obj
             )
             if not should_retry:
-                logger.debug(reason)
+                self.logger.debug(reason)
                 return None if wait else None
 
             # Create result container and track loading
@@ -363,7 +363,7 @@ class CacheManager(QObject):
                     return None if wait else result
         except Exception as e:
             # Ensure cleanup happens even on exception to prevent memory leak
-            logger.error(f"Exception during thumbnail caching: {e}")
+            self.logger.error(f"Exception during thumbnail caching: {e}")
             self._cleanup_loader(cache_key)
             # Record failure for exponential backoff
             self._failure_tracker.record_failure(cache_key, str(e), source_path_obj)
@@ -400,7 +400,7 @@ class CacheManager(QObject):
         time_since_validation = datetime.now() - self._last_validation_time
         if time_since_validation > timedelta(minutes=self._validation_interval_minutes):
             if self._cache_validator:
-                logger.debug("Running periodic cache validation")
+                self.logger.debug("Running periodic cache validation")
                 _ = self._cache_validator.validate_cache(fix_issues=True)
             self._last_validation_time = datetime.now()
 
@@ -552,15 +552,15 @@ class CacheManager(QObject):
             if self.thumbnails_dir.exists():
                 try:
                     shutil.rmtree(self.thumbnails_dir, ignore_errors=True)
-                    logger.info("Cleared thumbnail cache directory")
+                    self.logger.info("Cleared thumbnail cache directory")
                 except OSError as e:
                     # Log but don't raise - clearing cache is not critical
-                    logger.error(f"Failed to clear thumbnail directory: {e}")
+                    self.logger.error(f"Failed to clear thumbnail directory: {e}")
 
             # Recreate directory
             self._ensure_cache_dirs()
 
-            logger.info("Cache cleared successfully")
+            self.logger.info("Cache cleared successfully")
 
     # Failure tracking methods - delegate to FailureTracker
     def clear_failed_attempts(self, cache_key: str | None = None) -> None:
@@ -578,7 +578,7 @@ class CacheManager(QObject):
     # Shutdown method for graceful cleanup
     def shutdown(self) -> None:
         """Gracefully shutdown the cache manager."""
-        logger.info("CacheManager shutting down...")
+        self.logger.info("CacheManager shutting down...")
 
         with QMutexLocker(self._lock):
             try:
@@ -588,7 +588,7 @@ class CacheManager(QObject):
                         fix_issues=True
                     )
                     if not validation_result.get("valid", False):
-                        logger.info(
+                        self.logger.info(
                             f"Fixed {validation_result.get('issues_fixed', 0)} cache issues during shutdown"
                         )
 
@@ -599,17 +599,17 @@ class CacheManager(QObject):
                 failed_count = self._failure_tracker.get_failure_count()
                 self._failure_tracker.clear_failures()
                 if failed_count > 0:
-                    logger.debug(
+                    self.logger.debug(
                         f"Cleared {failed_count} failed attempts during shutdown"
                     )
 
                 # Clear active loaders
                 self._active_loaders.clear()
 
-                logger.info("CacheManager shutdown complete")
+                self.logger.info("CacheManager shutdown complete")
 
             except (OSError, CacheError) as e:
-                logger.error(f"Error during cache manager shutdown: {e}")
+                self.logger.error(f"Error during cache manager shutdown: {e}")
 
     def set_memory_limit(self, max_memory_mb: int) -> None:
         """Set maximum memory limit for cache in megabytes.
@@ -619,7 +619,7 @@ class CacheManager(QObject):
         """
         # Use the public method to set memory limit
         self._memory_manager.set_memory_limit(max_memory_mb)
-        logger.info(f"Cache memory limit set to {max_memory_mb} MB")
+        self.logger.info(f"Cache memory limit set to {max_memory_mb} MB")
 
     def _on_memory_limit_changed(self, new_limit_mb: int) -> None:
         """Handle unified cache config memory limit changes.
@@ -628,7 +628,7 @@ class CacheManager(QObject):
             new_limit_mb: New memory limit in MB
         """
         self._memory_manager.set_memory_limit(new_limit_mb)
-        logger.info(
+        self.logger.info(
             f"Cache memory limit updated to {new_limit_mb}MB via unified config"
         )
 
@@ -642,7 +642,7 @@ class CacheManager(QObject):
         self._shot_cache.set_expiry_minutes(new_expiry_minutes)
         self._threede_cache.set_expiry_minutes(new_expiry_minutes)
         self._previous_shots_cache.set_expiry_minutes(new_expiry_minutes)
-        logger.info(
+        self.logger.info(
             f"Cache expiry time updated to {new_expiry_minutes} minutes via unified config"
         )
 
@@ -656,7 +656,7 @@ class CacheManager(QObject):
         self._shot_cache.set_expiry_minutes(expiry_minutes)
         self._threede_cache.set_expiry_minutes(expiry_minutes)
 
-        logger.info(f"Cache expiry set to {expiry_minutes} minutes")
+        self.logger.info(f"Cache expiry set to {expiry_minutes} minutes")
 
     # ================================================================
     # Test-Specific Accessor Methods

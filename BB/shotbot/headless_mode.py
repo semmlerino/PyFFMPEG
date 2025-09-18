@@ -11,19 +11,23 @@ import logging
 import os
 import sys
 from typing import TYPE_CHECKING, Any, Callable
+
 from typing_extensions import ParamSpec, TypeVar
+
+from logging_mixin import LoggingMixin, get_module_logger
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
 
-logger = logging.getLogger(__name__)
+# Module-level logger for static methods
+logger = get_module_logger(__name__)
 
 # Type variables for proper generic typing
 P = ParamSpec("P")
 T = TypeVar("T")
 
 
-class HeadlessMode:
+class HeadlessMode(LoggingMixin):
     """Manage headless mode configuration and detection."""
 
     @staticmethod
@@ -234,7 +238,7 @@ class HeadlessMode:
         return wrapper
 
 
-class HeadlessMainWindow:
+class HeadlessMainWindow(LoggingMixin):
     """Minimal MainWindow for headless testing.
 
     This provides a simplified MainWindow that can run without a display,

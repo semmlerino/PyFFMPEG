@@ -40,7 +40,6 @@ Type Safety:
 
 from __future__ import annotations
 
-import logging
 from enum import Enum, auto
 from typing import Callable
 
@@ -67,8 +66,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-# Set up logger for this module
-logger = logging.getLogger(__name__)
+from logging_mixin import LoggingMixin
+
 
 
 class NotificationType(Enum):
@@ -251,7 +250,7 @@ class ToastNotification(QFrame):
         super().mousePressEvent(event)
 
 
-class NotificationManager(QObject):
+class NotificationManager(LoggingMixin, QObject):
     """Centralized notification management system.
 
     This singleton class provides various types of notifications:
@@ -284,7 +283,14 @@ class NotificationManager(QObject):
         self._initialized = True
         self._active_toasts = []
         self._current_progress = None
-        logger.debug("NotificationManager initialized")
+        self.logger.debug("NotificationManager initialized")
+
+    @classmethod
+    def _get_instance(cls) -> NotificationManager:
+        """Get the singleton instance."""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
 
     @classmethod
     def initialize(
@@ -302,7 +308,7 @@ class NotificationManager(QObject):
         instance = cls()
         cls._main_window = main_window
         cls._status_bar = status_bar
-        logger.info("NotificationManager initialized with UI references")
+        cls._get_instance().logger.info("NotificationManager initialized with UI references")
         return instance
 
     @classmethod
@@ -320,7 +326,8 @@ class NotificationManager(QObject):
         for toast in cls._active_toasts:
             toast.close()
         cls._active_toasts.clear()
-        logger.debug("NotificationManager cleaned up")
+        if cls._instance:
+            cls._instance.logger.debug("NotificationManager cleaned up")
 
     @classmethod
     def error(cls, title: str, message: str = "", details: str = "") -> None:
@@ -343,7 +350,8 @@ class NotificationManager(QObject):
             QMessageBox.critical(None, f"Error - {title}", full_message or title)
 
         # Also log the error
-        logger.error(f"Error notification: {title} - {message} - {details}")
+        if cls._instance:
+            cls._instance.logger.error(f"Error notification: {title} - {message} - {details}")
 
     @classmethod
     def warning(cls, title: str, message: str = "", details: str = "") -> None:
@@ -365,7 +373,8 @@ class NotificationManager(QObject):
         else:
             QMessageBox.warning(None, f"Warning - {title}", full_message or title)
 
-        logger.warning(f"Warning notification: {title} - {message} - {details}")
+        if cls._instance:
+            cls._instance.logger.warning(f"Warning notification: {title} - {message} - {details}")
 
     @classmethod
     def info(cls, message: str, timeout: int = 3000) -> None:
@@ -378,7 +387,8 @@ class NotificationManager(QObject):
         if cls._status_bar:
             cls._status_bar.showMessage(message, timeout)
 
-        logger.info(f"Info notification: {message}")
+        if cls._instance:
+            cls._instance.logger.info(f"Info notification: {message}")
 
     @classmethod
     def success(cls, message: str, timeout: int = 3000) -> None:
@@ -408,7 +418,8 @@ class NotificationManager(QObject):
                     else None,
                 )
 
-        logger.info(f"Success notification: {message}")
+        if cls._instance:
+            cls._instance.logger.info(f"Success notification: {message}")
 
     @classmethod
     def progress(
@@ -449,7 +460,8 @@ class NotificationManager(QObject):
         progress.show()
         cls._current_progress = progress
 
-        logger.info(f"Progress dialog shown: {title}")
+        if cls._instance:
+            cls._instance.logger.info(f"Progress dialog shown: {title}")
         return progress
 
     @classmethod
@@ -474,7 +486,8 @@ class NotificationManager(QObject):
             duration: Auto-dismiss time in milliseconds (0 = no auto-dismiss)
         """
         if not cls._main_window:
-            logger.warning("Cannot show toast notification: no main window reference")
+            if cls._instance:
+                cls._instance.logger.warning("Cannot show toast notification: no main window reference")
             return
 
         # Create toast
@@ -490,7 +503,8 @@ class NotificationManager(QObject):
         cls._active_toasts.append(toast)
         toast.show_animated()
 
-        logger.debug(f"Toast notification shown: {message} ({notification_type.name})")
+        if cls._instance:
+            cls._instance.logger.debug(f"Toast notification shown: {message} ({notification_type.name})")
 
     @classmethod
     def _position_toast(cls, toast: ToastNotification) -> None:

@@ -25,6 +25,7 @@ from launcher.process_manager import LauncherProcessManager
 from launcher.repository import LauncherRepository
 from launcher.validator import LauncherValidator
 from process_pool_manager import ProcessPoolManager
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,10 +33,9 @@ if TYPE_CHECKING:
     from shot_model import Shot
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
 
 
-class LauncherManager(QObject):
+class LauncherManager(LoggingMixin, QObject):
     """Orchestrates launcher operations through specialized components.
 
     This class serves as a facade that coordinates between:
@@ -95,7 +95,7 @@ class LauncherManager(QObject):
         self._process_manager.process_finished.connect(self.command_finished)
         self._process_manager.process_error.connect(self.command_error)
 
-        logger.info(
+        self.logger.info(
             f"LauncherManager initialized with {self._repository.count()} launchers"
         )
 
@@ -222,7 +222,7 @@ class LauncherManager(QObject):
 
         # Create through repository
         if self._repository.create(launcher):
-            logger.info(f"Created launcher '{name}' with ID {launcher.id}")
+            self.logger.info(f"Created launcher '{name}' with ID {launcher.id}")
             self.launcher_added.emit(launcher.id)
             self.launchers_changed.emit()
             return launcher.id
@@ -253,7 +253,7 @@ class LauncherManager(QObject):
 
         # Create through repository, preserving the launcher's ID
         if self._repository.create(launcher):
-            logger.info(f"Created launcher '{launcher.name}' with ID {launcher.id}")
+            self.logger.info(f"Created launcher '{launcher.name}' with ID {launcher.id}")
             self.launcher_added.emit(launcher.id)
             self.launchers_changed.emit()
             return True
@@ -329,7 +329,7 @@ class LauncherManager(QObject):
 
         # Update through repository
         if self._repository.update(launcher):
-            logger.info(f"Updated launcher '{launcher.name}' (ID: {launcher_id})")
+            self.logger.info(f"Updated launcher '{launcher.name}' (ID: {launcher_id})")
             self.launcher_updated.emit(launcher_id)
             self.launchers_changed.emit()
             return True
@@ -464,7 +464,7 @@ class LauncherManager(QObject):
             >= self.MAX_CONCURRENT_PROCESSES
         ):
             error_msg = f"Maximum concurrent processes ({self.MAX_CONCURRENT_PROCESSES}) reached"
-            logger.warning(error_msg)
+            self.logger.warning(error_msg)
             self.validation_error.emit("general", error_msg)
             return False
 
@@ -475,12 +475,12 @@ class LauncherManager(QObject):
         )
 
         if dry_run:
-            logger.info(f"DRY RUN - Would execute: {command}")
+            self.logger.info(f"DRY RUN - Would execute: {command}")
             return True
 
         # Execute command
         self.execution_started.emit(launcher_id)
-        logger.info(f"Executing launcher '{launcher.name}': {command}")
+        self.logger.info(f"Executing launcher '{launcher.name}': {command}")
 
         # Determine working directory
         working_dir = None
@@ -599,7 +599,7 @@ class LauncherManager(QObject):
 
     def shutdown(self) -> None:
         """Shutdown the launcher manager and clean up resources."""
-        logger.info("Shutting down LauncherManager")
+        self.logger.info("Shutting down LauncherManager")
 
         # Disconnect signals to prevent memory leaks
         try:
@@ -611,7 +611,7 @@ class LauncherManager(QObject):
             pass
 
         self._process_manager.shutdown()
-        logger.info("LauncherManager shutdown complete")
+        self.logger.info("LauncherManager shutdown complete")
 
     def reload_config(self) -> bool:
         """Reload launcher configuration from disk.
@@ -622,8 +622,8 @@ class LauncherManager(QObject):
         try:
             self._repository.reload()
             self.launchers_changed.emit()
-            logger.info("Configuration reloaded successfully")
+            self.logger.info("Configuration reloaded successfully")
             return True
         except Exception as e:
-            logger.error(f"Failed to reload configuration: {e}")
+            self.logger.error(f"Failed to reload configuration: {e}")
             return False

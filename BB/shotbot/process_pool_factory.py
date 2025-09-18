@@ -165,7 +165,7 @@ class ProcessPoolFactory:
             if hasattr(mock_pool, "shots") and mock_pool.shots:
                 logger.info(f"Mock pool has {len(mock_pool.shots)} shots ready")
 
-            return mock_pool
+            return mock_pool  # type: ignore[return-value]
 
         except ImportError:
             # Fall back to simple test pool
@@ -208,7 +208,7 @@ class ProcessPoolFactory:
                 ]
                 mock_pool.set_outputs("\n".join(default_shots))
 
-            return mock_pool
+            return mock_pool  # type: ignore[return-value]
 
     @classmethod
     def reset(cls) -> None:

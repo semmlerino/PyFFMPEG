@@ -37,12 +37,12 @@ import logging
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
+from logging_mixin import LoggingMixin
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
 
 
-class ParameterType(Enum):
+class ParameterType(LoggingMixin, Enum):
     """Parameter types for launcher configuration."""
 
     STRING = "string"
@@ -56,7 +56,7 @@ class ParameterType(Enum):
 
 
 @dataclass
-class LauncherParameter:
+class LauncherParameter(LoggingMixin):
     """Represents a configurable parameter for a launcher."""
 
     name: str
@@ -162,7 +162,7 @@ class LauncherParameter:
             return False
 
         except Exception as e:
-            logger.warning(f"Error validating parameter value: {e}")
+            self.logger.warning(f"Error validating parameter value: {e}")
             return False
 
     def to_dict(self) -> dict[str, Any]:
@@ -197,7 +197,7 @@ class LauncherParameter:
 
 
 @dataclass
-class Launcher:
+class Launcher(LoggingMixin):
     """Represents a custom application launcher."""
 
     # Required fields

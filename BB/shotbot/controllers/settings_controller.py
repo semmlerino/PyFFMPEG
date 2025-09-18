@@ -57,9 +57,13 @@ class SettingsTarget(Protocol):
     def isMaximized(self) -> bool: ...
     def showMaximized(self) -> None: ...
     def resize(
-        self, *args: Any, **kwargs: Any  # noqa: ANN401
+        self,
+        *args: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> None: ...  # Accept QMainWindow's flexible resize signature
-    def get_window_size(self) -> QSize | tuple[int, int]: ...  # Flexible return type for QSize or tuple
+    def get_window_size(
+        self,
+    ) -> QSize | tuple[int, int]: ...  # Flexible return type for QSize or tuple
 
     # Widget references needed for settings
     settings_manager: SettingsManager

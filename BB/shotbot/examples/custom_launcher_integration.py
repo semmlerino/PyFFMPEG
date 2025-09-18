@@ -123,7 +123,9 @@ class CustomLauncherManager:
             categories[category].append((launcher_id, launcher))
         return categories
 
-    def execute_custom_launcher(self, launcher_id: str, shot_context: dict[str, Any]) -> Any:  # noqa: ANN401
+    def execute_custom_launcher(
+        self, launcher_id: str, shot_context: dict[str, Any]
+    ) -> Any:  # noqa: ANN401
         """Execute a custom launcher with shot context.
 
         Args:

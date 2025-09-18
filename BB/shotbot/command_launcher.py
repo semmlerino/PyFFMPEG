@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import subprocess
 from datetime import datetime
@@ -11,6 +10,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject, Signal
 
 from config import Config
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from nuke_script_generator import NukeScriptGenerator as NukeScriptGeneratorType
@@ -25,10 +25,9 @@ else:
     from shot_model import Shot  # noqa: TC001
     from threede_scene_model import ThreeDEScene  # noqa: TC001
 
-logger = logging.getLogger(__name__)
 
 
-class CommandLauncher(QObject):
+class CommandLauncher(LoggingMixin, QObject):
     """Handles launching applications in shot context.
 
     This class uses dependency injection for better testability and following SOLID principles.
@@ -198,42 +197,37 @@ class CommandLauncher(QObject):
 
         env_exports: list[str] = []
 
-        # Skip problematic plugin paths by modifying NUKE_PATH
+        # Skip problematic plugin paths by modifying NUKE_PATH at runtime
         if (
             Config.NUKE_SKIP_PROBLEMATIC_PLUGINS
             and Config.NUKE_PROBLEMATIC_PLUGIN_PATHS
         ):
-            logger.info(
-                f"Excluding {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
-                f"plugin paths from NUKE_PATH"
+            self.logger.info(
+                f"Setting up runtime filter for {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
+                f"plugin paths in NUKE_PATH"
             )
 
-            # Get current NUKE_PATH and filter out problematic paths
-            current_nuke_path = os.environ.get("NUKE_PATH", "")
-            nuke_paths = current_nuke_path.split(":") if current_nuke_path else []
+            # Build grep patterns for all problematic paths
+            # Each path needs to be escaped for use in grep
+            grep_patterns = []
+            for problematic_path in Config.NUKE_PROBLEMATIC_PLUGIN_PATHS:
+                # Escape special characters for grep
+                escaped_path = problematic_path.replace(".", r"\.")
+                grep_patterns.append(f'-e "{escaped_path}"')
 
-            # Filter out problematic paths
-            filtered_paths: list[str] = []
-            excluded_count = 0
-            for path in nuke_paths:
-                is_problematic = any(
-                    problematic_path in path
-                    for problematic_path in Config.NUKE_PROBLEMATIC_PLUGIN_PATHS
-                )
-                if not is_problematic:
-                    filtered_paths.append(path)
-                else:
-                    excluded_count += 1
-                    logger.debug(f"Excluding problematic plugin path: {path}")
+            grep_pattern_str = " ".join(grep_patterns)
 
-            if excluded_count > 0:
-                logger.info(
-                    f"Excluded {excluded_count} problematic paths from NUKE_PATH"
-                )
+            # Create a bash command that filters NUKE_PATH at runtime
+            # This runs AFTER rez has set up the environment
+            filter_command = (
+                f'FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\\n" | '
+                f'grep -v {grep_pattern_str} | tr "\\n" ":" | sed "s/:$//") && '
+                f'export NUKE_PATH="$FILTERED_NUKE_PATH"'
+            )
 
-            # Set the filtered NUKE_PATH
-            new_nuke_path = ":".join(filtered_paths)
-            env_exports.append(f'export NUKE_PATH="{new_nuke_path}"')
+            env_exports.append(filter_command)
+
+            self.logger.debug(f"Generated runtime NUKE_PATH filter: {filter_command}")
 
         # Set fallback OCIO configuration if the default one might be problematic
         if Config.NUKE_OCIO_FALLBACK_CONFIG:
@@ -241,11 +235,11 @@ class CommandLauncher(QObject):
             fallback_config = Config.NUKE_OCIO_FALLBACK_CONFIG
             if os.path.exists(fallback_config):
                 env_exports.append(f'export OCIO="{fallback_config}"')
-                logger.info(f"Using fallback OCIO config: {fallback_config}")
+                self.logger.info(f"Using fallback OCIO config: {fallback_config}")
             else:
                 # Unset OCIO to use Nuke's built-in default
                 env_exports.append("unset OCIO")
-                logger.info("Unsetting OCIO to use Nuke's built-in configuration")
+                self.logger.info("Unsetting OCIO to use Nuke's built-in configuration")
 
         # Additional stability environment variables
         env_exports.extend(
@@ -258,7 +252,7 @@ class CommandLauncher(QObject):
 
         if env_exports:
             env_string = " && ".join(env_exports)
-            logger.debug(f"Generated Nuke environment fixes: {env_string}")
+            self.logger.debug(f"Generated Nuke environment fixes: {env_string}")
             return env_string + " && "
 
         return ""
@@ -684,10 +678,16 @@ class CommandLauncher(QObject):
                 env_fixes = self._get_nuke_environment_fixes()
                 if env_fixes:
                     timestamp = datetime.now().strftime("%H:%M:%S")
+                    fix_details = []
+                    if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
+                        fix_details.append("runtime NUKE_PATH filtering")
+                    if Config.NUKE_OCIO_FALLBACK_CONFIG:
+                        fix_details.append("OCIO fallback")
+                    fix_details.append("crash reporting disabled")
+
                     self.command_executed.emit(
                         timestamp,
-                        "Applied environment fixes to prevent Nuke crashes: "
-                        "filtered NUKE_PATH, set OCIO fallback, disabled crash reporting",
+                        f"Applied environment fixes to prevent Nuke crashes: {', '.join(fix_details)}",
                     )
 
             # For GUI apps in persistent terminal, add & inside the command
@@ -698,7 +698,7 @@ class CommandLauncher(QObject):
                 and self._is_gui_app(app_name)
             ):
                 ws_command = f"ws {safe_workspace_path} && {env_fixes}{command} &"
-                logger.debug(f"Added & inside command for GUI app {app_name}")
+                self.logger.debug(f"Added & inside command for GUI app {app_name}")
             else:
                 ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
@@ -713,7 +713,7 @@ class CommandLauncher(QObject):
                 # Use bash -ilc for interactive login shell to ensure shell functions like ws are loaded
                 # The -i flag is crucial for loading shell functions from configuration files
                 full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
-                logger.debug(f"Constructed rez command with bash -ilc: {full_command}")
+                self.logger.debug(f"Constructed rez command with bash -ilc: {full_command}")
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 self.command_executed.emit(
                     timestamp, f"Using rez environment with packages: {packages_str}"
@@ -729,17 +729,17 @@ class CommandLauncher(QObject):
 
         # Use persistent terminal if available and enabled
         if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            logger.info(f"Sending command to persistent terminal: {full_command}")
-            logger.debug(
+            self.logger.info(f"Sending command to persistent terminal: {full_command}")
+            self.logger.debug(
                 f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
             )
 
             success = self.persistent_terminal.send_command(full_command)
             if success:
-                logger.debug("Command successfully sent to persistent terminal")
+                self.logger.debug("Command successfully sent to persistent terminal")
                 return True
             else:
-                logger.warning(
+                self.logger.warning(
                     "Failed to send command to persistent terminal, falling back to new terminal"
                 )
                 # Fall through to launch new terminal
@@ -809,10 +809,16 @@ class CommandLauncher(QObject):
                 env_fixes = self._get_nuke_environment_fixes()
                 if env_fixes:
                     timestamp = datetime.now().strftime("%H:%M:%S")
+                    fix_details = []
+                    if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
+                        fix_details.append("runtime NUKE_PATH filtering")
+                    if Config.NUKE_OCIO_FALLBACK_CONFIG:
+                        fix_details.append("OCIO fallback")
+                    fix_details.append("crash reporting disabled")
+
                     self.command_executed.emit(
                         timestamp,
-                        "Applied environment fixes for Nuke scene launch: "
-                        "filtered NUKE_PATH, set OCIO fallback, disabled crash reporting",
+                        f"Applied environment fixes for Nuke scene launch: {', '.join(fix_details)}",
                     )
 
             # For GUI apps in persistent terminal, add & inside the command
@@ -823,7 +829,7 @@ class CommandLauncher(QObject):
                 and self._is_gui_app(app_name)
             ):
                 ws_command = f"ws {safe_workspace_path} && {env_fixes}{command} &"
-                logger.debug(
+                self.logger.debug(
                     f"Added & inside command for GUI app {app_name} with scene"
                 )
             else:
@@ -839,7 +845,7 @@ class CommandLauncher(QObject):
                 packages_str = " ".join(rez_packages)
                 # Use bash -ilc for interactive login shell to ensure shell functions are loaded
                 full_command = f'rez env {packages_str} -- bash -ilc "{ws_command}"'
-                logger.debug(
+                self.logger.debug(
                     f"Constructed rez scene command with bash -ilc: {full_command}"
                 )
             else:
@@ -856,17 +862,17 @@ class CommandLauncher(QObject):
 
         # Use persistent terminal if available and enabled
         if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            logger.info(f"Sending scene command to persistent terminal: {full_command}")
-            logger.debug(
+            self.logger.info(f"Sending scene command to persistent terminal: {full_command}")
+            self.logger.debug(
                 f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
             )
 
             success = self.persistent_terminal.send_command(full_command)
             if success:
-                logger.debug("Scene command successfully sent to persistent terminal")
+                self.logger.debug("Scene command successfully sent to persistent terminal")
                 return True
             else:
-                logger.warning(
+                self.logger.warning(
                     "Failed to send command to persistent terminal, falling back to new terminal"
                 )
                 # Fall through to launch new terminal

@@ -24,8 +24,7 @@ from config import Config
 from exceptions import WorkspaceError
 from utils import PathUtils
 
-# Set up logger for this module
-logger = logging.getLogger(__name__)
+# Logger is inherited from BaseShotModel's LoggingMixin
 
 # Enable verbose debug logging if environment variable is set
 DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
@@ -33,9 +32,7 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
     "true",
     "yes",
 )
-if DEBUG_VERBOSE:
-    logger.setLevel(logging.DEBUG)
-    logger.info("VERBOSE DEBUG MODE ENABLED for ShotModel")
+# Verbose debugging now handled by LoggingMixin
 
 # Sentinel value to distinguish between "not searched" and "searched but found nothing"
 _NOT_SEARCHED = object()
@@ -186,36 +183,36 @@ class ShotModel(BaseShotModel):
             # 30-second cache TTL is appropriate for workspace commands
             # as shot assignments change infrequently
             if DEBUG_VERBOSE:
-                logger.debug("Executing 'ws -sg' command via ProcessPoolManager")
-                logger.debug(f"ProcessPoolManager instance: {self._process_pool}")
+                self.logger.debug("Executing 'ws -sg' command via ProcessPoolManager")
+                self.logger.debug(f"ProcessPoolManager instance: {self._process_pool}")
             try:
                 output = self._process_pool.execute_workspace_command(
                     "ws -sg",
                     cache_ttl=30,  # Cache for 30 seconds
                 )
                 if DEBUG_VERBOSE:
-                    logger.debug(
+                    self.logger.debug(
                         f"'ws -sg' command returned {len(output) if output else 0} bytes",
                     )
                     if output:
-                        logger.debug(f"First 200 chars of output: {output[:200]}...")
+                        self.logger.debug(f"First 200 chars of output: {output[:200]}...")
             except TimeoutError as e:
                 error_msg = f"Timeout while running ws -sg command: {e}"
-                logger.error(error_msg)
+                self.logger.error(error_msg)
                 if DEBUG_VERBOSE:
-                    logger.debug(f"TimeoutError details: {e}")
+                    self.logger.debug(f"TimeoutError details: {e}")
                 self.error_occurred.emit(error_msg)
                 self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
             except (RuntimeError, WorkspaceError) as e:
                 # Handle session failures and other runtime errors
                 error_msg = f"Failed to execute ws -sg command: {e}"
-                logger.error(error_msg)
+                self.logger.error(error_msg)
                 if DEBUG_VERBOSE:
-                    logger.debug(f"Error details: {e}")
+                    self.logger.debug(f"Error details: {e}")
                     import traceback
 
-                    logger.debug(f"Traceback: {traceback.format_exc()}")
+                    self.logger.debug(f"Traceback: {traceback.format_exc()}")
                 self.error_occurred.emit(error_msg)
                 self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
@@ -223,15 +220,15 @@ class ShotModel(BaseShotModel):
             # Parse output (reuse existing parser)
             try:
                 if DEBUG_VERBOSE:
-                    logger.debug("Parsing ws -sg output...")
+                    self.logger.debug("Parsing ws -sg output...")
                 new_shots = self._parse_ws_output(output)
                 if DEBUG_VERBOSE:
-                    logger.debug(f"Parsed {len(new_shots)} shots from output")
+                    self.logger.debug(f"Parsed {len(new_shots)} shots from output")
             except (ValueError, WorkspaceError) as e:
                 error_msg = f"Failed to parse ws -sg output: {e}"
-                logger.error(error_msg)
+                self.logger.error(error_msg)
                 if DEBUG_VERBOSE:
-                    logger.debug(f"Parse error details: {e}")
+                    self.logger.debug(f"Parse error details: {e}")
                 self.error_occurred.emit(error_msg)
                 self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
@@ -245,7 +242,7 @@ class ShotModel(BaseShotModel):
 
             if has_changes:
                 self.shots = new_shots
-                logger.info(f"Shot list updated: {len(new_shots)} shots found")
+                self.logger.info(f"Shot list updated: {len(new_shots)} shots found")
 
                 # Emit signal to notify of changed shots
                 self.shots_changed.emit(self.shots)
@@ -257,7 +254,7 @@ class ShotModel(BaseShotModel):
                         # Emit cache updated signal
                         self.cache_updated.emit()
                     except OSError as e:
-                        logger.warning(f"Failed to cache shots: {e}")
+                        self.logger.warning(f"Failed to cache shots: {e}")
                         # Continue without caching - not critical for operation
 
             # Emit refresh finished signal with results
@@ -267,7 +264,7 @@ class ShotModel(BaseShotModel):
         except Exception as e:
             # Catch any unexpected errors not handled by ProcessPoolManager
             error_msg = f"Unexpected error while fetching shots: {e}"
-            logger.exception(error_msg)
+            self.logger.exception(error_msg)
             self.error_occurred.emit(error_msg)
             self.refresh_finished.emit(False, False)
             return RefreshResult(success=False, has_changes=False)
@@ -278,7 +275,7 @@ class ShotModel(BaseShotModel):
     def get_shot_by_index(self, index: int) -> Shot | None:
         """Get shot by index."""
         if 0 <= index < len(self.shots):
-            return self.shots[index]
+            return self.shots[index]  # type: ignore[return-value]
         return None
 
     @override
@@ -286,7 +283,7 @@ class ShotModel(BaseShotModel):
         """Find shot by full name."""
         for shot in self.shots:
             if shot.full_name == full_name:
-                return shot
+                return shot  # type: ignore[return-value]
         return None
 
     def get_shot_by_name(self, full_name: str) -> Shot | None:
@@ -301,7 +298,7 @@ class ShotModel(BaseShotModel):
         This forces the next refresh_shots() call to fetch fresh data.
         """
         self._process_pool.invalidate_cache("ws -sg")
-        logger.info("Invalidated workspace cache for immediate refresh")
+        self.logger.info("Invalidated workspace cache for immediate refresh")
 
     def select_shot_by_name(self, full_name: str) -> bool:
         """Select a shot by its full name.
@@ -347,7 +344,7 @@ class ShotModel(BaseShotModel):
     @property
     def test_process_pool(self) -> ProcessPoolManager:
         """Test-only access to process pool manager."""
-        return self._process_pool
+        return self._process_pool  # type: ignore[return-value]
 
     def test_load_from_cache(self) -> bool:
         """Test-only access to _load_from_cache method."""

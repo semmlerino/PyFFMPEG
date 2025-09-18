@@ -21,8 +21,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import QTimer, Qt
-from PySide6.QtTest import QSignalSpy
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 # Add parent directory to path for imports

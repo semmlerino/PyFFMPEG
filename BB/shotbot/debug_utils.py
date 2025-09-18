@@ -19,7 +19,6 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Generator
 
-logger = logging.getLogger(__name__)
 
 # Debug levels from environment
 DEBUG_LEVEL = os.environ.get("SHOTBOT_DEBUG_LEVEL", "0")
@@ -34,7 +33,7 @@ DEBUG_VERBOSE = (
 )
 
 
-class TimingProfiler:
+class TimingProfiler(LoggingMixin):
     """Track and report timing for operations."""
 
     def __init__(self, name: str = "default") -> None:
@@ -73,11 +72,11 @@ class TimingProfiler:
 
             # Log if verbose
             if DEBUG_VERBOSE:
-                logger.debug(f"⏱️ [{self.name}] {operation_name}: {elapsed:.3f}s")
+                self.logger.debug(f"⏱️ [{self.name}] {operation_name}: {elapsed:.3f}s")
 
         except Exception as e:
             elapsed = time.perf_counter() - start
-            logger.error(
+            self.logger.error(
                 f"⏱️ [{self.name}] {operation_name} FAILED after {elapsed:.3f}s: {e}",
             )
             raise
@@ -108,12 +107,12 @@ class TimingProfiler:
         if not self.timings:
             return
 
-        logger.info(f"\n{'=' * 60}")
-        logger.info(f"Timing Report for {self.name}")
-        logger.info(f"{'=' * 60}")
+        self.logger.info(f"\n{'=' * 60}")
+        self.logger.info(f"Timing Report for {self.name}")
+        self.logger.info(f"{'=' * 60}")
 
         for operation, stats in self.get_report().items():
-            logger.info(
+            self.logger.info(
                 f"{operation}: "
                 f"avg={stats['average']:.3f}s, "
                 f"total={stats['total']:.3f}s, "
@@ -121,7 +120,7 @@ class TimingProfiler:
             )
 
 
-class ProcessStateTracker:
+class ProcessStateTracker(LoggingMixin):
     """Track process state transitions for debugging."""
 
     STATES = [
@@ -174,13 +173,13 @@ class ProcessStateTracker:
         if from_state in self.state_timings[session_id]:
             duration = timestamp - self.state_timings[session_id][from_state]
             if DEBUG_VERBOSE:
-                logger.debug(
+                self.logger.debug(
                     f"[{session_id}] STATE: {from_state} → {to_state} "
                     f"(duration: {duration:.2f}s) {f'[{reason}]' if reason else ''}",
                 )
         else:
             if DEBUG_VERBOSE:
-                logger.debug(
+                self.logger.debug(
                     f"[{session_id}] STATE: {from_state} → {to_state} "
                     f"{f'[{reason}]' if reason else ''}",
                 )
@@ -211,7 +210,7 @@ class ProcessStateTracker:
         return self.state_history.get(session_id, [])
 
 
-class SystemDiagnostics:
+class SystemDiagnostics(LoggingMixin):
     """Capture and log system diagnostic information."""
 
     @staticmethod
@@ -276,14 +275,14 @@ class SystemDiagnostics:
         """Log system information."""
         info = SystemDiagnostics.get_system_info()
 
-        logger.info("\n" + "=" * 60)
-        logger.info("System Diagnostics")
-        logger.info("=" * 60)
-        logger.info(json.dumps(info, indent=2))
-        logger.info("=" * 60 + "\n")
+        self.logger.info("\n" + "=" * 60)
+        self.logger.info("System Diagnostics")
+        self.logger.info("=" * 60)
+        self.logger.info(json.dumps(info, indent=2))
+        self.logger.info("=" * 60 + "\n")
 
 
-class IOBufferInspector:
+class IOBufferInspector(LoggingMixin):
     """Inspect and debug I/O buffers."""
 
     @staticmethod
@@ -299,13 +298,13 @@ class IOBufferInspector:
             return
 
         if not data:
-            logger.debug(f"[{session_id}] Buffer {context}: <empty>")
+            self.logger.debug(f"[{session_id}] Buffer {context}: <empty>")
             return
 
         lines = data.count("\n")
         non_printable = sum(1 for c in data if ord(c) < 32 and c not in "\n\r\t")
 
-        logger.debug(
+        self.logger.debug(
             f"[{session_id}] Buffer {context}: "
             f"{len(data)} bytes, {lines} lines, {non_printable} non-printable",
         )
@@ -314,16 +313,16 @@ class IOBufferInspector:
         if DEBUG_VERBOSE:
             # First 100 chars
             preview = data[:100].encode("unicode_escape").decode("ascii")
-            logger.debug(f"[{session_id}] └─ Preview: {preview}")
+            self.logger.debug(f"[{session_id}] └─ Preview: {preview}")
 
             # Show any markers or special strings
             if "SHOTBOT_INIT" in data:
-                logger.debug(f"[{session_id}] └─ Contains initialization marker")
+                self.logger.debug(f"[{session_id}] └─ Contains initialization marker")
             if "error" in data.lower():
-                logger.debug(f"[{session_id}] └─ Contains error message")
+                self.logger.debug(f"[{session_id}] └─ Contains error message")
 
 
-class CommandTracer:
+class CommandTracer(LoggingMixin):
     """Trace command execution."""
 
     @staticmethod
@@ -340,20 +339,20 @@ class CommandTracer:
         # Truncate long commands
         cmd_preview = command[:200] + "..." if len(command) > 200 else command
 
-        logger.debug(f"[{session_id}] EXEC: {cmd_preview}")
+        self.logger.debug(f"[{session_id}] EXEC: {cmd_preview}")
 
         # Analyze command
         if DEBUG_VERBOSE:
             if "ws" in command:
-                logger.debug(f"[{session_id}] └─ Workspace command detected")
+                self.logger.debug(f"[{session_id}] └─ Workspace command detected")
             if "|" in command:
                 pipes = command.count("|")
-                logger.debug(f"[{session_id}] └─ Pipeline with {pipes} pipe(s)")
+                self.logger.debug(f"[{session_id}] └─ Pipeline with {pipes} pipe(s)")
             if "&&" in command or ";" in command:
-                logger.debug(f"[{session_id}] └─ Compound command")
+                self.logger.debug(f"[{session_id}] └─ Compound command")
 
 
-class DeadlockDetector:
+class DeadlockDetector(LoggingMixin):
     """Detect potential deadlocks."""
 
     def __init__(self) -> None:
@@ -389,7 +388,7 @@ class DeadlockDetector:
             resource, start_time = self.waiting_on[session_id]
             wait_time = time.time() - start_time
             if wait_time > 1.0:
-                logger.debug(f"[{session_id}] Waited {wait_time:.1f}s for {resource}")
+                self.logger.debug(f"[{session_id}] Waited {wait_time:.1f}s for {resource}")
             del self.waiting_on[session_id]
 
     def _check_long_waits(self) -> None:
@@ -398,11 +397,11 @@ class DeadlockDetector:
         for session_id, (resource, start_time) in list(self.waiting_on.items()):
             wait_time = current_time - start_time
             if wait_time > 5.0:
-                logger.warning(
+                self.logger.warning(
                     f"⚠️ POTENTIAL DEADLOCK: [{session_id}] waiting {wait_time:.1f}s for {resource}",
                 )
             elif wait_time > 2.0 and DEBUG_VERBOSE:
-                logger.debug(
+                self.logger.debug(
                     f"[{session_id}] Still waiting for {resource} ({wait_time:.1f}s)",
                 )
 
@@ -442,6 +441,7 @@ export SHOTBOT_DEBUG_LEVEL=tsx  # Timing + State + Trace
 
 # In code:
 from debug_utils import timing_profiler, state_tracker, CommandTracer
+from logging_mixin import LoggingMixin
 
 # Time an operation
 with timing_profiler.measure("database_query"):

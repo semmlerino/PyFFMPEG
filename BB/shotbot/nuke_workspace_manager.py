@@ -7,18 +7,25 @@ the proper directory structure.
 
 from __future__ import annotations
 
-import logging
 import os
 import re
 from pathlib import Path
 
+from logging_mixin import LoggingMixin
 from utils import VersionUtils
 
-logger = logging.getLogger(__name__)
 
 
-class NukeWorkspaceManager:
+class NukeWorkspaceManager(LoggingMixin):
     """Manages Nuke scripts in the VFX pipeline workspace."""
+
+    @classmethod
+    def _get_logger(cls):
+        """Get a logger for static methods."""
+        # Create a temporary instance to get the logger
+        if not hasattr(cls, '_logger_instance'):
+            cls._logger_instance = cls()
+        return cls._logger_instance.logger
 
     @staticmethod
     def get_workspace_script_directory(
@@ -60,9 +67,9 @@ class NukeWorkspaceManager:
         if not script_dir.exists():
             try:
                 script_dir.mkdir(parents=True, exist_ok=True)
-                logger.info(f"Created Nuke script directory: {script_dir}")
+                cls._get_logger().info(f"Created Nuke script directory: {script_dir}")
             except (OSError, PermissionError) as e:
-                logger.error(f"Failed to create Nuke script directory: {e}")
+                cls._get_logger().error(f"Failed to create Nuke script directory: {e}")
                 raise
 
         return script_dir
@@ -97,7 +104,7 @@ class NukeWorkspaceManager:
         try:
             version_regex = re.compile(regex_pattern)
         except re.error:
-            logger.error(f"Invalid pattern for Nuke script search: {pattern}")
+            cls._get_logger().error(f"Invalid pattern for Nuke script search: {pattern}")
             return None
 
         latest_file = None
@@ -116,15 +123,15 @@ class NukeWorkspaceManager:
                         except (ValueError, IndexError):
                             continue
         except (OSError, PermissionError) as e:
-            logger.error(f"Error scanning directory {directory}: {e}")
+            cls._get_logger().error(f"Error scanning directory {directory}: {e}")
             return None
 
         if latest_file:
-            logger.info(
+            cls._get_logger().info(
                 f"Found latest Nuke script: {latest_file.name} (v{latest_version:03d})"
             )
         else:
-            logger.debug(f"No Nuke scripts found in {directory} for shot {shot_name}")
+            cls._get_logger().debug(f"No Nuke scripts found in {directory} for shot {shot_name}")
 
         return latest_file
 
@@ -156,7 +163,7 @@ class NukeWorkspaceManager:
         filename = f"{shot_name}_{plate}_{pass_name}_scene_v{next_version:03d}.nk"
         script_path = directory / filename
 
-        logger.info(f"Next Nuke script version: {filename} (v{next_version:03d})")
+        cls._get_logger().info(f"Next Nuke script version: {filename} (v{next_version:03d})")
 
         return script_path, next_version
 
@@ -199,7 +206,7 @@ class NukeWorkspaceManager:
                         except (ValueError, IndexError):
                             continue
         except (OSError, PermissionError) as e:
-            logger.error(f"Error listing Nuke scripts: {e}")
+            cls._get_logger().error(f"Error listing Nuke scripts: {e}")
             return []
 
         # Sort by version number

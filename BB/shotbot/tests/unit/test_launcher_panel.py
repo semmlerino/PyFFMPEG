@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy
-from PySide6.QtWidgets import QCheckBox, QPushButton
+from PySide6.QtWidgets import QPushButton
 
 from launcher_panel import AppConfig, AppLauncherSection, CheckboxConfig, LauncherPanel
 from shot_model import Shot
