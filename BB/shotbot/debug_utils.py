@@ -19,6 +19,8 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Generator
 
+from logging_mixin import LoggingMixin
+
 
 # Debug levels from environment
 DEBUG_LEVEL = os.environ.get("SHOTBOT_DEBUG_LEVEL", "0")

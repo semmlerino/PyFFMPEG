@@ -10,7 +10,10 @@ import logging
 import os
 import sys
 from pathlib import Path
-from logging_mixin import LoggingMixin
+from logging_mixin import LoggingMixin, get_module_logger
+
+# Module-level logger for static methods
+logger = get_module_logger(__name__)
 
 
 
@@ -32,18 +35,18 @@ class CacheConfig(LoggingMixin):
         # Check if we're in test mode (pytest or unittest running)
         if CacheConfig.is_test_mode():
             cache_dir = CacheConfig.TEST_CACHE_DIR
-            self.logger.debug(f"Using TEST cache directory: {cache_dir}")
+            logger.debug(f"Using TEST cache directory: {cache_dir}")
             return cache_dir
 
         # Check if we're in mock mode
         if CacheConfig.is_mock_mode():
             cache_dir = CacheConfig.MOCK_CACHE_DIR
-            self.logger.debug(f"Using MOCK cache directory: {cache_dir}")
+            logger.debug(f"Using MOCK cache directory: {cache_dir}")
             return cache_dir
 
         # Default to production cache
         cache_dir = CacheConfig.PRODUCTION_CACHE_DIR
-        self.logger.debug(f"Using PRODUCTION cache directory: {cache_dir}")
+        logger.debug(f"Using PRODUCTION cache directory: {cache_dir}")
         return cache_dir
 
     @staticmethod

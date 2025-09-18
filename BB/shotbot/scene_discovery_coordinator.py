@@ -512,15 +512,91 @@ class RefactoredThreeDESceneFinder:
     ) -> list[ThreeDEScene]:
         """Static method for backward compatibility with parallel discovery.
 
-        Since the refactored architecture doesn't yet support cancellation properly,
-        we delegate to the monolithic implementation which has proper support.
+        Provides parallel scene discovery with progress and cancellation support.
         """
-        # Import the monolithic implementation that has proper cancellation support
-        from threede_scene_finder_optimized_monolithic_backup import (
-            OptimizedThreeDESceneFinder as MonolithicFinder,
-        )
+        # Import components needed for parallel discovery
+        from filesystem_scanner import FileSystemScanner
+        from scene_parser import SceneParser
+        from config import Config
+        from pathlib import Path
 
-        # Use the monolithic version that properly handles cancellation
-        return MonolithicFinder.find_all_scenes_in_shows_truly_efficient_parallel(
-            user_shots, excluded_users, progress_callback, cancel_flag
-        )
+        # Check for early cancellation
+        if cancel_flag and cancel_flag():
+            return []
+
+        # Report initial progress
+        if progress_callback:
+            progress_callback(0, "Starting parallel scene discovery...")
+
+        # Get unique shows and determine shows_root from workspace paths
+        shows = {shot.show for shot in user_shots if shot.show}
+
+        # Determine the shows root from the first shot's workspace path
+        # Workspace paths are like: /shows/SHOW/shots/seq/shot or test_dir/shows/SHOW/shots/seq/shot
+        shows_root = Config.SHOWS_ROOT
+        if user_shots and user_shots[0].workspace_path:
+            workspace_path = Path(user_shots[0].workspace_path)
+            # Walk up to find the "shows" directory
+            for parent in workspace_path.parents:
+                if parent.name == "shows" or (parent / user_shots[0].show / "shots").exists():
+                    shows_root = str(parent)
+                    break
+
+        all_scenes: list[ThreeDEScene] = []
+        scanner = FileSystemScanner()
+        parser = SceneParser()
+
+        # Process each show
+        for idx, show in enumerate(shows):
+            # Check cancellation
+            if cancel_flag and cancel_flag():
+                break
+
+            # Progress update
+            if progress_callback:
+                progress_callback(
+                    int((idx / len(shows)) * 100),
+                    f"Processing show {show}..."
+                )
+
+            # Find .3de files in the show
+            show_path = Path(shows_root) / show
+            if not show_path.exists():
+                continue
+
+            # Use the scanner to find 3DE files
+            file_tuples = scanner.find_all_3de_files_in_show_targeted(
+                shows_root, show, excluded_users
+            )
+
+            # Convert file tuples to ThreeDEScene objects
+            for scene_path, show_name, seq, shot, user, plate in file_tuples:
+                # Check cancellation during processing
+                if cancel_flag and cancel_flag():
+                    return all_scenes
+
+                # Find matching shot from user_shots for workspace path
+                matching_shot = next(
+                    (s for s in user_shots
+                     if s.show == show_name and s.sequence == seq and s.shot == shot),
+                    None
+                )
+
+                if matching_shot:
+                    from threede_scene_model import ThreeDEScene
+                    scene = ThreeDEScene(
+                        show=show_name,
+                        sequence=seq,
+                        shot=shot,
+                        workspace_path=matching_shot.workspace_path,
+                        user=user,
+                        plate=plate,
+                        scene_path=scene_path,
+                    )
+                    all_scenes.append(scene)
+
+        # Final progress update
+        if progress_callback:
+            progress_callback(100, f"Found {len(all_scenes)} scenes")
+
+        return all_scenes

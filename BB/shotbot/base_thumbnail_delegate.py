@@ -45,7 +45,7 @@ from logging_mixin import LoggingMixin
 
 
 
-class ThumbnailItemData(LoggingMixin, TypedDict, total=False):
+class ThumbnailItemData(TypedDict, total=False):
     """Type definition for thumbnail item data."""
 
     name: str  # Required - item name
