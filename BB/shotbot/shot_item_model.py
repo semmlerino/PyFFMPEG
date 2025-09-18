@@ -37,13 +37,11 @@ from PySide6.QtGui import QIcon, QImage, QPixmap
 
 from cache.thumbnail_loader import ThumbnailCacheResult
 from cache_manager import CacheManager
+from logging_mixin import LoggingMixin
 from config import Config
 from shot_model import RefreshResult, Shot
 
-logger = logging.getLogger(__name__)
-
-
-class ShotRole(IntEnum):
+class ShotRole(LoggingMixin, IntEnum):
     """Custom roles for shot data access."""
 
     # Standard roles
@@ -63,7 +61,6 @@ class ShotRole(IntEnum):
     ThumbnailPixmapRole = Qt.ItemDataRole.UserRole + 8
     LoadingStateRole = Qt.ItemDataRole.UserRole + 9
     IsSelectedRole = Qt.ItemDataRole.UserRole + 10
-
 
 class ShotItemModel(QAbstractListModel):
     """Proper Qt Model implementation for shot data.
@@ -111,7 +108,7 @@ class ShotItemModel(QAbstractListModel):
         self._visible_start = 0
         self._visible_end = 0
 
-        logger.info("ShotItemModel initialized with Model/View architecture")
+        self.logger.info("ShotItemModel initialized with Model/View architecture")
 
     @override
     def rowCount(
@@ -307,7 +304,7 @@ class ShotItemModel(QAbstractListModel):
         self.endResetModel()
 
         self.shots_updated.emit()
-        logger.info(f"Model updated with {len(shots)} shots")
+        self.logger.info(f"Model updated with {len(shots)} shots")
 
     @Slot(int, int)
     def set_visible_range(self, start: int, end: int) -> None:
@@ -395,7 +392,7 @@ class ShotItemModel(QAbstractListModel):
                     self._load_cached_pixmap(cached_path, row, shot, index)
                 else:
                     # Immediate failure
-                    logger.warning(f"Failed to cache thumbnail from {thumbnail_path}")
+                    self.logger.warning(f"Failed to cache thumbnail from {thumbnail_path}")
                     self._loading_states[shot.full_name] = "failed"
                     self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
             else:
@@ -431,7 +428,7 @@ class ShotItemModel(QAbstractListModel):
                         self._loading_states[shot.full_name] = "failed"
                         self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
                 else:
-                    logger.debug(
+                    self.logger.debug(
                         f"Cannot load {suffix_lower} file without cache manager: {thumbnail_path}"
                     )
                     self._loading_states[shot.full_name] = "failed"
@@ -468,7 +465,7 @@ class ShotItemModel(QAbstractListModel):
                     Q_ARG(str, shot_full_name),  # Immutable identifier only
                 )
         except Exception as e:
-            logger.error(f"Thumbnail caching failed for {shot_full_name}: {e}")
+            self.logger.error(f"Thumbnail caching failed for {shot_full_name}: {e}")
             # Handle failure atomically in main thread
             QMetaObject.invokeMethod(
                 self,
@@ -508,7 +505,7 @@ class ShotItemModel(QAbstractListModel):
             index = self.index(row, 0)
             self._load_cached_pixmap(cached_path_obj, row, shot, index)
         else:
-            logger.debug(
+            self.logger.debug(
                 f"Shot {shot_full_name} no longer exists in model, ignoring success callback"
             )
 
@@ -530,7 +527,7 @@ class ShotItemModel(QAbstractListModel):
             index = self.index(row, 0)
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
         else:
-            logger.debug(
+            self.logger.debug(
                 f"Shot {shot_full_name} no longer exists in model, ignoring failure callback"
             )
 
@@ -573,7 +570,7 @@ class ShotItemModel(QAbstractListModel):
             # Convert to QImage for thread-safe storage
             self._thumbnail_cache[shot.full_name] = pixmap.toImage()
             self._loading_states[shot.full_name] = "loaded"
-            logger.debug(f"Loaded thumbnail for {shot.full_name} from cache")
+            self.logger.debug(f"Loaded thumbnail for {shot.full_name} from cache")
 
             # Notify view of update
             self.dataChanged.emit(
@@ -587,7 +584,7 @@ class ShotItemModel(QAbstractListModel):
             )
             self.thumbnail_loaded.emit(row)
         else:
-            logger.warning(f"Failed to load cached thumbnail pixmap from {cached_path}")
+            self.logger.warning(f"Failed to load cached thumbnail pixmap from {cached_path}")
             self._loading_states[shot.full_name] = "failed"
             self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
 

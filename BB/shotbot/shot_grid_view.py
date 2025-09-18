@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from logging_mixin import LoggingMixin
 from config import Config
 from shot_grid_delegate_refactored import ShotGridDelegate
 from shot_item_model import ShotItemModel, ShotRole
@@ -39,10 +40,7 @@ from thumbnail_widget_base import FolderOpenerWorker
 if TYPE_CHECKING:
     from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
 
-logger = logging.getLogger(__name__)
-
-
-class ShotGridView(QWidget):
+class ShotGridView(LoggingMixin, QWidget):
     """Optimized grid view for displaying shot thumbnails.
 
     This view provides:
@@ -86,7 +84,7 @@ class ShotGridView(QWidget):
         self._visibility_timer.setInterval(100)
         self._visibility_timer.start()
 
-        logger.info("ShotGridView initialized with Model/View architecture")
+        self.logger.info("ShotGridView initialized with Model/View architecture")
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
@@ -187,7 +185,7 @@ class ShotGridView(QWidget):
         if self._model:
             # Force a view update
             self.list_view.viewport().update()
-            logger.debug("View refresh requested (Model/View updates automatically)")
+            self.logger.debug("View refresh requested (Model/View updates automatically)")
 
     def set_model(self, model: ShotItemModel) -> None:
         """Set the data model for the view.
@@ -206,7 +204,7 @@ class ShotGridView(QWidget):
         # Connect to model signals
         model.shots_updated.connect(self._on_model_updated)
 
-        logger.debug(f"Model set with {model.rowCount()} items")
+        self.logger.debug(f"Model set with {model.rowCount()} items")
 
     @Slot()
     def _on_model_updated(self) -> None:
@@ -237,7 +235,7 @@ class ShotGridView(QWidget):
             # Emit signal
             self.shot_selected.emit(shot)
 
-            logger.debug(f"Shot selected: {shot.full_name}")
+            self.logger.debug(f"Shot selected: {shot.full_name}")
 
     @Slot(QModelIndex)
     def _on_item_double_clicked(self, index: QModelIndex) -> None:
@@ -252,7 +250,7 @@ class ShotGridView(QWidget):
         shot: Shot | None = index.data(ShotRole.ShotObjectRole)
         if shot:
             self.shot_double_clicked.emit(shot)
-            logger.debug(f"Shot double-clicked: {shot.full_name}")
+            self.logger.debug(f"Shot double-clicked: {shot.full_name}")
 
     @Slot(QModelIndex, QModelIndex)
     def _on_selection_changed(
@@ -301,7 +299,7 @@ class ShotGridView(QWidget):
         # Force view update
         self.list_view.viewport().update()
 
-        logger.debug(f"Thumbnail size changed to {size}px")
+        self.logger.debug(f"Thumbnail size changed to {size}px")
 
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""
@@ -453,7 +451,7 @@ class ShotGridView(QWidget):
         # Show menu at cursor position
         menu.exec(event.globalPos())
 
-        logger.debug(f"Context menu shown for shot: {shot.full_name}")
+        self.logger.debug(f"Context menu shown for shot: {shot.full_name}")
 
     def _open_shot_folder(self, shot: Shot) -> None:
         """Open the shot's workspace folder in system file manager (non-blocking).
@@ -477,7 +475,7 @@ class ShotGridView(QWidget):
         # Start the worker
         QThreadPool.globalInstance().start(worker)
 
-        logger.info(f"Opening folder: {folder_path}")
+        self.logger.info(f"Opening folder: {folder_path}")
 
     @Slot(str)
     def _on_folder_open_error(self, error_msg: str) -> None:
@@ -486,14 +484,13 @@ class ShotGridView(QWidget):
         Args:
             error_msg: Error message from worker
         """
-        logger.error(f"Failed to open folder: {error_msg}")
+        self.logger.error(f"Failed to open folder: {error_msg}")
         # Could show a QMessageBox here if desired
 
     @Slot()
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
-        logger.debug("Folder opened successfully")
-
+        self.logger.debug("Folder opened successfully")
 
 # Example usage
 if __name__ == "__main__":

@@ -55,13 +55,12 @@ from typing import Any
 
 from PySide6.QtCore import QByteArray, QObject, QSettings, QSize, Signal
 
+from logging_mixin import LoggingMixin
 from config import Config
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
 
-
-class SettingsManager(QObject):
+class SettingsManager(LoggingMixin, QObject):
     """Manages application settings with type safety and persistence.
 
     Provides a comprehensive settings management system with automatic
@@ -91,7 +90,7 @@ class SettingsManager(QObject):
         # Migrate old settings if needed
         self._migrate_old_settings()
 
-        logger.info(f"Settings manager initialized: {self.settings.fileName()}")
+        self.logger.info(f"Settings manager initialized: {self.settings.fileName()}")
 
     def _initialize_defaults(self) -> None:
         """Initialize default values for all settings if they don't exist."""
@@ -102,7 +101,7 @@ class SettingsManager(QObject):
                 full_key = f"{category}/{key}"
                 if not self.settings.contains(full_key):
                     self.settings.setValue(full_key, value)
-                    logger.debug(f"Initialized default setting: {full_key} = {value}")
+                    self.logger.debug(f"Initialized default setting: {full_key} = {value}")
 
     def _get_default_settings(self) -> dict[str, dict[str, Any]]:
         """Get default settings organized by category."""
@@ -187,7 +186,7 @@ class SettingsManager(QObject):
         if self.settings.contains("migration_version"):
             return
 
-        logger.info("Migrating settings to new format...")
+        self.logger.info("Migrating settings to new format...")
 
         # Migrate any existing loose settings to organized structure
         old_keys = [
@@ -203,11 +202,11 @@ class SettingsManager(QObject):
                 value = self.settings.value(old_key)
                 self.settings.setValue(new_key, value)
                 self.settings.remove(old_key)
-                logger.debug(f"Migrated setting: {old_key} -> {new_key}")
+                self.logger.debug(f"Migrated setting: {old_key} -> {new_key}")
 
         # Mark migration as complete
         self.settings.setValue("migration_version", 1)
-        logger.info("Settings migration completed")
+        self.logger.info("Settings migration completed")
 
     # Window Settings
     def get_window_geometry(self) -> QByteArray:
@@ -576,11 +575,11 @@ class SettingsManager(QObject):
             with open(file_path, "w") as f:
                 json.dump(all_settings, f, indent=2, default=str)
 
-            logger.info(f"Settings exported to: {file_path}")
+            self.logger.info(f"Settings exported to: {file_path}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to export settings: {e}")
+            self.logger.error(f"Failed to export settings: {e}")
             return False
 
     def import_settings(self, file_path: str) -> bool:
@@ -594,11 +593,11 @@ class SettingsManager(QObject):
                 if isinstance(settings_dict, dict):
                     self.set_category(category, settings_dict)
 
-            logger.info(f"Settings imported from: {file_path}")
+            self.logger.info(f"Settings imported from: {file_path}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to import settings: {e}")
+            self.logger.error(f"Failed to import settings: {e}")
             return False
 
     def reset_to_defaults(self) -> None:
@@ -609,7 +608,7 @@ class SettingsManager(QObject):
         # Reinitialize with defaults
         self._initialize_defaults()
 
-        logger.info("All settings reset to defaults")
+        self.logger.info("All settings reset to defaults")
         self.settings_reset.emit()
 
     def reset_category(self, category: str) -> None:
@@ -618,7 +617,7 @@ class SettingsManager(QObject):
 
         if category in defaults:
             self.set_category(category, defaults[category])
-            logger.info(f"Category '{category}' reset to defaults")
+            self.logger.info(f"Category '{category}' reset to defaults")
             self.category_changed.emit(category)
 
     def sync(self) -> None:

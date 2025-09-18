@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, QTimer, Signal
 
 from cache_manager import CacheManager
+from logging_mixin import LoggingMixin
 from previous_shots_finder import ParallelShotsFinder
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
@@ -16,10 +17,7 @@ from shot_model import Shot
 if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
 
-logger = logging.getLogger(__name__)
-
-
-class PreviousShotsModel(QObject):
+class PreviousShotsModel(LoggingMixin, QObject):
     """Model for managing approved shots that are no longer active.
 
     This model maintains a list of shots the user has worked on that
@@ -65,17 +63,17 @@ class PreviousShotsModel(QObject):
         # Load from cache on init
         self._load_from_cache()
 
-        logger.info("PreviousShotsModel initialized")
+        self.logger.info("PreviousShotsModel initialized")
 
     def start_auto_refresh(self) -> None:
         """Start automatic refresh of previous shots."""
         self._refresh_timer.start()
-        logger.info("Started auto-refresh for previous shots")
+        self.logger.info("Started auto-refresh for previous shots")
 
     def stop_auto_refresh(self) -> None:
         """Stop automatic refresh of previous shots."""
         self._refresh_timer.stop()
-        logger.info("Stopped auto-refresh for previous shots")
+        self.logger.info("Stopped auto-refresh for previous shots")
 
     def _cleanup_worker_safely(self) -> None:
         """Centralized worker cleanup to prevent race conditions and crashes.
@@ -89,14 +87,14 @@ class PreviousShotsModel(QObject):
         """
         with QMutexLocker(self._scan_lock):
             if self._worker is not None:
-                logger.debug("Safely cleaning up worker thread")
+                self.logger.debug("Safely cleaning up worker thread")
 
                 # 1. Request stop first
                 self._worker.stop()
 
                 # 2. Wait with timeout (prevent hanging)
                 if not self._worker.wait(2000):
-                    logger.warning("Worker did not stop gracefully within 2s")
+                    self.logger.warning("Worker did not stop gracefully within 2s")
                     # Force termination if necessary
                     if self._worker.isRunning():
                         self._worker.terminate()
@@ -117,7 +115,7 @@ class PreviousShotsModel(QObject):
 
                 # 5. Schedule deletion on event loop
                 worker.deleteLater()
-                logger.debug("Worker thread cleanup completed")
+                self.logger.debug("Worker thread cleanup completed")
 
     def refresh_shots(self) -> bool:
         """Refresh the list of previous shots using a background worker thread.
@@ -128,7 +126,7 @@ class PreviousShotsModel(QObject):
         # THREAD SAFETY: Use lock to protect _is_scanning flag
         with QMutexLocker(self._scan_lock):
             if self._is_scanning:
-                logger.debug("Already scanning for previous shots")
+                self.logger.debug("Already scanning for previous shots")
                 return False
             self._is_scanning = True
 
@@ -140,7 +138,7 @@ class PreviousShotsModel(QObject):
         try:
             # Stop any existing worker
             if self._worker is not None:
-                logger.debug("Stopping existing worker before starting new scan")
+                self.logger.debug("Stopping existing worker before starting new scan")
                 self._cleanup_worker_safely()
 
             # Get active shots from the main model
@@ -165,13 +163,13 @@ class PreviousShotsModel(QObject):
             )
 
             # Start worker thread
-            logger.info("Starting previous shots scan in background thread")
+            self.logger.info("Starting previous shots scan in background thread")
             self._worker.start()
 
             return True
 
         except Exception as e:
-            logger.error(f"Error starting previous shots scan: {e}")
+            self.logger.error(f"Error starting previous shots scan: {e}")
             # Reset scanning flag on error
             with QMutexLocker(self._scan_lock):
                 self._is_scanning = False
@@ -207,14 +205,14 @@ class PreviousShotsModel(QObject):
                 self._previous_shots = shot_objects
                 self._save_to_cache()
                 self.shots_updated.emit()
-                logger.info(
+                self.logger.info(
                     f"Updated previous shots: {len(self._previous_shots)} shots"
                 )
             else:
-                logger.debug("No changes in previous shots")
+                self.logger.debug("No changes in previous shots")
 
         except Exception as e:
-            logger.error(f"Error processing scan results: {e}")
+            self.logger.error(f"Error processing scan results: {e}")
         finally:
             # Reset scanning flag
             with QMutexLocker(self._scan_lock):
@@ -229,7 +227,7 @@ class PreviousShotsModel(QObject):
         Args:
             error_msg: Error message from worker.
         """
-        logger.error(f"Previous shots scan error: {error_msg}")
+        self.logger.error(f"Previous shots scan error: {error_msg}")
         # Reset scanning flag
         with QMutexLocker(self._scan_lock):
             self._is_scanning = False
@@ -312,11 +310,11 @@ class PreviousShotsModel(QObject):
                     )
                     for s in cached_data
                 ]
-                logger.info(
+                self.logger.info(
                     f"Loaded {len(self._previous_shots)} previous shots from cache"
                 )
         except Exception as e:
-            logger.error(f"Error loading previous shots from cache: {e}")
+            self.logger.error(f"Error loading previous shots from cache: {e}")
 
     def _save_to_cache(self) -> None:
         """Save previous shots to cache."""
@@ -332,17 +330,17 @@ class PreviousShotsModel(QObject):
             ]
             # Use the correct method: cache_previous_shots()
             self._cache_manager.cache_previous_shots(cache_data)
-            logger.debug(f"Saved {len(self._previous_shots)} previous shots to cache")
+            self.logger.debug(f"Saved {len(self._previous_shots)} previous shots to cache")
         except Exception as e:
-            logger.error(f"Error saving previous shots to cache: {e}")
+            self.logger.error(f"Error saving previous shots to cache: {e}")
 
     def clear_cache(self) -> None:
         """Clear the cached previous shots."""
         try:
             self._cache_manager.clear_cached_data("previous_shots")
-            logger.info("Cleared previous shots cache")
+            self.logger.info("Cleared previous shots cache")
         except Exception as e:
-            logger.error(f"Error clearing previous shots cache: {e}")
+            self.logger.error(f"Error clearing previous shots cache: {e}")
 
     def _clear_caches_for_refresh(self) -> None:
         """Clear all relevant caches for manual refresh.
@@ -359,25 +357,25 @@ class PreviousShotsModel(QObject):
 
             if hasattr(ThreeDESceneFinder, "refresh_cache"):
                 cleared_count = ThreeDESceneFinder.refresh_cache()
-                logger.debug(f"Cleared {cleared_count} directory cache entries")
+                self.logger.debug(f"Cleared {cleared_count} directory cache entries")
 
             # Clear path cache in utils
             from utils import clear_all_caches
 
             clear_all_caches()
-            logger.debug("Cleared path validation caches")
+            self.logger.debug("Cleared path validation caches")
 
-            logger.info("Successfully cleared all caches for manual refresh")
+            self.logger.info("Successfully cleared all caches for manual refresh")
 
         except Exception as e:
-            logger.error(f"Error clearing caches for refresh: {e}")
+            self.logger.error(f"Error clearing caches for refresh: {e}")
 
     def cleanup(self) -> None:
         """Clean up resources and stop worker thread."""
-        logger.debug("PreviousShotsModel cleanup initiated")
+        self.logger.debug("PreviousShotsModel cleanup initiated")
         self.stop_auto_refresh()
         self._cleanup_worker_safely()  # Use centralized cleanup
-        logger.info("PreviousShotsModel cleanup completed")
+        self.logger.info("PreviousShotsModel cleanup completed")
 
     def is_scanning(self) -> bool:
         """Check if currently scanning for shots.

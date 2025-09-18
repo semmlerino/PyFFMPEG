@@ -12,10 +12,9 @@ from previous_shots_finder import ParallelShotsFinder
 from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
 
-logger = logging.getLogger(__name__)
+from logging_mixin import LoggingMixin
 
-
-class PreviousShotsWorker(ThreadSafeWorker):
+class PreviousShotsWorker(LoggingMixin, ThreadSafeWorker):
     """Background worker thread for finding approved shots.
 
     This worker runs in a separate thread to avoid blocking the UI
@@ -59,7 +58,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         # No need for _should_stop, use base class should_stop() method
         self._found_shots: list[Shot] = []
 
-        logger.info(
+        self.logger.info(
             f"PreviousShotsWorker initialized for user: {self._finder.username}"
         )
 
@@ -79,7 +78,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         self.request_stop()  # Use base class method for proper state transition
         if hasattr(self._finder, "request_stop"):
             self._finder.request_stop()  # Also stop the parallel finder
-        logger.debug("Stop requested for PreviousShotsWorker")
+        self.logger.debug("Stop requested for PreviousShotsWorker")
 
     def do_work(self) -> None:
         """Perform the background scanning process.
@@ -87,7 +86,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         This method is called by the base class after proper state transitions.
         The base class handles state management, so we don't need to manage it here.
         """
-        logger.info("Starting previous shots scan")
+        self.logger.info("Starting previous shots scan")
         start_time = time.time()
 
         # Emit started signal - base class already emits worker_started
@@ -103,7 +102,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             # Use new targeted search for maximum performance
             # This searches only in shows where user has active shots
             if hasattr(self._finder, "find_approved_shots_targeted"):
-                logger.info("Using targeted search approach")
+                self.logger.info("Using targeted search approach")
                 approved_shots = self._finder.find_approved_shots_targeted(
                     self._active_shots, self._shows_root
                 )
@@ -118,7 +117,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
             else:
                 # Fallback to original two-step process
-                logger.info("Using fallback two-step approach")
+                self.logger.info("Using fallback two-step approach")
 
                 # Use parallel finder with incremental loading
                 all_user_shots = []
@@ -142,7 +141,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
                     signals_already_emitted = False  # No signals emitted yet
 
                 if self.should_stop():
-                    logger.info("Scan stopped by user request")
+                    self.logger.info("Scan stopped by user request")
                     return
 
                 self.scan_progress.emit(50, 100, "Filtering approved shots...")
@@ -158,7 +157,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             # Only emit shot_found signals if they haven't been emitted already
             # This fixes the double emission bug
             if not signals_already_emitted:
-                logger.debug("Emitting shot_found signals for individual shots")
+                self.logger.debug("Emitting shot_found signals for individual shots")
                 for i, shot in enumerate(approved_shots):
                     if self.should_stop():
                         break
@@ -178,7 +177,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
                     shot_dicts.append(shot_dict)
                     self.shot_found.emit(shot_dict)
             else:
-                logger.debug("Skipping shot_found emission - signals already emitted")
+                self.logger.debug("Skipping shot_found emission - signals already emitted")
                 # Still need to build shot_dicts for final emission
                 for shot in approved_shots:
                     shot_dict = {
@@ -193,7 +192,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             self.scan_progress.emit(100, 100, "Scan completed")
 
             elapsed = time.time() - start_time
-            logger.info(
+            self.logger.info(
                 f"Previous shots scan completed in {elapsed:.2f}s. "
                 f"Found {len(approved_shots)} approved shots."
             )
@@ -205,7 +204,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
 
         except Exception as e:
             error_msg = f"Error during previous shots scan: {e}"
-            logger.error(error_msg)
+            self.logger.error(error_msg)
             self.error_occurred.emit(error_msg)
             # Re-raise to let base class handle error state
             raise
@@ -231,7 +230,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
                 ]
                 total_shows = len(show_dirs)
 
-                logger.debug(f"Scanning {total_shows} shows for user work")
+                self.logger.debug(f"Scanning {total_shows} shows for user work")
 
                 for index, show_dir in enumerate(show_dirs):
                     if self.should_stop():
@@ -244,12 +243,12 @@ class PreviousShotsWorker(ThreadSafeWorker):
                     show_shots = self._find_shots_in_show(show_dir)
                     shots.extend(show_shots)
 
-                    logger.debug(
+                    self.logger.debug(
                         f"Found {len(show_shots)} user shots in {show_dir.name}"
                     )
 
         except Exception as e:
-            logger.error(f"Error scanning for user shots: {e}")
+            self.logger.error(f"Error scanning for user shots: {e}")
 
         return shots
 
@@ -306,7 +305,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
                         self.shot_found.emit(shot_dict)
 
         except Exception as e:
-            logger.error(f"Error scanning show {show_dir}: {e}")
+            self.logger.error(f"Error scanning show {show_dir}: {e}")
 
         return shots
 

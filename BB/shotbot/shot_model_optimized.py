@@ -30,10 +30,9 @@ from base_shot_model import BaseShotModel
 from shot_model import RefreshResult, Shot
 from thread_safe_worker import ThreadSafeWorker
 
-logger = logging.getLogger(__name__)
+from logging_mixin import LoggingMixin
 
-
-class AsyncShotLoader(ThreadSafeWorker):
+class AsyncShotLoader(LoggingMixin, ThreadSafeWorker):
     """Background worker for loading shots without blocking UI.
 
     Thread Safety:
@@ -84,7 +83,7 @@ class AsyncShotLoader(ThreadSafeWorker):
                 shots = self.parse_function(output)
             else:
                 # Fallback to simple parsing (should not be used in practice)
-                logger.warning(
+                self.logger.warning(
                     "Using fallback parsing - this may produce incorrect results"
                 )
                 shots = []
@@ -98,7 +97,7 @@ class AsyncShotLoader(ThreadSafeWorker):
                         if len(parts) >= 2:
                             # This simple parsing is incorrect and kept only as fallback
                             # The proper parsing is in BaseShotModel._parse_ws_output
-                            logger.error(f"Fallback parsing used for: {line}")
+                            self.logger.error(f"Fallback parsing used for: {line}")
                             # Don't create shots with wrong data
 
             # Thread-safe check before emitting signal
@@ -117,7 +116,6 @@ class AsyncShotLoader(ThreadSafeWorker):
                 self.load_failed.emit(f"Unexpected error: {e}")
 
     # stop() method is inherited from ThreadSafeWorker
-
 
 class OptimizedShotModel(BaseShotModel):
     """Optimized ShotModel with async loading and instant UI display.
@@ -158,14 +156,14 @@ class OptimizedShotModel(BaseShotModel):
         Returns:
             RefreshResult with cached data status
         """
-        logger.info("Initializing with async loading strategy")
+        self.logger.info("Initializing with async loading strategy")
 
         # Step 1: Load cached shots immediately (< 1ms)
         cached_shots = self.cache_manager.get_cached_shots()
         if cached_shots:
             self._cache_hit_count += 1
             self.shots = [Shot.from_dict(s) for s in cached_shots]
-            logger.info(f"Loaded {len(self.shots)} shots from cache instantly")
+            self.logger.info(f"Loaded {len(self.shots)} shots from cache instantly")
             self.shots_loaded.emit(self.shots)
 
             # Step 2: Start background refresh
@@ -174,7 +172,7 @@ class OptimizedShotModel(BaseShotModel):
             return RefreshResult(success=True, has_changes=False)
         else:
             self._cache_miss_count += 1
-            logger.info("No cached shots, starting background load")
+            self.logger.info("No cached shots, starting background load")
 
             # No cache, but still return immediately
             self.shots = []
@@ -194,13 +192,13 @@ class OptimizedShotModel(BaseShotModel):
         with QMutexLocker(self._loader_lock):
             # Double-check inside the lock
             if self._loading_in_progress:
-                logger.warning("Background load already in progress")
+                self.logger.warning("Background load already in progress")
                 return
 
             # Clean up any existing loader first
             if self._async_loader:
                 if self._async_loader.isRunning():
-                    logger.warning("Previous loader still running, stopping it")
+                    self.logger.warning("Previous loader still running, stopping it")
                     self._async_loader.stop()
                     self._async_loader.wait(1000)
                 self._async_loader.deleteLater()
@@ -226,7 +224,7 @@ class OptimizedShotModel(BaseShotModel):
 
             # Start background loading
             self._async_loader.start()
-            logger.info("Started background shot loading")
+            self.logger.info("Started background shot loading")
 
     @Slot(list)
     def _on_shots_loaded(self, new_shots: list[Shot]) -> None:
@@ -245,7 +243,7 @@ class OptimizedShotModel(BaseShotModel):
 
         if has_changes:
             self.shots = new_shots
-            logger.info(
+            self.logger.info(
                 f"Background load complete: {old_count} → {len(new_shots)} shots"
             )
 
@@ -256,7 +254,7 @@ class OptimizedShotModel(BaseShotModel):
             self.shots_changed.emit(self.shots)
             self.cache_updated.emit()
         else:
-            logger.info(
+            self.logger.info(
                 f"Background load complete: no changes ({len(new_shots)} shots)"
             )
 
@@ -269,7 +267,7 @@ class OptimizedShotModel(BaseShotModel):
         This slot receives error messages from the background thread.
         Properly decorated with @Slot for Qt efficiency.
         """
-        logger.error(f"Background shot loading failed: {error_msg}")
+        self.logger.error(f"Background shot loading failed: {error_msg}")
         self.error_occurred.emit(error_msg)
         self.refresh_finished.emit(False, False)
 
@@ -324,7 +322,7 @@ class OptimizedShotModel(BaseShotModel):
         if self._session_warmed:
             return
 
-        logger.info("Pre-warming bash sessions for faster first load")
+        self.logger.info("Pre-warming bash sessions for faster first load")
 
         # Create a dummy command to initialize the session pool
         try:
@@ -335,9 +333,9 @@ class OptimizedShotModel(BaseShotModel):
                 timeout=5,
             )
             self._session_warmed = True
-            logger.info("Session pre-warming complete")
+            self.logger.info("Session pre-warming complete")
         except Exception as e:
-            logger.warning(f"Session pre-warming failed: {e}")
+            self.logger.warning(f"Session pre-warming failed: {e}")
 
     @override
     def get_performance_metrics(self) -> PerformanceMetricsDict:
@@ -366,12 +364,12 @@ class OptimizedShotModel(BaseShotModel):
         """
         if self._async_loader:
             if self._async_loader.isRunning():
-                logger.info("Stopping background loader")
+                self.logger.info("Stopping background loader")
                 self._async_loader.stop()  # Sets event and requests interruption
 
                 # Give thread 2 seconds to stop gracefully
                 if not self._async_loader.wait(2000):
-                    logger.warning(
+                    self.logger.warning(
                         "Background loader did not stop gracefully within 2s"
                     )
                     # Use ThreadSafeWorker's safe_terminate method
@@ -381,7 +379,7 @@ class OptimizedShotModel(BaseShotModel):
                     if not self._async_loader.wait(2000):
                         # As last resort, we accept the thread will be abandoned
                         # safe_terminate already avoids dangerous terminate()
-                        logger.error(
+                        self.logger.error(
                             "Background loader thread abandoned - will be cleaned on exit"
                         )
                         # Mark it for deletion but don't force terminate
@@ -426,7 +424,7 @@ class OptimizedShotModel(BaseShotModel):
         """
         if self._process_pool:
             self._process_pool.invalidate_cache("ws -sg")
-            logger.debug("Workspace cache invalidated")
+            self.logger.debug("Workspace cache invalidated")
 
     def select_shot_by_name(self, full_name: str) -> bool:
         """Select a shot by its full name.
@@ -460,7 +458,6 @@ class OptimizedShotModel(BaseShotModel):
             return self._async_loader.wait(timeout_ms)
         return True  # Not loading, so already complete
 
-
 # Example usage for immediate UI display
 def create_optimized_shot_model(
     cache_manager: CacheManager | None = None,
@@ -484,14 +481,13 @@ def create_optimized_shot_model(
 
     # Connect to UI update signals
     model.shots_loaded.connect(
-        lambda shots: logger.info(f"UI can display {len(shots)} shots")
+        lambda shots: self.logger.info(f"UI can display {len(shots)} shots")
     )
     model.shots_changed.connect(
-        lambda shots: logger.info(f"UI should update to {len(shots)} shots")
+        lambda shots: self.logger.info(f"UI should update to {len(shots)} shots")
     )
 
     return model
-
 
 if __name__ == "__main__":
     # Demo the optimized model

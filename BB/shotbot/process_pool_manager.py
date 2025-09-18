@@ -20,6 +20,7 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from config import ThreadingConfig
+from logging_mixin import LoggingMixin
 from secure_command_executor import get_secure_executor
 
 if TYPE_CHECKING:
@@ -41,8 +42,6 @@ HAS_DEBUG_UTILS = _has_debug_utils
 
 # Note: fcntl is not currently used, setting HAS_FCNTL to False
 HAS_FCNTL = False
-
-logger = logging.getLogger(__name__)
 
 # Enable verbose debug logging if environment variable is set
 DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
@@ -94,7 +93,7 @@ class CommandCache:
                 result, timestamp, ttl, _ = self._cache[key]
                 if time.time() - timestamp < ttl:
                     self._hits += 1
-                    logger.debug(f"Cache hit for command: {command[:50]}...")
+                    self.logger.debug(f"Cache hit for command: {command[:50]}...")
                     return result
                 del self._cache[key]
 
@@ -127,7 +126,7 @@ class CommandCache:
         with self._lock:
             if pattern is None:
                 self._cache.clear()
-                logger.info("Cleared entire command cache")
+                self.logger.info("Cleared entire command cache")
             else:
                 # Check the original command (4th element in tuple) for pattern
                 keys_to_remove: list[str] = []
@@ -136,7 +135,7 @@ class CommandCache:
                         keys_to_remove.append(key)
                 for key in keys_to_remove:
                     del self._cache[key]
-                logger.info(
+                self.logger.info(
                     f"Invalidated {len(keys_to_remove)} cache entries matching '{pattern}'",
                 )
 
@@ -184,10 +183,10 @@ class CommandCache:
             del self._cache[key]
 
         if expired:
-            logger.debug(f"Cleaned up {len(expired)} expired cache entries")
+            self.logger.debug(f"Cleaned up {len(expired)} expired cache entries")
 
 
-class ProcessPoolManager(QObject):
+class ProcessPoolManager(LoggingMixin, QObject):
     """Centralized process management with pooling and caching.
 
     This singleton class manages all subprocess operations for the application,
@@ -255,7 +254,7 @@ class ProcessPoolManager(QObject):
             self._metrics = ProcessMetrics()
             self._initialized = True
 
-        logger.info(f"ProcessPoolManager initialized with {max_workers} workers")
+        self.logger.info(f"ProcessPoolManager initialized with {max_workers} workers")
 
     @classmethod
     def get_instance(cls) -> ProcessPoolManager:
@@ -276,7 +275,7 @@ class ProcessPoolManager(QObject):
             if factory_instance is not None and factory_instance is not cls._instance:
                 # This allows mock injection
                 if hasattr(factory_instance, "__class__"):
-                    logger.debug(
+                    self.logger.debug(
                         f"Using injected instance: {factory_instance.__class__.__name__}"
                     )
                 return factory_instance  # type: ignore[return-value]
@@ -309,18 +308,18 @@ class ProcessPoolManager(QObject):
             timeout = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
 
         if DEBUG_VERBOSE:
-            logger.debug(f"execute_workspace_command called: {command[:50]}...")
+            self.logger.debug(f"execute_workspace_command called: {command[:50]}...")
 
         # Check cache first
         cached = self._cache.get(command)
         if cached is not None:
             self._metrics.cache_hits += 1
             if DEBUG_VERBOSE:
-                logger.debug(f"Cache HIT for command: {command[:50]}...")
+                self.logger.debug(f"Cache HIT for command: {command[:50]}...")
             return cached
 
         if DEBUG_VERBOSE:
-            logger.debug(f"Cache MISS for command: {command[:50]}... - will execute")
+            self.logger.debug(f"Cache MISS for command: {command[:50]}... - will execute")
 
         self._metrics.cache_misses += 1
         self._metrics.subprocess_calls += 1
@@ -349,7 +348,7 @@ class ProcessPoolManager(QObject):
             return result
 
         except Exception as e:
-            logger.error(f"Command execution failed: {e}")
+            self.logger.error(f"Command execution failed: {e}")
             self.command_failed.emit(command, str(e))
             raise
 
@@ -380,7 +379,7 @@ class ProcessPoolManager(QObject):
             if cached is not None:
                 results[cmd] = cached
                 self._metrics.cache_hits += 1
-                logger.debug(f"Batch: cache hit for {cmd[:50]}...")
+                self.logger.debug(f"Batch: cache hit for {cmd[:50]}...")
             else:
                 commands_to_execute.append(cmd)
                 self._metrics.cache_misses += 1
@@ -408,7 +407,7 @@ class ProcessPoolManager(QObject):
                 # Cache successful results
                 self._cache.set(cmd, result, ttl=cache_ttl)
             except Exception as e:
-                logger.error(f"Batch command failed: {cmd} - {e}")
+                self.logger.error(f"Batch command failed: {cmd} - {e}")
                 results[cmd] = None
 
         return results
@@ -450,7 +449,7 @@ class ProcessPoolManager(QObject):
             return result
 
         except Exception as e:
-            logger.error(f"Session pool execution failed: {e}")
+            self.logger.error(f"Session pool execution failed: {e}")
             raise
 
     def find_files_python(self, directory: str, pattern: str) -> list[str]:
@@ -476,7 +475,7 @@ class ProcessPoolManager(QObject):
             return [str(f) for f in files]
 
         except Exception as e:
-            logger.error(f"File search failed: {e}")
+            self.logger.error(f"File search failed: {e}")
             return []
 
     def invalidate_cache(self, pattern: str | None = None) -> None:
@@ -523,7 +522,7 @@ class ProcessPoolManager(QObject):
             self._session_round_robin.clear()
 
         # Shutdown executor with timeout
-        logger.debug(
+        self.logger.debug(
             f"Shutting down ProcessPoolManager executor with timeout={timeout}s"
         )
         try:
@@ -539,21 +538,21 @@ class ProcessPoolManager(QObject):
             while time.time() - start_time < timeout:
                 # Access the internal _threads set to check if empty
                 if hasattr(self._executor, "_threads") and not self._executor._threads:
-                    logger.debug(
+                    self.logger.debug(
                         "ProcessPoolManager executor threads completed gracefully"
                     )
                     break
                 time.sleep(0.1)  # Small polling interval
             else:
-                logger.warning(
+                self.logger.warning(
                     f"ProcessPoolManager executor shutdown timeout after {timeout}s, "
                     f"some threads may still be running"
                 )
 
         except Exception as e:
-            logger.error(f"Error during ProcessPoolManager executor shutdown: {e}")
+            self.logger.error(f"Error during ProcessPoolManager executor shutdown: {e}")
 
-        logger.info("ProcessPoolManager shutdown complete")
+        self.logger.info("ProcessPoolManager shutdown complete")
 
 
 class ProcessMetrics:

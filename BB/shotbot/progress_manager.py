@@ -69,8 +69,7 @@ if TYPE_CHECKING:
         QStatusBar,
     )
 
-# Set up logger for this module
-logger = logging.getLogger(__name__)
+from logging_mixin import LoggingMixin
 
 
 class ProgressType(Enum):
@@ -191,7 +190,7 @@ class ProgressOperation:
             try:
                 self.config.cancel_callback()
             except Exception as e:
-                logger.error(f"Error in cancel callback: {e}")
+                self.logger.error(f"Error in cancel callback: {e}")
 
         logger.info(f"Progress operation cancelled: {self.config.title}")
 
@@ -271,7 +270,7 @@ class ProgressOperation:
                 self.status_bar = None
 
 
-class ProgressManager:
+class ProgressManager(LoggingMixin):
     """Centralized progress management system.
 
     This singleton class provides various types of progress indicators and
@@ -430,7 +429,7 @@ class ProgressManager:
         instance = cls()
 
         if not instance._operation_stack:
-            logger.warning("Attempted to finish operation but stack is empty")
+            self.logger.warning("Attempted to finish operation but stack is empty")
             return
 
         operation = instance._operation_stack.pop()

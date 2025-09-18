@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
+from logging_mixin import LoggingMixin
 from progress_manager import ProgressManager
 from shot_grid_delegate_refactored import ShotGridDelegate  # Reuse refactored delegate
 from shot_item_model import ShotRole
@@ -43,10 +44,8 @@ if TYPE_CHECKING:
     from previous_shots_item_model import PreviousShotsItemModel
     from shot_model import Shot
 
-logger = logging.getLogger(__name__)
 
-
-class PreviousShotsView(QWidget):
+class PreviousShotsView(LoggingMixin, QWidget):
     """Optimized view for displaying previous/approved shot thumbnails.
 
     This view provides:
@@ -92,7 +91,7 @@ class PreviousShotsView(QWidget):
         # Connect scroll events to trigger debounced updates
         # This will be connected when the model is set
 
-        logger.info("PreviousShotsView initialized with Model/View architecture")
+        self.logger.info("PreviousShotsView initialized with Model/View architecture")
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
@@ -247,12 +246,12 @@ class PreviousShotsView(QWidget):
         # Update status with shot count
         self._update_status()
 
-        logger.debug(f"Model set with {model.rowCount()} items")
+        self.logger.debug(f"Model set with {model.rowCount()} items")
 
     @Slot()
     def _on_refresh_clicked(self) -> None:
         """Handle refresh button click."""
-        logger.debug("Refresh button clicked")
+        self.logger.debug("Refresh button clicked")
 
         if self._model:
             self._refresh_button.setEnabled(False)
@@ -331,7 +330,7 @@ class PreviousShotsView(QWidget):
             # Emit signal
             self.shot_selected.emit(shot)
 
-            logger.debug(f"Shot selected: {shot.full_name}")
+            self.logger.debug(f"Shot selected: {shot.full_name}")
 
     @Slot(QModelIndex)
     def _on_item_double_clicked(self, index: QModelIndex) -> None:
@@ -346,7 +345,7 @@ class PreviousShotsView(QWidget):
         shot = index.data(ShotRole.ShotObjectRole)
         if shot:
             self.shot_double_clicked.emit(shot)
-            logger.debug(f"Shot double-clicked: {shot.full_name}")
+            self.logger.debug(f"Shot double-clicked: {shot.full_name}")
 
     @Slot(QModelIndex, QModelIndex)
     def _on_selection_changed(
@@ -395,7 +394,7 @@ class PreviousShotsView(QWidget):
         # Force view update
         self.list_view.viewport().update()
 
-        logger.debug(f"Thumbnail size changed to {size}px")
+        self.logger.debug(f"Thumbnail size changed to {size}px")
 
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""
@@ -506,7 +505,7 @@ class PreviousShotsView(QWidget):
         # Show menu at cursor position
         menu.exec(event.globalPos())
 
-        logger.debug(f"Context menu shown for shot: {shot.full_name}")
+        self.logger.debug(f"Context menu shown for shot: {shot.full_name}")
 
     def _open_shot_folder(self, shot: Shot) -> None:
         """Open the shot's workspace folder in system file manager.
@@ -518,13 +517,13 @@ class PreviousShotsView(QWidget):
 
         # Validate folder path
         if not folder_path:
-            logger.error(f"No workspace path for shot: {shot.full_name}")
+            self.logger.error(f"No workspace path for shot: {shot.full_name}")
             return
 
         from pathlib import Path
 
         if not Path(folder_path).exists():
-            logger.error(f"Workspace path does not exist: {folder_path}")
+            self.logger.error(f"Workspace path does not exist: {folder_path}")
             return
 
         # Create worker to open folder in background
@@ -541,7 +540,7 @@ class PreviousShotsView(QWidget):
         # Start the worker
         QThreadPool.globalInstance().start(worker)
 
-        logger.info(f"Opening folder: {folder_path}")
+        self.logger.info(f"Opening folder: {folder_path}")
 
     @Slot(str)
     def _on_folder_open_error(self, error_msg: str) -> None:
@@ -550,12 +549,12 @@ class PreviousShotsView(QWidget):
         Args:
             error_msg: Error message from worker
         """
-        logger.error(f"Failed to open folder: {error_msg}")
+        self.logger.error(f"Failed to open folder: {error_msg}")
 
     @Slot()
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
-        logger.debug("Folder opened successfully")
+        self.logger.debug("Folder opened successfully")
 
     def get_selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
@@ -594,4 +593,4 @@ class PreviousShotsView(QWidget):
         # Call parent implementation
         super().closeEvent(event)
 
-        logger.debug("PreviousShotsView cleaned up resources on close")
+        self.logger.debug("PreviousShotsView cleaned up resources on close")

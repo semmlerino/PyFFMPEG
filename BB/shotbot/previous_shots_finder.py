@@ -11,13 +11,11 @@ import time
 from pathlib import Path
 from typing import Callable, Generator
 
+from logging_mixin import LoggingMixin
 from config import Config, ThreadingConfig
 from shot_model import Shot
 
-logger = logging.getLogger(__name__)
-
-
-class PreviousShotsFinder:
+class PreviousShotsFinder(LoggingMixin):
     """Finds shots that user has worked on but are no longer active.
 
     This class scans the filesystem for shots containing user work directories
@@ -56,7 +54,7 @@ class PreviousShotsFinder:
         self._shot_pattern_fallback = re.compile(
             rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
         )
-        logger.info(f"PreviousShotsFinder initialized for user: {self.username}")
+        self.logger.info(f"PreviousShotsFinder initialized for user: {self.username}")
 
     def find_user_shots(self, shows_root: Path | None = None) -> list[Shot]:
         """Find all shots that contain user work directories.
@@ -67,8 +65,6 @@ class PreviousShotsFinder:
         Returns:
             List of Shot objects where user has work directories.
         """
-        from config import Config
-
         shots: list[Shot] = []
 
         # Ensure shows_root is always a Path object
@@ -78,7 +74,7 @@ class PreviousShotsFinder:
             shows_root = Path(shows_root)
 
         if not shows_root.exists():
-            logger.warning(f"Shows root does not exist: {shows_root}")
+            self.logger.warning(f"Shows root does not exist: {shows_root}")
             return shots
 
         try:
@@ -95,7 +91,7 @@ class PreviousShotsFinder:
                 "8",  # Limit depth for performance
             ]
 
-            logger.debug(f"Running find command: {' '.join(cmd)}")
+            self.logger.debug(f"Running find command: {' '.join(cmd)}")
 
             # SECURITY FIX: Use stderr=subprocess.DEVNULL instead of shell redirection
             # Note: Can't use capture_output=True with stderr=subprocess.DEVNULL
@@ -110,7 +106,7 @@ class PreviousShotsFinder:
             )
 
             if result.returncode != 0:
-                logger.warning(
+                self.logger.warning(
                     f"Find command returned non-zero exit code: {result.returncode}"
                 )
 
@@ -123,12 +119,12 @@ class PreviousShotsFinder:
                 if shot and shot not in shots:
                     shots.append(shot)
 
-            logger.info(f"Found {len(shots)} shots with user work")
+            self.logger.info(f"Found {len(shots)} shots with user work")
 
         except subprocess.TimeoutExpired:
-            logger.error("Find command timed out after 120 seconds")
+            self.logger.error("Find command timed out after 120 seconds")
         except Exception as e:
-            logger.error(f"Error finding user shots: {e}")
+            self.logger.error(f"Error finding user shots: {e}")
 
         return shots
 
@@ -155,7 +151,7 @@ class PreviousShotsFinder:
                 )
             else:
                 # Non-standard naming, skip
-                logger.debug(f"Non-standard shot naming: {shot_dir}")
+                self.logger.debug(f"Non-standard shot naming: {shot_dir}")
                 return None
         else:
             # Fallback for non-standard naming
@@ -171,14 +167,14 @@ class PreviousShotsFinder:
                     )
                 else:
                     # Non-standard naming, skip
-                    logger.debug(f"Non-standard shot naming: {shot_dir}")
+                    self.logger.debug(f"Non-standard shot naming: {shot_dir}")
                     return None
             else:
                 return None
 
         # Validate shot is not empty
         if not shot:
-            logger.debug(f"Empty shot extracted from path {path}")
+            self.logger.debug(f"Empty shot extracted from path {path}")
             return None
 
         try:
@@ -189,7 +185,7 @@ class PreviousShotsFinder:
                 workspace_path=workspace_path,
             )
         except Exception as e:
-            logger.debug(f"Could not create Shot from path {path}: {e}")
+            self.logger.debug(f"Could not create Shot from path {path}: {e}")
             return None
 
     def filter_approved_shots(
@@ -214,7 +210,7 @@ class PreviousShotsFinder:
             if (shot.show, shot.sequence, shot.shot) not in active_ids
         ]
 
-        logger.info(
+        self.logger.info(
             f"Filtered {len(all_user_shots)} user shots to "
             f"{len(approved_shots)} approved shots"
         )
@@ -236,8 +232,6 @@ class PreviousShotsFinder:
         Returns:
             List of approved/completed shots.
         """
-        from config import Config
-
         # Ensure shows_root is always a Path object
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
@@ -277,7 +271,6 @@ class PreviousShotsFinder:
 
         return details
 
-
 class ParallelShotsFinder(PreviousShotsFinder):
     """Parallel implementation of PreviousShotsFinder for improved performance.
 
@@ -314,7 +307,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
     def request_stop(self) -> None:
         """Request the parallel scan to stop."""
         self._stop_requested = True
-        logger.info("Stop requested for parallel shot finder")
+        self.logger.info("Stop requested for parallel shot finder")
 
     def _report_progress(self, current: int, total: int, message: str) -> None:
         """Report progress if callback is set."""
@@ -346,10 +339,10 @@ class ParallelShotsFinder(PreviousShotsFinder):
                         if shots_dir.exists():
                             shows.append(show_path)
 
-            logger.info(f"Discovered {len(shows)} shows in {shows_root}")
+            self.logger.info(f"Discovered {len(shows)} shows in {shows_root}")
 
         except (OSError, PermissionError) as e:
-            logger.error(f"Error discovering shows: {e}")
+            self.logger.error(f"Error discovering shows: {e}")
 
         return shows
 
@@ -399,12 +392,12 @@ class ParallelShotsFinder(PreviousShotsFinder):
                     if shot and shot not in shots:
                         shots.append(shot)
 
-            logger.debug(f"Found {len(shots)} shots in {show_path.name}")
+            self.logger.debug(f"Found {len(shots)} shots in {show_path.name}")
 
         except subprocess.TimeoutExpired:
-            logger.warning(f"Timeout scanning show: {show_path.name}")
+            self.logger.warning(f"Timeout scanning show: {show_path.name}")
         except Exception as e:
-            logger.error(f"Error scanning show {show_path.name}: {e}")
+            self.logger.error(f"Error scanning show {show_path.name}: {e}")
 
         return shots
 
@@ -423,7 +416,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
             shows_root = Path(Config.SHOWS_ROOT)
 
         if not shows_root.exists():
-            logger.warning(f"Shows root does not exist: {shows_root}")
+            self.logger.warning(f"Shows root does not exist: {shows_root}")
             return
 
         # Stage 1: Quick show discovery
@@ -431,7 +424,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         shows = self._discover_shows(shows_root)
 
         if not shows:
-            logger.warning("No shows found to scan")
+            self.logger.warning("No shows found to scan")
             return
 
         total_shows = len(shows)
@@ -473,9 +466,9 @@ class ParallelShotsFinder(PreviousShotsFinder):
                     yield from shots
 
                 except concurrent.futures.TimeoutError:
-                    logger.warning(f"Timeout processing {show.name}")
+                    self.logger.warning(f"Timeout processing {show.name}")
                 except Exception as e:
-                    logger.error(f"Error processing {show.name}: {e}")
+                    self.logger.error(f"Error processing {show.name}: {e}")
 
         self._report_progress(100, 100, "Scan complete")
 
@@ -491,8 +484,6 @@ class ParallelShotsFinder(PreviousShotsFinder):
         Returns:
             List of Shot objects where user has work directories
         """
-        from config import Config
-
         # Ensure shows_root is always a Path object
         if shows_root is None:
             shows_root = Path(Config.SHOWS_ROOT)
@@ -501,18 +492,18 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         # Check for legacy mode fallback
         if os.environ.get("USE_LEGACY_SHOT_FINDER"):
-            logger.info("Using legacy sequential shot finder")
+            self.logger.info("Using legacy sequential shot finder")
             return super().find_user_shots(shows_root)
 
         # Use new parallel implementation
-        logger.info("Using parallel shot finder with incremental loading")
+        self.logger.info("Using parallel shot finder with incremental loading")
         start_time = time.time()
 
         # Collect all shots from generator
         shots = list(self.find_user_shots_parallel(shows_root))
 
         elapsed = time.time() - start_time
-        logger.info(f"Parallel scan found {len(shots)} shots in {elapsed:.1f} seconds")
+        self.logger.info(f"Parallel scan found {len(shots)} shots in {elapsed:.1f} seconds")
 
         return shots
 
@@ -532,7 +523,6 @@ class ParallelShotsFinder(PreviousShotsFinder):
         Returns:
             List of approved/completed shots
         """
-        from config import Config
         from targeted_shot_finder import TargetedShotsFinder
 
         # Ensure shows_root is always a Path object
@@ -554,7 +544,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         if self._stop_requested:
             targeted_finder.request_stop()
 
-        logger.info("Using targeted search approach for maximum performance")
+        self.logger.info("Using targeted search approach for maximum performance")
 
         try:
             approved_shots = targeted_finder.find_approved_shots_targeted(
@@ -563,7 +553,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
             return approved_shots
 
         except Exception as e:
-            logger.error(
+            self.logger.error(
                 f"Error in targeted search, falling back to parallel search: {e}"
             )
             # Fallback to existing parallel implementation
