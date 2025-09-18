@@ -91,6 +91,7 @@ from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
 from launcher_manager import LauncherManager  # Need at runtime
 from launcher_panel import LauncherPanel  # Improved launcher UI
 from logging_mixin import LoggingMixin, get_module_logger
+from qt_widget_mixin import QtWidgetMixin
 from log_viewer import LogViewer
 from notification_manager import NotificationManager, NotificationType
 from persistent_terminal_manager import PersistentTerminalManager
@@ -159,7 +160,7 @@ class SessionWarmer(ThreadSafeWorker):
             logger.warning(f"Session pre-warming failed (non-critical): {e}")
 
 
-class MainWindow(LoggingMixin, QMainWindow):
+class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     """Main application window."""
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:

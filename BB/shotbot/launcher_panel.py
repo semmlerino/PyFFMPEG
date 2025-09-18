@@ -19,6 +19,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from qt_widget_mixin import QtWidgetMixin
+from logging_mixin import LoggingMixin
+
 if TYPE_CHECKING:
     from shot_model import Shot
 
@@ -48,7 +51,7 @@ class CheckboxConfig:
     default: bool = False
 
 
-class AppLauncherSection(QWidget):
+class AppLauncherSection(QtWidgetMixin, LoggingMixin, QWidget):
     """Individual app launcher section with grouped options."""
 
     # Signals
@@ -222,7 +225,7 @@ class AppLauncherSection(QWidget):
         return {key: cb.isChecked() for key, cb in self.checkboxes.items()}
 
 
-class LauncherPanel(QWidget):
+class LauncherPanel(QtWidgetMixin, LoggingMixin, QWidget):
     """Improved launcher panel with organized app sections."""
 
     # Signals

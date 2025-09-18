@@ -18,15 +18,13 @@ from PySide6.QtWidgets import (
 from cache_manager import CacheManager, ThumbnailCacheLoader
 from runnable_tracker import get_tracker
 from utils import ImageUtils
+from logging_mixin import LoggingMixin
+from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
     from shot_model import Shot
 
-# Set up logger for this module
-logger = logging.getLogger(__name__)
-
-
-class ShotInfoPanel(QWidget):
+class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
     """Panel displaying current shot information."""
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
@@ -163,13 +161,13 @@ class ShotInfoPanel(QWidget):
     def _load_pixmap_from_path(self, path: str | Path) -> None:
         """Load and display pixmap from path with bounds checking and error handling."""
         if not path:
-            logger.debug("No path provided for thumbnail loading")
+            self.logger.debug("No path provided for thumbnail loading")
             self._set_placeholder_thumbnail()
             return
 
         path_obj = Path(path) if isinstance(path, str) else path
         if not path_obj.exists():
-            logger.debug(f"Thumbnail path does not exist: {path}")
+            self.logger.debug(f"Thumbnail path does not exist: {path}")
             self._set_placeholder_thumbnail()
             return
 
@@ -179,7 +177,7 @@ class ShotInfoPanel(QWidget):
             # Load the image
             pixmap = QPixmap(str(path))
             if pixmap.isNull():
-                logger.debug(f"Failed to load thumbnail: {path}")
+                self.logger.debug(f"Failed to load thumbnail: {path}")
                 self._set_placeholder_thumbnail()
                 return
 
@@ -203,27 +201,27 @@ class ShotInfoPanel(QWidget):
             )
 
             if scaled.isNull():
-                logger.warning(f"Failed to scale thumbnail: {path}")
+                self.logger.warning(f"Failed to scale thumbnail: {path}")
                 self._set_placeholder_thumbnail()
                 return
 
             self.thumbnail_label.setPixmap(scaled)
-            logger.debug(f"Successfully loaded info panel thumbnail: {path}")
+            self.logger.debug(f"Successfully loaded info panel thumbnail: {path}")
 
         except FileNotFoundError:
-            logger.debug(f"Thumbnail file not found: {path}")
+            self.logger.debug(f"Thumbnail file not found: {path}")
             self._set_placeholder_thumbnail()
         except PermissionError:
-            logger.warning(f"Permission denied loading thumbnail: {path}")
+            self.logger.warning(f"Permission denied loading thumbnail: {path}")
             self._set_placeholder_thumbnail()
         except MemoryError:
-            logger.error(f"Out of memory loading thumbnail: {path}")
+            self.logger.error(f"Out of memory loading thumbnail: {path}")
             self._set_placeholder_thumbnail()
         except OSError as e:
-            logger.warning(f"I/O error loading thumbnail {path}: {e}")
+            self.logger.warning(f"I/O error loading thumbnail {path}: {e}")
             self._set_placeholder_thumbnail()
         except Exception as e:
-            logger.exception(f"Unexpected error loading thumbnail {path}: {e}")
+            self.logger.exception(f"Unexpected error loading thumbnail {path}: {e}")
             self._set_placeholder_thumbnail()
         finally:
             # Clean up Qt objects
@@ -294,6 +292,9 @@ class InfoPanelPixmapLoader(QRunnable):
 
     def run(self) -> None:
         """Load pixmap in background thread."""
+        # Use module-level logger since QRunnable can't inherit from LoggingMixin
+        logger = logging.getLogger(__name__)
+
         tracker = get_tracker()
         metadata = {
             "type": "InfoPanelPixmapLoader",

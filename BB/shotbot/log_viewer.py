@@ -4,9 +4,11 @@ from PySide6.QtGui import QFont, QTextCursor
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
 from config import Config
+from qt_widget_mixin import QtWidgetMixin
+from logging_mixin import LoggingMixin
 
 
-class LogViewer(QWidget):
+class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
     """Widget for displaying command execution logs."""
 
     def __init__(self) -> None:

@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from logging_mixin import LoggingMixin
+from qt_widget_mixin import QtWidgetMixin
 from config import Config
 from shot_grid_delegate_refactored import ShotGridDelegate
 from shot_item_model import ShotItemModel, ShotRole
@@ -40,7 +41,7 @@ from thumbnail_widget_base import FolderOpenerWorker
 if TYPE_CHECKING:
     from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
 
-class ShotGridView(LoggingMixin, QWidget):
+class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
     """Optimized grid view for displaying shot thumbnails.
 
     This view provides:

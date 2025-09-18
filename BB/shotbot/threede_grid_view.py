@@ -40,6 +40,8 @@ from PySide6.QtWidgets import (
 from config import Config
 from threede_grid_delegate_refactored import ThreeDEGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
+from qt_widget_mixin import QtWidgetMixin
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QKeyEvent
@@ -92,7 +94,7 @@ def safe_log_info(message: str) -> None:
         _log_recursion_depth -= 1
 
 
-class ThreeDEGridView(QWidget):
+class ThreeDEGridView(QtWidgetMixin, LoggingMixin, QWidget):
     """Optimized grid view for displaying 3DE scene thumbnails.
 
     This view provides:

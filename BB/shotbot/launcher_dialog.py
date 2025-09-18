@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QCloseEvent, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -34,6 +34,7 @@ from launcher.models import (
 )
 from notification_manager import NotificationManager, NotificationType
 from logging_mixin import LoggingMixin
+from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
     from launcher_manager import LauncherManager
@@ -51,7 +52,7 @@ class LauncherListWidget(LoggingMixin, QListWidget):
         self.setObjectName("launcherList")
 
 
-class LauncherPreviewPanel(LoggingMixin, QWidget):
+class LauncherPreviewPanel(QtWidgetMixin, LoggingMixin, QWidget):
     """Preview panel showing launcher details and action buttons."""
 
     # Signals
@@ -151,7 +152,7 @@ class LauncherPreviewPanel(LoggingMixin, QWidget):
             self.delete_requested.emit(self._current_launcher_id)
 
 
-class LauncherEditDialog(LoggingMixin, QDialog):
+class LauncherEditDialog(QtWidgetMixin, LoggingMixin, QDialog):
     """Dialog for creating/editing launchers."""
 
     def __init__(
@@ -172,6 +173,8 @@ class LauncherEditDialog(LoggingMixin, QDialog):
         """Set up the edit dialog UI."""
         self.setWindowTitle("Edit Launcher" if self.is_editing else "New Launcher")
         self.setModal(True)
+        # Setup window geometry management
+        self.setup_window_geometry("launcher_edit_dialog", QSize(600, 500))
         self.setMinimumWidth(600)
 
         layout = QVBoxLayout(self)
@@ -421,7 +424,7 @@ class LauncherEditDialog(LoggingMixin, QDialog):
             NotificationManager.error("Save Error", f"Error saving launcher: {str(e)}")
 
 
-class LauncherManagerDialog(LoggingMixin, QDialog):
+class LauncherManagerDialog(QtWidgetMixin, LoggingMixin, QDialog):
     """Main launcher management dialog."""
 
     def __init__(self, launcher_manager: LauncherManager, parent=None) -> None:
@@ -438,6 +441,8 @@ class LauncherManagerDialog(LoggingMixin, QDialog):
         """Set up the main dialog UI."""
         self.setWindowTitle("Custom Launchers")
         self.setModal(False)
+        # Setup window geometry management
+        self.setup_window_geometry("launcher_manager_dialog", QSize(800, 600))
         self.resize(900, 600)
 
         layout = QVBoxLayout(self)
@@ -768,9 +773,8 @@ class LauncherManagerDialog(LoggingMixin, QDialog):
             else:
                 self.logger.error(f"Failed to launch: {launcher.name}")
 
-    def closeEvent(self, arg__1: QCloseEvent) -> None:
-        """Clean up signal connections on close."""
-        event = arg__1  # Use a more readable name internally
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Clean up signal connections and save window state on close."""
         # Disconnect launcher manager signals
         try:
             self.launcher_manager.launchers_changed.disconnect(self._load_launchers)
@@ -814,4 +818,5 @@ class LauncherManagerDialog(LoggingMixin, QDialog):
         except (RuntimeError, TypeError):
             pass
 
-        event.accept()
+        # Call parent closeEvent to save window geometry
+        super().closeEvent(event)

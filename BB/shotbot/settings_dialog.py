@@ -75,6 +75,8 @@ from PySide6.QtWidgets import (
 )
 
 from config import Config
+from qt_widget_mixin import QtWidgetMixin
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from settings_manager import SettingsManager
@@ -83,7 +85,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class SettingsDialog(QDialog):
+class SettingsDialog(QtWidgetMixin, LoggingMixin, QDialog):
     """Comprehensive settings dialog with tabbed interface."""
 
     # Signals
@@ -111,8 +113,11 @@ class SettingsDialog(QDialog):
 
         self.setWindowTitle("ShotBot Preferences")
         self.setWindowIcon(QIcon())  # TODO: Add proper icon
-        self.resize(700, 600)
         self.setModal(True)
+
+        # Use QtWidgetMixin for window geometry
+        from PySide6.QtCore import QSize
+        self.setup_window_geometry("settings_dialog", QSize(700, 600))
 
         # Setup UI
         self.setup_ui()
@@ -126,7 +131,7 @@ class SettingsDialog(QDialog):
         # Connect signals
         self.connect_signals()
 
-        logger.debug("Settings dialog initialized")
+        self.logger.debug("Settings dialog initialized")
 
     def setup_ui(self) -> None:
         """Setup the user interface."""
@@ -790,7 +795,7 @@ class SettingsDialog(QDialog):
                     launchers = []
                 self.settings_manager.set_custom_launchers(launchers)
         except json.JSONDecodeError:
-            logger.warning("Invalid custom launchers JSON, keeping existing settings")
+            self.logger.warning("Invalid custom launchers JSON, keeping existing settings")
 
         # Advanced settings
         self.settings_manager.set_debug_mode(self.debug_mode_check.isChecked())
@@ -799,4 +804,4 @@ class SettingsDialog(QDialog):
         # Sync settings to disk
         self.settings_manager.sync()
 
-        logger.info("Settings saved successfully")
+        self.logger.info("Settings saved successfully")
