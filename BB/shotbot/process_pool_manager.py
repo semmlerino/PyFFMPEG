@@ -244,7 +244,7 @@ class ProcessPoolManager(QObject):
             self._secure_executor = get_secure_executor()
             self._session_pools: dict[
                 str, list[PersistentBashSession]
-            ] = {}  # Deprecated, kept for compatibility
+            ] = {}
             self._session_round_robin: dict[str, int] = {}  # Track next session to use
             self._session_creation_in_progress: dict[
                 str, bool
@@ -480,126 +480,6 @@ class ProcessPoolManager(QObject):
         except Exception as e:
             logger.error(f"File search failed: {e}")
             return []
-
-    def _get_bash_session_deprecated(self, session_type: str) -> PersistentBashSession:
-        """Get next available bash session from pool using round-robin.
-
-        Creates sessions lazily on first use to avoid conflicts with Qt initialization.
-
-        Args:
-            session_type: Type of session (workspace, general, etc.)
-
-        Returns:
-            PersistentBashSession instance
-        """
-        if DEBUG_VERBOSE:
-            logger.debug(f"Getting bash session for type: {session_type}")
-
-        with self._session_lock:
-            # Initialize pool structure if needed (but don't create sessions yet)
-            if session_type not in self._session_pools:
-                self._session_pools[session_type] = []
-                self._session_round_robin[session_type] = 0
-                self._session_creation_in_progress[session_type] = False
-                logger.info(f"Initialized empty pool for session type: {session_type}")
-                if DEBUG_VERBOSE:
-                    logger.debug("Pool structure created, no sessions yet (lazy init)")
-
-            # Check if another thread is already creating sessions
-            if self._session_creation_in_progress.get(session_type, False):
-                logger.debug(
-                    f"Waiting for another thread to finish creating {session_type} sessions"
-                )
-                # Wait for creation to complete using condition variable (thread-safe)
-                while self._session_creation_in_progress.get(session_type, False):
-                    # This atomically releases the lock and waits, then re-acquires when notified
-                    self._session_condition.wait(timeout=0.1)
-
-            # Get or create sessions as needed
-            pool = self._session_pools[session_type]
-
-            # Create sessions lazily if pool is empty
-            if not pool and not self._session_creation_in_progress.get(
-                session_type, False
-            ):
-                # Mark that we're creating sessions
-                self._session_creation_in_progress[session_type] = True
-
-                try:
-                    logger.info(
-                        f"LAZY INIT: Creating {self._sessions_per_type} sessions for pool type: {session_type}",
-                    )
-                    if DEBUG_VERBOSE:
-                        logger.debug(
-                            f"This is the FIRST use of {session_type} pool - creating sessions now",
-                        )
-
-                    for i in range(self._sessions_per_type):
-                        session_id = f"{session_type}_{i}"
-                        try:
-                            if DEBUG_VERBOSE:
-                                logger.debug(
-                                    f"Creating session {i + 1}/{self._sessions_per_type}: {session_id}",
-                                )
-
-                            # Time session creation
-                            if HAS_DEBUG_UTILS:
-                                with timing_profiler.measure(
-                                    f"create_session_{session_id}",
-                                ):
-                                    session = PersistentBashSession(session_id)
-                            else:
-                                session = PersistentBashSession(session_id)
-
-                            pool.append(session)
-                            logger.info(f"Created session {session_id} in pool")
-
-                            # Delay between creating sessions to avoid resource contention
-                            if i < self._sessions_per_type - 1:
-                                time.sleep(0.3)  # Increased from 0.1 to 0.3
-                                if DEBUG_VERBOSE:
-                                    logger.debug(
-                                        "Pause before creating next session (0.3s)...",
-                                    )
-                        except Exception as e:
-                            logger.error(f"Failed to create session {session_id}: {e}")
-                            # Continue with fewer sessions if some fail
-
-                    if not pool:
-                        raise RuntimeError(
-                            f"Failed to create any sessions for type {session_type}",
-                        )
-                finally:
-                    # Always clear the creation flag and notify waiting threads
-                    self._session_creation_in_progress[session_type] = False
-                    # Notify all threads waiting on this condition
-                    self._session_condition.notify_all()
-
-            # Get next session using round-robin
-            index = self._session_round_robin[session_type]
-            session = pool[index]
-
-            if DEBUG_VERBOSE:
-                logger.debug(
-                    f"Selected session {session.session_id} (index {index}/{len(pool)})",
-                )
-
-            # Update round-robin counter
-            self._session_round_robin[session_type] = (index + 1) % len(pool)
-
-            # Check if session is alive, restart if needed
-            # Access private method safely - this is internal to our module
-            if not session._is_alive():  # type: ignore[reportPrivateUsage]
-                logger.warning(f"Session {session.session_id} dead, restarting")
-                if DEBUG_VERBOSE:
-                    logger.debug(
-                        f"Session {session.session_id} needs restart (process dead)",
-                    )
-                session._start_session()  # type: ignore[reportPrivateUsage]
-            elif DEBUG_VERBOSE:
-                logger.debug(f"Session {session.session_id} is alive and ready")
-
-            return session
 
     def invalidate_cache(self, pattern: str | None = None) -> None:
         """Invalidate command cache.
