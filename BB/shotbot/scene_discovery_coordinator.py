@@ -589,6 +589,8 @@ class RefactoredThreeDESceneFinder:
                     break
 
                 # Find matching shot from user_shots for workspace path
+                # NOTE: matching_shot might be None if this scene is from a shot
+                # that isn't assigned to the current user
                 matching_shot = next(
                     (
                         s
@@ -598,14 +600,20 @@ class RefactoredThreeDESceneFinder:
                     None,
                 )
 
-                # Always create the scene, using matching workspace or constructing one
+                # CRITICAL FIX: Always create the scene, regardless of whether
+                # the shot is assigned to the current user. This ensures we show
+                # ALL 3DE scenes from other users, not just those on assigned shots.
+                # Previously, scenes were incorrectly filtered out if matching_shot was None.
                 if matching_shot:
+                    # User is assigned to this shot - use their workspace path
                     workspace_path = matching_shot.workspace_path
                 else:
-                    # Construct workspace path for non-matching shots
+                    # User is NOT assigned to this shot - construct a valid workspace path
+                    # This allows viewing 3DE work from other users on any shot in the show
                     workspace_path = f"{shows_root}/{show_name}/shots/{seq}/{seq}_{shot}"
 
-                # Create scene for ALL found files, not just matching ones
+                # Create scene for ALL found files from other users
+                # This is the "Other 3DE scenes" tab - it should show everything
                 from threede_scene_model import ThreeDEScene
 
                 scene = ThreeDEScene(
