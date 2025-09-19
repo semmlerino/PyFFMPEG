@@ -636,20 +636,38 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 break
 
             scene_id = f"{scene.show}/{scene.sequence}/{scene.shot}"
-            if scene_id in user_shot_ids:  # Keep scenes FROM user's shots
+
+            # When scan_all_shots=True, keep ALL scenes from other users in the shows
+            # Otherwise, only keep scenes from user's specific shots
+            if self.scan_all_shots:
+                # Keep all scenes from other users in the shows where user works
+                other_scenes.append(scene)
+            elif scene_id in user_shot_ids:
+                # Keep only scenes from user's specific shots
                 other_scenes.append(scene)
 
-        logger.info(
-            f"Found {len(all_scenes)} total scenes using parallel scan, {len(other_scenes)} are from other users on assigned shots",
-        )
+        # Log appropriate message based on scan mode
+        if self.scan_all_shots:
+            logger.info(
+                f"Found {len(all_scenes)} total scenes using parallel scan, keeping all {len(other_scenes)} scenes from other users",
+            )
+        else:
+            logger.info(
+                f"Found {len(all_scenes)} total scenes using parallel scan, {len(other_scenes)} are from other users on assigned shots",
+            )
 
         # Emit final progress update
         if not self.should_stop():
+            if self.scan_all_shots:
+                status_msg = f"Completed: Found {len(other_scenes)} scenes from other users in all shows"
+            else:
+                status_msg = f"Completed: Found {len(other_scenes)} scenes from other users on your shots"
+
             self.progress.emit(
                 len(other_scenes),
                 len(all_scenes),
                 100.0,
-                f"Completed: Found {len(other_scenes)} scenes from other users",
+                status_msg,
                 "",
             )
 
