@@ -8,11 +8,14 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import Callable, Generator
+from typing import TYPE_CHECKING
 
 from config import Config, ThreadingConfig
 from logging_mixin import LoggingMixin
 from shot_model import Shot
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
 
 
 class PreviousShotsFinder(LoggingMixin):

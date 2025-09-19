@@ -56,7 +56,7 @@ class QRunnableTracker:
         logger.debug("QRunnableTracker initialized")
 
     def register(
-        self, runnable: QRunnable, metadata: Optional[dict[str, Any]] = None
+        self, runnable: QRunnable, metadata: dict[str, Any] | None = None
     ) -> None:
         """
         Register a QRunnable for tracking.
@@ -228,7 +228,7 @@ def get_tracker() -> QRunnableTracker:
 
 
 def register_runnable(
-    runnable: QRunnable, metadata: Optional[dict[str, Any]] = None
+    runnable: QRunnable, metadata: dict[str, Any] | None = None
 ) -> None:
     """Convenience function to register a runnable with the global tracker."""
     _tracker_instance.register(runnable, metadata)

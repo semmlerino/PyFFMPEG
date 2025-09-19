@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal
+from PySide6.QtCore import QCoreApplication, QObject, QRunnable, Qt, QThreadPool, Signal
 from PySide6.QtGui import QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -172,12 +172,12 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
             self._set_placeholder_thumbnail()
             return
 
-        pixmap = None
-        scaled = None
+        image = None
+        scaled_image = None
         try:
-            # Load the image
-            pixmap = QPixmap(str(path))
-            if pixmap.isNull():
+            # Load the image using QImage for thread safety
+            image = QImage(str(path))
+            if image.isNull():
                 self.logger.debug(f"Failed to load thumbnail: {path}")
                 self._set_placeholder_thumbnail()
                 return
@@ -186,27 +186,31 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
             from config import Config
 
             if not ImageUtils.validate_image_dimensions(
-                pixmap.width(),
-                pixmap.height(),
+                image.width(),
+                image.height(),
                 max_dimension=Config.MAX_INFO_PANEL_DIMENSION_PX,
             ):
                 self._set_placeholder_thumbnail()
                 return
 
             # Scale to display size
-            scaled = pixmap.scaled(
+            scaled_image = image.scaled(
                 128,
                 128,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
 
-            if scaled.isNull():
+            if scaled_image.isNull():
                 self.logger.warning(f"Failed to scale thumbnail: {path}")
                 self._set_placeholder_thumbnail()
                 return
 
-            self.thumbnail_label.setPixmap(scaled)
+            # Convert to QPixmap only in main thread for display
+            from PySide6.QtCore import QThread
+            if QThread.currentThread() == QCoreApplication.instance().thread():
+                pixmap = QPixmap.fromImage(scaled_image)
+                self.thumbnail_label.setPixmap(pixmap)
             self.logger.debug(f"Successfully loaded info panel thumbnail: {path}")
 
         except FileNotFoundError:
@@ -226,7 +230,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
             self._set_placeholder_thumbnail()
         finally:
             # Clean up Qt objects
-            del pixmap, scaled
+            del image, scaled_image
 
     def _on_thumbnail_cached(
         self,
@@ -246,10 +250,17 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
             self._load_pixmap_async(cache_path)
 
     def _set_placeholder_thumbnail(self) -> None:
-        """Set placeholder thumbnail."""
-        placeholder = QPixmap(128, 128)
-        placeholder.fill(Qt.GlobalColor.transparent)
-        self.thumbnail_label.setPixmap(placeholder)
+        """Set placeholder thumbnail - thread-safe using QImage."""
+        # Use QImage for thread safety instead of QPixmap
+        placeholder_image = QImage(128, 128, QImage.Format.Format_ARGB32)
+        placeholder_image.fill(Qt.GlobalColor.transparent)
+
+        # Convert to QPixmap only when setting on label (main thread only)
+        from PySide6.QtCore import QThread
+        if QThread.currentThread() == QCoreApplication.instance().thread():
+            placeholder = QPixmap.fromImage(placeholder_image)
+            self.thumbnail_label.setPixmap(placeholder)
+
         self.thumbnail_label.setText("No Image")
         self.thumbnail_label.setStyleSheet("""
             QLabel {

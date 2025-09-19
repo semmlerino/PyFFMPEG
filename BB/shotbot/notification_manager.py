@@ -41,7 +41,7 @@ Type Safety:
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import Callable
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QEasingCurve,
@@ -67,6 +67,9 @@ from PySide6.QtWidgets import (
 )
 
 from logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class NotificationType(Enum):

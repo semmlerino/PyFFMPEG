@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Generator
+from typing import TYPE_CHECKING
 
 from filesystem_scanner import DirectoryCache
 
@@ -23,6 +23,8 @@ from filesystem_scanner import DirectoryCache
 from scene_discovery_coordinator import RefactoredThreeDESceneFinder
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
     from shot_model import Shot
 
     # Import ThreeDEScene for type annotations

@@ -8,10 +8,10 @@ Following UNIFIED_TESTING_GUIDE principles:
 """
 
 from pathlib import Path
+from typing import Self
 
 import pytest
 from pytestqt.qtbot import QtBot
-from typing_extensions import Self
 
 from cache_manager import CacheManager
 from config import Config
@@ -505,7 +505,7 @@ class TestMainWindowIntegration:
         # We're testing the integration, not the implementation details
 
         # Mock the workspace directory creation to avoid permission errors
-        def mock_mkdir(self, *args, **kwargs):
+        def mock_mkdir(self, *args, **kwargs) -> None:
             pass  # Don't actually create directories
 
         monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)

@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from threede_scene_model import ThreeDEScene
 
 

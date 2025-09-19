@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from typing_extensions import override
-
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QShortcut
 from PySide6.QtWidgets import (
@@ -27,6 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 from launcher.models import (
     CustomLauncher,

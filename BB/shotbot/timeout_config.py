@@ -82,7 +82,7 @@ class TimeoutConfig:
                 and attr_name.isupper()
             ):
                 value = getattr(cls, attr_name)
-                if isinstance(value, (int, float)):
+                if isinstance(value, int | float):
                     # Don't scale millisecond values directly, they have _MS suffix
                     if attr_name.endswith("_MS"):
                         setattr(cls, attr_name, int(value * factor))

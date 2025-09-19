@@ -7,7 +7,6 @@ This test validates the entire pipeline from ws -sg parsing through
 
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -41,7 +40,7 @@ class MockShot:
         self.full_name = f"{sequence}_{shot}"
 
 
-def extract_shot_from_directory(shot_dir: str, sequence: str) -> Optional[str]:
+def extract_shot_from_directory(shot_dir: str, sequence: str) -> str | None:
     """Extract shot number from directory name using actual implementation logic."""
     if shot_dir.startswith(f"{sequence}_"):
         shot = shot_dir[len(sequence) + 1 :]
@@ -59,7 +58,7 @@ def extract_shot_from_directory(shot_dir: str, sequence: str) -> Optional[str]:
     return shot
 
 
-def parse_ws_sg_line(line: str) -> Optional[MockShot]:
+def parse_ws_sg_line(line: str) -> MockShot | None:
     """Parse a single ws -sg output line."""
     if not line.startswith("workspace"):
         return None
@@ -89,7 +88,7 @@ def parse_ws_sg_line(line: str) -> Optional[MockShot]:
     return MockShot(show, sequence, shot, workspace_path)
 
 
-def parse_3de_file_path(file_path: str) -> Optional[Tuple[str, str, str]]:
+def parse_3de_file_path(file_path: str) -> tuple[str, str, str] | None:
     """Parse a 3DE file path to extract shot information."""
     path = Path(file_path)
 

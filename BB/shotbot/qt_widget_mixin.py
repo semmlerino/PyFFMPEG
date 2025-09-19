@@ -8,7 +8,7 @@ Part of Phase 2 refactoring to eliminate duplicate Qt patterns.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QPoint, QSettings, QSize, Qt, QTimer
 from PySide6.QtWidgets import QMenu, QMessageBox, QWidget
@@ -16,6 +16,8 @@ from PySide6.QtWidgets import QMenu, QMessageBox, QWidget
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from PySide6.QtGui import (
         QCloseEvent,
         QKeyEvent,

@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
@@ -16,6 +16,9 @@ from shot_model import Shot, ShotModel
 
 # Import test double for subprocess
 from tests.test_doubles_library import TestCompletedProcess
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 @pytest.fixture

@@ -10,7 +10,6 @@ This test validates:
 
 import sys
 from pathlib import Path
-from typing import List
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -84,7 +83,7 @@ def test_shot_extraction() -> None:
     print("  All shot extractions passed!")
 
 
-def parse_ws_sg_output(output: str) -> List[Shot]:
+def parse_ws_sg_output(output: str) -> list[Shot]:
     """Parse ws -sg output into Shot objects."""
     shots = []
 

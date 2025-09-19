@@ -46,9 +46,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
-    Callable,
-    Iterator,
     NamedTuple,
     Protocol,
     TypeVar,
@@ -62,6 +61,9 @@ from PySide6.QtCore import (
     QThread,
     Signal,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
 
 # Import project modules
 try:

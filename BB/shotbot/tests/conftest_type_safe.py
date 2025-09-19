@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -34,6 +34,7 @@ from tests.test_type_safe_patterns import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from unittest.mock import Mock
 
 

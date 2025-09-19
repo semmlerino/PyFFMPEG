@@ -8,7 +8,7 @@ and proper resource cleanup.
 import time
 from concurrent.futures import Future
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import QMetaObject, QModelIndex, Qt, QThread

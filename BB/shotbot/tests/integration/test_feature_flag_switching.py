@@ -52,7 +52,7 @@ class TestFeatureFlagSwitching:
         yield
         self.temp_dir.cleanup()
 
-    def test_standard_model_when_flag_not_set(self, qtbot) -> None:
+    def test_standard_model_when_flag_not_set(self, qapp, qtbot) -> None:
         """Test that OptimizedShotModel is used when legacy flag is not set (default behavior)."""
         # Clear environment variable to use default
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
@@ -88,7 +88,7 @@ class TestFeatureFlagSwitching:
                             window._threede_worker.wait(1000)
                     window.close()
 
-    def test_legacy_model_when_flag_set(self, qtbot) -> None:
+    def test_legacy_model_when_flag_set(self, qapp, qtbot) -> None:
         """Test that ShotModel is used when legacy flag is set."""
         # Set environment variable
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
@@ -120,7 +120,7 @@ class TestFeatureFlagSwitching:
             # Clean up environment
             os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
-    def test_flag_values_recognized(self, qtbot) -> None:
+    def test_flag_values_recognized(self, qapp, qtbot) -> None:
         """Test that various flag values are recognized correctly for legacy model."""
         test_cases = [
             ("1", True),  # Use legacy ShotModel
@@ -298,6 +298,8 @@ class TestFeatureFlagSwitching:
                 self.stopped = False
                 self.waited = False
                 self.deleted = False
+                self.request_stop_called = False
+                self.safe_terminated = False
 
             def isRunning(self):
                 return self.is_running
@@ -313,6 +315,17 @@ class TestFeatureFlagSwitching:
             def deleteLater(self) -> None:
                 self.deleted = True
 
+            def request_stop(self) -> bool:
+                """Request the thread to stop gracefully."""
+                self.request_stop_called = True
+                self.is_running = False
+                return True
+
+            def safe_terminate(self) -> None:
+                """Safely terminate the thread."""
+                self.safe_terminated = True
+                self.is_running = False
+
         test_loader = TestAsyncLoader()
         optimized_model._async_loader = test_loader
 
@@ -320,7 +333,7 @@ class TestFeatureFlagSwitching:
         optimized_model.cleanup()
 
         # Verify behavior (not implementation)
-        assert test_loader.stopped, "Loader should be stopped"
+        assert test_loader.request_stop_called, "request_stop should be called"
         assert test_loader.waited, "Should wait for loader to finish"
         assert test_loader.deleted, "Loader should be scheduled for deletion"
 
@@ -363,7 +376,7 @@ class TestMainWindowIntegration:
         self.qtbot = qtbot
         yield
 
-    def test_window_initialization_with_default_model(self, qtbot) -> None:
+    def test_window_initialization_with_default_model(self, qapp, qtbot) -> None:
         """Test that MainWindow initializes correctly with default optimized model."""
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
@@ -396,7 +409,7 @@ class TestMainWindowIntegration:
                             window._threede_worker.wait(1000)
                     window.close()
 
-    def test_window_initialization_with_legacy_model(self, qtbot) -> None:
+    def test_window_initialization_with_legacy_model(self, qapp, qtbot) -> None:
         """Test that MainWindow initializes correctly with legacy model."""
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
@@ -426,7 +439,7 @@ class TestMainWindowIntegration:
         finally:
             os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
-    def test_closeEvent_handles_optimized_model(self, qtbot) -> None:
+    def test_closeEvent_handles_optimized_model(self, qapp, qtbot) -> None:
         """Test that closeEvent properly handles OptimizedShotModel cleanup (default behavior)."""
         # Use default OptimizedShotModel (no environment variable needed)
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)

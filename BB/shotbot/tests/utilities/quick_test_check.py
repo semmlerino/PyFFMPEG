@@ -4,14 +4,13 @@
 import os
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 # Set headless mode
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"
 
 
-def check_test_file(test_path: str, timeout: int = 5) -> Optional[str]:
+def check_test_file(test_path: str, timeout: int = 5) -> str | None:
     """Check if a test file runs successfully."""
     try:
         result = subprocess.run(

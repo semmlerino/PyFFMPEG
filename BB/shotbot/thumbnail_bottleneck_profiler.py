@@ -18,7 +18,7 @@ import pstats
 import re
 import sys
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any
 
 import psutil
 
@@ -55,7 +55,7 @@ class ThumbnailBottleneckProfiler:
         """Get current memory usage in MB."""
         return self.process.memory_info().rss / 1024 / 1024
 
-    def profile_shot_name_extraction_overhead(self) -> Dict[str, Any]:
+    def profile_shot_name_extraction_overhead(self) -> dict[str, Any]:
         """Profile the _parse_shot_from_path() method overhead in detail."""
         logger.info("Profiling shot name extraction overhead...")
 
@@ -73,7 +73,7 @@ class ThumbnailBottleneckProfiler:
         # Test current implementation from previous_shots_finder.py
         shot_pattern = re.compile(r"/shows/([^/]+)/shots/([^/]+)/([^/]+)/")
 
-        def current_parse_implementation(path: str) -> Tuple[str, str, str] | None:
+        def current_parse_implementation(path: str) -> tuple[str, str, str] | None:
             """Current implementation from _parse_shot_from_path."""
             match = shot_pattern.search(path)
             if match:
@@ -151,7 +151,7 @@ class ThumbnailBottleneckProfiler:
             "startup_impact_estimate": f"With 1000 shots: {(current_per_op * 1000) / 1000:.1f}ms vs {(optimized_per_op * 1000) / 1000:.1f}ms",
         }
 
-    def profile_thumbnail_discovery_pipeline(self) -> Dict[str, Any]:
+    def profile_thumbnail_discovery_pipeline(self) -> dict[str, Any]:
         """Profile the utils.find_shot_thumbnail() pipeline in detail."""
         logger.info("Profiling thumbnail discovery pipeline...")
 
@@ -266,7 +266,7 @@ class ThumbnailBottleneckProfiler:
             else "unknown",
         }
 
-    def profile_memory_usage_patterns(self, duration: int = 30) -> Dict[str, Any]:
+    def profile_memory_usage_patterns(self, duration: int = 30) -> dict[str, Any]:
         """Profile memory usage with focus on shot objects and caches."""
         logger.info(f"Profiling memory patterns for {duration} seconds...")
 
@@ -377,7 +377,7 @@ class ThumbnailBottleneckProfiler:
             else 0,
         }
 
-    def profile_ui_responsiveness(self) -> Dict[str, Any]:
+    def profile_ui_responsiveness(self) -> dict[str, Any]:
         """Profile operations that could block the UI thread."""
         logger.info("Profiling UI responsiveness and blocking operations...")
 
@@ -491,8 +491,8 @@ class ThumbnailBottleneckProfiler:
         return len(paths)
 
     def _generate_ui_recommendations(
-        self, blocking_operations: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, blocking_operations: list[dict[str, Any]]
+    ) -> list[str]:
         """Generate UI responsiveness recommendations."""
         recommendations = []
 
@@ -515,7 +515,7 @@ class ThumbnailBottleneckProfiler:
 
         return recommendations
 
-    def run_comprehensive_analysis(self, memory_duration: int = 15) -> Dict[str, Any]:
+    def run_comprehensive_analysis(self, memory_duration: int = 15) -> dict[str, Any]:
         """Run all profiling analyses."""
         logger.info("Starting comprehensive thumbnail bottleneck analysis...")
 
@@ -548,7 +548,7 @@ class ThumbnailBottleneckProfiler:
 
         return results
 
-    def generate_bottleneck_report(self, results: Dict[str, Any]) -> str:
+    def generate_bottleneck_report(self, results: dict[str, Any]) -> str:
         """Generate focused bottleneck analysis report."""
         if not results or "error" in results:
             return f"Profiling failed: {results.get('error', 'Unknown error')}"

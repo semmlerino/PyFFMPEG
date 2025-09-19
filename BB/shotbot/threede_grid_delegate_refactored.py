@@ -7,12 +7,16 @@ functionality from BaseThumbnailDelegate.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QColor
 from typing_extensions import override
 
-from base_thumbnail_delegate import BaseThumbnailDelegate, DelegateTheme
+from base_thumbnail_delegate import (
+    BaseThumbnailDelegate,
+    DelegateTheme,
+    ThumbnailItemData,
+)
 from threede_item_model import ThreeDERole
 
 if TYPE_CHECKING:
@@ -68,7 +72,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
     @override
     def get_item_data(
         self, index: QModelIndex | QPersistentModelIndex
-    ) -> dict[str, Any]:
+    ) -> ThumbnailItemData:
         """Extract 3DE scene data from model index.
 
         Args:

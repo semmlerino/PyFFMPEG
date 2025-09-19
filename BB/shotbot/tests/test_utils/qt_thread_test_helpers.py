@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QCoreApplication, QThread, Signal
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytestqt.qtbot import QtBot
 
 

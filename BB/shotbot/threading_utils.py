@@ -44,9 +44,12 @@ import logging
 import threading
 import time
 import uuid
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from config import ThreadingConfig
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 

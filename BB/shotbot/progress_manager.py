@@ -56,11 +56,13 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Callable, Iterator
+from typing import TYPE_CHECKING
 
 from notification_manager import NotificationManager
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
     from PySide6.QtWidgets import (
         QProgressBar,
         QProgressDialog,

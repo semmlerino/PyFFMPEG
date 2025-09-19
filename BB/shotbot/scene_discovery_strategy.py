@@ -10,7 +10,7 @@ Part of the Phase 2 refactoring to break down the monolithic scene finder.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 
 from filesystem_scanner import FileSystemScanner
 from logging_mixin import LoggingMixin
@@ -18,6 +18,7 @@ from scene_cache import SceneCache
 from scene_parser import SceneParser
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
 
     from threede_scene_model import ThreeDEScene

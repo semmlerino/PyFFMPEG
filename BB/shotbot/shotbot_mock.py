@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 logger.info("🚀 Starting ShotBot in MOCK MODE")
 
 # Check for recreated VFX structure
-from pathlib import Path
+from pathlib import Path  # noqa: E402
 
 MOCK_VFX_PATHS = [
     Path("/tmp/mock_vfx/shows"),
@@ -62,7 +62,7 @@ if not mock_filesystem_found:
     logger.info(f"   SHOWS_ROOT is: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")
 
 # CRITICAL: Use the new dependency injection system BEFORE any app imports
-from process_pool_factory import ProcessPoolFactory
+from process_pool_factory import ProcessPoolFactory  # noqa: E402
 
 # Enable mock mode in the factory
 ProcessPoolFactory.set_mock_mode(True)
@@ -75,7 +75,7 @@ logger.info("✅ Mock mode enabled in ProcessPoolFactory")
 logger.info("Loading ShotBot application...")
 
 # Import the original main function
-from shotbot import main
+from shotbot import main  # noqa: E402
 
 # Run the original main but skip the mock injection part
 # (since we already did it properly)

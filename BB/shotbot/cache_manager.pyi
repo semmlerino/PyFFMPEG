@@ -1,8 +1,8 @@
 """Type stubs for cache_manager module."""
 
 import threading
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from PySide6.QtCore import QObject, QRunnable, Signal
 

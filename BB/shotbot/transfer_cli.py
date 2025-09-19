@@ -13,7 +13,6 @@ import os
 import sys
 import tarfile
 from datetime import datetime
-from typing import List, Tuple
 
 
 class FolderEncoder:
@@ -29,7 +28,7 @@ class FolderEncoder:
         self.chunk_size_kb = chunk_size_kb
         self.verbose = verbose
 
-    def encode_folder(self, folder_path: str) -> Tuple[str, List[str]]:
+    def encode_folder(self, folder_path: str) -> tuple[str, list[str]]:
         """Encode a folder to base64.
 
         Args:
@@ -67,7 +66,7 @@ class FolderEncoder:
 
         return encoded, chunks
 
-    def _split_into_chunks(self, encoded: str, folder_path: str) -> List[str]:
+    def _split_into_chunks(self, encoded: str, folder_path: str) -> list[str]:
         """Split encoded data into chunks.
 
         Args:

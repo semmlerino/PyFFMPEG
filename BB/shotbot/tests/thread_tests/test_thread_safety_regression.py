@@ -14,7 +14,6 @@ from PySide6.QtWidgets import QApplication
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from typing import Optional
 
 from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
@@ -120,7 +119,7 @@ class TestConditionVariableFix:
             except Exception as e:
                 thread_exceptions.append(f"slow_session_creation: {e}")
 
-        def waiting_thread() -> Optional[bool]:
+        def waiting_thread() -> bool | None:
             try:
                 # This thread should wait properly without deadlock
                 with self.manager._session_lock:

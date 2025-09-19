@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import (
     QMutex,
@@ -43,6 +43,8 @@ from exceptions import CacheError, ThumbnailError
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from settings_manager import SettingsManager
     from shot_model import Shot
     from type_definitions import (

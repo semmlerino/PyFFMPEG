@@ -24,9 +24,12 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
-from typing import Any, Callable, Generator, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from typing_extensions import ParamSpec
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
 
 # Type variables for generic decorator
 P = ParamSpec("P")
@@ -199,14 +202,14 @@ def log_execution(
                 for i, arg in enumerate(
                     args[1:] if args and hasattr(args[0], "logger") else args
                 ):
-                    if isinstance(arg, (str, int, float, bool)):
+                    if isinstance(arg, str | int | float | bool):
                         safe_args.append(repr(arg))
                     else:
                         safe_args.append(f"<{type(arg).__name__}>")
 
                 safe_kwargs = {
                     k: repr(v)
-                    if isinstance(v, (str, int, float, bool))
+                    if isinstance(v, str | int | float | bool)
                     else f"<{type(v).__name__}>"
                     for k, v in kwargs.items()
                 }
@@ -233,7 +236,7 @@ def log_execution(
                 # Log success with timing
                 time_str = f"completed in {execution_time:.3f}s"
                 if include_result and result is not None:
-                    if isinstance(result, (str, int, float, bool)):
+                    if isinstance(result, str | int | float | bool):
                         if log_level == logging.DEBUG:
                             logger.debug(f"{func_name} {time_str} -> {repr(result)}")
                         else:

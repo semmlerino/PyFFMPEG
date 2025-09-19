@@ -80,7 +80,7 @@ def test_subprocess():
 class TestMainWindowLauncherIntegration:
     """Test launcher panel integration within MainWindow."""
 
-    def test_launcher_panel_initialization_in_main_window(self, qtbot):
+    def test_launcher_panel_initialization_in_main_window(self, qapp, qtbot) -> None:
         """Test that launcher panel is properly initialized in main window."""
         # We need to patch process pool creation to avoid real VFX dependencies
         with patch(
@@ -103,7 +103,7 @@ class TestMainWindowLauncherIntegration:
             assert window.launcher_panel.app_launch_requested is not None
             assert window.launcher_panel.custom_launcher_requested is not None
 
-    def test_shot_selection_enables_launcher_panel(self, qtbot, make_shot):
+    def test_shot_selection_enables_launcher_panel(self, qtbot, make_shot) -> None:
         """Test that selecting a shot properly enables the launcher panel."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -133,7 +133,7 @@ class TestMainWindowLauncherIntegration:
                 "integration_test/seq01/0100" in window.launcher_panel.info_label.text()
             )
 
-    def test_app_launch_signal_flow_through_main_window(self, qtbot, make_shot):
+    def test_app_launch_signal_flow_through_main_window(self, qtbot, make_shot) -> None:
         """Test complete signal flow from launcher panel through main window."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -151,7 +151,7 @@ class TestMainWindowLauncherIntegration:
             # Mock the actual app launch method to track calls
             launch_calls = []
 
-            def mock_launch_app(app_name):
+            def mock_launch_app(app_name) -> None:
                 launch_calls.append(app_name)
 
             # Patch the main window's app launch method
@@ -168,7 +168,7 @@ class TestMainWindowLauncherIntegration:
                 assert launch_calls[0] == "nuke"
 
     @pytest.mark.slow
-    def test_multiple_app_launches_through_main_window(self, qtbot, make_shot):
+    def test_multiple_app_launches_through_main_window(self, qtbot, make_shot) -> None:
         """Test launching multiple applications through the integrated workflow."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -184,7 +184,7 @@ class TestMainWindowLauncherIntegration:
 
             launch_calls = []
 
-            def mock_launch_app(app_name):
+            def mock_launch_app(app_name) -> None:
                 launch_calls.append(app_name)
 
             with patch.object(window, "_launch_app", side_effect=mock_launch_app):
@@ -201,7 +201,7 @@ class TestMainWindowLauncherIntegration:
                 # Verify all launches were processed
                 assert launch_calls == apps_to_launch
 
-    def test_checkbox_options_passed_through_main_window(self, qtbot, make_shot):
+    def test_checkbox_options_passed_through_main_window(self, qtbot, make_shot) -> None:
         """Test that checkbox options are properly accessed through main window."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -231,7 +231,7 @@ class TestMainWindowLauncherIntegration:
             assert undistortion_enabled is True
             assert raw_plate_enabled is False
 
-    def test_custom_launcher_integration(self, qtbot, make_shot):
+    def test_custom_launcher_integration(self, qtbot, make_shot) -> None:
         """Test custom launcher functionality through main window."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -252,7 +252,7 @@ class TestMainWindowLauncherIntegration:
 
             custom_launch_calls = []
 
-            def mock_execute_custom_launcher(launcher_id):
+            def mock_execute_custom_launcher(launcher_id) -> None:
                 custom_launch_calls.append(launcher_id)
 
             # Mock the custom launcher execution
@@ -282,7 +282,7 @@ class TestEndToEndLauncherWorkflow:
     """Test complete end-to-end launcher workflows."""
 
     @pytest.mark.integration
-    def test_complete_nuke_launch_workflow(self, qtbot, make_shot):
+    def test_complete_nuke_launch_workflow(self, qtbot, make_shot) -> None:
         """Test complete workflow: shot selection -> option configuration -> nuke launch."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -316,7 +316,7 @@ class TestEndToEndLauncherWorkflow:
             # Step 4: Mock the app launch process
             launch_context = {}
 
-            def mock_launch_nuke(app_name):
+            def mock_launch_nuke(app_name) -> None:
                 launch_context["app"] = app_name
                 launch_context["shot"] = window.launcher_panel._current_shot
                 launch_context["undistortion"] = (
@@ -340,7 +340,7 @@ class TestEndToEndLauncherWorkflow:
                 assert launch_context["raw_plate"] is True
 
     @pytest.mark.integration
-    def test_3de_launch_with_scene_options(self, qtbot, make_shot):
+    def test_3de_launch_with_scene_options(self, qtbot, make_shot) -> None:
         """Test 3DE launch workflow with scene opening option."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -360,7 +360,7 @@ class TestEndToEndLauncherWorkflow:
 
             launch_context = {}
 
-            def mock_launch_3de(app_name):
+            def mock_launch_3de(app_name) -> None:
                 launch_context["app"] = app_name
                 launch_context["shot"] = window.launcher_panel._current_shot
                 launch_context["open_latest"] = (
@@ -380,7 +380,7 @@ class TestEndToEndLauncherWorkflow:
                 assert launch_context["open_latest"] is True
 
     @pytest.mark.integration
-    def test_launcher_panel_state_persistence(self, qtbot, make_shot):
+    def test_launcher_panel_state_persistence(self, qtbot, make_shot) -> None:
         """Test that launcher panel maintains state correctly during shot changes."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -413,7 +413,7 @@ class TestEndToEndLauncherWorkflow:
             assert nuke_section.checkboxes["include_undistortion"].isChecked() is True
 
     @pytest.mark.slow
-    def test_rapid_shot_switching_stability(self, qtbot, make_shot):
+    def test_rapid_shot_switching_stability(self, qtbot, make_shot) -> None:
         """Test launcher panel stability during rapid shot switching."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -456,7 +456,7 @@ class TestEndToEndLauncherWorkflow:
 class TestLauncherIntegrationErrorHandling:
     """Test error handling in integrated launcher scenarios."""
 
-    def test_main_window_without_shot_model(self, qtbot):
+    def test_main_window_without_shot_model(self, qapp, qtbot) -> None:
         """Test launcher panel behavior when shot model is not available."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -471,7 +471,7 @@ class TestLauncherIntegrationErrorHandling:
             assert window.launcher_panel is not None
             assert len(window.launcher_panel.app_sections) > 0
 
-    def test_launcher_panel_with_invalid_shot_data(self, qtbot):
+    def test_launcher_panel_with_invalid_shot_data(self, qapp, qtbot) -> None:
         """Test launcher panel behavior with invalid shot data."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -490,7 +490,7 @@ class TestLauncherIntegrationErrorHandling:
             except Exception as e:
                 pytest.fail(f"Launcher panel crashed with None shot: {e}")
 
-    def test_signal_disconnection_handling(self, qtbot, make_shot):
+    def test_signal_disconnection_handling(self, qtbot, make_shot) -> None:
         """Test that launcher panel handles signal disconnection gracefully."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"

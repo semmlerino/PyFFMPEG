@@ -16,9 +16,12 @@ import sys
 import time
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any
 
 from logging_mixin import LoggingMixin, get_module_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # Module-level logger for static methods
 logger = get_module_logger(__name__)

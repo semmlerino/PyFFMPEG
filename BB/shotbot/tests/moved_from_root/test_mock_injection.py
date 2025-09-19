@@ -11,7 +11,7 @@ print("Testing mock injection...")
 print("=" * 50)
 
 # Import test doubles first
-from tests.test_doubles_library import TestProcessPool
+from tests.test_doubles_library import TestProcessPool  # noqa: E402
 
 # Create mock pool
 mock_pool = TestProcessPool()
@@ -21,13 +21,13 @@ mock_pool.set_outputs(
 )
 
 # Now inject it BEFORE importing ProcessPoolManager
-import process_pool_manager
+import process_pool_manager  # noqa: E402
 
 process_pool_manager.ProcessPoolManager._instance = mock_pool
 print("✅ Mock pool injected")
 
 # Now test that it works
-from process_pool_manager import ProcessPoolManager
+from process_pool_manager import ProcessPoolManager  # noqa: E402
 
 pool = ProcessPoolManager.get_instance()
 
@@ -41,7 +41,7 @@ except Exception as e:
     sys.exit(1)
 
 # Now test with ShotModel
-from shot_model import ShotModel
+from shot_model import ShotModel  # noqa: E402
 
 model = ShotModel(load_cache=False)
 

@@ -101,13 +101,13 @@ class UnifiedCacheConfig(LoggingMixin, QObject):
         """
         if setting_key == "performance/max_cache_memory_mb":
             # Type narrowing for numeric values from QSettings
-            if isinstance(new_value, (int, float, str)):
+            if isinstance(new_value, int | float | str):
                 self.logger.info(f"Cache memory limit changed to {new_value}MB")
                 self.memory_limit_changed.emit(int(new_value))
                 self.config_updated.emit()
         elif setting_key == "performance/cache_expiry_minutes":
             # Type narrowing for numeric values from QSettings
-            if isinstance(new_value, (int, float, str)):
+            if isinstance(new_value, int | float | str):
                 self.logger.info(f"Cache expiry time changed to {new_value} minutes")
                 self.expiry_time_changed.emit(int(new_value))
                 self.config_updated.emit()

@@ -14,12 +14,13 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, QSize, Signal
 from PySide6.QtGui import QColor, QImage
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 

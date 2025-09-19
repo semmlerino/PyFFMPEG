@@ -10,7 +10,7 @@ Part of the Phase 2 refactoring to break down the monolithic scene finder.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Generator
+from typing import TYPE_CHECKING
 
 from filesystem_scanner import FileSystemScanner
 from logging_mixin import LoggingMixin, log_execution
@@ -21,6 +21,8 @@ from scene_discovery_strategy import (
 from scene_parser import SceneParser
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
@@ -551,8 +553,8 @@ class RefactoredThreeDESceneFinder:
         SceneParser()
 
         # Import necessary modules for parallel processing
-        from concurrent.futures import ThreadPoolExecutor, as_completed
         import threading
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         # Create a thread-safe lock for appending results
         results_lock = threading.Lock()

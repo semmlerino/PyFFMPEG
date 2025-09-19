@@ -48,6 +48,7 @@ class ThumbnailItemData(TypedDict, total=False):
     name: str  # Required - item name
     show: str  # Optional - show name
     sequence: str  # Optional - sequence name
+    shot: str  # Optional - shot name
     thumbnail: QPixmap | None  # thumbnail image
     loading_state: str  # Loading state string
     is_selected: bool  # Selection state

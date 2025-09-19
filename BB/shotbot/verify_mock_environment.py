@@ -10,7 +10,6 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import DefaultDict
 
 # Set up environment
 os.environ["SHOTBOT_MOCK"] = "1"
@@ -35,7 +34,7 @@ def test_mock_pool() -> int:
     logger.info(f"✅ Mock pool loaded {len(shots)} shots from filesystem")
 
     # Analyze shots by show
-    by_show: DefaultDict[str, list[tuple[str, str]]] = defaultdict(list)
+    by_show: defaultdict[str, list[tuple[str, str]]] = defaultdict(list)
     for shot_line in shots:
         if "workspace /shows/" in shot_line:
             parts = shot_line.split("/")
@@ -50,7 +49,7 @@ def test_mock_pool() -> int:
         logger.info(f"  📺 {show}: {len(shot_list)} shots")
 
         # Group by sequence
-        by_seq: DefaultDict[str, list[str]] = defaultdict(list)
+        by_seq: defaultdict[str, list[str]] = defaultdict(list)
         for seq, shot in shot_list:
             by_seq[seq].append(shot)
 
@@ -88,8 +87,8 @@ def test_shot_model() -> int:
         logger.info(f"✅ ShotModel loaded {len(shot_model.shots)} shots")
 
         # Analyze loaded shots
-        by_show: DefaultDict[str, int] = defaultdict(int)
-        by_seq: DefaultDict[str, int] = defaultdict(int)
+        by_show: defaultdict[str, int] = defaultdict(int)
+        by_seq: defaultdict[str, int] = defaultdict(int)
 
         for shot in shot_model.shots:
             by_show[shot.show] += 1

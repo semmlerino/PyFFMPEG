@@ -11,7 +11,7 @@ Enhanced patterns implemented throughout the test suite:
 - Cartesian product replacements for nested loops
 """
 
-from typing import Any, List, Tuple
+from typing import Any
 
 import pytest
 
@@ -146,7 +146,7 @@ class TestParametrizationPatterns:
         pass
 
     # 7. Cartesian product replacement pattern
-    def generate_test_combinations(self) -> List[Tuple[str, str, str]]:
+    def generate_test_combinations(self) -> list[tuple[str, str, str]]:
         """Generate test combinations programmatically instead of nested loops."""
         shows = ["show1", "show2", "show3"]
         sequences = ["seq01", "seq02"]

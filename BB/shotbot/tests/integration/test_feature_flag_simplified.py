@@ -173,6 +173,12 @@ class TestFeatureFlagBehavior:
                 self.requestInterruption()
                 self._running = False
 
+            def request_stop(self) -> None:
+                """Request the thread to stop - matches actual AsyncShotLoader interface."""
+                self.stop_called = True
+                self.requestInterruption()
+                self._running = False
+
             def wait(self, timeout=None) -> bool:
                 self.wait_called = True
                 self._running = False

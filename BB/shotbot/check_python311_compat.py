@@ -4,10 +4,9 @@
 import ast
 import sys
 from pathlib import Path
-from typing import List
 
 
-def check_file_syntax(filepath: Path) -> List[str]:
+def check_file_syntax(filepath: Path) -> list[str]:
     """Check a Python file for Python 3.11 compatibility issues."""
     issues = []
 

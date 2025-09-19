@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 # Use typing_extensions for override (available in venv)
@@ -14,6 +13,8 @@ from base_shot_model import BaseShotModel
 from type_definitions import RefreshResult
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from cache_manager import CacheManager
     from process_pool_manager import ProcessPoolManager
     from type_definitions import PerformanceMetricsDict, ShotDict
@@ -80,7 +81,7 @@ class Shot:
         """
         # Return cached result if we've already searched
         if self._cached_thumbnail_path is not _NOT_SEARCHED:
-            return cast(Path | None, self._cached_thumbnail_path)
+            return cast("Path | None", self._cached_thumbnail_path)
 
         # Use the unified thumbnail discovery method
         thumbnail = PathUtils.find_shot_thumbnail(  # type: ignore[attr-defined]

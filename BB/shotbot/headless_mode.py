@@ -10,13 +10,15 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import ParamSpec, TypeVar
 
 from logging_mixin import LoggingMixin, get_module_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from PySide6.QtWidgets import QApplication
 
 # Module-level logger for static methods

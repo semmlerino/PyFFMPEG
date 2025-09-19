@@ -25,7 +25,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 from typing_extensions import TypedDict
 
@@ -74,7 +74,7 @@ def get_workspace_shots() -> tuple[list[str], list[str]]:
 
 def scan_directory(
     path: Path, base_path: Path, max_depth: int = 10, current_depth: int = 0
-) -> Dict[str, Any] | None:
+) -> dict[str, Any] | None:
     """Recursively scan directory structure.
 
     Returns dict with:
@@ -181,7 +181,7 @@ def scan_directory(
         }
 
 
-def capture_structure(shows: List[str] | None = None) -> StructureDict:
+def capture_structure(shows: list[str] | None = None) -> StructureDict:
     """Capture the VFX filesystem structure."""
 
     print("Capturing VFX filesystem structure...", file=sys.stderr)
@@ -273,7 +273,7 @@ def main() -> None:
     # Capture structure
     structure = capture_structure(args.shows)
     # Cast to dict for proper access
-    structure_dict = cast("Dict[str, Any]", structure)
+    structure_dict = cast("dict[str, Any]", structure)
 
     # Output as JSON
     output = json.dumps(structure_dict, indent=2, sort_keys=True)
@@ -309,7 +309,7 @@ def main() -> None:
     total_dirs = 0
     total_files = 0
 
-    def count_items(node: Dict[str, Any]) -> None:
+    def count_items(node: dict[str, Any]) -> None:
         nonlocal total_dirs, total_files
         if node["type"] == "dir":
             total_dirs += 1

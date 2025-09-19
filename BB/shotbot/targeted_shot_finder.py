@@ -13,10 +13,13 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Callable, Generator
+from typing import TYPE_CHECKING
 
 from config import Config, ThreadingConfig
 from shot_model import Shot
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
 
 logger = logging.getLogger(__name__)
 

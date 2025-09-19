@@ -22,13 +22,14 @@ from typing_extensions import override
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
-    from process_pool_manager import ProcessPoolManager
+    from process_pool_factory import ProcessPoolInterface
     from type_definitions import PerformanceMetricsDict
 
 from base_shot_model import BaseShotModel
 from logging_mixin import LoggingMixin
-from shot_model import RefreshResult, Shot
+from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
+from type_definitions import RefreshResult
 
 
 class AsyncShotLoader(LoggingMixin, ThreadSafeWorker):
@@ -47,7 +48,7 @@ class AsyncShotLoader(LoggingMixin, ThreadSafeWorker):
 
     def __init__(
         self,
-        process_pool: ProcessPoolManager,
+        process_pool: ProcessPoolInterface,
         parse_function: Any = None,
         parent: Any = None,
     ) -> None:
@@ -298,6 +299,7 @@ class OptimizedShotModel(BaseShotModel):
         # Emit signal outside lock to avoid potential deadlock
         self.background_load_finished.emit()
 
+    @override
     def load_shots(self) -> RefreshResult:
         """Load shots using async strategy.
 
@@ -306,6 +308,7 @@ class OptimizedShotModel(BaseShotModel):
         """
         return self.initialize_async()
 
+    @override
     def refresh_strategy(self) -> RefreshResult:
         """Override to use async strategy if no shots loaded yet."""
         # Check loading state with lock held

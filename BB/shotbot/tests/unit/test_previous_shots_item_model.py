@@ -19,11 +19,9 @@ from shot_model import Shot
 def model(qtbot):
     """Create a PreviousShotsItemModel instance for testing."""
     from previous_shots_model import PreviousShotsModel
-    from shot_model import ShotModel
 
     # Create mocks for the dependencies
     cache_manager = Mock(spec=CacheManager)
-    shot_model = Mock(spec=ShotModel)
 
     # Create the PreviousShotsModel
     previous_shots_model = Mock(spec=PreviousShotsModel)

@@ -26,7 +26,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from PySide6.QtCore import QCoreApplication, QTimer
@@ -39,6 +39,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import test doubles library for proper test double patterns
 from tests.test_doubles_library import TestProcessPool
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # =============================================================================
 # Factory Fixtures (UNIFIED_TESTING_GUIDE Best Practice)
@@ -1074,12 +1077,11 @@ def mock_gui_blocking_components(monkeypatch):
     )
 
     # Also patch it at the module level for direct imports
-    import threading
-
-    import process_pool_manager
 
     # Create MockProcessPoolManager with required class attributes
     from PySide6.QtCore import QMutex
+
+    import process_pool_manager
     MockProcessPoolManagerClass = type(
         "MockProcessPoolManager",
         (),

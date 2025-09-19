@@ -32,8 +32,6 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Iterator,
     NamedTuple,
     Protocol,
     TypeVar,
@@ -46,6 +44,8 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
     from PySide6.QtGui import QPixmap
 
     from cache_manager import CacheManager

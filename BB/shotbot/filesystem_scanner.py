@@ -14,9 +14,12 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
 
 from logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 class DirectoryCache(LoggingMixin):

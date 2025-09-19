@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import (
     QAbstractListModel,
@@ -30,6 +30,7 @@ from typing_extensions import override
 from cache_manager import CacheManager
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel

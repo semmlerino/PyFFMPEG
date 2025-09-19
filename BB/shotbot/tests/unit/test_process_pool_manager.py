@@ -18,9 +18,9 @@ from __future__ import annotations
 import threading
 import time
 from pathlib import Path
+from typing import Self
 
 import pytest
-from typing_extensions import Self
 
 from process_pool_manager import (
     CommandCache,

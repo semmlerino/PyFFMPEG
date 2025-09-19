@@ -26,13 +26,15 @@ Usage:
 from __future__ import annotations
 
 import weakref
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Qt, Signal
 
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from PySide6.QtCore import SignalInstance
 
 

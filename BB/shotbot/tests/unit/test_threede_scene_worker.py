@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
 
 import pytest
 from PySide6.QtTest import QSignalSpy
@@ -25,6 +25,9 @@ from shot_model import Shot
 # Test doubles for behavior testing
 from threede_scene_model import ThreeDEScene
 from threede_scene_worker import ProgressCalculator, ThreeDESceneWorker
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 

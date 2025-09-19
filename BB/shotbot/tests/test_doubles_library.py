@@ -26,14 +26,18 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtGui import QColor, QImage
 
 # Import types for type annotations
-from cache.failure_tracker import FailureTracker
-from cache.thumbnail_processor import ThumbnailProcessor
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from cache.failure_tracker import FailureTracker
+    from cache.thumbnail_processor import ThumbnailProcessor
 
 # =============================================================================
 # SUBPROCESS TEST DOUBLES

@@ -23,11 +23,14 @@ import logging
 import traceback
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Generator, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from typing_extensions import ParamSpec
 
 from logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
 
 # Type variables for generic functions
 P = ParamSpec("P")
