@@ -550,33 +550,41 @@ class RefactoredThreeDESceneFinder:
         scanner = FileSystemScanner()
         SceneParser()
 
-        # Process each show
-        for idx, show in enumerate(shows):
+        # Import necessary modules for parallel processing
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import threading
+
+        # Create a thread-safe lock for appending results
+        results_lock = threading.Lock()
+        shows_completed = 0
+
+        def process_show(show: str) -> list[ThreeDEScene]:
+            """Process a single show and return its scenes."""
+            show_scenes = []
+
             # Check cancellation
             if cancel_flag and cancel_flag():
-                break
-
-            # Progress update
-            if progress_callback:
-                progress_callback(
-                    int((idx / len(shows)) * 100), f"Processing show {show}..."
-                )
+                return show_scenes
 
             # Find .3de files in the show
             show_path = Path(shows_root) / show
             if not show_path.exists():
-                continue
+                return show_scenes
 
             # Use the scanner to find 3DE files
-            file_tuples = scanner.find_all_3de_files_in_show_targeted(
-                shows_root, show, excluded_users
-            )
+            try:
+                file_tuples = scanner.find_all_3de_files_in_show_targeted(
+                    shows_root, show, excluded_users
+                )
+            except Exception as e:
+                print(f"Error scanning show {show}: {e}")
+                return show_scenes
 
             # Convert file tuples to ThreeDEScene objects
             for scene_path, show_name, seq, shot, user, plate in file_tuples:
                 # Check cancellation during processing
                 if cancel_flag and cancel_flag():
-                    return all_scenes
+                    break
 
                 # Find matching shot from user_shots for workspace path
                 matching_shot = next(
@@ -600,7 +608,43 @@ class RefactoredThreeDESceneFinder:
                         plate=plate,
                         scene_path=scene_path,
                     )
-                    all_scenes.append(scene)
+                    show_scenes.append(scene)
+
+            return show_scenes
+
+        # Process shows in parallel using ThreadPoolExecutor
+        max_workers = min(len(shows), 3)  # Limit to 3 parallel searches for network filesystem
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all show processing tasks
+            future_to_show = {executor.submit(process_show, show): show for show in shows}
+
+            # Process completed futures as they finish
+            for future in as_completed(future_to_show):
+                show = future_to_show[future]
+
+                # Check cancellation
+                if cancel_flag and cancel_flag():
+                    # Cancel remaining futures
+                    for f in future_to_show:
+                        f.cancel()
+                    break
+
+                try:
+                    show_scenes = future.result()
+                    with results_lock:
+                        all_scenes.extend(show_scenes)
+                        shows_completed += 1
+
+                        # Progress update
+                        if progress_callback:
+                            progress_callback(
+                                int((shows_completed / len(shows)) * 100),
+                                f"Completed {show}: found {len(show_scenes)} scenes"
+                            )
+
+                except Exception as e:
+                    print(f"Error processing show {show}: {e}")
+                    shows_completed += 1
 
         # Final progress update
         if progress_callback:

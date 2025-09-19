@@ -630,11 +630,22 @@ class FileSystemScanner(LoggingMixin):
         try:
             self.logger.info("Using single-search strategy to find all .3de files")
 
-            # Build find command to search only in user and publish directories
-            # This avoids checking every shot directory
+            # Build optimized find command for network filesystems
+            # Use -prune to skip directories we don't need, reducing network traversal
             find_cmd = [
                 "find",
                 str(shots_dir),
+                # Prune directories that definitely won't have 3DE files
+                "(",
+                "-path", "*/render", "-o",
+                "-path", "*/comp", "-o",
+                "-path", "*/output", "-o",
+                "-path", "*/cache", "-o",
+                "-path", "*/tmp", "-o",
+                "-path", "*/temp", "-o",
+                "-path", "*/backup",
+                ")", "-prune", "-o",
+                # Look for .3de files in user and publish directories
                 "-type",
                 "f",
                 "(",
@@ -657,12 +668,12 @@ class FileSystemScanner(LoggingMixin):
             self.logger.debug(f"Running find command: {' '.join(find_cmd)}")
 
             try:
-                # Run find command with timeout
+                # Run find command with longer timeout for network filesystems
                 result = subprocess.run(
                     find_cmd,
                     capture_output=True,
                     text=True,
-                    timeout=60,  # 60 second timeout
+                    timeout=120,  # 120 second timeout for large network directories
                 )
 
                 if result.returncode == 0 and result.stdout:
