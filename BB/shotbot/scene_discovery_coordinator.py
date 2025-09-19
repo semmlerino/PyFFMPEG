@@ -598,19 +598,26 @@ class RefactoredThreeDESceneFinder:
                     None,
                 )
 
+                # Always create the scene, using matching workspace or constructing one
                 if matching_shot:
-                    from threede_scene_model import ThreeDEScene
+                    workspace_path = matching_shot.workspace_path
+                else:
+                    # Construct workspace path for non-matching shots
+                    workspace_path = f"{shows_root}/{show_name}/shots/{seq}/{seq}_{shot}"
 
-                    scene = ThreeDEScene(
-                        show=show_name,
-                        sequence=seq,
-                        shot=shot,
-                        workspace_path=matching_shot.workspace_path,
-                        user=user,
-                        plate=plate,
-                        scene_path=scene_path,
-                    )
-                    show_scenes.append(scene)
+                # Create scene for ALL found files, not just matching ones
+                from threede_scene_model import ThreeDEScene
+
+                scene = ThreeDEScene(
+                    show=show_name,
+                    sequence=seq,
+                    shot=shot,
+                    workspace_path=workspace_path,
+                    user=user,
+                    plate=plate,
+                    scene_path=scene_path,
+                )
+                show_scenes.append(scene)
 
             return show_scenes
 
