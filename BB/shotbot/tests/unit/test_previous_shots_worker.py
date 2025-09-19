@@ -391,7 +391,9 @@ class TestPreviousShotsWorkerIntegration:
                     # Use VFX naming convention: {seq}_{shot}
                     shot_num = f"{shot_idx:03d}"
                     shot_dir_name = f"{seq_name}_{shot_num}"
-                    shot_path = shows_root / show_name / "shots" / seq_name / shot_dir_name
+                    shot_path = (
+                        shows_root / show_name / "shots" / seq_name / shot_dir_name
+                    )
 
                     # Some shots have user work
                     if shot_idx % 2 == 0:  # Even shots have user work

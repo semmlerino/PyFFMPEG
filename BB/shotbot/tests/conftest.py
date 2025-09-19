@@ -1079,12 +1079,13 @@ def mock_gui_blocking_components(monkeypatch):
     import process_pool_manager
 
     # Create MockProcessPoolManager with required class attributes
+    from PySide6.QtCore import QMutex
     MockProcessPoolManagerClass = type(
         "MockProcessPoolManager",
         (),
         {
             "get_instance": staticmethod(lambda: test_pool),
-            "_lock": threading.Lock(),  # Required class attribute for singleton pattern
+            "_lock": QMutex(),  # Required class attribute for singleton pattern - must be QMutex for QMutexLocker
         },
     )
 

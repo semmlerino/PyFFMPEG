@@ -151,26 +151,39 @@ class TestApplicationLaunchingNoHang:
 
         # Verify the shot was correctly set
         assert main_window.command_launcher.current_shot == shot
-        assert main_window.command_launcher.current_shot.workspace_path == workspace_path
+        assert (
+            main_window.command_launcher.current_shot.workspace_path == workspace_path
+        )
 
         return main_window, shot
 
-    def test_launch_app_with_selected_shot(self, safe_window_with_shot, monkeypatch, tmp_path) -> None:
+    def test_launch_app_with_selected_shot(
+        self, safe_window_with_shot, monkeypatch, tmp_path
+    ) -> None:
         """Test launching an application with a selected shot."""
         main_window, shot = safe_window_with_shot
 
         # Mock the NukeWorkspaceManager to avoid creating directories
-        from nuke_workspace_manager import NukeWorkspaceManager
-        from pathlib import Path
 
-        def mock_get_workspace_script_directory(workspace_path, user=None, plate="mm-default", pass_name="PL01"):
+        from nuke_workspace_manager import NukeWorkspaceManager
+
+        def mock_get_workspace_script_directory(
+            workspace_path, user=None, plate="mm-default", pass_name="PL01"
+        ):
             # Return a temp directory that exists
             script_dir = tmp_path / "nuke_scripts"
             script_dir.mkdir(parents=True, exist_ok=True)
             return script_dir
 
-        monkeypatch.setattr(NukeWorkspaceManager, 'get_workspace_script_directory',
-                          classmethod(lambda cls, *args, **kwargs: mock_get_workspace_script_directory(*args, **kwargs)))
+        monkeypatch.setattr(
+            NukeWorkspaceManager,
+            "get_workspace_script_directory",
+            classmethod(
+                lambda cls, *args, **kwargs: mock_get_workspace_script_directory(
+                    *args, **kwargs
+                )
+            ),
+        )
 
         # Replace command launcher's subprocess execution with test double
         executed_commands = []
@@ -219,7 +232,9 @@ class TestApplicationLaunchingNoHang:
 
         # No shot selected - buttons should be disabled
         assert "nuke" in main_window.launcher_panel.app_sections
-        assert not main_window.launcher_panel.app_sections["nuke"].launch_button.isEnabled()
+        assert not main_window.launcher_panel.app_sections[
+            "nuke"
+        ].launch_button.isEnabled()
 
         # Try to launch without shot - button is disabled so can't be clicked
         # This is the correct behavior - UI prevents invalid operations

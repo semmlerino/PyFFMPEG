@@ -19,8 +19,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import QObject, QSize, Qt, Signal
-from PySide6.QtGui import QResizeEvent
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtTest import QSignalSpy, QTest
 
 from cache_manager import CacheManager
@@ -35,7 +34,6 @@ from tests.test_doubles_library import (
     TestCacheManager,
     TestProgressManager,
 )
-from thumbnail_widget import ThumbnailWidget
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
@@ -229,7 +227,10 @@ class TestPreviousShotsView:
         qtbot.waitUntil(lambda: grid_widget.list_view.isVisible(), timeout=500)
 
         # Wait for model to update (QueuedConnection needs event loop processing)
-        qtbot.waitUntil(lambda: grid_widget._model and grid_widget._model.rowCount() == 3, timeout=1000)
+        qtbot.waitUntil(
+            lambda: grid_widget._model and grid_widget._model.rowCount() == 3,
+            timeout=1000,
+        )
 
         # Status should show shot count
         qtbot.waitUntil(lambda: "3" in grid_widget._status_label.text(), timeout=1000)
@@ -241,7 +242,10 @@ class TestPreviousShotsView:
         test_model.set_shots([shot])
 
         # Wait for model to have data
-        qtbot.waitUntil(lambda: grid_widget._model and grid_widget._model.rowCount() > 0, timeout=500)
+        qtbot.waitUntil(
+            lambda: grid_widget._model and grid_widget._model.rowCount() > 0,
+            timeout=500,
+        )
 
         # Set up signal spy on grid's shot_selected signal
         shot_selected_spy = QSignalSpy(grid_widget.shot_selected)
@@ -249,6 +253,7 @@ class TestPreviousShotsView:
         # Simulate click on item by calling the handler directly
         # (In Model/View, we don't have direct widget access)
         from PySide6.QtCore import QModelIndex
+
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
         grid_widget._on_item_clicked(index)
 
@@ -263,13 +268,17 @@ class TestPreviousShotsView:
         test_model.set_shots([shot1, shot2])
 
         # Wait for model population
-        qtbot.waitUntil(lambda: grid_widget._model and grid_widget._model.rowCount() == 2, timeout=500)
+        qtbot.waitUntil(
+            lambda: grid_widget._model and grid_widget._model.rowCount() == 2,
+            timeout=500,
+        )
 
         # Set up signal spy
         shot_selected_spy = QSignalSpy(grid_widget.shot_selected)
 
         # Simulate shot selection using model index
         from PySide6.QtCore import QModelIndex
+
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
         grid_widget._on_item_clicked(index)
 
@@ -284,13 +293,17 @@ class TestPreviousShotsView:
         test_model.set_shots([shot])
 
         # Wait for model to have data
-        qtbot.waitUntil(lambda: grid_widget._model and grid_widget._model.rowCount() > 0, timeout=500)
+        qtbot.waitUntil(
+            lambda: grid_widget._model and grid_widget._model.rowCount() > 0,
+            timeout=500,
+        )
 
         # Set up signal spy
         shot_double_clicked_spy = QSignalSpy(grid_widget.shot_double_clicked)
 
         # Simulate double-click using model index
         from PySide6.QtCore import QModelIndex
+
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
         grid_widget._on_item_double_clicked(index)
 
@@ -302,13 +315,19 @@ class TestPreviousShotsView:
         """Test clearing grid widgets properly."""
         # Add shots
         test_model.set_shots(create_test_shots(2))
-        qtbot.waitUntil(lambda: grid_widget._model and grid_widget._model.rowCount() == 2, timeout=1000)
+        qtbot.waitUntil(
+            lambda: grid_widget._model and grid_widget._model.rowCount() == 2,
+            timeout=1000,
+        )
 
         # Clear model
         test_model.set_shots([])
 
         # Wait for model to clear (QueuedConnection needs event loop processing)
-        qtbot.waitUntil(lambda: grid_widget._model and grid_widget._model.rowCount() == 0, timeout=1000)
+        qtbot.waitUntil(
+            lambda: grid_widget._model and grid_widget._model.rowCount() == 0,
+            timeout=1000,
+        )
 
         # Selection should be reset
         assert grid_widget.selected_shot is None
@@ -322,7 +341,9 @@ class TestPreviousShotsView:
         """
         # Skip test - Model/View implementation handles resize differently
         # The list view automatically handles resize without custom reflow logic
-        pytest.skip("Model/View implementation uses QListView's built-in resize handling")
+        pytest.skip(
+            "Model/View implementation uses QListView's built-in resize handling"
+        )
 
     def test_grid_column_calculation(self, grid_widget, test_model, qtbot) -> None:
         """Test that grid columns are calculated correctly based on width."""
@@ -333,7 +354,10 @@ class TestPreviousShotsView:
         test_model.set_shots(create_test_shots(6))
 
         # Wait for model population
-        qtbot.waitUntil(lambda: grid_widget._model and grid_widget._model.rowCount() == 6, timeout=500)
+        qtbot.waitUntil(
+            lambda: grid_widget._model and grid_widget._model.rowCount() == 6,
+            timeout=500,
+        )
 
         # Calculate expected columns based on widget width
         available_width = grid_widget.width()
@@ -344,7 +368,9 @@ class TestPreviousShotsView:
         # Verify layout (Model/View manages layout automatically)
         assert expected_columns > 0
         # List view in icon mode automatically arranges items based on size
-        assert grid_widget.list_view.viewMode() == grid_widget.list_view.ViewMode.IconMode
+        assert (
+            grid_widget.list_view.viewMode() == grid_widget.list_view.ViewMode.IconMode
+        )
 
     def test_refresh_method_delegation(self, grid_widget, test_model) -> None:
         """Test that refresh method delegates to model."""
@@ -372,10 +398,14 @@ class TestPreviousShotsView:
         test_model.set_shots([shot])
 
         # Wait for model to update
-        qtbot.waitUntil(lambda: grid_widget._model and grid_widget._model.rowCount() == 1, timeout=1000)
+        qtbot.waitUntil(
+            lambda: grid_widget._model and grid_widget._model.rowCount() == 1,
+            timeout=1000,
+        )
 
         # Select the shot through the proper API
         from PySide6.QtCore import QModelIndex
+
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
         grid_widget._on_item_clicked(index)
 

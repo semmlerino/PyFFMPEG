@@ -27,7 +27,7 @@ def capture_screenshot() -> None:
         return
 
     # Get the main window
-    windows = app.topLevelWidgets()
+    windows = QApplication.topLevelWidgets()
     main_window = None
     for window in windows:
         if isinstance(window, MainWindow):

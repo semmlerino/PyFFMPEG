@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from typing_extensions import override
+
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QShortcut
 from PySide6.QtWidgets import (
@@ -771,7 +773,8 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: igno
             else:
                 self.logger.error(f"Failed to launch: {launcher.name}")
 
-    def closeEvent(self, event: QCloseEvent) -> None:
+    @override
+    def closeEvent(self, event: QCloseEvent) -> None:  # type: ignore[override]
         """Clean up signal connections and save window state on close."""
         # Disconnect launcher manager signals
         try:

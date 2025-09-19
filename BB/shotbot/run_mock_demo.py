@@ -93,7 +93,7 @@ if __name__ == "__main__":
         try:
             import PySide6
 
-            print(f"✅ PySide6 {PySide6.__version__} is installed")
+            print(f"✅ PySide6 {PySide6.__version__} is installed")  # type: ignore[attr-defined]
         except ImportError:
             print("⚠️  PySide6 not found - GUI won't work, but mock mode is configured")
             print("   Install with: pip install PySide6")

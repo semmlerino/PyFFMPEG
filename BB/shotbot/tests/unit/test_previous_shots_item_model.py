@@ -4,12 +4,10 @@ Tests the thread safety improvements and resource management
 in the PreviousShotsItemModel class.
 """
 
-import time
-from concurrent.futures import Future
 from unittest.mock import Mock
 
 import pytest
-from PySide6.QtCore import QMetaObject, Qt, QThread, QMutexLocker
+from PySide6.QtCore import QMutexLocker, Qt
 from PySide6.QtGui import QImage
 
 from cache_manager import CacheManager
@@ -37,8 +35,7 @@ def model(qtbot):
 
     # Create the item model with required arguments
     model = PreviousShotsItemModel(
-        previous_shots_model=previous_shots_model,
-        cache_manager=cache_manager
+        previous_shots_model=previous_shots_model, cache_manager=cache_manager
     )
     # Models are not widgets, don't add to qtbot
     return model
@@ -131,15 +128,21 @@ class TestPreviousShotsThreadSafety:
 
     def test_concurrent_thumbnail_loading(self, model, test_shots, qtbot) -> None:
         """Test concurrent thumbnail loading callbacks."""
-        pytest.skip("PreviousShotsItemModel doesn't have async thumbnail loading (_on_thumbnail_loaded, _load_thumbnail_async)")
+        pytest.skip(
+            "PreviousShotsItemModel doesn't have async thumbnail loading (_on_thumbnail_loaded, _load_thumbnail_async)"
+        )
 
     def test_cleanup_method(self, model, test_shots) -> None:
         """Test cleanup() properly releases resources."""
-        pytest.skip("PreviousShotsItemModel doesn't have cleanup() method or _thumbnail_timer - simpler implementation without async loading")
+        pytest.skip(
+            "PreviousShotsItemModel doesn't have cleanup() method or _thumbnail_timer - simpler implementation without async loading"
+        )
 
     def test_reset_while_loading(self, model, test_shots, qtbot) -> None:
         """Test model reset during active thumbnail loading."""
-        pytest.skip("PreviousShotsItemModel doesn't have update_visible_range() - simpler implementation without async loading")
+        pytest.skip(
+            "PreviousShotsItemModel doesn't have update_visible_range() - simpler implementation without async loading"
+        )
 
     def test_data_roles_thread_safety(self, model, test_shots) -> None:
         """Test data() method with various roles."""
@@ -167,7 +170,9 @@ class TestPreviousShotsThreadSafety:
             data = model.data(index, role)
             # Should not crash or raise exceptions
             if role == Qt.ItemDataRole.DisplayRole:
-                assert data == shot.full_name  # PreviousShotsItemModel returns full_name for DisplayRole
+                assert (
+                    data == shot.full_name
+                )  # PreviousShotsItemModel returns full_name for DisplayRole
             elif role == ShotRole.ShotObjectRole:
                 assert data == shot
             elif role == ShotRole.FullNameRole:
@@ -181,15 +186,21 @@ class TestPreviousShotsThreadSafety:
 
     def test_selection_during_updates(self, model, test_shots) -> None:
         """Test selection changes during model updates."""
-        pytest.skip("PreviousShotsItemModel doesn't have set_selected_index() or _selected_index - uses _selected_shot instead")
+        pytest.skip(
+            "PreviousShotsItemModel doesn't have set_selected_index() or _selected_index - uses _selected_shot instead"
+        )
 
     def test_visible_range_updates(self, model, test_shots) -> None:
         """Test visible range boundary conditions."""
-        pytest.skip("PreviousShotsItemModel doesn't have update_visible_range() - uses simpler implementation")
+        pytest.skip(
+            "PreviousShotsItemModel doesn't have update_visible_range() - uses simpler implementation"
+        )
 
     def test_timer_lifecycle(self, model, test_shots) -> None:
         """Test thumbnail timer management."""
-        pytest.skip("PreviousShotsItemModel doesn't have _thumbnail_timer - simpler implementation without async loading")
+        pytest.skip(
+            "PreviousShotsItemModel doesn't have _thumbnail_timer - simpler implementation without async loading"
+        )
 
     def test_rapid_scene_changes(self, model, test_shots, qtbot) -> None:
         """Test rapid shot list changes."""

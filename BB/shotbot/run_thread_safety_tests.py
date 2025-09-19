@@ -19,10 +19,11 @@ import sys
 import unittest
 from pathlib import Path
 
-# Ensure we can import from the current directory
+# Ensure we can import from the current directory and tests directory
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / "tests" / "moved_from_root"))
 
-from test_thread_safety_validation import (
+from test_thread_safety_validation import (  # type: ignore[import-not-found]
     ThreadSafetyValidationTests,
     run_validation_tests,
 )

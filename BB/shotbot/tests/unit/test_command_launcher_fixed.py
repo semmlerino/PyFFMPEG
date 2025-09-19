@@ -109,7 +109,9 @@ class TestCommandLauncherCore:
         # Assert: Test behavior, not implementation
         assert result is True
         # Filter for actual commands only (ones starting with "ws")
-        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        actual_commands = [
+            cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")
+        ]
         assert len(actual_commands) == 1
         assert len(self.emitted_errors) == 0
 
@@ -177,7 +179,9 @@ class TestCommandLauncherCore:
         # Assert: Test behavior
         assert all(results), "All launches should succeed"
         # Filter for actual commands only (ones starting with "ws")
-        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        actual_commands = [
+            cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")
+        ]
         assert len(actual_commands) == 3
         assert len(self.emitted_errors) == 0
 
@@ -210,7 +214,9 @@ class TestCommandLauncherCore:
             # Assert: Test behavior
             assert result is True, f"Failed with path: {path}"
             # Filter for actual commands only (ones starting with "ws")
-            actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+            actual_commands = [
+                cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")
+            ]
             assert len(actual_commands) == 1
             assert path in actual_commands[0][1]
 

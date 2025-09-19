@@ -75,6 +75,17 @@ class ContextualLogger:
         """Log exception message with context."""
         self._logger.exception(self._format_message(msg), *args, **kwargs)
 
+    def isEnabledFor(self, level: int) -> bool:
+        """Check if the logger is enabled for the specified level.
+
+        Args:
+            level: The logging level to check (e.g., logging.DEBUG)
+
+        Returns:
+            True if the logger will process messages at this level
+        """
+        return self._logger.isEnabledFor(level)
+
     @contextmanager
     def context(self, **kwargs: str) -> Generator[None, None, None]:
         """Add structured context to all log messages within this block.

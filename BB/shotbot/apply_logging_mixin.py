@@ -176,7 +176,7 @@ def apply_logging_mixin(file_path: Path) -> bool:
         return False
 
 
-def main():
+def main() -> int:
     """Apply LoggingMixin to all eligible Python files."""
 
     # Get list of files with old pattern

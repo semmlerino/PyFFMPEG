@@ -84,11 +84,13 @@ class TestThreeDESceneFinderBasics:
     """Test basic ThreeDESceneFinder functionality."""
 
     def test_class_attributes(self) -> None:
-        """Test ThreeDESceneFinder has expected class attributes."""
-        assert hasattr(ThreeDESceneFinder, "_BG_FG_PATTERN")
-        assert hasattr(ThreeDESceneFinder, "_PLATE_PATTERNS")
-        assert hasattr(ThreeDESceneFinder, "_GENERIC_DIRS")
-        assert hasattr(ThreeDESceneFinder, "EXCLUDED_DIRS")
+        """Test ThreeDESceneFinder has expected class attributes after refactoring."""
+        # After refactoring, these patterns are in SceneParser, not ThreeDESceneFinder
+        # ThreeDESceneFinder now has cache-related attributes
+        assert hasattr(ThreeDESceneFinder, "_dir_cache")
+        assert hasattr(ThreeDESceneFinder, "get_cache_stats")
+        assert hasattr(ThreeDESceneFinder, "clear_cache")
+        assert hasattr(ThreeDESceneFinder, "refresh_cache")
 
     def test_static_methods_exist(self) -> None:
         """Test that expected static methods exist."""
@@ -96,6 +98,7 @@ class TestThreeDESceneFinderBasics:
         assert hasattr(ThreeDESceneFinder, "extract_plate_from_path")
         assert hasattr(ThreeDESceneFinder, "verify_scene_exists")
         assert hasattr(ThreeDESceneFinder, "quick_3de_exists_check_optimized")
+        assert hasattr(ThreeDESceneFinder, "find_all_scenes_in_shows_truly_efficient")
 
     def test_extract_plate_from_path(self, temp_vfx_structure) -> None:
         """Test extracting plate name from path."""

@@ -549,7 +549,7 @@ class ShotItemModel(LoggingMixin, QAbstractListModel):
         index = self.index(row, 0)
         self._load_cached_pixmap(cached_path, row, shot, index)
 
-    @Slot(int, object)
+    @Slot(int, object)  # type: ignore[arg-type]
     def _on_thumbnail_cache_failed_safe(self, row: int, shot: Shot) -> None:
         """Handle thumbnail cache failure on main thread."""
         self._loading_states[shot.full_name] = "failed"

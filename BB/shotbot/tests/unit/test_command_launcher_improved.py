@@ -80,7 +80,9 @@ class TestCommandLauncherImproved:
         # Assert: Test BEHAVIOR, not mocks
         assert result is True  # Launch succeeded
         # Filter out informational messages, only count actual commands (ones starting with "ws")
-        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        actual_commands = [
+            cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")
+        ]
         assert len(actual_commands) == 1  # Command was executed
         timestamp, command = actual_commands[0]  # Unpack timestamp and command
         assert "nuke" in command  # Correct app launched
@@ -103,7 +105,9 @@ class TestCommandLauncherImproved:
         timestamp, error = self.emitted_errors[0]  # Unpack timestamp and error
         assert "Failed to launch" in error  # Correct error message
         # Command is still logged before the failure - filter for actual commands
-        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        actual_commands = [
+            cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")
+        ]
         assert len(actual_commands) == 1  # Command logged before error
 
     def test_launch_without_shot_behavior(self) -> None:
@@ -136,7 +140,9 @@ class TestCommandLauncherImproved:
 
         # Assert: Test that commands were logged (behavior we care about)
         # Filter for actual commands only
-        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        actual_commands = [
+            cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")
+        ]
         assert len(actual_commands) == 3  # All commands logged
         # Extract just the command part (second element) from each tuple
         apps_launched = [cmd[1] for cmd in actual_commands]
@@ -165,7 +171,9 @@ class TestCommandLauncherImproved:
 
         # Assert: Test workspace path in command BEHAVIOR
         # Filter for actual commands only
-        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        actual_commands = [
+            cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")
+        ]
         assert len(actual_commands) == 1
         timestamp, command = actual_commands[0]  # Unpack timestamp and command
         assert "/shows/project_x/seq99/0420" in command  # Workspace path included
@@ -194,7 +202,9 @@ class TestCommandLauncherImproved:
 
         # Assert: Test workspace change BEHAVIOR
         # Filter for actual commands only
-        actual_commands = [cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")]
+        actual_commands = [
+            cmd for cmd in self.emitted_commands if cmd[1].startswith("ws")
+        ]
         assert len(actual_commands) == 2
         # Check workspace paths in the commands (second element of tuple)
         assert "/shows/show1" in actual_commands[0][1]  # First command

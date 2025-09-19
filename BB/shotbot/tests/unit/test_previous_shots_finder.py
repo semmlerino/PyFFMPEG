@@ -189,7 +189,10 @@ class TestPreviousShotsFinder:
             assert shot.sequence == sequence
             assert shot.shot == shot_name
             # VFX convention: workspace path includes full directory name with sequence prefix
-            assert f"/shows/{show}/shots/{sequence}/{sequence}_{shot_name}" in shot.workspace_path
+            assert (
+                f"/shows/{show}/shots/{sequence}/{sequence}_{shot_name}"
+                in shot.workspace_path
+            )
 
     def test_find_user_shots_with_real_structure(
         self, finder, real_shows_structure

@@ -3,8 +3,8 @@
 line-length = 88
 indent-width = 4
 
-# Python version
-target-version = "py38"
+# Python version (matches actual requirement: Python 3.11+)
+target-version = "py311"
 
 # Exclude common directories
 exclude = [
@@ -13,6 +13,7 @@ exclude = [
     "__pycache__",
     "venv",
     ".venv",
+    "venv_py311",
     "test_venv",
     "archived",
     "copy",
@@ -54,8 +55,8 @@ docstring-code-format = true
 # Use recommended mode for better type safety with basedpyright improvements
 typeCheckingMode = "recommended"
 
-# Python version (match actual usage)
-pythonVersion = "3.12"
+# Python version (matches minimum requirement: Python 3.11+)
+pythonVersion = "3.11"
 
 # Virtual environment
 venvPath = "."

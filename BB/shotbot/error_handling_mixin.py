@@ -210,9 +210,7 @@ class ErrorHandlingMixin(LoggingMixin):
                 self.logger.debug(f"{operation_name} debug: {e}")
 
             # Include traceback for error level
-            if log_level >= logging.ERROR and self.logger.logger.isEnabledFor(
-                logging.DEBUG
-            ):  # type: ignore[attr-defined]
+            if log_level >= logging.ERROR and self.logger.isEnabledFor(logging.DEBUG):
                 self.logger.debug(f"Traceback:\n{traceback.format_exc()}")
 
             if reraise:
