@@ -427,13 +427,14 @@ def cache_isolation():
 # =============================================================================
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def qapp():
     """Create QApplication instance for the entire test session.
 
     This ensures proper Qt event loop for signal processing.
+    Note: Uses session scope to ensure single app instance.
     """
-    app = QCoreApplication.instance()
+    app = QApplication.instance()
     if app is None:
         app = QApplication([])
     yield app

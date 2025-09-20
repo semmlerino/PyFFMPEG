@@ -64,7 +64,7 @@ class TestAsyncWorkflowIntegration:
         return shots
 
     @pytest.fixture
-    def integration_components(self, qtbot, temp_setup):
+    def integration_components(self, qapp, qtbot, temp_setup):
         """Create integrated components for testing."""
         tmp_path, _ = temp_setup
 
