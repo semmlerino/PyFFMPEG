@@ -84,6 +84,7 @@ class ProgressOperationDouble:
         self.operations.append(("finish",))
 
 
+@pytest.mark.gui_mainwindow
 class TestUserWorkflows:
     """Integration tests for critical user workflows in ShotBot.
 

@@ -63,7 +63,7 @@ class TestPreviousShotsModel:
         return TestCacheManager()
 
     @pytest.fixture
-    def test_shot_model(self) -> FakeShotModel:
+    def test_shot_model(self, qtbot) -> FakeShotModel:
         """Create test double ShotModel with real Qt signals."""
         model = FakeShotModel()
         model.set_shots(
@@ -72,7 +72,10 @@ class TestPreviousShotsModel:
                 create_test_shot("show1", "seq1", "shot2"),
             ]
         )
-        return model
+        yield model
+        # Manual cleanup for QObject
+        if hasattr(model, 'deleteLater'):
+            model.deleteLater()
 
     @pytest.fixture
     def test_finder(self) -> FakePreviousShotsFinder:
@@ -85,11 +88,11 @@ class TestPreviousShotsModel:
         return finder
 
     @pytest.fixture
-    def model(self, test_shot_model, test_cache_manager) -> PreviousShotsModel:
+    def model(self, test_shot_model, test_cache_manager, qtbot) -> PreviousShotsModel:
         """Create PreviousShotsModel instance with test doubles.
 
         Following UNIFIED_TESTING_GUIDE:
-        - Don't use qtbot.addWidget() for QObject
+        - Manual cleanup for QObject (not a QWidget)
         - Use test doubles with predictable behavior
         """
         model = PreviousShotsModel(
@@ -102,7 +105,7 @@ class TestPreviousShotsModel:
 
     @pytest.fixture
     def model_with_real_cache(
-        self, test_shot_model, real_cache_manager
+        self, test_shot_model, real_cache_manager, qtbot
     ) -> PreviousShotsModel:
         """Create model with real cache for integration tests."""
         model = PreviousShotsModel(

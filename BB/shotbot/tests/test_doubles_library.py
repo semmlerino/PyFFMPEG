@@ -503,6 +503,30 @@ class TestCacheManager(QObject):
         cache_key = f"{show}_{sequence}_{shot}"
         return self._cached_thumbnails.get(cache_key)
 
+    def load_thumbnail_async(
+        self, path: str | Path, size: tuple[int, int], callback: Callable
+    ) -> Any:
+        """Load a thumbnail asynchronously (test double)."""
+        # For tests, just create a simple image and call the callback
+        from concurrent.futures import Future
+        from PySide6.QtGui import QImage
+        from PySide6.QtCore import Qt
+
+        future = Future()
+
+        # Create a test image
+        test_image = QImage(size[0], size[1], QImage.Format.Format_RGB32)
+        test_image.fill(Qt.GlobalColor.blue)
+
+        # Call the callback synchronously in test mode
+        try:
+            callback(str(path), test_image)
+            future.set_result(test_image)
+        except Exception as e:
+            future.set_exception(e)
+
+        return future
+
     def cache_shots(self, shots: list[TestShot | dict[str, str]]) -> bool:
         """Cache shot data."""
         self._cached_shots.clear()
@@ -1108,8 +1132,9 @@ class SignalDouble:
         for callback in self.callbacks:
             callback(*args)
 
-    def connect(self, callback: Callable) -> None:
-        """Connect a callback."""
+    def connect(self, callback: Callable, connection_type: Any = None) -> None:
+        """Connect a callback with optional Qt connection type."""
+        # Connection type is ignored in test double but accepted for API compatibility
         self.callbacks.append(callback)
 
     def disconnect(self, callback: Callable | None = None) -> None:

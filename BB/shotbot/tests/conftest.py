@@ -1135,3 +1135,41 @@ def mock_gui_blocking_components(monkeypatch):
 
     # Store reference for tests that need to access it
     return test_pool
+
+
+# =============================================================================
+# pytest-xdist Configuration for Concurrent Test Execution
+# =============================================================================
+
+
+def pytest_collection_modifyitems(items):
+    """Configure test execution for parallel runs with pytest-xdist.
+
+    This hook ensures that tests which create MainWindow instances run in a
+    single worker to avoid Qt threading crashes and resource conflicts.
+
+    The gui_mainwindow marker groups these tests together so they execute
+    serially within one worker process while other tests run in parallel.
+    """
+    for item in items:
+        # Mark all MainWindow tests to run in same xdist group
+        if "gui_mainwindow" in item.keywords:
+            item.add_marker(pytest.mark.xdist_group("gui_mainwindow"))
+
+        # Also group tests that use real QApplication fixtures
+        if any(
+            fixture in item.fixturenames
+            for fixture in ["qapp", "qtbot", "qt_signal_blocker"]
+        ):
+            # If it's an integration test with MainWindow, use gui_mainwindow group
+            if "integration" in str(item.fspath) and "MainWindow" in item.name:
+                item.add_marker(pytest.mark.xdist_group("gui_mainwindow"))
+
+
+def pytest_configure(config):
+    """Configure pytest with custom markers and settings for concurrent execution."""
+    # Register the xdist_group marker if not already registered
+    config.addinivalue_line(
+        "markers",
+        "xdist_group(name): Mark tests to run in same xdist worker (for pytest-xdist)",
+    )

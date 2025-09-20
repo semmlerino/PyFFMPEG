@@ -40,6 +40,7 @@ class ExtendedTestCacheManager(TestCacheManager):
         self.clear_cache()
 
 
+@pytest.mark.gui_mainwindow
 class TestFeatureFlagSwitching:
     """Test feature flag switching between shot model implementations."""
 

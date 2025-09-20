@@ -77,6 +77,7 @@ def test_subprocess():
 # =============================================================================
 
 
+@pytest.mark.gui_mainwindow
 class TestMainWindowLauncherIntegration:
     """Test launcher panel integration within MainWindow."""
 
@@ -278,6 +279,7 @@ class TestMainWindowLauncherIntegration:
 # =============================================================================
 
 
+@pytest.mark.gui_mainwindow
 class TestEndToEndLauncherWorkflow:
     """Test complete end-to-end launcher workflows."""
 
@@ -453,6 +455,7 @@ class TestEndToEndLauncherWorkflow:
 # =============================================================================
 
 
+@pytest.mark.gui_mainwindow
 class TestLauncherIntegrationErrorHandling:
     """Test error handling in integrated launcher scenarios."""
 

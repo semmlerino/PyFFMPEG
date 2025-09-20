@@ -98,9 +98,10 @@ class TestPreviousShotsView:
     def test_model(self, qtbot) -> FakePreviousShotsModel:
         """Create test double PreviousShotsModel with real Qt signals."""
         model = FakePreviousShotsModel()
-        # Don't use qtbot.addWidget() for QObject (not QWidget)
-        # Model will be cleaned up via Python garbage collection
-        return model
+        # Ensure cleanup on test end
+        yield model
+        # Manual cleanup
+        model.deleteLater()
 
     @pytest.fixture
     def test_cache_manager(self) -> TestCacheManager:
@@ -116,13 +117,15 @@ class TestPreviousShotsView:
     def grid_widget(self, test_model, test_cache_manager, qtbot) -> PreviousShotsView:
         """Create PreviousShotsView widget with Model/View architecture."""
         # Create the item model wrapper for the previous shots model
-        item_model = PreviousShotsItemModel(test_model)
+        item_model = PreviousShotsItemModel(test_model, cache_manager=test_cache_manager)
         # Create the view with the model
         view = PreviousShotsView(model=item_model)
         qtbot.addWidget(view)  # Proper - this IS a QWidget
         view.show()
         qtbot.waitExposed(view)  # Wait for widget to be visible
-        return view
+        yield view
+        # Cleanup the item model manually
+        item_model.deleteLater()
 
     def test_grid_initialization(
         self, grid_widget, test_model, test_cache_manager

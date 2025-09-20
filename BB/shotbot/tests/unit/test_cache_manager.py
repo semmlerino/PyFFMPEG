@@ -249,14 +249,22 @@ class TestCacheManager:
             expected_thumb = (
                 temp_cache_dir / "thumbnails" / "test" / "seq1" / "0010_thumb.jpg"
             )
-            # Give background thread time to complete
-            import time
 
-            time.sleep(0.1)
+            # Wait for background thread to complete file creation (max 1 second)
+            # Following UNIFIED_TESTING_GUIDE: Use polling wait instead of time.sleep()
+            max_wait_time = 1.0
+            poll_interval = 0.01
+            elapsed_time = 0.0
+
+            while elapsed_time < max_wait_time:
+                if expected_thumb.exists():
+                    break
+                time.sleep(poll_interval)  # Small polling interval
+                elapsed_time += poll_interval
+
             # Check that thumbnail file was actually created (behavior, not mock call)
-            # Note: In threaded context, file may not exist immediately
             assert expected_thumb.exists(), (
-                f"Thumbnail file should be created at {expected_thumb}"
+                f"Thumbnail file should be created at {expected_thumb} within {max_wait_time}s"
             )
 
     def test_get_cached_thumbnail(self, cache_manager, temp_cache_dir) -> None:
@@ -403,25 +411,27 @@ class TestCacheManager:
 
         test_shots = [Shot("show1", "seq1", "0010", "/path1")]
 
-        # Cache first time
-        cache_manager.cache_shots(test_shots)
+        # Mock datetime to control timestamps
+        # Following UNIFIED_TESTING_GUIDE: Use mocks only at system boundaries (time)
+        base_time = datetime.now()
+        with patch("cache_manager.datetime") as mock_datetime:
+            # First cache operation at base time
+            mock_datetime.now.return_value = base_time
+            cache_manager.cache_shots(test_shots)
 
-        # Read timestamp from file
-        cache_file = cache_manager.shots_cache_file
-        data1 = json.loads(cache_file.read_text())
-        first_timestamp = datetime.fromisoformat(data1["timestamp"])
+            # Read timestamp from file
+            cache_file = cache_manager.shots_cache_file
+            data1 = json.loads(cache_file.read_text())
+            first_timestamp = datetime.fromisoformat(data1["timestamp"])
 
-        # Small delay to ensure different timestamp
+            # Second cache operation 1 second later
+            mock_datetime.now.return_value = base_time + timedelta(seconds=1)
+            cache_manager.cache_shots(test_shots)
+            data2 = json.loads(cache_file.read_text())
+            second_timestamp = datetime.fromisoformat(data2["timestamp"])
 
-        time.sleep(0.01)
-
-        # Cache again
-        cache_manager.cache_shots(test_shots)
-        data2 = json.loads(cache_file.read_text())
-        second_timestamp = datetime.fromisoformat(data2["timestamp"])
-
-        # Timestamp should be updated
-        assert second_timestamp > first_timestamp
+            # Timestamp should be updated
+            assert second_timestamp > first_timestamp
 
 
 class TestCacheManagerIntegration:

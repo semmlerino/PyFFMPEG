@@ -5,12 +5,29 @@
 
 ### What Are You Testing? (Decision Tree)
 ```
-IF testing Qt widget → Jump to "Qt Widget Pattern" (line 75)
-ELIF testing worker thread → Jump to "Worker Thread Pattern" (line 91)  
-ELIF testing 'ws' command → Jump to "TestProcessPoolManager" (line 124)
-ELIF testing cache → Jump to "Cache Testing" (line 170)
-ELIF testing signals → Jump to "Signal Testing" (line 110)
-ELSE → Check Quick Lookup Table (line 268)
+IF testing Qt widget → See "Qt Widget Pattern"
+ELIF testing worker thread → See "Worker Thread Pattern"
+ELIF testing 'ws' command → See "TestProcessPoolManager Pattern"
+ELIF testing cache → See "Cache Testing Pattern"
+ELIF testing signals → See "Signal Testing Pattern"
+ELIF testing async/conditions → See "Modern pytest-qt Features"
+ELIF testing models → See "Model Testing"
+ELIF testing custom QApplication → See "Custom QApplication Testing"
+ELIF testing Qt logging → See "Qt Logging Integration"
+ELIF testing dialogs → See "Dialog Testing"
+ELIF need CI/headless → See "CI/CD & Headless Testing"
+ELSE → Check Quick Lookup Table
+```
+
+### Waiting Method Decision Tree
+```
+Signal emission → qtbot.waitSignal()
+Condition met → qtbot.waitUntil()
+Callback execution → qtbot.waitCallback()
+Fixed delay → qtbot.wait()
+No signal expected → qtbot.assertNotEmitted()
+Widget visible → qtbot.waitExposed()
+Multiple signals → qtbot.waitSignals()
 ```
 
 ### Most Common Pattern (Copy & Paste)
@@ -107,18 +124,31 @@ def test_worker(qtbot):
         worker.wait(1000)
 ```
 
-### Signal Testing Pattern
+### Modern Qt Testing Patterns
 ```python
-# Modern parameter checking (NEW)
-def check_value(val):
-    return val > 100
-
-with qtbot.waitSignal(signal, check_params_cb=check_value):
+# Signal testing with parameter validation
+with qtbot.waitSignal(signal, check_params_cb=lambda v: v > 100):
     trigger_action()
 
-# Negative testing with wait (NEW)
+# Wait for condition instead of signal
+qtbot.waitUntil(lambda: widget.isReady(), timeout=2000)
+
+# Capture Qt exceptions
+with qtbot.captureExceptions() as exceptions:
+    widget.trigger_error()
+
+# Wait for callbacks (QWebEngine)
+with qtbot.waitCallback() as cb:
+    page.runJavaScript("1 + 1", cb)
+    cb.assert_called_with(2)
+
+# Assert signal NOT emitted
 with qtbot.assertNotEmitted(signal, wait=100):
     other_action()
+
+# Multiple signals with order
+with qtbot.waitSignals([sig1, sig2], order='strict'):
+    trigger_sequential()
 ```
 
 ### TestProcessPoolManager Pattern ('ws' Command)
@@ -139,33 +169,17 @@ def test_shot_refresh():
     assert model.shots[0].shot == "0010"  # Parser extracts shot number
 ```
 
-### Parametrization Patterns (Modern)
+### Parametrization & Fixtures
 ```python
-# Basic parametrization
 @pytest.mark.parametrize("input,expected", [
     (1, 2),
-    (3, 4),
-])
-
-# With marks (NEW)
-@pytest.mark.parametrize("count,expected", [
-    (10, True),
     pytest.param(1000, True, marks=pytest.mark.slow),
 ])
-
-# Indirect fixture parametrization (NEW)
 @pytest.mark.parametrize("db", ["mysql", "pg"], indirect=True)
-```
+def test_with_params(input, expected, db): ...
 
-### Fixture Scope Optimization (NEW)
-```python
-@pytest.fixture(scope="session")  # Expensive, reuse
-def heavy_resource():
-    return ExpensiveSetup()
-
-@pytest.fixture(scope="function")  # Default, isolated
-def test_data():
-    return {"key": "value"}
+@pytest.fixture(scope="session")  # Reuse expensive resources
+def heavy_resource(): return ExpensiveSetup()
 ```
 
 ### Cache Testing Pattern
@@ -189,18 +203,36 @@ def test_shot_workflow():
     # Use real components with test doubles at boundaries
     model = ShotModel()
     cache = CacheManager(tmp_path / "cache")
-    
+
     # Only mock the 'ws' command (system boundary)
     model._process_pool = TestProcessPoolManager()
     model._process_pool.set_outputs("workspace /shows/TEST/shots/seq01/seq01_0010")
-    
+
     # Test real behavior
     result = model.refresh_shots()
     shots = model.get_shots()
-    
+
     assert result.success
     assert len(shots) == 1
     assert shots[0].shot == "0010"
+```
+
+### CI/CD & Headless Testing
+```python
+# Headless configuration
+@pytest.fixture(scope="session")
+def qapp_args():
+    if os.environ.get("CI"):
+        return ["-platform", "offscreen"]
+    return []
+
+# Essential environment variables
+export DISPLAY=:99
+export QT_QPA_PLATFORM=offscreen
+
+# Install pytest-xvfb for automatic headless testing
+pip install pytest-xvfb
+pytest --runxvfb  # Runs with virtual display
 ```
 
 ### AsyncShotLoader Pattern
@@ -208,24 +240,61 @@ def test_shot_workflow():
 def test_async_loader(qtbot):
     # CRITICAL: Must provide parse_function from BaseShotModel
     from base_shot_model import BaseShotModel
-    
+
     base_model = BaseShotModel()
     test_pool = TestProcessPoolDouble()
     test_pool.set_outputs("workspace /shows/TEST/shots/seq01/seq01_0010")
-    
+
     loader = AsyncShotLoader(
         test_pool,
         parse_function=base_model._parse_ws_output  # Required!
     )
-    
+
     spy = QSignalSpy(loader.shots_loaded)
     loader.start()
     loader.wait(5000)
-    
+
     assert spy.count() == 1
     shots = spy.at(0)[0]
     assert shots[0].shot == "0010"
 ```
+
+### Model Testing & Custom QApplication
+```python
+# Test QAbstractItemModel implementation
+def test_model(qtmodeltester):
+    model = MyItemModel()
+    qtmodeltester.check(model)  # C++ implementation by default
+    qtmodeltester.check(model, force_py=True)  # Force Python impl
+
+# Custom QApplication
+@pytest.fixture(scope="session")
+def qapp_cls():
+    return MyCustomApplication
+
+# Mock QApplication.exit()
+def test_exit(qtbot, monkeypatch):
+    monkeypatch.setattr(QApplication, "exit", lambda: None)
+```
+
+
+### Qt Logging & Dialogs
+```python
+# Capture Qt messages
+def test_logging(qtlog):
+    widget.trigger_warning()
+    assert any("warning" in r.message for r in qtlog.records)
+
+# Disable logging: with qtlog.disabled() or @pytest.mark.no_qt_log
+
+# Mock dialogs
+def test_dialog(qtbot, monkeypatch):
+    monkeypatch.setattr(QFileDialog, "getOpenFileName",
+                       lambda *args: ("/path/file.txt", "*.txt"))
+    monkeypatch.setattr(QMessageBox, "question",
+                       lambda *args: QMessageBox.Yes)
+```
+
 
 ## ⚠️ CRITICAL RULES
 
@@ -308,14 +377,24 @@ assert result == expected
 |----------|----------|
 | Testing shot refresh | TestProcessPoolManager |
 | Testing thumbnails in threads | ThreadSafeTestImage |
-| Testing Qt dialogs | Mock exec() |
+| Testing Qt dialogs | Mock exec() with monkeypatch |
 | Testing worker threads | QThread with cleanup |
 | Testing signal emission | waitSignal BEFORE action |
-| Testing conditions | qtbot.waitUntil |
+| Testing conditions | qtbot.waitUntil(lambda: condition) |
+| Testing async callbacks | qtbot.waitCallback() |
+| Testing signal parameters | check_params_cb in waitSignal |
+| Testing Qt exceptions | qtbot.captureExceptions() |
+| Testing models | qtmodeltester fixture |
+| Testing custom QApplication | qapp_cls fixture |
+| Testing Qt logging | qtlog fixture |
+| Testing headless CI | pytest-xvfb or QPA offscreen |
 | Testing 'ws' command | Interactive bash subprocess |
 | Testing cache components | Real with tmp_path |
 | Testing file operations | tmp_path fixture |
-| Testing properties | Hypothesis strategies |
+| Testing multiple signals | waitSignals with order='strict' |
+| Testing modal dialogs | monkeypatch dialog.exec |
+| Testing cross-thread signals | Qt.QueuedConnection |
+| Testing without signal emission | qtbot.assertNotEmitted |
 
 ### Complete Marker Strategy
 ```python
@@ -324,23 +403,41 @@ markers = [
     "integration: Component integration",
     "qt: Qt-specific tests",
     "slow: Tests >1s",
-    "performance: Benchmark tests", 
+    "performance: Benchmark tests",
     "stress: Load tests",
     "critical: Must-pass tests",
     "flaky: Known intermittent issues",
+    "no_qt_log: Disable Qt logging capture",
+    "qt_log: Custom Qt logging configuration",
+    "headless: Tests requiring headless environment",
+    "gui_deterministic: Tests requiring deterministic GUI",
+    "model: QAbstractItemModel tests",
+    "thread: Threading-related tests",
 ]
 ```
 
 ### Essential Fixtures
 ```python
 @pytest.fixture
-def qtbot(): ...           # Qt test interface
+def qtbot(): ...                    # Qt test interface with wait/signal methods
 @pytest.fixture
-def tmp_path(): ...         # Temp directory
+def tmp_path(): ...                 # Temp directory (Path object)
 @pytest.fixture
-def make_shot(): ...        # Shot factory (NEW)
+def make_shot(): ...                # Shot factory for flexible test data
+@pytest.fixture
+def qtlog(): ...                    # Qt message capture and verification
+@pytest.fixture
+def qtmodeltester(): ...            # QAbstractItemModel testing
+@pytest.fixture
+def qapp(): ...                     # QApplication instance (session scope)
+@pytest.fixture
+def qapp_cls(): ...                 # Override QApplication class
+@pytest.fixture
+def qapp_args(): ...                # Arguments for QApplication
 @pytest.fixture(scope="session")
-def expensive_setup(): ...  # Session-scoped (NEW)
+def expensive_setup(): ...          # Session-scoped resource
+@pytest.fixture
+def monkeypatch(): ...              # Mock/patch functionality
 ```
 
 ### Commands
@@ -351,164 +448,97 @@ python run_tests.py
 # Fast tests only
 pytest -m "not slow"
 
+# Qt-specific tests
+pytest -m qt
+
+# Model tests only
+pytest -m model
+
+# Headless CI testing
+DISPLAY=:99 QT_QPA_PLATFORM=offscreen pytest
+
 # With coverage
 pytest --cov=. --cov-report=html
+
+# With Qt logging enabled
+pytest --qt-log-level=DEBUG
 
 # WSL-optimized testing
 python3 quick_test.py              # 2 second validation
 python3 run_tests_wsl.py --fast    # 30 seconds
 python3 run_tests_wsl.py --all     # Full suite in batches
+
+# Using pytest-xvfb (auto headless)
+pytest --runxvfb
 ```
+
+### Test Isolation
+```python
+# Isolate QSettings
+@pytest.fixture(autouse=True)
+def isolate_settings(monkeypatch):
+    test_settings = {}
+    monkeypatch.setattr(QSettings, "value", lambda k, d=None: test_settings.get(k, d))
+    monkeypatch.setattr(QSettings, "setValue", lambda k, v: test_settings.update({k: v}))
+
+# Clean widget state
+@pytest.fixture
+def clean_widgets():
+    initial = QApplication.topLevelWidgets()
+    yield
+    for w in QApplication.topLevelWidgets():
+        if w not in initial: w.deleteLater()
+```
+
 
 ## 📚 APPENDIX
 
-### Test Doubles Library
+### Test Doubles Reference
 ```python
-class TestProcessPoolManager:  # Or TestProcessPoolDouble
-    """For 'ws' command testing"""
-    
-    __test__ = False  # CRITICAL: Prevents pytest collection warning
-    
-    def __init__(self):
-        self.commands = []  # Track what was called
-        self.outputs = []
-        self.command_completed = TestSignal()
-        self.command_failed = TestSignal()
-    
-    def set_outputs(self, *outputs):
-        self.outputs = list(outputs)
-    
-    def execute_workspace_command(self, command, **kwargs):
-        self.commands.append(command)  # Track for assertions
-        output = self.outputs[0] if self.outputs else ""
-        self.command_completed.emit(command, output)
-        return output
-    
-    @classmethod
-    def get_instance(cls):
-        return cls()
+class TestProcessPoolManager:  # Mock 'ws' command
+    __test__ = False  # Prevent pytest collection
+    def set_outputs(self, *outputs): ...
+    def execute_workspace_command(self, command, **kwargs): ...
 
-class ThreadSafeTestImage:
-    """For thread-safe image testing"""
-    def __init__(self, width: int = 100, height: int = 100):
-        self._image = QImage(width, height, QImage.Format.Format_RGB32)
-        self._width = width
-        self._height = height
-        self._image.fill(QColor(255, 255, 255))
-    
-    def fill(self, color: QColor = None):
-        if color is None:
-            color = QColor(255, 255, 255)
-        self._image.fill(color)
-    
-    def isNull(self) -> bool:
-        return self._image.isNull()
-    
-    def sizeInBytes(self) -> int:
-        return self._image.sizeInBytes()
-    
-    def size(self) -> QSize:
-        return QSize(self._width, self._height)
+class ThreadSafeTestImage:  # Thread-safe QImage replacement
+    def __init__(self, width=100, height=100): ...
+    def size(self) -> QSize: ...
 
-class TestSignal:
-    """Lightweight signal double"""
-    def __init__(self):
-        self.emissions = []
-        self.callbacks = []
-    
-    def emit(self, *args):
-        self.emissions.append(args)
-        for callback in self.callbacks:
-            callback(*args)
-    
-    def connect(self, callback):
-        self.callbacks.append(callback)
-    
-    @property
-    def was_emitted(self):
-        return len(self.emissions) > 0
+class TestSignal:  # Lightweight Qt signal mock
+    def emit(self, *args): ...
+    def connect(self, callback): ...
 ```
 
-### Common Issues & Solutions
-| Issue | Solution |
-|-------|----------|
-| "Fatal Python error: Aborted" | Using QPixmap in thread - use QImage |
-| Collection warnings | Classes starting with Test need `__test__ = False` |
-| Signal not received | Set up waitSignal before triggering |
-| Empty Qt container is falsy | Use `is not None` check |
-| 'ws' command fails | Use interactive bash: `["/bin/bash", "-i", "-c", "ws -sg"]` |
-| Tests hang on WSL | Use categorized runners and batching |
-| Mock everything pattern | Use real components with test doubles at boundaries |
-| QSignalSpy segfault | Use `spy.at(spy.count() - 1)` not `spy.at(-1)` |
-| `__builtins__.__import__` error | Import builtins module: `import builtins` |
-| Wrong VFX path format | Use `/shows/{show}/shots/{seq}/{seq}_{shot}` |
 
-### External Guides
-- WSL Testing → WSL-TESTING.md
-- Cache Testing → CACHE-TESTING.md  
-- Property Testing → PROPERTY-TESTING.md
-
-### Pytest Modern Patterns
-- Use `pytest.fail()` not `pytest.raises()` for custom failures
-- Use `tmp_path` not deprecated `tmpdir`
-- Use `pytest.param` for parametrize marks
-- Use factory fixtures for flexible test data
-- Use fixture scopes for performance optimization
-- Use `qtbot.waitUntil` for condition-based waiting
-- Use `check_params_cb` for signal parameter verification
-
-### Anti-Patterns Summary
-```python
-# ❌ These will cause problems:
-threading.Thread(target=lambda: QPixmap(100, 100)).start()  # CRASHES
-spy = QSignalSpy(mock.signal)                               # TypeError  
-if self.layout:                                             # Falsy when empty
-worker.start(); with qtbot.waitSignal(worker.signal): pass # Race condition
-controller = Mock(spec=Controller)                          # Testing mock
-mock.assert_called_once()                                   # Testing implementation
-spy.at(-1)                                                  # Segfault in Qt
-class TestHelper:  # without __test__ = False              # Collection warning
-__builtins__.__import__                                    # AttributeError on dict
-
-# ✅ Use these instead:
-ThreadSafeTestImage(100, 100)                              # Thread-safe
-QSignalSpy(real_widget.real_signal)                        # Real signals only
-if self.layout is not None:                                # Explicit check
-with qtbot.waitSignal(signal): worker.start()              # Signal first
-Controller(process_pool=TestProcessPoolManager())          # Real with test doubles
-assert result.success                                       # Test behavior
-spy.at(spy.count() - 1)                                   # Safe indexing
-class TestHelper: __test__ = False                         # Prevent collection
-import builtins; builtins.__import__                      # Correct access
-```
-
-### Testing Checklist
-- [ ] Use real components where possible
-- [ ] Mock only external dependencies
-- [ ] Use `qtbot.addWidget()` for all widgets
-- [ ] Check `is not None` for Qt containers
-- [ ] Use ThreadSafeTestImage instead of QPixmap in worker threads
-- [ ] Set up qtbot.waitSignal() BEFORE starting operations
-- [ ] Use TestProcessPoolManager for 'ws' command testing
-- [ ] Categorize tests as fast/slow/critical for WSL
-- [ ] Use factory fixtures for flexible test data
-- [ ] Test behavior, not implementation
-- [ ] Add `__test__ = False` to all test double classes
-- [ ] Use `spy.at(spy.count() - 1)` not `spy.at(-1)` for QSignalSpy
-- [ ] Provide parse_function to AsyncShotLoader from BaseShotModel
-- [ ] Import builtins explicitly for `__import__` access
-- [ ] Use correct VFX path format: `/shows/{show}/shots/{seq}/{seq}_{shot}`
+### Critical Anti-Patterns
+| ❌ Problem | ✅ Solution |
+|-----------|------------|
+| `QPixmap` in thread | Use `ThreadSafeTestImage` or `QImage` |
+| `if self.layout:` (falsy when empty) | Use `if self.layout is not None:` |
+| `spy.at(-1)` (segfault) | Use `spy.at(spy.count() - 1)` |
+| `Mock(spec=Controller)` | Use real with test doubles |
+| `dialog.exec()` blocks | `monkeypatch.setattr(dialog, "exec", lambda: result)` |
+| Signal race conditions | `with qtbot.waitSignal(sig): worker.start()` |
+| No widget cleanup | Always use `qtbot.addWidget(widget)` |
+| `QApplication.exit()` | Mock with `monkeypatch` |
+| Cross-thread signals | Use `Qt.QueuedConnection` |
+| `class TestHelper:` | Add `__test__ = False` |
+| `qtbot.wait(0)` | Use `qtbot.wait(100)` or `waitUntil()` |
 
 ---
-
-*This guide provides complete testing patterns for ShotBot. Use the decision tree and lookup table to quickly find the right approach for your testing scenario.*
-
-**Key Metrics After Refactor**:
-- Guide length: ~510 lines (vs 1288) - 60% reduction!
-- Zero redundancy: Each concept appears once
-- Quick Start section: 50 lines of copy-paste examples
-- Modern patterns: Factory fixtures, pytest.param, qtbot.waitUntil
-- LLM-optimized: Clear hierarchy and decision trees
-- Real-world tested: All patterns validated through comprehensive refactoring
-
-*Last Updated: 2025-01-28 | Enhanced with production discoveries*
+Testing Checklist
+[ ] Use real components where possible
+[ ] Mock only external dependencies
+[ ] Use `qtbot.addWidget()` for all widgets
+[ ] Check `is not None` for Qt containers
+[ ] Use ThreadSafeTestImage instead of QPixmap in worker threads
+[ ] Set up qtbot.waitSignal() BEFORE starting operations
+[ ] Use TestProcessPoolManager for 'ws' command testing
+[ ] Categorize tests as fast/slow/critical for WSL
+[ ] Use factory fixtures for flexible test data
+[ ] Test behavior, not implementation
+[ ] Add `__test__ = False` to all test double classes
+[ ] Use `spy.at(spy.count() - 1)` not `spy.at(-1)` for QSignalSpy
+[ ] Provide parse_function to AsyncShotLoader from BaseShotModel
+[ ] Import builtins explicitly for `__import__` access
+[ ] Use correct VFX path format: `/shows/{show}/shots/{seq}/{seq}_{shot}`

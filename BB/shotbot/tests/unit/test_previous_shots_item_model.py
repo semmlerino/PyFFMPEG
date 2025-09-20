@@ -4,39 +4,50 @@ Tests the thread safety improvements and resource management
 in the PreviousShotsItemModel class.
 """
 
-from unittest.mock import Mock
-
 import pytest
 from PySide6.QtCore import QMutexLocker, Qt
 from PySide6.QtGui import QImage
 
-from cache_manager import CacheManager
 from previous_shots_item_model import PreviousShotsItemModel
 from shot_model import Shot
+# Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
+from tests.test_doubles_library import TestCacheManager, SignalDouble
+
+
+class TestPreviousShotsModel:
+    """Test double for PreviousShotsModel following UNIFIED_TESTING_GUIDE."""
+
+    def __init__(self):
+        self.shots_updated = SignalDouble()
+        self.scan_started = SignalDouble()
+        self.scan_finished = SignalDouble()
+        self.scan_progress = SignalDouble()
+        self._shots = []
+
+    def get_shots(self):
+        """Return test shots."""
+        return self._shots
+
+    def add_shot(self, shot):
+        """Add a test shot."""
+        self._shots.append(shot)
+        self.shots_updated.emit()
 
 
 @pytest.fixture
 def model(qtbot):
     """Create a PreviousShotsItemModel instance for testing."""
-    from previous_shots_model import PreviousShotsModel
-
-    # Create mocks for the dependencies
-    cache_manager = Mock(spec=CacheManager)
-
-    # Create the PreviousShotsModel
-    previous_shots_model = Mock(spec=PreviousShotsModel)
-    previous_shots_model.get_shots = Mock(return_value=[])
-    previous_shots_model.shots_updated = Mock()
-    previous_shots_model.scan_started = Mock()
-    previous_shots_model.scan_finished = Mock()
-    previous_shots_model.scan_progress = Mock()
+    # Use test doubles instead of Mock(spec=)
+    cache_manager = TestCacheManager()
+    previous_shots_model = TestPreviousShotsModel()
 
     # Create the item model with required arguments
     model = PreviousShotsItemModel(
         previous_shots_model=previous_shots_model, cache_manager=cache_manager
     )
-    # Models are not widgets, don't add to qtbot
-    return model
+    yield model
+    # Manual cleanup for QObject (not a widget)
+    model.deleteLater()
 
 
 @pytest.fixture
@@ -69,8 +80,8 @@ class TestPreviousShotsThreadSafety:
 
     def test_mutex_protection_for_cache(self, model, test_shots) -> None:
         """Test that cache operations are protected by mutex."""
-        # Update the underlying model's get_shots method to return test_shots
-        model._model.get_shots = Mock(return_value=test_shots)
+        # Update the underlying model's shots to return test_shots
+        model._model._shots = test_shots
 
         # Manually trigger update
         model._update_shots()
@@ -102,8 +113,8 @@ class TestPreviousShotsThreadSafety:
             )
             many_shots.append(shot)
 
-        # Update the underlying model's get_shots method to return many_shots
-        model._model.get_shots = Mock(return_value=many_shots)
+        # Update the underlying model's shots
+        model._model._shots = many_shots
 
         # Manually trigger update
         model._update_shots()
@@ -146,8 +157,8 @@ class TestPreviousShotsThreadSafety:
         """Test data() method with various roles."""
         from shot_item_model import ShotRole
 
-        # Update the underlying model's get_shots method to return test_shots
-        model._model.get_shots = Mock(return_value=test_shots)
+        # Update the underlying model's shots
+        model._model._shots = test_shots
         # Manually trigger update
         model._update_shots()
 
@@ -204,21 +215,21 @@ class TestPreviousShotsThreadSafety:
         """Test rapid shot list changes."""
         # Rapidly change shots
         for _ in range(10):
-            # Update the underlying model's get_shots method to return test_shots
-            model._model.get_shots = Mock(return_value=test_shots)
+            # Update the underlying model's shots
+            model._model._shots = test_shots
             # Manually trigger update
             model._update_shots()
 
-            # Update the underlying model's get_shots method to return empty list
-            model._model.get_shots = Mock(return_value=[])
+            # Update the underlying model's shots to empty list
+            model._model._shots = []
             # Manually trigger update
             model._update_shots()
 
-            model._model.get_shots = Mock(return_value=test_shots[:1])
+            model._model._shots = test_shots[:1]
             model._update_shots()
 
-            # Update the underlying model's get_shots method to return test_shots
-            model._model.get_shots = Mock(return_value=test_shots)
+            # Update the underlying model's shots
+            model._model._shots = test_shots
             # Manually trigger update
             model._update_shots()
 
@@ -234,8 +245,8 @@ class TestDataConsistency:
         """Test that shot data remains consistent."""
         from shot_item_model import ShotRole
 
-        # Update the underlying model's get_shots method to return test_shots
-        model._model.get_shots = Mock(return_value=test_shots)
+        # Update the underlying model's shots
+        model._model._shots = test_shots
         # Manually trigger update
         model._update_shots()
 
@@ -251,8 +262,8 @@ class TestDataConsistency:
 
     def test_empty_model_handling(self, model) -> None:
         """Test empty model edge cases."""
-        # Update the underlying model's get_shots method to return empty list
-        model._model.get_shots = Mock(return_value=[])
+        # Update the underlying model's shots to empty list
+        model._model._shots = []
         # Manually trigger update
         model._update_shots()
 
@@ -267,8 +278,8 @@ class TestDataConsistency:
 
     def test_cache_cleanup_on_reset(self, model, test_shots) -> None:
         """Test cache is managed properly on reset."""
-        # Update the underlying model's get_shots method to return test_shots
-        model._model.get_shots = Mock(return_value=test_shots)
+        # Update the underlying model's shots
+        model._model._shots = test_shots
         # Manually trigger update
         model._update_shots()
 
@@ -282,8 +293,8 @@ class TestDataConsistency:
         assert len(model._thumbnail_cache) == len(test_shots)
 
         # Reset model
-        # Update the underlying model's get_shots method to return empty list
-        model._model.get_shots = Mock(return_value=[])
+        # Update the underlying model's shots to empty list
+        model._model._shots = []
         # Manually trigger update
         model._update_shots()
 
