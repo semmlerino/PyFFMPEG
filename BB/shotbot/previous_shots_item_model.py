@@ -54,6 +54,7 @@ class PreviousShotsItemModel(QAbstractListModel):
     selection_changed = Signal(
         object
     )  # Shot | None - using object for Qt signal compatibility
+    show_filter_changed = Signal(str)  # show name or "All Shows"
 
     def __init__(
         self,
@@ -117,7 +118,7 @@ class PreviousShotsItemModel(QAbstractListModel):
         self,
         index: QModelIndex | QPersistentModelIndex,
         role: int = Qt.ItemDataRole.DisplayRole,
-    ) -> Any:
+    ) -> Any:  # noqa: ANN401 - Qt models require Any return type
         """Return data for the given index and role.
 
         Args:
@@ -161,7 +162,7 @@ class PreviousShotsItemModel(QAbstractListModel):
     def setData(
         self,
         index: QModelIndex | QPersistentModelIndex,
-        value: Any,
+        value: Any,  # noqa: ANN401 - Qt models accept Any type values
         role: int = Qt.ItemDataRole.EditRole,
     ) -> bool:
         """Set data for the given index and role.
@@ -468,12 +469,58 @@ class PreviousShotsItemModel(QAbstractListModel):
             QPixmap converted from cached QImage or None
         """
         with QMutexLocker(self._cache_mutex):
-            qimage = self._thumbnail_cache.get(shot.full_name)
-        if qimage:
-            # Convert QImage to QPixmap in main thread
-            if isinstance(qimage, QImage):
-                return QPixmap.fromImage(qimage)
-            elif isinstance(qimage, QPixmap):
-                return qimage
+            cached_image: QPixmap | QImage | None = self._thumbnail_cache.get(shot.full_name)
+        if cached_image:
+            # Convert QImage to QPixmap in main thread for display
+            if isinstance(cached_image, QImage):
+                return QPixmap.fromImage(cached_image)
+            elif isinstance(cached_image, QPixmap):
+                return cached_image
             # Handle None case implicitly
         return None
+
+    def set_show_filter(
+        self, previous_shots_model: PreviousShotsModel, show: str | None
+    ) -> None:
+        """Set show filter and update the model.
+
+        Args:
+            previous_shots_model: Model to get filtered shots from
+            show: Show name to filter by or None for all shows
+        """
+        if not previous_shots_model:
+            return
+
+        # Set filter on the model
+        previous_shots_model.set_show_filter(show)
+
+        # Get filtered shots and update our display
+        filtered_shots = previous_shots_model.get_filtered_shots()
+
+        # Update our shots list with filtered shots
+        self.beginResetModel()
+        self._shots = filtered_shots
+
+        # Clear thumbnail cache for removed shots (thread-safe)
+        current_names = {shot.full_name for shot in self._shots}
+        with QMutexLocker(self._cache_mutex):
+            self._thumbnail_cache = {
+                name: pixmap
+                for name, pixmap in self._thumbnail_cache.items()
+                if name in current_names
+            }
+
+        # Clear selection if shot was removed
+        if self._selected_shot and self._selected_shot not in self._shots:
+            self._selected_shot = None
+            self.selection_changed.emit(None)
+
+        self.endResetModel()
+        self.shots_updated.emit()
+
+        # Emit filter changed signal for UI updates
+        filter_display = show if show is not None else "All Shows"
+        self.show_filter_changed.emit(filter_display)
+        logger.info(
+            f"Applied show filter: {filter_display}, {len(filtered_shots)} shots"
+        )

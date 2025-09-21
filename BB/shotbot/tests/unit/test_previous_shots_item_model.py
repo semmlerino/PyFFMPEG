@@ -10,11 +10,12 @@ from PySide6.QtGui import QImage
 
 from previous_shots_item_model import PreviousShotsItemModel
 from shot_model import Shot
+
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
-from tests.test_doubles_library import TestCacheManager, SignalDouble
+from tests.test_doubles_library import SignalDouble, TestCacheManager
 
 
-class TestPreviousShotsModel:
+class MockPreviousShotsModel:
     """Test double for PreviousShotsModel following UNIFIED_TESTING_GUIDE."""
 
     def __init__(self):
@@ -39,7 +40,7 @@ def model(qtbot):
     """Create a PreviousShotsItemModel instance for testing."""
     # Use test doubles instead of Mock(spec=)
     cache_manager = TestCacheManager()
-    previous_shots_model = TestPreviousShotsModel()
+    previous_shots_model = MockPreviousShotsModel()
 
     # Create the item model with required arguments
     model = PreviousShotsItemModel(

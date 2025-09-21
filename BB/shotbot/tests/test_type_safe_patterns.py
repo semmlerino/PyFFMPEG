@@ -43,6 +43,8 @@ import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
+from tests.helpers.synchronization import process_qt_events
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
@@ -298,10 +300,7 @@ def wait_for_qt_events(timeout_ms: int = 100) -> None:
     """
     app = QApplication.instance()
     if app is not None:
-        start_time = time.time()
-        while (time.time() - start_time) * 1000 < timeout_ms:
-            app.processEvents()  # pyright: ignore[reportUnknownMemberType]
-            time.sleep(0.001)
+        process_qt_events(app, timeout_ms)
 
 
 # ============================================================================

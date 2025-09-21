@@ -9,7 +9,6 @@ from __future__ import annotations
 import concurrent.futures
 import sys
 import threading
-import time
 from pathlib import Path
 
 import pytest
@@ -22,6 +21,9 @@ from cache_manager import CacheManager
 from shot_info_panel import InfoPanelPixmapLoader, ShotInfoPanel
 from shot_item_model import ShotItemModel
 from shot_model import Shot
+from tests.helpers.synchronization import (
+    simulate_work_without_sleep,
+)
 from tests.test_doubles_library import TestCacheManager
 
 pytestmark = [pytest.mark.thread_safety, pytest.mark.qt, pytest.mark.critical]
@@ -61,7 +63,9 @@ class TestShotItemModelThreadSafety:
                 for name in shot_names:
                     result = thread_safe_model._find_shot_by_full_name(name)
                     results.append((name, result is not None))
-                    time.sleep(0.001)  # Small delay to increase chance of race
+                    simulate_work_without_sleep(
+                        1
+                    )  # Small delay to increase chance of race
             except Exception as e:
                 errors.append(str(e))
 
@@ -94,7 +98,7 @@ class TestShotItemModelThreadSafety:
             """Simulate an async callback that might arrive after shot removal."""
             try:
                 # Simulate delay as if coming from background thread
-                time.sleep(0.1)
+                simulate_work_without_sleep(100)
 
                 # This mimics what _on_thumbnail_cached_safe does
                 shot_data = thread_safe_model._find_shot_by_full_name(shot_full_name)
@@ -170,7 +174,9 @@ class TestShotItemModelThreadSafety:
 
                         cache_operations.append((worker_id, cache_key, "write"))
 
-                        time.sleep(0.001)  # Brief delay to increase contention
+                        simulate_work_without_sleep(
+                            1
+                        )  # Brief delay to increase contention
 
             except Exception as e:
                 cache_errors.append(f"Worker {worker_id}: {str(e)}")
@@ -204,7 +210,7 @@ class TestShotItemModelThreadSafety:
             """Callback that executes after model reset."""
             nonlocal callback_count
             try:
-                time.sleep(0.2)  # Delay to ensure reset happens first
+                simulate_work_without_sleep(200)  # Delay to ensure reset happens first
 
                 # Try to access model after reset
                 shot_data = thread_safe_model._find_shot_by_full_name(shot_full_name)
@@ -341,7 +347,7 @@ class TestShotInfoPanelThreadSafety:
                     # Simulate loading operations that might conflict
                     # Just verify thread safety of data access
                     _ = thread_safe_panel._current_shot
-                    time.sleep(0.02)  # Brief delay between accesses
+                    simulate_work_without_sleep(20)  # Brief delay between accesses
 
             except Exception as e:
                 change_errors.append(str(e))
@@ -456,7 +462,7 @@ class TestCrossComponentThreadSafety:
                     for i in range(10):
                         model.set_shots(shots[i % len(shots) :])
                         model.set_visible_range(0, 2)
-                        time.sleep(0.05)
+                        simulate_work_without_sleep(50)
                 except Exception as e:
                     operation_errors.append(f"Model: {str(e)}")
 
@@ -465,7 +471,7 @@ class TestCrossComponentThreadSafety:
                 try:
                     for i in range(10):
                         panel.set_shot(shots[i % len(shots)])
-                        time.sleep(0.05)
+                        simulate_work_without_sleep(50)
                 except Exception as e:
                     operation_errors.append(f"Panel: {str(e)}")
 

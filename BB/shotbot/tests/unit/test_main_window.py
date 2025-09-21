@@ -19,7 +19,12 @@ from main_window import MainWindow
 from shot_model import Shot
 from tests.unit.test_protocols import ProcessPoolProtocol as TestProcessPoolType
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.slow,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 
 class TestMainWindowInitialization:

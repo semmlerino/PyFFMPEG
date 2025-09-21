@@ -22,7 +22,6 @@ from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -35,7 +34,11 @@ from shot_model import Shot
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 from tests.test_doubles_library import TestSubprocess
 
-pytestmark = [pytest.mark.integration, pytest.mark.qt]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 
 # =============================================================================
@@ -161,8 +164,8 @@ class TestMainWindowLauncherIntegration:
                 nuke_section = window.launcher_panel.app_sections["nuke"]
                 qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
 
-                # Process events to ensure signal propagation
-                QApplication.processEvents()
+                # Use qtbot.wait to allow signal propagation safely
+                qtbot.wait(50)  # Small delay for Qt event loop
 
                 # Verify signal reached main window
                 assert len(launch_calls) == 1
@@ -194,15 +197,15 @@ class TestMainWindowLauncherIntegration:
                 for app_name in apps_to_launch:
                     section = window.launcher_panel.app_sections[app_name]
                     qtbot.mouseClick(section.launch_button, Qt.MouseButton.LeftButton)
-                    QApplication.processEvents()
-
-                    # Small delay to ensure proper event processing
-                    qtbot.wait(10)
+                    # Allow event loop to process without forcing immediate processing
+                    qtbot.wait(50)  # Proper delay for event processing
 
                 # Verify all launches were processed
                 assert launch_calls == apps_to_launch
 
-    def test_checkbox_options_passed_through_main_window(self, qtbot, make_shot) -> None:
+    def test_checkbox_options_passed_through_main_window(
+        self, qtbot, make_shot
+    ) -> None:
         """Test that checkbox options are properly accessed through main window."""
         with patch(
             "process_pool_factory.ProcessPoolFactory.get_instance"
@@ -267,7 +270,7 @@ class TestMainWindowLauncherIntegration:
                     "test_custom"
                 ]
                 qtbot.mouseClick(custom_button, Qt.MouseButton.LeftButton)
-                QApplication.processEvents()
+                qtbot.wait(50)  # Allow event loop to process
 
                 # Verify custom launcher was called
                 assert len(custom_launch_calls) == 1
@@ -279,6 +282,7 @@ class TestMainWindowLauncherIntegration:
 # =============================================================================
 
 
+@pytest.mark.slow
 @pytest.mark.gui_mainwindow
 class TestEndToEndLauncherWorkflow:
     """Test complete end-to-end launcher workflows."""
@@ -332,8 +336,9 @@ class TestEndToEndLauncherWorkflow:
 
             with patch.object(window, "_launch_app", side_effect=mock_launch_nuke):
                 # Step 5: Launch nuke
+                # Use waitSignal if possible, otherwise use safe wait
                 qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
-                QApplication.processEvents()
+                qtbot.wait(50)  # Allow event loop to process
 
                 # Step 6: Verify complete context was captured
                 assert launch_context["app"] == "nuke"
@@ -375,7 +380,7 @@ class TestEndToEndLauncherWorkflow:
                 qtbot.mouseClick(
                     threede_section.launch_button, Qt.MouseButton.LeftButton
                 )
-                QApplication.processEvents()
+                qtbot.wait(50)  # Allow event loop to process
 
                 assert launch_context["app"] == "3de"
                 assert launch_context["shot"] == shot
@@ -437,8 +442,8 @@ class TestEndToEndLauncherWorkflow:
                 shot = shots[i % len(shots)]
                 window.launcher_panel.set_shot(shot)
 
-                # Process events to ensure UI updates
-                QApplication.processEvents()
+                # Allow event loop to process UI updates
+                qtbot.wait(10)  # Brief wait for UI updates
 
                 # Quick verification that state is consistent
                 for section in window.launcher_panel.app_sections.values():
@@ -507,13 +512,17 @@ class TestLauncherIntegrationErrorHandling:
             shot = make_shot()
             window.launcher_panel.set_shot(shot)
 
-            # Simulate signal disconnection (edge case)
-            window.launcher_panel.app_launch_requested.disconnect()
+            # Safely disconnect signal if connected
+            try:
+                window.launcher_panel.app_launch_requested.disconnect()
+            except (TypeError, RuntimeError):
+                # Signal was not connected or already disconnected
+                pass
 
             # Should still function without crashing
             nuke_section = window.launcher_panel.app_sections["nuke"]
             qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
 
             # Should not crash even with disconnected signals
-            QApplication.processEvents()
+            qtbot.wait(10)  # Brief wait to ensure no crash
             assert True  # If we reach here, no crash occurred

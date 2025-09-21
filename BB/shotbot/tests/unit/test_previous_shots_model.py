@@ -33,7 +33,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestCacheManager
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.slow,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
@@ -74,7 +79,7 @@ class TestPreviousShotsModel:
         )
         yield model
         # Manual cleanup for QObject
-        if hasattr(model, 'deleteLater'):
+        if hasattr(model, "deleteLater"):
             model.deleteLater()
 
     @pytest.fixture

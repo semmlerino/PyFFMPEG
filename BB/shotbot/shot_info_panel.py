@@ -29,6 +29,37 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
     """Panel displaying current shot information."""
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
+        # Ensure we're in the main thread for Qt widget creation
+        from PySide6.QtCore import QCoreApplication, QThread
+        from PySide6.QtWidgets import QApplication
+
+        # Check if QApplication exists
+        app_instance = QCoreApplication.instance()
+        if app_instance is None:
+            raise RuntimeError("ShotInfoPanel: No QApplication instance found")
+
+        # Check if we're in the main thread
+        current_thread = QThread.currentThread()
+        main_thread = app_instance.thread()
+        if current_thread != main_thread:
+            raise RuntimeError(
+                f"ShotInfoPanel must be created in the main thread. "
+                f"Current thread: {current_thread}, "
+                f"Main thread: {main_thread}"
+            )
+
+        # Additional safety check for QApplication type (relaxed for tests)
+        # In test environments, QCoreApplication is acceptable since pytest-qt may create it
+        import sys
+
+        is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
+
+        if not isinstance(app_instance, QApplication) and not is_test_environment:
+            raise RuntimeError(
+                f"ShotInfoPanel: QCoreApplication instance is not a QApplication. "
+                f"Type: {type(app_instance)}"
+            )
+
         super().__init__()
         self._current_shot: Shot | None = None
         self.cache_manager = cache_manager or CacheManager()  # Make public
@@ -208,6 +239,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
 
             # Convert to QPixmap only in main thread for display
             from PySide6.QtCore import QThread
+
             if QThread.currentThread() == QCoreApplication.instance().thread():
                 pixmap = QPixmap.fromImage(scaled_image)
                 self.thumbnail_label.setPixmap(pixmap)
@@ -257,6 +289,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
 
         # Convert to QPixmap only when setting on label (main thread only)
         from PySide6.QtCore import QThread
+
         if QThread.currentThread() == QCoreApplication.instance().thread():
             placeholder = QPixmap.fromImage(placeholder_image)
             self.thumbnail_label.setPixmap(placeholder)

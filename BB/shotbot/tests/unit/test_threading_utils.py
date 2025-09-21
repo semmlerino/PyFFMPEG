@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import concurrent.futures
 import threading
-import time
 from typing import NoReturn
 
 import pytest
 
+from tests.helpers.synchronization import simulate_work_without_sleep
 from threading_utils import CancellationEvent, ThreadSafeProgressTracker
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
@@ -121,7 +121,7 @@ class TestThreadSafeProgressTracker:
                 tracker.update_worker_progress(
                     worker_id, i, f"worker_{worker_id}_processing"
                 )
-                time.sleep(0.001)  # Small delay to simulate processing
+                simulate_work_without_sleep(1)  # Small delay to simulate processing
 
         # Start multiple worker threads
         workers = []
@@ -294,7 +294,7 @@ class TestThreadingIntegration:
                 if cancel_event.is_cancelled():
                     break
                 tracker.update_worker_progress(worker_id, i, "processing")
-                time.sleep(0.01)
+                simulate_work_without_sleep(10)
 
         # Start worker
         worker = threading.Thread(
@@ -303,7 +303,7 @@ class TestThreadingIntegration:
         worker.start()
 
         # Let it process some files, then cancel
-        time.sleep(0.05)
+        simulate_work_without_sleep(50)
         cancel_event.cancel()
 
         worker.join(timeout=1.0)
@@ -337,7 +337,7 @@ class TestThreadingIntegration:
                 tracker.update_worker_progress(
                     worker_id, files_processed, "processing batch"
                 )
-                time.sleep(0.01)
+                simulate_work_without_sleep(10)
 
             return files_processed
 
@@ -347,7 +347,7 @@ class TestThreadingIntegration:
             futures = [executor.submit(process_batch, i) for i in range(3)]
 
             # Let some processing happen, then cancel
-            time.sleep(0.02)
+            simulate_work_without_sleep(20)
             cancel_event.cancel()
 
             # Wait for completion

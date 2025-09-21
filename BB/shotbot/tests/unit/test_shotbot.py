@@ -153,11 +153,12 @@ class TestShotbotMain:
 
     def test_main_calls_setup_logging(self, tmp_path) -> None:
         """Test that main() calls setup_logging first."""
-        with patch("shotbot.Path.home") as mock_home, patch(
-            "PySide6.QtWidgets.QApplication"
-        ) as mock_app_class, patch(
-            "main_window.MainWindow"
-        ) as mock_window_class, patch("sys.exit") as mock_exit:
+        with (
+            patch("shotbot.Path.home") as mock_home,
+            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
+            patch("main_window.MainWindow") as mock_window_class,
+            patch("sys.exit") as mock_exit,
+        ):
             mock_home.return_value = tmp_path
 
             # Set up test doubles
@@ -177,11 +178,12 @@ class TestShotbotMain:
 
     def test_main_creates_qapplication_with_correct_settings(self) -> None:
         """Test that main() creates QApplication with proper configuration."""
-        with patch("shotbot.setup_logging"), patch(
-            "PySide6.QtWidgets.QApplication"
-        ) as mock_app_class, patch(
-            "main_window.MainWindow"
-        ) as mock_window_class, patch("sys.exit") as mock_exit:
+        with (
+            patch("shotbot.setup_logging"),
+            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
+            patch("main_window.MainWindow") as mock_window_class,
+            patch("sys.exit") as mock_exit,
+        ):
             # Set up test doubles
             test_app = _TestQApplicationDouble(sys.argv)
             test_window = _TestMainWindowDouble()
@@ -201,11 +203,12 @@ class TestShotbotMain:
 
     def test_main_sets_dark_palette(self) -> None:
         """Test that main() configures dark theme palette."""
-        with patch("shotbot.setup_logging"), patch(
-            "PySide6.QtWidgets.QApplication"
-        ) as mock_app_class, patch(
-            "main_window.MainWindow"
-        ) as mock_window_class, patch("sys.exit") as mock_exit:
+        with (
+            patch("shotbot.setup_logging"),
+            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
+            patch("main_window.MainWindow") as mock_window_class,
+            patch("sys.exit") as mock_exit,
+        ):
             # Set up test doubles
             test_app = _TestQApplicationDouble(sys.argv)
             test_window = _TestMainWindowDouble()
@@ -233,11 +236,12 @@ class TestShotbotMain:
 
     def test_main_creates_and_shows_main_window(self) -> None:
         """Test that main() creates and shows MainWindow."""
-        with patch("shotbot.setup_logging"), patch(
-            "PySide6.QtWidgets.QApplication"
-        ) as mock_app_class, patch(
-            "main_window.MainWindow"
-        ) as mock_window_class, patch("sys.exit") as mock_exit:
+        with (
+            patch("shotbot.setup_logging"),
+            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
+            patch("main_window.MainWindow") as mock_window_class,
+            patch("sys.exit") as mock_exit,
+        ):
             # Set up test doubles
             test_app = _TestQApplicationDouble(sys.argv)
             test_window = _TestMainWindowDouble()
@@ -255,11 +259,12 @@ class TestShotbotMain:
 
     def test_main_executes_application_and_exits(self) -> None:
         """Test that main() executes the app and calls sys.exit."""
-        with patch("shotbot.setup_logging"), patch(
-            "PySide6.QtWidgets.QApplication"
-        ) as mock_app_class, patch(
-            "main_window.MainWindow"
-        ) as mock_window_class, patch("sys.exit") as mock_exit:
+        with (
+            patch("shotbot.setup_logging"),
+            patch("PySide6.QtWidgets.QApplication") as mock_app_class,
+            patch("main_window.MainWindow") as mock_window_class,
+            patch("sys.exit") as mock_exit,
+        ):
             # Set up test doubles
             test_app = _TestQApplicationDouble(sys.argv)
             test_window = _TestMainWindowDouble()
@@ -287,9 +292,12 @@ class TestShotbotMain:
         if "shotbot" in sys.modules:
             del sys.modules["shotbot"]
 
-        with patch("shotbot.setup_logging") as mock_setup_logging, patch(
-            "PySide6.QtWidgets.QApplication"
-        ), patch("main_window.MainWindow"), patch("sys.exit"):
+        with (
+            patch("shotbot.setup_logging") as mock_setup_logging,
+            patch("PySide6.QtWidgets.QApplication"),
+            patch("main_window.MainWindow"),
+            patch("sys.exit"),
+        ):
             from shotbot import main
 
             main()

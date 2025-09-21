@@ -21,7 +21,12 @@ from shot_info_panel import InfoPanelPixmapLoader, ShotInfoPanel
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.critical]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.critical,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 
 class TestInfoPanelPixmapLoader:
@@ -132,8 +137,10 @@ class TestInfoPanelPixmapLoader:
         # Start loading
         QThreadPool.globalInstance().start(loader)
 
-        # Wait for completion
-        qtbot.wait(1000)  # Longer wait for large image processing
+        # Wait for thread to complete
+        QThreadPool.globalInstance().waitForDone(2000)
+        # Process any pending signals
+        qtbot.wait(100)
 
         # Should fail due to dimension validation
         # (Actual behavior depends on Config.MAX_INFO_PANEL_DIMENSION_PX)

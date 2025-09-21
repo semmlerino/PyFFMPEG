@@ -24,7 +24,11 @@ from launcher_manager import LauncherManager
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestSubprocess
 
-pytestmark = [pytest.mark.integration, pytest.mark.qt]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 
 class TestLauncherWorkflowIntegration:
@@ -96,8 +100,9 @@ class TestLauncherWorkflowIntegration:
         launcher_manager.execution_finished.connect(on_execution_finished)
 
         # Mock subprocess.Popen at system boundary
-        with patch("subprocess.Popen") as mock_popen, patch.dict(
-            "os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}
+        with (
+            patch("subprocess.Popen") as mock_popen,
+            patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
         ):
             mock_popen.return_value = self.mock_process
 
@@ -136,8 +141,9 @@ class TestLauncherWorkflowIntegration:
         long_running_process.poll.return_value = None  # Still running
         long_running_process.returncode = None
 
-        with patch("subprocess.Popen") as mock_popen, patch.dict(
-            "os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}
+        with (
+            patch("subprocess.Popen") as mock_popen,
+            patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
         ):
             mock_popen.return_value = long_running_process
 
@@ -210,8 +216,9 @@ class TestLauncherWorkflowIntegration:
             command="test_command {shot_name}",
         )
 
-        with patch("subprocess.Popen") as mock_popen, patch.dict(
-            "os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}
+        with (
+            patch("subprocess.Popen") as mock_popen,
+            patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
         ):
             mock_popen.return_value = self.mock_process
 
@@ -280,8 +287,9 @@ class TestLauncherWorkflowIntegration:
 
         processes = [process1, process2]
 
-        with patch("subprocess.Popen", side_effect=processes), patch.dict(
-            "os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}
+        with (
+            patch("subprocess.Popen", side_effect=processes),
+            patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
         ):
             # Execute both launchers concurrently
             success1 = launcher_manager.execute_launcher(

@@ -20,6 +20,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QListView,
@@ -40,6 +41,8 @@ from thumbnail_widget_base import FolderOpenerWorker
 if TYPE_CHECKING:
     from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
 
+    from base_shot_model import BaseShotModel
+
 
 class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
     """Optimized grid view for displaying shot thumbnails.
@@ -56,6 +59,7 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
     shot_selected = Signal(Shot)  # Shot object
     shot_double_clicked = Signal(Shot)  # Shot object
     app_launch_requested = Signal(str)  # app_name
+    show_filter_requested = Signal(str)  # show name or None for all
 
     def __init__(
         self,
@@ -111,6 +115,18 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         layout.addLayout(size_layout)
 
+        # Show filter controls
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Show:"))
+
+        self.show_combo = QComboBox()
+        self.show_combo.addItem("All Shows")
+        self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
+        filter_layout.addWidget(self.show_combo)
+
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
+
         # Create QListView with grid mode
         self.list_view = QListView()
         self.list_view.setViewMode(QListView.ViewMode.IconMode)
@@ -158,7 +174,7 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
         return self._model
 
     @property
-    def selected_shot(self):
+    def selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
 
         Returns:
@@ -208,6 +224,35 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
         model.shots_updated.connect(self._on_model_updated)
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
+
+    def populate_show_filter(self, shot_model: BaseShotModel) -> None:
+        """Populate the show filter combo box with available shows.
+
+        Args:
+            shot_model: Shot model to get available shows from
+        """
+        if not shot_model:
+            return
+
+        try:
+            # Block signals to prevent triggering filter change
+            self.show_combo.blockSignals(True)
+
+            # Clear existing items except "All Shows"
+            while self.show_combo.count() > 1:
+                self.show_combo.removeItem(1)
+
+            # Get available shows
+            shows = shot_model.get_available_shows()
+
+            # Add shows to combo box
+            for show in sorted(shows):
+                self.show_combo.addItem(show)
+
+            self.logger.debug(f"Populated show filter with {len(shows)} shows")
+        finally:
+            # Re-enable signals
+            self.show_combo.blockSignals(False)
 
     @Slot()
     def _on_model_updated(self) -> None:
@@ -303,6 +348,18 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
         self.list_view.viewport().update()
 
         self.logger.debug(f"Thumbnail size changed to {size}px")
+
+    @Slot(str)
+    def _on_show_filter_changed(self, show_text: str) -> None:
+        """Handle show filter change.
+
+        Args:
+            show_text: Selected show name or "All Shows"
+        """
+        # Convert "All Shows" to None for the model
+        show_filter = None if show_text == "All Shows" else show_text
+        self.show_filter_requested.emit(show_filter or "")  # Emit empty string for None
+        self.logger.info(f"Show filter requested: {show_text}")
 
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""

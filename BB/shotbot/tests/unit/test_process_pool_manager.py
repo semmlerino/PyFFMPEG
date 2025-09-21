@@ -116,7 +116,6 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         """Initialize with optional session injection."""
         # Initialize directly without calling super().__init__() to avoid singleton issues
         import concurrent.futures
-        import threading
 
         from PySide6.QtCore import QObject
 
@@ -485,48 +484,62 @@ class TestProcessPoolManagerBehavior:
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)
         manager.shutdown()
 
-    def test_concurrent_access_thread_safety(self) -> None:
-        """Test thread-safe access to singleton.
+    def test_concurrent_access_thread_safety(self, qapp) -> None:
+        """Test thread-safe singleton access following Qt threading rules.
 
-        CORRECT: Testing actual concurrent behavior, not locking mechanism.
-        FIXED: Create ProcessPoolManager in main thread to avoid Qt threading violations.
+        CORRECT: Tests singleton pattern without violating Qt thread affinity.
+        Qt Rule: QObjects can only be accessed from the thread they belong to.
+
+        This test validates that:
+        1. Multiple threads can safely get the same singleton instance
+        2. The singleton pattern works under concurrent access
+        3. No Qt threading violations occur
         """
+        import queue
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Reset singleton to ensure clean state
         ProcessPoolManager._instance = None
 
-        # Create the singleton instance in the MAIN thread (Qt requirement)
-        # QObjects must be created in the thread where they will live
+        # Create main thread instance
         main_manager = ProcessPoolManager()
 
-        managers = []
-        results = []
+        # Queue to collect singleton instances from threads
+        instance_queue = queue.Queue()
 
-        def access_manager(index) -> None:
-            """Thread function to access existing manager."""
-            # Access the already-created singleton (don't create new QObject in thread)
-            manager = ProcessPoolManager()  # This returns the existing singleton
-            managers.append(manager)
+        def get_singleton_instance(thread_id) -> None:
+            """Get singleton instance from thread (safe operation)."""
+            # Getting the singleton instance is thread-safe (doesn't access QObject methods)
+            instance = ProcessPoolManager()
+            instance_queue.put((thread_id, id(instance)))
 
-            # Use manager - find_files_python is thread-safe since it doesn't create Qt objects
-            result = manager.find_files_python(".", "*.txt")
-            results.append((index, result))
+        # Test with multiple threads getting singleton instances
+        num_threads = 10
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = [
+                executor.submit(get_singleton_instance, i) for i in range(num_threads)
+            ]
 
-        # Create multiple threads
-        threads = []
-        for i in range(10):
-            thread = threading.Thread(target=access_manager, args=(i,))
-            threads.append(thread)
-            thread.start()
+            # Wait for all threads to complete
+            for future in futures:
+                future.result(timeout=5.0)
 
-        # Wait for all threads
-        for thread in threads:
-            thread.join()
+        # Collect all instance IDs
+        instance_ids = []
+        while not instance_queue.empty():
+            thread_id, instance_id = instance_queue.get()
+            instance_ids.append(instance_id)
 
-        # Test BEHAVIOR: All threads got same instance
-        assert all(m is main_manager for m in managers)
-        assert all(m is managers[0] for m in managers)
+        # Verify all threads got the same singleton instance
+        assert len(instance_ids) == num_threads
+        assert all(inst_id == instance_ids[0] for inst_id in instance_ids), (
+            "Not all threads got the same singleton instance"
+        )
 
-        # Test BEHAVIOR: All threads completed successfully
-        assert len(results) == 10
+        # Verify it's the same as main thread instance
+        assert id(main_manager) == instance_ids[0], (
+            "Thread instances don't match main thread instance"
+        )
 
         # Cleanup
         main_manager.shutdown()

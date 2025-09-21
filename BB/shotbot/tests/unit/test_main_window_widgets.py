@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
 
 from main_window import MainWindow
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -406,7 +406,7 @@ class TestMainWindowStateManagement:
 
         # Show window
         window.show()
-        qtbot.waitExposed(window)
+        qtbot.wait(10)
         assert window.isVisible()
 
     def test_window_minimize_restore(self, qtbot, stateful_window) -> None:

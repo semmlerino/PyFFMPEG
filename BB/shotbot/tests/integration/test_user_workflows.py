@@ -57,7 +57,11 @@ from tests.test_doubles_library import (
 )
 from threede_scene_model import ThreeDESceneModel
 
-pytestmark = [pytest.mark.integration, pytest.mark.qt]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 # Test markers for pytest
 
@@ -84,6 +88,7 @@ class ProgressOperationDouble:
         self.operations.append(("finish",))
 
 
+@pytest.mark.slow
 @pytest.mark.gui_mainwindow
 class TestUserWorkflows:
     """Integration tests for critical user workflows in ShotBot.
@@ -283,9 +288,12 @@ class TestUserWorkflows:
         launcher_started_spy = QSignalSpy(launcher_manager.execution_started)
 
         # Use test subprocess to prevent actual Nuke launch
-        with patch(
-            "subprocess.Popen", return_value=self.test_processes["nuke"]
-        ) as mock_popen, patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}):
+        with (
+            patch(
+                "subprocess.Popen", return_value=self.test_processes["nuke"]
+            ) as mock_popen,
+            patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}),
+        ):
             # Simulate user clicking Nuke launch button by calling the command launcher
             # This is what the UI does when _launch_app() is called
             success = main_window.command_launcher.launch_app(
@@ -361,9 +369,12 @@ class TestUserWorkflows:
             main_window.threede_shot_grid.scene_selected.connect(on_scene_selected)
 
         # Use test subprocess for Maya launch
-        with patch(
-            "subprocess.Popen", return_value=self.test_processes["maya"]
-        ) as mock_popen, patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}):
+        with (
+            patch(
+                "subprocess.Popen", return_value=self.test_processes["maya"]
+            ) as mock_popen,
+            patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}),
+        ):
             # Create a 3DE scene object for testing
             from threede_scene_model import ThreeDEScene
 
@@ -1062,8 +1073,9 @@ class TestUserWorkflows:
             process.returncode = None
             test_processes.append(process)
 
-        with patch("subprocess.Popen", side_effect=test_processes), patch.dict(
-            "os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}
+        with (
+            patch("subprocess.Popen", side_effect=test_processes),
+            patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
         ):
             # Launch all processes concurrently
             shot_data = self.test_shots[0]
@@ -1121,8 +1133,9 @@ class TestUserWorkflows:
             stderr="",
         )
 
-        with patch("subprocess.run", return_value=concurrent_refresh_result), patch(
-            "subprocess.Popen", return_value=self.test_processes["nuke"]
+        with (
+            patch("subprocess.run", return_value=concurrent_refresh_result),
+            patch("subprocess.Popen", return_value=self.test_processes["nuke"]),
         ):
             # Start launcher execution and refresh simultaneously
             launcher_success = launcher_manager.execute_launcher(

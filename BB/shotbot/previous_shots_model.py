@@ -52,6 +52,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         self._previous_shots: list[Shot] = []
         self._is_scanning = False
         self._worker: PreviousShotsWorker | None = None
+        self._filter_show: str | None = None  # Show filter
 
         # THREAD SAFETY: Lock for protecting _is_scanning flag
         self._scan_lock = QMutex()
@@ -295,6 +296,47 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """
         # Type assertion since finder returns string values
         return dict[str, str](self._finder.get_shot_details(shot))
+
+    def set_show_filter(self, show: str | None) -> None:
+        """Set the show filter.
+
+        Args:
+            show: Show name to filter by or None for all shows
+        """
+        self._filter_show = show
+        self.logger.info(f"Show filter set to: {show if show else 'All Shows'}")
+
+    def get_show_filter(self) -> str | None:
+        """Get the current show filter."""
+        return self._filter_show
+
+    def get_filtered_shots(self) -> list[Shot]:
+        """Get shots filtered by the current show filter.
+
+        Returns:
+            Filtered list of shots
+        """
+        if self._filter_show is None:
+            # No filter, return all shots
+            return self._previous_shots.copy()
+
+        # Filter by show
+        filtered = [
+            shot for shot in self._previous_shots if shot.show == self._filter_show
+        ]
+        self.logger.debug(
+            f"Filtered {len(self._previous_shots)} shots to {len(filtered)} for show '{self._filter_show}'"
+        )
+        return filtered
+
+    def get_available_shows(self) -> set[str]:
+        """Get all unique show names from current shots.
+
+        Returns:
+            Set of unique show names
+        """
+        shows = set(shot.show for shot in self._previous_shots)
+        return shows
 
     def _load_from_cache(self) -> None:
         """Load previous shots from cache."""

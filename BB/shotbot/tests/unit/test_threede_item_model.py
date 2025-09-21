@@ -5,18 +5,17 @@ made to ThreeDEItemModel, including mutex protection for dictionaries
 and proper resource cleanup.
 """
 
-import time
 from concurrent.futures import Future
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QMetaObject, QModelIndex, Qt, QThread
+from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtGui import QImage
 
-from threede_item_model import ThreeDEItemModel
-from threede_scene_model import ThreeDEScene
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import TestCacheManager
+from threede_item_model import ThreeDEItemModel
+from threede_scene_model import ThreeDEScene
 
 
 @pytest.fixture
@@ -100,7 +99,9 @@ class TestThreadSafety:
                 workspace_path=f"/shows/proj/shots/{i:03d}/0010",
                 user="user",
                 plate="fg01",
-                scene_path=Path(f"/shows/proj/shots/{i:03d}/0010/.3de/scene_{i:03d}.3de"),
+                scene_path=Path(
+                    f"/shows/proj/shots/{i:03d}/0010/.3de/scene_{i:03d}.3de"
+                ),
             )
             many_scenes.append(scene)
 
@@ -112,6 +113,7 @@ class TestThreadSafety:
 
         # Manually populate cache to test limit - no need to patch anything
         from PySide6.QtCore import QMutexLocker
+
         for i, scene in enumerate(many_scenes[:110]):  # Try to exceed limit
             if len(model._thumbnail_cache) < 100:  # Respect MAX_CACHE_SIZE
                 with QMutexLocker(model._cache_mutex):
@@ -153,6 +155,7 @@ class TestThreadSafety:
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
         # Use QMutexLocker for Qt mutex
         from PySide6.QtCore import QMutexLocker
+
         with QMutexLocker(model._cache_mutex):
             model._thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
             model._loading_states[str(test_scenes[0].scene_path)] = "loaded"
@@ -218,7 +221,9 @@ class TestThreadSafety:
             data = model.data(index, role)
             # Verify no crashes or exceptions - data can be None for certain roles
             # The important thing is that it doesn't crash
-            assert data is None or data is not None  # Always true - just checking no exception
+            assert (
+                data is None or data is not None
+            )  # Always true - just checking no exception
 
     def test_selection_changes_during_loading(self, model, test_scenes, qtbot) -> None:
         """Test selection changes while thumbnails are loading."""
@@ -258,7 +263,9 @@ class TestThreadSafety:
         # Test reversed range - model doesn't prevent this
         model.set_visible_range(2, 0)
         assert model._visible_start == 2
-        assert model._visible_end == 0  # This creates an invalid range, but model allows it
+        assert (
+            model._visible_end == 0
+        )  # This creates an invalid range, but model allows it
 
     def test_thumbnail_timer_lifecycle(self, model, test_scenes) -> None:
         """Test thumbnail timer starts and stops appropriately."""
@@ -274,6 +281,7 @@ class TestThreadSafety:
         # Loading all visible thumbnails should stop timer
         # Simulate all loaded
         from PySide6.QtCore import QMutexLocker
+
         with QMutexLocker(model._cache_mutex):
             for scene in test_scenes[:3]:
                 model._thumbnail_cache[str(scene.scene_path)] = QImage()
@@ -325,6 +333,7 @@ class TestDataIntegrity:
         # Add to cache
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
         from PySide6.QtCore import QMutexLocker
+
         with QMutexLocker(model._cache_mutex):
             model._thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
 

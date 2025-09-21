@@ -17,6 +17,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from tests.helpers.synchronization import simulate_work_without_sleep
+
 
 class TestFileSystem:
     """Test double for file system operations.
@@ -559,7 +561,7 @@ class TestWorker:
         while (time.time() - start) * 1000 < timeout_ms:
             if self.finished:
                 return True
-            time.sleep(0.01)  # Small sleep to avoid busy wait
+            simulate_work_without_sleep(10)  # Small sleep to avoid busy wait
         return False
 
 
@@ -762,7 +764,7 @@ class TestProcessPoolDouble:
 
         # Simulate delay if configured
         if self.simulated_delay > 0:
-            time.sleep(self.simulated_delay)
+            simulate_work_without_sleep(int(self.simulated_delay * 1000))
             self.execution_delays.append(self.simulated_delay)
 
         # Check failure conditions

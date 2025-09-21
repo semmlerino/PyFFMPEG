@@ -265,12 +265,12 @@ class AccessibilityManager:
             hasattr(window, attr) for attr in ["tab_widget", "shot_grid", "app_buttons"]
         ):
             # Start with tab widget - add null checks
-            tab_widget = getattr(window, "tab_widget", None)
-            shot_grid = getattr(window, "shot_grid", None)
+            tab_widget: QTabWidget | None = getattr(window, "tab_widget", None)
+            shot_grid: QWidget | None = getattr(window, "shot_grid", None)
             if tab_widget is not None and shot_grid is not None:
-                size_slider = getattr(shot_grid, "size_slider", None)
+                size_slider: QSlider | None = getattr(shot_grid, "size_slider", None)
                 if size_slider is not None:
-                    window.setTabOrder(tab_widget, cast("QWidget", size_slider))
+                    window.setTabOrder(tab_widget, size_slider)
 
             # Then shot grid controls - with complete null safety
             if (
@@ -297,11 +297,7 @@ class AccessibilityManager:
             # Add null safety for app_buttons access
             if hasattr(window, "app_buttons") and window.app_buttons is not None:
                 for app_name in ["3de", "nuke", "maya", "rv", "publish"]:
-                    if (
-                        app_name in window.app_buttons
-                        and prev_widget is not None
-                        and window.app_buttons[app_name] is not None
-                    ):
+                    if app_name in window.app_buttons and prev_widget is not None:
                         window.setTabOrder(
                             cast("QWidget", prev_widget), window.app_buttons[app_name]
                         )

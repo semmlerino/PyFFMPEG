@@ -346,6 +346,16 @@ class LauncherProcessManager(QObject):
                     worker.request_stop()
                     if not worker.wait(5000):  # Wait 5 seconds
                         logger.warning(f"Worker {process_key} did not stop gracefully")
+
+                    # Disconnect signals to prevent warnings
+                    try:
+                        worker.command_started.disconnect()
+                        worker.command_finished.disconnect()
+                        worker.command_error.disconnect()
+                    except (RuntimeError, TypeError):
+                        # Signals may already be disconnected
+                        pass
+
                     del self._active_workers[process_key]
                     self.worker_removed.emit(process_key)
                     return True
@@ -418,6 +428,17 @@ class LauncherProcessManager(QObject):
             with QMutexLocker(self._process_lock):
                 for key in finished_keys:
                     if key in self._active_workers:
+                        worker = self._active_workers[key]
+
+                        # Disconnect signals to prevent warnings
+                        try:
+                            worker.command_started.disconnect()
+                            worker.command_finished.disconnect()
+                            worker.command_error.disconnect()
+                        except (RuntimeError, TypeError):
+                            # Signals may already be disconnected
+                            pass
+
                         logger.debug(f"Removing finished worker {key}")
                         del self._active_workers[key]
                         self.worker_removed.emit(key)
@@ -449,18 +470,36 @@ class LauncherProcessManager(QObject):
         self._cleanup_timer.stop()
         self._cleanup_retry_timer.stop()
 
-        # Get snapshot of active processes
+        # Get snapshot of active processes and workers
         with QMutexLocker(self._process_lock):
             processes = list(self._active_processes.keys())
-            workers = list(self._active_workers.keys())
+            workers_snapshot = dict(self._active_workers)
 
         # Terminate all processes
         for process_key in processes:
             self.terminate_process(process_key, force=False)
 
-        # Stop all workers
-        for worker_key in workers:
-            self.terminate_process(worker_key, force=False)
+        # Stop all workers with signal disconnection
+        for worker_key, worker in workers_snapshot.items():
+            try:
+                worker.request_stop()
+                worker.wait(5000)  # Wait 5 seconds
+
+                # Disconnect signals to prevent warnings
+                try:
+                    worker.command_started.disconnect()
+                    worker.command_finished.disconnect()
+                    worker.command_error.disconnect()
+                except (RuntimeError, TypeError):
+                    # Signals may already be disconnected
+                    pass
+
+            except Exception as e:
+                logger.error(f"Error stopping worker {worker_key}: {e}")
+
+        # Clear all tracking
+        with QMutexLocker(self._process_lock):
+            self._active_workers.clear()
 
         logger.info("All workers and processes stopped")
 

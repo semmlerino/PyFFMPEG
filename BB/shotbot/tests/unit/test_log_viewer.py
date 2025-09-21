@@ -159,11 +159,7 @@ class TestLogViewer:
         """Test that new entries auto-scroll to bottom."""
         log_viewer = LogViewer()
         qtbot.addWidget(log_viewer)
-        log_viewer.show()  # Need to show widget for scroll to work
-
-        # Use waitExposed instead of deprecated waitForWindowShown
-        with qtbot.waitExposed(log_viewer):
-            pass
+        # Note: In offscreen mode, scroll works without actual visibility
 
         # Add multiple entries to trigger scrolling
         for i in range(5):

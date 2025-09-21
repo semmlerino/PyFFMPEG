@@ -16,6 +16,7 @@ from typing_extensions import override
 if TYPE_CHECKING:
     from concurrent.futures import Future
 
+    from base_shot_model import BaseShotModel
     from cache.thumbnail_loader import ThumbnailCacheResult
 
 from PySide6.QtCore import (
@@ -78,6 +79,7 @@ class ShotItemModel(LoggingMixin, QAbstractListModel):
     shots_updated = Signal()
     thumbnail_loaded = Signal(int)  # row index
     selection_changed = Signal(QModelIndex)
+    show_filter_changed = Signal(str)  # show name or "All Shows"
 
     def __init__(
         self,
@@ -90,6 +92,15 @@ class ShotItemModel(LoggingMixin, QAbstractListModel):
             cache_manager: Optional cache manager for thumbnails
             parent: Optional parent QObject
         """
+        # Ensure we're in the main thread for Qt model creation
+        from PySide6.QtCore import QCoreApplication, QThread
+
+        if not QThread.currentThread() == QCoreApplication.instance().thread():
+            raise RuntimeError(
+                f"ShotItemModel must be created in the main thread. "
+                f"Current thread: {QThread.currentThread()}, "
+                f"Main thread: {QCoreApplication.instance().thread()}"
+            )
         super().__init__(parent)
 
         self._shots: list[Shot] = []
@@ -644,6 +655,30 @@ class ShotItemModel(LoggingMixin, QAbstractListModel):
             self.set_shots(shots)
 
         return RefreshResult(success=True, has_changes=has_changes)
+
+    def set_show_filter(self, shot_model: BaseShotModel, show: str | None) -> None:
+        """Set show filter and update the model.
+
+        Args:
+            shot_model: Shot model to get filtered shots from
+            show: Show name to filter by or None for all shows
+        """
+        if not shot_model:
+            return
+
+        # Set filter on the shot model
+        shot_model.set_show_filter(show)
+
+        # Get filtered shots and update our display
+        filtered_shots = shot_model.get_filtered_shots()
+        self.set_shots(filtered_shots)
+
+        # Emit filter changed signal for UI updates
+        filter_display = show if show is not None else "All Shows"
+        self.show_filter_changed.emit(filter_display)
+        self.logger.info(
+            f"Applied show filter: {filter_display}, {len(filtered_shots)} shots"
+        )
 
     def clear_thumbnail_cache(self) -> None:
         """Clear the thumbnail cache to free memory."""

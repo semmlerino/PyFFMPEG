@@ -9,12 +9,8 @@ Following UNIFIED_TESTING_GUIDE:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
-
-if TYPE_CHECKING:
-    from threede_scene_model import ThreeDEScene
 
 
 class TestSceneFiltering:
@@ -228,8 +224,18 @@ class TestSceneFiltering:
         "show,seq,shot,expected_path",
         [
             ("gator", "013_DC", "2120", "/shows/gator/shots/013_DC/013_DC_2120"),
-            ("jack_ryan", "DM_062", "3220", "/shows/jack_ryan/shots/DM_062/DM_062_3220"),
-            ("broken_eggs", "BRX_119", "0010", "/shows/broken_eggs/shots/BRX_119/BRX_119_0010"),
+            (
+                "jack_ryan",
+                "DM_062",
+                "3220",
+                "/shows/jack_ryan/shots/DM_062/DM_062_3220",
+            ),
+            (
+                "broken_eggs",
+                "BRX_119",
+                "0010",
+                "/shows/broken_eggs/shots/BRX_119/BRX_119_0010",
+            ),
         ],
     )
     def test_workspace_path_construction(self, show, seq, shot, expected_path):

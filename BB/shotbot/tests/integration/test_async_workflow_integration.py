@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import sys
 import threading
-import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -22,8 +21,14 @@ from cache_manager import CacheManager
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
+from tests.helpers.synchronization import simulate_work_without_sleep
 
-pytestmark = [pytest.mark.integration, pytest.mark.qt, pytest.mark.slow]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.qt,
+    pytest.mark.slow,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 
 class TestAsyncWorkflowIntegration:
@@ -107,7 +112,10 @@ class TestAsyncWorkflowIntegration:
         item_model.set_visible_range(0, 1)
 
         # Wait for async operations to complete
-        qtbot.wait(1000)
+        # Use QTest.qWait to ensure timer events are processed
+        from PySide6.QtTest import QTest
+
+        QTest.qWait(1000)
 
         # Verify both components handled the shot
         assert info_panel._current_shot == test_shots[0]
@@ -255,7 +263,10 @@ class TestAsyncWorkflowIntegration:
         # Trigger operations that will fail
         item_model.set_visible_range(0, 1)
 
-        qtbot.wait(500)
+        # Wait for error handling to complete
+        from PySide6.QtTest import QTest
+
+        QTest.qWait(500)
 
         # Both components should handle errors gracefully
         # Model should show failed loading state
@@ -280,12 +291,12 @@ class TestAsyncWorkflowIntegration:
         def model_operations() -> None:
             for i in range(5):
                 item_model.set_shots(test_shots[i % len(test_shots) :])
-                time.sleep(0.05)
+                simulate_work_without_sleep(50)
 
         def panel_operations() -> None:
             for i in range(5):
                 info_panel.set_shot(test_shots[i % len(test_shots)])
-                time.sleep(0.05)
+                simulate_work_without_sleep(50)
 
         # Run operations in separate threads
         model_thread = threading.Thread(target=model_operations)

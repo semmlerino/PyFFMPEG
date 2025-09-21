@@ -46,8 +46,8 @@ def verify_mock_environment(shows_root: str | Path) -> bool:
 
     if other_users_3de_files:
         print("\n✅ Other 3DE Scenes tab will be populated:")
-        users = set()
-        shots = set()
+        users: set[str] = set()
+        shots: set[str] = set()
         for f in other_users_3de_files:
             parts = f.parts
             if "user" in parts:

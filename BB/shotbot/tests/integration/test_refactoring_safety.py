@@ -247,6 +247,7 @@ class TestLauncherRefactoringSafety:
         assert ("deleted", (created_id,)) in signal_emissions
 
 
+@pytest.mark.slow
 @pytest.mark.gui_mainwindow
 class TestMainWindowRefactoringSafety:
     """Test suite ensuring main window functionality is preserved."""
@@ -324,6 +325,7 @@ class TestMainWindowRefactoringSafety:
             assert window.shot_model is not None
 
 
+@pytest.mark.slow
 @pytest.mark.gui_mainwindow
 class TestCombinedIntegration:
     """Test launcher and main window work together."""

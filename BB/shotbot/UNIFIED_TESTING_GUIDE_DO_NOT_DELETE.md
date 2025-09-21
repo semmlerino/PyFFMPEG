@@ -342,6 +342,132 @@ signal_data = spy.at(-1)  # Segmentation fault in Qt
 signal_data = spy.at(spy.count() - 1)
 ```
 
+### QObject Thread Affinity (CRITICAL)
+**Rule: QObjects can ONLY be accessed from the thread they belong to**
+
+❌ **FATAL VIOLATION**:
+```python
+# ProcessPoolManager is a QObject created in main thread
+manager = ProcessPoolManager()  # Created in main thread
+
+def worker():
+    # CRASH: Accessing QObject from different thread!
+    result = manager.find_files_python(".", "*.txt")
+
+threading.Thread(target=worker).start()  # Will crash/hang
+```
+
+✅ **PROPER SOLUTION**:
+```python
+# Use queue-based communication with main thread
+work_queue = queue.Queue()
+result_queue = queue.Queue()
+
+def worker():
+    work_queue.put((".", "*.txt"))  # Send work request
+    result = result_queue.get()     # Receive result
+
+def process_work():
+    while not work_queue.empty():
+        args = work_queue.get_nowait()
+        result = manager.find_files_python(*args)  # Safe in main thread
+        result_queue.put(result)
+
+# Use QTimer to process work in main thread
+timer = QTimer()
+timer.timeout.connect(process_work)
+timer.start(10)
+```
+
+### Widget Creation Thread Safety
+**Rule: Qt widgets must be created in the main thread only**
+
+❌ **FATAL CRASH**:
+```python
+# Widget creation in background thread - causes Fatal Python error: Aborted
+def worker():
+    panel = ShotInfoPanel()  # CRASH: Widget created in wrong thread
+
+threading.Thread(target=worker).start()
+```
+
+✅ **THREAD-SAFE PATTERN**:
+```python
+class ShotInfoPanel(QWidget):
+    def __init__(self, cache_manager=None):
+        # Validate main thread before widget creation
+        from PySide6.QtCore import QThread, QCoreApplication
+
+        app_instance = QCoreApplication.instance()
+        if app_instance is None:
+            raise RuntimeError("No QApplication instance found")
+
+        current_thread = QThread.currentThread()
+        main_thread = app_instance.thread()
+        if current_thread != main_thread:
+            raise RuntimeError(f"Widget must be created in main thread")
+
+        super().__init__()
+```
+
+### Qt Object Lifecycle Safety
+**Rule: Always guard against accessing deleted Qt objects**
+
+❌ **RUNTIME ERROR**:
+```python
+# Timer callback accessing deleted Qt object
+QTimer.singleShot(timeout, lambda: status_bar.setStyleSheet(style))
+# RuntimeError: Internal C++ object (QStatusBar) already deleted
+```
+
+✅ **DEFENSIVE PATTERN**:
+```python
+def restore_style():
+    try:
+        if status_bar and not status_bar.isHidden():
+            status_bar.setStyleSheet(original_style)
+    except RuntimeError:
+        # Qt object was deleted, ignore gracefully
+        pass
+
+QTimer.singleShot(timeout, restore_style)
+```
+
+### Integration Test Parallel Execution
+**Rule: Qt tests MUST use xdist_group marker for parallel safety**
+
+❌ **SEGFAULT in parallel**:
+```python
+pytestmark = [pytest.mark.integration, pytest.mark.qt]  # MISSING xdist_group
+```
+
+✅ **PARALLEL SAFE**:
+```python
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state")  # CRITICAL: Same worker for all Qt tests
+]
+```
+
+### Test Popup Prevention
+**Automated popup prevention implemented in conftest.py at module import time**
+
+❌ **WRONG APPROACH**:
+```python
+# Don't patch show() in individual tests
+def test_widget(qtbot, monkeypatch):
+    monkeypatch.setattr(QWidget, "show", lambda self: None)  # Too late!
+```
+
+✅ **CORRECT APPROACH**:
+```python
+# In conftest.py - patches applied before ANY imports
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+QWidget.show = _mock_widget_show  # Global patching at import time
+QWidget.isVisible = _mock_widget_isVisible  # Virtual visibility tracking
+```
+
 ### Qt Container Truthiness
 ❌ **BUG**:
 ```python
@@ -524,6 +650,8 @@ class TestSignal:  # Lightweight Qt signal mock
 | Cross-thread signals | Use `Qt.QueuedConnection` |
 | `class TestHelper:` | Add `__test__ = False` |
 | `qtbot.wait(0)` | Use `qtbot.wait(100)` or `waitUntil()` |
+| Widget creation in threads | Use main thread validation |
+| Qt object lifecycle after deletion | Use defensive try/except blocks |
 
 ---
 Testing Checklist
@@ -542,3 +670,6 @@ Testing Checklist
 [ ] Provide parse_function to AsyncShotLoader from BaseShotModel
 [ ] Import builtins explicitly for `__import__` access
 [ ] Use correct VFX path format: `/shows/{show}/shots/{seq}/{seq}_{shot}`
+[ ] Validate main thread before creating Qt widgets
+[ ] Use defensive exception handling for Qt object access
+[ ] Guard against "Internal C++ object already deleted" errors

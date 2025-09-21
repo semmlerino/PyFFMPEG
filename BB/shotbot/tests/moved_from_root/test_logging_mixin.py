@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 
 
-class TestClass(LoggingMixin):
+class MockLoggingClass(LoggingMixin):
     """Test class using LoggingMixin."""
 
     def __init__(self, name: str) -> None:
@@ -60,7 +60,7 @@ def test_logging_mixin() -> None:
     print("=== Testing LoggingMixin ===")
 
     # Test basic logging
-    test_obj = TestClass("test_user")
+    test_obj = MockLoggingClass("test_user")
     test_obj.simple_method()
 
     # Test context logging

@@ -197,6 +197,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
     # Singleton instance
     _instance = None
+    _initialized = False  # Class-level initialization flag
     _lock = QMutex()  # Qt mutex for thread-safe singleton access
 
     # Qt signals
@@ -216,7 +217,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 # Double-check inside lock to prevent race condition
                 if cls._instance is None:
                     instance = super().__new__(cls)
-                    instance._initialized = False
                     cls._instance = instance
         return cls._instance
 
@@ -229,11 +229,11 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """
         # Only initialize once, using the same lock as __new__
         with QMutexLocker(ProcessPoolManager._lock):
-            if self._initialized:
+            if ProcessPoolManager._initialized:
                 return
 
             # Mark as initialized FIRST to prevent race conditions
-            self._initialized = True
+            ProcessPoolManager._initialized = True
 
             super().__init__()
 
@@ -254,7 +254,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             # Add condition variable for proper thread synchronization
             self._session_condition = threading.Condition(self._session_lock)
             self._metrics = ProcessMetrics()
-            self._initialized = True
+            # Removed duplicate: self._initialized = True (was line 257)
 
         self.logger.info(f"ProcessPoolManager initialized with {max_workers} workers")
 

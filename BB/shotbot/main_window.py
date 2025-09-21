@@ -163,6 +163,37 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     """Main application window."""
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
+        # Ensure we're in the main thread for Qt widget creation
+        from PySide6.QtCore import QCoreApplication, QThread
+        from PySide6.QtWidgets import QApplication
+
+        # Check if QApplication exists
+        app_instance = QCoreApplication.instance()
+        if app_instance is None:
+            raise RuntimeError("MainWindow: No QApplication instance found")
+
+        # Check if we're in the main thread
+        current_thread = QThread.currentThread()
+        main_thread = app_instance.thread()
+        if current_thread != main_thread:
+            raise RuntimeError(
+                f"MainWindow must be created in the main thread. "
+                f"Current thread: {current_thread}, "
+                f"Main thread: {main_thread}"
+            )
+
+        # Additional safety check for QApplication type (relaxed for tests)
+        # In test environments, QCoreApplication is acceptable since pytest-qt may create it
+        import sys
+
+        is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
+
+        if not isinstance(app_instance, QApplication) and not is_test_environment:
+            raise RuntimeError(
+                f"MainWindow: QCoreApplication instance is not a QApplication. "
+                f"Type: {type(app_instance)}"
+            )
+
         super().__init__()
 
         # Initialize shot_model attribute (will be set later based on feature flag)
@@ -531,6 +562,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.shot_grid.shot_selected.connect(self._on_shot_selected)
         _ = self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
         _ = self.shot_grid.app_launch_requested.connect(self._launch_app)
+        _ = self.shot_grid.show_filter_requested.connect(
+            self._on_shot_show_filter_requested
+        )
 
         # 3DE scene selection
         _ = self.threede_shot_grid.scene_selected.connect(self._on_scene_selected)
@@ -548,6 +582,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_shot_double_clicked
         )
         _ = self.previous_shots_grid.app_launch_requested.connect(self._launch_app)
+        _ = self.previous_shots_grid.show_filter_requested.connect(
+            self._on_previous_show_filter_requested
+        )
+        _ = self.previous_shots_item_model.shots_updated.connect(
+            self._on_previous_shots_updated
+        )
 
         # Command launcher
         _ = self.command_launcher.command_executed.connect(self.log_viewer.add_command)
@@ -1003,6 +1043,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Always use Model/View implementation
         if hasattr(self, "shot_item_model"):
             self.shot_item_model.set_shots(self.shot_model.shots)
+            # Populate show filter with available shows
+            self.shot_grid.populate_show_filter(self.shot_model)
 
     def _on_shots_loaded(self, shots: list[Shot]) -> None:
         """Handle shots loaded signal from model.
@@ -1228,6 +1270,46 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.threede_item_model.set_show_filter(self.threede_scene_model, show_filter)
 
         self.logger.info(f"Applied show filter: {show if show else 'All Shows'}")
+
+    def _on_shot_show_filter_requested(self, show: str) -> None:
+        """Handle show filter request from My Shots grid view.
+
+        Args:
+            show: Show name to filter by, or empty string for all shows
+        """
+        # Convert empty string back to None for the model
+        show_filter = show if show else None
+
+        # Apply filter to shot item model
+        self.shot_item_model.set_show_filter(self.shot_model, show_filter)
+
+        self.logger.info(
+            f"Applied My Shots show filter: {show if show else 'All Shows'}"
+        )
+
+    def _on_previous_show_filter_requested(self, show: str) -> None:
+        """Handle show filter request from Previous Shots grid view.
+
+        Args:
+            show: Show name to filter by, or empty string for all shows
+        """
+        # Convert empty string back to None for the model
+        show_filter = show if show else None
+
+        # Apply filter to previous shots item model
+        self.previous_shots_item_model.set_show_filter(
+            self.previous_shots_model, show_filter
+        )
+
+        self.logger.info(
+            f"Applied Previous Shots show filter: {show if show else 'All Shows'}"
+        )
+
+    def _on_previous_shots_updated(self) -> None:
+        """Handle previous shots updated signal."""
+        # Populate show filter with available shows
+        self.previous_shots_grid.populate_show_filter(self.previous_shots_model)
+        self.logger.debug("Previous shots updated, refreshed show filter")
 
     def _launch_app(self, app_name: str) -> None:
         """Launch an application."""
@@ -1492,10 +1574,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if self._launcher_dialog is None:
             self._launcher_dialog = LauncherManagerDialog(self.launcher_manager, self)
 
-        if self._launcher_dialog is not None:
-            self._launcher_dialog.show()
-            self._launcher_dialog.raise_()
-            self._launcher_dialog.activateWindow()
+        # At this point, _launcher_dialog is guaranteed to be not None
+        self._launcher_dialog.show()
+        self._launcher_dialog.raise_()
+        self._launcher_dialog.activateWindow()
 
     def _update_launcher_menu(self) -> None:
         """Update the custom launcher menu with available launchers."""

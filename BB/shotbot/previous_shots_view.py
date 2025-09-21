@@ -20,6 +20,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QListView,
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QCloseEvent, QContextMenuEvent, QKeyEvent, QWheelEvent
 
     from previous_shots_item_model import PreviousShotsItemModel
+    from previous_shots_model import PreviousShotsModel
     from shot_model import Shot
 
 
@@ -60,6 +62,7 @@ class PreviousShotsView(QtWidgetMixin, LoggingMixin, QWidget):
     shot_selected = Signal(object)  # Shot object
     shot_double_clicked = Signal(object)  # Shot object
     app_launch_requested = Signal(str)  # app_name
+    show_filter_requested = Signal(str)  # show name or None for all
 
     def __init__(
         self,
@@ -120,6 +123,18 @@ class PreviousShotsView(QtWidgetMixin, LoggingMixin, QWidget):
         size_layout.addWidget(self.size_label)
 
         layout.addLayout(size_layout)
+
+        # Show filter controls
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Show:"))
+
+        self.show_combo = QComboBox()
+        self.show_combo.addItem("All Shows")
+        self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
+        filter_layout.addWidget(self.show_combo)
+
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
 
         # Create QListView with grid mode
         self.list_view = QListView()
@@ -247,6 +262,35 @@ class PreviousShotsView(QtWidgetMixin, LoggingMixin, QWidget):
         self._update_status()
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
+
+    def populate_show_filter(self, previous_shots_model: PreviousShotsModel) -> None:
+        """Populate the show filter combo box with available shows.
+
+        Args:
+            previous_shots_model: Model to get available shows from
+        """
+        if not previous_shots_model:
+            return
+
+        try:
+            # Block signals to prevent triggering filter change
+            self.show_combo.blockSignals(True)
+
+            # Clear existing items except "All Shows"
+            while self.show_combo.count() > 1:
+                self.show_combo.removeItem(1)
+
+            # Get available shows
+            shows = previous_shots_model.get_available_shows()
+
+            # Add shows to combo box
+            for show in sorted(shows):
+                self.show_combo.addItem(show)
+
+            self.logger.debug(f"Populated show filter with {len(shows)} shows")
+        finally:
+            # Re-enable signals
+            self.show_combo.blockSignals(False)
 
     @Slot()
     def _on_refresh_clicked(self) -> None:
@@ -395,6 +439,18 @@ class PreviousShotsView(QtWidgetMixin, LoggingMixin, QWidget):
         self.list_view.viewport().update()
 
         self.logger.debug(f"Thumbnail size changed to {size}px")
+
+    @Slot(str)
+    def _on_show_filter_changed(self, show_text: str) -> None:
+        """Handle show filter change.
+
+        Args:
+            show_text: Selected show name or "All Shows"
+        """
+        # Convert "All Shows" to None for the model
+        show_filter = None if show_text == "All Shows" else show_text
+        self.show_filter_requested.emit(show_filter or "")  # Emit empty string for None
+        self.logger.info(f"Show filter requested: {show_text}")
 
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""

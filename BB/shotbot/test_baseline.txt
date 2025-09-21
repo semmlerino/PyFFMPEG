@@ -1,0 +1,1033 @@
+Fatal Python error: Aborted
+
+Thread 0x00007ff93f7fe6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007ff94c79d6c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007ff94d18a080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_info_panel.py", line 32 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_async_workflow_integration.py", line 369 in test_info_panel_shot_change_during_loading
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix (total: 8)
+Fatal Python error: Aborted
+
+Thread 0x00007f08c7dff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007f08d45576c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007f08d4f44080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_info_panel.py", line 32 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_async_workflow_integration.py", line 77 in integration_components
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 922 in call_fixture_func
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1195 in pytest_fixture_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1127 in execute
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 639 in _get_active_fixturedef
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 548 in getfixturevalue
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 719 in _fillfixtures
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1674 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 514 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 164 in pytest_runtest_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 130 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix (total: 8)
+Fatal Python error: Aborted
+
+Thread 0x00007f14f77ff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007f1503fb56c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007f15049a2080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_info_panel.py", line 32 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_async_workflow_integration.py", line 77 in integration_components
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 922 in call_fixture_func
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1195 in pytest_fixture_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1127 in execute
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 639 in _get_active_fixturedef
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 548 in getfixturevalue
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 719 in _fillfixtures
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1674 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 514 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 164 in pytest_runtest_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 130 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+Fatal Python error: Aborted
+
+Thread 0x00007fa5f85ff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007fa604d396c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007fa605726080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_info_panel.py", line 32 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_async_workflow_integration.py", line 77 in integration_components
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 922 in call_fixture_func
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1195 in pytest_fixture_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1127 in execute
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 639 in _get_active_fixturedef
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 548 in getfixturevalue
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 719 in _fillfixtures
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1674 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 514 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 164 in pytest_runtest_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 130 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File 
+Extension modules: shiboken6.Shiboken"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", , line PySide6.QtCore206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py, "psutil._psutil_linux, line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806,  in psutil._psutil_posixserve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+Fatal Python error:  (total: 8)
+Aborted
+
+Thread 0x00007fa2182ff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007fa224aeb6c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007fa2254d8080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_info_panel.py", line 32 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_async_workflow_integration.py", line 77 in integration_components
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 922 in call_fixture_func
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py"Fatal Python error: , line 1195Aborted in 
+
+pytest_fixture_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File Thread 0x"00007fc244efe6c0/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py (most recent call first):
+", line 120  File  in "_hookexec/usr/lib/python3.12/threading.py
+"  File ", line /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py359" in wait
+  File , line "512/usr/lib/python3.12/threading.py in "__call__
+, line 655  File  in wait"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py  File ""/usr/lib/python3.12/threading.py", line 1429 in run
+  File , line "1127/usr/lib/python3.12/threading.py in "execute
+, line   File 1073" in /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py_bootstrap_inner"
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+, line 
+639Thread 0x in 00007fc251f1b6c0 (most recent call first):
+_get_active_fixturedef
+  File   File ""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py"", line 548, line  in 534getfixturevalue in 
+read  File 
+"  File /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line , line 719567 in  in _fillfixturesfrom_io
+
+  File   File ""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1160 in , line _thread_receiver1674
+ in   File setup"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py"  File ", line /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py341" in run
+  File , line "514/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py in "setup, line 
+411  File  in "_perform_spawn/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py
+"
+Current thread 0x00007fc252908080, line  (most recent call first):
+164  File  in pytest_runtest_setup"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_info_panel.py"  File , line "32/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py in "__init__
+  File , line "121/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_async_workflow_integration.py in "_multicall
+  File , line "77/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py in "integration_components, line 
+120  File  in _hookexec"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py"  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py, line "922 in , line call_fixture_func512
+ in   File __call__"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py"  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 1195, line  in 246 in pytest_fixture_setup<lambda>
+
+  File   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 344 in , line from_call121
+ in   File _multicall"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py  File ""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line , line 245120 in  in call_and_report_hookexec
+
+  File   File ""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py"", line , line 512130 in  in __call__
+runtestprotocol  File 
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in , line pytest_runtest_protocol1127
+ in   File execute"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py  File ""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line , line 639120 in  in _get_active_fixturedef_hookexec
+
+  File   File ""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 548, line  in 512getfixturevalue in 
+__call__  File 
+"/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py  File ", line "719/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py in "_fillfixtures
+  File ", line 227/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py in "run_one_test, line 
+1674  File  in "setup/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py
+"  File ", line /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py206" in pytest_runtestloop
+, line   File 514" in setup/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py
+"  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py, line "121 in , line _multicall164
+ in   File pytest_runtest_setup"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py  File "", line /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py120" in _hookexec
+, line   File 121" in /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py_multicall"
+, line   File 512" in /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py__call__"
+, line 120  File  in _hookexec
+"  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py"", line , line 343512 in  in __call___main
+
+  File   File ""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py"", line 246 in , line <lambda>289
+ in   File wrap_session"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py"  File , line "344/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py in "from_call
+, line   File 336" in /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.pypytest_cmdline_main"
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py, line "245 in , line call_and_report121
+ in   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 130 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+Extension modules: 
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.pyshiboken6.Shiboken", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512,  in __call__PySide6.QtCore_multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+
+  File   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py, line "289 in , line , 120PySide6.QtGui in wrap_session_hookexec
+
+  File   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py""Fatal Python error: /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py, line "Aborted336
+
+ in , line 512pytest_cmdline_main in , __call__PySide6.QtWidgets
+
+  File "  File /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line "121 in /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py_multicall"
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File , line "427/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py, "PySide6.QtTest, line  in 512 in <module>__call__
+
+  File   File Thread 0x""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py00007f0badbfe6c0/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py (most recent call first):
+"", line   File 1291 in "executetask, line /usr/lib/python3.12/threading.py
+"427  File  in "<module>
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py, line "359,  in PIL._imaging, line 341wait in 
+run
+  File   File ""/usr/lib/python3.12/threading.py/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py"", line 411 in , line _perform_spawn655
+ in   File wait"
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py  File ""/usr/lib/python3.12/threading.py, line "389 in , line integrate_as_primary_thread  File 1429" in 
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py  File ""run/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py
+, line "  File 1291, line " in 1273/usr/lib/python3.12/threading.pyexecutetask in "
+serve  File 
+", line /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py  File 1073"" in /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py, line "_bootstrap_inner341, line 
+ in 1806run  File  in 
+"serve  File /usr/lib/python3.12/threading.py
+""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py  File , line ""1030, line  in <string>411_bootstrap",  in 
+psutil._psutil_linux, line _perform_spawn
+8
+Thread 0x in   File 00007f0bbabc96c0<module> (most recent call first):
+
+"  File /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py"  File "<string>, line ""/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py389, , line " in psutil._psutil_posix1integrate_as_primary_thread, line  in 
+534<module>  File 
+ in "read/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py
+"  File ", line /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py1273" in , line serve567
+ in   File "from_io/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py
+"  File ", line 1806/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py in "serve
+  File , line "1160<string> in "_thread_receiver
+, line   File 8" in /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py<module>"
+  File , line "341<string> in "run
+, line   File 1 in "<module>
+/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007f0bbb5b6080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_info_panel.py", line 32 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_async_workflow_integration.py", line 77 in integration_components
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 922 in call_fixture_func
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py" (total: 8)
+, line 1195 in pytest_fixture_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1127 in execute
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 639 in _get_active_fixturedef
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 548 in getfixturevalue
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 719 in _fillfixtures
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1674 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 514 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 164 in pytest_runtest_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 130 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtCore, PySide6.QtGui, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtWidgets, PySide6.QtTest, PySide6.QtTest, PIL._imaging, PIL._imaging, psutil._psutil_linux, psutil._psutil_linux, psutil._psutil_posix, psutil._psutil_posix (total: 8)
+ (total: 8)
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix (total: 8)
+Fatal Python error: Aborted
+
+Thread 0x00007fa749ffe6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007fa756f706c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007fa75795d080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py", line 166 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/unit/test_main_window.py", line 38 in test_main_window_creates_all_components
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix (total: 8)
+bringing up nodes...
+bringing up nodes...
+
+[gw6] node down: Not properly terminated
+FFatal Python error: Aborted
+
+Thread 0x00007f9f0a4fe6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007f9f174456c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007f9f17e32080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/shot_info_panel.py", line 32 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_async_workflow_integration.py", line 77 in integration_components
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 922 in call_fixture_func
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1195 in pytest_fixture_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1127 in execute
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 639 in _get_active_fixturedef
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 548 in getfixturevalue
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 719 in _fillfixtures
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1674 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 514 in setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 164 in pytest_runtest_setup
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 130 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix (total: 8)
+Fatal Python error: Aborted
+
+Thread 0x00007f17f41ff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007f18009a16c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007f180138e080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py", line 166 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_feature_flag_switching.py", line 183 in test_flag_values_recognized
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix, PIL._imagingmath (total: 9)
+[gw1] node down: Not properly terminated
+FFatal Python error: Aborted
+
+Thread 0x00007faabffff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007faad11d96c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007faad1bc6080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py", line 166 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_feature_flag_switching.py", line 108 in test_legacy_model_when_flag_set
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix, PIL._imagingmath (total: 9)
+[gw9] node down: Not properly terminated
+F[gw5] node down: Not properly terminated
+F[gw4] node down: Not properly terminated
+F[gw2] node down: Not properly terminated
+F[gw7] node down: Not properly terminated
+F[gw0] node down: Not properly terminated
+F[gw3] node down: Not properly terminated
+F........[gw11] node down: Not properly terminated
+FFatal Python error: Aborted
+
+Thread 0x00007fe7087ff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007fe714f8b6c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007fe715978080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py", line 166 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_launcher_panel_integration.py", line 393 in test_launcher_panel_state_persistence
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+Fatal Python error: Aborted
+
+Thread 0x00007fa803dfe6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007fa810d806c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007fa81176d080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py", line 166 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_launcher_panel_integration.py", line 294 in test_complete_nuke_launch_workflow
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py
+Extension modules: shiboken6.Shiboken", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", PySide6.QtCore, line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+,   File PySide6.QtGui"<string>", line 8 in <module>
+  File "<string>", line 1,  in PySide6.QtWidgets<module>
+, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix, PIL._imagingmath (total: 9)
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix, PIL._imagingmath (total: 9)
+Fatal Python error: Aborted
+
+Thread 0x00007fc109ffe6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007fc116f426c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007fc11792f080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py", line 166 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_launcher_panel_integration.py", line 426 in test_rapid_shot_switching_stability
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix, PIL._imagingmath (total: 9)
+Fatal Python error: Aborted
+
+Thread 0x00007f9baceff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007f9bb965b6c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007f9bba048080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py", line 166 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_launcher_panel_integration.py", line 353 in test_3de_launch_with_scene_options
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix, PIL._imagingmath (total: 9)
+....[gw10] node down: Not properly terminated
+FFatal Python error: Aborted
+
+Thread 0x00007faf289ff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.py", line 359 in wait
+  File "/usr/lib/python3.12/threading.py", line 655 in wait
+  File "/usr/lib/python3.12/threading.py", line 1429 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030 in _bootstrap
+
+Thread 0x00007faf351c56c0 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 534 in read
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 567 in from_io
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1160 in _thread_receiver
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+
+Current thread 0x00007faf35bb2080 (most recent call first):
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/main_window.py", line 166 in __init__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/tests/integration/test_launcher_panel_integration.py", line 145 in test_app_launch_signal_flow_through_main_window
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 227 in run_one_test
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 206 in pytest_runtestloop
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343 in _main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/remote.py", line 427 in <module>
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1291 in executetask
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 341 in run
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 411 in _perform_spawn
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 389 in integrate_as_primary_thread
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1273 in serve
+  File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/execnet/gateway_base.py", line 1806 in serve
+  File "<string>", line 8 in <module>
+  File "<string>", line 1 in <module>
+
+Extension modules: shiboken6.Shiboken, PySide6.QtCore, PySide6.QtGui, PySide6.QtWidgets, PySide6.QtTest, PIL._imaging, psutil._psutil_linux, psutil._psutil_posix (total: 8)
+[gw12] node down: Not properly terminated
+F[gw14] node down: Not properly terminated
+F[gw15] node down: Not properly terminated
+F[gw13] node down: Not properly terminated
+F[gw8] node down: Not properly terminated
+FINTERNALERROR> Traceback (most recent call last):
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 289, in wrap_session
+INTERNALERROR>     session.exitstatus = doit(config, session) or 0
+INTERNALERROR>                          ^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/main.py", line 343, in _main
+INTERNALERROR>     config.hook.pytest_runtestloop(session=session)
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512, in __call__
+INTERNALERROR>     return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+INTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120, in _hookexec
+INTERNALERROR>     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+INTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 167, in _multicall
+INTERNALERROR>     raise exception
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 139, in _multicall
+INTERNALERROR>     teardown.throw(exception)
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/logging.py", line 801, in pytest_runtestloop
+INTERNALERROR>     return (yield)  # Run all the tests.
+INTERNALERROR>             ^^^^^
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 139, in _multicall
+INTERNALERROR>     teardown.throw(exception)
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/_pytest/terminal.py", line 688, in pytest_runtestloop
+INTERNALERROR>     result = yield
+INTERNALERROR>              ^^^^^
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121, in _multicall
+INTERNALERROR>     res = hook_impl.function(*args)
+INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/dsession.py", line 138, in pytest_runtestloop
+INTERNALERROR>     self.loop_once()
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/dsession.py", line 163, in loop_once
+INTERNALERROR>     call(**kwargs)
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/dsession.py", line 306, in worker_collectionfinish
+INTERNALERROR>     self.sched.schedule()
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/scheduler/loadscope.py", line 354, in schedule
+INTERNALERROR>     self._reschedule(node)
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/scheduler/loadscope.py", line 336, in _reschedule
+INTERNALERROR>     self._assign_work_unit(node)
+INTERNALERROR>   File "/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot/venv/lib/python3.12/site-packages/xdist/scheduler/loadscope.py", line 275, in _assign_work_unit
+INTERNALERROR>     worker_collection = self.registered_collections[node]
+INTERNALERROR>                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+INTERNALERROR> KeyError: <WorkerController gw16>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 16 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+16 failed, 12 passed, 64 warnings in 93.26s (0:01:33)

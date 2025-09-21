@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import concurrent.futures
 import gc
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch

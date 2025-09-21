@@ -9,12 +9,12 @@ app = (
 )
 
 
-class TestThread(QThread):
+class MockInterruptibleThread(QThread):
     def run(self) -> None:
         print(f"In run, interruption requested: {self.isInterruptionRequested()}")
 
 
-thread = TestThread()
+thread = MockInterruptibleThread()
 
 # Test 1: Request interruption before starting
 thread.requestInterruption()
@@ -26,7 +26,7 @@ thread.wait(100)
 print(f"After start and wait: {thread.isInterruptionRequested()}")
 
 # Test 2: New thread, start first then request interruption
-thread2 = TestThread()
+thread2 = MockInterruptibleThread()
 thread2.start()
 thread2.requestInterruption()
 print(

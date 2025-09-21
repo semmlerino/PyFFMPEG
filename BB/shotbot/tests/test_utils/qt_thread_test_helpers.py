@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QCoreApplication, QThread, Signal
 
+from tests.helpers.synchronization import process_qt_events
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -129,7 +131,9 @@ def ensure_qt_events_processed(qtbot: QtBot, cycles: int = 3) -> None:
     """
     for _ in range(cycles):
         qtbot.wait(10)
-        QCoreApplication.processEvents()
+        app = QCoreApplication.instance()
+        if app:
+            process_qt_events(app, 10)
 
 
 class WorkerTestFramework:

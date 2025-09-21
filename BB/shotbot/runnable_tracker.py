@@ -8,7 +8,7 @@ proper cleanup and prevent memory leaks from untracked thread pool tasks.
 import logging
 import threading
 import weakref
-from typing import Any, Optional
+from typing import Any
 
 from PySide6.QtCore import QRunnable, QThreadPool
 
@@ -24,7 +24,7 @@ class QRunnableTracker:
     and cleanup of thread pool tasks.
     """
 
-    _instance: Optional["QRunnableTracker"] = None
+    _instance: "QRunnableTracker | None" = None
     _lock = threading.Lock()
     _initialized = False
 

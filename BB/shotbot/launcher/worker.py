@@ -10,6 +10,7 @@ import logging
 import re
 import shlex
 import subprocess
+import threading
 
 from PySide6.QtCore import Signal
 
@@ -167,14 +168,34 @@ class LauncherWorker(ThreadSafeWorker):
                 use_shell = False
 
             # Start the process
+            # Use PIPE instead of DEVNULL to prevent deadlock with verbose applications
             self._process = subprocess.Popen(
                 cmd_list,
                 shell=use_shell,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 cwd=self.working_dir,
                 start_new_session=True,  # Isolate process group
             )
+
+            # Create drain threads to consume output and prevent buffer-full deadlock
+            def drain_stream(stream):
+                """Continuously read and discard output from a stream."""
+                try:
+                    for line in stream:
+                        pass  # Discard output
+                except Exception:
+                    pass  # Stream closed or process terminated
+
+            # Start daemon threads to drain stdout and stderr
+            stdout_thread = threading.Thread(
+                target=drain_stream, args=(self._process.stdout,), daemon=True
+            )
+            stderr_thread = threading.Thread(
+                target=drain_stream, args=(self._process.stderr,), daemon=True
+            )
+            stdout_thread.start()
+            stderr_thread.start()
 
             # Monitor process with periodic checks for stop requests
             while not self.is_stop_requested():

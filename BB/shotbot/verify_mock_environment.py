@@ -11,6 +11,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from shot_model import Shot
+
 # Set up environment
 os.environ["SHOTBOT_MOCK"] = "1"
 os.environ["SHOTBOT_HEADLESS"] = "1"  # Run without display
@@ -127,7 +129,7 @@ def test_headless_app() -> int:
 
     # Refresh shots
     if window.refresh_shots():
-        shots = window.get_shots()  # type: list
+        shots: list[Shot] = window.get_shots()
         logger.info(f"✅ Headless app loaded {len(shots)} shots")
         return len(shots)
     else:

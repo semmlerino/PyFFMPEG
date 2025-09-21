@@ -610,7 +610,9 @@ class RefactoredThreeDESceneFinder:
                 else:
                     # User is NOT assigned to this shot - construct a valid workspace path
                     # This allows viewing 3DE work from other users on any shot in the show
-                    workspace_path = f"{shows_root}/{show_name}/shots/{seq}/{seq}_{shot}"
+                    workspace_path = (
+                        f"{shows_root}/{show_name}/shots/{seq}/{seq}_{shot}"
+                    )
 
                 # Create scene for ALL found files from other users
                 # This is the "Other 3DE scenes" tab - it should show everything
@@ -630,10 +632,14 @@ class RefactoredThreeDESceneFinder:
             return show_scenes
 
         # Process shows in parallel using ThreadPoolExecutor
-        max_workers = min(len(shows), 3)  # Limit to 3 parallel searches for network filesystem
+        max_workers = min(
+            len(shows), 3
+        )  # Limit to 3 parallel searches for network filesystem
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all show processing tasks
-            future_to_show = {executor.submit(process_show, show): show for show in shows}
+            future_to_show = {
+                executor.submit(process_show, show): show for show in shows
+            }
 
             # Process completed futures as they finish
             for future in as_completed(future_to_show):
@@ -656,7 +662,7 @@ class RefactoredThreeDESceneFinder:
                         if progress_callback:
                             progress_callback(
                                 int((shows_completed / len(shows)) * 100),
-                                f"Completed {show}: found {len(show_scenes)} scenes"
+                                f"Completed {show}: found {len(show_scenes)} scenes",
                             )
 
                 except Exception as e:

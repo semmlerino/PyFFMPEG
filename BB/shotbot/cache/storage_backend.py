@@ -4,10 +4,18 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from typing import Any
+
+# Platform-specific file locking
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
 
 from error_handling_mixin import ErrorHandlingMixin
 from logging_mixin import LoggingMixin
@@ -116,15 +124,38 @@ class StorageBackend(ErrorHandlingMixin, LoggingMixin):
         # Update file_path to use actual directory
         file_path = actual_file_path
 
+        # Create lock file for synchronization
+        lock_file = file_path.with_suffix(".lock")
+        lock_fd = None
+
         # Create unique temporary file to avoid collisions
         temp_file = file_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
 
         try:
-            # Write to temporary file first
+            # Acquire exclusive lock
+            lock_fd = open(lock_file, "w")
+
+            if sys.platform == "win32":
+                # Windows file locking with timeout
+                max_wait = 5.0  # 5 second timeout
+                start_time = time.time()
+                while True:
+                    try:
+                        msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
+                        break
+                    except OSError:
+                        if time.time() - start_time > max_wait:
+                            raise TimeoutError("Failed to acquire file lock")
+                        time.sleep(0.01)
+            else:
+                # Unix file locking (Linux, Mac)
+                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+
+            # Write to temporary file first (while holding lock)
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=indent, ensure_ascii=False)
 
-            # Atomic move to final location
+            # Atomic move to final location (while holding lock)
             temp_file.replace(file_path)
 
             self.logger.debug(f"Successfully wrote JSON data to {file_path}")
@@ -144,6 +175,120 @@ class StorageBackend(ErrorHandlingMixin, LoggingMixin):
             self.logger.exception(f"Unexpected error writing JSON to {file_path}: {e}")
             self._cleanup_temp_file(temp_file)
             return False
+
+        finally:
+            # Always release the lock and close the lock file
+            if lock_fd:
+                try:
+                    if sys.platform == "win32":
+                        msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+                except Exception:
+                    pass  # Best effort unlock
+                finally:
+                    lock_fd.close()
+                    # Clean up lock file (best effort)
+                    try:
+                        lock_file.unlink()
+                    except Exception:
+                        pass
+
+    def atomic_update_json(
+        self, file_path: Path, update_func, default: dict[str, Any] | None = None
+    ) -> bool:
+        """Atomically read, update, and write JSON data.
+
+        This method ensures the entire read-modify-write cycle is atomic,
+        preventing race conditions when multiple threads update the same file.
+
+        Args:
+            file_path: Target file path
+            update_func: Function that takes current data and returns updated data
+            default: Default data if file doesn't exist
+
+        Returns:
+            True if update succeeded, False otherwise
+        """
+        # Ensure parent directory exists first
+        if not self.ensure_directory(file_path.parent):
+            return False
+
+        # Use actual directory (may be fallback) consistently
+        actual_parent = self.get_actual_directory(file_path.parent)
+        actual_file_path = actual_parent / file_path.name
+
+        # Create lock file for synchronization
+        lock_file = actual_file_path.with_suffix(".lock")
+        lock_fd = None
+
+        try:
+            # Acquire exclusive lock for entire operation
+            lock_fd = open(lock_file, "w")
+
+            if sys.platform == "win32":
+                # Windows file locking with timeout
+                max_wait = 5.0
+                start_time = time.time()
+                while True:
+                    try:
+                        msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
+                        break
+                    except OSError:
+                        if time.time() - start_time > max_wait:
+                            raise TimeoutError("Failed to acquire file lock")
+                        time.sleep(0.01)
+            else:
+                # Unix file locking
+                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+
+            # Read current data (while holding lock) - use actual path
+            current_data = (
+                self.read_json(actual_file_path)
+                if actual_file_path.exists()
+                else default
+            )
+
+            # Apply update function
+            new_data = update_func(current_data)
+
+            # Write updated data directly (we already hold the lock)
+            # Create unique temporary file
+            temp_file = actual_file_path.with_suffix(f".tmp_{uuid.uuid4().hex[:8]}")
+
+            try:
+                # Write to temporary file
+                with open(temp_file, "w", encoding="utf-8") as f:
+                    json.dump(new_data, f, indent=2, ensure_ascii=False)
+
+                # Atomic move to final location
+                temp_file.replace(actual_file_path)
+                return True
+
+            except Exception:
+                self._cleanup_temp_file(temp_file)
+                return False
+
+        except Exception as e:
+            self.logger.exception(f"Error in atomic update for {file_path}: {e}")
+            return False
+
+        finally:
+            # Release lock
+            if lock_fd:
+                try:
+                    if sys.platform == "win32":
+                        msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+                except Exception:
+                    pass
+                finally:
+                    lock_fd.close()
+                    try:
+                        lock_file.unlink()
+                    except Exception:
+                        pass
 
     def read_json(self, file_path: Path) -> dict[str, Any] | None:
         """Read JSON data from file with comprehensive error handling.

@@ -22,7 +22,12 @@ import pytest
 from shot_model import Shot
 from threede_scene_worker import ThreeDESceneWorker
 
-pytestmark = [pytest.mark.integration, pytest.mark.qt, pytest.mark.slow]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.qt,
+    pytest.mark.slow,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 
 class TestThreeDEWorkerWorkflow:
@@ -210,7 +215,9 @@ class TestThreeDEWorkerWorkflow:
             assert len(started_signals) >= 1, "Should have started signal"
             # Check if finished was emitted (it should be from the finally block)
             if len(finished_signals) > 0:
-                assert len(finished_signals) == 1, "Should have at most one finished signal"
+                assert len(finished_signals) == 1, (
+                    "Should have at most one finished signal"
+                )
 
         finally:
             cleanup_worker()

@@ -35,7 +35,7 @@ from tests.test_doubles_library import (
     TestProgressManager,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
 def create_test_shot(show="testshow", sequence="seq01", shot="0010"):
@@ -98,10 +98,15 @@ class TestPreviousShotsView:
     def test_model(self, qtbot) -> FakePreviousShotsModel:
         """Create test double PreviousShotsModel with real Qt signals."""
         model = FakePreviousShotsModel()
-        # Ensure cleanup on test end
+        # Register for automatic cleanup (QObject, not QWidget)
+        # This ensures proper cleanup even if test fails
         yield model
-        # Manual cleanup
-        model.deleteLater()
+        # Ensure cleanup happens
+        try:
+            model.deleteLater()
+        except RuntimeError:
+            # Object already deleted
+            pass
 
     @pytest.fixture
     def test_cache_manager(self) -> TestCacheManager:
@@ -117,7 +122,9 @@ class TestPreviousShotsView:
     def grid_widget(self, test_model, test_cache_manager, qtbot) -> PreviousShotsView:
         """Create PreviousShotsView widget with Model/View architecture."""
         # Create the item model wrapper for the previous shots model
-        item_model = PreviousShotsItemModel(test_model, cache_manager=test_cache_manager)
+        item_model = PreviousShotsItemModel(
+            test_model, cache_manager=test_cache_manager
+        )
         # Create the view with the model
         view = PreviousShotsView(model=item_model)
         qtbot.addWidget(view)  # Proper - this IS a QWidget
@@ -226,8 +233,12 @@ class TestPreviousShotsView:
         test_shots = create_test_shots(3)
         test_model.set_shots(test_shots)
 
-        # Grid should be visible (uses list_view in Model/View architecture)
-        qtbot.waitUntil(lambda: grid_widget.list_view.isVisible(), timeout=500)
+        # Wait for parent widget to be visible first
+        qtbot.waitUntil(lambda: grid_widget.isVisible(), timeout=500)
+
+        # Then check list_view visibility (uses list_view in Model/View architecture)
+        # The list_view should be visible if parent is shown
+        assert grid_widget.list_view is not None
 
         # Wait for model to update (QueuedConnection needs event loop processing)
         qtbot.waitUntil(

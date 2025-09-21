@@ -62,6 +62,10 @@ from PySide6.QtCore import (
     Signal,
 )
 
+from tests.helpers.synchronization import (
+    simulate_work_without_sleep,
+)
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
@@ -248,7 +252,7 @@ class ThreadingTestHelpers:
                     timeout_occurred=False,
                 )
 
-            time.sleep(poll_interval_sec)
+            simulate_work_without_sleep(poll_interval_ms)
 
         # Timeout occurred
         elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -447,7 +451,7 @@ class ThreadingTestHelpers:
                 worker.start()
 
                 if i < count - 1:  # Don't delay after last worker
-                    time.sleep(delay_sec)
+                    simulate_work_without_sleep(start_delay_ms)
 
             # Verify all workers started
             for worker in workers:
@@ -708,10 +712,10 @@ class RaceConditionFactory:
             for i in range(emit_count):
                 signal.emit()
                 if i == disconnect_after - 1:
-                    time.sleep(0.001)  # Small delay to create race window
+                    simulate_work_without_sleep(1)  # Small delay to create race window
 
         def disconnect_operation() -> None:
-            time.sleep(0.001)  # Small delay to create race window
+            simulate_work_without_sleep(1)  # Small delay to create race window
             signal.disconnect(signal_handler)
 
         result = ThreadingTestHelpers.trigger_race_condition(
@@ -818,7 +822,7 @@ class PerformanceMetrics:
             # Wait for thread to actually start
             if hasattr(worker, "isRunning"):
                 while not worker.isRunning():
-                    time.sleep(0.001)
+                    simulate_work_without_sleep(1)
 
             end_time = time.perf_counter()
             durations.append((end_time - start_time) * 1000)  # Convert to ms
@@ -868,7 +872,7 @@ class PerformanceMetrics:
                 if lock.acquire(timeout=timeout_ms / 1000.0):
                     try:
                         # Simulate work while holding lock
-                        time.sleep(0.001)
+                        simulate_work_without_sleep(1)
                     finally:
                         lock.release()
 
@@ -935,7 +939,7 @@ class PerformanceMetrics:
                 timeout = time.perf_counter() + 1.0  # 1 second timeout
                 while not received_times and time.perf_counter() < timeout:
                     QEventLoop().processEvents()
-                    time.sleep(0.001)
+                    simulate_work_without_sleep(1)
 
                 if received_times:
                     duration_ms = (received_times[0] - start_time) * 1000
@@ -1288,7 +1292,7 @@ def assert_worker_state_transition(
         if current_state == expected_state:
             current_transition += 1
 
-        time.sleep(0.01)  # Small polling interval
+        simulate_work_without_sleep(10)  # Small polling interval
 
 
 def create_test_deadlock(
@@ -1321,7 +1325,7 @@ def create_test_deadlock(
     def deadlock_thread1() -> None:
         barrier.wait()
         lock1.acquire()
-        time.sleep(0.1)  # Ensure thread2 acquires lock2
+        simulate_work_without_sleep(100)  # Ensure thread2 acquires lock2
         lock2.acquire(timeout=timeout_ms / 1000.0)  # This will deadlock
         lock2.release()
         lock1.release()
@@ -1329,7 +1333,7 @@ def create_test_deadlock(
     def deadlock_thread2() -> None:
         barrier.wait()
         lock2.acquire()
-        time.sleep(0.1)  # Ensure thread1 acquires lock1
+        simulate_work_without_sleep(100)  # Ensure thread1 acquires lock1
         lock1.acquire(timeout=timeout_ms / 1000.0)  # This will deadlock
         lock1.release()
         lock2.release()

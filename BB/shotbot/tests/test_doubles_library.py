@@ -31,6 +31,9 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtGui import QColor, QImage
 
+# Import synchronization helpers to replace time.sleep()
+from tests.helpers.synchronization import simulate_work_without_sleep
+
 # Import types for type annotations
 
 if TYPE_CHECKING:
@@ -144,7 +147,7 @@ class TestSubprocess:
 
         # Simulate delay if configured
         if self.delay > 0:
-            time.sleep(self.delay)
+            simulate_work_without_sleep(int(self.delay * 1000))  # Convert to ms
 
         # Raise exception if configured
         if self.side_effect:
@@ -246,7 +249,9 @@ class PopenDouble:
     def wait(self, timeout: float | None = None) -> int:
         """Wait for process to complete."""
         if timeout:
-            time.sleep(min(timeout, 0.1))  # Simulate brief wait
+            simulate_work_without_sleep(
+                min(int(timeout * 1000), 100)
+            )  # Simulate brief wait (max 100ms)
         self._terminated = True
         return self.returncode
 
@@ -263,7 +268,9 @@ class PopenDouble:
     ) -> tuple[str, str]:
         """Communicate with process."""
         if timeout:
-            time.sleep(min(timeout, 0.1))
+            simulate_work_without_sleep(
+                min(int(timeout * 1000), 100)
+            )  # Convert to ms, max 100ms
         self._terminated = True
         return self.stdout, self.stderr
 
@@ -385,7 +392,7 @@ class TestShotModel(QObject):
         self.refresh_started.emit()
 
         # Simulate some work
-        time.sleep(0.01)
+        simulate_work_without_sleep(10)  # 10ms
 
         # Determine if there are changes
         has_changes = self.refresh_count == 1 or len(self._shots) == 0
@@ -420,6 +427,38 @@ class TestShotModel(QObject):
         self._shots.clear()
         self._selected_shot = None
         self.shots_updated.emit()
+
+    def set_show_filter(self, show: str | None) -> None:
+        """Set the show filter.
+
+        Args:
+            show: Show name to filter by or None for all shows
+        """
+        self._filter_show = show
+
+    def get_filtered_shots(self) -> list[TestShot]:
+        """Get shots filtered by the current show filter.
+
+        Returns:
+            Filtered list of shots
+        """
+        if not hasattr(self, "_filter_show"):
+            self._filter_show = None
+
+        if self._filter_show is None:
+            return self._shots.copy()
+
+        filtered = [shot for shot in self._shots if shot.show == self._filter_show]
+        return filtered
+
+    def get_available_shows(self) -> set[str]:
+        """Get all unique show names from current shots.
+
+        Returns:
+            Set of unique show names
+        """
+        shows = set(shot.show for shot in self._shots)
+        return shows
 
 
 # =============================================================================
@@ -509,8 +548,9 @@ class TestCacheManager(QObject):
         """Load a thumbnail asynchronously (test double)."""
         # For tests, just create a simple image and call the callback
         from concurrent.futures import Future
-        from PySide6.QtGui import QImage
+
         from PySide6.QtCore import Qt
+        from PySide6.QtGui import QImage
 
         future = Future()
 
@@ -940,7 +980,9 @@ class TestWorker(QThread):
             if self.isInterruptionRequested():
                 self.was_stopped = True
                 break
-            time.sleep(self.execution_time / len(self.progress_values))
+            simulate_work_without_sleep(
+                int((self.execution_time / len(self.progress_values)) * 1000)
+            )  # Convert to ms
             self.progress.emit(progress_value)
 
         # Emit result or error

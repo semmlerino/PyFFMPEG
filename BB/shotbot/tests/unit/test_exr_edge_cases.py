@@ -15,6 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PySide6.QtCore import QCoreApplication
 
+from tests.helpers.synchronization import process_qt_events
+
 try:
     from PIL import Image
 except ImportError:
@@ -251,7 +253,9 @@ class TestConcurrentEdgeCases:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         def delete_file() -> None:
-            QCoreApplication.processEvents()  # Process events instead of sleep
+            app = QCoreApplication.instance()
+            if app:
+                process_qt_events(app, 10)  # Process events instead of sleep
             if exr_file.exists():
                 exr_file.unlink()
 
@@ -288,7 +292,9 @@ class TestConcurrentEdgeCases:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         def modify_file() -> None:
-            QCoreApplication.processEvents()  # Process events instead of sleep
+            app = QCoreApplication.instance()
+            if app:
+                process_qt_events(app, 10)  # Process events instead of sleep
             if exr_file.exists():
                 # Change file content
                 exr_file.write_bytes(b"MODIFIED" + b"y" * 2048)

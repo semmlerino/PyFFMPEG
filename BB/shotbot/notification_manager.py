@@ -419,12 +419,16 @@ class NotificationManager(LoggingMixin, QObject):
 
             # Restore original styling after timeout
             if timeout > 0:
-                QTimer.singleShot(
-                    timeout,
-                    lambda: cls._status_bar.setStyleSheet(original_style)
-                    if cls._status_bar
-                    else None,
-                )
+
+                def restore_style():
+                    try:
+                        if cls._status_bar and not cls._status_bar.isHidden():
+                            cls._status_bar.setStyleSheet(original_style)
+                    except RuntimeError:
+                        # Status bar was deleted, ignore
+                        pass
+
+                QTimer.singleShot(timeout, restore_style)
 
         if cls._instance:
             cls._instance.logger.info(f"Success notification: {message}")

@@ -1085,7 +1085,10 @@ class TestCacheManagerThreading:
     def test_instance_variable_separation(self) -> None:
         """Test that each CacheManager instance has separate variables."""
         # Create two cache manager instances
-        with tempfile.TemporaryDirectory() as temp_dir1, tempfile.TemporaryDirectory() as temp_dir2:
+        with (
+            tempfile.TemporaryDirectory() as temp_dir1,
+            tempfile.TemporaryDirectory() as temp_dir2,
+        ):
             cache1 = CacheManager(cache_dir=Path(temp_dir1))
             cache2 = CacheManager(cache_dir=Path(temp_dir2))
 

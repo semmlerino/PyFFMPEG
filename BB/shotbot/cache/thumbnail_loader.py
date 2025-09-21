@@ -21,6 +21,7 @@ from runnable_tracker import get_tracker
 # Import sip at module level to avoid threading issues
 try:
     import sip
+
     SIP_AVAILABLE = True
 except ImportError:
     SIP_AVAILABLE = False

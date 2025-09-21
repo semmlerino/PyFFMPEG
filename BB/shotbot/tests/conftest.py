@@ -28,9 +28,117 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+# CRITICAL: Set Qt to offscreen mode BEFORE any Qt imports
+# This must happen before ANY Qt modules are imported
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+os.environ["QT_LOGGING_RULES"] = "*.debug=false"
+os.environ["PYTEST_QT_API"] = "pyside6"
+
 import pytest
-from PySide6.QtCore import QCoreApplication, QTimer
-from PySide6.QtWidgets import QApplication
+
+# Now we can import Qt, but immediately patch show methods
+from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
+from PySide6.QtWidgets import QApplication, QDialog, QMainWindow, QMessageBox, QWidget
+
+# CRITICAL: Monkey-patch Qt show methods at module import time
+# This ensures no widgets can ever show, even if created at module level
+_original_widget_show = QWidget.show
+_original_widget_hide = QWidget.hide
+_original_widget_setVisible = QWidget.setVisible
+_original_widget_isVisible = QWidget.isVisible
+_original_widget_showEvent = QWidget.showEvent
+_original_dialog_exec = QDialog.exec
+_original_dialog_exec_ = getattr(QDialog, "exec_", None)
+_original_mainwindow_show = QMainWindow.show
+_original_eventloop_exec = QEventLoop.exec
+_original_eventloop_exec_ = getattr(QEventLoop, "exec_", None)
+
+# Track "virtually visible" widgets for testing
+_virtually_visible_widgets = set()
+
+
+def _mock_widget_show(self):
+    """Prevent widgets from actually showing."""
+    # Mark as "shown" for tests without actually showing
+    _virtually_visible_widgets.add(id(self))
+    # Don't call the original show
+    pass
+
+
+def _mock_widget_hide(self):
+    """Hide widget by removing from virtually visible set."""
+    _virtually_visible_widgets.discard(id(self))
+    # Don't call the original hide
+    pass
+
+
+def _mock_widget_setVisible(self, visible):
+    """Prevent widgets from becoming visible if visible=True."""
+    if not visible:
+        # Allow hiding
+        _virtually_visible_widgets.discard(id(self))
+    else:
+        # Mark as "visible" for tests without actually showing
+        _virtually_visible_widgets.add(id(self))
+    pass
+
+
+def _mock_widget_isVisible(self):
+    """Return virtual visibility state for tests."""
+    # Return True if widget was "shown" in test
+    return id(self) in _virtually_visible_widgets
+
+
+def _mock_widget_showEvent(self, event):
+    """Prevent show events from propagating."""
+    # Accept the event but don't show anything
+    if event:
+        event.accept()
+    pass
+
+
+def _mock_dialog_exec(self):
+    """Prevent dialogs from blocking."""
+    return QDialog.DialogCode.Accepted
+
+
+def _mock_eventloop_exec(self):
+    """Prevent event loops from blocking in tests while allowing signal delivery."""
+    # Process events more thoroughly to allow QThreadPool signals to propagate
+    import time
+
+    start_time = time.time()
+    max_duration = 0.02  # Process events for up to 20ms (reduced from 100ms)
+
+    while time.time() - start_time < max_duration:
+        QCoreApplication.processEvents()
+        QCoreApplication.sendPostedEvents()  # Process deferred deletions
+        time.sleep(0.001)  # Small delay (1ms)
+
+    # Final processing to ensure all signals are delivered
+    QCoreApplication.processEvents()
+    return 0
+
+
+# Apply the patches globally
+QWidget.show = _mock_widget_show
+QWidget.hide = _mock_widget_hide
+QWidget.setVisible = _mock_widget_setVisible
+QWidget.isVisible = _mock_widget_isVisible
+QWidget.showEvent = _mock_widget_showEvent
+QMainWindow.show = _mock_widget_show  # Also patch QMainWindow specifically
+QDialog.exec = _mock_dialog_exec
+QEventLoop.exec = _mock_eventloop_exec
+if _original_dialog_exec_:
+    QDialog.exec_ = _mock_dialog_exec
+if _original_eventloop_exec_:
+    QEventLoop.exec_ = _mock_eventloop_exec
+
+# Also prevent QMessageBox from showing
+QMessageBox.critical = lambda *args, **kwargs: QMessageBox.StandardButton.Ok
+QMessageBox.warning = lambda *args, **kwargs: QMessageBox.StandardButton.Ok
+QMessageBox.information = lambda *args, **kwargs: QMessageBox.StandardButton.Ok
+QMessageBox.question = lambda *args, **kwargs: QMessageBox.StandardButton.Yes
 
 # Import protocols for type safety
 
@@ -297,10 +405,7 @@ def pytest_configure(config: Any) -> None:
     config.addinivalue_line("markers", "wsl: Tests optimized for WSL environment")
     config.addinivalue_line("markers", "flaky: Known flaky tests requiring attention")
 
-    # Set Qt environment for offscreen testing
-    os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    os.environ["QT_LOGGING_RULES"] = "*.debug=false"
-    os.environ["PYTEST_QT_API"] = "pyside6"
+    # Qt environment is already set at the top of the file
 
 
 # =============================================================================
@@ -361,9 +466,11 @@ def isolated_test_environment() -> Generator[None, None, None]:
         # Process any pending Qt events to ensure cleanup
         from PySide6.QtCore import QCoreApplication
 
+        from tests.helpers.synchronization import process_qt_events
+
         app = QCoreApplication.instance()
         if app:
-            app.processEvents()
+            process_qt_events(app, 10)
     except ImportError:
         pass
 
@@ -385,9 +492,11 @@ def isolated_test_environment() -> Generator[None, None, None]:
     try:
         from PySide6.QtCore import QCoreApplication
 
+        from tests.helpers.synchronization import process_qt_events
+
         app = QCoreApplication.instance()
         if app:
-            app.processEvents()
+            process_qt_events(app, 10)
     except ImportError:
         pass
 
@@ -427,12 +536,13 @@ def cache_isolation():
 # =============================================================================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def qapp():
     """Create QApplication instance for the entire test session.
 
     This ensures proper Qt event loop for signal processing.
     Note: Uses session scope to ensure single app instance.
+    AUTOUSE: This fixture runs automatically for all tests to prevent Qt widget crashes.
     """
     app = QApplication.instance()
     if app is None:
@@ -455,9 +565,10 @@ def qt_signal_blocker():
         timer.timeout.connect(lambda: None)  # Dummy slot
         timer.start(timeout_ms)
 
-        # Process events until timer expires
+        # Process events until timer expires using event loop
+        loop = QEventLoop()
         while timer.isActive():
-            QCoreApplication.processEvents()
+            loop.processEvents()
 
         return True
 
@@ -1048,21 +1159,7 @@ def mock_gui_blocking_components(monkeypatch):
     - PersistentTerminalManager creates FIFO operations that can block in test environment
     - Tests hang waiting for FIFO read/write operations to complete
     """
-    # Mock QMessageBox methods to prevent blocking dialogs
-    from PySide6.QtWidgets import QMessageBox
-
-    # Return appropriate button values immediately without showing dialogs
-    monkeypatch.setattr(
-        QMessageBox, "critical", lambda *args, **kwargs: QMessageBox.StandardButton.Ok
-    )
-    monkeypatch.setattr(
-        QMessageBox, "warning", lambda *args, **kwargs: QMessageBox.StandardButton.Ok
-    )
-    monkeypatch.setattr(
-        QMessageBox,
-        "information",
-        lambda *args, **kwargs: QMessageBox.StandardButton.Ok,
-    )
+    # QMessageBox is already patched at module level, no need to patch again
 
     # Mock ProcessPoolManager.get_instance() to return TestProcessPool
     # This prevents real subprocess execution that could trigger errors -> NotificationManager -> QMessageBox
@@ -1083,12 +1180,15 @@ def mock_gui_blocking_components(monkeypatch):
     from PySide6.QtCore import QMutex
 
     import process_pool_manager
+
     MockProcessPoolManagerClass = type(
         "MockProcessPoolManager",
         (),
         {
             "get_instance": staticmethod(lambda: test_pool),
             "_lock": QMutex(),  # Required class attribute for singleton pattern - must be QMutex for QMutexLocker
+            "_instance": None,  # Required for singleton pattern
+            "_initialized": False,  # Required for initialization check
         },
     )
 

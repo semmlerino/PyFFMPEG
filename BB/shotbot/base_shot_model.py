@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from shot_model import Shot
     from type_definitions import PerformanceMetricsDict, RefreshResult
 
-from exceptions import WorkspaceError
 from logging_mixin import LoggingMixin
 from optimized_shot_parser import OptimizedShotParser
 from process_pool_manager import ProcessPoolManager
@@ -70,6 +69,7 @@ class BaseShotModel(LoggingMixin, QObject):
         # Use OptimizedShotParser for improved performance
         self._parser = OptimizedShotParser()
         self._selected_shot: Shot | None = None
+        self._filter_show: str | None = None  # Show filter
 
         # Initialize ProcessPoolManager via factory for dependency injection support
         if DEBUG_VERBOSE:
@@ -127,16 +127,9 @@ class BaseShotModel(LoggingMixin, QObject):
 
         Returns:
             List of Shot objects parsed from the output
-
-        Raises:
-            WorkspaceError: If output is invalid or cannot be parsed
         """
-        if not isinstance(output, str):
-            raise WorkspaceError(
-                "Invalid workspace output type",
-                command="ws -sg",
-                details={"expected": "str", "got": str(type(output))},
-            )
+        # Output is guaranteed to be str by type annotation
+        # No need for runtime type checking
 
         shots: list[Shot] = []
         lines = output.strip().split("\n")
@@ -292,6 +285,45 @@ class BaseShotModel(LoggingMixin, QObject):
             "loading_in_progress": False,
             "session_warmed": len(self.shots) > 0,
         }
+
+    def set_show_filter(self, show: str | None) -> None:
+        """Set the show filter.
+
+        Args:
+            show: Show name to filter by or None for all shows
+        """
+        self._filter_show = show
+        self.logger.info(f"Show filter set to: {show if show else 'All Shows'}")
+
+    def get_show_filter(self) -> str | None:
+        """Get the current show filter."""
+        return self._filter_show
+
+    def get_filtered_shots(self) -> list[Shot]:
+        """Get shots filtered by the current show filter.
+
+        Returns:
+            Filtered list of shots
+        """
+        if self._filter_show is None:
+            # No filter, return all shots
+            return self.shots.copy()
+
+        # Filter by show
+        filtered = [shot for shot in self.shots if shot.show == self._filter_show]
+        self.logger.debug(
+            f"Filtered {len(self.shots)} shots to {len(filtered)} for show '{self._filter_show}'"
+        )
+        return filtered
+
+    def get_available_shows(self) -> set[str]:
+        """Get all unique show names from current shots.
+
+        Returns:
+            Set of unique show names
+        """
+        shows = set(shot.show for shot in self.shots)
+        return shows
 
     @abstractmethod
     def load_shots(self) -> RefreshResult:

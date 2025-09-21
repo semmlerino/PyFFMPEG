@@ -269,6 +269,7 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     return window
 
 
+@pytest.mark.slow
 @pytest.mark.gui_mainwindow
 class TestMainWindowUICoordination:
     """Test UI coordination and signal-slot connections."""
@@ -547,6 +548,7 @@ workspace /shows/test/shots/seq01/shot02""")
         assert new_status != status_text
 
 
+@pytest.mark.slow
 @pytest.mark.gui_mainwindow
 class TestMainWindowKeyboardShortcuts:
     """Test keyboard shortcuts and navigation."""
@@ -599,6 +601,7 @@ class TestMainWindowKeyboardShortcuts:
         assert window.tab_widget.currentIndex() == 1
 
 
+@pytest.mark.slow
 @pytest.mark.gui_mainwindow
 class TestMainWindowErrorScenarios:
     """Test error handling and recovery."""

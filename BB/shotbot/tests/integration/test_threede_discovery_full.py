@@ -8,19 +8,13 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import QObject, Signal
 
-if TYPE_CHECKING:
-    from threede_scene_model import ThreeDEScene
 
-
-class TestSignal(QObject):
+class MockSignalEmitter(QObject):
     """Lightweight signal for testing (GUIDE line 413)."""
 
     signal = Signal(list)
@@ -106,8 +100,18 @@ class TestThreeDEDiscoveryIntegration:
             # User only has these 2 shots assigned
             # Use the actual temp directory paths
             return [
-                Shot(f"{shows_root}/gator/shots/013_DC/013_DC_2120", "gator", "013_DC", "2120"),
-                Shot(f"{shows_root}/jack_ryan/shots/MA_074/MA_074_0340", "jack_ryan", "MA_074", "0340"),
+                Shot(
+                    f"{shows_root}/gator/shots/013_DC/013_DC_2120",
+                    "gator",
+                    "013_DC",
+                    "2120",
+                ),
+                Shot(
+                    f"{shows_root}/jack_ryan/shots/MA_074/MA_074_0340",
+                    "jack_ryan",
+                    "MA_074",
+                    "0340",
+                ),
             ]
 
         return _make
@@ -122,8 +126,8 @@ class TestThreeDEDiscoveryIntegration:
         shows_root, created_files = temp_vfx_structure
         user_shots = make_user_shots()
 
-        from scene_discovery_coordinator import RefactoredThreeDESceneFinder
         from config import Config
+        from scene_discovery_coordinator import RefactoredThreeDESceneFinder
 
         # Set up excluded users (current user)
         excluded_users = {"gabriel-h"}
@@ -141,7 +145,14 @@ class TestThreeDEDiscoveryIntegration:
         # CRITICAL ASSERTION: Should find ALL scenes except gabriel-h's
         # With the bug: Would find only 1 (published-mm on MA_074_0340)
         # With the fix: Should find 8 scenes from other users
-        expected_users = {"sarah-b", "tony-a", "ryan-p", "alex-k", "mike-d", "published-mm"}
+        expected_users = {
+            "sarah-b",
+            "tony-a",
+            "ryan-p",
+            "alex-k",
+            "mike-d",
+            "published-mm",
+        }
         found_users = {scene.user for scene in scenes}
 
         assert len(scenes) >= 6, f"Should find at least 6 scenes, found {len(scenes)}"
@@ -149,10 +160,13 @@ class TestThreeDEDiscoveryIntegration:
 
         # Verify scenes from NON-assigned shots are included
         non_assigned_scenes = [
-            s for s in scenes
+            s
+            for s in scenes
             if (s.sequence, s.shot) not in [("013_DC", "2120"), ("MA_074", "0340")]
         ]
-        assert len(non_assigned_scenes) > 0, "Should include scenes from non-assigned shots"
+        assert len(non_assigned_scenes) > 0, (
+            "Should include scenes from non-assigned shots"
+        )
 
         # Verify workspace paths are correctly set
         for scene in scenes:
@@ -160,7 +174,9 @@ class TestThreeDEDiscoveryIntegration:
             expected_path = f"{shows_root}/{scene.show}/shots/{scene.sequence}/{scene.sequence}_{scene.shot}"
             assert scene.workspace_path == expected_path
 
-    def test_worker_integration_with_discovery(self, temp_vfx_structure, make_user_shots, qtbot):
+    def test_worker_integration_with_discovery(
+        self, temp_vfx_structure, make_user_shots, qtbot
+    ):
         """Test ThreeDESceneWorker integration with the fixed discovery.
 
         Following Worker Thread Pattern (GUIDE line 91).
@@ -172,6 +188,7 @@ class TestThreeDEDiscoveryIntegration:
 
         # Mock Config to use temp structure
         from config import Config
+
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             # Create worker with scan_all_shots=True (as in production)
             worker = ThreeDESceneWorker(
@@ -199,7 +216,9 @@ class TestThreeDEDiscoveryIntegration:
                 worker.wait(1000)
 
             # Should find multiple scenes from other users
-            assert len(results) >= 6, f"Should find at least 6 scenes, found {len(results)}"
+            assert len(results) >= 6, (
+                f"Should find at least 6 scenes, found {len(results)}"
+            )
 
     def test_scene_filtering_with_real_parser(self, temp_vfx_structure):
         """Test scene filtering using the real SceneParser component."""
@@ -219,7 +238,9 @@ class TestThreeDEDiscoveryIntegration:
                 parsed_scenes.append(result)
 
         # Should parse all scenes except gabriel-h's (2 files)
-        assert len(parsed_scenes) == 8, f"Should parse 8 scenes, got {len(parsed_scenes)}"
+        assert len(parsed_scenes) == 8, (
+            f"Should parse 8 scenes, got {len(parsed_scenes)}"
+        )
 
         # Verify excluded user's files were filtered
         for parsed in parsed_scenes:
@@ -268,11 +289,14 @@ class TestThreeDEDiscoveryIntegration:
         if not user_shots:
             # Create a dummy shot for shows user isn't assigned to
             from collections import namedtuple
-            Shot = namedtuple("Shot", ["workspace_path", "show", "sequence", "shot"])
-            user_shots = [Shot(f"{shows_root}/{show}/shots/dummy/dummy_001", show, "dummy", "001")]
 
-        from scene_discovery_coordinator import RefactoredThreeDESceneFinder
+            Shot = namedtuple("Shot", ["workspace_path", "show", "sequence", "shot"])
+            user_shots = [
+                Shot(f"{shows_root}/{show}/shots/dummy/dummy_001", show, "dummy", "001")
+            ]
+
         from config import Config
+        from scene_discovery_coordinator import RefactoredThreeDESceneFinder
 
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             scenes = RefactoredThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(

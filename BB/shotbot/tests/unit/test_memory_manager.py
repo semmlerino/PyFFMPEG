@@ -489,8 +489,9 @@ class TestCacheValidation:
         manager.track_item(test_file)
 
         # Mock file operations to raise errors
-        with patch.object(Path, "exists", return_value=True), patch.object(
-            Path, "stat", side_effect=OSError("Permission denied")
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "stat", side_effect=OSError("Permission denied")),
         ):
             validation = manager.validate_tracking()
 

@@ -3,7 +3,6 @@
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
 
 # Cache globals
 _path_cache: dict[str, tuple[bool, float]]
@@ -11,7 +10,7 @@ _PATH_CACHE_TTL: float
 _cache_disabled: bool
 
 def clear_all_caches() -> None: ...
-def get_cache_stats() -> dict[str, Any]: ...
+def get_cache_stats() -> dict[str, int | str | float]: ...
 def disable_caching() -> None: ...
 def enable_caching() -> None: ...
 
@@ -20,7 +19,12 @@ class CacheIsolation:
 
     def __init__(self) -> None: ...
     def __enter__(self) -> CacheIsolation: ...
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None: ...
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None: ...
 
 class PathUtils:
     """Utilities for path construction and validation."""
