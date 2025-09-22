@@ -17,29 +17,22 @@ from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
     QPoint,
-    QSize,
     Qt,
     QThreadPool,
-    QTimer,
     Signal,
     Slot,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemView,
-    QComboBox,
+    QAbstractItemDelegate,
     QHBoxLayout,
     QLabel,
-    QListView,
     QMenu,
     QProgressBar,
-    QSlider,
     QVBoxLayout,
     QWidget,
 )
 
-from config import Config
-from logging_mixin import LoggingMixin
-from qt_widget_mixin import QtWidgetMixin
+from base_grid_view import BaseGridView
 from threede_grid_delegate_refactored import ThreeDEGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
 
@@ -94,7 +87,7 @@ def safe_log_info(message: str) -> None:
         _log_recursion_depth -= 1
 
 
-class ThreeDEGridView(QtWidgetMixin, LoggingMixin, QWidget):
+class ThreeDEGridView(BaseGridView):
     """Optimized grid view for displaying 3DE scene thumbnails.
 
     This view provides:
@@ -107,11 +100,11 @@ class ThreeDEGridView(QtWidgetMixin, LoggingMixin, QWidget):
     - Dynamic grid layout based on window size
     """
 
-    # Signals
+    # Additional signals specific to ThreeDEGridView
     scene_selected = Signal(object)  # ThreeDEScene object
     scene_double_clicked = Signal(object)  # ThreeDEScene object
+    # Override to add scene parameter
     app_launch_requested = Signal(str, object)  # app_name, scene
-    show_filter_requested = Signal(str)  # show name or None for all
 
     def __init__(
         self,
@@ -124,32 +117,30 @@ class ThreeDEGridView(QtWidgetMixin, LoggingMixin, QWidget):
             model: Optional 3DE item model
             parent: Optional parent widget
         """
+        # Initialize base class
         super().__init__(parent)
 
-        self._model = model
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        # ThreeDEGridView-specific attributes
         self._selected_scene = None
         self._is_loading = False
         self._updating_filter = False  # Recursion guard for filter updates
+        self._model: ThreeDEItemModel | None = model
 
-        self._setup_ui()
+        # Enable context menu
+        self.list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.list_view.customContextMenuRequested.connect(self._show_context_menu)
 
         if model:
             self.set_model(model)
 
-        # Visibility tracking timer for lazy loading
-        self._visibility_timer = QTimer()
-        self._visibility_timer.timeout.connect(self._update_visible_range)
-        self._visibility_timer.setInterval(100)
-        self._visibility_timer.start()
-
         safe_log_info("ThreeDEGridView initialized with Model/View architecture")
 
-    def _setup_ui(self) -> None:
-        """Set up the user interface."""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+    def _add_top_widgets(self, layout: QVBoxLayout) -> None:
+        """Add loading indicators at the top.
 
+        Args:
+            layout: The main vertical layout
+        """
         # Loading indicators
         loading_layout = QVBoxLayout()
         loading_layout.setSpacing(2)
@@ -169,82 +160,24 @@ class ThreeDEGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         layout.addLayout(loading_layout)
 
-        # Show filter combo box
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Show:"))
+    def _customize_size_layout(self, layout: QHBoxLayout) -> None:
+        """Add scene count label to size layout.
 
-        self.show_combo = QComboBox()
-        self.show_combo.addItem("All Shows")
-        self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
-        filter_layout.addWidget(self.show_combo)
-
-        filter_layout.addStretch()
-        layout.addLayout(filter_layout)
-
-        # Size control slider
-        size_layout = QHBoxLayout()
-        size_layout.addWidget(QLabel("Thumbnail Size:"))
-
-        self.size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
-        self.size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
-        self.size_slider.setValue(self._thumbnail_size)
-        self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.size_slider.setTickInterval(50)
-        self.size_slider.valueChanged.connect(self._on_size_changed)
-        size_layout.addWidget(self.size_slider)
-
-        self.size_label = QLabel(f"{self._thumbnail_size}px")
-        self.size_label.setMinimumWidth(50)
-        size_layout.addWidget(self.size_label)
-
+        Args:
+            layout: The size control horizontal layout
+        """
         # Scene count label
-        size_layout.addStretch()
+        layout.addStretch()
         self.count_label = QLabel("0 scenes")
-        size_layout.addWidget(self.count_label)
+        layout.addWidget(self.count_label)
 
-        layout.addLayout(size_layout)
+    def _create_delegate(self) -> QAbstractItemDelegate:
+        """Create the 3DE grid delegate.
 
-        # Create QListView with grid mode
-        self.list_view = QListView()
-        self.list_view.setViewMode(QListView.ViewMode.IconMode)
-        self.list_view.setResizeMode(QListView.ResizeMode.Adjust)
-        self.list_view.setLayoutMode(QListView.LayoutMode.Batched)
-        self.list_view.setBatchSize(20)  # Process 20 items at a time
-        self.list_view.setUniformItemSizes(True)  # Optimization for equal-sized items
-        self.list_view.setSpacing(Config.THUMBNAIL_SPACING)
-
-        # Set selection behavior
-        self.list_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.list_view.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectItems,
-        )
-
-        # Enable smooth scrolling
-        self.list_view.setVerticalScrollMode(
-            QAbstractItemView.ScrollMode.ScrollPerPixel,
-        )
-        self.list_view.setHorizontalScrollMode(
-            QAbstractItemView.ScrollMode.ScrollPerPixel,
-        )
-
-        # Create and set custom delegate
-        self._delegate = ThreeDEGridDelegate(self)
-        self.list_view.setItemDelegate(self._delegate)
-
-        # Connect signals
-        self.list_view.clicked.connect(self._on_item_clicked)
-        self.list_view.doubleClicked.connect(self._on_item_double_clicked)
-
-        layout.addWidget(self.list_view)
-
-        # Enable keyboard focus
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.list_view.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-        # Enable context menu
-        self.list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.list_view.customContextMenuRequested.connect(self._show_context_menu)
+        Returns:
+            ThreeDEGridDelegate instance
+        """
+        return ThreeDEGridDelegate(self)
 
     def set_model(self, model: ThreeDEItemModel) -> None:
         """Set the item model.
@@ -274,42 +207,13 @@ class ThreeDEGridView(QtWidgetMixin, LoggingMixin, QWidget):
         Args:
             threede_scene_model: The scene model to get shows from
         """
-        # Guard against recursion
-        if self._updating_filter:
+        if not threede_scene_model:
             return
 
-        self._updating_filter = True
-        try:
-            # Save current selection
-            current_text = self.show_combo.currentText()
-
-            # Temporarily disconnect signal to prevent recursion
-            try:
-                self.show_combo.currentTextChanged.disconnect()
-            except RuntimeError:
-                pass  # No connections to disconnect
-
-            # Clear and repopulate
-            self.show_combo.clear()
-            self.show_combo.addItem("All Shows")
-
-            unique_shows = threede_scene_model.get_unique_shows()
-            for show in unique_shows:
-                self.show_combo.addItem(show)
-
-            # Restore selection if possible
-            index = self.show_combo.findText(current_text)
-            if index >= 0:
-                self.show_combo.setCurrentIndex(index)
-            else:
-                self.show_combo.setCurrentIndex(0)  # Default to "All Shows"
-
-            # Reconnect signal
-            self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
-        finally:
-            self._updating_filter = False
-
-        safe_log_info(f"Populated show filter with {len(unique_shows)} shows")
+        # Use base class method
+        shows = threede_scene_model.get_unique_shows()
+        super().populate_show_filter(shows)
+        safe_log_info(f"Populated show filter with {len(shows)} shows")
 
     @Slot()
     def _on_scenes_updated(self) -> None:
@@ -397,75 +301,18 @@ class ThreeDEGridView(QtWidgetMixin, LoggingMixin, QWidget):
             # Launch 3DE by default
             self.app_launch_requested.emit("3de", scene)
 
-    @Slot(int)
-    def _on_size_changed(self, value: int) -> None:
-        """Handle thumbnail size change.
+    def _handle_visible_range_update(self, start: int, end: int) -> None:
+        """Handle the visible range update with buffering.
 
         Args:
-            value: New size value
+            start: Start row index
+            end: End row index (exclusive)
         """
-        self._thumbnail_size = value
-        self.size_label.setText(f"{value}px")
-
-        # Update delegate
-        self._delegate.set_thumbnail_size(value)
-
-        # Update grid size
-        self._update_grid_size()
-
-        # Trigger view update
-        self.list_view.viewport().update()
-
-    @Slot(str)
-    def _on_show_filter_changed(self, show_text: str) -> None:
-        """Handle show filter change.
-
-        Args:
-            show_text: Selected show text from combo box
-        """
-        # Guard against recursion
-        if self._updating_filter:
-            return
-
-        self._updating_filter = True
-        try:
-            # Convert "All Shows" to None for the model
-            show_filter = None if show_text == "All Shows" else show_text
-            self.show_filter_requested.emit(
-                show_filter or ""
-            )  # Emit empty string for None
-            safe_log_info(f"Show filter requested: {show_text}")
-        finally:
-            self._updating_filter = False
-
-    def _update_grid_size(self) -> None:
-        """Update the grid size based on thumbnail size."""
-        # Calculate item size including padding and text
-        item_size = self._thumbnail_size + 16 + 50  # padding + text height
-        grid_size = QSize(self._thumbnail_size + 16, item_size)
-
-        self.list_view.setGridSize(grid_size)
-
-    @Slot()
-    def _update_visible_range(self) -> None:
-        """Update visible range for lazy loading."""
-        if not self._model:
-            return
-
-        # Get visible rect
-        visible_rect = self.list_view.viewport().rect()
-
-        # Get first and last visible items
-        top_left = self.list_view.indexAt(visible_rect.topLeft())
-        bottom_right = self.list_view.indexAt(visible_rect.bottomRight())
-
-        if top_left.isValid() and bottom_right.isValid():
+        if self._model:
             # Add some buffer for smooth scrolling
-            start = max(0, top_left.row() - 5)
-            end = min(self._model.rowCount() - 1, bottom_right.row() + 5)
-
-            # Update model's visible range
-            self._model.set_visible_range(start, end)
+            buffered_start = max(0, start - 5)
+            buffered_end = min(self._model.rowCount(), end + 5)
+            self._model.set_visible_range(buffered_start, buffered_end)
 
     def _show_context_menu(self, pos: QPoint) -> None:
         """Show context menu at position.

@@ -1,0 +1,391 @@
+"""Base class for grid views with common functionality.
+
+This module provides the BaseGridView class that contains shared UI components
+and behavior for ShotGridView, ThreeDEGridView, and PreviousShotsView.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import (
+    QAbstractItemModel,
+    QModelIndex,
+    QSize,
+    Qt,
+    QTimer,
+    Signal,
+    Slot,
+)
+from PySide6.QtWidgets import (
+    QAbstractItemDelegate,
+    QAbstractItemView,
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QListView,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+)
+
+from config import Config
+from logging_mixin import LoggingMixin
+from qt_widget_mixin import QtWidgetMixin
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QKeyEvent, QWheelEvent
+
+
+class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
+    """Base class for grid views with common functionality.
+
+    This base class provides:
+    - Thumbnail size control (slider and label)
+    - Show filter combo box
+    - QListView configuration for grid display
+    - Common properties and methods
+    - Template methods for customization
+
+    Subclasses must implement abstract methods to provide
+    specific behavior for their data types.
+    """
+
+    # Common signals that all views share
+    app_launch_requested = Signal(str)  # app_name
+    show_filter_requested = Signal(str)  # show name or empty string for all
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        """Initialize the base grid view.
+
+        Args:
+            parent: Optional parent widget
+        """
+        super().__init__(parent)
+
+        # Common properties
+        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        self._model: QAbstractItemModel | None = None
+
+        # Create the UI
+        self._setup_base_ui()
+
+        # Set focus policy
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+        # Setup visibility/update mechanism
+        self._setup_visibility_tracking()
+
+        self.logger.debug(f"{self.__class__.__name__} initialized")
+
+    def _setup_base_ui(self) -> None:
+        """Set up the base user interface components."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Allow subclasses to add top widgets (like loading indicators)
+        self._add_top_widgets(layout)
+
+        # Size control slider
+        size_layout = QHBoxLayout()
+        size_layout.addWidget(QLabel("Thumbnail Size:"))
+
+        self.size_slider = QSlider(Qt.Orientation.Horizontal)
+        self.size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
+        self.size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
+        self.size_slider.setValue(self._thumbnail_size)
+        self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.size_slider.setTickInterval(50)
+        self.size_slider.valueChanged.connect(self._on_size_changed)
+        size_layout.addWidget(self.size_slider)
+
+        self.size_label = QLabel(f"{self._thumbnail_size}px")
+        self.size_label.setMinimumWidth(50)
+        size_layout.addWidget(self.size_label)
+
+        # Allow subclasses to add to size layout (like count label)
+        self._customize_size_layout(size_layout)
+
+        layout.addLayout(size_layout)
+
+        # Show filter controls
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Show:"))
+
+        self.show_combo = QComboBox()
+        self.show_combo.addItem("All Shows")
+        self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
+        filter_layout.addWidget(self.show_combo)
+
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
+
+        # Create QListView with grid mode
+        self.list_view = QListView()
+        self._configure_list_view()
+
+        # Create and set delegate (subclasses must provide)
+        self._delegate = self._create_delegate()
+        self.list_view.setItemDelegate(self._delegate)
+
+        # Connect list view signals
+        self.list_view.clicked.connect(self._on_item_clicked)
+        self.list_view.doubleClicked.connect(self._on_item_double_clicked)
+
+        layout.addWidget(self.list_view)
+
+        # Set focus on list view too
+        self.list_view.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def _configure_list_view(self) -> None:
+        """Configure the QListView with common settings."""
+        self.list_view.setViewMode(QListView.ViewMode.IconMode)
+        self.list_view.setResizeMode(QListView.ResizeMode.Adjust)
+        self.list_view.setLayoutMode(QListView.LayoutMode.Batched)
+        self.list_view.setBatchSize(20)
+        self.list_view.setUniformItemSizes(True)
+        self.list_view.setSpacing(Config.THUMBNAIL_SPACING)
+
+        # Set selection behavior
+        self.list_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.list_view.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectItems
+        )
+
+        # Enable smooth scrolling
+        self.list_view.setVerticalScrollMode(
+            QAbstractItemView.ScrollMode.ScrollPerPixel
+        )
+        self.list_view.setHorizontalScrollMode(
+            QAbstractItemView.ScrollMode.ScrollPerPixel
+        )
+
+    def _setup_visibility_tracking(self) -> None:
+        """Set up visibility tracking for lazy loading.
+
+        Subclasses can override to use different timer strategies.
+        """
+        self._visibility_timer = QTimer()
+        self._visibility_timer.timeout.connect(self._update_visible_range)
+        self._visibility_timer.setInterval(100)
+        self._visibility_timer.start()
+
+    # Template methods for subclasses to override
+
+    def _add_top_widgets(self, layout: QVBoxLayout) -> None:
+        """Add widgets at the top of the layout.
+
+        Override in subclasses to add headers, loading bars, etc.
+
+        Args:
+            layout: The main vertical layout
+        """
+        pass
+
+    def _customize_size_layout(self, layout: QHBoxLayout) -> None:
+        """Customize the size control layout.
+
+        Override in subclasses to add additional widgets.
+
+        Args:
+            layout: The size control horizontal layout
+        """
+        pass
+
+    def _create_delegate(self) -> QAbstractItemDelegate:
+        """Create the appropriate delegate for this view.
+
+        Must be implemented by subclasses.
+
+        Returns:
+            The delegate instance
+        """
+        raise NotImplementedError
+
+    def _on_item_clicked(self, index: QModelIndex) -> None:
+        """Handle item click.
+
+        Must be implemented by subclasses to handle specific data types.
+
+        Args:
+            index: The clicked model index
+        """
+        raise NotImplementedError
+
+    def _on_item_double_clicked(self, index: QModelIndex) -> None:
+        """Handle item double-click.
+
+        Must be implemented by subclasses to handle specific data types.
+
+        Args:
+            index: The double-clicked model index
+        """
+        raise NotImplementedError
+
+    # Common slot implementations
+
+    @Slot(int)
+    def _on_size_changed(self, size: int) -> None:
+        """Handle thumbnail size change.
+
+        Args:
+            size: New thumbnail size
+        """
+        self._thumbnail_size = size
+        self.size_label.setText(f"{size}px")
+
+        # Update delegate size
+        if hasattr(self._delegate, "set_thumbnail_size"):
+            self._delegate.set_thumbnail_size(size)
+
+        # Update grid size
+        self._update_grid_size()
+
+        # Force view update
+        self.list_view.viewport().update()
+
+        self.logger.debug(f"Thumbnail size changed to {size}px")
+
+    @Slot(str)
+    def _on_show_filter_changed(self, show_text: str) -> None:
+        """Handle show filter change.
+
+        Args:
+            show_text: Selected show name or "All Shows"
+        """
+        # Convert "All Shows" to empty string for the signal
+        show_filter = "" if show_text == "All Shows" else show_text
+        self.show_filter_requested.emit(show_filter)
+        self.logger.info(f"Show filter requested: {show_text}")
+
+    def _update_grid_size(self) -> None:
+        """Update the grid size based on thumbnail size."""
+        # Calculate item size including padding and text height
+        # This is a common calculation, but subclasses can override if needed
+        item_size = self._thumbnail_size + 2 * 8 + 40  # padding + text height
+
+        # Set grid size on the view
+        self.list_view.setGridSize(QSize(item_size, item_size))
+
+        # Ensure uniform item sizes
+        self.list_view.setUniformItemSizes(True)
+
+    @Slot()
+    def _update_visible_range(self) -> None:
+        """Update the visible item range for lazy loading.
+
+        This base implementation can be overridden by subclasses.
+        """
+        if not self._model:
+            return
+
+        # Get visible rectangle
+        viewport = self.list_view.viewport()
+        visible_rect = viewport.rect()
+
+        # Find first and last visible items
+        first_index = self.list_view.indexAt(visible_rect.topLeft())
+        last_index = self.list_view.indexAt(visible_rect.bottomRight())
+
+        if not first_index.isValid():
+            first_index = self._model.index(0, 0)
+
+        if not last_index.isValid():
+            last_index = self._model.index(self._model.rowCount() - 1, 0)
+
+        # Let subclasses handle the actual range update
+        if first_index.isValid() and last_index.isValid():
+            self._handle_visible_range_update(first_index.row(), last_index.row() + 1)
+
+    def _handle_visible_range_update(self, start: int, end: int) -> None:
+        """Handle the visible range update.
+
+        Override in subclasses to update their specific models.
+
+        Args:
+            start: Start row index
+            end: End row index (exclusive)
+        """
+        # Default implementation - subclasses should override
+        # to call their model's set_visible_range or similar
+        pass
+
+    # Common properties
+
+    @property
+    def thumbnail_size(self) -> int:
+        """Get the current thumbnail size.
+
+        Returns:
+            Current thumbnail size in pixels
+        """
+        return self._thumbnail_size
+
+    def populate_show_filter(self, shows: list[str]) -> None:
+        """Populate the show filter combo box.
+
+        Args:
+            shows: List of show names to add
+        """
+        try:
+            # Block signals to prevent triggering filter change
+            self.show_combo.blockSignals(True)
+
+            # Clear existing items except "All Shows"
+            while self.show_combo.count() > 1:
+                self.show_combo.removeItem(1)
+
+            # Add shows to combo box
+            for show in sorted(shows):
+                self.show_combo.addItem(show)
+
+            self.logger.debug(f"Populated show filter with {len(shows)} shows")
+        finally:
+            # Re-enable signals
+            self.show_combo.blockSignals(False)
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        """Handle wheel event for thumbnail size adjustment with Ctrl.
+
+        This is a common implementation that subclasses can inherit or override.
+
+        Args:
+            event: Wheel event
+        """
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                new_size = min(self._thumbnail_size + 10, Config.MAX_THUMBNAIL_SIZE)
+            else:
+                new_size = max(self._thumbnail_size - 10, Config.MIN_THUMBNAIL_SIZE)
+
+            self.size_slider.setValue(new_size)
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle keyboard shortcuts.
+
+        This base implementation provides common app launch shortcuts.
+        Subclasses can override and extend.
+
+        Args:
+            event: Key event
+        """
+        # Application launch shortcuts (common to all views)
+        key_map = {
+            Qt.Key.Key_3: "3de",
+            Qt.Key.Key_N: "nuke",
+            Qt.Key.Key_M: "maya",
+            Qt.Key.Key_R: "rv",
+            Qt.Key.Key_P: "publish",
+        }
+
+        key = Qt.Key(event.key())
+        if key in key_map:
+            self.app_launch_requested.emit(key_map[key])
+            event.accept()
+        else:
+            # Let QListView handle navigation
+            self.list_view.keyPressEvent(event)

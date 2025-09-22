@@ -11,40 +11,31 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QModelIndex,
-    QSize,
     Qt,
     QThreadPool,
-    QTimer,
     Signal,
     Slot,
 )
 from PySide6.QtWidgets import (
+    QAbstractItemDelegate,
     QAbstractItemView,
-    QComboBox,
-    QHBoxLayout,
-    QLabel,
-    QListView,
     QMenu,
-    QSlider,
-    QVBoxLayout,
     QWidget,
 )
 
-from config import Config
-from logging_mixin import LoggingMixin
-from qt_widget_mixin import QtWidgetMixin
+from base_grid_view import BaseGridView
 from shot_grid_delegate_refactored import ShotGridDelegate
 from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
 from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QContextMenuEvent, QKeyEvent, QWheelEvent
+    from PySide6.QtGui import QContextMenuEvent
 
     from base_shot_model import BaseShotModel
 
 
-class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
+class ShotGridView(BaseGridView):
     """Optimized grid view for displaying shot thumbnails.
 
     This view provides:
@@ -53,13 +44,12 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
     - Lazy loading of thumbnails
     - Proper Model/View integration
     - Dynamic grid layout based on window size
+    - Context menu for folder operations
     """
 
-    # Signals
+    # Additional signals specific to ShotGridView
     shot_selected = Signal(Shot)  # Shot object
     shot_double_clicked = Signal(Shot)  # Shot object
-    app_launch_requested = Signal(str)  # app_name
-    show_filter_requested = Signal(str)  # show name or None for all
 
     def __init__(
         self,
@@ -72,97 +62,25 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
             model: Optional shot item model
             parent: Optional parent widget
         """
+        # Initialize base class
         super().__init__(parent)
 
-        self._model = model
-        self._thumbnail_size = Config.DEFAULT_THUMBNAIL_SIZE
+        # ShotGridView-specific attributes
         self._selected_shot: Shot | None = None
-
-        self._setup_ui()
+        self._model: ShotItemModel | None = model
 
         if model:
             self.set_model(model)
 
-        # Visibility tracking timer for lazy loading
-        self._visibility_timer = QTimer()
-        self._visibility_timer.timeout.connect(self._update_visible_range)
-        self._visibility_timer.setInterval(100)
-        self._visibility_timer.start()
-
         self.logger.info("ShotGridView initialized with Model/View architecture")
 
-    def _setup_ui(self) -> None:
-        """Set up the user interface."""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+    def _create_delegate(self) -> QAbstractItemDelegate:
+        """Create the shot grid delegate.
 
-        # Size control slider
-        size_layout = QHBoxLayout()
-        size_layout.addWidget(QLabel("Thumbnail Size:"))
-
-        self.size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
-        self.size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
-        self.size_slider.setValue(self._thumbnail_size)
-        self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.size_slider.setTickInterval(50)
-        self.size_slider.valueChanged.connect(self._on_size_changed)
-        size_layout.addWidget(self.size_slider)
-
-        self.size_label = QLabel(f"{self._thumbnail_size}px")
-        self.size_label.setMinimumWidth(50)
-        size_layout.addWidget(self.size_label)
-
-        layout.addLayout(size_layout)
-
-        # Show filter controls
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Show:"))
-
-        self.show_combo = QComboBox()
-        self.show_combo.addItem("All Shows")
-        self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
-        filter_layout.addWidget(self.show_combo)
-
-        filter_layout.addStretch()
-        layout.addLayout(filter_layout)
-
-        # Create QListView with grid mode
-        self.list_view = QListView()
-        self.list_view.setViewMode(QListView.ViewMode.IconMode)
-        self.list_view.setResizeMode(QListView.ResizeMode.Adjust)
-        self.list_view.setLayoutMode(QListView.LayoutMode.Batched)
-        self.list_view.setBatchSize(20)  # Process 20 items at a time
-        self.list_view.setUniformItemSizes(True)  # Optimization for equal-sized items
-        self.list_view.setSpacing(Config.THUMBNAIL_SPACING)
-
-        # Set selection behavior
-        self.list_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.list_view.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectItems,
-        )
-
-        # Enable smooth scrolling
-        self.list_view.setVerticalScrollMode(
-            QAbstractItemView.ScrollMode.ScrollPerPixel,
-        )
-        self.list_view.setHorizontalScrollMode(
-            QAbstractItemView.ScrollMode.ScrollPerPixel,
-        )
-
-        # Create and set custom delegate
-        self._delegate = ShotGridDelegate(self)
-        self.list_view.setItemDelegate(self._delegate)
-
-        # Connect signals
-        self.list_view.clicked.connect(self._on_item_clicked)
-        self.list_view.doubleClicked.connect(self._on_item_double_clicked)
-
-        layout.addWidget(self.list_view)
-
-        # Enable keyboard focus
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.list_view.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        Returns:
+            ShotGridDelegate instance
+        """
+        return ShotGridDelegate(self)
 
     @property
     def model(self) -> ShotItemModel | None:
@@ -234,25 +152,9 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
         if not shot_model:
             return
 
-        try:
-            # Block signals to prevent triggering filter change
-            self.show_combo.blockSignals(True)
-
-            # Clear existing items except "All Shows"
-            while self.show_combo.count() > 1:
-                self.show_combo.removeItem(1)
-
-            # Get available shows
-            shows = shot_model.get_available_shows()
-
-            # Add shows to combo box
-            for show in sorted(shows):
-                self.show_combo.addItem(show)
-
-            self.logger.debug(f"Populated show filter with {len(shows)} shows")
-        finally:
-            # Re-enable signals
-            self.show_combo.blockSignals(False)
+        # Use base class method
+        shows = shot_model.get_available_shows()
+        super().populate_show_filter(shows)
 
     @Slot()
     def _on_model_updated(self) -> None:
@@ -328,118 +230,15 @@ class ShotGridView(QtWidgetMixin, LoggingMixin, QWidget):
                 self._selected_shot = shot
                 self.shot_selected.emit(shot)
 
-    @Slot(int)
-    def _on_size_changed(self, size: int) -> None:
-        """Handle thumbnail size change.
+    def _handle_visible_range_update(self, start: int, end: int) -> None:
+        """Handle the visible range update for lazy loading.
 
         Args:
-            size: New thumbnail size
+            start: Start row index
+            end: End row index (exclusive)
         """
-        self._thumbnail_size = size
-        self.size_label.setText(f"{size}px")
-
-        # Update delegate size
-        self._delegate.set_thumbnail_size(size)
-
-        # Update grid size
-        self._update_grid_size()
-
-        # Force view update
-        self.list_view.viewport().update()
-
-        self.logger.debug(f"Thumbnail size changed to {size}px")
-
-    @Slot(str)
-    def _on_show_filter_changed(self, show_text: str) -> None:
-        """Handle show filter change.
-
-        Args:
-            show_text: Selected show name or "All Shows"
-        """
-        # Convert "All Shows" to None for the model
-        show_filter = None if show_text == "All Shows" else show_text
-        self.show_filter_requested.emit(show_filter or "")  # Emit empty string for None
-        self.logger.info(f"Show filter requested: {show_text}")
-
-    def _update_grid_size(self) -> None:
-        """Update the grid size based on thumbnail size."""
-        # Calculate item size including padding
-        item_size = self._thumbnail_size + 2 * 8 + 40  # padding + text height
-
-        # Set grid size on the view
-        self.list_view.setGridSize(QSize(item_size, item_size))
-
-        # Update uniform item sizes
-        self.list_view.setUniformItemSizes(True)
-
-    @Slot()
-    def _update_visible_range(self) -> None:
-        """Update the visible item range for lazy loading."""
-        if not self._model:
-            return
-
-        # Get visible rectangle
-        viewport = self.list_view.viewport()
-        visible_rect = viewport.rect()
-
-        # Find first and last visible items
-        first_index = self.list_view.indexAt(visible_rect.topLeft())
-        last_index = self.list_view.indexAt(visible_rect.bottomRight())
-
-        if not first_index.isValid():
-            first_index = self._model.index(0, 0)
-
-        if not last_index.isValid():
-            last_index = self._model.index(self._model.rowCount() - 1, 0)
-
-        # Update model's visible range for lazy thumbnail loading
-        if first_index.isValid() and last_index.isValid():
-            self._model.set_visible_range(first_index.row(), last_index.row() + 1)
-
-    def wheelEvent(self, event: QWheelEvent) -> None:
-        """Handle wheel event for thumbnail size adjustment with Ctrl.
-
-        Args:
-            event: Wheel event
-        """
-        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            delta = event.angleDelta().y()
-            if delta > 0:
-                new_size = min(self._thumbnail_size + 10, Config.MAX_THUMBNAIL_SIZE)
-            else:
-                new_size = max(self._thumbnail_size - 10, Config.MIN_THUMBNAIL_SIZE)
-
-            self.size_slider.setValue(new_size)
-            event.accept()
-        else:
-            super().wheelEvent(event)
-
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Handle keyboard shortcuts.
-
-        Args:
-            event: Key event
-        """
-        if not self._selected_shot:
-            super().keyPressEvent(event)
-            return
-
-        # Application launch shortcuts
-        key_map = {
-            Qt.Key.Key_3: "3de",
-            Qt.Key.Key_N: "nuke",
-            Qt.Key.Key_M: "maya",
-            Qt.Key.Key_R: "rv",
-            Qt.Key.Key_P: "publish",
-        }
-
-        key = Qt.Key(event.key())
-        if key in key_map:
-            self.app_launch_requested.emit(key_map[key])
-            event.accept()
-        else:
-            # Let QListView handle navigation
-            self.list_view.keyPressEvent(event)
+        if self._model:
+            self._model.set_visible_range(start, end)
 
     def select_shot_by_name(self, shot_name: str) -> None:
         """Select a shot by its full name.

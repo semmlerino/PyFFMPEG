@@ -118,11 +118,29 @@ The application uses Qt's signal-slot mechanism for loose coupling between compo
 - **`MockWorkspacePool`**: Sophisticated mock that simulates 432 real production shots
 - **Critical**: The `ws` command is a shell function, requires interactive bash: `["/bin/bash", "-i", "-c", "ws -sg"]`
 
-#### 2. Model/View Architecture for Shot Display
-- **Models** implement `QAbstractItemModel` for efficient data handling
-- **Views** use custom delegates for optimized painting
-- **Shot flow**: `ws -sg` → `ProcessPool` → `ShotModel` → `ShotItemModel` → `ShotGridView`
-- Models emit signals when data changes, views automatically update
+#### 2. Three Independent Model/View Stacks
+
+Each tab maintains its own architecture optimized for its data source:
+
+**My Shots (Workspace Integration)**
+- ShotModel: Executes `ws -sg` via ProcessPool with command-level caching (30s TTL)
+- ShotItemModel: QAbstractListModel for Qt view integration
+- ShotGridView: QListView with custom delegate for thumbnails
+- Refresh: Synchronous with progress indication
+
+**Other 3DE Scenes (Filesystem Discovery)**
+- ThreeDESceneModel: Manages discovered .3de files
+- ThreeDEItemModel: Provides filtered view of scenes
+- ThreeDEGridView: Similar to ShotGridView but scene-focused (NOTE: Not threede_shot_grid.py)
+- ThreeDESceneWorker: QThread for non-blocking filesystem scan
+- Refresh: Asynchronous with progressive batch updates
+
+**Previous Shots (Historical Data)**
+- PreviousShotsModel: Finds user's approved/completed shots
+- PreviousShotsItemModel: Filters out currently active shots
+- PreviousShotsView: Display with auto-refresh timer
+- PreviousShotsWorker: Background thread for filesystem traversal
+- Refresh: Asynchronous with 5-minute auto-refresh
 
 #### 3. Cache System (Modular Architecture)
 ```
@@ -175,6 +193,65 @@ if success and has_changes:
 - `launcher_manager.command_started/finished` → Progress indicators
 - `threede_worker.scene_found` → Progressive UI updates
 - `thumbnail_widget.shot_selected` → Updates info panel
+- **Show Filter Signals (added to all tabs)**:
+  - `shot_grid.show_filter_requested` → `_on_shot_show_filter_requested`
+  - `threede_grid.show_filter_requested` → `_on_show_filter_requested`
+  - `previous_shots_grid.show_filter_requested` → `_on_previous_show_filter_requested`
+
+## Tab Architecture: Three Distinct Data Sources
+
+The application's three tabs are NOT different views of the same data. They represent fundamentally different data sources:
+
+### My Shots Tab
+- **Data Source**: `ws -sg` command via ProcessPoolManager
+- **Performance**: Fast (cached subprocess call)
+- **Update Pattern**: On-demand with user-triggered refresh
+- **Caching**: 30-second TTL at command level
+- **Model Stack**: ShotModel → ShotItemModel → ShotGridView
+
+### Other 3DE Scenes Tab
+- **Data Source**: Filesystem scanning for .3de files
+- **Performance**: Slow (I/O intensive, thousands of directories)
+- **Update Pattern**: Progressive updates during scan
+- **Caching**: Permanent until invalidated
+- **Model Stack**: ThreeDESceneModel → ThreeDEItemModel → ThreeDEGridView
+
+### Previous Shots Tab
+- **Data Source**: Filesystem scanning for user work directories
+- **Performance**: Medium (targeted filesystem search)
+- **Update Pattern**: 5-minute auto-refresh
+- **Caching**: Session-based
+- **Model Stack**: PreviousShotsModel → PreviousShotsItemModel → PreviousShotsView
+
+## Why Three Separate Architectures?
+
+This separation is intentional and beneficial:
+
+1. **Different Performance Characteristics** - Each data source has unique I/O patterns
+2. **Different Update Requirements** - Sync vs async, progressive vs batch
+3. **Different Caching Strategies** - TTL vs permanent vs session-based
+4. **Domain-Specific Optimizations** - Each tab can evolve independently
+5. **Testability** - Each stack can be tested in isolation with appropriate mocks
+
+The apparent "duplication" is actually proper separation of concerns for distinct workflows.
+
+## Feature Implementation Map
+
+### Show Filtering (Recently Added to All Tabs)
+- **My Shots**: shot_grid_view.py → shot_item_model.py → base_shot_model.py
+- **Other 3DE**: threede_grid_view.py → threede_item_model.py → threede_scene_model.py
+- **Previous**: previous_shots_view.py → previous_shots_item_model.py → previous_shots_model.py
+- **Signal handlers**: main_window.py (lines 1260-1300)
+
+### Data Refresh Paths
+- **My Shots**: shot_model.py:refresh_strategy() → ProcessPool.execute_workspace_command()
+- **Other 3DE**: threede_scene_worker.py → ThreeDESceneFinder (parallel filesystem scan)
+- **Previous**: previous_shots_worker.py → ParallelShotsFinder.find_user_shots()
+
+### Cross-Tab Features
+- **Synchronized thumbnail sizing**: All tabs share slider synchronization
+- **Show filter**: Available on all tabs with consistent UI (QComboBox)
+- **Cache manager**: Shared instance across all tabs
 
 ## Mock Environment System
 
@@ -196,7 +273,11 @@ The mock environment includes:
 
 - **Parallel filesystem scanning** with `ThreadPoolExecutor`
 - **Adaptive UI timers** adjust update frequency based on activity
-- **Caching strategy**: 30-min TTL for shots, permanent for thumbnails
+- **Tab-specific caching strategies**:
+  - My Shots: 30-second TTL for `ws -sg` command results
+  - Other 3DE: Permanent cache until manually invalidated
+  - Previous Shots: Session-based caching with 5-minute refresh
+  - Thumbnails: Permanent cache across all tabs
 - **Progressive loading**: UI shows immediately, data loads in background
 - **Optimized painting**: Custom delegates minimize redraws
 
