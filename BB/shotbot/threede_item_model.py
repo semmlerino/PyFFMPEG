@@ -311,7 +311,7 @@ class ThreeDEItemModel(QAbstractListModel):
             return
 
         # Use cache manager to load thumbnail
-        from PySide6.QtCore import Q_ARG, QMetaObject
+        from PySide6.QtCore import QTimer
 
         def on_thumbnail_loaded(path: Path | None) -> None:
             """Handle loaded thumbnail."""
@@ -337,13 +337,11 @@ class ThreeDEItemModel(QAbstractListModel):
                     )
                     self.thumbnail_loaded.emit(row)
 
-        # Schedule loading in main thread
-        QMetaObject.invokeMethod(
-            self,
-            "_do_load_thumbnail",
-            Qt.ConnectionType.QueuedConnection,
-            Q_ARG(object, scene),
-            Q_ARG(object, on_thumbnail_loaded),
+        # Schedule loading in main thread using QTimer (avoids Q_ARG meta-type issues)
+        # Qt's meta-object system doesn't recognize Python "object" type
+        QTimer.singleShot(
+            0,
+            lambda: self._do_load_thumbnail(scene, on_thumbnail_loaded)
         )
 
     @Slot(object, object)  # type: ignore[arg-type]
