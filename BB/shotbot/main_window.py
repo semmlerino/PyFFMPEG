@@ -237,16 +237,35 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.shot_model, self.cache_manager
         )
         # Create persistent terminal manager if enabled
-        self.persistent_terminal: PersistentTerminalManager | None = None
-        if Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
-            self.persistent_terminal = PersistentTerminalManager(
-                fifo_path=Config.PERSISTENT_TERMINAL_FIFO
-            )
+        # Feature flag for simplified launcher
+        USE_SIMPLIFIED_LAUNCHER = os.environ.get("USE_SIMPLIFIED_LAUNCHER", "false").lower() == "true"
 
-        self.command_launcher = CommandLauncher(
-            persistent_terminal=self.persistent_terminal
-        )
-        self.launcher_manager = LauncherManager()
+        if USE_SIMPLIFIED_LAUNCHER:
+            # Use new simplified launcher (500 lines vs 2,872 lines)
+            from simplified_launcher import SimplifiedLauncher
+            from process_pool_factory import ProcessPoolFactory
+
+            self.logger.info("Using SimplifiedLauncher - streamlined process management")
+            self.command_launcher = SimplifiedLauncher()
+
+            # Inject SimplifiedLauncher as the ProcessPool implementation
+            # This allows ShotModel to use SimplifiedLauncher's execute_ws_command
+            ProcessPoolFactory.set_implementation(self.command_launcher)
+
+            self.launcher_manager = None  # Not needed with simplified approach
+            self.persistent_terminal = None
+        else:
+            # Use legacy launcher stack
+            self.persistent_terminal: PersistentTerminalManager | None = None
+            if Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
+                self.persistent_terminal = PersistentTerminalManager(
+                    fifo_path=Config.PERSISTENT_TERMINAL_FIFO
+                )
+
+            self.command_launcher = CommandLauncher(
+                persistent_terminal=self.persistent_terminal
+            )
+            self.launcher_manager = LauncherManager()
         self._current_scene: ThreeDEScene | None = None
         self._threede_worker: ThreeDESceneWorker | None = None
         self._worker_mutex = QMutex()  # Protect worker access
@@ -573,13 +592,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.command_launcher.command_error.connect(self.log_viewer.add_error)
         _ = self.command_launcher.command_error.connect(self._on_command_error)
 
-        # Custom launcher manager
-        _ = self.launcher_manager.launchers_changed.connect(self._update_launcher_menu)
-        _ = self.launcher_manager.launchers_changed.connect(
-            self._update_custom_launcher_buttons,
-        )
-        _ = self.launcher_manager.execution_started.connect(self._on_launcher_started)
-        _ = self.launcher_manager.execution_finished.connect(self._on_launcher_finished)
+        # Custom launcher manager (only if using legacy launcher)
+        if self.launcher_manager:
+            _ = self.launcher_manager.launchers_changed.connect(self._update_launcher_menu)
+            _ = self.launcher_manager.launchers_changed.connect(
+                self._update_custom_launcher_buttons,
+            )
+            _ = self.launcher_manager.execution_started.connect(self._on_launcher_started)
+            _ = self.launcher_manager.execution_finished.connect(self._on_launcher_finished)
 
         # Synchronize thumbnail sizes between tabs
         _ = self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
@@ -1545,6 +1565,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _on_launcher_started(self, launcher_id: str) -> None:
         """Handle custom launcher start with progress indication."""
+        if not self.launcher_manager:
+            return
         launcher = self.launcher_manager.get_launcher(launcher_id)
         launcher_name = launcher.name if launcher else "Custom command"
         _ = ProgressManager.start_operation(f"Launching {launcher_name}")
@@ -1601,6 +1623,16 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _show_launcher_manager(self) -> None:
         """Show the launcher manager dialog."""
+        if not self.launcher_manager:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                "Custom Launchers",
+                "Custom launchers are not available when using simplified launcher mode.\n"
+                "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers."
+            )
+            return
+
         if self._launcher_dialog is None:
             self._launcher_dialog = LauncherManagerDialog(self.launcher_manager, self)
 
@@ -1613,6 +1645,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Update the custom launcher menu with available launchers."""
         # Clear existing menu items
         self.custom_launcher_menu.clear()
+
+        # Skip if using simplified launcher
+        if not self.launcher_manager:
+            return
 
         # Get all launchers grouped by category
         launchers = self.launcher_manager.list_launchers()
@@ -1684,6 +1720,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _execute_custom_launcher(self, launcher_id: str) -> None:
         """Execute a custom launcher."""
+        if not self.launcher_manager:
+            return
         launcher = self.launcher_manager.get_launcher(launcher_id)
         if not launcher:
             self._update_status(f"Launcher not found: {launcher_id}")
@@ -1711,6 +1749,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             shot = current_shot
 
         # Execute the launcher
+        if not self.launcher_manager:
+            return
         success = self.launcher_manager.execute_in_shot_context(launcher_id, shot)
 
         if success:
@@ -1735,6 +1775,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _update_custom_launcher_buttons(self) -> None:
         """Update the custom launcher buttons in the launcher panel."""
+        # Skip if using simplified launcher
+        if not self.launcher_manager:
+            return
+
         # Get all launchers
         launchers = self.launcher_manager.list_launchers()
         launcher_list = [(launcher.id, launcher.name) for launcher in launchers]
@@ -1860,7 +1904,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 self._session_warmer = None
 
         # Shutdown launcher manager to stop all worker threads
-        if hasattr(self.launcher_manager, "shutdown"):
+        if self.launcher_manager and hasattr(self.launcher_manager, "shutdown"):
             self.launcher_manager.shutdown()
 
         # Clean up ShotModel background threads
