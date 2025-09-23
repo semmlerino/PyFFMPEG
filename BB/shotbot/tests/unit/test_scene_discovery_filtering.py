@@ -50,7 +50,7 @@ class TestSceneFiltering:
 
         return _make
 
-    def test_scene_creation_for_matching_shot(self, make_shot, make_file_tuple):
+    def test_scene_creation_for_matching_shot(self, make_shot, make_file_tuple) -> None:
         """Test that scenes ARE created when shot matches user's assignments."""
         # Setup - user has this shot assigned
         user_shots = [make_shot(show="gator", seq="013_DC", shot="2120")]
@@ -79,7 +79,9 @@ class TestSceneFiltering:
         workspace_path = matching_shot.workspace_path
         assert workspace_path == "/shows/gator/shots/013_DC/013_DC_2120"
 
-    def test_scene_creation_for_non_matching_shot(self, make_shot, make_file_tuple):
+    def test_scene_creation_for_non_matching_shot(
+        self, make_shot, make_file_tuple
+    ) -> None:
         """Test that scenes ARE created even when shot doesn't match assignments.
 
         This was the BUG: Scenes were dropped if matching_shot was None.
@@ -123,7 +125,7 @@ class TestSceneFiltering:
 
     def test_all_scenes_created_regardless_of_assignment(
         self, make_shot, make_file_tuple
-    ):
+    ) -> None:
         """Test that ALL scenes from other users are created.
 
         Verifies the fix creates scenes for:
@@ -199,7 +201,7 @@ class TestSceneFiltering:
             == "/shows/broken_eggs/shots/BRX_119/BRX_119_0010"
         )
 
-    def test_excluded_users_still_filtered(self, make_file_tuple):
+    def test_excluded_users_still_filtered(self, make_file_tuple) -> None:
         """Test that excluded users are still properly filtered out."""
         from scene_parser import SceneParser
 
@@ -238,7 +240,7 @@ class TestSceneFiltering:
             ),
         ],
     )
-    def test_workspace_path_construction(self, show, seq, shot, expected_path):
+    def test_workspace_path_construction(self, show, seq, shot, expected_path) -> None:
         """Test workspace path construction for various shots (GUIDE line 143)."""
         shows_root = "/shows"
         workspace_path = f"{shows_root}/{show}/shots/{seq}/{seq}_{shot}"

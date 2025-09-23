@@ -10,6 +10,8 @@ from __future__ import annotations
 import logging
 
 from PySide6.QtCore import (
+    QAbstractItemModel,
+    QEvent,
     QModelIndex,
     QPersistentModelIndex,
     QRect,
@@ -436,7 +438,7 @@ class ShotGridDelegate(QStyledItemDelegate):
         # Clear metrics cache as sizes changed
         self._metrics_cache.clear()
 
-    def editorEvent(self, event, model, option, index):
+    def editorEvent(self, event: QEvent, model: QAbstractItemModel, option: QStyleOptionViewItem, index: QModelIndex) -> bool:
         """Handle mouse events for custom interaction.
 
         Args:

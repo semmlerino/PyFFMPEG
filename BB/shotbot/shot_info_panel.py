@@ -329,7 +329,7 @@ class InfoPanelPixmapLoader(QRunnable):
         loaded = Signal(QImage)
         failed = Signal()
 
-    def __init__(self, panel, path: str | Path) -> None:
+    def __init__(self, panel: ShotInfoPanel, path: str | Path) -> None:
         super().__init__()
         self.panel = panel  # Keep reference to prevent GC
         self.path = path

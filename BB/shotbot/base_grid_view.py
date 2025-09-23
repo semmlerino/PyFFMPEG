@@ -18,7 +18,6 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemDelegate,
     QAbstractItemView,
     QComboBox,
     QHBoxLayout,
@@ -35,6 +34,8 @@ from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QKeyEvent, QWheelEvent
+
+    from base_thumbnail_delegate import BaseThumbnailDelegate
 
 
 class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
@@ -192,7 +193,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         pass
 
-    def _create_delegate(self) -> QAbstractItemDelegate:
+    def _create_delegate(self) -> BaseThumbnailDelegate:
         """Create the appropriate delegate for this view.
 
         Must be implemented by subclasses.

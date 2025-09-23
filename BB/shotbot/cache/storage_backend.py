@@ -9,7 +9,10 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Platform-specific file locking
 if sys.platform == "win32":
@@ -195,7 +198,10 @@ class StorageBackend(ErrorHandlingMixin, LoggingMixin):
                         pass
 
     def atomic_update_json(
-        self, file_path: Path, update_func, default: dict[str, Any] | None = None
+        self,
+        file_path: Path,
+        update_func: Callable[[dict[str, Any] | None], dict[str, Any]],
+        default: dict[str, Any] | None = None,
     ) -> bool:
         """Atomically read, update, and write JSON data.
 

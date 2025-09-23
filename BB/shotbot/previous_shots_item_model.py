@@ -469,7 +469,9 @@ class PreviousShotsItemModel(QAbstractListModel):
             QPixmap converted from cached QImage or None
         """
         with QMutexLocker(self._cache_mutex):
-            cached_image: QPixmap | QImage | None = self._thumbnail_cache.get(shot.full_name)
+            cached_image: QPixmap | QImage | None = self._thumbnail_cache.get(
+                shot.full_name
+            )
         if cached_image:
             # Convert QImage to QPixmap in main thread for display
             if isinstance(cached_image, QImage):

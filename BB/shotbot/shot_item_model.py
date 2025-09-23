@@ -382,12 +382,14 @@ class ShotItemModel(LoggingMixin, QAbstractListModel):
             # It will automatically resize EXR files using PIL if needed
             if self._cache_manager:
                 # First, cache the thumbnail (handles EXR with PIL resizing)
+                # Set a 30-second timeout for thumbnail generation (especially for large EXR files)
                 cached_path = self._cache_manager.cache_thumbnail(
                     thumbnail_path,
                     shot.show,
                     shot.sequence,
                     shot.shot,
                     wait=False,  # Don't block UI - load asynchronously
+                    timeout=30.0,  # 30 second timeout for thumbnail generation
                 )
 
                 # Handle both sync and async results
@@ -399,6 +401,14 @@ class ShotItemModel(LoggingMixin, QAbstractListModel):
                     result.future.add_done_callback(
                         lambda fut: self._on_thumbnail_cached_safe(fut, shot_full_name)
                     )
+
+                    # Set up a watchdog timer to handle timeout
+                    # If thumbnail doesn't load within 30 seconds, mark as failed
+                    # Note: We need to capture result in the lambda closure
+                    def check_timeout() -> None:
+                        self._check_thumbnail_timeout(shot_full_name, result)
+
+                    QTimer.singleShot(30000, check_timeout)  # 30 seconds
                 elif isinstance(cached_path, Path) and cached_path.exists():
                     # Sync result - cached thumbnail was already available
                     self._load_cached_pixmap(cached_path, row, shot, index)
@@ -523,7 +533,28 @@ class ShotItemModel(LoggingMixin, QAbstractListModel):
                 f"Shot {shot_full_name} no longer exists in model, ignoring success callback"
             )
 
-    @Slot(str)  # shot_full_name: str
+    def _check_thumbnail_timeout(
+        self, shot_full_name: str, result: ThumbnailCacheResult
+    ) -> None:
+        """Check if thumbnail loading has timed out.
+
+        Args:
+            shot_full_name: Immutable identifier for the shot
+            result: The thumbnail cache result to check
+        """
+        # If the result is still not complete after timeout, mark as failed
+        if not result.is_complete():
+            self.logger.error(
+                f"Thumbnail loading timed out after 30 seconds for {shot_full_name}"
+            )
+            # Mark as failed
+            shot_data = self._find_shot_by_full_name(shot_full_name)
+            if shot_data is not None:
+                shot, row = shot_data
+                self._loading_states[shot.full_name] = "failed"
+                index = self.index(row, 0)
+                self.dataChanged.emit(index, index, [ShotRole.LoadingStateRole])
+
     def _handle_thumbnail_failure_atomically(self, shot_full_name: str) -> None:
         """Atomically handle thumbnail failure in main thread - prevents race conditions.
 

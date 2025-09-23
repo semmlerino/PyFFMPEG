@@ -129,7 +129,7 @@ class TestThreadSafety:
         signals_received = []
 
         # Track signals directly from the model
-        def on_thumbnail_loaded(idx):
+        def on_thumbnail_loaded(idx) -> None:
             signals_received.append(idx)
 
         model.thumbnail_loaded.connect(on_thumbnail_loaded)

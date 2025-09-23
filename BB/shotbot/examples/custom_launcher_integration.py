@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Example integration of terminal_launcher.py with ShotBot's command system."""
+"""Example integration of persistent terminal with ShotBot's command system."""
 
 import os
 import sys
@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
+from dataclasses import dataclass
 
 # Mock PySide6 for demonstration
 sys.modules["PySide6"] = Mock()
@@ -17,15 +18,33 @@ sys.modules["PySide6.QtCore"].Signal = Mock()
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import the terminal launcher
-from terminal_launcher import Launcher, TerminalLauncher  # noqa: E402
+# Import the persistent terminal manager
+from persistent_terminal_manager import PersistentTerminalManager  # noqa: E402
+
+
+@dataclass
+class Launcher:
+    """Simple launcher configuration for example."""
+    name: str
+    command: str
+    description: str = ""
+    category: str = "custom"
+    working_directory: str | None = None
+    environment_vars: dict[str, str | None] = None
+    terminal_title: str | None = None
+    persist_terminal: bool = False
+    validate_command: bool = True
+
+    def __post_init__(self):
+        if self.environment_vars is None:
+            self.environment_vars = {}
 
 
 class CustomLauncherManager:
     """Manages custom application launchers for ShotBot."""
 
     def __init__(self) -> None:
-        self.terminal_launcher = TerminalLauncher()
+        self.persistent_terminal = PersistentTerminalManager()
         self.custom_launchers = {}
         self._load_default_launchers()
 
@@ -125,7 +144,7 @@ class CustomLauncherManager:
 
     def execute_custom_launcher(
         self, launcher_id: str, shot_context: dict[str, Any]
-    ) -> Any:  # noqa: ANN401
+    ) -> dict[str, Any]:  # noqa: ANN401
         """Execute a custom launcher with shot context.
 
         Args:
@@ -138,15 +157,13 @@ class CustomLauncherManager:
                 - workspace_path: Full workspace path
 
         Returns:
-            LaunchResult object
+            Dictionary with execution result
         """
         if launcher_id not in self.custom_launchers:
-            from terminal_launcher import LaunchResult
-
-            return LaunchResult(
-                success=False,
-                error_message=f"Unknown custom launcher: {launcher_id}",
-            )
+            return {
+                "success": False,
+                "error_message": f"Unknown custom launcher: {launcher_id}",
+            }
 
         launcher = self.custom_launchers[launcher_id]
 
@@ -164,10 +181,38 @@ class CustomLauncherManager:
             },
         )
 
-        # Execute the launcher
-        result = self.terminal_launcher.execute_launcher(launcher, variables)
+        # Substitute variables in command
+        command = self._substitute_variables(launcher.command, variables)
 
-        return result
+        # Execute using persistent terminal
+        try:
+            if launcher.persist_terminal or self.persistent_terminal.is_alive():
+                # Use persistent terminal
+                self.persistent_terminal.send_command(command)
+                return {
+                    "success": True,
+                    "command": command,
+                    "terminal": "persistent",
+                }
+            else:
+                # Start new terminal with command
+                if self.persistent_terminal.start():
+                    self.persistent_terminal.send_command(command)
+                    return {
+                        "success": True,
+                        "command": command,
+                        "terminal": "new_persistent",
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error_message": "Failed to start terminal",
+                    }
+        except Exception as e:
+            return {
+                "success": False,
+                "error_message": str(e),
+            }
 
     def add_custom_launcher(self, launcher_id: str, launcher: Any) -> None:  # noqa: ANN401
         """Add a new custom launcher."""
@@ -180,9 +225,20 @@ class CustomLauncherManager:
             return True
         return False
 
+    def _substitute_variables(self, command: str, variables: dict[str, Any]) -> str:
+        """Substitute variables in command string."""
+        result = command
+        for key, value in variables.items():
+            result = result.replace(f"{{{key}}}", str(value))
+        return result
+
     def get_available_terminals(self) -> list[str]:
         """Get available terminal emulators."""
-        return self.terminal_launcher.get_available_terminals()
+        # Return info about persistent terminal status
+        if self.persistent_terminal.is_alive():
+            return ["Persistent terminal (active)"]
+        else:
+            return ["Persistent terminal (not started)"]
 
 
 def demo_integration() -> None:
@@ -234,7 +290,7 @@ def demo_integration() -> None:
             },
         )
 
-        substituted_command = manager.terminal_launcher._substitute_variables(
+        substituted_command = manager._substitute_variables(
             launcher.command,
             variables,
         )

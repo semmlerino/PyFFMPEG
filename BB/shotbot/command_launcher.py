@@ -208,7 +208,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
             # Build grep patterns for all problematic paths
             # Each path needs to be escaped for use in grep
-            grep_patterns = []
+            grep_patterns: list[str] = []
             for problematic_path in Config.NUKE_PROBLEMATIC_PLUGIN_PATHS:
                 # Escape special characters for grep
                 escaped_path = problematic_path.replace(".", r"\.")
@@ -405,7 +405,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 script_dir = manager.get_workspace_script_directory(
                     self.current_shot.workspace_path
                 )
-                next_path, version = manager.get_next_script_path(
+                _, version = manager.get_next_script_path(
                     script_dir, self.current_shot.full_name
                 )
 
@@ -677,7 +677,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 env_fixes = self._get_nuke_environment_fixes()
                 if env_fixes:
                     timestamp = datetime.now().strftime("%H:%M:%S")
-                    fix_details = []
+                    fix_details: list[str] = []
                     if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
                         fix_details.append("runtime NUKE_PATH filtering")
                     if Config.NUKE_OCIO_FALLBACK_CONFIG:
@@ -689,17 +689,9 @@ class CommandLauncher(LoggingMixin, QObject):
                         f"Applied environment fixes to prevent Nuke crashes: {', '.join(fix_details)}",
                     )
 
-            # For GUI apps in persistent terminal, add & inside the command
-            if (
-                self.persistent_terminal
-                and Config.USE_PERSISTENT_TERMINAL
-                and Config.AUTO_BACKGROUND_GUI_APPS
-                and self._is_gui_app(app_name)
-            ):
-                ws_command = f"ws {safe_workspace_path} && {env_fixes}{command} &"
-                self.logger.debug(f"Added & inside command for GUI app {app_name}")
-            else:
-                ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
+            # Build base command WITHOUT background operator
+            # We'll add & only when actually sending to persistent terminal
+            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {str(e)}")
             return False
@@ -729,13 +721,25 @@ class CommandLauncher(LoggingMixin, QObject):
         self.command_executed.emit(timestamp, full_command)
 
         # Use persistent terminal if available and enabled
-        if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
-            self.logger.info(f"Sending command to persistent terminal: {full_command}")
+        if self.persistent_terminal and Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
+            # Add & for GUI apps when using persistent terminal
+            command_to_send = full_command
+            if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
+                # For rez commands, add & inside the quoted bash command
+                if "bash -ilc" in full_command:
+                    # Command is like: rez env nuke -- bash -ilc "ws /path && nuke"
+                    # We need to add & inside the quotes
+                    command_to_send = full_command.rstrip('"') + ' &"'
+                else:
+                    command_to_send = full_command + " &"
+                self.logger.debug(f"Added & for GUI app {app_name} in persistent terminal")
+
+            self.logger.info(f"Sending command to persistent terminal: {command_to_send}")
             self.logger.debug(
                 f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
             )
 
-            success = self.persistent_terminal.send_command(full_command)
+            success = self.persistent_terminal.send_command(command_to_send)
             if success:
                 self.logger.debug("Command successfully sent to persistent terminal")
                 return True
@@ -743,7 +747,13 @@ class CommandLauncher(LoggingMixin, QObject):
                 self.logger.warning(
                     "Failed to send command to persistent terminal, falling back to new terminal"
                 )
-                # Fall through to launch new terminal
+                # Emit user-friendly message about fallback
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp,
+                    "⚠ Persistent terminal not available, launching in new terminal..."
+                )
+                # Fall through to launch new terminal - WITHOUT the & operator
 
         # Launch in new terminal (original behavior)
         try:
@@ -810,7 +820,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 env_fixes = self._get_nuke_environment_fixes()
                 if env_fixes:
                     timestamp = datetime.now().strftime("%H:%M:%S")
-                    fix_details = []
+                    fix_details: list[str] = []
                     if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
                         fix_details.append("runtime NUKE_PATH filtering")
                     if Config.NUKE_OCIO_FALLBACK_CONFIG:
@@ -822,19 +832,9 @@ class CommandLauncher(LoggingMixin, QObject):
                         f"Applied environment fixes for Nuke scene launch: {', '.join(fix_details)}",
                     )
 
-            # For GUI apps in persistent terminal, add & inside the command
-            if (
-                self.persistent_terminal
-                and Config.USE_PERSISTENT_TERMINAL
-                and Config.AUTO_BACKGROUND_GUI_APPS
-                and self._is_gui_app(app_name)
-            ):
-                ws_command = f"ws {safe_workspace_path} && {env_fixes}{command} &"
-                self.logger.debug(
-                    f"Added & inside command for GUI app {app_name} with scene"
-                )
-            else:
-                ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
+            # Build base command WITHOUT background operator
+            # We'll add & only when actually sending to persistent terminal
+            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {str(e)}")
             return False
@@ -862,15 +862,29 @@ class CommandLauncher(LoggingMixin, QObject):
         )
 
         # Use persistent terminal if available and enabled
-        if self.persistent_terminal and Config.USE_PERSISTENT_TERMINAL:
+        if self.persistent_terminal and Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
+            # Add & for GUI apps when using persistent terminal
+            command_to_send = full_command
+            if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
+                # For rez commands, add & inside the quoted bash command
+                if "bash -ilc" in full_command:
+                    # Command is like: rez env 3de -- bash -ilc "ws /path && 3de /file"
+                    # We need to add & inside the quotes
+                    command_to_send = full_command.rstrip('"') + ' &"'
+                else:
+                    command_to_send = full_command + " &"
+                self.logger.debug(
+                    f"Added & for GUI app {app_name} in persistent terminal"
+                )
+
             self.logger.info(
-                f"Sending scene command to persistent terminal: {full_command}"
+                f"Sending scene command to persistent terminal: {command_to_send}"
             )
             self.logger.debug(
                 f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
             )
 
-            success = self.persistent_terminal.send_command(full_command)
+            success = self.persistent_terminal.send_command(command_to_send)
             if success:
                 self.logger.debug(
                     "Scene command successfully sent to persistent terminal"
@@ -880,7 +894,13 @@ class CommandLauncher(LoggingMixin, QObject):
                 self.logger.warning(
                     "Failed to send command to persistent terminal, falling back to new terminal"
                 )
-                # Fall through to launch new terminal
+                # Emit user-friendly message about fallback
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp,
+                    "⚠ Persistent terminal not available, launching in new terminal..."
+                )
+                # Fall through to launch new terminal - WITHOUT the & operator
 
         # Launch in new terminal (original behavior)
         try:

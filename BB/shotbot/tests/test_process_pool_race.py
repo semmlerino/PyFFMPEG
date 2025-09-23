@@ -17,7 +17,7 @@ from PySide6.QtCore import QCoreApplication
 app = QCoreApplication.instance() or QCoreApplication([])
 
 
-def test_process_pool_manager_race_condition():
+def test_process_pool_manager_race_condition() -> None:
     """Demonstrate race condition in ProcessPoolManager singleton initialization.
 
     This test attempts to create multiple ProcessPoolManager instances
@@ -51,7 +51,7 @@ def test_process_pool_manager_race_condition():
 
     ProcessPoolManager.__init__ = tracked_init
 
-    def create_instance():
+    def create_instance() -> None:
         """Thread worker to create an instance."""
         try:
             instance = ProcessPoolManager()
@@ -98,7 +98,7 @@ def test_process_pool_manager_race_condition():
     assert len(errors) == 0, f"Errors occurred: {errors}"
 
 
-def test_process_pool_manager_resource_leak():
+def test_process_pool_manager_resource_leak() -> None:
     """Test for resource leaks due to duplicate initialization.
 
     The duplicate self._initialized = True on line 257 could cause
@@ -124,7 +124,7 @@ def test_process_pool_manager_resource_leak():
 
     try:
         # Create instance
-        manager = ProcessPoolManager()
+        ProcessPoolManager()
 
         # Check for duplicate executor creations
         print(f"Executor creations: {len(executor_creations)}")

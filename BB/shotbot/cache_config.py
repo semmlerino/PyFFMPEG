@@ -95,7 +95,7 @@ class CacheConfig(LoggingMixin):
         try:
             from process_pool_factory import ProcessPoolFactory
 
-            if ProcessPoolFactory._factory_mode == "mock":
+            if ProcessPoolFactory.get_factory_mode() == "mock":
                 return True
         except ImportError:
             pass

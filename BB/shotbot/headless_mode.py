@@ -286,7 +286,7 @@ class HeadlessMainWindow(LoggingMixin):
         return self.shot_model.shots
 
 
-def run_headless_app():
+def run_headless_app() -> bool:
     """Run the application in headless mode for testing."""
     from PySide6.QtCore import QTimer
 

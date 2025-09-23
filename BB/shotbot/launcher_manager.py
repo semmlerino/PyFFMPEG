@@ -75,6 +75,7 @@ class LauncherManager(LoggingMixin, QObject):
         self._repository = LauncherRepository(self._config_manager)
         self._validator = LauncherValidator()
         self._process_manager = LauncherProcessManager()
+        self._signals_connected = False  # Track signal connection state
 
         # ProcessPoolManager for optimized command execution (via factory for DI)
         try:
@@ -90,9 +91,15 @@ class LauncherManager(LoggingMixin, QObject):
         )
 
         # Connect process manager signals
-        self._process_manager.process_started.connect(self.command_started)
-        self._process_manager.process_finished.connect(self.command_finished)
-        self._process_manager.process_error.connect(self.command_error)
+        try:
+            self._process_manager.process_started.connect(self.command_started)
+            self._process_manager.process_finished.connect(self.command_finished)
+            self._process_manager.process_error.connect(self.command_error)
+            self._signals_connected = True
+        except (AttributeError, RuntimeError) as e:
+            # Signals may not be available in test environment
+            self.logger.debug(f"Could not connect process manager signals: {e}")
+            self._signals_connected = False
 
         self.logger.info(
             f"LauncherManager initialized with {self._repository.count()} launchers"
@@ -602,14 +609,33 @@ class LauncherManager(LoggingMixin, QObject):
         """Shutdown the launcher manager and clean up resources."""
         self.logger.info("Shutting down LauncherManager")
 
-        # Disconnect signals to prevent memory leaks
-        try:
-            self._process_manager.process_started.disconnect(self.command_started)
-            self._process_manager.process_finished.disconnect(self.command_finished)
-            self._process_manager.process_error.disconnect(self.command_error)
-        except (RuntimeError, TypeError):
-            # Signals may already be disconnected
-            pass
+        # Only disconnect signals if they were successfully connected
+        if self._signals_connected:
+            try:
+                # Use disconnect() without arguments to disconnect all slots
+                # This avoids warnings about disconnecting specific slots that may not exist
+                if hasattr(self._process_manager, 'process_started'):
+                    try:
+                        self._process_manager.process_started.disconnect()
+                    except (RuntimeError, TypeError):
+                        pass  # Already disconnected or no connections
+
+                if hasattr(self._process_manager, 'process_finished'):
+                    try:
+                        self._process_manager.process_finished.disconnect()
+                    except (RuntimeError, TypeError):
+                        pass  # Already disconnected or no connections
+
+                if hasattr(self._process_manager, 'process_error'):
+                    try:
+                        self._process_manager.process_error.disconnect()
+                    except (RuntimeError, TypeError):
+                        pass  # Already disconnected or no connections
+
+                self._signals_connected = False
+            except Exception as e:
+                # Log but don't fail on cleanup errors
+                self.logger.debug(f"Error disconnecting signals: {e}")
 
         self._process_manager.shutdown()
         self.logger.info("LauncherManager shutdown complete")

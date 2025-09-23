@@ -389,7 +389,7 @@ class ThumbnailWidgetBase(QFrame):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     @abstractmethod
-    def _setup_custom_ui(self):
+    def _setup_custom_ui(self) -> None:
         """Set up custom UI elements specific to the derived class."""
         pass
 

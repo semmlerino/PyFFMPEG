@@ -18,7 +18,6 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemDelegate,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -36,6 +35,7 @@ from thumbnail_widget_base import FolderOpenerWorker
 if TYPE_CHECKING:
     from PySide6.QtGui import QCloseEvent, QContextMenuEvent
 
+    from base_thumbnail_delegate import BaseThumbnailDelegate
     from previous_shots_item_model import PreviousShotsItemModel
     from previous_shots_model import PreviousShotsModel
     from shot_model import Shot
@@ -95,7 +95,7 @@ class PreviousShotsView(BaseGridView):
         header_widget = self._create_header()
         layout.addWidget(header_widget)
 
-    def _create_delegate(self) -> QAbstractItemDelegate:
+    def _create_delegate(self) -> BaseThumbnailDelegate:
         """Create the shot grid delegate.
 
         Returns:
@@ -204,7 +204,7 @@ class PreviousShotsView(BaseGridView):
 
         # Use base class method
         shows = previous_shots_model.get_available_shows()
-        super().populate_show_filter(shows)
+        super().populate_show_filter(list(shows))
 
     @Slot()
     def _on_refresh_clicked(self) -> None:

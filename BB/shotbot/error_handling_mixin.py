@@ -48,11 +48,11 @@ class ErrorHandlingMixin(LoggingMixin):
     def safe_execute(
         self,
         operation: Callable[..., T],
-        *args: Any,
+        *args: Any,  # noqa: ANN401
         default: T | None = None,
         log_error: bool = True,
         reraise: bool = False,
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> T | None:
         """Execute an operation with standard error handling.
 
@@ -166,7 +166,7 @@ class ErrorHandlingMixin(LoggingMixin):
         operation_name: str,
         reraise: bool = False,
         log_level: int = logging.ERROR,
-        default_result: Any = None,
+        default_result: Any = None,  # noqa: ANN401
     ) -> Generator[dict[str, Any], None, None]:
         """Context manager for error handling blocks.
 
@@ -223,9 +223,9 @@ class ErrorHandlingMixin(LoggingMixin):
         self,
         operation: Callable[..., T],
         timeout_seconds: float,
-        *args: Any,
+        *args: Any,  # noqa: ANN401
         default: T | None = None,
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> T | None:
         """Execute operation with timeout handling.
 
@@ -249,11 +249,11 @@ class ErrorHandlingMixin(LoggingMixin):
     def retry_on_error(
         self,
         operation: Callable[..., T],
-        *args: Any,
+        *args: Any,  # noqa: ANN401
         max_retries: int = 3,
         delay_seconds: float = 1.0,
         backoff_factor: float = 2.0,
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> T | None:
         """Retry an operation on failure with exponential backoff.
 
@@ -299,10 +299,10 @@ class ErrorHandlingMixin(LoggingMixin):
     def validate_and_execute(
         self,
         operation: Callable[..., T],
-        *args: Any,
+        *args: Any,  # noqa: ANN401
         validators: list[Callable[[], bool]] | None = None,
         validation_error: str = "Validation failed",
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> T | None:
         """Execute operation only if all validators pass.
 
@@ -340,7 +340,7 @@ class ErrorAggregator:
     collecting all errors for reporting at the end.
     """
 
-    def __init__(self, logger: logging.Logger | Any = None) -> None:
+    def __init__(self, logger: logging.Logger | None = None) -> None:
         """Initialize error aggregator.
 
         Args:

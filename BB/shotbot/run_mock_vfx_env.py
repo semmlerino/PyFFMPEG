@@ -149,7 +149,7 @@ def create_shows_symlink() -> bool:
     return True
 
 
-def run_shotbot():
+def run_shotbot() -> int:
     """Run ShotBot with mock environment."""
 
     # Python executable from venv
@@ -188,7 +188,7 @@ def run_shotbot():
         return 1
 
 
-def main():
+def main() -> int:
     """Main entry point."""
 
     logger.info("=" * 60)

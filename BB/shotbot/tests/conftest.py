@@ -57,7 +57,7 @@ _original_eventloop_exec_ = getattr(QEventLoop, "exec_", None)
 _virtually_visible_widgets = set()
 
 
-def _mock_widget_show(self):
+def _mock_widget_show(self) -> None:
     """Prevent widgets from actually showing."""
     # Mark as "shown" for tests without actually showing
     _virtually_visible_widgets.add(id(self))
@@ -65,14 +65,14 @@ def _mock_widget_show(self):
     pass
 
 
-def _mock_widget_hide(self):
+def _mock_widget_hide(self) -> None:
     """Hide widget by removing from virtually visible set."""
     _virtually_visible_widgets.discard(id(self))
     # Don't call the original hide
     pass
 
 
-def _mock_widget_setVisible(self, visible):
+def _mock_widget_setVisible(self, visible) -> None:
     """Prevent widgets from becoming visible if visible=True."""
     if not visible:
         # Allow hiding
@@ -89,7 +89,7 @@ def _mock_widget_isVisible(self):
     return id(self) in _virtually_visible_widgets
 
 
-def _mock_widget_showEvent(self, event):
+def _mock_widget_showEvent(self, event) -> None:
     """Prevent show events from propagating."""
     # Accept the event but don't show anything
     if event:
@@ -102,7 +102,7 @@ def _mock_dialog_exec(self):
     return QDialog.DialogCode.Accepted
 
 
-def _mock_eventloop_exec(self):
+def _mock_eventloop_exec(self) -> int:
     """Prevent event loops from blocking in tests while allowing signal delivery."""
     # Process events more thoroughly to allow QThreadPool signals to propagate
     import time
@@ -140,16 +140,16 @@ QMessageBox.warning = lambda *args, **kwargs: QMessageBox.StandardButton.Ok
 QMessageBox.information = lambda *args, **kwargs: QMessageBox.StandardButton.Ok
 QMessageBox.question = lambda *args, **kwargs: QMessageBox.StandardButton.Yes
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 # Import protocols for type safety
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import test doubles library for proper test double patterns
-from tests.test_doubles_library import TestProcessPool
-
-if TYPE_CHECKING:
-    from collections.abc import Generator
+from tests.test_doubles_library import TestProcessPool  # noqa: E402
 
 # =============================================================================
 # Factory Fixtures (UNIFIED_TESTING_GUIDE Best Practice)
@@ -404,6 +404,10 @@ def pytest_configure(config: Any) -> None:
     config.addinivalue_line("markers", "critical: Critical path tests that must pass")
     config.addinivalue_line("markers", "wsl: Tests optimized for WSL environment")
     config.addinivalue_line("markers", "flaky: Known flaky tests requiring attention")
+    config.addinivalue_line(
+        "markers",
+        "xdist_group(name): Mark tests to run in same xdist worker (for pytest-xdist)",
+    )
 
     # Qt environment is already set at the top of the file
 
@@ -1137,6 +1141,88 @@ def thread_safety_monitor():
 
 
 @pytest.fixture(autouse=True)
+def cleanup_qt_resources():
+    """Clean up Qt resources after each test to prevent resource exhaustion.
+
+    This fixture runs after each test to:
+    1. Delete all top-level widgets to prevent accumulation
+    2. Process pending Qt events to ensure cleanup
+    3. Clear virtually visible widgets tracking
+    4. Run garbage collection to free memory
+    5. Clean up any lingering QTimers and connections
+
+    This prevents:
+    - Fatal Python errors from Qt resource corruption
+    - Timeouts when creating QImage/QPixmap objects
+    - Memory leaks from accumulated widgets
+    - State corruption between tests
+    """
+    # Let test run first
+    yield
+
+    # After test completes, clean up Qt resources
+    try:
+        from PySide6.QtCore import QCoreApplication, QTimer, QObject, Qt
+        from PySide6.QtWidgets import QApplication
+
+        app = QCoreApplication.instance()
+        if app and isinstance(app, QApplication):
+            # First close all windows and dialogs
+            for widget in list(app.topLevelWidgets()):
+                try:
+                    # Force close without saving
+                    widget.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+                    widget.close()
+                    widget.deleteLater()
+                    # Disconnect all signals to prevent crashes
+                    try:
+                        widget.disconnect()
+                    except:
+                        pass
+                except (RuntimeError, AttributeError):
+                    # Widget already deleted or no signals
+                    pass
+
+            # Stop all timers
+            for child in app.findChildren(QTimer):
+                try:
+                    child.stop()
+                    child.deleteLater()
+                except RuntimeError:
+                    pass
+
+            # Process events multiple times to ensure cleanup
+            for _ in range(20):
+                app.processEvents()
+                app.sendPostedEvents(None, 0)  # Process all events
+
+            # Clean up any remaining QObjects
+            for obj in app.findChildren(QObject):
+                try:
+                    if hasattr(obj, 'deleteLater'):
+                        obj.deleteLater()
+                except RuntimeError:
+                    pass
+
+            # Final event processing
+            app.processEvents()
+
+        # Clear the virtually visible widgets set
+        global _virtually_visible_widgets
+        _virtually_visible_widgets.clear()
+
+        # Force garbage collection multiple times
+        for _ in range(3):
+            gc.collect()
+
+    except Exception as e:
+        # Don't let cleanup errors fail tests, but log for debugging
+        import sys
+        print(f"Warning: Qt cleanup error: {e}", file=sys.stderr)
+        pass
+
+
+@pytest.fixture(autouse=True)
 def mock_gui_blocking_components(monkeypatch):
     """Automatically mock GUI components that can hang tests.
 
@@ -1242,7 +1328,7 @@ def mock_gui_blocking_components(monkeypatch):
 # =============================================================================
 
 
-def pytest_collection_modifyitems(items):
+def pytest_collection_modifyitems(items) -> None:
     """Configure test execution for parallel runs with pytest-xdist.
 
     This hook ensures that tests which create MainWindow instances run in a
@@ -1264,12 +1350,3 @@ def pytest_collection_modifyitems(items):
             # If it's an integration test with MainWindow, use gui_mainwindow group
             if "integration" in str(item.fspath) and "MainWindow" in item.name:
                 item.add_marker(pytest.mark.xdist_group("gui_mainwindow"))
-
-
-def pytest_configure(config):
-    """Configure pytest with custom markers and settings for concurrent execution."""
-    # Register the xdist_group marker if not already registered
-    config.addinivalue_line(
-        "markers",
-        "xdist_group(name): Mark tests to run in same xdist worker (for pytest-xdist)",
-    )

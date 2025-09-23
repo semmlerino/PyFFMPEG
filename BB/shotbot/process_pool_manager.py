@@ -79,7 +79,7 @@ class CommandCache:
         self._hits = 0
         self._misses = 0
 
-    def get(self, command: str) -> Any | None:
+    def get(self, command: str) -> str | None:
         """Get cached result if not expired.
 
         Args:
@@ -102,7 +102,7 @@ class CommandCache:
             self._misses += 1
             return None
 
-    def set(self, command: str, result: Any, ttl: int | None = None) -> None:
+    def set(self, command: str, result: str, ttl: int | None = None) -> None:
         """Cache command result with TTL.
 
         Args:
@@ -204,7 +204,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
     command_completed = Signal(str, object)  # command_id, result
     command_failed = Signal(str, str)  # command_id, error
 
-    def __new__(cls, *args, **kwargs) -> ProcessPoolManager:
+    def __new__(cls, *args: Any, **kwargs: Any) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety using double-checked locking.
 
         This implementation uses double-checked locking pattern which optimizes

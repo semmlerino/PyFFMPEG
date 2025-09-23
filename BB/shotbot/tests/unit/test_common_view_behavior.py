@@ -7,12 +7,10 @@ refactoring preserves functionality.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import QPoint, QPointF, Qt
-from PySide6.QtGui import QContextMenuEvent, QWheelEvent
-from PySide6.QtWidgets import QMenu
+from PySide6.QtGui import QWheelEvent
 
 from config import Config
 from previous_shots_view import PreviousShotsView
@@ -32,13 +30,13 @@ class TestSignal:
 
     __test__ = False  # Prevent pytest collection
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.callbacks = []
 
-    def connect(self, callback, connection_type=None):
+    def connect(self, callback, connection_type=None) -> None:
         self.callbacks.append(callback)
 
-    def emit(self, *args):
+    def emit(self, *args) -> None:
         for callback in self.callbacks:
             callback(*args)
 
@@ -130,7 +128,9 @@ def make_model(qtbot, make_shot):
 class TestCommonViewBehavior:
     """Test common behavior across all views per UNIFIED_TESTING_GUIDE."""
 
-    def test_wheel_event_resizing(self, view_class, model_class, qtbot, make_model):
+    def test_wheel_event_resizing(
+        self, view_class, model_class, qtbot, make_model
+    ) -> None:
         """Test Ctrl+wheel thumbnail resizing (UNIFIED_TESTING_GUIDE: Real events)."""
         # Create view with real model (not mocks)
         model = make_model(model_class)
@@ -204,7 +204,7 @@ class TestCommonViewBehavior:
 
     def test_context_menu_exists(
         self, view_class, model_class, qtbot, make_shot, make_model
-    ):
+    ) -> None:
         """Test that views have context menu support.
 
         Note: Testing actual menu execution is complex due to Qt's C++ bindings
@@ -228,7 +228,9 @@ class TestCommonViewBehavior:
             if not has_context_menu:
                 pytest.skip("ThreeDEGridView doesn't have context menu yet")
 
-    def test_size_slider_functionality(self, view_class, model_class, qtbot, make_model):
+    def test_size_slider_functionality(
+        self, view_class, model_class, qtbot, make_model
+    ) -> None:
         """Test size slider range and value changes."""
         model = make_model(model_class)
         view = view_class(model=model)
@@ -260,7 +262,9 @@ class TestCommonViewBehavior:
         qtbot.wait(100)
         assert view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE
 
-    def test_visibility_timer_updates(self, view_class, model_class, qtbot, make_model):
+    def test_visibility_timer_updates(
+        self, view_class, model_class, qtbot, make_model
+    ) -> None:
         """Test visibility timer for lazy loading."""
         model = make_model(model_class)
         view = view_class(model=model)
@@ -289,7 +293,7 @@ class TestCommonViewBehavior:
         if hasattr(view, "list_view"):
             scrollbar = view.list_view.verticalScrollBar()
             if scrollbar.maximum() > 0:  # Only if scrolling is possible
-                initial_value = scrollbar.value()
+                scrollbar.value()
                 scrollbar.setValue(10)
                 qtbot.wait(150)  # Wait for timer to fire
 
@@ -299,7 +303,9 @@ class TestCommonViewBehavior:
                 if hasattr(view, "_visibility_timer"):
                     assert view._visibility_timer.isActive()
 
-    def test_focus_policy_consistency(self, view_class, model_class, qtbot, make_model):
+    def test_focus_policy_consistency(
+        self, view_class, model_class, qtbot, make_model
+    ) -> None:
         """Test all views have consistent focus policy."""
         model = make_model(model_class)
         view = view_class(model=model)
@@ -308,21 +314,27 @@ class TestCommonViewBehavior:
         # All views should have StrongFocus for keyboard navigation
         assert view.focusPolicy() == Qt.FocusPolicy.StrongFocus
 
-    def test_show_filter_combo_exists(self, view_class, model_class, qtbot, make_model):
+    def test_show_filter_combo_exists(
+        self, view_class, model_class, qtbot, make_model
+    ) -> None:
         """Test that show filter combo box exists and is configured."""
         model = make_model(model_class)
         view = view_class(model=model)
         qtbot.addWidget(view)
 
         # All views should have a show filter combo
-        assert hasattr(view, "show_combo"), f"{view_class.__name__} should have show_combo"
+        assert hasattr(view, "show_combo"), (
+            f"{view_class.__name__} should have show_combo"
+        )
         assert view.show_combo is not None
 
         # Should have at least "All Shows" option
         assert view.show_combo.count() >= 1
         assert view.show_combo.itemText(0) == "All Shows"
 
-    def test_loading_indicators_exist(self, view_class, model_class, qtbot, make_model):
+    def test_loading_indicators_exist(
+        self, view_class, model_class, qtbot, make_model
+    ) -> None:
         """Test that loading indicators are properly configured."""
         model = make_model(model_class)
         view = view_class(model=model)

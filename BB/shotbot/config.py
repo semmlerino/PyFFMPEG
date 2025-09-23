@@ -118,7 +118,8 @@ class Config:
     NUKE_OCIO_FALLBACK_CONFIG = "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
 
     # Persistent Terminal Settings
-    USE_PERSISTENT_TERMINAL = True  # Use single terminal for all commands
+    PERSISTENT_TERMINAL_ENABLED = True  # Master switch to enable/disable persistent terminal
+    USE_PERSISTENT_TERMINAL = True  # Use single terminal for all commands (when enabled)
     PERSISTENT_TERMINAL_FIFO = "/tmp/shotbot_commands.fifo"  # FIFO path for commands
     PERSISTENT_TERMINAL_TITLE = "ShotBot Terminal"  # Terminal window title
     AUTO_BACKGROUND_GUI_APPS = True  # Auto-append & for GUI applications

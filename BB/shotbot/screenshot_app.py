@@ -110,8 +110,12 @@ def main() -> None:
     window = MainWindow()
     window.show()
 
+    attempts = 0  # Track attempts as a closure variable
+
     def check_and_capture() -> None:
         """Check if 3DE discovery is complete and capture screenshot."""
+        nonlocal attempts
+
         # Check if 3DE discovery has completed
         if hasattr(window, "threede_item_model"):
             scene_count = len(window.threede_item_model.scenes)
@@ -123,8 +127,8 @@ def main() -> None:
                 return
 
         # If we've been waiting too long, just capture anyway to show the current state
-        check_and_capture.attempts = getattr(check_and_capture, "attempts", 0) + 1
-        if check_and_capture.attempts >= 5:  # After 5 attempts (10 seconds total)
+        attempts += 1
+        if attempts >= 5:  # After 5 attempts (10 seconds total)
             print("Capturing screenshot anyway to show current state...")
             capture_screenshot()
             return

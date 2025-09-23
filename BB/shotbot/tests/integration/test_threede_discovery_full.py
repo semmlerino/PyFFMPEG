@@ -118,7 +118,7 @@ class TestThreeDEDiscoveryIntegration:
 
     def test_parallel_discovery_finds_all_scenes(
         self, temp_vfx_structure, make_user_shots
-    ):
+    ) -> None:
         """Test that parallel discovery finds ALL scenes from other users.
 
         This is the main integration test that verifies the fix works end-to-end.
@@ -145,14 +145,6 @@ class TestThreeDEDiscoveryIntegration:
         # CRITICAL ASSERTION: Should find ALL scenes except gabriel-h's
         # With the bug: Would find only 1 (published-mm on MA_074_0340)
         # With the fix: Should find 8 scenes from other users
-        expected_users = {
-            "sarah-b",
-            "tony-a",
-            "ryan-p",
-            "alex-k",
-            "mike-d",
-            "published-mm",
-        }
         found_users = {scene.user for scene in scenes}
 
         assert len(scenes) >= 6, f"Should find at least 6 scenes, found {len(scenes)}"
@@ -176,7 +168,7 @@ class TestThreeDEDiscoveryIntegration:
 
     def test_worker_integration_with_discovery(
         self, temp_vfx_structure, make_user_shots, qtbot
-    ):
+    ) -> None:
         """Test ThreeDESceneWorker integration with the fixed discovery.
 
         Following Worker Thread Pattern (GUIDE line 91).
@@ -201,7 +193,7 @@ class TestThreeDEDiscoveryIntegration:
             # Track results
             results = []
 
-            def on_finished(scenes):
+            def on_finished(scenes) -> None:
                 results.extend(scenes)
 
             worker.finished.connect(on_finished)
@@ -220,7 +212,7 @@ class TestThreeDEDiscoveryIntegration:
                 f"Should find at least 6 scenes, found {len(results)}"
             )
 
-    def test_scene_filtering_with_real_parser(self, temp_vfx_structure):
+    def test_scene_filtering_with_real_parser(self, temp_vfx_structure) -> None:
         """Test scene filtering using the real SceneParser component."""
         from scene_parser import SceneParser
 
@@ -247,7 +239,7 @@ class TestThreeDEDiscoveryIntegration:
             _, _, _, _, user, _ = parsed
             assert user != "gabriel-h", "gabriel-h should be filtered out"
 
-    def test_end_to_end_with_filesystem_scanner(self, temp_vfx_structure):
+    def test_end_to_end_with_filesystem_scanner(self, temp_vfx_structure) -> None:
         """Test complete end-to-end with FileSystemScanner."""
         from filesystem_scanner import FileSystemScanner
 
@@ -281,7 +273,7 @@ class TestThreeDEDiscoveryIntegration:
     )
     def test_per_show_discovery(
         self, temp_vfx_structure, make_user_shots, show, expected_min_scenes
-    ):
+    ) -> None:
         """Test discovery for individual shows (GUIDE line 143 - parametrization)."""
         shows_root, _ = temp_vfx_structure
         user_shots = [s for s in make_user_shots() if s.show == show]

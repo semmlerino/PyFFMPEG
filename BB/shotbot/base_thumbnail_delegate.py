@@ -208,10 +208,14 @@ class BaseThumbnailDelegate(LoggingMixin, QStyledItemDelegate):
             # Draw thumbnail or loading indicator
             thumbnail_rect = self._get_thumbnail_rect(option.rect)
 
-            if data.get("loading_state") == "loading":
+            loading_state = data.get("loading_state", "idle")
+
+            if loading_state == "loading":
                 self._draw_loading_indicator(painter, thumbnail_rect)
             elif thumbnail := data.get("thumbnail"):
                 self._draw_thumbnail(painter, thumbnail_rect, thumbnail)
+            elif loading_state == "failed":
+                self._draw_failed_placeholder(painter, thumbnail_rect)
             else:
                 self._draw_placeholder(painter, thumbnail_rect)
 
@@ -319,6 +323,32 @@ class BaseThumbnailDelegate(LoggingMixin, QStyledItemDelegate):
         painter.setPen(QPen(QColor("#666")))
         painter.setFont(self._info_font)
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "No Thumbnail")
+
+    def _draw_failed_placeholder(self, painter: QPainter, rect: QRect) -> None:
+        """Draw a placeholder when thumbnail loading failed."""
+        # Draw a darker rectangle with red tint as placeholder
+        placeholder_color = QColor("#2a1a1a")  # Slight red tint
+        painter.fillRect(rect, placeholder_color)
+
+        # Draw error icon (X symbol)
+        painter.setPen(QPen(QColor("#cc4444"), 3))  # Red color
+        center = rect.center()
+        size = min(rect.width(), rect.height()) // 4
+        x_rect = QRect(
+            center.x() - size // 2,
+            center.y() - size // 2,
+            size,
+            size,
+        )
+        # Draw X
+        painter.drawLine(x_rect.topLeft(), x_rect.bottomRight())
+        painter.drawLine(x_rect.topRight(), x_rect.bottomLeft())
+
+        # Draw error text
+        painter.setPen(QPen(QColor("#cc4444")))
+        painter.setFont(self._info_font)
+        text_rect = QRect(rect.x(), rect.bottom() - 20, rect.width(), 20)
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "Failed to load")
 
     def _draw_loading_indicator(self, painter: QPainter, rect: QRect) -> None:
         """Draw an animated loading indicator."""

@@ -105,6 +105,15 @@ class ProcessPoolFactory:
                 logger.info("ProcessPoolFactory: Production mode enabled")
 
     @classmethod
+    def get_factory_mode(cls) -> str:
+        """Get the current factory mode.
+
+        Returns:
+            Current mode: "production", "mock", or "custom"
+        """
+        return cls._factory_mode
+
+    @classmethod
     def get_instance(cls) -> ProcessPoolInterface:
         """Get the process pool instance based on current configuration.
 

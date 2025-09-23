@@ -262,7 +262,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
         # Create persistent terminal manager if enabled
         self.persistent_terminal: PersistentTerminalManager | None = None
-        if Config.USE_PERSISTENT_TERMINAL:
+        if Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
             self.persistent_terminal = PersistentTerminalManager(
                 fifo_path=Config.PERSISTENT_TERMINAL_FIFO
             )
@@ -588,6 +588,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.previous_shots_item_model.shots_updated.connect(
             self._on_previous_shots_updated
         )
+
+        # Tab widget - handle tab changes to update shot context
+        _ = self.tab_widget.currentChanged.connect(self._on_tab_changed)
 
         # Command launcher
         _ = self.command_launcher.command_executed.connect(self.log_viewer.add_command)
@@ -1153,6 +1156,53 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _on_cache_updated(self) -> None:
         """Handle cache updated signal from model."""
         self.logger.debug("Shot cache updated")
+
+    def _on_tab_changed(self, index: int) -> None:
+        """Handle tab widget tab changes.
+
+        When switching tabs, update the shot context based on the
+        currently selected item in the new tab.
+
+        Args:
+            index: Index of the newly selected tab
+        """
+        # Clear any existing 3DE scene context when switching tabs
+        if index != 1:  # Not the "Other 3DE scenes" tab
+            self._current_scene = None
+
+        if index == 0:  # My Shots tab
+            # Get the current selection from My Shots
+            selected_shot = self.shot_grid.selected_shot
+            if selected_shot:
+                # Re-apply the shot selection to update context
+                self._on_shot_selected(selected_shot)
+            else:
+                # Clear selection
+                self._on_shot_selected(None)
+
+        elif index == 1:  # Other 3DE scenes tab
+            # Get the current selection from 3DE scenes
+            selected_scene = self.threede_shot_grid.selected_scene
+            if selected_scene:
+                # Re-apply the scene selection to update context
+                self._on_scene_selected(selected_scene)
+            else:
+                # Clear selection
+                self.command_launcher.set_current_shot(None)
+                self.shot_info_panel.set_shot(None)
+                self.launcher_panel.set_shot(None)
+                self._update_launcher_menu_availability(False)
+                self._enable_custom_launcher_buttons(False)
+
+        elif index == 2:  # Previous Shots tab
+            # Get the current selection from Previous Shots
+            selected_shot = self.previous_shots_grid.selected_shot
+            if selected_shot:
+                # Re-apply the shot selection to update context
+                self._on_shot_selected(selected_shot)
+            else:
+                # Clear selection
+                self._on_shot_selected(None)
 
     def _on_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selection or deselection.

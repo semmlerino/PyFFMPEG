@@ -14,7 +14,7 @@ from pathlib import Path
 from cache.storage_backend import StorageBackend
 
 
-def test_cache_write_serialization():
+def test_cache_write_serialization() -> bool:
     """Test that file locking ensures writes are properly serialized."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -27,7 +27,7 @@ def test_cache_write_serialization():
         successful_increments = []
         errors = []
 
-        def increment_counter(thread_id: int):
+        def increment_counter(thread_id: int) -> None:
             """Each thread reads, increments, and writes back."""
             try:
                 # This would race without proper locking

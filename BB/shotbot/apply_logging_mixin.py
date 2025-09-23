@@ -39,7 +39,7 @@ def apply_logging_mixin(file_path: Path) -> bool:
         return False
 
     # Find all class definitions
-    classes: list[dict[str, str | int | bool]] = []
+    classes: list[dict[str, object]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
             classes.append(

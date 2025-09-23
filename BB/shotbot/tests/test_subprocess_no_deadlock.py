@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 
-def test_subprocess_with_large_output_no_deadlock():
+def test_subprocess_with_large_output_no_deadlock() -> bool | None:
     """Test that subprocess producing large output doesn't deadlock with PIPE + drain threads.
 
     This simulates what could happen with verbose VFX applications.
@@ -49,13 +49,11 @@ for i in range(1024):
         )
 
         # Set a timeout - if it takes >5 seconds, likely deadlocked
-        deadlocked = False
         try:
             proc_devnull.wait(timeout=5)
             print(f"DEVNULL completed in {time.time() - start:.2f}s")
         except subprocess.TimeoutExpired:
             print("DEVNULL approach DEADLOCKED (as expected)!")
-            deadlocked = True
             proc_devnull.kill()
             proc_devnull.wait()
 
@@ -70,7 +68,7 @@ for i in range(1024):
         )
 
         # Drain threads to consume output
-        def drain_stream(stream):
+        def drain_stream(stream) -> None:
             try:
                 for line in stream:
                     pass  # Discard
@@ -101,7 +99,7 @@ for i in range(1024):
             return False
 
 
-def test_launcher_worker_no_deadlock():
+def test_launcher_worker_no_deadlock() -> bool:
     """Test that the actual LauncherWorker doesn't deadlock with verbose apps."""
 
     from PySide6.QtCore import QCoreApplication
@@ -125,7 +123,7 @@ def test_launcher_worker_no_deadlock():
 
     finished = False
 
-    def on_finished(launcher_id, success, return_code):
+    def on_finished(launcher_id, success, return_code) -> None:
         nonlocal finished
         finished = True
         print(f"LauncherWorker finished: success={success}, code={return_code}")

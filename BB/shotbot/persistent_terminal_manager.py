@@ -14,12 +14,8 @@ import stat
 import subprocess
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
-
-if TYPE_CHECKING:
-    from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +51,7 @@ class PersistentTerminalManager(QObject):
 
         # Terminal state
         self.terminal_pid: int | None = None
-        self.terminal_process: subprocess.Popen[Any] | None = None
+        self.terminal_process: subprocess.Popen[bytes] | None = None
 
         # Ensure FIFO exists
         if not self._ensure_fifo():
@@ -289,9 +285,22 @@ class PersistentTerminalManager(QObject):
                             continue
                     logger.error(f"Failed to send command to FIFO: {e}")
                 elif e.errno == errno.ENXIO:
-                    logger.warning(
-                        "No reader available for FIFO (terminal_dispatcher.sh not running?)"
-                    )
+                    # No reader available - terminal not running
+                    if attempt == 0 and ensure_terminal:
+                        # Try to restart terminal once
+                        logger.warning(
+                            "No reader available for FIFO, attempting to restart terminal..."
+                        )
+                        if self.restart_terminal():
+                            logger.info("Terminal restarted successfully, retrying command...")
+                            time.sleep(0.5)  # Give terminal time to set up
+                            continue  # Retry the command
+                        else:
+                            logger.error("Failed to restart terminal")
+                    else:
+                        logger.warning(
+                            "No reader available for FIFO (terminal_dispatcher.sh not running?)"
+                        )
                 elif e.errno == errno.EAGAIN:
                     logger.warning("FIFO write would block (buffer full?)")
                 else:

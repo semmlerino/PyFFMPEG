@@ -340,8 +340,7 @@ class ThreeDEItemModel(QAbstractListModel):
         # Schedule loading in main thread using QTimer (avoids Q_ARG meta-type issues)
         # Qt's meta-object system doesn't recognize Python "object" type
         QTimer.singleShot(
-            0,
-            lambda: self._do_load_thumbnail(scene, on_thumbnail_loaded)
+            0, lambda: self._do_load_thumbnail(scene, on_thumbnail_loaded)
         )
 
     @Slot(object, object)  # type: ignore[arg-type]

@@ -420,7 +420,7 @@ class NotificationManager(LoggingMixin, QObject):
             # Restore original styling after timeout
             if timeout > 0:
 
-                def restore_style():
+                def restore_style() -> None:
                     try:
                         if cls._status_bar and not cls._status_bar.isHidden():
                             cls._status_bar.setStyleSheet(original_style)

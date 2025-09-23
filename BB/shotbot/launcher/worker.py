@@ -11,6 +11,7 @@ import re
 import shlex
 import subprocess
 import threading
+from typing import IO
 
 from PySide6.QtCore import Signal
 
@@ -179,8 +180,10 @@ class LauncherWorker(ThreadSafeWorker):
             )
 
             # Create drain threads to consume output and prevent buffer-full deadlock
-            def drain_stream(stream):
+            def drain_stream(stream: IO[bytes] | None) -> None:
                 """Continuously read and discard output from a stream."""
+                if stream is None:
+                    return
                 try:
                     for line in stream:
                         pass  # Discard output

@@ -96,7 +96,6 @@ class TestAntiPatternChecker:
             return patterns
 
         # Skip certain files that are allowed to have patterns
-        file_name = file_path.name
 
         try:
             with open(file_path, encoding="utf-8") as f:
@@ -251,7 +250,7 @@ repos:
 """
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     # Parse arguments
     if len(sys.argv) > 1:

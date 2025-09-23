@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 
-def test_basic_file_locking():
+def test_basic_file_locking() -> bool:
     """Test that fcntl file locking works as expected."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -26,7 +26,7 @@ def test_basic_file_locking():
         successful_increments = []
         lock_acquisitions = []
 
-        def increment_with_lock(thread_id: int):
+        def increment_with_lock(thread_id: int) -> None:
             """Increment counter with proper locking."""
             for i in range(5):
                 with open(lock_file, "w") as lock_fd:

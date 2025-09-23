@@ -16,8 +16,9 @@ from PySide6.QtWidgets import QMainWindow
 if TYPE_CHECKING:
     from PySide6.QtGui import QCloseEvent
 
-    from app_launcher_manager import AppLauncherManager
     from cache_manager import CacheManager
+    from command_launcher import CommandLauncher
+    from launcher_manager import LauncherManager
     from main_window_ui import MainWindowUI
     from threading_manager import ThreadingManager
 
@@ -34,9 +35,9 @@ class RefactoredMainWindow(QMainWindow):
     - MainWindow (~400 lines): Coordination and high-level logic
     - MainWindowUI (331 lines): UI setup and layout management
     - ThreadingManager (298 lines): Thread coordination
-    - AppLauncherManager (278 lines): Application launching
+    - CommandLauncher + LauncherManager: Application launching
 
-    TOTAL: ~1,307 lines across 4 focused components vs 2,057 in one file
+    TOTAL: Components focused on specific responsibilities vs 2,057 in one file
     """
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
@@ -49,7 +50,7 @@ class RefactoredMainWindow(QMainWindow):
         # Create component managers
         self.ui_manager = self._create_ui_manager()
         self.threading_manager = self._create_threading_manager()
-        self.launcher_manager = self._create_launcher_manager()
+        self.command_launcher, self.launcher_manager = self._create_launchers()
 
         # Initialize data models
         self.shot_model = self._create_shot_model()
@@ -78,16 +79,15 @@ class RefactoredMainWindow(QMainWindow):
 
         return ThreadingManager()
 
-    def _create_launcher_manager(self) -> AppLauncherManager:
-        """Create and configure launcher manager."""
-        from app_launcher_manager import AppLauncherManager
+    def _create_launchers(self) -> tuple[CommandLauncher, LauncherManager]:
+        """Create and configure launcher components."""
         from command_launcher import CommandLauncher
         from launcher_manager import LauncherManager
 
         command_launcher = CommandLauncher()
         launcher_mgr = LauncherManager()
 
-        return AppLauncherManager(command_launcher, launcher_mgr)
+        return command_launcher, launcher_mgr
 
     def _create_cache_manager(self) -> CacheManager:
         """Create cache manager."""

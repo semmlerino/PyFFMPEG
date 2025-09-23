@@ -12,6 +12,7 @@ Target improvements:
 - Enhance thread pool utilization
 """
 
+import os
 import threading
 import time
 from collections.abc import Callable
@@ -514,11 +515,12 @@ class OptimizedCacheManager:
 
     def __init__(self):
         self._shot_cache = OptimizedShotCache()
-        self._threede_cache = OptimizedThreeDECache()
-        self._thumbnail_cache = OptimizedThumbnailCache()
+        # TODO: Implement these optimized cache classes
+        # self._threede_cache = OptimizedThreeDECache()
+        # self._thumbnail_cache = OptimizedThumbnailCache()
 
         # Performance monitoring
-        self._cache_stats = CacheStatistics()
+        # self._cache_stats = CacheStatistics()
 
     def get_cache_performance_report(self) -> dict[str, Any]:
         """Generate comprehensive cache performance report."""
@@ -543,7 +545,8 @@ class OptimizedShotCache:
         self._adaptive_ttl = AdaptiveTTLManager()
 
         # Optimization: Prefetching based on usage patterns
-        self._prefetch_predictor = PrefetchPredictor()
+        # TODO: Implement PrefetchPredictor class
+        # self._prefetch_predictor = PrefetchPredictor()
 
     def get_with_prefetch(self, key: str) -> Any:
         """Get item with intelligent prefetching."""
@@ -677,7 +680,8 @@ class OptimizedThreadPoolManager:
         self._workload_classifier = WorkloadClassifier()
 
         # Optimization: Performance monitoring
-        self._performance_monitor = ThreadPoolPerformanceMonitor()
+        # TODO: Implement ThreadPoolPerformanceMonitor class
+        # self._performance_monitor = ThreadPoolPerformanceMonitor()
 
     def _calculate_optimal_cpu_workers(self) -> int:
         """Calculate optimal CPU worker count based on system capabilities."""
@@ -769,7 +773,7 @@ def benchmark_optimizations():
 
     # Simulate optimized grid view
     start_time = time.time()
-    optimized_grid = OptimizedShotGridView()
+    _ = OptimizedShotGridView()  # Create instance for simulation
     # Simulate 432 shot loading with optimizations
     time.sleep(0.015)  # Simulated optimized loading
     optimized_time = time.time() - start_time
@@ -796,7 +800,7 @@ def benchmark_optimizations():
     # Test 3: I/O Optimization
     print("\n3. Testing I/O Optimization...")
 
-    scanner = OptimizedFilesystemScanner()
+    _ = OptimizedFilesystemScanner()  # Create instance for testing
 
     start_time = time.time()
     # Simulate optimized scanning

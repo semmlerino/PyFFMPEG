@@ -237,7 +237,7 @@ class ThreadingTestHelpers:
         """
         start_time = time.perf_counter()
         timeout_sec = timeout_ms / 1000.0
-        poll_interval_sec = poll_interval_ms / 1000.0
+        poll_interval_ms / 1000.0
 
         current_state = worker.get_state()
 
@@ -442,7 +442,7 @@ class ThreadingTestHelpers:
             # All workers will be started with 50ms delays
         """
         workers: list[WorkerT] = []
-        delay_sec = start_delay_ms / 1000.0
+        start_delay_ms / 1000.0
 
         try:
             for i in range(count):

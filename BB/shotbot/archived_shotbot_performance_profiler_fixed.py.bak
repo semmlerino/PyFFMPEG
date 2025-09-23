@@ -46,11 +46,11 @@ from shot_model import Shot, ShotModel
 class PerformanceProfiler:
     """Comprehensive performance profiler for ShotBot application."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.results = {}
         self.app = None
 
-    def setup_qt_app(self):
+    def setup_qt_app(self) -> None:
         """Initialize Qt application for UI profiling."""
         if not QApplication.instance():
             self.app = QApplication(sys.argv)
@@ -97,7 +97,7 @@ class PerformanceProfiler:
                 "peak_mb": peak / 1024 / 1024,
             }
 
-    def profile_ui_rendering(self):
+    def profile_ui_rendering(self) -> None:
         """Profile UI rendering bottlenecks."""
         print("=== Profiling UI Rendering Performance ===")
 
@@ -127,7 +127,7 @@ class PerformanceProfiler:
 
         with self.profile_cpu("thumbnail_loading_pipeline"):
             with self.profile_memory("thumbnail_loading_pipeline"):
-                thumbnail_processor = ThumbnailProcessor()
+                _ = ThumbnailProcessor()  # Create instance for profiling
 
                 # Simulate thumbnail processing
                 processed = 0
@@ -165,7 +165,7 @@ class PerformanceProfiler:
                 # Cleanup
                 pixmaps.clear()
 
-    def profile_memory_patterns(self):
+    def profile_memory_patterns(self) -> None:
         """Profile memory usage patterns."""
         print("=== Profiling Memory Usage Patterns ===")
 
@@ -208,7 +208,7 @@ class PerformanceProfiler:
 
             print(f"Cached {cached_items} items")
 
-    def profile_io_operations(self):
+    def profile_io_operations(self) -> None:
         """Profile I/O operations."""
         print("=== Profiling I/O Operations ===")
 
@@ -239,7 +239,7 @@ class PerformanceProfiler:
             except Exception as e:
                 print(f"Subprocess communication error: {e}")
 
-    def profile_cache_performance(self):
+    def profile_cache_performance(self) -> None:
         """Profile cache performance and TTL efficiency."""
         print("=== Profiling Cache Performance ===")
 
@@ -296,7 +296,7 @@ class PerformanceProfiler:
 
             print(f"3DE cache: {cached_scenes} scenes cached")
 
-    def profile_thread_pool_optimization(self):
+    def profile_thread_pool_optimization(self) -> None:
         """Profile thread pool optimization."""
         print("=== Profiling Thread Pool Optimization ===")
 
@@ -337,7 +337,7 @@ class PerformanceProfiler:
         time.sleep(0.01)  # 10ms
         return f"task_{task_id}_complete"
 
-    def run_all_profiles(self):
+    def run_all_profiles(self) -> None:
         """Run all performance profiles."""
         print("Starting ShotBot Performance Analysis...")
         print(f"Timestamp: {datetime.now()}")
@@ -358,7 +358,7 @@ class PerformanceProfiler:
 
         self.print_results()
 
-    def print_results(self):
+    def print_results(self) -> None:
         """Print performance analysis results."""
         print("\n" + "=" * 60)
         print("PERFORMANCE ANALYSIS RESULTS")

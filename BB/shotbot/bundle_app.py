@@ -17,7 +17,18 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
+
+
+class BundleConfig(TypedDict):
+    """Type definition for bundle configuration."""
+
+    include_patterns: list[str]
+    exclude_patterns: list[str]
+    exclude_dirs: list[str]
+    max_file_size_mb: int
+    chunk_size_kb: int
+    output_dir: str
 
 
 class GitIgnoreParser:
@@ -110,10 +121,10 @@ class ApplicationBundler:
             verbose: Enable verbose output
         """
         self.verbose = verbose
-        self.config: dict[str, Any] = self._load_config(config_path)
+        self.config: BundleConfig = self._load_config(config_path)
         self.gitignore_parser = GitIgnoreParser(".gitignore")
 
-    def _load_config(self, config_path: str | None) -> dict[str, Any]:
+    def _load_config(self, config_path: str | None) -> BundleConfig:
         """Load configuration from file or use defaults.
 
         Args:
@@ -122,7 +133,7 @@ class ApplicationBundler:
         Returns:
             Configuration dictionary
         """
-        default_config: dict[str, Any] = {
+        default_config: BundleConfig = {
             "include_patterns": [
                 "*.py",
                 "*.json",
@@ -188,8 +199,8 @@ class ApplicationBundler:
         if config_path and os.path.exists(config_path):
             try:
                 with open(config_path) as f:
-                    user_config: dict[str, Any] = json.load(f)
-                    default_config.update(user_config)
+                    user_config: dict[str, int | str | list[str]] = json.load(f)
+                    default_config.update(user_config)  # type: ignore[typeddict-item]
                     if self.verbose:
                         print(f"Loaded config from {config_path}", file=sys.stderr)
             except Exception as e:

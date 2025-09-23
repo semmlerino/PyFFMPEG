@@ -58,7 +58,7 @@ class SettingsTarget(Protocol):
     def showMaximized(self) -> None: ...
     def resize(
         self,
-        *args: Any,
+        *args: Any,  # noqa: ANN401
         **kwargs: Any,  # noqa: ANN401
     ) -> None: ...  # Accept QMainWindow's flexible resize signature
     def get_window_size(

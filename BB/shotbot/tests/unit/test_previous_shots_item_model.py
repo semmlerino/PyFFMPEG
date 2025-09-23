@@ -18,7 +18,7 @@ from tests.test_doubles_library import SignalDouble, TestCacheManager
 class MockPreviousShotsModel:
     """Test double for PreviousShotsModel following UNIFIED_TESTING_GUIDE."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.shots_updated = SignalDouble()
         self.scan_started = SignalDouble()
         self.scan_finished = SignalDouble()
@@ -29,7 +29,7 @@ class MockPreviousShotsModel:
         """Return test shots."""
         return self._shots
 
-    def add_shot(self, shot):
+    def add_shot(self, shot) -> None:
         """Add a test shot."""
         self._shots.append(shot)
         self.shots_updated.emit()

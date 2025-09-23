@@ -10,8 +10,10 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from shot_model import Shot
+if TYPE_CHECKING:
+    from shot_model import Shot
 
 # Set up environment
 os.environ["SHOTBOT_MOCK"] = "1"

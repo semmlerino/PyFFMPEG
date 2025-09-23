@@ -13,7 +13,7 @@ from pathlib import Path
 from cache.storage_backend import StorageBackend
 
 
-def test_file_locking_prevents_corruption():
+def test_file_locking_prevents_corruption() -> bool:
     """Test that file locking prevents data corruption (not data loss).
 
     File locking ensures:
@@ -32,7 +32,7 @@ def test_file_locking_prevents_corruption():
         successful_writes = []
         failed_reads = []
 
-        def write_large_data(thread_id: int):
+        def write_large_data(thread_id: int) -> None:
             """Write large data to increase chance of corruption without locking."""
             # Large data structure to increase write time
             data = {

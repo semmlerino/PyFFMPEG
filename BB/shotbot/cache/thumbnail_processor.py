@@ -333,21 +333,35 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
                 f"Processing EXR in Rez environment. Resolved packages: {rez_info['used_resolve']}"
             )
 
+        self.logger.info(f"Attempting to load EXR: {source_path.name}")
+
         # Try OpenEXR Python bindings first (most reliable when available)
         try:
+            self.logger.debug("Trying OpenEXR Python bindings...")
             result = self._load_exr_with_openexr(source_path)
             if result is not None:
+                self.logger.info(
+                    f"✅ Successfully loaded EXR using OpenEXR bindings: {source_path.name}"
+                )
                 return result
         except Exception as e:
-            self.logger.debug(f"OpenEXR loading failed: {e}")
+            self.logger.warning(
+                f"OpenEXR Python bindings failed for {source_path.name}: {e}"
+            )
 
         # Try system tools (ImageMagick) as fallback
         try:
+            self.logger.debug("Trying ImageMagick system tools...")
             result = self._load_exr_with_system_tools(source_path)
             if result is not None:
+                self.logger.info(
+                    f"✅ Successfully loaded EXR using ImageMagick: {source_path.name}"
+                )
                 return result
         except Exception as e:
-            self.logger.debug(f"System tools EXR loading failed: {e}")
+            self.logger.warning(
+                f"ImageMagick conversion failed for {source_path.name}: {e}"
+            )
 
         # Try imageio as fallback (likely to fail due to missing backends)
         try:
@@ -373,6 +387,12 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
                 f"All EXR backends failed in Rez environment. Check package configurations for: {[pkg for pkg in rez_info['used_resolve'] if 'openexr' in pkg.lower() or 'imageio' in pkg.lower()]}"  # type: ignore[misc]
             )
 
+        # Log complete failure
+        self.logger.error(
+            f"❌ Failed to load EXR file {source_path.name} - all backends failed. "
+            f"Ensure ImageMagick is installed or OpenEXR Python bindings are available."
+        )
+
         return None
 
     def _load_exr_with_system_tools(self, source_path: Path) -> PIL.Image | None:
@@ -392,7 +412,9 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
 
         from PIL import Image as PILImage
 
-        self.logger.debug(f"Using system tools for EXR processing: {source_path.name}")
+        self.logger.info(
+            f"Processing EXR with system tools: {source_path.name} ({source_path.stat().st_size / (1024 * 1024):.1f}MB)"
+        )
 
         # First, check if ImageMagick convert is available
         try:
@@ -402,7 +424,7 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
                 timeout=5,
             )
         except (FileNotFoundError, subprocess.SubprocessError) as e:
-            self.logger.debug(f"ImageMagick convert not available: {e}")
+            self.logger.warning(f"ImageMagick convert not available: {e}")
             raise ImportError("ImageMagick convert command not found")
 
         # Validate the EXR file using exrinfo (if available)
@@ -452,18 +474,25 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
                 temp_jpg,
             ]
 
+            self.logger.info(
+                f"Running ImageMagick convert: {' '.join(convert_cmd[:3])}..."
+            )
             result = subprocess.run(
                 convert_cmd, capture_output=True, text=True, timeout=30
             )
 
             if result.returncode != 0:
-                self.logger.warning(f"ImageMagick conversion failed: {result.stderr}")
+                self.logger.error(
+                    f"ImageMagick conversion failed for {source_path.name}: {result.stderr}"
+                )
                 return None
 
             # Check if output file was created
             temp_path = Path(temp_jpg)
             if not temp_path.exists() or temp_path.stat().st_size == 0:
-                self.logger.warning("ImageMagick produced no output file")
+                self.logger.error(
+                    f"ImageMagick produced no output file for {source_path.name}"
+                )
                 return None
 
             # Load the converted JPEG with PIL
@@ -471,20 +500,26 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
             pil_image.load()  # Force load to ensure it's valid
 
             self.logger.info(
-                f"✅ EXR converted using ImageMagick: {source_path.name} -> {pil_image.size}"
+                f"✅ EXR converted successfully: {source_path.name} -> {pil_image.size}"
             )
             return pil_image
 
-        except (
-            subprocess.TimeoutExpired,
-            FileNotFoundError,
-            subprocess.SubprocessError,
-        ) as e:
-            self.logger.warning(f"ImageMagick EXR conversion failed: {e}")
+        except subprocess.TimeoutExpired as e:
+            self.logger.error(
+                f"ImageMagick conversion timed out after 30s for {source_path.name}: {e}"
+            )
+            return None
+
+        except (FileNotFoundError, subprocess.SubprocessError) as e:
+            self.logger.error(
+                f"ImageMagick subprocess error for {source_path.name}: {e}"
+            )
             return None
 
         except Exception as e:
-            self.logger.warning(f"PIL loading of converted EXR failed: {e}")
+            self.logger.error(
+                f"PIL loading of converted EXR failed for {source_path.name}: {e}"
+            )
             return None
 
         finally:

@@ -450,7 +450,7 @@ class TestMainWindowFilterHandlers:
         # Cleanup
         window.previous_shots_model.stop_auto_refresh()
 
-    def test_on_shot_show_filter_requested(self, mock_main_window):
+    def test_on_shot_show_filter_requested(self, mock_main_window) -> None:
         """Test the handler for My Shots show filter request."""
         from main_window import MainWindow
 
@@ -475,7 +475,7 @@ class TestMainWindowFilterHandlers:
         assert mock_main_window.shot_model.get_show_filter() is None
         assert mock_main_window.shot_item_model.rowCount() == 3
 
-    def test_on_previous_show_filter_requested(self, mock_main_window):
+    def test_on_previous_show_filter_requested(self, mock_main_window) -> None:
         """Test the handler for Previous Shots show filter request."""
         from main_window import MainWindow
 
@@ -495,7 +495,7 @@ class TestMainWindowFilterHandlers:
         assert mock_main_window.previous_shots_model.get_show_filter() == "showA"
         assert len(mock_main_window.previous_shots_item_model._shots) == 2
 
-    def test_refresh_populates_show_filter(self, mock_main_window):
+    def test_refresh_populates_show_filter(self, mock_main_window) -> None:
         """Test that refreshing shots populates the show filter combo."""
         from main_window import MainWindow
 
@@ -519,7 +519,7 @@ class TestMainWindowFilterHandlers:
         assert "show1" in items
         assert "show2" in items
 
-    def test_on_previous_shots_updated(self, mock_main_window):
+    def test_on_previous_shots_updated(self, mock_main_window) -> None:
         """Test the handler for previous shots updated signal."""
         from main_window import MainWindow
 

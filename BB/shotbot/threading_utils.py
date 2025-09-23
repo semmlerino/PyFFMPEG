@@ -44,6 +44,7 @@ import logging
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from config import ThreadingConfig
@@ -523,7 +524,7 @@ class ThreadPoolManager:
         )
         return self.executor
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
         """Exit context manager and cleanup executor."""
         if not self._entered:
             return
@@ -759,8 +760,8 @@ def integrate_with_existing_parallel_scan():
 
     # Example of the integration pattern
     def fixed_parallel_scan_pattern(
-        work_chunks, scan_function, cancel_flag=None, max_workers=4
-    ):
+        work_chunks: list[Any], scan_function: Callable[[Any, Any], list[Any]], cancel_flag: Any = None, max_workers: int = 4
+    ) -> list[Any]:
         """Fixed version of parallel scanning with proper cancellation."""
 
         # Step 1: Create cancellation context
@@ -811,7 +812,7 @@ def integrate_with_existing_parallel_scan():
         return results
 
     # Example worker function that respects cancellation
-    def cancellation_aware_scan_function(chunk, cancel_event=None):
+    def cancellation_aware_scan_function(chunk: list[Any], cancel_event: CancellationEvent | None = None) -> list[Any]:
         """Example of worker function that checks for cancellation."""
         results = []
 

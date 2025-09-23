@@ -23,7 +23,6 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemDelegate,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -39,6 +38,7 @@ from thumbnail_widget_base import FolderOpenerWorker
 if TYPE_CHECKING:
     from PySide6.QtGui import QKeyEvent
 
+    from base_thumbnail_delegate import BaseThumbnailDelegate
     from threede_item_model import ThreeDEItemModel
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
@@ -171,7 +171,7 @@ class ThreeDEGridView(BaseGridView):
         self.count_label = QLabel("0 scenes")
         layout.addWidget(self.count_label)
 
-    def _create_delegate(self) -> QAbstractItemDelegate:
+    def _create_delegate(self) -> BaseThumbnailDelegate:
         """Create the 3DE grid delegate.
 
         Returns:

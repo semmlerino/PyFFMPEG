@@ -487,10 +487,13 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
 
             # Add show data, avoiding duplicates
             for show_data in show_data_list:
+                if not show_data:  # Skip None entries
+                    continue
                 # Check if this root/structure combo already exists
                 exists = False
-                for existing in merged["shows"][show]:
-                    if existing.get("root") == show_data.get("root"):  # type: ignore[attr-defined]
+                show_list = merged["shows"].get(show, [])
+                for existing in show_list:
+                    if existing and existing.get("root") == show_data.get("root"):  # type: ignore[attr-defined]
                         # Merge or replace - use the one with more data
                         existing_size = count_nodes(existing.get("structure", {}))  # type: ignore[attr-defined]
                         new_size = count_nodes(show_data.get("structure", {}))  # type: ignore[attr-defined]
@@ -507,9 +510,11 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
             if key not in merged["patterns"]:
                 merged["patterns"][key] = []  # type: ignore[index]
             if isinstance(value, list):
-                for item in value:
-                    if item not in merged["patterns"][key]:
-                        merged["patterns"][key].append(item)  # type: ignore[attr-defined]
+                pattern_list = merged["patterns"].get(key, [])
+                if pattern_list is not None:  # Ensure list exists
+                    for item in value:
+                        if item not in pattern_list:
+                            pattern_list.append(item)  # type: ignore[attr-defined]
 
     # Convert sets back to lists
     merged["workspace_shots"] = sorted(list(workspace_shots_set))

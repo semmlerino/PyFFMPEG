@@ -17,7 +17,6 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemDelegate,
     QAbstractItemView,
     QMenu,
     QWidget,
@@ -33,6 +32,7 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QContextMenuEvent
 
     from base_shot_model import BaseShotModel
+    from base_thumbnail_delegate import BaseThumbnailDelegate
 
 
 class ShotGridView(BaseGridView):
@@ -74,7 +74,7 @@ class ShotGridView(BaseGridView):
 
         self.logger.info("ShotGridView initialized with Model/View architecture")
 
-    def _create_delegate(self) -> QAbstractItemDelegate:
+    def _create_delegate(self) -> BaseThumbnailDelegate:
         """Create the shot grid delegate.
 
         Returns:
@@ -154,7 +154,7 @@ class ShotGridView(BaseGridView):
 
         # Use base class method
         shows = shot_model.get_available_shows()
-        super().populate_show_filter(shows)
+        super().populate_show_filter(list(shows))
 
     @Slot()
     def _on_model_updated(self) -> None:

@@ -25,7 +25,7 @@ def test_cache_write_race():
         written_values = []
         write_order = []  # Track actual write order
 
-        def write_data(thread_id: int):
+        def write_data(thread_id: int) -> None:
             """Each thread writes its unique data."""
             data = {"thread_id": thread_id, "value": f"data_{thread_id}"}
             written_values.append(thread_id)
@@ -62,7 +62,6 @@ def test_cache_write_race():
         # 1. Not all thread data is preserved (last writer wins)
         if final_thread_id not in written_values:
             print("ERROR: Final data from unknown thread!")
-            race_detected = True
 
         # 2. Some thread's data was lost
         if len(written_values) > 1 and final_thread_id != written_values[-1]:
