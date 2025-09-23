@@ -1813,8 +1813,17 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 if self._threede_worker == worker_to_cleanup:
                     self._threede_worker = None
 
-            # Schedule deletion
-            worker_to_cleanup.deleteLater()
+            # Only schedule deletion if thread is not a zombie
+            # Zombie threads are still running and cannot be safely deleted
+            if hasattr(worker_to_cleanup, 'is_zombie') and worker_to_cleanup.is_zombie():
+                self.logger.warning(
+                    "3DE worker thread is a zombie and will not be deleted to prevent crash"
+                )
+                # DO NOT call deleteLater() on zombie threads!
+                # The thread will be cleaned up when the process exits
+            else:
+                # Safe to delete - thread has actually stopped
+                worker_to_cleanup.deleteLater()
 
             # Clean up session warmer if it exists
             if hasattr(self, "_session_warmer") and self._session_warmer:
@@ -1834,7 +1843,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                             self.logger.warning(
                                 "Session warmer thread abandoned - will be cleaned on exit"
                             )
-                self._session_warmer.deleteLater()
+
+                # Only delete if not a zombie
+                if hasattr(self._session_warmer, 'is_zombie') and self._session_warmer.is_zombie():
+                    self.logger.warning(
+                        "Session warmer thread is a zombie and will not be deleted"
+                    )
+                else:
+                    self._session_warmer.deleteLater()
                 self._session_warmer = None
 
         # Shutdown launcher manager to stop all worker threads

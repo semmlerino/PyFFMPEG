@@ -583,10 +583,12 @@ class RefactoredThreeDESceneFinder:
                 return show_scenes
 
             # Convert file tuples to ThreeDEScene objects
-            for scene_path, show_name, seq, shot, user, plate in file_tuples:
-                # Check cancellation during processing
-                if cancel_flag and cancel_flag():
-                    break
+            for i, (scene_path, show_name, seq, shot, user, plate) in enumerate(file_tuples):
+                # Check cancellation frequently during processing
+                # Check every 10 items to balance responsiveness with performance
+                if i % 10 == 0 and cancel_flag and cancel_flag():
+                    # Return what we have so far
+                    return show_scenes
 
                 # Find matching shot from user_shots for workspace path
                 # NOTE: matching_shot might be None if this scene is from a shot
@@ -642,32 +644,57 @@ class RefactoredThreeDESceneFinder:
             }
 
             # Process completed futures as they finish
-            for future in as_completed(future_to_show):
-                show = future_to_show[future]
+            try:
+                for future in as_completed(future_to_show):
+                    show = future_to_show[future]
 
-                # Check cancellation
-                if cancel_flag and cancel_flag():
-                    # Cancel remaining futures
-                    for f in future_to_show:
-                        f.cancel()
-                    break
+                    # Check cancellation before processing result
+                    if cancel_flag and cancel_flag():
+                        # Cancel remaining futures immediately
+                        for f in future_to_show:
+                            if not f.done():
+                                f.cancel()
+                        # Shutdown executor with wait=False to cancel pending work
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        break
 
-                try:
-                    show_scenes = future.result()
-                    with results_lock:
-                        all_scenes.extend(show_scenes)
+                    try:
+                        # Use a short timeout to be more responsive to cancellation
+                        show_scenes = future.result(timeout=0.5)
+                        with results_lock:
+                            all_scenes.extend(show_scenes)
+                            shows_completed += 1
+
+                            # Progress update
+                            if progress_callback:
+                                progress_callback(
+                                    int((shows_completed / len(shows)) * 100),
+                                    f"Completed {show}: found {len(show_scenes)} scenes",
+                                )
+
+                    except concurrent.futures.TimeoutError:
+                        # If result not ready, check cancellation again
+                        if cancel_flag and cancel_flag():
+                            for f in future_to_show:
+                                if not f.done():
+                                    f.cancel()
+                            executor.shutdown(wait=False, cancel_futures=True)
+                            break
+                        # Re-get the result without timeout
+                        show_scenes = future.result()
+                        with results_lock:
+                            all_scenes.extend(show_scenes)
+                            shows_completed += 1
+                    except Exception as e:
+                        print(f"Error processing show {show}: {e}")
                         shows_completed += 1
-
-                        # Progress update
-                        if progress_callback:
-                            progress_callback(
-                                int((shows_completed / len(shows)) * 100),
-                                f"Completed {show}: found {len(show_scenes)} scenes",
-                            )
-
-                except Exception as e:
-                    print(f"Error processing show {show}: {e}")
-                    shows_completed += 1
+            except Exception:
+                # On any exception, make sure to cancel pending futures
+                for f in future_to_show:
+                    if not f.done():
+                        f.cancel()
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
 
         # Final progress update
         if progress_callback:

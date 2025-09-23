@@ -428,6 +428,18 @@ class ThreadSafeWorker(QThread):
 
         return True
 
+    def is_zombie(self) -> bool:
+        """Check if the worker thread has been abandoned as a zombie.
+
+        A zombie thread is one that failed to stop gracefully and has been
+        abandoned to prevent crashes from unsafe termination.
+
+        Returns:
+            True if thread is a zombie, False otherwise
+        """
+        with QMutexLocker(self._state_mutex):
+            return self._zombie
+
     def safe_terminate(self) -> None:
         """Safely terminate the worker thread.
 
@@ -475,7 +487,8 @@ class ThreadSafeWorker(QThread):
                     )
                     # DO NOT call terminate() - it's unsafe!
                     # Instead, mark as zombie and let Python GC eventually clean up
-                    self._zombie = True
+                    with QMutexLocker(self._state_mutex):
+                        self._zombie = True
                 else:
                     logger.info(f"Worker {id(self)}: Stopped after extended wait")
             else:
