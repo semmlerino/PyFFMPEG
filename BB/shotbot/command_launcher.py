@@ -13,6 +13,7 @@ from config import Config
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from maya_latest_finder import MayaLatestFinder as MayaLatestFinderType
     from nuke_script_generator import NukeScriptGenerator as NukeScriptGeneratorType
     from persistent_terminal_manager import PersistentTerminalManager
     from raw_plate_finder import RawPlateFinder as RawPlateFinderType
@@ -43,6 +44,7 @@ class CommandLauncher(LoggingMixin, QObject):
         undistortion_finder: type[UndistortionFinderType] | None = None,
         nuke_script_generator: type[NukeScriptGeneratorType] | None = None,
         threede_latest_finder: type[ThreeDELatestFinderType] | None = None,
+        maya_latest_finder: type[MayaLatestFinderType] | None = None,
         persistent_terminal: PersistentTerminalManager | None = None,
     ) -> None:
         """Initialize CommandLauncher with optional dependencies.
@@ -52,6 +54,7 @@ class CommandLauncher(LoggingMixin, QObject):
             undistortion_finder: Class for finding undistortion files (defaults to UndistortionFinder)
             nuke_script_generator: Class for generating Nuke scripts (defaults to NukeScriptGenerator)
             threede_latest_finder: Class for finding latest 3DE scenes (defaults to ThreeDELatestFinder)
+            maya_latest_finder: Class for finding latest Maya scenes (defaults to MayaLatestFinder)
             persistent_terminal: Optional persistent terminal manager for single terminal mode
         """
         super().__init__()
@@ -86,6 +89,13 @@ class CommandLauncher(LoggingMixin, QObject):
             self._threede_latest_finder = ThreeDELatestFinder
         else:
             self._threede_latest_finder = threede_latest_finder
+
+        if maya_latest_finder is None:
+            from maya_latest_finder import MayaLatestFinder
+
+            self._maya_latest_finder = MayaLatestFinder
+        else:
+            self._maya_latest_finder = maya_latest_finder
 
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context."""
@@ -262,6 +272,7 @@ class CommandLauncher(LoggingMixin, QObject):
         include_undistortion: bool = False,
         include_raw_plate: bool = False,
         open_latest_threede: bool = False,
+        open_latest_maya: bool = False,
         open_latest_scene: bool = False,
         create_new_file: bool = False,
     ) -> bool:
@@ -272,6 +283,7 @@ class CommandLauncher(LoggingMixin, QObject):
             include_undistortion: Whether to include undistortion nodes (Nuke only)
             include_raw_plate: Whether to include raw plate Read node (Nuke only)
             open_latest_threede: Whether to open the latest 3DE scene file (3DE only)
+            open_latest_maya: Whether to open the latest Maya scene file (Maya only)
             open_latest_scene: Whether to open the latest Nuke script (Nuke only)
             create_new_file: Whether to create a new version (Nuke only)
 
@@ -662,6 +674,35 @@ class CommandLauncher(LoggingMixin, QObject):
                 self.command_executed.emit(
                     timestamp,
                     "Info: No 3DE scene files found in workspace",
+                )
+
+        # Handle Maya with latest scene file
+        if app_name == "maya" and open_latest_maya:
+            latest_scene = self._maya_latest_finder.find_latest_maya_scene(
+                self.current_shot.workspace_path,
+                self.current_shot.full_name,
+            )
+            if latest_scene:
+                # Add the scene file to the command
+                try:
+                    safe_scene_path = self._validate_path_for_shell(str(latest_scene))
+                    command = f"{command} -file {safe_scene_path}"
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.command_executed.emit(
+                        timestamp,
+                        f"Opening latest Maya scene: {latest_scene.name}",
+                    )
+                except ValueError as e:
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.command_executed.emit(
+                        timestamp,
+                        f"Warning: Invalid Maya scene path: {str(e)}",
+                    )
+            else:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                self.command_executed.emit(
+                    timestamp,
+                    "Info: No Maya scene files found in workspace",
                 )
 
         # Build full command with ws (workspace setup)

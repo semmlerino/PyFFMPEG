@@ -334,6 +334,14 @@ class LauncherPanel(QtWidgetMixin, LoggingMixin, QWidget):
                 color="#4d2b5d",  # Purple
                 tooltip="Launch Maya for 3D work",
                 shortcut="M",
+                checkboxes=[
+                    CheckboxConfig(
+                        label="Open latest Maya scene (when available)",
+                        tooltip="Automatically open the latest scene file from the workspace",
+                        key="open_latest_maya",
+                        default=True,
+                    )
+                ],
             ),
             AppConfig(
                 name="rv",

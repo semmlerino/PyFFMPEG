@@ -1367,6 +1367,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 app_name == "3de"
                 and self.launcher_panel.get_checkbox_state("3de", "open_latest_threede")
             )
+            # Check if we should open the latest Maya scene
+            open_latest_maya = (
+                app_name == "maya"
+                and self.launcher_panel.get_checkbox_state("maya", "open_latest_maya")
+            )
             # Check Nuke workspace script options
             open_latest_scene = (
                 app_name == "nuke"
@@ -1386,6 +1391,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 include_undistortion,
                 include_raw_plate,
                 open_latest_threede,
+                open_latest_maya,
                 open_latest_scene,
                 create_new_file,
             )
