@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import pytest
 from PySide6.QtCore import QTimer
 
-from shot_model_optimized import OptimizedShotModel
+from shot_model import ShotModel
 
 
 class TestQtIntegration:
@@ -15,8 +15,8 @@ class TestQtIntegration:
 
     @pytest.fixture
     def qt_model(self, real_cache_manager, qtbot):
-        """Create OptimizedShotModel with Qt integration."""
-        model = OptimizedShotModel(real_cache_manager)
+        """Create ShotModel with Qt integration."""
+        model = ShotModel(real_cache_manager)
         # Models are QObjects, not QWidgets, so don't need qtbot.addWidget
         # Just ensure proper cleanup
         yield model
@@ -148,7 +148,7 @@ class TestQtIntegration:
     def test_widget_lifecycle_integration(self, real_cache_manager, qtbot) -> None:
         """Test model lifecycle matches Qt widget patterns."""
         # Create model
-        model = OptimizedShotModel(real_cache_manager)
+        model = ShotModel(real_cache_manager)
         # Models are QObjects, not QWidgets, so don't use qtbot.addWidget
 
         # Use model
@@ -174,7 +174,7 @@ class TestPerformanceValidation:
     def test_startup_time_improvement_validation(self, real_cache_manager) -> None:
         """Validate the claimed <0.1s startup time."""
         # Test with cached data
-        model = OptimizedShotModel(real_cache_manager)
+        model = ShotModel(real_cache_manager)
 
         # Pre-populate cache
         model.cache_manager.cache_shots(
@@ -219,7 +219,7 @@ class TestPerformanceValidation:
         initial_memory = process.memory_info().rss
 
         # Create and use optimized model
-        model = OptimizedShotModel(real_cache_manager)
+        model = ShotModel(real_cache_manager)
 
         # Simulate usage pattern
         for i in range(50):
@@ -246,7 +246,7 @@ class TestPerformanceValidation:
 
     def test_background_load_efficiency(self, real_cache_manager, qtbot) -> None:
         """Test that background loading is actually efficient."""
-        model = OptimizedShotModel(real_cache_manager)
+        model = ShotModel(real_cache_manager)
 
         # Mock process pool with timing simulation
         execution_count = 0

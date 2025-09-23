@@ -99,7 +99,7 @@ class TestPreviousShotsThreadSafety:
 
         # Model should remain functional
         assert model.rowCount() == 3
-        assert len(model._shots) == 3
+        assert len(model.shots) == 3
 
     def test_cache_size_limit(self, model, qtbot) -> None:
         """Test MAX_CACHE_SIZE limit is enforced."""
@@ -236,7 +236,7 @@ class TestPreviousShotsThreadSafety:
 
         # Final state should be consistent
         assert model.rowCount() == len(test_shots)
-        assert len(model._shots) == len(test_shots)
+        assert len(model.shots) == len(test_shots)
 
 
 class TestDataConsistency:

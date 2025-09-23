@@ -85,7 +85,7 @@ class TestThreadSafety:
 
         # Verify model still functions correctly
         assert model.rowCount() == 3
-        assert len(model._scenes) == 3
+        assert len(model.scenes) == 3
 
     def test_cache_size_limit_enforcement(self, model, qtbot) -> None:
         """Test that cache size limit (MAX_CACHE_SIZE) is enforced."""
@@ -137,7 +137,7 @@ class TestThreadSafety:
         # The TestCacheManager now has load_thumbnail_async that works synchronously
         # Trigger thumbnail loads - these should complete immediately in test mode
         for idx, scene in enumerate(test_scenes):
-            model._load_thumbnail_async(scene, idx)
+            model._load_thumbnail_async(idx, scene)
 
         # Process Qt events to ensure signals are delivered
         qtbot.wait(10)
@@ -193,7 +193,7 @@ class TestThreadSafety:
 
         # Model should handle gracefully
         assert model.rowCount() == 1
-        assert len(model._scenes) == 1
+        assert len(model.scenes) == 1
         # Timer should have been restarted
         assert model._thumbnail_timer is not None
 
@@ -306,7 +306,7 @@ class TestDataIntegrity:
 
         # Final state should be consistent
         assert model.rowCount() == 2
-        assert len(model._scenes) == 2
+        assert len(model.scenes) == 2
 
     def test_role_data_consistency(self, model, test_scenes) -> None:
         """Test that all data roles return consistent data."""

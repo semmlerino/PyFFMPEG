@@ -1,8 +1,7 @@
-"""Qt Model/View implementation for 3DE scene data using QAbstractItemModel.
+"""Qt Model/View implementation for 3DE scene data using BaseItemModel.
 
-This module provides a proper Qt Model/View implementation for 3DE scenes,
-replacing the widget-based approach with efficient data handling, virtualization,
-and proper update notifications.
+This module provides a 3DE-specific Qt Model/View implementation that
+inherits common functionality from BaseItemModel, reducing code duplication.
 """
 
 from __future__ import annotations
@@ -13,26 +12,18 @@ from enum import IntEnum
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import (
-    QAbstractListModel,
     QModelIndex,
     QMutex,
     QMutexLocker,
     QObject,
-    QPersistentModelIndex,
     Qt,
-    QTimer,
     Signal,
-    Slot,
 )
-from PySide6.QtGui import QImage, QPixmap
 from typing_extensions import override
 
-from cache_manager import CacheManager
+from base_item_model import BaseItemModel, BaseItemRole
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pathlib import Path
-
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 logger = logging.getLogger(__name__)
@@ -80,56 +71,48 @@ def safe_log_info(message: str) -> None:
         _log_recursion_depth -= 1
 
 
-# Maximum cache size to prevent memory leaks (100 thumbnails max)
-MAX_CACHE_SIZE = 100
-
-
 class ThreeDERole(IntEnum):
-    """Custom roles for 3DE scene data access."""
+    """Custom roles for 3DE scene data access - extends BaseItemRole."""
 
-    # Standard roles
-    DisplayRole = Qt.ItemDataRole.DisplayRole
-    DecorationRole = Qt.ItemDataRole.DecorationRole
-    ToolTipRole = Qt.ItemDataRole.ToolTipRole
-    SizeHintRole = Qt.ItemDataRole.SizeHintRole
+    # Inherit all base roles
+    DisplayRole = BaseItemRole.DisplayRole
+    DecorationRole = BaseItemRole.DecorationRole
+    ToolTipRole = BaseItemRole.ToolTipRole
+    SizeHintRole = BaseItemRole.SizeHintRole
 
-    # Custom roles starting from UserRole
-    SceneObjectRole = Qt.ItemDataRole.UserRole + 1
-    ShowRole = Qt.ItemDataRole.UserRole + 2
-    SequenceRole = Qt.ItemDataRole.UserRole + 3
+    # Common roles from base
+    SceneObjectRole = BaseItemRole.ObjectRole
+    ShowRole = BaseItemRole.ShowRole
+    SequenceRole = BaseItemRole.SequenceRole
+    FullNameRole = BaseItemRole.FullNameRole
+    WorkspacePathRole = BaseItemRole.WorkspacePathRole
+    ThumbnailPathRole = BaseItemRole.ThumbnailPathRole
+    ThumbnailPixmapRole = BaseItemRole.ThumbnailPixmapRole
+    LoadingStateRole = BaseItemRole.LoadingStateRole
+    IsSelectedRole = BaseItemRole.IsSelectedRole
+
+    # 3DE-specific roles
     ShotRole = Qt.ItemDataRole.UserRole + 4
     UserRole = Qt.ItemDataRole.UserRole + 5
     ScenePathRole = Qt.ItemDataRole.UserRole + 6
-    ThumbnailPathRole = Qt.ItemDataRole.UserRole + 7
-    ThumbnailPixmapRole = Qt.ItemDataRole.UserRole + 8
-    LoadingStateRole = Qt.ItemDataRole.UserRole + 9
-    IsSelectedRole = Qt.ItemDataRole.UserRole + 10
     ModifiedTimeRole = Qt.ItemDataRole.UserRole + 11
 
 
-class ThreeDEItemModel(QAbstractListModel):
-    """Qt Model implementation for 3DE scene data.
+class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
+    """3DE scene-specific Qt Model implementation.
 
-    This model provides:
-    - Efficient data access through Qt's Model/View framework
-    - Lazy loading of thumbnails
-    - Proper change notifications
-    - Memory-efficient virtualization
-    - Support for loading indicators
+    This model provides 3DE-specific functionality while
+    inheriting common behavior from BaseItemModel.
     """
 
-    # Signals
-    scenes_updated = Signal()
-    thumbnail_loaded = Signal(int)  # row index
-    selection_changed = Signal(QModelIndex)
+    # Additional 3DE-specific signals
     loading_started = Signal()
     loading_progress = Signal(int, int)  # current, total
     loading_finished = Signal()
-    show_filter_changed = Signal(str)  # show name or "All Shows"
 
     def __init__(
         self,
-        cache_manager: CacheManager | None = None,
+        cache_manager=None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the 3DE item model.
@@ -138,238 +121,73 @@ class ThreeDEItemModel(QAbstractListModel):
             cache_manager: Optional cache manager for thumbnails
             parent: Optional parent QObject
         """
-        super().__init__(parent)
+        super().__init__(cache_manager, parent)
 
-        self._scenes: list[ThreeDEScene] = []
-        self._cache_manager = cache_manager or CacheManager()
-        # Use QImage for thread safety
-        self._thumbnail_cache: dict[str, QImage] = {}
-        self._loading_states: dict[str, str] = {}
-        self._cache_mutex = QMutex()  # Thread-safe cache access
-        self._selected_index = QPersistentModelIndex()
         self._is_loading = False
         self._updating_filter = False  # Recursion guard for filter updates
 
-        # Lazy loading timer for thumbnails
-        self._thumbnail_timer = QTimer()
-        self._thumbnail_timer.timeout.connect(self._load_visible_thumbnails)
-        self._thumbnail_timer.setInterval(100)  # 100ms delay
-
-        # Track visible range for lazy loading
-        self._visible_start = 0
-        self._visible_end = 0
+        # For backward compatibility, provide scenes_updated signal
+        # (BaseItemModel provides items_updated)
+        self.scenes_updated = self.items_updated
 
         safe_log_info("ThreeDEItemModel initialized with Model/View architecture")
 
-    @override
-    def rowCount(
-        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
-    ) -> int:
-        """Return number of 3DE scenes in the model.
-
-        Args:
-            parent: Parent index (unused for list model)
-
-        Returns:
-            Number of scenes
-        """
-        if parent.isValid():
-            return 0  # List models don't have children
-        return len(self._scenes)
+    # ============= Implement abstract methods =============
 
     @override
-    def data(
-        self,
-        index: QModelIndex | QPersistentModelIndex,
-        role: int = Qt.ItemDataRole.DisplayRole,
-    ) -> Any:  # type: ignore[reportExplicitAny]
-        """Get data for the given index and role.
+    def get_display_role_data(self, item: ThreeDEScene) -> str:
+        """Get display text for a scene.
 
         Args:
-            index: Model index
-            role: Data role
+            item: The scene to get display text for
 
         Returns:
-            Data for the role, or None if invalid
+            Display text string
         """
-        if not index.isValid() or not (0 <= index.row() < len(self._scenes)):
-            return None
+        return item.full_name
 
-        scene = self._scenes[index.row()]
+    @override
+    def get_tooltip_data(self, item: ThreeDEScene) -> str:
+        """Get tooltip text for a scene.
 
-        # Handle standard roles
-        if role == Qt.ItemDataRole.DisplayRole:
-            return scene.full_name
-        elif role == Qt.ItemDataRole.ToolTipRole:
-            tooltip = f"Scene: {scene.shot}\n"
-            tooltip += f"User: {scene.user}\n"
-            tooltip += f"Path: {scene.scene_path}"
-            return tooltip
+        Args:
+            item: The scene to get tooltip for
 
-        # Handle custom roles
-        elif role == ThreeDERole.SceneObjectRole:
-            return scene
-        elif role == ThreeDERole.ShowRole:
-            return scene.show
-        elif role == ThreeDERole.SequenceRole:
-            return scene.sequence
-        elif role == ThreeDERole.ShotRole:
-            return scene.shot
+        Returns:
+            Tooltip text string
+        """
+        tooltip = f"Scene: {item.shot}\n"
+        tooltip += f"User: {item.user}\n"
+        tooltip += f"Path: {item.scene_path}"
+        return tooltip
+
+    @override
+    def get_custom_role_data(self, item: ThreeDEScene, role: int) -> Any:
+        """Handle 3DE-specific custom roles.
+
+        Args:
+            item: The scene
+            role: The data role
+
+        Returns:
+            Data for the role or None
+        """
+        if role == ThreeDERole.ShotRole:
+            return item.shot
         elif role == ThreeDERole.UserRole:
-            return scene.user
+            return item.user
         elif role == ThreeDERole.ScenePathRole:
-            return scene.scene_path
-        elif role == ThreeDERole.ThumbnailPathRole:
-            thumb_path = scene.get_thumbnail_path()
-            return str(thumb_path) if thumb_path else None
-        elif role == ThreeDERole.ThumbnailPixmapRole:
-            return self._get_thumbnail_pixmap(scene)
-        elif role == ThreeDERole.LoadingStateRole:
-            with QMutexLocker(self._cache_mutex):
-                return self._loading_states.get(scene.full_name, "idle")
-        elif role == ThreeDERole.IsSelectedRole:
-            return index == self._selected_index
+            return item.scene_path
         elif role == ThreeDERole.ModifiedTimeRole:
             # Get modification time from the scene file
             try:
-                return scene.scene_path.stat().st_mtime
+                return item.scene_path.stat().st_mtime
             except OSError:
                 return 0.0  # Return 0 if file doesn't exist or can't be accessed
 
         return None
 
-    def _get_thumbnail_pixmap(self, scene: ThreeDEScene) -> QPixmap | None:
-        """Get thumbnail pixmap for a scene, loading if necessary.
-
-        Args:
-            scene: The 3DE scene
-
-        Returns:
-            QPixmap or None if not available
-        """
-        cache_key = scene.full_name
-
-        # Check memory cache first
-        with QMutexLocker(self._cache_mutex):
-            if cache_key in self._thumbnail_cache:
-                return QPixmap.fromImage(self._thumbnail_cache[cache_key])
-
-        # Check if thumbnail exists
-        thumb_path = scene.get_thumbnail_path()
-        if thumb_path and thumb_path.exists():
-            # Load thumbnail
-            image = QImage(str(thumb_path))
-            if not image.isNull():
-                # Cache it
-                with QMutexLocker(self._cache_mutex):
-                    # Enforce cache size limit to prevent memory leaks
-                    if len(self._thumbnail_cache) >= MAX_CACHE_SIZE:
-                        # Remove oldest entries (FIFO)
-                        oldest_key = next(iter(self._thumbnail_cache))
-                        del self._thumbnail_cache[oldest_key]
-                        if oldest_key in self._loading_states:
-                            del self._loading_states[oldest_key]
-
-                    self._thumbnail_cache[cache_key] = image
-                return QPixmap.fromImage(image)
-
-        # Return placeholder or None
-        return None
-
-    @Slot()
-    def _load_visible_thumbnails(self) -> None:
-        """Load thumbnails for visible scenes."""
-        for row in range(
-            self._visible_start, min(self._visible_end + 1, len(self._scenes))
-        ):
-            scene = self._scenes[row]
-            cache_key = scene.full_name
-
-            # Skip if already cached
-            with QMutexLocker(self._cache_mutex):
-                if cache_key in self._thumbnail_cache:
-                    continue
-
-                # Skip if already loading
-                if self._loading_states.get(cache_key) == "loading":
-                    continue
-
-            # Start loading
-            with QMutexLocker(self._cache_mutex):
-                self._loading_states[cache_key] = "loading"
-            self._load_thumbnail_async(scene, row)
-
-    def _load_thumbnail_async(self, scene: ThreeDEScene, row: int) -> None:
-        """Start async thumbnail loading for a scene.
-
-        Args:
-            scene: The 3DE scene
-            row: Row index for updates
-        """
-        thumb_path = scene.get_thumbnail_path()
-        if not thumb_path:
-            return
-
-        # Use cache manager to load thumbnail
-        from PySide6.QtCore import QTimer
-
-        def on_thumbnail_loaded(path: Path | None) -> None:
-            """Handle loaded thumbnail."""
-            if path and path.exists():
-                image = QImage(str(path))
-                if not image.isNull():
-                    with QMutexLocker(self._cache_mutex):
-                        # Enforce cache size limit to prevent memory leaks
-                        if len(self._thumbnail_cache) >= MAX_CACHE_SIZE:
-                            # Remove oldest entries (FIFO)
-                            oldest_key = next(iter(self._thumbnail_cache))
-                            del self._thumbnail_cache[oldest_key]
-                            if oldest_key in self._loading_states:
-                                del self._loading_states[oldest_key]
-
-                        self._thumbnail_cache[scene.full_name] = image
-                        self._loading_states[scene.full_name] = "loaded"
-
-                    # Update the specific row
-                    index = self.index(row, 0)
-                    self.dataChanged.emit(
-                        index, index, [ThreeDERole.ThumbnailPixmapRole]
-                    )
-                    self.thumbnail_loaded.emit(row)
-
-        # Schedule loading in main thread using QTimer (avoids Q_ARG meta-type issues)
-        # Qt's meta-object system doesn't recognize Python "object" type
-        QTimer.singleShot(
-            0, lambda: self._do_load_thumbnail(scene, on_thumbnail_loaded)
-        )
-
-    @Slot(object, object)  # type: ignore[arg-type]
-    def _do_load_thumbnail(
-        self, scene: ThreeDEScene, callback: Callable[[Path | None], None]
-    ) -> None:
-        """Load thumbnail in main thread.
-
-        Args:
-            scene: The 3DE scene
-            callback: Callback function for completion
-        """
-        thumb_path = scene.get_thumbnail_path()
-        if thumb_path:
-            callback(thumb_path)
-
-    def set_visible_range(self, start: int, end: int) -> None:
-        """Set the visible range for lazy loading.
-
-        Args:
-            start: First visible row
-            end: Last visible row
-        """
-        self._visible_start = max(0, start)
-        self._visible_end = min(end, len(self._scenes) - 1)
-
-        # Trigger thumbnail loading for visible items
-        if not self._thumbnail_timer.isActive():
-            self._thumbnail_timer.start()
+    # ============= 3DE-specific methods =============
 
     def set_scenes(self, scenes: list[ThreeDEScene], reset: bool = True) -> None:
         """Set the scenes for the model.
@@ -379,18 +197,12 @@ class ThreeDEItemModel(QAbstractListModel):
             reset: Whether to reset the model
         """
         if reset:
-            self.beginResetModel()
-            self._scenes = scenes
-            with QMutexLocker(self._cache_mutex):
-                self._thumbnail_cache.clear()
-                self._loading_states.clear()
-            self._selected_index = QPersistentModelIndex()
-            self.endResetModel()
-            self.scenes_updated.emit()
+            # Use base class set_items method
+            self.set_items(scenes)
         else:
             # Incremental update (more complex, for future optimization)
             self.beginResetModel()
-            self._scenes = scenes
+            self._items = scenes
             self.endResetModel()
             self.scenes_updated.emit()
 
@@ -427,15 +239,15 @@ class ThreeDEItemModel(QAbstractListModel):
     def get_scene(self, index: QModelIndex) -> ThreeDEScene | None:
         """Get scene at the given index.
 
+        Compatibility wrapper for get_item_at_index.
+
         Args:
             index: Model index
 
         Returns:
             ThreeDEScene or None if invalid
         """
-        if not index.isValid() or not (0 <= index.row() < len(self._scenes)):
-            return None
-        return self._scenes[index.row()]
+        return self.get_item_at_index(index)
 
     def set_selected(self, index: QModelIndex) -> None:
         """Set the selected scene.
@@ -446,15 +258,22 @@ class ThreeDEItemModel(QAbstractListModel):
         if self._selected_index != index:
             # Clear old selection
             if self._selected_index.isValid():
+                from PySide6.QtCore import QModelIndex
+
                 old_index = QModelIndex(self._selected_index)
                 self.dataChanged.emit(
-                    old_index, old_index, [ThreeDERole.IsSelectedRole]
+                    old_index, old_index, [BaseItemRole.IsSelectedRole]
                 )
 
             # Set new selection
+            from PySide6.QtCore import QPersistentModelIndex
+
             self._selected_index = QPersistentModelIndex(index)
             if index.isValid():
-                self.dataChanged.emit(index, index, [ThreeDERole.IsSelectedRole])
+                self.dataChanged.emit(index, index, [BaseItemRole.IsSelectedRole])
+                self._selected_item = self.get_item_at_index(index)
+            else:
+                self._selected_item = None
 
             self.selection_changed.emit(index)
 
@@ -482,7 +301,7 @@ class ThreeDEItemModel(QAbstractListModel):
     @property
     def scenes(self) -> list[ThreeDEScene]:
         """Get the list of scenes."""
-        return self._scenes
+        return self._items
 
     @property
     def is_loading(self) -> bool:
@@ -501,43 +320,26 @@ class ThreeDEItemModel(QAbstractListModel):
             self._thumbnail_timer.deleteLater()
 
         # Clear caches
-        with QMutexLocker(self._cache_mutex):
-            self._thumbnail_cache.clear()
-            self._loading_states.clear()
+        self.clear_thumbnail_cache()
 
         # Clear selection
+        from PySide6.QtCore import QPersistentModelIndex
+
         self._selected_index = QPersistentModelIndex()
 
         # Disconnect signals safely
-        try:
-            self.scenes_updated.disconnect()
-        except (RuntimeError, TypeError):
-            pass  # Already disconnected or no connections
-
-        try:
-            self.thumbnail_loaded.disconnect()
-        except (RuntimeError, TypeError):
-            pass
-
-        try:
-            self.selection_changed.disconnect()
-        except (RuntimeError, TypeError):
-            pass
-
-        try:
-            self.loading_started.disconnect()
-        except (RuntimeError, TypeError):
-            pass
-
-        try:
-            self.loading_progress.disconnect()
-        except (RuntimeError, TypeError):
-            pass
-
-        try:
-            self.loading_finished.disconnect()
-        except (RuntimeError, TypeError):
-            pass
+        for signal in [
+            self.scenes_updated,
+            self.thumbnail_loaded,
+            self.selection_changed,
+            self.loading_started,
+            self.loading_progress,
+            self.loading_finished,
+        ]:
+            try:
+                signal.disconnect()
+            except (RuntimeError, TypeError):
+                pass  # Already disconnected or no connections
 
         safe_log_info("ThreeDEItemModel resources cleaned up")
 

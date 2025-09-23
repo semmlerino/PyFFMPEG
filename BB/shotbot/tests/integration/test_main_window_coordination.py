@@ -201,7 +201,7 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     FIXED: Added qapp fixture to ensure QApplication exists before creating widgets.
     This prevents segmentation faults from Qt object creation without an app.
 
-    FIXED: Forces legacy ShotModel to avoid OptimizedShotModel threading issues
+    FIXED: Forces legacy ShotModel to avoid ShotModel threading issues
     and ensures TestProcessPoolManager is used throughout the system.
 
     FIXED: Monkey-patch NotificationManager BEFORE creating MainWindow to prevent

@@ -44,7 +44,7 @@ workspace /shows/TEST/seq02/0010"""
 def test_optimized_startup() -> dict[str, Any]:
     """Measure optimized ShotModel startup time."""
     from cache_manager import CacheManager
-    from shot_model_optimized import OptimizedShotModel
+    from shot_model import ShotModel
 
     with tempfile.TemporaryDirectory() as tmpdir:
         cache = CacheManager(cache_dir=Path(tmpdir))
@@ -57,7 +57,7 @@ def test_optimized_startup() -> dict[str, Any]:
 
         # Time the optimized approach
         start = time.perf_counter()
-        model = OptimizedShotModel(cache_manager=cache)
+        model = ShotModel(cache_manager=cache)
 
         # Mock the process pool
         mock_pool = Mock()
@@ -92,7 +92,7 @@ def test_with_session_warming() -> dict[str, Any]:
     """Test with session pre-warming strategy."""
     from cache_manager import CacheManager
     from process_pool_manager import ProcessPoolManager
-    from shot_model_optimized import OptimizedShotModel
+    from shot_model import ShotModel
 
     with tempfile.TemporaryDirectory() as tmpdir:
         cache = CacheManager(cache_dir=Path(tmpdir))
@@ -110,7 +110,7 @@ def test_with_session_warming() -> dict[str, Any]:
         warm_time = time.perf_counter() - warm_start
 
         # Now create model with warmed pool
-        model = OptimizedShotModel(cache_manager=cache)
+        model = ShotModel(cache_manager=cache)
         # Set warmed process pool for testing
         setattr(model, "_process_pool", pool)  # pyright: ignore[reportUnknownMemberType]
 

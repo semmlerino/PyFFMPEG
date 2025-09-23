@@ -158,7 +158,7 @@ class LauncherManager(LoggingMixin, QObject):
         return self._process_manager._cleanup_retry_timer
 
     @property
-    def _cleanup_scheduled(self):
+    def _cleanup_scheduled(self) -> bool:
         """Backward compatibility property for accessing cleanup scheduled flag.
 
         Returns:
@@ -166,7 +166,7 @@ class LauncherManager(LoggingMixin, QObject):
         """
         return self._process_manager._cleanup_scheduled
 
-    def _cleanup_finished_workers(self):
+    def _cleanup_finished_workers(self) -> None:
         """Backward compatibility method for cleaning up finished workers.
 
         Delegates to the process manager's cleanup method.
@@ -614,19 +614,19 @@ class LauncherManager(LoggingMixin, QObject):
             try:
                 # Use disconnect() without arguments to disconnect all slots
                 # This avoids warnings about disconnecting specific slots that may not exist
-                if hasattr(self._process_manager, 'process_started'):
+                if hasattr(self._process_manager, "process_started"):
                     try:
                         self._process_manager.process_started.disconnect()
                     except (RuntimeError, TypeError):
                         pass  # Already disconnected or no connections
 
-                if hasattr(self._process_manager, 'process_finished'):
+                if hasattr(self._process_manager, "process_finished"):
                     try:
                         self._process_manager.process_finished.disconnect()
                     except (RuntimeError, TypeError):
                         pass  # Already disconnected or no connections
 
-                if hasattr(self._process_manager, 'process_error'):
+                if hasattr(self._process_manager, "process_error"):
                     try:
                         self._process_manager.process_error.disconnect()
                     except (RuntimeError, TypeError):

@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 
 from base_grid_view import BaseGridView
 from progress_manager import ProgressManager
-from shot_grid_delegate_refactored import ShotGridDelegate  # Reuse refactored delegate
+from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotRole
 from thumbnail_widget_base import FolderOpenerWorker
 

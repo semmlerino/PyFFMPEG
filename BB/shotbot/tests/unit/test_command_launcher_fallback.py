@@ -16,6 +16,7 @@ from persistent_terminal_manager import PersistentTerminalManager
 @dataclass
 class MockThreeDEScene:
     """Mock ThreeDEScene for testing."""
+
     show: str
     sequence: str
     shot: str
@@ -23,6 +24,7 @@ class MockThreeDEScene:
     user: str
     plate: str
     scene_path: Path
+
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
@@ -91,12 +93,22 @@ class TestCommandLauncherPersistentTerminalFallback:
         mock_persistent_terminal.send_command.return_value = True
 
         # Act
-        with patch.object(launcher_with_persistent_terminal, "_is_rez_available", return_value=True), \
-             patch.object(launcher_with_persistent_terminal, "_get_rez_packages_for_app", return_value=["3de"]), \
-             patch("config.Config.USE_PERSISTENT_TERMINAL", True), \
-                 patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True), \
-                 patch("config.Config.AUTO_BACKGROUND_GUI_APPS", True):
-                result = launcher_with_persistent_terminal.launch_app("3de")
+        with (
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_is_rez_available",
+                return_value=True,
+            ),
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_get_rez_packages_for_app",
+                return_value=["3de"],
+            ),
+            patch("config.Config.USE_PERSISTENT_TERMINAL", True),
+            patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True),
+            patch("config.Config.AUTO_BACKGROUND_GUI_APPS", True),
+        ):
+            result = launcher_with_persistent_terminal.launch_app("3de")
 
         # Assert: Command sent to persistent terminal successfully
         assert result is True
@@ -118,7 +130,9 @@ class TestCommandLauncherPersistentTerminalFallback:
 
         # Arrange
         launcher_with_persistent_terminal.current_shot = mock_shot
-        scene_path = Path("/shows/jack_ryan/shots/GF_256/GF_256_1400/user/tony-a/mm/3de/scenes/test.3de")
+        scene_path = Path(
+            "/shows/jack_ryan/shots/GF_256/GF_256_1400/user/tony-a/mm/3de/scenes/test.3de"
+        )
 
         # Create mock scene object
         scene = MockThreeDEScene(
@@ -128,22 +142,34 @@ class TestCommandLauncherPersistentTerminalFallback:
             workspace_path="/shows/jack_ryan/shots/GF_256/GF_256_1400",
             user="tony-a",
             plate="FG01",
-            scene_path=scene_path
+            scene_path=scene_path,
         )
 
         # Persistent terminal fails
         mock_persistent_terminal.send_command.return_value = False
 
         # Act
-        with patch.object(launcher_with_persistent_terminal, "_is_rez_available", return_value=True), \
-             patch.object(launcher_with_persistent_terminal, "_get_rez_packages_for_app", return_value=["3de"]), \
-             patch("subprocess.Popen") as mock_popen:
+        with (
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_is_rez_available",
+                return_value=True,
+            ),
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_get_rez_packages_for_app",
+                return_value=["3de"],
+            ),
+            patch("subprocess.Popen") as mock_popen,
+        ):
             mock_process = MagicMock()
             mock_popen.return_value = mock_process
 
-            with patch("config.Config.USE_PERSISTENT_TERMINAL", True), \
-                 patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True), \
-                 patch("config.Config.AUTO_BACKGROUND_GUI_APPS", True):
+            with (
+                patch("config.Config.USE_PERSISTENT_TERMINAL", True),
+                patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True),
+                patch("config.Config.AUTO_BACKGROUND_GUI_APPS", True),
+            ):
                 result = launcher_with_persistent_terminal.launch_app_with_scene(
                     "3de", scene
                 )
@@ -166,7 +192,8 @@ class TestCommandLauncherPersistentTerminalFallback:
 
         # Verify fallback message was emitted
         fallback_messages = [
-            msg for ts, msg in launcher_with_persistent_terminal.emitted_commands
+            msg
+            for ts, msg in launcher_with_persistent_terminal.emitted_commands
             if "Persistent terminal not available" in msg
         ]
         assert len(fallback_messages) > 0
@@ -179,9 +206,19 @@ class TestCommandLauncherPersistentTerminalFallback:
         launcher_without_persistent_terminal.current_shot = mock_shot
 
         # Act
-        with patch.object(launcher_without_persistent_terminal, "_is_rez_available", return_value=True), \
-             patch.object(launcher_without_persistent_terminal, "_get_rez_packages_for_app", return_value=["nuke"]), \
-             patch("subprocess.Popen") as mock_popen:
+        with (
+            patch.object(
+                launcher_without_persistent_terminal,
+                "_is_rez_available",
+                return_value=True,
+            ),
+            patch.object(
+                launcher_without_persistent_terminal,
+                "_get_rez_packages_for_app",
+                return_value=["nuke"],
+            ),
+            patch("subprocess.Popen") as mock_popen,
+        ):
             mock_process = MagicMock()
             mock_popen.return_value = mock_process
 
@@ -204,11 +241,21 @@ class TestCommandLauncherPersistentTerminalFallback:
         launcher_with_persistent_terminal.current_shot = mock_shot
 
         # Act
-        with patch.object(launcher_with_persistent_terminal, "_is_rez_available", return_value=True), \
-             patch.object(launcher_with_persistent_terminal, "_get_rez_packages_for_app", return_value=["maya"]), \
-             patch("subprocess.Popen") as mock_popen, \
-             patch("config.Config.USE_PERSISTENT_TERMINAL", False), \
-             patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True):
+        with (
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_is_rez_available",
+                return_value=True,
+            ),
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_get_rez_packages_for_app",
+                return_value=["maya"],
+            ),
+            patch("subprocess.Popen") as mock_popen,
+            patch("config.Config.USE_PERSISTENT_TERMINAL", False),
+            patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True),
+        ):
             mock_process = MagicMock()
             mock_popen.return_value = mock_process
 
@@ -234,19 +281,29 @@ class TestCommandLauncherPersistentTerminalFallback:
             workspace_path="/shows/jack_ryan/shots/GF_256/GF_256_1400",
             user="test-user",
             plate="PLATE01",
-            scene_path=scene_path
+            scene_path=scene_path,
         )
 
-        with patch.object(launcher_with_persistent_terminal, "_is_rez_available", return_value=True), \
-             patch.object(launcher_with_persistent_terminal, "_get_rez_packages_for_app", return_value=["3de"]), \
-             patch("config.Config.USE_PERSISTENT_TERMINAL", True), \
-             patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True), \
-             patch("config.Config.AUTO_BACKGROUND_GUI_APPS", True):
-
+        with (
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_is_rez_available",
+                return_value=True,
+            ),
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_get_rez_packages_for_app",
+                return_value=["3de"],
+            ),
+            patch("config.Config.USE_PERSISTENT_TERMINAL", True),
+            patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True),
+            patch("config.Config.AUTO_BACKGROUND_GUI_APPS", True),
+        ):
             # Mock send_command to capture the actual command
             sent_commands = []
-            launcher_with_persistent_terminal.persistent_terminal.send_command = \
+            launcher_with_persistent_terminal.persistent_terminal.send_command = (
                 lambda cmd: sent_commands.append(cmd) or True
+            )
 
             # Act: Launch with scene (tests the bug fix area)
             result = launcher_with_persistent_terminal.launch_app_with_scene(
@@ -282,17 +339,29 @@ class TestCommandLauncherPersistentTerminalFallback:
         launcher_with_persistent_terminal.current_shot = mock_shot
 
         # Use an app that's actually in Config.APPS
-        with patch.object(launcher_with_persistent_terminal, "_is_rez_available", return_value=True), \
-             patch.object(launcher_with_persistent_terminal, "_get_rez_packages_for_app", return_value=["nuke"]), \
-             patch.object(launcher_with_persistent_terminal, "_is_gui_app", return_value=False), \
-             patch("config.Config.USE_PERSISTENT_TERMINAL", True), \
-             patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True), \
-             patch("config.Config.AUTO_BACKGROUND_GUI_APPS", True):
-
+        with (
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_is_rez_available",
+                return_value=True,
+            ),
+            patch.object(
+                launcher_with_persistent_terminal,
+                "_get_rez_packages_for_app",
+                return_value=["nuke"],
+            ),
+            patch.object(
+                launcher_with_persistent_terminal, "_is_gui_app", return_value=False
+            ),
+            patch("config.Config.USE_PERSISTENT_TERMINAL", True),
+            patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True),
+            patch("config.Config.AUTO_BACKGROUND_GUI_APPS", True),
+        ):
             # Capture sent command
             sent_commands = []
-            launcher_with_persistent_terminal.persistent_terminal.send_command = \
+            launcher_with_persistent_terminal.persistent_terminal.send_command = (
                 lambda cmd: sent_commands.append(cmd) or True
+            )
 
             # Act - use nuke but mock it as non-GUI for this test
             result = launcher_with_persistent_terminal.launch_app("nuke")
@@ -329,8 +398,7 @@ class TestCommandLauncherSignals:
         with qtbot.waitSignal(launcher.command_executed, timeout=100) as blocker:
             # Emit test signal
             launcher.command_executed.emit(
-                datetime.now().strftime("%H:%M:%S"),
-                "test command"
+                datetime.now().strftime("%H:%M:%S"), "test command"
             )
 
         # Verify signal data
@@ -346,8 +414,7 @@ class TestCommandLauncherSignals:
         # Set up signal spy for error
         with qtbot.waitSignal(launcher.command_error, timeout=100) as blocker:
             launcher.command_error.emit(
-                datetime.now().strftime("%H:%M:%S"),
-                "Test error message"
+                datetime.now().strftime("%H:%M:%S"), "Test error message"
             )
 
         # Verify error signal

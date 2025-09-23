@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Test cache behavior and performance metrics for OptimizedShotModel."""
+"""Test cache behavior and performance metrics for ShotModel."""
 
 import time
 from unittest.mock import Mock, patch
 
 import pytest
 
-from shot_model_optimized import OptimizedShotModel
+from shot_model import ShotModel
 
 
 class TestCacheScenarios:
@@ -14,8 +14,8 @@ class TestCacheScenarios:
 
     @pytest.fixture
     def optimized_model_with_cache(self, real_cache_manager):
-        """Create OptimizedShotModel with real cache."""
-        return OptimizedShotModel(real_cache_manager)
+        """Create ShotModel with real cache."""
+        return ShotModel(real_cache_manager)
 
     def test_cache_hit_scenario(self, optimized_model_with_cache) -> None:
         """Test performance when cache data is available."""

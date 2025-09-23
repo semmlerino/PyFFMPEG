@@ -3,11 +3,11 @@
 
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
-from dataclasses import dataclass
 
 # Mock PySide6 for demonstration
 sys.modules["PySide6"] = Mock()
@@ -25,6 +25,7 @@ from persistent_terminal_manager import PersistentTerminalManager  # noqa: E402
 @dataclass
 class Launcher:
     """Simple launcher configuration for example."""
+
     name: str
     command: str
     description: str = ""
@@ -35,7 +36,7 @@ class Launcher:
     persist_terminal: bool = False
     validate_command: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.environment_vars is None:
             self.environment_vars = {}
 

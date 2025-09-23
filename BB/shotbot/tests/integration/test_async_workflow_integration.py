@@ -116,7 +116,7 @@ class TestAsyncWorkflowIntegration:
         # The timer fires after 100ms and then sets the loading state
         qtbot.waitUntil(
             lambda: item_model._loading_states.get(test_shots[0].full_name) is not None,
-            timeout=2000
+            timeout=2000,
         )
 
         # Verify both components handled the shot
@@ -273,13 +273,18 @@ class TestAsyncWorkflowIntegration:
         # Wait for the loading state to be set (timer fires after 100ms)
         qtbot.waitUntil(
             lambda: item_model._loading_states.get(bad_shot.full_name) is not None,
-            timeout=2000
+            timeout=2000,
         )
 
         # Both components should handle errors gracefully
         # Model should show failed loading state
         loading_state = item_model._loading_states.get(bad_shot.full_name)
-        assert loading_state in ["failed", "idle", "loading", "loaded"]  # Accept any valid state
+        assert loading_state in [
+            "failed",
+            "idle",
+            "loading",
+            "loaded",
+        ]  # Accept any valid state
 
         # Panel should show placeholder
         assert info_panel._current_shot == bad_shot

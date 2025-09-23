@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from base_grid_view import BaseGridView
-from threede_grid_delegate_refactored import ThreeDEGridDelegate
+from threede_grid_delegate import ThreeDEGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:

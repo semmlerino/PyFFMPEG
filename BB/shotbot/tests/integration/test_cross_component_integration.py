@@ -15,12 +15,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication
 
-from cache_manager import CacheManager
 from main_window import MainWindow
-from shot_model import Shot
 from tests.test_doubles_library import TestProcessPool
 from threede_scene_model import ThreeDEScene
 
@@ -42,6 +39,7 @@ class TestCrossTabSynchronization:
         """Clean up Qt state between tests to prevent segfaults."""
         # Clear ProcessPoolManager singleton before test
         from process_pool_manager import ProcessPoolManager
+
         ProcessPoolManager._instance = None
 
         # Track windows created during test
@@ -54,6 +52,7 @@ class TestCrossTabSynchronization:
             if window:
                 # Explicitly call closeEvent to ensure workers are stopped
                 from PySide6.QtGui import QCloseEvent
+
                 close_event = QCloseEvent()
                 window.closeEvent(close_event)
 
@@ -78,6 +77,7 @@ class TestCrossTabSynchronization:
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
                 # Use small timeout, don't use QTest.qWait which might crash
                 import time
+
                 time.sleep(0.01)
 
         # Clear ProcessPoolManager singleton after test
@@ -115,7 +115,9 @@ class TestCrossTabSynchronization:
         assert success, "refresh_shots should succeed"
 
         # Verify shots were loaded
-        assert len(window.shot_model.shots) == 2, f"Expected 2 shots, got {len(window.shot_model.shots)}"
+        assert len(window.shot_model.shots) == 2, (
+            f"Expected 2 shots, got {len(window.shot_model.shots)}"
+        )
         # Note: has_changes might be False if cache was loaded on init
         # assert has_changes  # Removed - not reliable with cache
 
@@ -184,7 +186,9 @@ class TestCrossTabSynchronization:
         assert window.shot_info_panel._current_shot == second_shot
         assert second_shot.shot in window.shot_info_panel.shot_name_label.text()
 
-    def test_show_filter_affects_all_tabs(self, qapp, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_show_filter_affects_all_tabs(
+        self, qapp, qtbot: QtBot, tmp_path: Path
+    ) -> None:
         """Test that show filtering propagates to all tabs correctly.
 
         This verifies that:
@@ -239,11 +243,13 @@ class TestCacheUICoordination:
     def setup_and_teardown(self, qtbot: QtBot, tmp_path: Path) -> None:
         """Clean up state between tests."""
         from process_pool_manager import ProcessPoolManager
+
         ProcessPoolManager._instance = None
 
         # Clear test cache directory
         import shutil
         from pathlib import Path
+
         cache_dir = Path.home() / ".shotbot" / "cache_test"
         if cache_dir.exists():
             shutil.rmtree(cache_dir, ignore_errors=True)
@@ -258,6 +264,7 @@ class TestCacheUICoordination:
             if window:
                 # Explicitly call closeEvent to ensure workers are stopped
                 from PySide6.QtGui import QCloseEvent
+
                 close_event = QCloseEvent()
                 window.closeEvent(close_event)
 
@@ -281,11 +288,14 @@ class TestCacheUICoordination:
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
                 # Use small timeout, don't use QTest.qWait which might crash
                 import time
+
                 time.sleep(0.01)
 
         ProcessPoolManager._instance = None
 
-    def test_thumbnail_cache_updates_ui(self, qapp, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_thumbnail_cache_updates_ui(
+        self, qapp, qtbot: QtBot, tmp_path: Path
+    ) -> None:
         """Verify thumbnail caching updates UI correctly.
 
         This tests that:
@@ -307,9 +317,7 @@ class TestCacheUICoordination:
 
         # Set up test shot
         test_pool = TestProcessPool()
-        test_pool.set_outputs(
-            "workspace /shows/TEST/shots/seq01/seq01_0010"
-        )
+        test_pool.set_outputs("workspace /shows/TEST/shots/seq01/seq01_0010")
         window.shot_model._process_pool = test_pool
         window.shot_model.refresh_shots()
 
@@ -328,7 +336,8 @@ class TestCacheUICoordination:
         # Create a valid test image file to cache
         fake_thumb = tmp_path / "test_thumb.jpg"
         # Create a minimal valid JPEG (1x1 red pixel)
-        from PySide6.QtGui import QImage, QColor
+        from PySide6.QtGui import QColor, QImage
+
         img = QImage(1, 1, QImage.Format.Format_RGB32)
         img.fill(QColor(255, 0, 0))
         img.save(str(fake_thumb), "JPEG")
@@ -397,6 +406,7 @@ class TestErrorPropagationChains:
     def setup_and_teardown(self, qtbot: QtBot) -> None:
         """Clean up state between tests."""
         from process_pool_manager import ProcessPoolManager
+
         ProcessPoolManager._instance = None
 
         # Track windows for cleanup
@@ -409,6 +419,7 @@ class TestErrorPropagationChains:
             if window:
                 # Explicitly call closeEvent to ensure workers are stopped
                 from PySide6.QtGui import QCloseEvent
+
                 close_event = QCloseEvent()
                 window.closeEvent(close_event)
 
@@ -432,6 +443,7 @@ class TestErrorPropagationChains:
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
                 # Use small timeout, don't use QTest.qWait which might crash
                 import time
+
                 time.sleep(0.01)
 
         ProcessPoolManager._instance = None

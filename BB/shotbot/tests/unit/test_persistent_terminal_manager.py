@@ -41,17 +41,17 @@ class TestPersistentTerminalManager:
     def terminal_manager(self, temp_fifo, temp_dispatcher):
         """Create terminal manager with test paths."""
         # Mock only system boundaries
-        with patch("os.path.exists", return_value=False), \
-             patch("os.mkfifo") as mock_mkfifo, \
-             patch("os.stat") as mock_stat:
-
+        with (
+            patch("os.path.exists", return_value=False),
+            patch("os.mkfifo") as mock_mkfifo,
+            patch("os.stat") as mock_stat,
+        ):
             # Simulate successful FIFO creation
             mock_mkfifo.return_value = None
             mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
 
             manager = PersistentTerminalManager(
-                fifo_path=temp_fifo,
-                dispatcher_path=temp_dispatcher
+                fifo_path=temp_fifo, dispatcher_path=temp_dispatcher
             )
             # Note: PersistentTerminalManager is QObject, not QWidget - no qtbot.addWidget needed
 
@@ -68,7 +68,9 @@ class TestPersistentTerminalManager:
     @patch("os.path.exists")
     @patch("os.mkfifo")
     @patch("os.stat")
-    def test_ensure_fifo_creates_when_missing(self, mock_stat, mock_mkfifo, mock_exists):
+    def test_ensure_fifo_creates_when_missing(
+        self, mock_stat, mock_mkfifo, mock_exists
+    ):
         """Test FIFO creation when it doesn't exist."""
         # Arrange: FIFO doesn't exist initially
         mock_exists.side_effect = [False, True]  # Not exists, then exists
@@ -148,13 +150,15 @@ class TestPersistentTerminalManager:
         assert terminal_manager.terminal_process == mock_process
 
     @patch("subprocess.Popen")
-    def test_launch_terminal_tries_multiple_emulators(self, mock_popen, terminal_manager):
+    def test_launch_terminal_tries_multiple_emulators(
+        self, mock_popen, terminal_manager
+    ):
         """Test fallback to different terminal emulators."""
         # Arrange: First two emulators fail, third succeeds
         mock_popen.side_effect = [
             FileNotFoundError(),  # gnome-terminal not found
             FileNotFoundError(),  # konsole not found
-            MagicMock(pid=54321)  # xterm works
+            MagicMock(pid=54321),  # xterm works
         ]
 
         with patch.object(terminal_manager, "_is_terminal_alive", return_value=True):
@@ -168,7 +172,9 @@ class TestPersistentTerminalManager:
 
     @patch("os.open")
     @patch("os.fdopen")
-    def test_send_command_success(self, mock_fdopen, mock_open, terminal_manager, qtbot):
+    def test_send_command_success(
+        self, mock_fdopen, mock_open, terminal_manager, qtbot
+    ):
         """Test successful command sending."""
         # Arrange: Mock FIFO operations
         mock_fd = 42
@@ -181,8 +187,10 @@ class TestPersistentTerminalManager:
         signal_spy = []
         terminal_manager.command_sent.connect(signal_spy.append)
 
-        with patch.object(terminal_manager, "_is_terminal_alive", return_value=True), \
-             patch("os.path.exists", return_value=True):
+        with (
+            patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
+            patch("os.path.exists", return_value=True),
+        ):
             # Act: Send command
             result = terminal_manager.send_command("echo test")
 
@@ -196,12 +204,15 @@ class TestPersistentTerminalManager:
     @patch("os.open")
     @patch("time.sleep")
     @patch("os.path.exists", return_value=True)
-    def test_send_command_with_auto_restart(self, mock_exists, mock_sleep, mock_open, terminal_manager):
+    def test_send_command_with_auto_restart(
+        self, mock_exists, mock_sleep, mock_open, terminal_manager
+    ):
         """Test command sending with terminal auto-restart."""
+
         # Arrange: FIFO has no reader (errno.ENXIO), then succeeds after restart
         def open_side_effect(*args, **kwargs):
             # Track call count
-            if not hasattr(open_side_effect, 'call_count'):
+            if not hasattr(open_side_effect, "call_count"):
                 open_side_effect.call_count = 0
             open_side_effect.call_count += 1
 
@@ -215,11 +226,16 @@ class TestPersistentTerminalManager:
         mock_open.side_effect = open_side_effect
 
         # Mock restart succeeding
-        with patch.object(terminal_manager, "restart_terminal", return_value=True) as mock_restart, \
-             patch.object(terminal_manager, "_is_terminal_alive", return_value=True), \
-             patch.object(terminal_manager, "_is_dispatcher_running", return_value=False), \
-             patch("os.fdopen") as mock_fdopen:
-
+        with (
+            patch.object(
+                terminal_manager, "restart_terminal", return_value=True
+            ) as mock_restart,
+            patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
+            patch.object(
+                terminal_manager, "_is_dispatcher_running", return_value=False
+            ),
+            patch("os.fdopen") as mock_fdopen,
+        ):
             mock_file = MagicMock()
             mock_fdopen.return_value.__enter__ = Mock(return_value=mock_file)
             mock_fdopen.return_value.__exit__ = Mock(return_value=False)
@@ -238,8 +254,12 @@ class TestPersistentTerminalManager:
         # Arrange: FIFO doesn't exist
         mock_open.side_effect = OSError(errno.ENOENT, "File not found")
 
-        with patch("os.path.exists", return_value=False), \
-             patch.object(terminal_manager, "_ensure_fifo", return_value=True) as mock_ensure:
+        with (
+            patch("os.path.exists", return_value=False),
+            patch.object(
+                terminal_manager, "_ensure_fifo", return_value=True
+            ) as mock_ensure,
+        ):
             # Act: Send command
             _ = terminal_manager.send_command("test", ensure_terminal=False)
 
@@ -266,8 +286,12 @@ class TestPersistentTerminalManager:
         signal_spy = []
         terminal_manager.terminal_closed.connect(lambda: signal_spy.append(True))
 
-        with patch.object(terminal_manager, "_is_terminal_alive", side_effect=[True, False]), \
-             patch.object(terminal_manager, "send_command"):
+        with (
+            patch.object(
+                terminal_manager, "_is_terminal_alive", side_effect=[True, False]
+            ),
+            patch.object(terminal_manager, "send_command"),
+        ):
             # Act: Close terminal
             result = terminal_manager.close_terminal()
 
@@ -281,8 +305,12 @@ class TestPersistentTerminalManager:
     @patch("time.sleep")
     def test_restart_terminal(self, mock_sleep, terminal_manager):
         """Test terminal restart."""
-        with patch.object(terminal_manager, "close_terminal") as mock_close, \
-             patch.object(terminal_manager, "_launch_terminal", return_value=True) as mock_launch:
+        with (
+            patch.object(terminal_manager, "close_terminal") as mock_close,
+            patch.object(
+                terminal_manager, "_launch_terminal", return_value=True
+            ) as mock_launch,
+        ):
             # Act: Restart terminal
             result = terminal_manager.restart_terminal()
 
@@ -293,10 +321,14 @@ class TestPersistentTerminalManager:
 
     @patch("os.path.exists", return_value=True)
     @patch("os.unlink")
-    def test_cleanup_removes_fifo_and_closes_terminal(self, mock_unlink, mock_exists, terminal_manager):
+    def test_cleanup_removes_fifo_and_closes_terminal(
+        self, mock_unlink, mock_exists, terminal_manager
+    ):
         """Test full cleanup."""
-        with patch.object(terminal_manager, "_is_terminal_alive", return_value=True), \
-             patch.object(terminal_manager, "close_terminal") as mock_close:
+        with (
+            patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
+            patch.object(terminal_manager, "close_terminal") as mock_close,
+        ):
             # Act: Cleanup
             terminal_manager.cleanup()
 
@@ -331,14 +363,14 @@ class TestPersistentTerminalIntegration:
             dispatcher_path.chmod(0o755)
 
             # Don't actually create FIFO to avoid system calls
-            with patch("os.mkfifo"), \
-                 patch("os.path.exists", return_value=True), \
-                 patch("os.stat") as mock_stat:
-
+            with (
+                patch("os.mkfifo"),
+                patch("os.path.exists", return_value=True),
+                patch("os.stat") as mock_stat,
+            ):
                 mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
                 manager = PersistentTerminalManager(
-                    fifo_path=str(fifo_path),
-                    dispatcher_path=str(dispatcher_path)
+                    fifo_path=str(fifo_path), dispatcher_path=str(dispatcher_path)
                 )
                 # Note: PersistentTerminalManager is QObject, not QWidget - no qtbot.addWidget needed
 

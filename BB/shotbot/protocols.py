@@ -16,6 +16,29 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
+class SceneDataProtocol(Protocol):
+    """Common interface for Shot and ThreeDEScene data objects.
+
+    This protocol defines the shared interface between Shot and ThreeDEScene,
+    allowing ItemModels to work with either type through a common interface.
+    """
+
+    show: str
+    sequence: str
+    shot: str
+    workspace_path: str
+
+    @property
+    def full_name(self) -> str:
+        """Get full name of the scene/shot."""
+        ...
+
+    def get_thumbnail_path(self) -> Path | None:
+        """Get path to thumbnail image."""
+        ...
+
+
+@runtime_checkable
 class CacheableProtocol(Protocol):
     """Protocol for objects that can be cached."""
 

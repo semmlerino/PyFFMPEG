@@ -1,4 +1,4 @@
-"""Thread safety tests for OptimizedShotModel.
+"""Thread safety tests for ShotModel.
 
 This test suite validates thread safety guarantees and ensures no race conditions
 or deadlocks exist in the optimized implementation.
@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
-from shot_model_optimized import AsyncShotLoader, OptimizedShotModel
+from shot_model import AsyncShotLoader, ShotModel
 
 
 class TestAsyncShotLoaderThreadSafety:
@@ -112,15 +112,15 @@ workspace /shows/TEST/seq02/0030""")
         assert loader._stop_requested, "Stop should be requested"  # pyright: ignore[reportPrivateUsage]
 
 
-class TestOptimizedShotModelThreadSafety:
-    """Test thread safety of OptimizedShotModel."""
+class TestShotModelThreadSafety:
+    """Test thread safety of ShotModel."""
 
     def setup_method(self) -> None:
         """Set up test fixtures."""
         self.app = QApplication.instance() or QApplication([])
         self.temp_dir = tempfile.TemporaryDirectory()
         self.cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
-        self.model = OptimizedShotModel(self.cache_manager)
+        self.model = ShotModel(self.cache_manager)
 
     def teardown_method(self) -> None:
         """Clean up resources."""
@@ -282,14 +282,14 @@ class TestDeadlockDetection:
         cache_manager = CacheManager(cache_dir=Path(temp_dir.name))
 
         # Create multiple models
-        models = [OptimizedShotModel(cache_manager) for _ in range(5)]
+        models = [ShotModel(cache_manager) for _ in range(5)]
 
         # Start background operations on all
         for model in models:
             model.initialize_async()
 
         # Cleanup all concurrently
-        def cleanup_model(model: OptimizedShotModel) -> None:
+        def cleanup_model(model: ShotModel) -> None:
             model.cleanup()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -304,7 +304,7 @@ class TestDeadlockDetection:
         """Test that QueuedConnection signals prevent deadlock."""
         temp_dir = tempfile.TemporaryDirectory()
         cache_manager = CacheManager(cache_dir=Path(temp_dir.name))
-        model = OptimizedShotModel(cache_manager)
+        model = ShotModel(cache_manager)
 
         signal_processed = [False]
 
@@ -354,7 +354,7 @@ class TestStressAndPerformance:
         """Stress test with many concurrent operations."""
         temp_dir = tempfile.TemporaryDirectory()
         cache_manager = CacheManager(cache_dir=Path(temp_dir.name))
-        model = OptimizedShotModel(cache_manager)
+        model = ShotModel(cache_manager)
 
         operation_count = [0]
         error_count = [0]

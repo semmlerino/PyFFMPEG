@@ -12,8 +12,6 @@ from typing import Any
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication,
-    QGroupBox,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -21,7 +19,6 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QSlider,
-    QTabWidget,
     QTextEdit,
     QWidget,
 )
@@ -89,14 +86,31 @@ class TestColorPalette:
         palette = ColorPalette()
         # Test we can access all fields
         fields = [
-            "primary", "primary_hover", "primary_pressed",
-            "secondary", "secondary_hover", "secondary_pressed",
-            "success", "error", "warning", "info",
-            "bg_primary", "bg_secondary", "bg_tertiary",
-            "surface", "surface_hover", "surface_pressed",
-            "text_primary", "text_secondary", "text_disabled", "text_hint",
-            "border_default", "border_focus", "border_error",
-            "selection", "overlay"
+            "primary",
+            "primary_hover",
+            "primary_pressed",
+            "secondary",
+            "secondary_hover",
+            "secondary_pressed",
+            "success",
+            "error",
+            "warning",
+            "info",
+            "bg_primary",
+            "bg_secondary",
+            "bg_tertiary",
+            "surface",
+            "surface_hover",
+            "surface_pressed",
+            "text_primary",
+            "text_secondary",
+            "text_disabled",
+            "text_hint",
+            "border_default",
+            "border_focus",
+            "border_error",
+            "selection",
+            "overlay",
         ]
         for field in fields:
             assert hasattr(palette, field)
@@ -138,7 +152,12 @@ class TestTypography:
         assert typo.weight_bold == 600
 
         # Verify weight progression
-        assert typo.weight_light < typo.weight_regular < typo.weight_medium < typo.weight_bold
+        assert (
+            typo.weight_light
+            < typo.weight_regular
+            < typo.weight_medium
+            < typo.weight_bold
+        )
 
     def test_line_heights(self) -> None:
         """Test line height values."""
@@ -148,7 +167,9 @@ class TestTypography:
         assert typo.line_height_relaxed == 1.75
 
         # Verify progression
-        assert typo.line_height_tight < typo.line_height_normal < typo.line_height_relaxed
+        assert (
+            typo.line_height_tight < typo.line_height_normal < typo.line_height_relaxed
+        )
 
 
 class TestSpacing:
@@ -212,7 +233,12 @@ class TestBorders:
         assert borders.radius_round == "50%"
 
         # Verify progression for numeric radii
-        assert borders.radius_sm < borders.radius_md < borders.radius_lg < borders.radius_xl
+        assert (
+            borders.radius_sm
+            < borders.radius_md
+            < borders.radius_lg
+            < borders.radius_xl
+        )
 
 
 class TestShadows:
@@ -265,7 +291,12 @@ class TestAnimation:
         assert anim.duration_slow == 500
 
         # Verify progression
-        assert anim.duration_instant < anim.duration_fast < anim.duration_normal < anim.duration_slow
+        assert (
+            anim.duration_instant
+            < anim.duration_fast
+            < anim.duration_normal
+            < anim.duration_slow
+        )
 
     def test_easing_functions(self) -> None:
         """Test easing function strings."""
@@ -407,10 +438,23 @@ class TestDesignSystem:
         stylesheet = ds.get_stylesheet()
 
         widget_types = [
-            "QWidget", "QMainWindow", "QPushButton", "QLineEdit",
-            "QTextEdit", "QLabel", "QGroupBox", "QTabWidget",
-            "QTabBar", "QListWidget", "QScrollBar", "QStatusBar",
-            "QMenuBar", "QMenu", "QProgressBar", "QToolTip", "QSlider"
+            "QWidget",
+            "QMainWindow",
+            "QPushButton",
+            "QLineEdit",
+            "QTextEdit",
+            "QLabel",
+            "QGroupBox",
+            "QTabWidget",
+            "QTabBar",
+            "QListWidget",
+            "QScrollBar",
+            "QStatusBar",
+            "QMenuBar",
+            "QMenu",
+            "QProgressBar",
+            "QToolTip",
+            "QSlider",
         ]
 
         for widget in widget_types:
@@ -541,24 +585,30 @@ class TestQtIntegration:
         assert main_window.styleSheet() != ""
 
 
-@pytest.mark.parametrize("color_field,expected", [
-    ("primary", "#2196F3"),
-    ("success", "#4CAF50"),
-    ("error", "#F44336"),
-    ("warning", "#FF9800"),
-    ("bg_primary", "#1E1E1E"),
-])
+@pytest.mark.parametrize(
+    "color_field,expected",
+    [
+        ("primary", "#2196F3"),
+        ("success", "#4CAF50"),
+        ("error", "#F44336"),
+        ("warning", "#FF9800"),
+        ("bg_primary", "#1E1E1E"),
+    ],
+)
 def test_color_values_parametrized(color_field: str, expected: str) -> None:
     """Parametrized test for color values."""
     palette = ColorPalette()
     assert getattr(palette, color_field) == expected
 
 
-@pytest.mark.parametrize("size_field,min_value,max_value", [
-    ("size_h1", 20, 30),
-    ("size_body", 12, 16),
-    ("size_tiny", 9, 12),
-])
+@pytest.mark.parametrize(
+    "size_field,min_value,max_value",
+    [
+        ("size_h1", 20, 30),
+        ("size_body", 12, 16),
+        ("size_tiny", 9, 12),
+    ],
+)
 def test_font_sizes_in_range(size_field: str, min_value: int, max_value: int) -> None:
     """Test font sizes are within reasonable ranges."""
     typo = Typography()
@@ -566,12 +616,15 @@ def test_font_sizes_in_range(size_field: str, min_value: int, max_value: int) ->
     assert min_value <= size <= max_value
 
 
-@pytest.mark.parametrize("duration_field,expected", [
-    ("duration_instant", 100),
-    ("duration_fast", 200),
-    ("duration_normal", 300),
-    ("duration_slow", 500),
-])
+@pytest.mark.parametrize(
+    "duration_field,expected",
+    [
+        ("duration_instant", 100),
+        ("duration_fast", 200),
+        ("duration_normal", 300),
+        ("duration_slow", 500),
+    ],
+)
 def test_animation_durations(duration_field: str, expected: int) -> None:
     """Parametrized test for animation durations."""
     anim = Animation()
@@ -616,11 +669,21 @@ def test_all_colors_are_valid_hex_or_rgba() -> None:
         if not field.startswith("_"):
             value = getattr(palette, field)
             if isinstance(value, str) and (
-                field.startswith("text_") or
-                field.startswith("bg_") or
-                field.startswith("border_") or
-                field in ["primary", "secondary", "success", "error", "warning", "info",
-                         "surface", "selection", "overlay"]
+                field.startswith("text_")
+                or field.startswith("bg_")
+                or field.startswith("border_")
+                or field
+                in [
+                    "primary",
+                    "secondary",
+                    "success",
+                    "error",
+                    "warning",
+                    "info",
+                    "surface",
+                    "selection",
+                    "overlay",
+                ]
             ):
                 # Should be either hex or rgba
                 is_hex = hex_pattern.match(value) is not None

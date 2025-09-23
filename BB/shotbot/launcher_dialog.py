@@ -426,7 +426,9 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[
 class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc]
     """Main launcher management dialog."""
 
-    def __init__(self, launcher_manager: LauncherManager, parent: QWidget | None = None) -> None:
+    def __init__(
+        self, launcher_manager: LauncherManager, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self.launcher_manager = launcher_manager
         self._launchers_cache: dict[str, CustomLauncher] = {}

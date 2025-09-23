@@ -20,7 +20,6 @@ from PySide6.QtCore import QThread, Signal
 
 from cache_manager import CacheManager
 from shot_model import Shot, ShotModel
-from shot_model_optimized import OptimizedShotModel
 
 
 class TestFeatureFlagBehavior:
@@ -71,7 +70,7 @@ class TestFeatureFlagBehavior:
 
         # Create both models without loading cache to avoid subprocess calls
         standard_model = ShotModel(cache_manager, load_cache=False)
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
+        optimized_model = ShotModel(cache_manager, load_cache=False)
 
         # Check common methods exist
         common_methods = [
@@ -89,7 +88,7 @@ class TestFeatureFlagBehavior:
                 f"ShotModel missing method: {method_name}"
             )
             assert hasattr(optimized_model, method_name), (
-                f"OptimizedShotModel missing method: {method_name}"
+                f"ShotModel missing method: {method_name}"
             )
             assert callable(getattr(standard_model, method_name))
             assert callable(getattr(optimized_model, method_name))
@@ -99,7 +98,7 @@ class TestFeatureFlagBehavior:
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
         standard_model = ShotModel(cache_manager, load_cache=False)
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
+        optimized_model = ShotModel(cache_manager, load_cache=False)
 
         # Check common signals
         common_signals = [
@@ -117,7 +116,7 @@ class TestFeatureFlagBehavior:
                 f"ShotModel missing signal: {signal_name}"
             )
             assert hasattr(optimized_model, signal_name), (
-                f"OptimizedShotModel missing signal: {signal_name}"
+                f"ShotModel missing signal: {signal_name}"
             )
 
     def test_cache_sharing_between_models(self) -> None:
@@ -138,7 +137,7 @@ class TestFeatureFlagBehavior:
         assert len(standard_model.get_shots()) == 2
 
         # Load with optimized model - should get same data
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=True)
+        optimized_model = ShotModel(cache_manager, load_cache=True)
         assert len(optimized_model.get_shots()) == 2
 
         # Verify the shots are identical
@@ -147,9 +146,9 @@ class TestFeatureFlagBehavior:
         assert standard_shots == optimized_shots
 
     def test_optimized_model_cleanup(self) -> None:
-        """Test that OptimizedShotModel cleanup works correctly."""
+        """Test that ShotModel cleanup works correctly."""
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
+        optimized_model = ShotModel(cache_manager, load_cache=False)
 
         # Create a test double for async loader that has real Qt behavior
         class TestAsyncLoader(QThread):
@@ -206,7 +205,7 @@ class TestFeatureFlagBehavior:
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
         standard_model = ShotModel(cache_manager, load_cache=False)
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
+        optimized_model = ShotModel(cache_manager, load_cache=False)
 
         # Get metrics
         standard_metrics = standard_model.get_performance_metrics()

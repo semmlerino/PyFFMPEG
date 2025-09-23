@@ -666,7 +666,9 @@ class TestUserWorkflows:
 
     @pytest.mark.integration
     @pytest.mark.qt
-    @pytest.mark.skip(reason="Test has cache/async interference issues - needs proper isolation")
+    @pytest.mark.skip(
+        reason="Test has cache/async interference issues - needs proper isolation"
+    )
     def test_thumbnail_loading_workflow(self, qtbot: Any) -> None:
         """Test thumbnail loading and display workflow.
 
@@ -682,6 +684,7 @@ class TestUserWorkflows:
 
         # Use legacy model to avoid async loading interference in tests
         import os
+
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
         # Create real cache manager
@@ -689,10 +692,12 @@ class TestUserWorkflows:
 
         # Use a mock process pool to prevent workspace command execution
         from tests.test_doubles_library import TestProcessPool
+
         test_pool = TestProcessPool()
         test_pool.set_outputs("")  # Empty output, no shots
 
         from process_pool_factory import ProcessPoolFactory
+
         ProcessPoolFactory._test_instance = test_pool
 
         main_window = MainWindow(cache_manager=cache_manager)
@@ -767,22 +772,30 @@ class TestUserWorkflows:
         # Set shots on shot_model and call the handler directly
         # This simulates the normal flow without relying on signal connections
         main_window.shot_model.shots = all_shots
-        print(f"DEBUG: After assignment, shot_model.shots has {len(main_window.shot_model.shots)} items")
+        print(
+            f"DEBUG: After assignment, shot_model.shots has {len(main_window.shot_model.shots)} items"
+        )
         for i, shot in enumerate(main_window.shot_model.shots):
             print(f"  Model Shot {i}: {shot.show}/{shot.sequence}/{shot.shot}")
 
         main_window._on_shots_changed(all_shots)
 
         # Check shot model state before wait
-        print(f"DEBUG: BEFORE WAIT shot_model has {len(main_window.shot_model.shots)} shots")
+        print(
+            f"DEBUG: BEFORE WAIT shot_model has {len(main_window.shot_model.shots)} shots"
+        )
 
         # Wait for UI updates and thumbnail processing
         qtbot.wait(100)
 
         # Check shot model state after wait
-        print(f"DEBUG: AFTER WAIT shot_model has {len(main_window.shot_model.shots)} shots")
+        print(
+            f"DEBUG: AFTER WAIT shot_model has {len(main_window.shot_model.shots)} shots"
+        )
 
-        print(f"DEBUG: After wait, shot_model.shots has {len(main_window.shot_model.shots)} items")
+        print(
+            f"DEBUG: After wait, shot_model.shots has {len(main_window.shot_model.shots)} items"
+        )
         for i, shot in enumerate(main_window.shot_model.shots):
             print(f"  Final Shot {i}: {shot.show}/{shot.sequence}/{shot.shot}")
 

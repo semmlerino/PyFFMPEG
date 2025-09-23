@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from re import Match
+from re import Match, Pattern
 
 from config import Config
 
@@ -93,7 +93,7 @@ class RawPlateFinder:
         return None
 
     @staticmethod
-    def _get_plate_patterns(shot_name: str, plate_name: str, version: str):
+    def _get_plate_patterns(shot_name: str, plate_name: str, version: str) -> tuple[Pattern[str], Pattern[str]]:
         """Get or create compiled regex patterns for plate matching.
 
         Uses caching to avoid recompiling the same patterns.

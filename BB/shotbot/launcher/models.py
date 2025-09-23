@@ -44,7 +44,7 @@ class LauncherParameter:
     file_filter: str = ""  # For file/directory parameters
     placeholder: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate parameter configuration."""
         if not self.name:
             raise ValueError("Parameter name cannot be empty")
@@ -67,15 +67,25 @@ class LauncherParameter:
         # Validate numeric ranges
         if self.param_type in (ParameterType.INTEGER, ParameterType.FLOAT):
             if self.min_value is not None and self.max_value is not None:
-                if isinstance(self.min_value, (int, float)) and isinstance(self.max_value, (int, float)):
+                if isinstance(self.min_value, int | float) and isinstance(
+                    self.max_value, int | float
+                ):
                     if self.min_value > self.max_value:
                         raise ValueError("min_value cannot be greater than max_value")
 
             if self.default_value is not None:
-                if self.min_value is not None and isinstance(self.default_value, (int, float)) and isinstance(self.min_value, (int, float)):
+                if (
+                    self.min_value is not None
+                    and isinstance(self.default_value, int | float)
+                    and isinstance(self.min_value, int | float)
+                ):
                     if self.default_value < self.min_value:
                         raise ValueError("Default value is below minimum")
-                if self.max_value is not None and isinstance(self.default_value, (int, float)) and isinstance(self.max_value, (int, float)):
+                if (
+                    self.max_value is not None
+                    and isinstance(self.default_value, int | float)
+                    and isinstance(self.max_value, int | float)
+                ):
                     if self.default_value > self.max_value:
                         raise ValueError("Default value is above maximum")
 
@@ -105,7 +115,7 @@ class LauncherParameter:
                 return True
 
             elif self.param_type == ParameterType.FLOAT:
-                if not isinstance(value, (int, float)):
+                if not isinstance(value, int | float):
                     return False
                 if self.min_value is not None and value < self.min_value:
                     return False

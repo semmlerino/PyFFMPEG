@@ -14,7 +14,7 @@ from persistent_terminal_manager import PersistentTerminalManager
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state")  # CRITICAL: For parallel test safety
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL: For parallel test safety
 ]
 
 # Integration tests follow UNIFIED_TESTING_GUIDE principles:
@@ -48,23 +48,25 @@ class TestTerminalIntegrationFlow:
         return {
             "fifo": str(fifo_path),
             "dispatcher": str(dispatcher_path),
-            "tmp_path": tmp_path
+            "tmp_path": tmp_path,
         }
 
     @pytest.fixture
     def integrated_launcher(self, qtbot, temp_environment):
         """Create fully integrated launcher with persistent terminal."""
         # Create persistent terminal manager
-        with patch("os.mkfifo"), \
-             patch("os.path.exists", return_value=True), \
-             patch("os.stat") as mock_stat:
-
+        with (
+            patch("os.mkfifo"),
+            patch("os.path.exists", return_value=True),
+            patch("os.stat") as mock_stat,
+        ):
             import stat
+
             mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
 
             terminal_manager = PersistentTerminalManager(
                 fifo_path=temp_environment["fifo"],
-                dispatcher_path=temp_environment["dispatcher"]
+                dispatcher_path=temp_environment["dispatcher"],
             )
             # Note: PersistentTerminalManager is QObject, not QWidget - no qtbot.addWidget needed
 
@@ -78,7 +80,7 @@ class TestTerminalIntegrationFlow:
                 show="test_show",
                 sequence="seq01",
                 shot="0010",
-                workspace_path="/test/workspace"
+                workspace_path="/test/workspace",
             )
 
             return launcher
@@ -105,13 +107,18 @@ class TestTerminalIntegrationFlow:
         )
 
         # Mock subprocess for terminal launch
-        with patch("subprocess.Popen") as mock_popen, \
-             patch.object(integrated_launcher.persistent_terminal, "_is_terminal_alive", return_value=True), \
-             patch("os.open", return_value=42), \
-             patch("os.fdopen") as mock_fdopen, \
-             patch("config.Config.USE_PERSISTENT_TERMINAL", True), \
-             patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True):
-
+        with (
+            patch("subprocess.Popen") as mock_popen,
+            patch.object(
+                integrated_launcher.persistent_terminal,
+                "_is_terminal_alive",
+                return_value=True,
+            ),
+            patch("os.open", return_value=42),
+            patch("os.fdopen") as mock_fdopen,
+            patch("config.Config.USE_PERSISTENT_TERMINAL", True),
+            patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True),
+        ):
             # Set up mock process
             mock_process = MagicMock(pid=12345)
             mock_popen.return_value = mock_process
@@ -126,8 +133,16 @@ class TestTerminalIntegrationFlow:
             integrated_launcher.persistent_terminal.terminal_process = mock_process
 
             # Simulate UI action: Launch 3DE
-            with patch.object(integrated_launcher, "_is_rez_available", return_value=True), \
-                 patch.object(integrated_launcher, "_get_rez_packages_for_app", return_value=["3de"]):
+            with (
+                patch.object(
+                    integrated_launcher, "_is_rez_available", return_value=True
+                ),
+                patch.object(
+                    integrated_launcher,
+                    "_get_rez_packages_for_app",
+                    return_value=["3de"],
+                ),
+            ):
                 result = integrated_launcher.launch_app("3de")
 
             # Assert complete flow executed
@@ -161,17 +176,20 @@ class TestTerminalIntegrationFlow:
         )
 
         # Make persistent terminal fail
-        with patch.object(
-            integrated_launcher.persistent_terminal,
-            "send_command",
-            return_value=False
-        ), \
-        patch("subprocess.Popen") as mock_popen, \
-        patch.object(integrated_launcher, "_is_rez_available", return_value=True), \
-        patch.object(integrated_launcher, "_get_rez_packages_for_app", return_value=["nuke"]), \
-        patch("config.Config.USE_PERSISTENT_TERMINAL", True), \
-        patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True):
-
+        with (
+            patch.object(
+                integrated_launcher.persistent_terminal,
+                "send_command",
+                return_value=False,
+            ),
+            patch("subprocess.Popen") as mock_popen,
+            patch.object(integrated_launcher, "_is_rez_available", return_value=True),
+            patch.object(
+                integrated_launcher, "_get_rez_packages_for_app", return_value=["nuke"]
+            ),
+            patch("config.Config.USE_PERSISTENT_TERMINAL", True),
+            patch("config.Config.PERSISTENT_TERMINAL_ENABLED", True),
+        ):
             mock_process = MagicMock()
             mock_popen.return_value = mock_process
 
@@ -191,7 +209,8 @@ class TestTerminalIntegrationFlow:
 
             # Verify user was notified of fallback
             fallback_messages = [
-                msg for msg in command_signals
+                msg
+                for msg in command_signals
                 if "Persistent terminal not available" in msg or "Launching" in msg
             ]
             assert len(fallback_messages) > 0
@@ -208,13 +227,27 @@ class TestTerminalIntegrationFlow:
 
         # Simulate terminal dying and being restarted
         import errno
-        with patch("os.open") as mock_open, \
-             patch.object(integrated_launcher.persistent_terminal, "restart_terminal", side_effect=mock_restart) as mock_restart_method, \
-             patch.object(integrated_launcher.persistent_terminal, "_is_terminal_alive", return_value=True), \
-             patch.object(integrated_launcher.persistent_terminal, "_is_dispatcher_running", return_value=False), \
-             patch("os.path.exists", return_value=True), \
-             patch("os.fdopen") as mock_fdopen:
 
+        with (
+            patch("os.open") as mock_open,
+            patch.object(
+                integrated_launcher.persistent_terminal,
+                "restart_terminal",
+                side_effect=mock_restart,
+            ) as mock_restart_method,
+            patch.object(
+                integrated_launcher.persistent_terminal,
+                "_is_terminal_alive",
+                return_value=True,
+            ),
+            patch.object(
+                integrated_launcher.persistent_terminal,
+                "_is_dispatcher_running",
+                return_value=False,
+            ),
+            patch("os.path.exists", return_value=True),
+            patch("os.fdopen") as mock_fdopen,
+        ):
             # Create a side effect that tracks calls and simulates failure then success
             call_count = [0]
 
@@ -235,8 +268,7 @@ class TestTerminalIntegrationFlow:
 
             # Send command - should trigger restart
             result = integrated_launcher.persistent_terminal.send_command(
-                "test command",
-                ensure_terminal=True
+                "test command", ensure_terminal=True
             )
 
             # Assert restart happened and command succeeded
@@ -253,7 +285,7 @@ class TestTerminalIntegrationFlow:
             "terminal_started": [],
             "command_sent": [],
             "command_executed": [],
-            "command_error": []
+            "command_error": [],
         }
 
         # Connect all signals
@@ -272,8 +304,7 @@ class TestTerminalIntegrationFlow:
 
         # Test terminal start signal
         with qtbot.waitSignal(
-            integrated_launcher.persistent_terminal.terminal_started,
-            timeout=100
+            integrated_launcher.persistent_terminal.terminal_started, timeout=100
         ):
             integrated_launcher.persistent_terminal.terminal_started.emit(99999)
 
@@ -283,8 +314,7 @@ class TestTerminalIntegrationFlow:
         test_command = "echo 'Qt signal test'"
 
         with qtbot.waitSignal(
-            integrated_launcher.persistent_terminal.command_sent,
-            timeout=100
+            integrated_launcher.persistent_terminal.command_sent, timeout=100
         ):
             integrated_launcher.persistent_terminal.command_sent.emit(test_command)
 
@@ -296,11 +326,16 @@ class TestTerminalIntegrationFlow:
         commands_sent = []
 
         # Mock FIFO operations to track commands
-        with patch("os.open", return_value=42), \
-             patch("os.fdopen") as mock_fdopen, \
-             patch("os.path.exists", return_value=True), \
-             patch.object(integrated_launcher.persistent_terminal, "_is_terminal_alive", return_value=True):
-
+        with (
+            patch("os.open", return_value=42),
+            patch("os.fdopen") as mock_fdopen,
+            patch("os.path.exists", return_value=True),
+            patch.object(
+                integrated_launcher.persistent_terminal,
+                "_is_terminal_alive",
+                return_value=True,
+            ),
+        ):
             mock_file = MagicMock()
 
             def track_write(data):
@@ -317,7 +352,7 @@ class TestTerminalIntegrationFlow:
                 "echo 'Command 2'",
                 "echo 'Command 3'",
                 "ls -la",
-                "pwd"
+                "pwd",
             ]
 
             for cmd in test_commands:
@@ -340,12 +375,14 @@ class TestTerminalCleanup:
             fifo_path = Path(tmpdir) / "test.fifo"
 
             # Create manager
-            with patch("os.mkfifo"), \
-                 patch("os.path.exists", return_value=True), \
-                 patch("os.stat") as mock_stat, \
-                 patch("os.unlink") as mock_unlink:
-
+            with (
+                patch("os.mkfifo"),
+                patch("os.path.exists", return_value=True),
+                patch("os.stat") as mock_stat,
+                patch("os.unlink") as mock_unlink,
+            ):
                 import stat
+
                 mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
 
                 manager = PersistentTerminalManager(fifo_path=str(fifo_path))
@@ -354,9 +391,10 @@ class TestTerminalCleanup:
                 # Set terminal as running
                 manager.terminal_pid = 12345
 
-                with patch.object(manager, "_is_terminal_alive", return_value=True), \
-                     patch.object(manager, "close_terminal") as mock_close:
-
+                with (
+                    patch.object(manager, "_is_terminal_alive", return_value=True),
+                    patch.object(manager, "close_terminal") as mock_close,
+                ):
                     # Cleanup
                     manager.cleanup()
 
@@ -370,12 +408,14 @@ class TestTerminalCleanup:
         with tempfile.TemporaryDirectory() as tmpdir:
             fifo_path = Path(tmpdir) / "test.fifo"
 
-            with patch("os.mkfifo"), \
-                 patch("os.path.exists", return_value=True), \
-                 patch("os.stat") as mock_stat, \
-                 patch("os.unlink") as mock_unlink:
-
+            with (
+                patch("os.mkfifo"),
+                patch("os.path.exists", return_value=True),
+                patch("os.stat") as mock_stat,
+                patch("os.unlink") as mock_unlink,
+            ):
                 import stat
+
                 mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
 
                 manager = PersistentTerminalManager(fifo_path=str(fifo_path))

@@ -71,7 +71,6 @@ from PySide6.QtWidgets import (
 from typing_extensions import override
 
 if TYPE_CHECKING:
-    from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
     from launcher.models import CustomLauncher
@@ -104,7 +103,6 @@ from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel  # Model/View data model
 from shot_model import Shot, ShotModel
-from shot_model_optimized import OptimizedShotModel  # Performance-optimized model
 from thread_safe_worker import ThreadSafeWorker
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
@@ -223,40 +221,18 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Create 3DE item model for Model/View architecture
         self.threede_item_model = ThreeDEItemModel(cache_manager=self.cache_manager)
 
-        # Check feature flag - now defaults to True for optimized model
-        # Set SHOTBOT_USE_LEGACY_MODEL=1 to use old implementation if issues arise
-        try:
-            use_legacy = os.environ.get("SHOTBOT_USE_LEGACY_MODEL", "").lower() in (
-                "1",
-                "true",
-                "yes",
-            )
-        except Exception as e:
-            self.logger.warning(
-                f"Failed to read SHOTBOT_USE_LEGACY_MODEL environment variable: {e}"
-            )
-            use_legacy = False
+        # Create the shot model with async loading and instant UI display
+        self.logger.info("Creating ShotModel with 366x faster startup")
+        self.shot_model = ShotModel(self.cache_manager)
 
-        # Pass to models - OptimizedShotModel is now the default
-        if use_legacy:
-            self.logger.info("Using legacy ShotModel (SHOTBOT_USE_LEGACY_MODEL=1)")
-            # ShotModel inherits from BaseShotModel
-            shot_model_instance = cast("BaseShotModel", ShotModel(self.cache_manager))
-            self.shot_model = shot_model_instance
-        else:
-            self.logger.info("Using OptimizedShotModel with 366x faster startup")
-            # OptimizedShotModel inherits from BaseShotModel
-            optimized_model = OptimizedShotModel(self.cache_manager)
-            self.shot_model = cast("BaseShotModel", optimized_model)
-            # Initialize async loading for immediate UI display
-            init_result = optimized_model.initialize_async()
-            if init_result.success:
-                self.logger.debug(
-                    f"Optimized model initialized with {len(self.shot_model.shots)} cached shots"
-                )
+        # Initialize async loading for immediate UI display
+        init_result = self.shot_model.initialize_async()
+        if init_result.success:
+            self.logger.debug(
+                f"Model initialized with {len(self.shot_model.shots)} cached shots"
+            )
+
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
-        # At this point shot_model is guaranteed to be set
-        assert self.shot_model is not None, "shot_model must be initialized"
         self.previous_shots_model = PreviousShotsModel(
             self.shot_model, self.cache_manager
         )
@@ -531,7 +507,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         AccessibilityManager.setup_tab_widget_accessibility(self.tab_widget)
 
         # Add comprehensive tooltips
-        from typing import TYPE_CHECKING, cast
+        from typing import TYPE_CHECKING
 
         if TYPE_CHECKING:
             from accessibility_manager import MainWindowProtocol
@@ -616,14 +592,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _initial_load(self) -> None:
         """Initial shot loading - instant from cache or async."""
-        # Check if we're using OptimizedShotModel
-        if isinstance(self.shot_model, OptimizedShotModel):
-            # Async initialization was already called in __init__, just pre-warm sessions
-            self.logger.info("Using async initialization (already started in __init__)")
-            # Pre-warm sessions in background thread to avoid UI freeze
-            self._session_warmer = SessionWarmer()
-            self._session_warmer.start()
-            self.logger.debug("Session warmer thread started in background")
+        # Async initialization was already called in __init__, just pre-warm sessions
+        self.logger.info("Using async initialization (already started in __init__)")
+        # Pre-warm sessions in background thread to avoid UI freeze
+        self._session_warmer = SessionWarmer()
+        self._session_warmer.start()
+        self.logger.debug("Session warmer thread started in background")
 
         has_cached_shots = bool(self.shot_model.shots)
         has_cached_scenes = bool(self.threede_scene_model.scenes)
@@ -1867,9 +1841,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if hasattr(self.launcher_manager, "shutdown"):
             self.launcher_manager.shutdown()
 
-        # Clean up OptimizedShotModel if using it
-        if isinstance(self.shot_model, OptimizedShotModel):
-            self.logger.debug("Cleaning up OptimizedShotModel background threads")
+        # Clean up ShotModel background threads
+        if hasattr(self.shot_model, "cleanup"):
+            self.logger.debug("Cleaning up ShotModel background threads")
             self.shot_model.cleanup()
 
         # Clean up previous shots model (stops auto-refresh timer and worker)

@@ -17,8 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
-from shot_model import RefreshResult
-from shot_model_optimized import AsyncShotLoader, OptimizedShotModel
+from shot_model import AsyncShotLoader, RefreshResult, ShotModel
 from tests.test_doubles_library import TestProcessPool
 
 
@@ -171,7 +170,7 @@ class TestQThreadInterruptionFix:
     def test_no_terminate_call_in_cleanup(self) -> None:
         """Test that cleanup never calls terminate()."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
-        model = OptimizedShotModel(cache_manager)
+        model = ShotModel(cache_manager)
 
         # Use real AsyncShotLoader with TestProcessPoolDouble at boundary
         from tests.test_helpers import TestProcessPoolManager
@@ -262,7 +261,7 @@ class TestDoubleCheckedLockingFix:
     def test_loading_flag_always_checked_under_lock(self) -> None:
         """Test that _loading_in_progress is protected by lock via concurrent access."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
-        model = OptimizedShotModel(cache_manager)
+        model = ShotModel(cache_manager)
 
         # Use test double instead of mock
         test_pool = TestProcessPool()
@@ -305,7 +304,7 @@ class TestDoubleCheckedLockingFix:
     def test_concurrent_refresh_calls_safe(self) -> None:
         """Test that concurrent refresh calls don't cause race conditions."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
-        model = OptimizedShotModel(cache_manager)
+        model = ShotModel(cache_manager)
 
         results = []
         errors = []
@@ -410,7 +409,7 @@ class TestMemoryLeakPrevention:
     def test_loader_cleanup_prevents_leaks(self) -> None:
         """Test that loader cleanup prevents memory leaks."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
-        model = OptimizedShotModel(cache_manager)
+        model = ShotModel(cache_manager)
 
         # Create multiple loaders (simulating multiple refreshes)
         for _ in range(5):
@@ -468,7 +467,7 @@ class TestStressConditions:
     def test_many_concurrent_refreshes(self) -> None:
         """Test many concurrent refresh operations."""
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
-        model = OptimizedShotModel(cache_manager)
+        model = ShotModel(cache_manager)
 
         # Use test double to avoid real subprocess calls
         test_pool = TestProcessPool()

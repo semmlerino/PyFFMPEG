@@ -178,7 +178,7 @@ workspace /shows/TEST/seq02/0010"""
     return strategies
 
 
-def main():
+def main() -> None:
     """Run comprehensive startup performance profiling."""
     print("=" * 60)
     print("ShotBot Startup Performance Profiling")

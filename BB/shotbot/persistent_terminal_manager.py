@@ -292,7 +292,9 @@ class PersistentTerminalManager(QObject):
                             "No reader available for FIFO, attempting to restart terminal..."
                         )
                         if self.restart_terminal():
-                            logger.info("Terminal restarted successfully, retrying command...")
+                            logger.info(
+                                "Terminal restarted successfully, retrying command..."
+                            )
                             time.sleep(0.5)  # Give terminal time to set up
                             continue  # Retry the command
                         else:

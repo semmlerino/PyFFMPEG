@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from base_grid_view import BaseGridView
-from shot_grid_delegate_refactored import ShotGridDelegate
+from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
 from thumbnail_widget_base import FolderOpenerWorker

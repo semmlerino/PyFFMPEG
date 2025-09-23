@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test error recovery scenarios for OptimizedShotModel."""
+"""Test error recovery scenarios for ShotModel."""
 
 import time
 from typing import NoReturn
@@ -7,7 +7,7 @@ from typing import NoReturn
 import pytest
 from PySide6.QtTest import QSignalSpy
 
-from shot_model_optimized import AsyncShotLoader, OptimizedShotModel
+from shot_model import AsyncShotLoader, ShotModel
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -40,7 +40,7 @@ class TestErrorRecovery:
     @pytest.fixture
     def error_prone_model(self, real_cache_manager):
         """Create model for error testing."""
-        return OptimizedShotModel(real_cache_manager)
+        return ShotModel(real_cache_manager)
 
     def test_network_failure_recovery(self, error_prone_model, qtbot) -> None:
         """Test recovery from network/filesystem failures."""

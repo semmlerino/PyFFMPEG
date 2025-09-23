@@ -15,7 +15,6 @@ from base_shot_model import BaseShotModel
 from cache_manager import CacheManager
 from main_window import MainWindow
 from shot_model import Shot, ShotModel
-from shot_model_optimized import OptimizedShotModel
 
 # Import test doubles instead of using raw Mock()
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -55,7 +54,7 @@ class TestFeatureFlagSwitching:
         self.temp_dir.cleanup()
 
     def test_standard_model_when_flag_not_set(self, qapp, qtbot) -> None:
-        """Test that OptimizedShotModel is used when legacy flag is not set (default behavior)."""
+        """Test that ShotModel is used when legacy flag is not set (default behavior)."""
         # Clear environment variable to use default
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
@@ -79,8 +78,8 @@ class TestFeatureFlagSwitching:
                     window = MainWindow()
                     qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
-                    # Verify OptimizedShotModel is used by default
-                    assert isinstance(window.shot_model, OptimizedShotModel)
+                    # Verify ShotModel is used by default
+                    assert isinstance(window.shot_model, ShotModel)
                     assert isinstance(window.shot_model, BaseShotModel)
 
                     # Clean up any threads if present
@@ -110,7 +109,7 @@ class TestFeatureFlagSwitching:
 
                     # Verify ShotModel is used when legacy flag is set
                     assert isinstance(window.shot_model, ShotModel)
-                    assert not isinstance(window.shot_model, OptimizedShotModel)
+                    assert not isinstance(window.shot_model, ShotModel)
 
                     # Clean up any threads if present
                     if hasattr(window, "_threede_worker") and window._threede_worker:
@@ -132,11 +131,11 @@ class TestFeatureFlagSwitching:
             ("yes", True),  # Use legacy ShotModel
             ("Yes", True),  # Use legacy ShotModel
             ("YES", True),  # Use legacy ShotModel
-            ("0", False),  # Use default OptimizedShotModel
-            ("false", False),  # Use default OptimizedShotModel
-            ("no", False),  # Use default OptimizedShotModel
-            ("invalid", False),  # Use default OptimizedShotModel
-            ("", False),  # Use default OptimizedShotModel
+            ("0", False),  # Use default ShotModel
+            ("false", False),  # Use default ShotModel
+            ("no", False),  # Use default ShotModel
+            ("invalid", False),  # Use default ShotModel
+            ("", False),  # Use default ShotModel
         ]
 
         for value, expected_legacy in test_cases:
@@ -153,7 +152,7 @@ class TestFeatureFlagSwitching:
                     with patch("PySide6.QtCore.QTimer.singleShot"):
                         # Handle different model types with appropriate mocking
                         if not expected_legacy:
-                            # Use OptimizedShotModel, need to mock ProcessPoolManager
+                            # Use ShotModel, need to mock ProcessPoolManager
                             with patch(
                                 "process_pool_manager.ProcessPoolManager.get_instance"
                             ) as mock_get_instance:
@@ -165,9 +164,9 @@ class TestFeatureFlagSwitching:
                                     window
                                 )  # CRITICAL: Register for cleanup
 
-                                assert isinstance(
-                                    window.shot_model, OptimizedShotModel
-                                ), f"Expected OptimizedShotModel for value '{value}'"
+                                assert isinstance(window.shot_model, ShotModel), (
+                                    f"Expected ShotModel for value '{value}'"
+                                )
 
                                 # Clean up any threads if present
                                 if (
@@ -186,9 +185,9 @@ class TestFeatureFlagSwitching:
                             assert isinstance(window.shot_model, ShotModel), (
                                 f"Expected ShotModel for value '{value}'"
                             )
-                            assert not isinstance(
-                                window.shot_model, OptimizedShotModel
-                            ), f"Should not be OptimizedShotModel for value '{value}'"
+                            assert not isinstance(window.shot_model, ShotModel), (
+                                f"Should not be ShotModel for value '{value}'"
+                            )
 
                             # Clean up any threads if present
                             if (
@@ -208,7 +207,7 @@ class TestFeatureFlagSwitching:
 
         # Create both models
         standard_model = ShotModel(cache_manager, load_cache=False)
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
+        optimized_model = ShotModel(cache_manager, load_cache=False)
 
         # Check common methods exist in both
         common_methods = [
@@ -226,7 +225,7 @@ class TestFeatureFlagSwitching:
                 f"ShotModel missing method: {method_name}"
             )
             assert hasattr(optimized_model, method_name), (
-                f"OptimizedShotModel missing method: {method_name}"
+                f"ShotModel missing method: {method_name}"
             )
 
             # Verify they're callable
@@ -239,7 +238,7 @@ class TestFeatureFlagSwitching:
 
         # Create both models
         standard_model = ShotModel(cache_manager, load_cache=False)
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
+        optimized_model = ShotModel(cache_manager, load_cache=False)
 
         # Check common signals exist
         common_signals = [
@@ -257,7 +256,7 @@ class TestFeatureFlagSwitching:
                 f"ShotModel missing signal: {signal_name}"
             )
             assert hasattr(optimized_model, signal_name), (
-                f"OptimizedShotModel missing signal: {signal_name}"
+                f"ShotModel missing signal: {signal_name}"
             )
 
     def test_cache_sharing_between_models(self) -> None:
@@ -278,7 +277,7 @@ class TestFeatureFlagSwitching:
         assert len(standard_model.get_shots()) == 2
 
         # Load with optimized model - should get same cached data
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=True)
+        optimized_model = ShotModel(cache_manager, load_cache=True)
         assert len(optimized_model.get_shots()) == 2
 
         # Verify the shots are the same
@@ -291,7 +290,7 @@ class TestFeatureFlagSwitching:
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
         # Create optimized model
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
+        optimized_model = ShotModel(cache_manager, load_cache=False)
 
         # Create a test double for async loader
         class TestAsyncLoader:
@@ -348,7 +347,7 @@ class TestFeatureFlagSwitching:
 
         # Create both models
         standard_model = ShotModel(cache_manager, load_cache=False)
-        optimized_model = OptimizedShotModel(cache_manager, load_cache=False)
+        optimized_model = ShotModel(cache_manager, load_cache=False)
 
         # Get metrics from both
         standard_metrics = standard_model.get_performance_metrics()
@@ -390,7 +389,7 @@ class TestMainWindowIntegration:
 
             # Mock QTimer to prevent delayed operations
             with patch("PySide6.QtCore.QTimer.singleShot"):
-                # Mock ProcessPoolManager for OptimizedShotModel
+                # Mock ProcessPoolManager for ShotModel
                 with patch(
                     "process_pool_manager.ProcessPoolManager.get_instance"
                 ) as mock_get_instance:
@@ -402,7 +401,7 @@ class TestMainWindowIntegration:
                     qtbot.addWidget(window)  # CRITICAL: Register for cleanup
                     assert window is not None
                     assert window.shot_model is not None
-                    assert isinstance(window.shot_model, OptimizedShotModel)
+                    assert isinstance(window.shot_model, ShotModel)
 
                     # Clean up any threads if present
                     if hasattr(window, "_threede_worker") and window._threede_worker:
@@ -430,7 +429,7 @@ class TestMainWindowIntegration:
                     assert window is not None
                     assert window.shot_model is not None
                     assert isinstance(window.shot_model, ShotModel)
-                    assert not isinstance(window.shot_model, OptimizedShotModel)
+                    assert not isinstance(window.shot_model, ShotModel)
 
                     # Clean up any threads if present
                     if hasattr(window, "_threede_worker") and window._threede_worker:
@@ -442,8 +441,8 @@ class TestMainWindowIntegration:
             os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
     def test_closeEvent_handles_optimized_model(self, qapp, qtbot) -> None:
-        """Test that closeEvent properly handles OptimizedShotModel cleanup (default behavior)."""
-        # Use default OptimizedShotModel (no environment variable needed)
+        """Test that closeEvent properly handles ShotModel cleanup (default behavior)."""
+        # Use default ShotModel (no environment variable needed)
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
         try:

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Test concurrent operations and race conditions in OptimizedShotModel."""
+"""Test concurrent operations and race conditions in ShotModel."""
 
 import threading
 import time
 
 import pytest
 
-from shot_model_optimized import OptimizedShotModel
+from shot_model import ShotModel
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -30,8 +30,8 @@ class TestConcurrentOperations:
 
     @pytest.fixture
     def concurrent_model(self, real_cache_manager):
-        """Create OptimizedShotModel for concurrent testing."""
-        model = OptimizedShotModel(real_cache_manager)
+        """Create ShotModel for concurrent testing."""
+        model = ShotModel(real_cache_manager)
 
         # Use test double for process pool to avoid real subprocess calls
         test_pool = TestProcessPoolDouble("workspace /test/concurrent/0010")

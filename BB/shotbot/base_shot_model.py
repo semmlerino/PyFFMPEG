@@ -127,15 +127,7 @@ class BaseShotModel(LoggingMixin, QObject):
 
         Returns:
             List of Shot objects parsed from the output
-
-        Raises:
-            WorkspaceError: If output is not a string
         """
-        # Validate input type for defensive programming
-        if not isinstance(output, str):
-            from exceptions import WorkspaceError
-            raise WorkspaceError(f"Invalid workspace output type: expected str, got {type(output).__name__}")
-
         shots: list[Shot] = []
         lines = output.strip().split("\n")
 

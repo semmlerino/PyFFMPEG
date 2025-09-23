@@ -721,7 +721,11 @@ class CommandLauncher(LoggingMixin, QObject):
         self.command_executed.emit(timestamp, full_command)
 
         # Use persistent terminal if available and enabled
-        if self.persistent_terminal and Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
+        if (
+            self.persistent_terminal
+            and Config.PERSISTENT_TERMINAL_ENABLED
+            and Config.USE_PERSISTENT_TERMINAL
+        ):
             # Add & for GUI apps when using persistent terminal
             command_to_send = full_command
             if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
@@ -732,9 +736,13 @@ class CommandLauncher(LoggingMixin, QObject):
                     command_to_send = full_command.rstrip('"') + ' &"'
                 else:
                     command_to_send = full_command + " &"
-                self.logger.debug(f"Added & for GUI app {app_name} in persistent terminal")
+                self.logger.debug(
+                    f"Added & for GUI app {app_name} in persistent terminal"
+                )
 
-            self.logger.info(f"Sending command to persistent terminal: {command_to_send}")
+            self.logger.info(
+                f"Sending command to persistent terminal: {command_to_send}"
+            )
             self.logger.debug(
                 f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
             )
@@ -751,7 +759,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 self.command_executed.emit(
                     timestamp,
-                    "⚠ Persistent terminal not available, launching in new terminal..."
+                    "⚠ Persistent terminal not available, launching in new terminal...",
                 )
                 # Fall through to launch new terminal - WITHOUT the & operator
 
@@ -862,7 +870,11 @@ class CommandLauncher(LoggingMixin, QObject):
         )
 
         # Use persistent terminal if available and enabled
-        if self.persistent_terminal and Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
+        if (
+            self.persistent_terminal
+            and Config.PERSISTENT_TERMINAL_ENABLED
+            and Config.USE_PERSISTENT_TERMINAL
+        ):
             # Add & for GUI apps when using persistent terminal
             command_to_send = full_command
             if Config.AUTO_BACKGROUND_GUI_APPS and self._is_gui_app(app_name):
@@ -898,7 +910,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 self.command_executed.emit(
                     timestamp,
-                    "⚠ Persistent terminal not available, launching in new terminal..."
+                    "⚠ Persistent terminal not available, launching in new terminal...",
                 )
                 # Fall through to launch new terminal - WITHOUT the & operator
 

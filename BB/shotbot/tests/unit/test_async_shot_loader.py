@@ -9,7 +9,7 @@ import pytest
 from PySide6.QtTest import QSignalSpy
 
 from base_shot_model import BaseShotModel
-from shot_model_optimized import AsyncShotLoader, OptimizedShotModel
+from shot_model import AsyncShotLoader, ShotModel
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 
 
@@ -170,13 +170,13 @@ class TestAsyncShotLoader:
                     loader.wait(1000)
 
 
-class TestOptimizedShotModelSignals:
-    """Test OptimizedShotModel signal emission patterns."""
+class TestShotModelSignals:
+    """Test ShotModel signal emission patterns."""
 
     @pytest.fixture
     def optimized_model(self, real_cache_manager, qtbot):
-        """Create OptimizedShotModel for testing."""
-        model = OptimizedShotModel(real_cache_manager)
+        """Create ShotModel for testing."""
+        model = ShotModel(real_cache_manager)
         # model is a QObject, not a widget
         return model
 

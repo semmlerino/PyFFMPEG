@@ -10,9 +10,13 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from error_handling_mixin import ErrorHandlingMixin
 from logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from logging_mixin import ContextualLogger
 from utils import VersionUtils
 
 
@@ -20,7 +24,7 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
     """Manages Nuke scripts in the VFX pipeline workspace."""
 
     @classmethod
-    def _get_logger(cls):
+    def _get_logger(cls) -> ContextualLogger:
         """Get a logger for static methods."""
         # Create a temporary instance to get the logger
         if not hasattr(cls, "_logger_instance"):

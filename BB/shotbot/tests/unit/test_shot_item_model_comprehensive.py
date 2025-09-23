@@ -72,7 +72,7 @@ class TestAsyncCallbackRaceConditions:
         model.set_shots(test_shots[1:])  # Remove first shot
 
         # Now simulate the async callback for the removed shot
-        # This should be handled gracefully by _find_shot_by_full_name returning None
+        # This should be handled gracefully by _find_item_by_full_name returning None
         future.set_result(Path("/fake/cache/path.jpg"))
 
         # This should not crash even though the shot no longer exists
@@ -86,20 +86,20 @@ class TestAsyncCallbackRaceConditions:
         assert shots_updated_spy.count() == 1  # From set_shots call
 
     def test_find_shot_by_full_name_race_protection(self, model, test_shots) -> None:
-        """Test _find_shot_by_full_name handles concurrent access safely."""
+        """Test _find_item_by_full_name handles concurrent access safely."""
         model.set_shots(test_shots)
 
         target_shot = test_shots[1]
 
         # Should find existing shot
-        result = model._find_shot_by_full_name(target_shot.full_name)
+        result = model._find_item_by_full_name(target_shot.full_name)
         assert result is not None
         shot, row = result
         assert shot.full_name == target_shot.full_name
         assert row == 1
 
         # Should return None for non-existent shot
-        result = model._find_shot_by_full_name("nonexistent_shot")
+        result = model._find_item_by_full_name("nonexistent_shot")
         assert result is None
 
     def test_immutable_shot_identifier_capture(

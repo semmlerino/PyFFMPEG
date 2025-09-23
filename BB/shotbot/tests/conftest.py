@@ -1162,7 +1162,7 @@ def cleanup_qt_resources():
 
     # After test completes, clean up Qt resources
     try:
-        from PySide6.QtCore import QCoreApplication, QTimer, QObject, Qt
+        from PySide6.QtCore import QCoreApplication, QObject, Qt, QTimer
         from PySide6.QtWidgets import QApplication
 
         app = QCoreApplication.instance()
@@ -1177,7 +1177,7 @@ def cleanup_qt_resources():
                     # Disconnect all signals to prevent crashes
                     try:
                         widget.disconnect()
-                    except:
+                    except (RuntimeError, TypeError):
                         pass
                 except (RuntimeError, AttributeError):
                     # Widget already deleted or no signals
@@ -1199,7 +1199,7 @@ def cleanup_qt_resources():
             # Clean up any remaining QObjects
             for obj in app.findChildren(QObject):
                 try:
-                    if hasattr(obj, 'deleteLater'):
+                    if hasattr(obj, "deleteLater"):
                         obj.deleteLater()
                 except RuntimeError:
                     pass
@@ -1218,6 +1218,7 @@ def cleanup_qt_resources():
     except Exception as e:
         # Don't let cleanup errors fail tests, but log for debugging
         import sys
+
         print(f"Warning: Qt cleanup error: {e}", file=sys.stderr)
         pass
 
@@ -1234,8 +1235,8 @@ def mock_gui_blocking_components(monkeypatch):
     5. PersistentTerminalManager FIFO operations don't block tests
 
     This fixes the MainWindow test hang issue where:
-    - MainWindow creates OptimizedShotModel
-    - OptimizedShotModel starts AsyncShotLoader threads
+    - MainWindow creates ShotModel
+    - ShotModel starts AsyncShotLoader threads
     - AsyncShotLoader threads may call NotificationManager.error()
     - NotificationManager.error() calls QMessageBox.critical() from worker thread
     - QMessageBox from non-main thread causes Qt to hang/crash
