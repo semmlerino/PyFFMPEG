@@ -8,8 +8,13 @@ import re
 import tempfile
 from pathlib import Path
 
+from logging_mixin import LoggingMixin, get_module_logger
 
-class NukeScriptGenerator:
+# Module-level logger for static methods
+logger = get_module_logger(__name__)
+
+
+class NukeScriptGenerator(LoggingMixin):
     """Generate temporary Nuke scripts with proper Read nodes.
 
     This class tracks temporary files and ensures they are cleaned up
@@ -407,13 +412,10 @@ Viewer {{
         Returns:
             Line with sanitized node names
         """
-        import logging
         import re
 
         if " name " not in line:
             return line
-
-        logger = logging.getLogger(__name__)
 
         def sanitize_name(match: re.Match[str]) -> str:
             prefix = match.group(1)
@@ -475,10 +477,6 @@ Viewer {{
         Returns:
             String containing the processed content to insert
         """
-        import logging
-
-        logger = logging.getLogger(__name__)
-
         try:
             logger.debug(
                 f"Attempting copy/paste format import from: {undistortion_path}"
@@ -666,10 +664,6 @@ Viewer {{
         Returns:
             String containing the processed content to insert
         """
-        import logging
-
-        logger = logging.getLogger(__name__)
-
         try:
             logger.debug(f"Starting undistortion import from: {undistortion_path}")
 
@@ -1134,9 +1128,6 @@ Read {{
 
             # Import undistortion nodes if provided
             if undistortion_path and Path(undistortion_path).exists():
-                import logging
-
-                logger = logging.getLogger(__name__)
                 logger.info(
                     f"Attempting to import undistortion nodes from: {undistortion_path}"
                 )
@@ -1206,9 +1197,6 @@ StickyNote {{
 }}
 """
             elif undistortion_path:
-                import logging
-
-                logger = logging.getLogger(__name__)
                 logger.error(
                     f"Undistortion path provided but file does not exist: {undistortion_path}"
                 )

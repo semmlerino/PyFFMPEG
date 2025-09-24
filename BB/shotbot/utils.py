@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from config import Config
+from logging_mixin import LoggingMixin, get_module_logger
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 # Performance monitoring removed - was using archived module
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 # Cache for path existence checks (with TTL)
 _path_cache: dict[str, tuple[bool, float]] = {}
@@ -53,7 +54,7 @@ def enable_caching() -> None:
     logger.debug("Caching re-enabled after testing")
 
 
-class CacheIsolation:
+class CacheIsolation(LoggingMixin):
     """Context manager for cache isolation in tests."""
 
     def __init__(self) -> None:
@@ -102,7 +103,7 @@ def get_cache_stats() -> dict[str, object]:
     return stats
 
 
-class PathUtils:
+class PathUtils(LoggingMixin):
     """Utilities for path construction and validation."""
 
     @staticmethod
@@ -698,7 +699,7 @@ class PathUtils:
         return found_plates
 
 
-class VersionUtils:
+class VersionUtils(LoggingMixin):
     """Utilities for handling versioned directories and files."""
 
     # Pattern for version directories (v001, v002, etc.)
@@ -884,7 +885,7 @@ class VersionUtils:
         return max_version + 1
 
 
-class FileUtils:
+class FileUtils(LoggingMixin):
     """Utilities for file operations and validation."""
 
     @staticmethod
@@ -1052,7 +1053,7 @@ class FileUtils:
             return False
 
 
-class ImageUtils:
+class ImageUtils(LoggingMixin):
     """Utilities for image validation and processing."""
 
     @staticmethod
@@ -1139,7 +1140,7 @@ class ImageUtils:
         )
 
 
-class ValidationUtils:
+class ValidationUtils(LoggingMixin):
     """Common validation utilities."""
 
     @staticmethod

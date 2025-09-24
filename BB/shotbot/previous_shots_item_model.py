@@ -6,8 +6,7 @@ inherits common functionality from BaseItemModel, reducing code duplication.
 
 from __future__ import annotations
 
-import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QObject,
@@ -18,13 +17,11 @@ from typing_extensions import override
 
 from base_item_model import BaseItemModel
 from shot_item_model import ShotRole  # Reuse the same roles
-from shot_model import Shot
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
     from previous_shots_model import PreviousShotsModel
-
-logger = logging.getLogger(__name__)
+    from shot_model import Shot
 
 
 class PreviousShotsItemModel(BaseItemModel["Shot"]):
@@ -64,7 +61,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # Initialize with current shots
         self._update_shots()
 
-        logger.info(f"PreviousShotsItemModel initialized with {len(self._items)} shots")
+        self.logger.info(f"PreviousShotsItemModel initialized with {len(self._items)} shots")
 
     # ============= Implement abstract methods =============
 
@@ -93,7 +90,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         return f"{item.show} / {item.sequence} / {item.shot}\n{item.workspace_path}"
 
     @override
-    def get_custom_role_data(self, item: Shot, role: int) -> Any:
+    def get_custom_role_data(self, item: Shot, role: int) -> object:
         """Handle shot-specific custom roles.
 
         Args:
@@ -138,7 +135,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # (model reset, cache clearing, selection update)
         self.set_items(new_shots)
 
-        logger.debug(f"Updated model with {len(new_shots)} previous shots")
+        self.logger.debug(f"Updated model with {len(new_shots)} previous shots")
 
     def get_selected_shot(self) -> Shot | None:
         """Get the currently selected shot.
@@ -186,6 +183,6 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # Emit filter changed signal for UI updates
         filter_display = show if show is not None else "All Shows"
         self.show_filter_changed.emit(filter_display)
-        logger.info(
+        self.logger.info(
             f"Applied show filter: {filter_display}, {len(filtered_shots)} shots"
         )

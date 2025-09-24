@@ -107,21 +107,30 @@ def test_headless_app_creation() -> None:
 
     from headless_mode import HeadlessMode
 
-    # Clean up any existing application
-    if QCoreApplication.instance():
-        QCoreApplication.instance().quit()
+    # Check if application already exists
+    existing_app = QCoreApplication.instance()
 
-    # Create headless application
-    app = HeadlessMode.create_headless_application([])
+    if existing_app:
+        # Test is running under pytest-qt, use existing app
+        logger.info("Using existing QApplication from test framework")
 
-    assert app is not None, "Should create application"
-    logger.info("✅ Creates QApplication successfully")
+        # Test that headless mode can configure existing app
+        HeadlessMode.configure_qt_for_headless()
 
-    assert os.environ.get("QT_QPA_PLATFORM") == "offscreen", "Should be offscreen"
-    logger.info("✅ Application uses offscreen platform")
+        assert os.environ.get("QT_QPA_PLATFORM") == "offscreen", "Should be offscreen"
+        logger.info("✅ Configured existing application for headless mode")
+    else:
+        # No existing app, create one
+        app = HeadlessMode.create_headless_application([])
 
-    # Clean up
-    app.quit()
+        assert app is not None, "Should create application"
+        logger.info("✅ Creates QApplication successfully")
+
+        assert os.environ.get("QT_QPA_PLATFORM") == "offscreen", "Should be offscreen"
+        logger.info("✅ Application uses offscreen platform")
+
+        # Clean up
+        app.quit()
 
 
 def test_headless_main_window() -> None:

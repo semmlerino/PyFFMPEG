@@ -146,7 +146,7 @@ def patch_threede_scene_worker() -> bool:
 def verify_patches() -> bool:
     """Verify that critical files have proper thread safety"""
 
-    checks = []
+    checks: list[tuple[str, bool]] = []
 
     # Check ThreeDESceneWorker
     worker_file = Path("threede_scene_worker.py")

@@ -136,7 +136,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
 
         # Set up error signal expectation with parameter checking
         def check_error_contains_timeout(error_msg):
-            return "Timeout" in error_msg
+            return "timed out" in error_msg.lower()
 
         with qtbot.waitSignal(
             model.error_occurred, check_params_cb=check_error_contains_timeout

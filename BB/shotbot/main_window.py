@@ -242,8 +242,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         if USE_SIMPLIFIED_LAUNCHER:
             # Use new simplified launcher (500 lines vs 2,872 lines)
-            from simplified_launcher import SimplifiedLauncher
             from process_pool_factory import ProcessPoolFactory
+            from simplified_launcher import SimplifiedLauncher
 
             self.logger.info("Using SimplifiedLauncher - streamlined process management")
             self.command_launcher = SimplifiedLauncher()

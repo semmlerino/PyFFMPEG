@@ -17,12 +17,13 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import QMutex, QMutexLocker, Qt, Signal, Slot
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal, Slot
 from typing_extensions import override
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from cache_manager import CacheManager
@@ -143,8 +144,8 @@ class AsyncShotLoader(LoggingMixin, ThreadSafeWorker):
     def __init__(
         self,
         process_pool: ProcessPoolInterface,
-        parse_function: Any = None,
-        parent: Any = None,
+        parse_function: Callable[[str], list[Shot]] | None = None,
+        parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self.process_pool = process_pool
@@ -409,7 +410,7 @@ class ShotModel(BaseShotModel):
         # use synchronous refresh for compatibility
         if (
             hasattr(self._process_pool, "__class__")
-            and self._process_pool.__class__.__name__ == "TestProcessPool"
+            and self._process_pool.__class__.__name__ in ["TestProcessPool", "TestProcessPoolManager"]
         ):
             return self.refresh_shots_sync()
 
@@ -562,7 +563,7 @@ class ShotModel(BaseShotModel):
             # Execute workspace command synchronously
             output = self._process_pool.execute_workspace_command(
                 "ws -sg",
-                cache_ttl=30,  # 30 second cache
+                cache_ttl=300,  # 5 minute cache (consistent with AsyncShotLoader)
                 timeout=30,
             )
 
@@ -633,7 +634,7 @@ class ShotModel(BaseShotModel):
     @property
     def test_process_pool(self) -> ProcessPoolInterface:
         """Test-only access to process pool manager."""
-        return self._process_pool  # type: ignore[return-value]
+        return self._process_pool
 
     def test_load_from_cache(self) -> bool:
         """Test-only access to _load_from_cache method."""

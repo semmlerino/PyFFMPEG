@@ -393,6 +393,17 @@ class TestCacheIntegration:
         for thread in threads:
             thread.join(timeout=5.0)  # 5 second timeout
 
+        # Ensure all threads are terminated before continuing
+        still_alive = [t for t in threads if t.is_alive()]
+        if still_alive:
+            # Give threads more time if needed
+            for thread in still_alive:
+                thread.join(timeout=5.0)
+
+            # Final check - fail test if threads are still running
+            still_alive = [t for t in threads if t.is_alive()]
+            assert not still_alive, f"Threads failed to terminate: {len(still_alive)} threads still running"
+
         # Verify results
         assert len(errors) == 0, f"Concurrent access errors: {errors}"
         assert len(results) == 3

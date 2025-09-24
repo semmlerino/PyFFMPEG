@@ -7,7 +7,7 @@ inherits common functionality from BaseItemModel, reducing code duplication.
 from __future__ import annotations
 
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from typing_extensions import override
 
@@ -101,7 +101,7 @@ class ShotItemModel(BaseItemModel[Shot]):
         return f"{item.show} / {item.sequence} / {item.shot}\n{item.workspace_path}"
 
     @override
-    def get_custom_role_data(self, item: Shot, role: int) -> Any:
+    def get_custom_role_data(self, item: Shot, role: int) -> object:
         """Handle shot-specific custom roles.
 
         Args:

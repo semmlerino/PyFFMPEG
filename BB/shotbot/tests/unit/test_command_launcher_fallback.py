@@ -86,7 +86,7 @@ class TestCommandLauncherPersistentTerminalFallback:
 
     def test_launch_with_persistent_terminal_success(
         self, launcher_with_persistent_terminal, mock_shot, mock_persistent_terminal
-    ):
+    ) -> None:
         """Test successful launch with persistent terminal."""
         # Arrange
         launcher_with_persistent_terminal.current_shot = mock_shot
@@ -124,7 +124,7 @@ class TestCommandLauncherPersistentTerminalFallback:
 
     def test_launch_with_scene_persistent_terminal_fallback(
         self, launcher_with_persistent_terminal, mock_shot, mock_persistent_terminal
-    ):
+    ) -> None:
         """Test fallback to new terminal when persistent terminal fails (3DE scene case)."""
         # This tests the critical bug fix
 
@@ -200,7 +200,7 @@ class TestCommandLauncherPersistentTerminalFallback:
 
     def test_launch_without_persistent_terminal(
         self, launcher_without_persistent_terminal, mock_shot
-    ):
+    ) -> None:
         """Test launch without persistent terminal configured."""
         # Arrange
         launcher_without_persistent_terminal.current_shot = mock_shot
@@ -235,7 +235,7 @@ class TestCommandLauncherPersistentTerminalFallback:
 
     def test_launch_with_persistent_terminal_disabled_in_config(
         self, launcher_with_persistent_terminal, mock_shot, mock_persistent_terminal
-    ):
+    ) -> None:
         """Test that persistent terminal is not used when disabled in config."""
         # Arrange
         launcher_with_persistent_terminal.current_shot = mock_shot
@@ -267,7 +267,7 @@ class TestCommandLauncherPersistentTerminalFallback:
 
     def test_command_building_with_background_operator(
         self, launcher_with_persistent_terminal, mock_shot
-    ):
+    ) -> None:
         """Test command building with background operator for GUI apps."""
         # Arrange
         launcher_with_persistent_terminal.current_shot = mock_shot
@@ -333,7 +333,7 @@ class TestCommandLauncherPersistentTerminalFallback:
 
     def test_non_gui_app_no_background_operator(
         self, launcher_with_persistent_terminal, mock_shot
-    ):
+    ) -> None:
         """Test non-GUI apps don't get background operator."""
         # Arrange
         launcher_with_persistent_terminal.current_shot = mock_shot
@@ -374,13 +374,13 @@ class TestCommandLauncherPersistentTerminalFallback:
         assert not command.strip().endswith(" &")
 
     @pytest.mark.parametrize("app_name", ["3de", "nuke", "maya", "rv"])
-    def test_gui_app_detection(self, launcher_with_persistent_terminal, app_name):
+    def test_gui_app_detection(self, launcher_with_persistent_terminal, app_name) -> None:
         """Test GUI app detection for various VFX applications."""
         # All these should be detected as GUI apps
         assert launcher_with_persistent_terminal._is_gui_app(app_name) is True
 
     @pytest.mark.parametrize("app_name", ["python", "bash", "ls", "echo"])
-    def test_non_gui_app_detection(self, launcher_with_persistent_terminal, app_name):
+    def test_non_gui_app_detection(self, launcher_with_persistent_terminal, app_name) -> None:
         """Test non-GUI app detection."""
         assert launcher_with_persistent_terminal._is_gui_app(app_name) is False
 
@@ -389,7 +389,7 @@ class TestCommandLauncherSignals:
     """Test Qt signal emission in CommandLauncher."""
 
     @pytest.mark.qt
-    def test_signals_on_successful_launch(self, qtbot):
+    def test_signals_on_successful_launch(self, qtbot) -> None:
         """Test signals emitted on successful launch."""
         launcher = CommandLauncher()
         # Note: CommandLauncher is QObject, not QWidget - no qtbot.addWidget needed
@@ -406,7 +406,7 @@ class TestCommandLauncherSignals:
         assert "test command" in blocker.args[1]
 
     @pytest.mark.qt
-    def test_error_signal_on_failure(self, qtbot):
+    def test_error_signal_on_failure(self, qtbot) -> None:
         """Test error signal emission on failure."""
         launcher = CommandLauncher()
         # Note: CommandLauncher is QObject, not QWidget - no qtbot.addWidget needed

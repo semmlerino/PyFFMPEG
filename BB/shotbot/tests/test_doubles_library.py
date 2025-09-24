@@ -1225,8 +1225,9 @@ class TestProcessPool:
         if self.fail_with_timeout:
             raise TimeoutError("Test process pool configured to timeout")
 
-        if self.outputs and self.current_output_index < len(self.outputs):
-            output = self.outputs[self.current_output_index]
+        if self.outputs:
+            # Return outputs in sequence for tests that expect changing data
+            output = self.outputs[self.current_output_index % len(self.outputs)]
             self.current_output_index += 1
             return output
 

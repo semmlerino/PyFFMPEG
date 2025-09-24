@@ -1141,6 +1141,52 @@ def thread_safety_monitor():
 
 
 @pytest.fixture(autouse=True)
+def ensure_clean_state_before_test():
+    """Ensure clean state BEFORE each test to prevent crashes.
+
+    This fixture runs BEFORE each test to clean up any leftover state
+    from previous tests that could cause crashes.
+    """
+    import sys
+    import threading
+    import time
+
+    # Wait for any background threads to complete
+    initial_thread_count = threading.active_count()
+    if initial_thread_count > 1:
+        # Give threads time to finish
+        time.sleep(0.1)
+
+    # Clean up ProcessPoolManager singleton BEFORE test starts
+    try:
+        from process_pool_manager import ProcessPoolManager
+        # Check if singleton was created by a previous test
+        if ProcessPoolManager._instance is not None:
+            print("DEBUG: Found existing ProcessPoolManager, cleaning up before test", file=sys.stderr)
+            # Shutdown the executor to clean up threads
+            ProcessPoolManager._instance.shutdown(timeout=2.0)
+            # Reset the singleton so test gets a fresh instance
+            ProcessPoolManager._instance = None
+    except Exception as e:
+        print(f"Warning: Pre-test ProcessPoolManager cleanup error: {e}", file=sys.stderr)
+
+    # Clean up QThreadPool
+    try:
+        from PySide6.QtCore import QThreadPool
+        pool = QThreadPool.globalInstance()
+        if pool.activeThreadCount() > 0:
+            print(f"DEBUG: Waiting for {pool.activeThreadCount()} QThreadPool threads", file=sys.stderr)
+            pool.waitForDone(2000)  # Wait up to 2 seconds
+    except Exception as e:
+        print(f"Warning: QThreadPool cleanup error: {e}", file=sys.stderr)
+
+    # Now let the test run
+    yield
+
+    # No cleanup here - that's handled by cleanup_qt_resources
+
+
+@pytest.fixture(autouse=True)
 def cleanup_qt_resources():
     """Clean up Qt resources after each test to prevent resource exhaustion.
 
@@ -1150,19 +1196,38 @@ def cleanup_qt_resources():
     3. Clear virtually visible widgets tracking
     4. Run garbage collection to free memory
     5. Clean up any lingering QTimers and connections
+    6. Shutdown ProcessPoolManager singleton to clean up threads
 
     This prevents:
     - Fatal Python errors from Qt resource corruption
     - Timeouts when creating QImage/QPixmap objects
     - Memory leaks from accumulated widgets
     - State corruption between tests
+    - Thread leaks from ProcessPoolManager singleton
     """
     # Let test run first
     yield
 
+    # Clean up ProcessPoolManager singleton threads FIRST before Qt cleanup
+    try:
+        import sys
+
+        from process_pool_manager import ProcessPoolManager
+        # Check if singleton was created
+        if ProcessPoolManager._instance is not None:
+            print("DEBUG: Cleaning up ProcessPoolManager singleton", file=sys.stderr)
+            # Shutdown the executor to clean up threads
+            ProcessPoolManager._instance.shutdown(timeout=2.0)
+            # Reset the singleton so next test gets a fresh instance
+            ProcessPoolManager._instance = None
+            print("DEBUG: ProcessPoolManager cleanup complete", file=sys.stderr)
+    except Exception as e:
+        import sys
+        print(f"Warning: ProcessPoolManager cleanup error: {e}", file=sys.stderr)
+
     # After test completes, clean up Qt resources
     try:
-        from PySide6.QtCore import QCoreApplication, QObject, Qt, QTimer
+        from PySide6.QtCore import QCoreApplication, QObject, Qt, QThread, QTimer
         from PySide6.QtWidgets import QApplication
 
         app = QCoreApplication.instance()
@@ -1188,6 +1253,18 @@ def cleanup_qt_resources():
                 try:
                     child.stop()
                     child.deleteLater()
+                except RuntimeError:
+                    pass
+
+            # Clean up any QThreads (CRITICAL for preventing crashes)
+            for thread in app.findChildren(QThread):
+                try:
+                    if thread.isRunning():
+                        thread.quit()
+                        if not thread.wait(1000):  # Wait up to 1 second
+                            thread.terminate()  # Force terminate if still running
+                            thread.wait(100)
+                    thread.deleteLater()
                 except RuntimeError:
                     pass
 
@@ -1338,16 +1415,19 @@ def pytest_collection_modifyitems(items) -> None:
     The gui_mainwindow marker groups these tests together so they execute
     serially within one worker process while other tests run in parallel.
     """
-    for item in items:
-        # Mark all MainWindow tests to run in same xdist group
-        if "gui_mainwindow" in item.keywords:
-            item.add_marker(pytest.mark.xdist_group("gui_mainwindow"))
-
-        # Also group tests that use real QApplication fixtures
-        if any(
-            fixture in item.fixturenames
-            for fixture in ["qapp", "qtbot", "qt_signal_blocker"]
-        ):
-            # If it's an integration test with MainWindow, use gui_mainwindow group
-            if "integration" in str(item.fspath) and "MainWindow" in item.name:
-                item.add_marker(pytest.mark.xdist_group("gui_mainwindow"))
+    # Disabled automatic marker addition - we manage xdist_group explicitly in test files
+    # This prevents conflicts between different group names (qt_state vs gui_mainwindow)
+    pass
+    # for item in items:
+    #     # Mark all MainWindow tests to run in same xdist group
+    #     if "gui_mainwindow" in item.keywords:
+    #         item.add_marker(pytest.mark.xdist_group("gui_mainwindow"))
+    #
+    #     # Also group tests that use real QApplication fixtures
+    #     if any(
+    #         fixture in item.fixturenames
+    #         for fixture in ["qapp", "qtbot", "qt_signal_blocker"]
+    #     ):
+    #         # If it's an integration test with MainWindow, use gui_mainwindow group
+    #         if "integration" in str(item.fspath) and "MainWindow" in item.name:
+    #             item.add_marker(pytest.mark.xdist_group("gui_mainwindow"))

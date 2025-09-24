@@ -88,7 +88,7 @@ class TestTerminalIntegrationFlow:
     @pytest.mark.qt
     def test_end_to_end_command_flow_with_persistent_terminal(
         self, qtbot, integrated_launcher
-    ):
+    ) -> None:
         """Test complete flow: UI trigger → persistent terminal → command execution."""
         # Track all signals in the flow
         command_sent_signals = []
@@ -163,7 +163,7 @@ class TestTerminalIntegrationFlow:
     @pytest.mark.qt
     def test_fallback_flow_when_persistent_terminal_fails(
         self, qtbot, integrated_launcher
-    ):
+    ) -> None:
         """Test fallback flow: persistent terminal fails → new terminal launched."""
         error_signals = []
         command_signals = []
@@ -216,11 +216,11 @@ class TestTerminalIntegrationFlow:
             assert len(fallback_messages) > 0
 
     @pytest.mark.qt
-    def test_auto_restart_on_terminal_death(self, qtbot, integrated_launcher):
+    def test_auto_restart_on_terminal_death(self, qtbot, integrated_launcher) -> None:
         """Test terminal auto-restart when it dies unexpectedly."""
         restart_count = 0
 
-        def mock_restart():
+        def mock_restart() -> bool:
             nonlocal restart_count
             restart_count += 1
             return True
@@ -251,7 +251,7 @@ class TestTerminalIntegrationFlow:
             # Create a side effect that tracks calls and simulates failure then success
             call_count = [0]
 
-            def open_side_effect(*args, **kwargs):
+            def open_side_effect(*args, **kwargs) -> int:
                 call_count[0] += 1
                 if call_count[0] == 1:
                     # First attempt fails with ENXIO
@@ -277,7 +277,7 @@ class TestTerminalIntegrationFlow:
             mock_file.write.assert_called_with("test command\n")
 
     @pytest.mark.qt
-    def test_signal_flow_with_qt_event_loop(self, qtbot, integrated_launcher):
+    def test_signal_flow_with_qt_event_loop(self, qtbot, integrated_launcher) -> None:
         """Test Qt signal propagation through the system."""
         # This tests that signals work correctly with Qt's event loop
 
@@ -321,7 +321,7 @@ class TestTerminalIntegrationFlow:
         assert test_command in signals_received["command_sent"]
 
     @pytest.mark.qt
-    def test_concurrent_command_handling(self, qtbot, integrated_launcher):
+    def test_concurrent_command_handling(self, qtbot, integrated_launcher) -> None:
         """Test handling multiple rapid commands."""
         commands_sent = []
 
@@ -338,7 +338,7 @@ class TestTerminalIntegrationFlow:
         ):
             mock_file = MagicMock()
 
-            def track_write(data):
+            def track_write(data) -> None:
                 commands_sent.append(data.strip())
 
             mock_file.write = track_write
@@ -369,7 +369,7 @@ class TestTerminalCleanup:
     """Test proper cleanup of terminal resources."""
 
     @pytest.mark.qt
-    def test_cleanup_on_application_exit(self, qtbot):
+    def test_cleanup_on_application_exit(self, qtbot) -> None:
         """Test terminal cleanup when application exits."""
         with tempfile.TemporaryDirectory() as tmpdir:
             fifo_path = Path(tmpdir) / "test.fifo"
@@ -403,7 +403,7 @@ class TestTerminalCleanup:
                     mock_unlink.assert_called_with(str(fifo_path))
 
     @pytest.mark.qt
-    def test_cleanup_fifo_only_keeps_terminal(self, qtbot):
+    def test_cleanup_fifo_only_keeps_terminal(self, qtbot) -> None:
         """Test FIFO-only cleanup keeps terminal running."""
         with tempfile.TemporaryDirectory() as tmpdir:
             fifo_path = Path(tmpdir) / "test.fifo"

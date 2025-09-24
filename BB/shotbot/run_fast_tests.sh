@@ -12,11 +12,14 @@ if [ -d "venv" ]; then
 fi
 
 # Run tests excluding slow categories
+# Use --dist=loadgroup to respect xdist_group markers
 python -m pytest tests/ \
     -m "not slow and not performance and not stress" \
     --tb=short \
     --maxfail=10 \
     --timeout=10 \
+    -n auto \
+    --dist=loadgroup \
     -q
 
 # Capture exit code

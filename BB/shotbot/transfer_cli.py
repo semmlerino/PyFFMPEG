@@ -13,6 +13,7 @@ import os
 import sys
 import tarfile
 from datetime import datetime
+from typing import cast
 
 
 class FolderEncoder:
@@ -164,7 +165,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Validate folder path
-    folder_path = os.path.abspath(args.folder)
+    folder_path = os.path.abspath(cast("str", args.folder))
     if not os.path.exists(folder_path):
         print(f"Error: Folder not found: {folder_path}", file=sys.stderr)
         sys.exit(1)
@@ -176,26 +177,29 @@ def main() -> None:
     try:
         # Calculate folder size
         folder_size = get_folder_size(folder_path)
-        if args.verbose:
+        verbose = cast("bool", args.verbose)
+        if verbose:
             size_mb = folder_size / (1024 * 1024)
             print(f"Folder size: {size_mb:.2f} MB", file=sys.stderr)
 
         # Create encoder
-        encoder = FolderEncoder(chunk_size_kb=args.chunk_size, verbose=args.verbose)
+        chunk_size = cast("int", args.chunk_size)
+        encoder = FolderEncoder(chunk_size_kb=chunk_size, verbose=verbose)
 
         # Encode folder
         encoded, chunks = encoder.encode_folder(folder_path)
 
         # Prepare metadata if requested
         metadata = None
-        if args.metadata:
+        metadata_flag = cast("bool", args.metadata)
+        if metadata_flag:
             metadata = {
                 "timestamp": datetime.now().isoformat(),
                 "folder_name": os.path.basename(folder_path),
                 "folder_path": folder_path,
                 "original_size_bytes": folder_size,
                 "encoded_size_bytes": len(encoded),
-                "chunk_size_kb": args.chunk_size,
+                "chunk_size_kb": chunk_size,
                 "total_chunks": len(chunks) if chunks else 1,
                 "compression_ratio": folder_size / len(encoded)
                 if len(encoded) > 0
@@ -203,20 +207,24 @@ def main() -> None:
             }
 
         # Handle output
-        if chunks and args.chunk_dir:
+        chunk_dir = cast("str | None", args.chunk_dir)
+        single_file = cast("bool", args.single_file)
+        output_file = cast("str | None", args.output)
+
+        if chunks and chunk_dir:
             # Save chunks to individual files
-            os.makedirs(args.chunk_dir, exist_ok=True)
+            os.makedirs(chunk_dir, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             folder_name = os.path.basename(folder_path)
 
             for i, chunk in enumerate(chunks, 1):
                 chunk_file = os.path.join(
-                    args.chunk_dir,
+                    chunk_dir,
                     f"{folder_name}_{timestamp}_chunk_{i:03d}_of_{len(chunks):03d}.txt",
                 )
                 with open(chunk_file, "w") as f:
                     f.write(chunk)
-                if args.verbose:
+                if verbose:
                     print(
                         f"Saved chunk {i}/{len(chunks)}: {chunk_file}",
                         file=sys.stderr,
@@ -225,15 +233,15 @@ def main() -> None:
             # Save metadata file if requested
             if metadata:
                 metadata_file = os.path.join(
-                    args.chunk_dir,
+                    chunk_dir,
                     f"{folder_name}_{timestamp}_metadata.json",
                 )
                 with open(metadata_file, "w") as f:
                     json.dump(metadata, f, indent=2)
-                if args.verbose:
+                if verbose:
                     print(f"Saved metadata: {metadata_file}", file=sys.stderr)
 
-        elif chunks and args.single_file:
+        elif chunks and single_file:
             # Combine all chunks into a single file with separators
             output_content = ""
             if metadata:
@@ -246,11 +254,11 @@ def main() -> None:
                     output_content += "\n---CHUNK_SEPARATOR---\n"
                 output_content += chunk
 
-            if args.output:
-                with open(args.output, "w") as f:
+            if output_file:
+                with open(output_file, "w") as f:
                     f.write(output_content)
-                if args.verbose:
-                    print(f"Saved combined chunks to: {args.output}", file=sys.stderr)
+                if verbose:
+                    print(f"Saved combined chunks to: {output_file}", file=sys.stderr)
             else:
                 print(output_content)
 
@@ -270,15 +278,15 @@ def main() -> None:
                 folder_name = os.path.basename(folder_path)
                 output_content += f"FOLDER_TRANSFER_V1|1|1|{folder_name}\n{encoded}"
 
-            if args.output:
-                with open(args.output, "w") as f:
+            if output_file:
+                with open(output_file, "w") as f:
                     f.write(output_content)
-                if args.verbose:
-                    print(f"Saved to: {args.output}", file=sys.stderr)
+                if verbose:
+                    print(f"Saved to: {output_file}", file=sys.stderr)
             else:
                 print(output_content)
 
-        if args.verbose:
+        if verbose:
             print("Encoding completed successfully", file=sys.stderr)
 
     except Exception as e:

@@ -6,15 +6,11 @@ inherits common functionality from BaseItemModel, reducing code duplication.
 
 from __future__ import annotations
 
-import logging
-import os
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QModelIndex,
-    QMutex,
-    QMutexLocker,
     QObject,
     Qt,
     Signal,
@@ -25,50 +21,6 @@ from base_item_model import BaseItemModel, BaseItemRole
 
 if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
-
-logger = logging.getLogger(__name__)
-
-# Thread-safe logging mutex to prevent recursion issues in VFX environments
-_log_mutex = QMutex()
-_log_recursion_depth = 0
-_max_log_recursion = 3
-
-
-def safe_log_info(message: str) -> None:
-    """Thread-safe logging wrapper to prevent RecursionError in logging system.
-
-    This addresses a known issue in Qt/PySide6 applications where Python's
-    logging formatter can enter infinite recursion in the usesTime() method.
-
-    Args:
-        message: Log message to output safely
-    """
-    global _log_recursion_depth
-
-    # Guard against deep recursion
-    if _log_recursion_depth >= _max_log_recursion:
-        # Write directly to stderr to avoid any further recursion
-        try:
-            os.write(2, f"[RECURSION GUARD] {message}\n".encode())
-        except Exception:
-            pass
-        return
-
-    _log_recursion_depth += 1
-    try:
-        with QMutexLocker(_log_mutex):
-            logger.info(message)
-    except RecursionError:
-        # Fallback: write directly to stderr
-        try:
-            os.write(2, f"[RECURSION ERROR] {message}\n".encode())
-        except Exception:
-            pass
-    except Exception:
-        # Fallback: silent failure to prevent crashes
-        pass
-    finally:
-        _log_recursion_depth -= 1
 
 
 class ThreeDERole(IntEnum):
@@ -112,7 +64,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
     def __init__(
         self,
-        cache_manager=None,
+        cache_manager: QObject | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the 3DE item model.
@@ -130,7 +82,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         # (BaseItemModel provides items_updated)
         self.scenes_updated = self.items_updated
 
-        safe_log_info("ThreeDEItemModel initialized with Model/View architecture")
+        self.logger.info("ThreeDEItemModel initialized with Model/View architecture")
 
     # ============= Implement abstract methods =============
 
@@ -162,7 +114,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         return tooltip
 
     @override
-    def get_custom_role_data(self, item: ThreeDEScene, role: int) -> Any:
+    def get_custom_role_data(self, item: ThreeDEScene, role: int) -> object:
         """Handle 3DE-specific custom roles.
 
         Args:
@@ -206,7 +158,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             self.endResetModel()
             self.scenes_updated.emit()
 
-        safe_log_info(f"Set {len(scenes)} 3DE scenes in model")
+        self.logger.info(f"Set {len(scenes)} 3DE scenes in model")
 
     def set_show_filter(
         self, threede_scene_model: ThreeDESceneModel, show: str | None
@@ -230,7 +182,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             # Emit filter changed signal for UI updates
             filter_display = show if show is not None else "All Shows"
             self.show_filter_changed.emit(filter_display)
-            safe_log_info(
+            self.logger.info(
                 f"Applied show filter: {filter_display}, {len(filtered_scenes)} scenes"
             )
         finally:
@@ -341,7 +293,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             except (RuntimeError, TypeError):
                 pass  # Already disconnected or no connections
 
-        safe_log_info("ThreeDEItemModel resources cleaned up")
+        self.logger.info("ThreeDEItemModel resources cleaned up")
 
     def deleteLater(self) -> None:
         """Override deleteLater to ensure cleanup."""

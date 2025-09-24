@@ -161,7 +161,7 @@ class TestErrorRecovery:
         from cache_manager import CacheManager
 
         # Use test double returning partial data
-        class PartialDataPool:
+        class TestProcessPool:  # Named to match the check in refresh_strategy
             def execute_workspace_command(self, command=None, **kwargs) -> str:
                 # Return proper VFX path format: /shows/{show}/shots/{seq}/{seq}_{shot}
                 return """workspace /shows/test/shots/seq01/seq01_0010
@@ -174,7 +174,7 @@ workspace /shows/test/shots/seq03/seq03_0030"""
         from shot_model import ShotModel
 
         model = ShotModel(CacheManager(), load_cache=False)
-        model._process_pool = PartialDataPool()
+        model._process_pool = TestProcessPool()
 
         result = model.refresh_shots()
 

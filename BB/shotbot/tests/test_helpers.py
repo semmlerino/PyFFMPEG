@@ -146,6 +146,10 @@ class TestProcessPoolManager:
         self.command_failed = SignalDouble()
         self.should_fail = False
         self.failure_message = "Test failure"
+        # Simple cache implementation for testing
+        self._cache: dict[str, tuple[str, float]] = {}  # command -> (output, timestamp)
+        import time
+        self._time = time
 
     def execute_workspace_command(self, command: str, **kwargs) -> str:
         """Execute a workspace command (mocked).
@@ -156,6 +160,16 @@ class TestProcessPoolManager:
         Raises:
             Exception: When should_fail is True (matches real ProcessPoolManager behavior)
         """
+        cache_ttl = kwargs.get("cache_ttl", 0)
+
+        # Check cache if TTL > 0
+        if cache_ttl > 0 and command in self._cache:
+            cached_output, cached_time = self._cache[command]
+            if self._time.time() - cached_time < cache_ttl:
+                # Return cached result without executing command
+                return cached_output
+
+        # Execute command (not cached or cache expired)
         self.commands.append(command)
 
         if self.should_fail:
@@ -167,6 +181,11 @@ class TestProcessPoolManager:
                 raise RuntimeError(self.failure_message)
 
         output = self.outputs[0] if self.outputs else ""
+
+        # Cache the result if TTL > 0
+        if cache_ttl > 0:
+            self._cache[command] = (output, self._time.time())
+
         self.command_completed.emit(command, output)
         return output
 
@@ -200,6 +219,12 @@ class TestProcessPoolManager:
         self.commands.clear()
         self.command_completed.clear()
         self.command_failed.clear()
+        self._cache.clear()
+
+    def invalidate_cache(self, command: str) -> None:
+        """Invalidate cache for a specific command (test double implementation)."""
+        if command in self._cache:
+            del self._cache[command]
 
     @classmethod
     def get_instance(cls) -> TestProcessPoolManager:

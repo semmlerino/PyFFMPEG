@@ -128,6 +128,9 @@ class BaseShotModel(LoggingMixin, QObject):
         Returns:
             List of Shot objects parsed from the output
         """
+        # Input is guaranteed to be str by type annotation
+        # Removed unnecessary isinstance check per basedpyright reportUnnecessaryIsInstance
+
         shots: list[Shot] = []
         lines = output.strip().split("\n")
 

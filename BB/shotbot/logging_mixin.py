@@ -159,13 +159,16 @@ class LoggingMixin:
 
 
 def log_execution(
+    func: Callable[P, T] | None = None,
+    *,
     include_args: bool = False,
     include_result: bool = False,
     log_level: int = logging.INFO,
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
+) -> Callable[[Callable[P, T]], Callable[P, T]] | Callable[P, T]:
     """Decorator to automatically log method/function execution with timing.
 
     Args:
+        func: Function to decorate (when used without parentheses)
         include_args: Whether to log function arguments (default: False for privacy)
         include_result: Whether to log return value (default: False for privacy)
         log_level: Logging level to use (default: INFO)
@@ -182,17 +185,17 @@ def log_execution(
             pass
     """
 
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
-        @functools.wraps(func)
+    def decorator(inner_func: Callable[P, T]) -> Callable[P, T]:
+        @functools.wraps(inner_func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Get logger - try to use instance logger if available, otherwise module logger
             if args and hasattr(args[0], "logger") and hasattr(args[0].logger, "info"):  # type: ignore[attr-defined]
                 logger = args[0].logger  # type: ignore[attr-defined]
             else:
-                logger = ContextualLogger(logging.getLogger(func.__module__))
+                logger = ContextualLogger(logging.getLogger(inner_func.__module__))
 
             # Create execution context
-            func_name = f"{func.__qualname__}"
+            func_name = f"{inner_func.__qualname__}"
             start_time = time.time()
 
             # Log function start
@@ -228,7 +231,7 @@ def log_execution(
 
             try:
                 # Execute function
-                result = func(*args, **kwargs)
+                result = inner_func(*args, **kwargs)
 
                 # Calculate execution time
                 execution_time = time.time() - start_time
@@ -266,7 +269,13 @@ def log_execution(
 
         return wrapper
 
-    return decorator
+    # Handle both @log_execution and @log_execution() cases
+    if func is None:
+        # Called with parentheses: @log_execution()
+        return decorator
+    else:
+        # Called without parentheses: @log_execution
+        return decorator(func)
 
 
 # Convenience function for setting up module-level logging

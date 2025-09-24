@@ -10,7 +10,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from enum import IntEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from PySide6.QtCore import (
     Q_ARG,
@@ -101,11 +101,12 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         # Ensure we're in the main thread for Qt model creation
         from PySide6.QtCore import QCoreApplication, QThread
 
-        if not QThread.currentThread() == QCoreApplication.instance().thread():
+        app = QCoreApplication.instance()
+        if app and not QThread.currentThread() == app.thread():
             raise RuntimeError(
                 f"{self.__class__.__name__} must be created in the main thread. "
                 f"Current thread: {QThread.currentThread()}, "
-                f"Main thread: {QCoreApplication.instance().thread()}"
+                f"Main thread: {app.thread()}"
             )
         super().__init__(parent)
 
@@ -157,7 +158,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         self,
         index: QModelIndex | QPersistentModelIndex,
         role: int = Qt.ItemDataRole.DisplayRole,
-    ) -> Any:
+    ) -> object:
         """Get data for the given index and role.
 
         Args:
@@ -241,7 +242,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
     def setData(
         self,
         index: QModelIndex | QPersistentModelIndex,
-        value: Any,
+        value: object,
         role: int = Qt.ItemDataRole.EditRole,
     ) -> bool:
         """Set data for the given index and role.
@@ -276,7 +277,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         # Handle loading state
         if role == BaseItemRole.LoadingStateRole:
             with QMutexLocker(self._cache_mutex):
-                self._loading_states[item.full_name] = value
+                self._loading_states[item.full_name] = str(value) if value is not None else ""
             self.dataChanged.emit(index, index, [BaseItemRole.LoadingStateRole])
             return True
 
@@ -716,7 +717,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
             Config.DEFAULT_THUMBNAIL_SIZE + 40,
         )
 
-    def get_custom_role_data(self, item: T, role: int) -> Any | None:
+    def get_custom_role_data(self, item: T, role: int) -> object | None:
         """Handle model-specific custom roles.
 
         Args:
@@ -730,7 +731,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         """
         return None
 
-    def set_custom_data(self, item: T, value: Any | None, role: int) -> bool:
+    def set_custom_data(self, item: T, value: object | None, role: int) -> bool:
         """Handle model-specific data setting.
 
         Args:

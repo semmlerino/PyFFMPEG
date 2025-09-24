@@ -57,7 +57,7 @@ class TestPersistentTerminalManager:
 
             return manager
 
-    def test_initialization(self, terminal_manager, temp_fifo, temp_dispatcher):
+    def test_initialization(self, terminal_manager, temp_fifo, temp_dispatcher) -> None:
         """Test manager initializes with correct paths."""
         # Test BEHAVIOR: manager sets up correct paths
         assert terminal_manager.fifo_path == temp_fifo
@@ -70,7 +70,7 @@ class TestPersistentTerminalManager:
     @patch("os.stat")
     def test_ensure_fifo_creates_when_missing(
         self, mock_stat, mock_mkfifo, mock_exists
-    ):
+    ) -> None:
         """Test FIFO creation when it doesn't exist."""
         # Arrange: FIFO doesn't exist initially
         mock_exists.side_effect = [False, True]  # Not exists, then exists
@@ -84,7 +84,7 @@ class TestPersistentTerminalManager:
 
     @patch("os.path.exists", return_value=True)
     @patch("os.stat")
-    def test_ensure_fifo_validates_existing_fifo(self, mock_stat, mock_exists):
+    def test_ensure_fifo_validates_existing_fifo(self, mock_stat, mock_exists) -> None:
         """Test FIFO validation for existing path."""
         # Arrange: Path exists but is not a FIFO
         mock_stat.return_value = MagicMock(st_mode=stat.S_IFREG | 0o600)  # Regular file
@@ -96,13 +96,13 @@ class TestPersistentTerminalManager:
         # This tests BEHAVIOR - the manager should handle invalid FIFOs gracefully
         assert manager.fifo_path == "/tmp/not_a_fifo"  # Still initialized
 
-    def test_is_terminal_alive_with_no_pid(self, terminal_manager):
+    def test_is_terminal_alive_with_no_pid(self, terminal_manager) -> None:
         """Test terminal alive check when no PID set."""
         # Test BEHAVIOR: no terminal running when PID is None
         assert terminal_manager._is_terminal_alive() is False
 
     @patch("os.kill")
-    def test_is_terminal_alive_with_valid_pid(self, mock_kill, terminal_manager):
+    def test_is_terminal_alive_with_valid_pid(self, mock_kill, terminal_manager) -> None:
         """Test terminal alive check with valid process."""
         # Arrange: Set a PID
         terminal_manager.terminal_pid = 12345
@@ -116,7 +116,7 @@ class TestPersistentTerminalManager:
         mock_kill.assert_called_once_with(12345, 0)  # Signal 0 = check existence
 
     @patch("os.kill")
-    def test_is_terminal_alive_with_dead_pid(self, mock_kill, terminal_manager):
+    def test_is_terminal_alive_with_dead_pid(self, mock_kill, terminal_manager) -> None:
         """Test terminal alive check with dead process."""
         # Arrange: Set a PID that doesn't exist
         terminal_manager.terminal_pid = 99999
@@ -132,7 +132,7 @@ class TestPersistentTerminalManager:
 
     @patch("subprocess.Popen")
     @patch("time.sleep")
-    def test_launch_terminal_success(self, mock_sleep, mock_popen, terminal_manager):
+    def test_launch_terminal_success(self, mock_sleep, mock_popen, terminal_manager) -> None:
         """Test successful terminal launch."""
         # Arrange: Mock successful process launch
         mock_process = MagicMock()
@@ -152,7 +152,7 @@ class TestPersistentTerminalManager:
     @patch("subprocess.Popen")
     def test_launch_terminal_tries_multiple_emulators(
         self, mock_popen, terminal_manager
-    ):
+    ) -> None:
         """Test fallback to different terminal emulators."""
         # Arrange: First two emulators fail, third succeeds
         mock_popen.side_effect = [
@@ -174,7 +174,7 @@ class TestPersistentTerminalManager:
     @patch("os.fdopen")
     def test_send_command_success(
         self, mock_fdopen, mock_open, terminal_manager, qtbot
-    ):
+    ) -> None:
         """Test successful command sending."""
         # Arrange: Mock FIFO operations
         mock_fd = 42
@@ -206,11 +206,11 @@ class TestPersistentTerminalManager:
     @patch("os.path.exists", return_value=True)
     def test_send_command_with_auto_restart(
         self, mock_exists, mock_sleep, mock_open, terminal_manager
-    ):
+    ) -> None:
         """Test command sending with terminal auto-restart."""
 
         # Arrange: FIFO has no reader (errno.ENXIO), then succeeds after restart
-        def open_side_effect(*args, **kwargs):
+        def open_side_effect(*args, **kwargs) -> int:
             # Track call count
             if not hasattr(open_side_effect, "call_count"):
                 open_side_effect.call_count = 0
@@ -249,7 +249,7 @@ class TestPersistentTerminalManager:
         mock_file.write.assert_called_with("test command\n")
 
     @patch("os.open")
-    def test_send_command_handles_missing_fifo(self, mock_open, terminal_manager):
+    def test_send_command_handles_missing_fifo(self, mock_open, terminal_manager) -> None:
         """Test command sending when FIFO disappears."""
         # Arrange: FIFO doesn't exist
         mock_open.side_effect = OSError(errno.ENOENT, "File not found")
@@ -266,7 +266,7 @@ class TestPersistentTerminalManager:
         # Assert: Tried to recreate FIFO
         mock_ensure.assert_called()
 
-    def test_clear_terminal(self, terminal_manager):
+    def test_clear_terminal(self, terminal_manager) -> None:
         """Test terminal clearing command."""
         with patch.object(terminal_manager, "send_command") as mock_send:
             # Act: Clear terminal
@@ -277,7 +277,7 @@ class TestPersistentTerminalManager:
 
     @patch("os.kill")
     @patch("time.sleep")
-    def test_close_terminal(self, mock_sleep, mock_kill, terminal_manager, qtbot):
+    def test_close_terminal(self, mock_sleep, mock_kill, terminal_manager, qtbot) -> None:
         """Test terminal closing."""
         # Arrange: Terminal is running
         terminal_manager.terminal_pid = 12345
@@ -303,7 +303,7 @@ class TestPersistentTerminalManager:
         assert len(signal_spy) == 1  # terminal_closed signal emitted
 
     @patch("time.sleep")
-    def test_restart_terminal(self, mock_sleep, terminal_manager):
+    def test_restart_terminal(self, mock_sleep, terminal_manager) -> None:
         """Test terminal restart."""
         with (
             patch.object(terminal_manager, "close_terminal") as mock_close,
@@ -323,7 +323,7 @@ class TestPersistentTerminalManager:
     @patch("os.unlink")
     def test_cleanup_removes_fifo_and_closes_terminal(
         self, mock_unlink, mock_exists, terminal_manager
-    ):
+    ) -> None:
         """Test full cleanup."""
         with (
             patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
@@ -338,7 +338,7 @@ class TestPersistentTerminalManager:
 
     @patch("os.path.exists", return_value=True)
     @patch("os.unlink")
-    def test_cleanup_fifo_only(self, mock_unlink, mock_exists, terminal_manager):
+    def test_cleanup_fifo_only(self, mock_unlink, mock_exists, terminal_manager) -> None:
         """Test FIFO-only cleanup (keeps terminal open)."""
         with patch.object(terminal_manager, "close_terminal") as mock_close:
             # Act: Cleanup FIFO only
@@ -353,7 +353,7 @@ class TestPersistentTerminalIntegration:
     """Integration tests for persistent terminal with Qt event loop."""
 
     @pytest.mark.qt
-    def test_terminal_signals_with_qt_event_loop(self, qtbot):
+    def test_terminal_signals_with_qt_event_loop(self, qtbot) -> None:
         """Test Qt signals work correctly with event loop."""
         # Create real manager with temp paths
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -316,6 +316,8 @@ class TestMainWindowRefactoringSafety:
             mock_model = Mock()
             mock_model.shots_updated = Signal()
             mock_model.refresh_shots.return_value = (True, False)
+            mock_model.shots = []  # Add empty shots list for len() operation
+            mock_model.get_available_shows.return_value = set()  # Add empty shows set
             mock_model_class.return_value = mock_model
 
             window = MainWindow()
