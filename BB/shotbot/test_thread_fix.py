@@ -4,8 +4,7 @@
 import logging
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -13,29 +12,29 @@ logger = logging.getLogger(__name__)
 class MockWorker:
     """Mock worker to test zombie thread handling."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._stop_requested = False
         self._zombie = False
         self._thread = None
 
-    def is_zombie(self):
+    def is_zombie(self) -> bool:
         """Check if thread is a zombie."""
         return self._zombie
 
-    def request_stop(self):
+    def request_stop(self) -> None:
         """Request thread to stop."""
         logger.info("Stop requested")
         self._stop_requested = True
 
-    def should_stop(self):
+    def should_stop(self) -> bool:
         """Check if thread should stop."""
         return self._stop_requested
 
-    def run_parallel_task(self):
+    def run_parallel_task(self) -> None:
         """Simulate parallel scanning with ThreadPoolExecutor."""
         logger.info("Starting parallel task")
 
-        def cancel_flag():
+        def cancel_flag() -> bool:
             return self.should_stop()
 
         with ThreadPoolExecutor(max_workers=3) as executor:
@@ -59,7 +58,7 @@ class MockWorker:
                     try:
                         result = future.result(timeout=0.1)
                         logger.debug(f"Got result: {result}")
-                    except:
+                    except TimeoutError:
                         if cancel_flag():
                             executor.shutdown(wait=False, cancel_futures=True)
                             break
@@ -73,7 +72,7 @@ class MockWorker:
 
         logger.info("Parallel task completed")
 
-    def process_item(self, item):
+    def process_item(self, item: int) -> str | None:
         """Process a single item."""
         for i in range(5):
             if self.should_stop():
@@ -82,19 +81,19 @@ class MockWorker:
             time.sleep(0.1)
         return f"Processed {item}"
 
-    def run(self):
+    def run(self) -> None:
         """Main thread execution."""
         try:
             self.run_parallel_task()
         finally:
             logger.info("Worker thread exiting")
 
-    def start(self):
+    def start(self) -> None:
         """Start the worker thread."""
         self._thread = threading.Thread(target=self.run)
         self._thread.start()
 
-    def stop_with_timeout(self, timeout=2):
+    def stop_with_timeout(self, timeout: float = 2) -> bool:
         """Try to stop thread with timeout."""
         self.request_stop()
         self._thread.join(timeout)
@@ -107,7 +106,7 @@ class MockWorker:
             logger.info("Thread stopped successfully")
             return True
 
-def test_cleanup():
+def test_cleanup() -> None:
     """Test the thread cleanup behavior."""
     logger.info("=== Testing thread cleanup ===")
 

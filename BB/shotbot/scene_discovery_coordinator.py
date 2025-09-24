@@ -10,6 +10,8 @@ Part of the Phase 2 refactoring to break down the monolithic scene finder.
 
 from __future__ import annotations
 
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
 from filesystem_scanner import FileSystemScanner
@@ -554,7 +556,6 @@ class RefactoredThreeDESceneFinder:
 
         # Import necessary modules for parallel processing
         import threading
-        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         # Create a thread-safe lock for appending results
         results_lock = threading.Lock()

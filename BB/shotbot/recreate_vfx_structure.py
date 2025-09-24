@@ -523,7 +523,7 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
     return merged
 
 
-def count_nodes(structure):
+def count_nodes(structure: dict) -> int:
     """Count total nodes in a structure tree."""
     if not structure or not isinstance(structure, dict):
         return 0

@@ -139,7 +139,7 @@ def apply_logging_mixin(file_path: Path) -> bool:
 
     # Find all method definitions
     tree = ast.parse(content)
-    method_ranges = []
+    method_ranges: list[tuple[int, int]] = []
 
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
@@ -150,12 +150,15 @@ def apply_logging_mixin(file_path: Path) -> bool:
                     # Find the end of the method (approximate)
                     end_line = start_line
                     for child in ast.walk(item):
-                        if hasattr(child, "lineno"):
-                            end_line = max(end_line, getattr(child, "lineno") - 1)
+                        child_lineno = getattr(child, "lineno", None)
+                        if child_lineno is not None:
+                            end_line = max(end_line, child_lineno - 1)
                     method_ranges.append((start_line, end_line))
 
     # Apply replacements within method ranges
     lines = content.split("\n")
+    start: int
+    end: int
     for start, end in method_ranges:
         for i in range(start, min(end + 1, len(lines))):
             # Only replace if it's not in a string or comment
@@ -180,7 +183,7 @@ def main() -> int:
     """Apply LoggingMixin to all eligible Python files."""
 
     # Get list of files with old pattern
-    files_to_update = []
+    files_to_update: list[Path] = []
     for file_path in Path(".").glob("*.py"):
         if file_path.name == "apply_logging_mixin.py":
             continue
