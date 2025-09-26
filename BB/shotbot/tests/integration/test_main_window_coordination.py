@@ -266,11 +266,50 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     # Disable auto-refresh for previous shots to prevent Qt object issues
     window.previous_shots_model.stop_auto_refresh()
 
-    return window
+    yield window
+
+    # CRITICAL: Proper cleanup to prevent crashes
+    # Stop all timers first
+    if hasattr(window, 'auto_refresh_timer') and window.auto_refresh_timer:
+        window.auto_refresh_timer.stop()
+
+    # Stop model refresh timers
+    if hasattr(window, 'previous_shots_model'):
+        window.previous_shots_model.stop_auto_refresh()
+
+    # Stop any workers
+    if hasattr(window, 'threede_worker') and window.threede_worker:
+        if window.threede_worker.isRunning():
+            window.threede_worker.quit()
+            window.threede_worker.wait(1000)
+
+    # Disconnect all signals to prevent crashes during cleanup
+    try:
+        window.disconnect()
+    except (RuntimeError, TypeError):
+        pass
+
+    # Close the window properly
+    window.close()
+
+    # Process events to ensure cleanup happens
+    from PySide6.QtCore import QCoreApplication
+    app = QCoreApplication.instance()
+    if app:
+        app.processEvents()
+
+    # Delete the window
+    window.deleteLater()
+
+    # Force garbage collection
+    import gc
+    gc.collect()
 
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
+@pytest.mark.qt_heavy
+@pytest.mark.integration_unsafe
 class TestMainWindowUICoordination:
     """Test UI coordination and signal-slot connections."""
 

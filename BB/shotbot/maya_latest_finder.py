@@ -2,21 +2,27 @@
 
 from __future__ import annotations
 
-import logging
 import re
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from version_mixin import VersionHandlingMixin
 
 
-class MayaLatestFinder:
-    """Finds the latest Maya scene file in a workspace."""
+class MayaLatestFinder(VersionHandlingMixin):
+    """Finds the latest Maya scene file in a workspace.
+
+    Uses VersionHandlingMixin for version extraction and sorting.
+    """
 
     # Pattern to match version in Maya filenames (e.g., _v001, _v002)
     VERSION_PATTERN = re.compile(r"_v(\d{3})\.(ma|mb)$")
 
-    @staticmethod
+    def __init__(self) -> None:
+        """Initialize the Maya finder with version handling capabilities."""
+        super().__init__()
+
     def find_latest_maya_scene(
+        self,
         workspace_path: str,
         shot_name: str | None = None,
     ) -> Path | None:
@@ -34,12 +40,12 @@ class MayaLatestFinder:
             Path to the latest Maya scene file, or None if not found
         """
         if not workspace_path:
-            logger.debug("No workspace path provided")
+            self.logger.debug("No workspace path provided")
             return None
 
         workspace = Path(workspace_path)
         if not workspace.exists():
-            logger.debug(f"Workspace does not exist: {workspace_path}")
+            self.logger.debug(f"Workspace does not exist: {workspace_path}")
             return None
 
         # Search pattern: user/*/maya/scenes/*.ma or *.mb
@@ -48,7 +54,7 @@ class MayaLatestFinder:
         # Search in all user directories
         user_base = workspace / "user"
         if not user_base.exists():
-            logger.debug(f"No user directory in workspace: {workspace_path}")
+            self.logger.debug(f"No user directory in workspace: {workspace_path}")
             return None
 
         # Find all Maya files
@@ -63,23 +69,23 @@ class MayaLatestFinder:
 
             # Search for .ma and .mb files
             for maya_file in maya_scenes.glob("*.ma"):
-                version = MayaLatestFinder._extract_version(maya_file)
+                version = self._extract_version(maya_file)
                 if version is not None:
                     maya_files.append((maya_file, version))
-                    logger.debug(
+                    self.logger.debug(
                         f"Found Maya ASCII file: {maya_file.name} (v{version:03d})"
                     )
 
             for maya_file in maya_scenes.glob("*.mb"):
-                version = MayaLatestFinder._extract_version(maya_file)
+                version = self._extract_version(maya_file)
                 if version is not None:
                     maya_files.append((maya_file, version))
-                    logger.debug(
+                    self.logger.debug(
                         f"Found Maya Binary file: {maya_file.name} (v{version:03d})"
                     )
 
         if not maya_files:
-            logger.debug(
+            self.logger.debug(
                 f"No Maya files found in workspace: {shot_name or workspace_path}"
             )
             return None
@@ -88,32 +94,13 @@ class MayaLatestFinder:
         maya_files.sort(key=lambda x: x[1])
         latest_file = maya_files[-1][0]
 
-        logger.info(
+        self.logger.info(
             f"Found latest Maya scene for {shot_name or 'shot'}: {latest_file.name}"
         )
         return latest_file
 
-    @staticmethod
-    def _extract_version(file_path: Path) -> int | None:
-        """Extract version number from a Maya filename.
-
-        Args:
-            file_path: Path to the Maya file
-
-        Returns:
-            Version number as integer, or None if not found
-        """
-        match = MayaLatestFinder.VERSION_PATTERN.search(file_path.name)
-        if match:
-            return int(match.group(1))
-
-        # Also try without underscore (e.g., v001.ma)
-        simple_pattern = re.compile(r"v(\d{3})\.(ma|mb)$")
-        match = simple_pattern.search(file_path.name)
-        if match:
-            return int(match.group(1))
-
-        return None
+    # Version extraction is handled by VersionHandlingMixin._extract_version()
+    # The mixin respects our VERSION_PATTERN and provides fallback patterns
 
     @staticmethod
     def find_all_maya_scenes(

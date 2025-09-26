@@ -13,22 +13,31 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtCore import QCoreApplication
 
-from tests.helpers.synchronization import process_qt_events
+# Lazy imports to avoid Qt initialization at module level
+# from PySide6.QtCore import QCoreApplication
+# from cache_manager import CacheManager
+from utils import FileUtils, PathUtils
 
 try:
     from PIL import Image
 except ImportError:
     Image = None
 
-from cache_manager import CacheManager
-from utils import FileUtils, PathUtils
-
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
+# Module-level fixture to handle lazy imports
+@pytest.fixture(scope="module", autouse=True)
+def setup_qt_imports():
+    """Import Qt and CacheManager components after test setup."""
+    global CacheManager, QCoreApplication, process_qt_events
+    from PySide6.QtCore import QCoreApplication
+
+    from cache_manager import CacheManager
+    from tests.helpers.synchronization import process_qt_events
 
 
 class TestCorruptedFiles:

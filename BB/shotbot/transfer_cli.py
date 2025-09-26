@@ -113,7 +113,7 @@ def get_folder_size(folder_path: str) -> int:
         Total size in bytes
     """
     total_size = 0
-    for dirpath, dirnames, filenames in os.walk(folder_path):
+    for dirpath, _, filenames in os.walk(folder_path):
         for filename in filenames:
             filepath = os.path.join(dirpath, filename)
             if os.path.exists(filepath):

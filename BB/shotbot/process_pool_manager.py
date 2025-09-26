@@ -516,47 +516,120 @@ class ProcessPoolManager(LoggingMixin, QObject):
         return result
 
     def shutdown(self, timeout: float = 5.0) -> None:
-        """Shutdown the process pool manager.
+        """Shutdown the process pool manager with enhanced error handling.
 
         Args:
             timeout: Maximum time to wait for executor shutdown in seconds
         """
-        # Clear round-robin tracking
-        with self._session_lock:
-            self._session_round_robin.clear()
+        with QMutexLocker(self._mutex):
+            if self._shutdown_requested:
+                self.logger.debug("ProcessPoolManager shutdown already requested, skipping")
+                return
+            self._shutdown_requested = True
 
-        # Shutdown executor with timeout
-        self.logger.debug(
-            f"Shutting down ProcessPoolManager executor with timeout={timeout}s"
-        )
+        self.logger.debug(f"Starting ProcessPoolManager shutdown (timeout={timeout}s)")
+
+        # Stage 1: Clear session tracking with error handling
         try:
+            with self._session_lock:
+                session_count = len(self._session_round_robin)
+                self._session_round_robin.clear()
+                if session_count > 0:
+                    self.logger.debug(f"Cleared {session_count} session tracking entries")
+        except Exception as e:
+            self.logger.warning(f"Error clearing session tracking: {e}")
+
+        # Stage 2: Cancel pending futures if possible
+        try:
+            if hasattr(self._executor, "_pending_work_items"):
+                pending_count = len(self._executor._pending_work_items)
+                if pending_count > 0:
+                    self.logger.debug(f"Cancelling {pending_count} pending futures")
+                    # Cancel all pending futures
+                    for work_item in list(self._executor._pending_work_items.values()):
+                        if hasattr(work_item, "future"):
+                            work_item.future.cancel()
+        except Exception as e:
+            self.logger.debug(f"Could not cancel pending futures: {e}")
+
+        # Stage 3: Graceful executor shutdown with enhanced monitoring
+        shutdown_successful = False
+        try:
+            self.logger.debug("Initiating ThreadPoolExecutor shutdown")
             # First signal shutdown without waiting
             self._executor.shutdown(wait=False)
 
-            # Then wait with timeout
+            # Then wait with enhanced timeout monitoring
             import time
-
             start_time = time.time()
+            last_thread_count = -1
 
-            # Check if threads are finished, with polling
+            # Check if threads are finished, with polling and progress reporting
             while time.time() - start_time < timeout:
-                # Access the internal _threads set to check if empty
-                if hasattr(self._executor, "_threads") and not self._executor._threads:
-                    self.logger.debug(
-                        "ProcessPoolManager executor threads completed gracefully"
-                    )
+                threads_remaining = 0
+
+                # Multiple ways to check thread status for robustness
+                try:
+                    if hasattr(self._executor, "_threads"):
+                        threads_remaining = len(self._executor._threads)
+
+                    if threads_remaining == 0:
+                        self.logger.debug("All ProcessPoolManager executor threads completed gracefully")
+                        shutdown_successful = True
+                        break
+
+                    # Report progress if thread count changes
+                    if threads_remaining != last_thread_count:
+                        self.logger.debug(f"Waiting for {threads_remaining} executor threads to complete")
+                        last_thread_count = threads_remaining
+
+                except Exception as e:
+                    self.logger.debug(f"Error checking thread status: {e}")
+                    # If we can't check status, assume we need to wait the full timeout
                     break
-                time.sleep(0.1)  # Small polling interval
-            else:
+
+                time.sleep(0.05)  # Smaller polling interval for tests
+
+            if not shutdown_successful:
                 self.logger.warning(
                     f"ProcessPoolManager executor shutdown timeout after {timeout}s, "
-                    f"some threads may still be running"
+                    f"some threads may still be running ({threads_remaining} threads)"
                 )
 
         except Exception as e:
             self.logger.error(f"Error during ProcessPoolManager executor shutdown: {e}")
 
-        self.logger.info("ProcessPoolManager shutdown complete")
+        # Stage 4: Clean up any remaining resources
+        try:
+            # Clear caches
+            if hasattr(self, "_command_cache"):
+                cache_size = len(self._command_cache)
+                self._command_cache.clear()
+                if cache_size > 0:
+                    self.logger.debug(f"Cleared {cache_size} command cache entries")
+
+            # Disconnect Qt signals to prevent crashes during destruction
+            try:
+                self.command_started.disconnect()
+                self.command_finished.disconnect()
+                self.session_created.disconnect()
+                self.session_destroyed.disconnect()
+            except (RuntimeError, TypeError):
+                # Signals may already be disconnected
+                pass
+
+        except Exception as e:
+            self.logger.warning(f"Error during resource cleanup: {e}")
+
+        # Stage 5: Force garbage collection to clean up circular references
+        try:
+            import gc
+            gc.collect()
+        except Exception as e:
+            self.logger.debug(f"Error during garbage collection: {e}")
+
+        status = "successful" if shutdown_successful else "with timeout"
+        self.logger.info(f"ProcessPoolManager shutdown complete ({status})")
 
 
 class ProcessMetrics:

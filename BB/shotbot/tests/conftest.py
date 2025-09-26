@@ -37,7 +37,7 @@ os.environ["PYTEST_QT_API"] = "pyside6"
 import pytest
 
 # Now we can import Qt, but immediately patch show methods
-from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
+from PySide6.QtCore import QCoreApplication, QEventLoop, QThreadPool, QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QMainWindow, QMessageBox, QWidget
 
 # CRITICAL: Monkey-patch Qt show methods at module import time
@@ -540,13 +540,13 @@ def cache_isolation():
 # =============================================================================
 
 
-@pytest.fixture(scope="session", autouse=True)
-def qapp():
-    """Create QApplication instance for the entire test session.
+@pytest.fixture(scope="session")
+def ensure_qapp():
+    """Ensure QApplication instance exists for the entire test session.
 
     This ensures proper Qt event loop for signal processing.
     Note: Uses session scope to ensure single app instance.
-    AUTOUSE: This fixture runs automatically for all tests to prevent Qt widget crashes.
+    NOT autouse - pytest-qt's qapp fixture handles this automatically.
     """
     app = QApplication.instance()
     if app is None:
@@ -1161,22 +1161,31 @@ def ensure_clean_state_before_test():
     try:
         from process_pool_manager import ProcessPoolManager
         # Check if singleton was created by a previous test
-        if ProcessPoolManager._instance is not None:
+        if hasattr(ProcessPoolManager, '_instance') and ProcessPoolManager._instance is not None:
             print("DEBUG: Found existing ProcessPoolManager, cleaning up before test", file=sys.stderr)
-            # Shutdown the executor to clean up threads
-            ProcessPoolManager._instance.shutdown(timeout=2.0)
+            try:
+                # Shutdown the executor to clean up threads with short timeout
+                ProcessPoolManager._instance.shutdown(timeout=0.5)
+            except Exception:
+                pass  # Ignore shutdown errors
             # Reset the singleton so test gets a fresh instance
             ProcessPoolManager._instance = None
+    except ImportError:
+        pass  # Module might not be imported yet
     except Exception as e:
         print(f"Warning: Pre-test ProcessPoolManager cleanup error: {e}", file=sys.stderr)
 
-    # Clean up QThreadPool
+    # Clean up QThreadPool (only if QApplication exists)
     try:
-        from PySide6.QtCore import QThreadPool
-        pool = QThreadPool.globalInstance()
-        if pool.activeThreadCount() > 0:
-            print(f"DEBUG: Waiting for {pool.activeThreadCount()} QThreadPool threads", file=sys.stderr)
-            pool.waitForDone(2000)  # Wait up to 2 seconds
+        from PySide6.QtCore import QCoreApplication
+        app = QCoreApplication.instance()
+        if app:
+            # Only access QThreadPool if app exists
+            from PySide6.QtCore import QThreadPool
+            pool = QThreadPool.globalInstance()
+            if pool and pool.activeThreadCount() > 0:
+                print(f"DEBUG: Waiting for {pool.activeThreadCount()} QThreadPool threads", file=sys.stderr)
+                pool.waitForDone(2000)  # Wait up to 2 seconds
     except Exception as e:
         print(f"Warning: QThreadPool cleanup error: {e}", file=sys.stderr)
 
@@ -1214,13 +1223,18 @@ def cleanup_qt_resources():
 
         from process_pool_manager import ProcessPoolManager
         # Check if singleton was created
-        if ProcessPoolManager._instance is not None:
+        if hasattr(ProcessPoolManager, '_instance') and ProcessPoolManager._instance is not None:
             print("DEBUG: Cleaning up ProcessPoolManager singleton", file=sys.stderr)
-            # Shutdown the executor to clean up threads
-            ProcessPoolManager._instance.shutdown(timeout=2.0)
+            try:
+                # Shutdown the executor to clean up threads with short timeout
+                ProcessPoolManager._instance.shutdown(timeout=0.5)
+            except Exception:
+                pass  # Ignore shutdown errors
             # Reset the singleton so next test gets a fresh instance
             ProcessPoolManager._instance = None
             print("DEBUG: ProcessPoolManager cleanup complete", file=sys.stderr)
+    except ImportError:
+        pass  # Module might not be imported
     except Exception as e:
         import sys
         print(f"Warning: ProcessPoolManager cleanup error: {e}", file=sys.stderr)
@@ -1268,8 +1282,19 @@ def cleanup_qt_resources():
                 except RuntimeError:
                     pass
 
-            # Process events multiple times to ensure cleanup
-            for _ in range(20):
+            # Wait for QThreadPool to complete all tasks (only if app exists)
+            # Use shorter timeout in test environments to prevent cleanup accumulation
+            try:
+                if app:  # Only access QThreadPool if app exists
+                    pool = QThreadPool.globalInstance()
+                    if pool.activeThreadCount() > 0:
+                        pool.waitForDone(300)  # Reduced from 2000ms to 300ms for tests
+            except RuntimeError:
+                pass
+
+            # Process events fewer times to speed up cleanup
+            # In tests, we don't need as extensive event processing
+            for _ in range(5):  # Reduced from 20 to 5 iterations
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all events
 
@@ -1298,6 +1323,69 @@ def cleanup_qt_resources():
 
         print(f"Warning: Qt cleanup error: {e}", file=sys.stderr)
         pass
+
+
+@pytest.fixture(autouse=True)
+def enhanced_mainwindow_cleanup():
+    """Enhanced MainWindow and cache cleanup for test isolation.
+
+    This fixture provides additional cleanup specifically for MainWindow
+    instances and cache managers to prevent resource accumulation crashes.
+    """
+    # Let test run first
+    yield
+
+    # Enhanced cleanup after test
+    try:
+        from PySide6.QtCore import QCoreApplication
+        app = QCoreApplication.instance()
+        if app:
+            # Find and cleanup any MainWindow instances
+            from main_window import MainWindow
+            for widget in app.topLevelWidgets():
+                if isinstance(widget, MainWindow):
+                    try:
+                        # Call our new explicit cleanup method
+                        widget.cleanup()
+                        # Ensure it's marked for deletion
+                        widget.deleteLater()
+                    except Exception as e:
+                        import sys
+                        print(f"Warning: MainWindow cleanup error: {e}", file=sys.stderr)
+
+            # Clean up any CacheManager instances
+            try:
+                # Force cache cleanup to prevent memory leaks
+                from cache_manager import CacheManager
+                # The CacheManager might be a singleton or instance
+                # Try to clean up any static/global references
+                if hasattr(CacheManager, '_instance'):
+                    instance = CacheManager._instance
+                    if instance:
+                        try:
+                            instance.shutdown()
+                        except Exception:
+                            pass
+                        CacheManager._instance = None
+            except ImportError:
+                pass
+
+            # Additional QPixmap cleanup - force cleanup of Qt image cache
+            from PySide6.QtGui import QPixmapCache
+            QPixmapCache.clear()
+
+            # Process events one more time after MainWindow cleanup
+            for _ in range(10):
+                app.processEvents()
+
+        # Force additional garbage collection after MainWindow cleanup
+        import gc
+        gc.collect()
+        gc.collect()  # Second pass to clean up circular references
+
+    except Exception as e:
+        import sys
+        print(f"Warning: Enhanced MainWindow cleanup error: {e}", file=sys.stderr)
 
 
 @pytest.fixture(autouse=True)

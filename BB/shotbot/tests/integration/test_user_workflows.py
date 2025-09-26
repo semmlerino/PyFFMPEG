@@ -666,9 +666,6 @@ class TestUserWorkflows:
 
     @pytest.mark.integration
     @pytest.mark.qt
-    @pytest.mark.skip(
-        reason="Test has cache/async interference issues - needs proper isolation"
-    )
     def test_thumbnail_loading_workflow(self, qtbot: Any) -> None:
         """Test thumbnail loading and display workflow.
 

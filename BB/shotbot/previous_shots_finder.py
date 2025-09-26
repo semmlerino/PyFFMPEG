@@ -11,14 +11,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from config import Config, ThreadingConfig
-from logging_mixin import LoggingMixin
+from shot_finder_base import ShotFinderBase
 from shot_model import Shot
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Generator
 
 
-class PreviousShotsFinder(LoggingMixin):
+class PreviousShotsFinder(ShotFinderBase):
     """Finds shots that user has worked on but are no longer active.
 
     This class scans the filesystem for shots containing user work directories
@@ -31,27 +31,9 @@ class PreviousShotsFinder(LoggingMixin):
         Args:
             username: Username to search for. If None, uses current user.
         """
-        # Get raw username
-        # In mock mode, always use gabriel-h
-        if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
-            raw_username = username or "gabriel-h"
-        else:
-            raw_username = username or os.environ.get("USER") or os.getlogin()
+        # Initialize parent class (ShotFinderBase) which handles username sanitization
+        super().__init__(username=username)
 
-        # SECURITY FIX: Sanitize username to prevent path traversal attacks
-        # Remove any path traversal characters (., /, \) but keep hyphens
-        # Hyphens are valid in usernames like gabriel-h
-        self.username = re.sub(r"[./\\]", "", raw_username)
-
-        # Validate that username is not empty after sanitization
-        if not self.username:
-            raise ValueError(f"Invalid username after sanitization: '{raw_username}'")
-
-        # Additional validation: username should only contain alphanumeric, dash, and underscore
-        if not re.match(r"^[a-zA-Z0-9_-]+$", self.username):
-            raise ValueError(f"Username contains invalid characters: '{self.username}'")
-
-        self.user_path_pattern = f"/user/{self.username}"
         # Optimized regex pattern for shot parsing
         # [^/]+ is faster than \w+ for path components
         shows_root_escaped = re.escape(Config.SHOWS_ROOT)
@@ -279,6 +261,43 @@ class PreviousShotsFinder(LoggingMixin):
 
         return details
 
+    def _get_shot_status(self, shot: Shot) -> str:
+        """Get the status of a shot (approved or active).
+
+        Args:
+            shot: Shot to get status for
+
+        Returns:
+            Status string (e.g., "approved", "active")
+        """
+        # Check for approved status
+        approved_path = Path(shot.workspace_path) / "publish" / "matchmove" / "approved"
+        if approved_path.exists():
+            return "approved"
+
+        # For previous shots, we consider them completed if they're not in active shots
+        return "completed"
+
+    def find_shots(self, **kwargs) -> list[Shot]:
+        """Find previous/approved shots.
+
+        This is the main entry point implementing the abstract method from ShotFinderBase.
+
+        Args:
+            **kwargs: Optional keyword arguments
+                - active_shots: List of currently active shots to exclude
+                - shows_root: Root directory for shows
+
+        Returns:
+            List of Shot objects found
+        """
+        # Extract parameters
+        active_shots = kwargs.get('active_shots', [])
+        shows_root = kwargs.get('shows_root')
+
+        # Use the main search method
+        return self.find_approved_shots(active_shots, shows_root)
+
 
 class ParallelShotsFinder(PreviousShotsFinder):
     """Parallel implementation of PreviousShotsFinder for improved performance.
@@ -300,28 +319,15 @@ class ParallelShotsFinder(PreviousShotsFinder):
         self.max_workers = (
             max_workers or ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS
         )
-        self._stop_requested = False
-        self._progress_callback = None
+        # _stop_requested and _progress_callback are inherited from ProgressReportingMixin
         self._show_cache: dict[str, float] = {}  # Cache show list with timestamps
         self._cache_ttl = ThreadingConfig.PREVIOUS_SHOTS_CACHE_TTL
 
-    def set_progress_callback(self, callback: Callable[[int, int, str], None]) -> None:
-        """Set callback for progress reporting.
-
-        Args:
-            callback: Function to call with (current, total, message) args
-        """
-        self._progress_callback = callback
-
-    def request_stop(self) -> None:
-        """Request the parallel scan to stop."""
-        self._stop_requested = True
-        self.logger.info("Stop requested for parallel shot finder")
-
-    def _report_progress(self, current: int, total: int, message: str) -> None:
-        """Report progress if callback is set."""
-        if self._progress_callback:
-            self._progress_callback(current, total, message)
+    # Progress methods are inherited from ShotFinderBase (ProgressReportingMixin):
+    # - set_progress_callback()
+    # - request_stop()
+    # - _report_progress()
+    # - _check_stop()
 
     def _discover_shows(self, shows_root: Path) -> list[Path]:
         """Quickly discover all shows in the root directory.

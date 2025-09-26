@@ -86,16 +86,16 @@ class CommandLauncher(LoggingMixin, QObject):
         if threede_latest_finder is None:
             from threede_latest_finder import ThreeDELatestFinder
 
-            self._threede_latest_finder = ThreeDELatestFinder
+            self._threede_latest_finder = ThreeDELatestFinder()
         else:
-            self._threede_latest_finder = threede_latest_finder
+            self._threede_latest_finder = threede_latest_finder()
 
         if maya_latest_finder is None:
             from maya_latest_finder import MayaLatestFinder
 
-            self._maya_latest_finder = MayaLatestFinder
+            self._maya_latest_finder = MayaLatestFinder()
         else:
-            self._maya_latest_finder = maya_latest_finder
+            self._maya_latest_finder = maya_latest_finder()
 
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context."""

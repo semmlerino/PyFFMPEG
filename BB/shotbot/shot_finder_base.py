@@ -6,25 +6,24 @@ eliminating duplication between targeted and previous shot finders.
 
 from __future__ import annotations
 
-import logging
 import os
-import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from config import Config
+from finder_utils import FinderUtils
 from optimized_shot_parser import OptimizedShotParser
+from progress_mixin import ProgressReportingMixin
 from shot_model import Shot
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
-logger = logging.getLogger(__name__)
+class ShotFinderBase(ProgressReportingMixin, ABC):
+    """Abstract base class for shot finders with common functionality.
 
-
-class ShotFinderBase(ABC):
-    """Abstract base class for shot finders with common functionality."""
+    Inherits progress reporting capabilities from ProgressReportingMixin,
+    which includes LoggingMixin for consistent logging.
+    """
 
     def __init__(self, username: str | None = None) -> None:
         """Initialize the shot finder with sanitized username.
@@ -32,6 +31,9 @@ class ShotFinderBase(ABC):
         Args:
             username: Username to search for. If None, uses current user.
         """
+        # Initialize parent class (ProgressReportingMixin -> LoggingMixin)
+        super().__init__()
+
         # Get raw username
         # In mock mode, always use gabriel-h
         if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
@@ -39,68 +41,23 @@ class ShotFinderBase(ABC):
         else:
             raw_username = username or os.environ.get("USER") or os.getlogin()
 
-        # Sanitize username to prevent path traversal attacks
-        self.username = self._sanitize_username(raw_username)
+        # Use FinderUtils for username sanitization
+        self.username = FinderUtils.sanitize_username(raw_username)
         self.user_path_pattern = f"/user/{self.username}"
 
         # Use OptimizedShotParser for improved performance
         self._parser = OptimizedShotParser()
 
-        # Progress tracking
-        self._stop_requested = False
-        self._progress_callback: Callable[[int, int, str], None] | None = None
+        # Progress tracking is handled by ProgressReportingMixin
 
-        logger.info(f"{self.__class__.__name__} initialized for user: {self.username}")
+        self.logger.info(f"{self.__class__.__name__} initialized for user: {self.username}")
 
-    @staticmethod
-    def _sanitize_username(raw_username: str) -> str:
-        """Sanitize username to prevent security issues.
 
-        Args:
-            raw_username: Raw username input
-
-        Returns:
-            Sanitized username
-
-        Raises:
-            ValueError: If username is invalid after sanitization
-        """
-        # Remove any path traversal characters (., /, \)
-        username = re.sub(r"[./\\]", "", raw_username)
-
-        # Validate that username is not empty after sanitization
-        if not username:
-            raise ValueError(f"Invalid username after sanitization: '{raw_username}'")
-
-        # Additional validation: username should only contain alphanumeric, dash, and underscore
-        if not re.match(r"^[a-zA-Z0-9_-]+$", username):
-            raise ValueError(f"Username contains invalid characters: '{username}'")
-
-        return username
-
-    def set_progress_callback(self, callback: Callable[[int, int, str], None]) -> None:
-        """Set callback for progress reporting.
-
-        Args:
-            callback: Function to call with (current, total, message) args
-        """
-        self._progress_callback = callback
-
-    def request_stop(self) -> None:
-        """Request the search to stop."""
-        self._stop_requested = True
-        logger.info(f"Stop requested for {self.__class__.__name__}")
-
-    def _report_progress(self, current: int, total: int, message: str) -> None:
-        """Report progress if callback is set.
-
-        Args:
-            current: Current progress value
-            total: Total progress value
-            message: Progress message
-        """
-        if self._progress_callback:
-            self._progress_callback(current, total, message)
+    # Progress methods are inherited from ProgressReportingMixin:
+    # - set_progress_callback()
+    # - request_stop()
+    # - _report_progress()
+    # - _check_stop()
 
     def _parse_shot_from_path(self, path: str) -> Shot | None:
         """Parse shot information from a filesystem path.
@@ -118,7 +75,7 @@ class ShotFinderBase(ABC):
 
         # Validate shot is not empty
         if not result.shot:
-            logger.debug(f"Empty shot extracted from path {path}")
+            self.logger.debug(f"Empty shot extracted from path {path}")
             return None
 
         try:
@@ -129,7 +86,7 @@ class ShotFinderBase(ABC):
                 workspace_path=result.workspace_path,
             )
         except Exception as e:
-            logger.debug(f"Could not create Shot from path {path}: {e}")
+            self.logger.debug(f"Could not create Shot from path {path}: {e}")
             return None
 
     def get_shot_details(self, shot: Shot) -> dict[str, Any]:
@@ -206,7 +163,7 @@ class ShotFinderBase(ABC):
             return thumbnail
 
         except Exception as e:
-            logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
+            self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
             return None
 
     @abstractmethod

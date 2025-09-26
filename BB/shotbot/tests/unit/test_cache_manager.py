@@ -13,14 +13,15 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import QThreadPool
-from PySide6.QtGui import QColor, QImage
-from PySide6.QtTest import QSignalSpy
 
-from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
+# Lazy imports to avoid Qt initialization at module level
+# These will be imported inside test functions/fixtures
+# from PySide6.QtCore import QThreadPool
+# from PySide6.QtGui import QColor, QImage
+# from PySide6.QtTest import QSignalSpy
+# from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
 from config import ThreadingConfig
 from shot_model import Shot
-from tests.test_helpers import ThreadSafeTestImage
 from threede_scene_model import ThreeDEScene
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
@@ -48,6 +49,21 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
+# Module-level fixture to handle lazy imports
+@pytest.fixture(scope="module", autouse=True)
+def setup_qt_imports():
+    """Import Qt and CacheManager components after test setup."""
+    # This ensures Qt components are imported after QApplication setup
+    global CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
+    global QThreadPool, QImage, QColor, QSignalSpy, ThreadSafeTestImage
+
+    from PySide6.QtCore import QThreadPool
+    from PySide6.QtGui import QColor, QImage
+    from PySide6.QtTest import QSignalSpy
+
+    from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
+    from tests.test_helpers import ThreadSafeTestImage
 # ThreadSafeTestImage imported at top of file
 
 

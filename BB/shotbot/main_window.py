@@ -1795,16 +1795,23 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         size = self.size()
         return (size.width(), size.height())
 
-    def closeEvent(self, event: QCloseEvent) -> None:
-        """Thread-safe close event handler.
+    def cleanup(self) -> None:
+        """Explicit cleanup method for proper resource management.
 
-        Implements proper shutdown sequence:
-        1. Set closing flag to prevent new operations
-        2. Request all workers to stop
-        3. Wait for workers to finish with timeout
-        4. Disconnect signals only after workers stopped
-        5. Clear references and cleanup
+        This method can be called independently of closeEvent, making it
+        suitable for test environments where widgets are destroyed without
+        proper close events. It performs the same cleanup as closeEvent
+        but without accepting the close event.
         """
+        self.logger.debug("Starting explicit MainWindow cleanup")
+
+        # Perform the same cleanup as closeEvent
+        self._perform_cleanup()
+
+        self.logger.debug("Completed explicit MainWindow cleanup")
+
+    def _perform_cleanup(self) -> None:
+        """Internal cleanup logic shared by cleanup() and closeEvent()."""
         # Step 1: Mark that we're closing to prevent new operations
         with QMutexLocker(self._worker_mutex):
             self._closing = True
@@ -1821,17 +1828,21 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 self.logger.debug("Stopping 3DE worker during shutdown")
                 worker_to_cleanup.stop()
 
-                # Step 4: Wait for worker to finish with timeout
-                if not worker_to_cleanup.wait(
-                    Config.WORKER_STOP_TIMEOUT_MS
-                ):  # Wait up to 5 seconds
+                # Step 4: Wait for worker to finish with timeout (optimized for tests)
+                # Use shorter timeout in test environments to prevent cleanup accumulation
+                import sys
+                is_test_environment = "pytest" in sys.modules
+                worker_timeout_ms = 500 if is_test_environment else Config.WORKER_STOP_TIMEOUT_MS
+
+                if not worker_to_cleanup.wait(worker_timeout_ms):
                     self.logger.warning(
-                        "3DE worker didn't stop gracefully, using safe termination",
+                        f"3DE worker didn't stop gracefully within {worker_timeout_ms}ms, using safe termination",
                     )
                     # Use safe_terminate which avoids dangerous terminate() call
                     worker_to_cleanup.safe_terminate()
-                    # Give it one more second after safe termination
-                    worker_to_cleanup.wait(Config.WORKER_STOP_TIMEOUT_MS)
+                    # Give it a shorter timeout after safe termination in tests
+                    final_timeout_ms = 200 if is_test_environment else 1000
+                    worker_to_cleanup.wait(final_timeout_ms)
 
             # Step 5: Disconnect signals only AFTER worker has stopped
             # This prevents signal emission during disconnection
@@ -1881,15 +1892,17 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                     self.logger.debug("Requesting session warmer to stop")
                     # Use ThreadSafeWorker's request_stop method
                     self._session_warmer.request_stop()
-                    # Session warming is non-critical, give it max 2 seconds
-                    if not self._session_warmer.wait(2000):
+                    # Session warming is non-critical, use shorter timeout in tests
+                    session_timeout_ms = 200 if is_test_environment else 2000
+                    if not self._session_warmer.wait(session_timeout_ms):
                         self.logger.warning(
-                            "Session warmer didn't finish gracefully, using safe termination"
+                            f"Session warmer didn't finish gracefully within {session_timeout_ms}ms, using safe termination"
                         )
                         # Use safe_terminate from ThreadSafeWorker
                         self._session_warmer.safe_terminate()
-                        # Give it one more second
-                        if not self._session_warmer.wait(1000):
+                        # Give it a shorter final timeout in tests
+                        final_session_timeout_ms = 100 if is_test_environment else 1000
+                        if not self._session_warmer.wait(final_session_timeout_ms):
                             self.logger.warning(
                                 "Session warmer thread abandoned - will be cleaned on exit"
                             )
@@ -1953,7 +1966,31 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.logger.debug("Cleaning up tracked QRunnables")
         cleanup_all_runnables()
 
-        self.settings_controller.save_settings()  # Use refactored settings controller
+        # Stop any remaining QTimers - check for persistent timers
+        from PySide6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            # Process any pending events to ensure cleanup
+            app.processEvents()
+
+        # Force garbage collection to clean up any circular references
+        import gc
+        gc.collect()
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Thread-safe close event handler.
+
+        Implements proper shutdown sequence using shared cleanup logic.
+        """
+        self.logger.debug("MainWindow closeEvent - starting cleanup")
+
+        # Perform shared cleanup logic
+        self._perform_cleanup()
+
+        # Save settings before closing
+        self.settings_controller.save_settings()
+
+        self.logger.debug("MainWindow closeEvent - cleanup complete")
         event.accept()
 
 

@@ -9,22 +9,20 @@ This reduces the search space by 95%+ compared to scanning all shows.
 from __future__ import annotations
 
 import concurrent.futures
-import logging
-import os
+import re
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from config import Config, ThreadingConfig
+from shot_finder_base import ShotFinderBase
 from shot_model import Shot
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
-
-logger = logging.getLogger(__name__)
+    from collections.abc import Generator
 
 
-class TargetedShotsFinder:
+class TargetedShotsFinder(ShotFinderBase):
     """Finds shots by targeting only shows containing user's active shots.
 
     This class provides dramatic performance improvements over scanning all shows
@@ -43,61 +41,27 @@ class TargetedShotsFinder:
             username: Username to search for. If None, uses current user.
             max_workers: Maximum number of parallel workers (default: from config)
         """
-        # Get raw username
-        # In mock mode, always use gabriel-h
-        if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
-            raw_username = username or "gabriel-h"
-        else:
-            raw_username = username or os.environ.get("USER") or os.getlogin()
+        # Initialize parent class (ShotFinderBase) which handles username sanitization
+        super().__init__(username=username)
 
-        # Sanitize username to prevent path traversal attacks
-        # Remove any path traversal characters (., /, \) but keep hyphens
-        import re
-
-        self.username = re.sub(r"[./\\]", "", raw_username)
-
-        # Validate that username is not empty after sanitization
-        if not self.username:
-            raise ValueError(f"Invalid username after sanitization: '{raw_username}'")
-
-        # Additional validation: username should only contain alphanumeric, dash, and underscore
-        if not re.match(r"^[a-zA-Z0-9_-]+$", self.username):
-            raise ValueError(f"Username contains invalid characters: '{self.username}'")
-
-        self.user_path_pattern = f"/user/{self.username}"
+        # Additional initialization specific to TargetedShotsFinder
         self.max_workers = (
             max_workers or ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS
         )
-        self._stop_requested = False
-        self._progress_callback = None
 
         # Pattern for parsing shot paths (dynamic based on configured SHOWS_ROOT)
-        import re
-
         shows_root_escaped = re.escape(Config.SHOWS_ROOT)
         self._shot_pattern = re.compile(
             rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
         )
 
-        logger.info(f"TargetedShotsFinder initialized for user: {self.username}")
+        self.logger.info(f"TargetedShotsFinder initialized for user: {self.username}")
 
-    def set_progress_callback(self, callback: Callable[[int, int, str], None]) -> None:
-        """Set callback for progress reporting.
-
-        Args:
-            callback: Function to call with (current, total, message) args
-        """
-        self._progress_callback = callback
-
-    def request_stop(self) -> None:
-        """Request the search to stop."""
-        self._stop_requested = True
-        logger.info("Stop requested for targeted shot finder")
-
-    def _report_progress(self, current: int, total: int, message: str) -> None:
-        """Report progress if callback is set."""
-        if self._progress_callback:
-            self._progress_callback(current, total, message)
+    # Progress methods are inherited from ShotFinderBase (ProgressReportingMixin):
+    # - set_progress_callback()
+    # - request_stop()
+    # - _report_progress()
+    # - _check_stop()
 
     def extract_shows_from_active_shots(self, active_shots: list[Shot]) -> set[str]:
         """Extract unique show names from active shots.
@@ -109,10 +73,10 @@ class TargetedShotsFinder:
             Set of unique show names
         """
         shows = {shot.show for shot in active_shots}
-        logger.info(
+        self.logger.info(
             f"Extracted {len(shows)} unique shows from {len(active_shots)} active shots"
         )
-        logger.debug(f"Shows: {sorted(shows)}")
+        self.logger.debug(f"Shows: {sorted(shows)}")
         return shows
 
     def _scan_show_for_user(
@@ -142,7 +106,7 @@ class TargetedShotsFinder:
 
         show_path = shows_root / show_name / "shots"
         if not show_path.exists():
-            logger.debug(f"Shots directory does not exist: {show_path}")
+            self.logger.debug(f"Shots directory does not exist: {show_path}")
             return shots
 
         try:
@@ -158,7 +122,7 @@ class TargetedShotsFinder:
                 "4",  # Reduced depth since we're starting from shots/
             ]
 
-            logger.debug(f"Scanning show {show_name}: {' '.join(cmd)}")
+            self.logger.debug(f"Scanning show {show_name}: {' '.join(cmd)}")
 
             # Run with timeout per show
             result = subprocess.run(
@@ -179,12 +143,12 @@ class TargetedShotsFinder:
                     if shot and shot not in shots:
                         shots.append(shot)
 
-            logger.debug(f"Found {len(shots)} shots in show {show_name}")
+            self.logger.debug(f"Found {len(shots)} shots in show {show_name}")
 
         except subprocess.TimeoutExpired:
-            logger.warning(f"Timeout scanning show: {show_name}")
+            self.logger.warning(f"Timeout scanning show: {show_name}")
         except Exception as e:
-            logger.error(f"Error scanning show {show_name}: {e}")
+            self.logger.error(f"Error scanning show {show_name}: {e}")
 
         return shots
 
@@ -217,7 +181,7 @@ class TargetedShotsFinder:
 
             # Validate shot is not empty
             if not shot:
-                logger.debug(f"Empty shot extracted from path {path}")
+                self.logger.debug(f"Empty shot extracted from path {path}")
                 return None
 
             # Build the workspace path using the full directory name
@@ -231,7 +195,7 @@ class TargetedShotsFinder:
                     workspace_path=workspace_path,
                 )
             except Exception as e:
-                logger.debug(f"Could not create Shot from path {path}: {e}")
+                self.logger.debug(f"Could not create Shot from path {path}: {e}")
 
         return None
 
@@ -250,7 +214,7 @@ class TargetedShotsFinder:
         from config import Config
 
         if not target_shows:
-            logger.warning("No target shows provided for search")
+            self.logger.warning("No target shows provided for search")
             return
 
         # Ensure shows_root is always a Path object
@@ -260,7 +224,7 @@ class TargetedShotsFinder:
             shows_root = Path(shows_root)
 
         if not shows_root.exists():
-            logger.warning(f"Shows root does not exist: {shows_root}")
+            self.logger.warning(f"Shows root does not exist: {shows_root}")
             return
 
         total_shows = len(target_shows)
@@ -304,9 +268,9 @@ class TargetedShotsFinder:
                     yield from shots
 
                 except concurrent.futures.TimeoutError:
-                    logger.warning(f"Timeout processing {show}")
+                    self.logger.warning(f"Timeout processing {show}")
                 except Exception as e:
-                    logger.error(f"Error processing {show}: {e}")
+                    self.logger.error(f"Error processing {show}: {e}")
 
         self._report_progress(100, 100, "Targeted search complete")
 
@@ -341,10 +305,10 @@ class TargetedShotsFinder:
         target_shows = self.extract_shows_from_active_shots(active_shots)
 
         if not target_shows:
-            logger.warning("No target shows found from active shots")
+            self.logger.warning("No target shows found from active shots")
             return []
 
-        logger.info(
+        self.logger.info(
             f"Using targeted search in {len(target_shows)} shows instead of scanning all shows"
         )
 
@@ -353,7 +317,7 @@ class TargetedShotsFinder:
         all_user_shots = list(self.find_user_shots_in_shows(target_shows, shows_root))
 
         if self._stop_requested:
-            logger.info("Targeted search stopped by user request")
+            self.logger.info("Targeted search stopped by user request")
             return []
 
         # Filter to get only approved shots (same logic as original)
@@ -367,7 +331,7 @@ class TargetedShotsFinder:
         ]
 
         elapsed = time.time() - start_time
-        logger.info(
+        self.logger.info(
             f"Targeted search found {len(approved_shots)} approved shots "
             f"in {elapsed:.1f} seconds (was 60-120s with global search)"
         )
@@ -450,5 +414,56 @@ class TargetedShotsFinder:
             return thumbnail
 
         except Exception as e:
-            logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
+            self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")
             return None
+
+    def _get_shot_status(self, shot: Shot) -> str:
+        """Get the status of a shot.
+
+        Args:
+            shot: Shot to get status for
+
+        Returns:
+            Status string (e.g., "approved", "active")
+        """
+        # Check for approved status
+        approved_path = Path(shot.workspace_path) / "publish" / "matchmove" / "approved"
+        if approved_path.exists():
+            return "approved"
+
+        # Check if user has work in this shot
+        user_path = Path(shot.workspace_path) / "user" / self.username
+        if user_path.exists():
+            return "active"
+
+        return "unknown"
+
+    def find_shots(self, **kwargs) -> list[Shot]:
+        """Find shots using targeted search.
+
+        This is the main entry point implementing the abstract method from ShotFinderBase.
+
+        Args:
+            **kwargs: Optional keyword arguments
+                - target_shows: Set of show names to search in
+                - shows_root: Root directory for shows
+                - active_shots: List of active shots to extract shows from
+
+        Returns:
+            List of Shot objects found
+        """
+        # Extract parameters
+        target_shows = kwargs.get('target_shows', set())
+        shows_root = kwargs.get('shows_root')
+        active_shots = kwargs.get('active_shots', [])
+
+        # If we have active shots but no target shows, extract them
+        if active_shots and not target_shows:
+            target_shows = self.extract_shows_from_active_shots(active_shots)
+
+        # Use the main search method
+        if target_shows:
+            return list(self.find_user_shots_in_shows(target_shows, shows_root))
+        else:
+            self.logger.warning("No target shows provided for search")
+            return []

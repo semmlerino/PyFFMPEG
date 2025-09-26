@@ -10,10 +10,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from cache_manager import CacheManager
-from main_window import MainWindow
-from shot_model import Shot
-
+# Lazy imports to avoid Qt initialization at module level
+# from cache_manager import CacheManager
+# from main_window import MainWindow
+# from shot_model import Shot
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     TestCompletedProcess,
@@ -29,6 +29,15 @@ pytestmark = [
     pytest.mark.slow,
     pytest.mark.xdist_group("qt_state"),
 ]
+
+# Module-level fixture to handle lazy imports
+@pytest.fixture(scope="module", autouse=True)
+def setup_qt_imports():
+    """Import Qt and MainWindow components after test setup."""
+    global MainWindow, CacheManager, Shot
+    from cache_manager import CacheManager
+    from main_window import MainWindow
+    from shot_model import Shot
 
 
 class TestMainWindowNoHang:

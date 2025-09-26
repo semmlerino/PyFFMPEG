@@ -311,9 +311,13 @@ class CacheManager(LoggingMixin, QObject):
 
         # Process thumbnail with proper exception handling to prevent memory leaks
         try:
-            # Determine processing approach
-            app = QApplication.instance()
-            is_main_thread = app is not None and QThread.currentThread() == app.thread()
+            # Determine processing approach - check Qt availability defensively
+            try:
+                app = QApplication.instance()
+                is_main_thread = app is not None and QThread.currentThread() == app.thread()
+            except (RuntimeError, AttributeError):
+                # Qt not initialized or error accessing - treat as background thread
+                is_main_thread = False
 
             if not is_main_thread:
                 # Background thread - use ThumbnailLoader

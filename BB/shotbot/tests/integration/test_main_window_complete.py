@@ -48,6 +48,9 @@ from tests.test_doubles_library import (
     TestShotModel,
 )
 
+# Mark all tests in this module as qt_heavy and integration_unsafe
+pytestmark = [pytest.mark.qt_heavy, pytest.mark.integration_unsafe]
+
 
 def is_testing_environment() -> bool:
     """Check if we're running in a testing environment where some Qt features may not work reliably."""
@@ -108,7 +111,34 @@ class TestMainWindowCompleteWorkflows:
         window.show()
         qtbot.waitExposed(window)  # Proper Qt wait for window
 
-        return window
+        yield window
+
+        # CRITICAL: Proper cleanup to prevent crashes
+        # Stop all timers first
+        if hasattr(window, 'auto_refresh_timer') and window.auto_refresh_timer:
+            window.auto_refresh_timer.stop()
+
+        # Disconnect all signals to prevent crashes during cleanup
+        try:
+            window.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+
+        # Close the window properly
+        window.close()
+
+        # Process events to ensure cleanup happens
+        from PySide6.QtCore import QCoreApplication
+        app = QCoreApplication.instance()
+        if app:
+            app.processEvents()
+
+        # Delete the window
+        window.deleteLater()
+
+        # Force garbage collection
+        import gc
+        gc.collect()
 
     def test_shot_selection_to_launch_workflow(
         self, qtbot, main_window, test_shots

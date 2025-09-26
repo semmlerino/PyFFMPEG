@@ -30,7 +30,9 @@ select = [
 ]
 
 # Never enforce line length violations
-ignore = ["E501"]
+# ANN401 - Allow Any in *args and **kwargs (common pattern)
+# TC003 - Allow standard library imports outside type-checking (Path is used at runtime)
+ignore = ["E501", "ANN401", "TC003"]
 
 # Allow autofix for all enabled rules
 fixable = ["ALL"]

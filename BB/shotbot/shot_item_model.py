@@ -188,3 +188,16 @@ class ShotItemModel(BaseItemModel[Shot]):
             Shot object or None if invalid
         """
         return self.get_item_at_index(index)
+
+    def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
+        """Find a shot and its row index by full_name.
+
+        Thread-safe compatibility wrapper for _find_item_by_full_name.
+
+        Args:
+            full_name: The full name of the shot to find
+
+        Returns:
+            Tuple of (shot, row) or None if not found
+        """
+        return self._find_item_by_full_name(full_name)

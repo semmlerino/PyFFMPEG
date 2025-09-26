@@ -32,9 +32,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from main_window import MainWindow
+# Lazy import to avoid Qt initialization at module level
+# from main_window import MainWindow
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+
+# Module-level fixture to handle lazy imports
+@pytest.fixture(scope="module", autouse=True)
+def setup_qt_imports():
+    """Import MainWindow after test setup."""
+    global MainWindow
+    from main_window import MainWindow
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)

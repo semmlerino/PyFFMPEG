@@ -7,15 +7,11 @@ loading indicators, and proper Model/View integration for 3DE scenes.
 
 from __future__ import annotations
 
-import logging
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QModelIndex,
-    QMutex,
-    QMutexLocker,
     QPoint,
     Qt,
     QThreadPool,
@@ -41,50 +37,6 @@ if TYPE_CHECKING:
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from threede_item_model import ThreeDEItemModel
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
-
-logger = logging.getLogger(__name__)
-
-# Thread-safe logging mutex to prevent recursion issues in VFX environments
-_log_mutex = QMutex()
-_log_recursion_depth = 0
-_max_log_recursion = 3
-
-
-def safe_log_info(message: str) -> None:
-    """Thread-safe logging wrapper to prevent RecursionError in logging system.
-
-    This addresses a known issue in Qt/PySide6 applications where Python's
-    logging formatter can enter infinite recursion in the usesTime() method.
-
-    Args:
-        message: Log message to output safely
-    """
-    global _log_recursion_depth
-
-    # Guard against deep recursion
-    if _log_recursion_depth >= _max_log_recursion:
-        # Write directly to stderr to avoid any further recursion
-        try:
-            os.write(2, f"[RECURSION GUARD] {message}\n".encode())
-        except Exception:
-            pass
-        return
-
-    _log_recursion_depth += 1
-    try:
-        with QMutexLocker(_log_mutex):
-            logger.info(message)
-    except RecursionError:
-        # Fallback: write directly to stderr
-        try:
-            os.write(2, f"[RECURSION ERROR] {message}\n".encode())
-        except Exception:
-            pass
-    except Exception:
-        # Fallback: silent failure to prevent crashes
-        pass
-    finally:
-        _log_recursion_depth -= 1
 
 
 class ThreeDEGridView(BaseGridView):
@@ -133,7 +85,7 @@ class ThreeDEGridView(BaseGridView):
         if model:
             self.set_model(model)
 
-        safe_log_info("ThreeDEGridView initialized with Model/View architecture")
+        self.logger.info("ThreeDEGridView initialized with Model/View architecture")
 
     def _add_top_widgets(self, layout: QVBoxLayout) -> None:
         """Add loading indicators at the top.
@@ -213,7 +165,7 @@ class ThreeDEGridView(BaseGridView):
         # Use base class method
         shows = threede_scene_model.get_unique_shows()
         super().populate_show_filter(shows)
-        safe_log_info(f"Populated show filter with {len(shows)} shows")
+        self.logger.info(f"Populated show filter with {len(shows)} shows")
 
     @Slot()
     def _on_scenes_updated(self) -> None:
@@ -377,7 +329,7 @@ class ThreeDEGridView(BaseGridView):
 
         clipboard = QApplication.clipboard()
         clipboard.setText(str(scene.scene_path))
-        safe_log_info(f"Copied path to clipboard: {scene.scene_path}")
+        self.logger.info(f"Copied path to clipboard: {scene.scene_path}")
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events.
