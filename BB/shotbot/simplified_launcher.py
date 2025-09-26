@@ -18,7 +18,7 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
 
@@ -53,11 +53,13 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         super().__init__()
 
         # Cache for workspace commands with 30-minute TTL
-        self._ws_cache: dict[str, tuple[str, float]] = {}  # command -> (result, timestamp)
+        self._ws_cache: dict[
+            str, tuple[str, float]
+        ] = {}  # command -> (result, timestamp)
         self._ws_cache_ttl = 1800  # 30 minutes (not 30 seconds!)
 
         # Track active processes for cleanup
-        self._active_processes: dict[int, subprocess.Popen] = {}
+        self._active_processes: dict[int, subprocess.Popen[str]] = {}
 
         # Current shot context
         self.current_shot: Shot | None = None
@@ -77,7 +79,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         app_name: str,
         shot: Shot | None = None,
         scene: ThreeDEScene | None = None,
-        **options: Any,
+        **options: bool | str | list[str],
     ) -> bool:
         """Launch a VFX application with optional shot/scene context.
 
@@ -110,8 +112,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         # Log what we're doing
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.command_executed.emit(
-            timestamp,
-            f"Launching {app_name} with command: {command[:100]}..."
+            timestamp, f"Launching {app_name} with command: {command[:100]}..."
         )
 
         # Execute in terminal
@@ -122,7 +123,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         app_name: str,
         shot: Shot | None,
         scene: ThreeDEScene | None,
-        options: dict[str, Any],
+        options: dict[str, bool | str | list[str]],
     ) -> str:
         """Build the command line for launching an application.
 
@@ -165,15 +166,16 @@ class SimplifiedLauncher(LoggingMixin, QObject):
 
         elif app_name == "rv":
             # RV can work without shot context
-            if options.get("files"):
-                for file in options["files"]:
+            files = options.get("files")
+            if files and isinstance(files, list):
+                for file in files:
                     command_parts.append(self._quote_path(file))
 
         return " ".join(command_parts)
 
     def _get_app_environment(self, app_name: str, shot: Shot | None) -> dict[str, str]:
         """Get environment variables for launching an application."""
-        env = {}
+        env: dict[str, str] = {}
 
         # Set shot context if available
         if shot:
@@ -292,6 +294,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                 terminal_cmd,
                 env=full_env,
                 start_new_session=True,
+                text=True,
             )
 
             # Track process
@@ -318,6 +321,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
+                text=True,
             )
 
             self._active_processes[proc.pid] = proc
@@ -344,14 +348,20 @@ class SimplifiedLauncher(LoggingMixin, QObject):
 
     # ========== Helper Methods ==========
 
-    def _find_latest_scene(self, workspace_path: Path | str, app_type: str) -> Path | None:
+    def _find_latest_scene(
+        self, workspace_path: Path | str, app_type: str
+    ) -> Path | None:
         """Find the latest scene file for a given application type."""
         workspace = Path(workspace_path)
 
-        # Define search patterns
+        # Special handling for Nuke - use VFX workspace structure
+        if app_type == "nuke" and self.current_shot:
+            return self._find_latest_nuke_workspace_script(workspace)
+
+        # Generic handling for other applications
         patterns = {
             "3de": ("3de", "*.3de"),
-            "nuke": ("nuke", "*.nk"),
+            "nuke": ("nuke", "*.nk"),  # Fallback for non-workspace Nuke files
             "maya": ("maya", "*.ma"),
         }
 
@@ -373,7 +383,9 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         # Return most recent file
         return max(files, key=lambda f: f.stat().st_mtime)
 
-    def _find_raw_plate(self, workspace_path: Path | str, shot_name: str) -> Path | None:
+    def _find_raw_plate(
+        self, workspace_path: Path | str, shot_name: str
+    ) -> Path | None:
         """Find raw plate for a shot."""
         workspace = Path(workspace_path)
 
@@ -389,12 +401,98 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                 continue
 
             # Look for shot-specific plates
-            for pattern in [f"{shot_name}*.exr", f"{shot_name}*.dpx", f"{shot_name}*.jpg"]:
+            for pattern in [
+                f"{shot_name}*.exr",
+                f"{shot_name}*.dpx",
+                f"{shot_name}*.jpg",
+            ]:
                 files = list(plate_dir.glob(pattern))
                 if files:
                     return files[0]  # Return first match
 
         return None
+
+    def _find_latest_nuke_workspace_script(self, workspace_path: Path) -> Path | None:
+        """Find the latest Nuke script in VFX workspace structure.
+
+        Uses the VFX workspace path: {workspace}/user/{user}/mm/nuke/scripts/{plate}/scene/{pass}/
+        Looks for files: {shot}_{plate}_{pass}_scene_v*.nk
+        """
+        if not self.current_shot:
+            return None
+
+        import os
+        import re
+
+        # Get user (same logic as NukeWorkspaceManager)
+        user = os.environ.get("USER", "gabriel-h")
+        plate = "mm-default"  # Default plate name
+        pass_name = "PL01"  # Default pass name
+
+        # Build VFX workspace script directory path
+        script_dir = (
+            workspace_path
+            / "user"
+            / user
+            / "mm"
+            / "nuke"
+            / "scripts"
+            / plate
+            / "scene"
+            / pass_name
+        )
+
+        if not script_dir.exists():
+            self.logger.debug(
+                f"Nuke workspace script directory not found: {script_dir}"
+            )
+            return None
+
+        # Build pattern for expected filename format
+        # Pattern: {shot}_{plate}_{pass}_scene_v*.nk
+        shot_name = self.current_shot.full_name
+        pattern = f"{shot_name}_{plate}_{pass_name}_scene_v*.nk"
+        regex_pattern = pattern.replace(".", r"\.").replace("*", r"(\d{3})")
+
+        try:
+            version_regex = re.compile(regex_pattern)
+        except re.error:
+            self.logger.error(
+                f"Invalid regex pattern for Nuke script search: {pattern}"
+            )
+            return None
+
+        latest_file = None
+        latest_version = 0
+
+        try:
+            for file_path in script_dir.iterdir():
+                if file_path.is_file() and file_path.suffix == ".nk":
+                    match = version_regex.match(file_path.name)
+                    if match:
+                        try:
+                            version = int(match.group(1))
+                            if version > latest_version:
+                                latest_version = version
+                                latest_file = file_path
+                        except (ValueError, IndexError):
+                            continue
+        except (OSError, PermissionError) as e:
+            self.logger.error(
+                f"Error scanning Nuke workspace directory {script_dir}: {e}"
+            )
+            return None
+
+        if latest_file:
+            self.logger.info(
+                f"Found latest Nuke workspace script: {latest_file.name} (v{latest_version:03d})"
+            )
+        else:
+            self.logger.debug(
+                f"No Nuke workspace scripts found in {script_dir} for shot {shot_name}"
+            )
+
+        return latest_file
 
     # ========== Cache Management ==========
 
@@ -498,7 +596,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
 
         Implementation for ProcessPoolInterface protocol.
         """
-        results = {}
+        results: dict[str, str | None] = {}
         for command in commands:
             try:
                 result = self.execute_ws_command(command, cache=True, timeout=30)
@@ -518,7 +616,9 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             keys_to_remove = [k for k in self._ws_cache.keys() if pattern in k]
             for key in keys_to_remove:
                 del self._ws_cache[key]
-            self.logger.info(f"Invalidated {len(keys_to_remove)} cache entries matching '{pattern}'")
+            self.logger.info(
+                f"Invalidated {len(keys_to_remove)} cache entries matching '{pattern}'"
+            )
         else:
             # Clear all
             self.clear_cache()
@@ -532,7 +632,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         self.clear_cache()
         self.logger.info("SimplifiedLauncher shutdown complete")
 
-    def get_metrics(self) -> dict[str, Any]:
+    def get_metrics(self) -> dict[str, int]:
         """Get performance metrics.
 
         Implementation for ProcessPoolInterface protocol.
@@ -566,4 +666,5 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             "open_latest": open_latest_threede or open_latest_maya or open_latest_scene,
             "create_new": create_new_file,
         }
-        return self.launch_vfx_app(app_name, **options)
+        # Don't pass shot/scene as they conflict with method signature
+        return self.launch_vfx_app(app_name, shot=None, scene=None, **options)
