@@ -5,6 +5,7 @@ This script automates the conversion of files from the old logging pattern
 to use the LoggingMixin class for standardized logging.
 """
 
+# Standard library imports
 import ast
 import re
 import sys
@@ -152,7 +153,7 @@ def apply_logging_mixin(file_path: Path) -> bool:
                     for child in ast.walk(item):
                         child_lineno = getattr(child, "lineno", None)
                         if child_lineno is not None:
-                            end_line = max(end_line, child_lineno - 1)
+                            end_line = max(end_line, int(child_lineno) - 1)  # type: ignore[arg-type]
                     method_ranges.append((start_line, end_line))
 
     # Apply replacements within method ranges
@@ -210,8 +211,12 @@ def main() -> int:
 
     updated_count = 0
     for file_path in sorted(files_to_update):
-        if apply_logging_mixin(file_path):
-            updated_count += 1
+        try:
+            if apply_logging_mixin(file_path):
+                updated_count += 1
+        except SyntaxError as e:
+            print(f"  ✗ Syntax error in {file_path.name}: {e}")
+            continue
 
     print(f"\n✓ Updated {updated_count} files")
 

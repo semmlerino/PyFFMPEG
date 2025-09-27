@@ -4,6 +4,7 @@ This module provides production-ready timeout values optimized for VFX workflows
 dealing with network file systems, large data sets, and heavy applications.
 """
 
+# Standard library imports
 import os
 
 
@@ -76,12 +77,13 @@ class TimeoutConfig:
         """
         # Scale all class attributes that are timeout values
         for attr_name in dir(cls):
+            attr_value = getattr(cls, attr_name)  # type: ignore[misc]
             if (
                 not attr_name.startswith("_")
-                and not callable(getattr(cls, attr_name))
+                and not callable(attr_value)  # type: ignore[arg-type]
                 and attr_name.isupper()
             ):
-                value = getattr(cls, attr_name)
+                value = attr_value  # type: ignore[misc]
                 if isinstance(value, int | float):
                     # Don't scale millisecond values directly, they have _MS suffix
                     if attr_name.endswith("_MS"):

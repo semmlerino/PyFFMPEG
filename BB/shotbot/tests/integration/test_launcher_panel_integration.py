@@ -16,23 +16,32 @@ Tests cover:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+# Standard library imports
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Removed sys.path modification - can cause import issues
+# sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# Local application imports
 from launcher_panel import LauncherPanel
-from main_window import MainWindow
+# Moved to lazy import to fix Qt initialization
+# from main_window import MainWindow
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 from tests.test_doubles_library import TestSubprocess
+
+# Module-level fixture to handle lazy imports after Qt initialization
+@pytest.fixture(scope="module", autouse=True)
+def setup_qt_imports():
+    """Import Qt and MainWindow components after test setup."""
+    global MainWindow
+    from main_window import MainWindow
 
 pytestmark = [
     pytest.mark.integration,
@@ -124,9 +133,9 @@ class TestMainWindowLauncherIntegration:
             for section in window.launcher_panel.app_sections.values():
                 assert not section.launch_button.isEnabled()
 
-            # Select a shot
+            # Select a shot using the proper MainWindow integration
             shot = make_shot(show="integration_test", sequence="seq01", shot="0100")
-            window.launcher_panel.set_shot(shot)
+            window._on_shot_selected(shot)
 
             # Verify launcher panel is enabled
             for section in window.launcher_panel.app_sections.values():
@@ -148,18 +157,21 @@ class TestMainWindowLauncherIntegration:
             window = MainWindow()
             qtbot.addWidget(window)
 
-            # Set up shot context
+            # Set up shot context using proper MainWindow integration
             shot = make_shot(show="signal_test", sequence="seq02", shot="0200")
-            window.launcher_panel.set_shot(shot)
+            window._on_shot_selected(shot)
 
-            # Mock the actual app launch method to track calls
+            # Mock the command launcher's launch_app method to track calls
             launch_calls = []
 
-            def mock_launch_app(app_name) -> None:
+            def mock_command_launcher_launch_app(*args, **kwargs) -> bool:
+                # Extract app name from args (first argument)
+                app_name = args[0] if args else kwargs.get('app_name', 'unknown')
                 launch_calls.append(app_name)
+                return True  # Return success
 
-            # Patch the main window's app launch method
-            with patch.object(window, "_launch_app", side_effect=mock_launch_app):
+            # Patch the command launcher's app launch method
+            with patch.object(window.command_launcher, "launch_app", side_effect=mock_command_launcher_launch_app):
                 # Trigger app launch from launcher panel
                 nuke_section = window.launcher_panel.app_sections["nuke"]
                 qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
@@ -184,14 +196,17 @@ class TestMainWindowLauncherIntegration:
             qtbot.addWidget(window)
 
             shot = make_shot(show="multi_test", sequence="seq03", shot="0300")
-            window.launcher_panel.set_shot(shot)
+            window._on_shot_selected(shot)
 
             launch_calls = []
 
-            def mock_launch_app(app_name) -> None:
+            def mock_command_launcher_launch_app(*args, **kwargs) -> bool:
+                # Extract app name from args (first argument)
+                app_name = args[0] if args else kwargs.get('app_name', 'unknown')
                 launch_calls.append(app_name)
+                return True  # Return success
 
-            with patch.object(window, "_launch_app", side_effect=mock_launch_app):
+            with patch.object(window.command_launcher, "launch_app", side_effect=mock_command_launcher_launch_app):
                 # Launch multiple apps in sequence
                 apps_to_launch = ["3de", "maya", "rv"]
                 for app_name in apps_to_launch:
@@ -217,7 +232,7 @@ class TestMainWindowLauncherIntegration:
             qtbot.addWidget(window)
 
             shot = make_shot()
-            window.launcher_panel.set_shot(shot)
+            window._on_shot_selected(shot)
 
             # Configure nuke options
             nuke_section = window.launcher_panel.app_sections["nuke"]
@@ -246,35 +261,47 @@ class TestMainWindowLauncherIntegration:
             window = MainWindow()
             qtbot.addWidget(window)
 
+            # Mock launcher_manager for custom launcher support
+            from unittest.mock import Mock
+            mock_launcher = Mock()
+            mock_launcher.name = "Test Custom Launcher"
+            mock_launcher_manager = Mock()
+            mock_launcher_manager.get_launcher.return_value = mock_launcher
+            mock_launcher_manager.execute_in_shot_context.return_value = True
+            window.launcher_manager = mock_launcher_manager
+
             shot = make_shot()
-            window.launcher_panel.set_shot(shot)
+            window._on_shot_selected(shot)
 
             # Add custom launcher through the panel
             window.launcher_panel.add_custom_launcher(
                 "test_custom", "Test Custom Launcher"
             )
 
-            custom_launch_calls = []
+            # No need to mock execute_custom_launcher - let it run with our mocked launcher_manager
 
-            def mock_execute_custom_launcher(launcher_id) -> None:
-                custom_launch_calls.append(launcher_id)
+            # Trigger custom launcher
+            custom_button = window.launcher_panel.custom_launcher_buttons[
+                "test_custom"
+            ]
 
-            # Mock the custom launcher execution
-            with patch.object(
-                window,
-                "_execute_custom_launcher",
-                side_effect=mock_execute_custom_launcher,
-            ):
-                # Trigger custom launcher
-                custom_button = window.launcher_panel.custom_launcher_buttons[
-                    "test_custom"
-                ]
-                qtbot.mouseClick(custom_button, Qt.MouseButton.LeftButton)
-                qtbot.wait(50)  # Allow event loop to process
+            # Debug: Check button state
+            assert custom_button is not None, "Custom button should exist"
+            assert custom_button.isEnabled(), f"Custom button should be enabled, current shot: {window.launcher_panel._current_shot}"
 
-                # Verify custom launcher was called
-                assert len(custom_launch_calls) == 1
-                assert custom_launch_calls[0] == "test_custom"
+            # Add signal spy to verify signal emission
+            from PySide6.QtTest import QSignalSpy
+            signal_spy = QSignalSpy(window.launcher_panel.custom_launcher_requested)
+
+            qtbot.mouseClick(custom_button, Qt.MouseButton.LeftButton)
+            qtbot.wait(50)  # Allow event loop to process
+
+            # Debug: Check if signal was emitted
+            assert signal_spy.count() >= 1, f"Signal should have been emitted, spy count: {signal_spy.count()}"
+
+            # Verify custom launcher was called through launcher_manager
+            mock_launcher_manager.get_launcher.assert_called_once_with("test_custom")
+            mock_launcher_manager.execute_in_shot_context.assert_called_once()
 
 
 # =============================================================================
@@ -299,9 +326,9 @@ class TestEndToEndLauncherWorkflow:
             window = MainWindow()
             qtbot.addWidget(window)
 
-            # Step 1: Select shot
+            # Step 1: Select shot using proper MainWindow integration
             shot = make_shot(show="endtoend", sequence="workflow", shot="0001")
-            window.launcher_panel.set_shot(shot)
+            window._on_shot_selected(shot)
 
             # Step 2: Configure nuke options
             nuke_section = window.launcher_panel.app_sections["nuke"]
@@ -322,7 +349,9 @@ class TestEndToEndLauncherWorkflow:
             # Step 4: Mock the app launch process
             launch_context = {}
 
-            def mock_launch_nuke(app_name) -> None:
+            def mock_command_launcher_launch_nuke(*args, **kwargs) -> bool:
+                # Extract app name from args (first argument)
+                app_name = args[0] if args else kwargs.get('app_name', 'unknown')
                 launch_context["app"] = app_name
                 launch_context["shot"] = window.launcher_panel._current_shot
                 launch_context["undistortion"] = (
@@ -333,8 +362,9 @@ class TestEndToEndLauncherWorkflow:
                 launch_context["raw_plate"] = window.launcher_panel.get_checkbox_state(
                     "nuke", "include_raw_plate"
                 )
+                return True  # Return success
 
-            with patch.object(window, "_launch_app", side_effect=mock_launch_nuke):
+            with patch.object(window.command_launcher, "launch_app", side_effect=mock_command_launcher_launch_nuke):
                 # Step 5: Launch nuke
                 # Use waitSignal if possible, otherwise use safe wait
                 qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
@@ -359,7 +389,7 @@ class TestEndToEndLauncherWorkflow:
             qtbot.addWidget(window)
 
             shot = make_shot(show="threedee", sequence="tracking", shot="0050")
-            window.launcher_panel.set_shot(shot)
+            window._on_shot_selected(shot)
 
             # Configure 3DE options
             threede_section = window.launcher_panel.app_sections["3de"]
@@ -367,7 +397,9 @@ class TestEndToEndLauncherWorkflow:
 
             launch_context = {}
 
-            def mock_launch_3de(app_name) -> None:
+            def mock_command_launcher_launch_3de(*args, **kwargs) -> bool:
+                # Extract app name from args (first argument)
+                app_name = args[0] if args else kwargs.get('app_name', 'unknown')
                 launch_context["app"] = app_name
                 launch_context["shot"] = window.launcher_panel._current_shot
                 launch_context["open_latest"] = (
@@ -375,8 +407,9 @@ class TestEndToEndLauncherWorkflow:
                         "3de", "open_latest_threede"
                     )
                 )
+                return True  # Return success
 
-            with patch.object(window, "_launch_app", side_effect=mock_launch_3de):
+            with patch.object(window.command_launcher, "launch_app", side_effect=mock_command_launcher_launch_3de):
                 qtbot.mouseClick(
                     threede_section.launch_button, Qt.MouseButton.LeftButton
                 )

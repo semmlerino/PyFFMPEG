@@ -5,6 +5,7 @@ This script provides the core encoding functionality from Transfer.py without th
 suitable for use in automated workflows and git hooks.
 """
 
+# Standard library imports
 import argparse
 import base64
 import io
@@ -86,7 +87,7 @@ class FolderEncoder:
                 file=sys.stderr,
             )
 
-        chunks = []
+        chunks: list[str] = []
         folder_name = os.path.basename(folder_path)
 
         for i in range(total_chunks):
