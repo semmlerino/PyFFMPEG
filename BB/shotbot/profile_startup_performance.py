@@ -6,6 +6,7 @@ Analyzes the 2.4 second startup delay to identify optimization opportunities.
 
 from __future__ import annotations
 
+# Standard library imports
 import cProfile
 import json
 import os
@@ -49,6 +50,7 @@ def profile_subprocess_call() -> dict[str, float]:
 
 def profile_process_pool_manager() -> dict[str, float]:
     """Profile ProcessPoolManager overhead."""
+    # Local application imports
     from process_pool_manager import ProcessPoolManager
 
     timings = {}
@@ -81,6 +83,7 @@ def profile_process_pool_manager() -> dict[str, float]:
 
 def profile_shot_model_refresh() -> dict[str, Any]:
     """Profile ShotModel refresh with detailed breakdown."""
+    # Local application imports
     from cache_manager import CacheManager
     from shot_model import ShotModel
 
@@ -152,6 +155,7 @@ workspace /shows/TEST/seq02/0010"""
     strategies["cached_lines"] = len(lines)
 
     # Test connection pooling benefit
+    # Local application imports
     from process_pool_manager import ProcessPoolManager
 
     pool = ProcessPoolManager()

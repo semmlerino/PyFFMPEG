@@ -1,8 +1,10 @@
 """Log viewer widget for displaying command history."""
 
+# Third-party imports
 from PySide6.QtGui import QFont, QTextCursor
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
+# Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin

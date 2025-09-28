@@ -1,9 +1,11 @@
 """Type stubs for shot_model module."""
 
+# Standard library imports
 import re
 from pathlib import Path
 from typing import NamedTuple
 
+# Local application imports
 from cache_manager import CacheManager
 from type_definitions import ShotDict
 

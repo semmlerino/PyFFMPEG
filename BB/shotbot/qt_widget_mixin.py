@@ -8,16 +8,21 @@ Part of Phase 2 refactoring to eliminate duplicate Qt patterns.
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 from PySide6.QtCore import QPoint, QSettings, QSize, Qt, QTimer
 from PySide6.QtWidgets import QMenu, QMessageBox, QWidget
 
+# Local application imports
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable
 
+    # Third-party imports
     from PySide6.QtGui import (
         QCloseEvent,
         QKeyEvent,
@@ -117,6 +122,7 @@ class QtWidgetMixin(LoggingMixin):
 
                 if icon_name and hasattr(self, "style"):
                     # Use standard icons if available
+                    # Third-party imports
                     from PySide6.QtWidgets import QStyle
 
                     icon_map = {
@@ -139,6 +145,7 @@ class QtWidgetMixin(LoggingMixin):
 
         shortcuts = self._get_standard_shortcuts()
         for key_sequence, callback in shortcuts.items():
+            # Third-party imports
             from PySide6.QtGui import QAction, QKeySequence
 
             action = QAction(self)  # type: ignore[arg-type]
@@ -340,6 +347,7 @@ class QtProgressMixin:
 
     def setup_progress_indicator(self, parent: QWidget | None = None) -> None:
         """Setup progress indication UI elements."""
+        # Third-party imports
         from PySide6.QtWidgets import QProgressBar
 
         self._progress_bar = QProgressBar(parent or self)  # type: ignore[arg-type]

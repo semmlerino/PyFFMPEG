@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test JSON error handling in mock_workspace_pool.py"""
 
+# Standard library imports
 import json
 import os
 import sys
@@ -12,6 +13,7 @@ os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx"
 
 def test_json_error_handling() -> bool:
     """Test various JSON error scenarios."""
+    # Local application imports
     from mock_workspace_pool import create_mock_pool_from_filesystem
 
     print("=" * 60)
@@ -138,6 +140,7 @@ if __name__ == "__main__":
         sys.exit(0 if success else 1)
     except Exception as e:
         print(f"\n❌ Error during testing: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

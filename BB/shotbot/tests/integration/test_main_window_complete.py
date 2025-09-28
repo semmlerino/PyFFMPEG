@@ -20,26 +20,18 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
+# Standard library imports
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QTabWidget
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-if TYPE_CHECKING:
-    from main_window import MainWindow
-    from shot_model import Shot
-
-from main_window import MainWindow
-from shot_model import Shot
 
 # Import test doubles
 from tests.test_doubles_library import (
@@ -48,15 +40,33 @@ from tests.test_doubles_library import (
     TestShotModel,
 )
 
+# Removed sys.path modification - not needed and can cause import issues
+# sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+
+# Local application imports - moved to lazy imports to fix Qt initialization order
+# from main_window import MainWindow
+# from shot_model import Shot
+
+# Module-level fixture to handle lazy imports after Qt initialization
+@pytest.fixture(scope="module", autouse=True)
+def setup_qt_imports():
+    """Import Qt and MainWindow components after test setup."""
+    global MainWindow, Shot
+    # Local application imports
+    from main_window import MainWindow
+    from shot_model import Shot
+
 # Mark all tests in this module as qt_heavy and integration_unsafe
 pytestmark = [pytest.mark.qt_heavy, pytest.mark.integration_unsafe]
 
 
 def is_testing_environment() -> bool:
     """Check if we're running in a testing environment where some Qt features may not work reliably."""
+    # Standard library imports
     import os
-    import sys
 
+    # Third-party imports
     from PySide6.QtCore import QCoreApplication
 
     # Check if pytest is running
@@ -128,6 +138,7 @@ class TestMainWindowCompleteWorkflows:
         window.close()
 
         # Process events to ensure cleanup happens
+        # Third-party imports
         from PySide6.QtCore import QCoreApplication
         app = QCoreApplication.instance()
         if app:
@@ -137,6 +148,7 @@ class TestMainWindowCompleteWorkflows:
         window.deleteLater()
 
         # Force garbage collection
+        # Standard library imports
         import gc
         gc.collect()
 
@@ -167,12 +179,12 @@ class TestMainWindowCompleteWorkflows:
         # is complex, so we focus on testing the signal emission which we can verify
 
         # Step 2: User launches application
-        with patch("main_window.MainWindow._launch_app") as mock_launch:
+        with patch("main_window.MainWindow.launch_app") as mock_launch:
             # Mock successful launch
             mock_launch.return_value = True
 
             # Simulate user launching application (without waiting for signals)
-            window._launch_app("nuke")
+            window.launch_app("nuke")
 
             # Verify behavior: launcher was invoked (not implementation detail)
             # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls
@@ -189,27 +201,22 @@ class TestMainWindowCompleteWorkflows:
             assert window.size().width() > 0 and window.size().height() > 0
 
     def test_threede_scene_workflow(self, qtbot, main_window) -> None:
-        """Test 3DE scene discovery and launch workflow."""
+        """Test 3DE scene model and UI components."""
         window = main_window
 
-        # Step 1: Start 3DE scene discovery and create spy
-        window._refresh_threede_scenes()
-        # Wait for worker creation with a timeout
-        qtbot.waitUntil(lambda: hasattr(window, "_threede_worker"), timeout=1000)
+        # Test that 3DE UI components exist even without controller
+        # (Controller is disabled in test environment to avoid threading issues)
 
-        if window._threede_worker:
-            discovery_started_spy = QSignalSpy(window._threede_worker.started)
-            # Trigger another refresh to test the signal
-            window._refresh_threede_scenes()
-            # Wait briefly for signal emission
-            qtbot.wait(50)
-            # Verify discovery started - may be 0 if worker was already running
-            assert discovery_started_spy.count() >= 0
-        else:
-            # If no worker created, that's also valid (no scenes to discover)
-            pass
+        # Step 1: Verify the 3DE scene model exists and is accessible
+        assert hasattr(window, "threede_scene_model")
+        assert window.threede_scene_model is not None
 
-        # Step 2: Mock scene discovery completion
+        # Step 2: Verify the 3DE scene grid exists
+        assert hasattr(window, "threede_shot_grid")
+        assert window.threede_shot_grid is not None
+
+        # Step 3: Test scene model can handle scenes
+        # Local application imports
         from threede_scene_model import ThreeDEScene
 
         test_scene = ThreeDEScene(
@@ -222,22 +229,18 @@ class TestMainWindowCompleteWorkflows:
             scene_path=Path("/shows/test/shots/seq1/seq1_0010/user/3de/test.3de"),
         )
 
-        # Step 3: Test basic 3DE model and workflow components
-        # Verify the 3DE scene model exists and is accessible
-        assert hasattr(window, "threede_scene_model")
-        assert window.threede_scene_model is not None
-
-        # Verify the 3DE scene grid exists
-        assert hasattr(window, "threede_shot_grid")
-        assert window.threede_shot_grid is not None
+        # Verify model can add and retrieve scenes
+        window.threede_scene_model.scenes = [test_scene]
+        assert len(window.threede_scene_model.scenes) == 1
+        assert window.threede_scene_model.scenes[0] == test_scene
 
         # Step 4: Test scene launching workflow (simplified)
-        with patch("main_window.MainWindow._launch_app_with_scene") as mock_launch:
+        with patch("controllers.launcher_controller.LauncherController._launch_app_with_scene") as mock_launch:
             mock_launch.return_value = True
 
             # Test the launch method exists and can be called
-            if hasattr(window, "_launch_app_with_scene"):
-                window._launch_app_with_scene("3de", test_scene)
+            if hasattr(window.launcher_controller, "_launch_app_with_scene"):
+                window.launcher_controller._launch_app_with_scene("3de", test_scene)
                 # Verify behavior: launcher was invoked (not implementation detail)
                 # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls
                 assert mock_launch.called  # Method was invoked
@@ -353,12 +356,12 @@ class TestMainWindowCompleteWorkflows:
         shot = Shot("test", "seq", "001", "/test/path")
         window.shot_model.select_shot(shot)
 
-        with patch("main_window.MainWindow._launch_app") as mock_launch:
+        with patch("main_window.MainWindow.launch_app") as mock_launch:
             mock_launch.side_effect = RuntimeError("Launch failed")
 
             # Attempt launch - should handle error gracefully
             try:
-                window._launch_app("nuke")
+                window.launch_app("nuke")
             except RuntimeError:
                 pass  # May or may not be caught
 
@@ -512,6 +515,7 @@ class TestMainWindowCompleteWorkflows:
         assert window.isVisible()
 
         # Test close event handling
+        # Third-party imports
         from PySide6.QtGui import QCloseEvent
 
         close_event = QCloseEvent()

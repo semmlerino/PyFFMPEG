@@ -14,10 +14,12 @@ PERFORMANCE OPTIMIZATION FIXES:
 
 from __future__ import annotations
 
+# Standard library imports
 import time
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 
 # Performance test markers

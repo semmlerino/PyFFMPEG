@@ -6,17 +6,20 @@ for async callback handling and race condition prevention.
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import sys
 import threading
 from pathlib import Path
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Q_ARG, QMetaObject, Qt, QThreadPool
 from PySide6.QtGui import QImage
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Local application imports
 from cache_manager import CacheManager
 from shot_info_panel import InfoPanelPixmapLoader, ShotInfoPanel
 from shot_item_model import ShotItemModel
@@ -259,6 +262,7 @@ class TestShotInfoPanelThreadSafety:
     @pytest.fixture
     def thread_safe_panel(self, qtbot) -> ShotInfoPanel:
         """Create panel for thread safety testing."""
+        # Standard library imports
         import tempfile
         from pathlib import Path
 
@@ -391,6 +395,7 @@ class TestCrossComponentThreadSafety:
         image.save(str(image_path), "JPEG")
 
         model = ShotItemModel(TestCacheManager())
+        # Standard library imports
         import tempfile
         from pathlib import Path
 

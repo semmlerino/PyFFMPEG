@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import os
 import re
@@ -10,11 +11,13 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Local application imports
 from config import Config, ThreadingConfig
 from shot_finder_base import ShotFinderBase
 from shot_model import Shot
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Generator
 
 
@@ -540,6 +543,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
         Returns:
             List of approved/completed shots
         """
+        # Local application imports
         from targeted_shot_finder import TargetedShotsFinder
 
         # Ensure shows_root is always a Path object

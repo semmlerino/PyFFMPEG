@@ -11,9 +11,11 @@ Refactored to follow UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QCoreApplication
 
+# Local application imports
 from config import ThreadingConfig
 from launcher import CustomLauncher
 from launcher_manager import LauncherManager
@@ -22,7 +24,7 @@ from tests.test_doubles_library import (
     TestWorker,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
 
 
 # Using TestWorker from test_doubles_library instead of custom MockWorker

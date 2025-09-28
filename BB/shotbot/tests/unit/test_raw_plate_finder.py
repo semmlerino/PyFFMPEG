@@ -9,8 +9,10 @@ This refactored version:
 
 from __future__ import annotations
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from raw_plate_finder import RawPlateFinder
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:

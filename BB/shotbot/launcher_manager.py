@@ -6,12 +6,15 @@ specialized components for launcher management, validation, and execution.
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 from PySide6.QtCore import QObject, Signal
 
+# Local application imports
 from config import ThreadingConfig
 from launcher.config_manager import LauncherConfigManager
 from launcher.models import (
@@ -27,8 +30,10 @@ from logging_mixin import LoggingMixin
 from process_pool_manager import ProcessPoolManager
 
 if TYPE_CHECKING:
+    # Standard library imports
     from pathlib import Path
 
+    # Local application imports
     from shot_model import Shot
 
 # Set up logger for this module
@@ -79,6 +84,7 @@ class LauncherManager(LoggingMixin, QObject):
 
         # ProcessPoolManager for optimized command execution (via factory for DI)
         try:
+            # Local application imports
             from process_pool_factory import get_process_pool
 
             self._process_pool = get_process_pool()
@@ -506,6 +512,7 @@ class LauncherManager(LoggingMixin, QObject):
             )
         else:
             # Use subprocess for terminal commands
+            # Standard library imports
             import shlex
 
             cmd_list = shlex.split(command)

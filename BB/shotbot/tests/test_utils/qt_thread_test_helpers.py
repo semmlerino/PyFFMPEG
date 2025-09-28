@@ -6,17 +6,22 @@ signal handling and event loop management.
 
 from __future__ import annotations
 
+# Standard library imports
 import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 from PySide6.QtCore import QCoreApplication, QThread, Signal
 
+# Local application imports
 from tests.helpers.synchronization import process_qt_events
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable
 
+    # Third-party imports
     from pytestqt.qtbot import QtBot
 
 

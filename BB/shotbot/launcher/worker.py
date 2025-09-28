@@ -6,6 +6,7 @@ execution in a separate thread, extracted from the original launcher_manager.py.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import re
 import shlex
@@ -13,8 +14,10 @@ import subprocess
 import threading
 from typing import IO
 
+# Third-party imports
 from PySide6.QtCore import Signal
 
+# Local application imports
 from exceptions import SecurityError
 from thread_safe_worker import ThreadSafeWorker
 

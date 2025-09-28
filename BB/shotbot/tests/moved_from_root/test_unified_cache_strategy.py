@@ -8,13 +8,15 @@ This test verifies that:
 4. Backward compatibility is maintained
 """
 
+# Standard library imports
 import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from cache_config_unified import UnifiedCacheConfig
+# Local application imports
+from cache_config import UnifiedCacheConfig
 from cache_manager import CacheManager
 
 

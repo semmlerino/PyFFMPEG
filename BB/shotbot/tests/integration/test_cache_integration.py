@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import json
 import shutil
 import sys
@@ -16,15 +17,18 @@ import threading
 import traceback
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
 try:
+    # Third-party imports
     from PIL import Image
 except ImportError:
     Image = None
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Local application imports
 from cache_manager import CacheManager
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -289,6 +293,7 @@ class TestCacheIntegration:
         assert cached_shots[0]["show"] == "test_show"
 
         # Test TTL expiration with mocked datetime
+        # Standard library imports
         from datetime import datetime, timedelta
         from unittest.mock import patch
 

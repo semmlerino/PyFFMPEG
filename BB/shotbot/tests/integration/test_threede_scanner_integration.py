@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import shutil
 import sys
@@ -16,9 +17,11 @@ import traceback
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtWidgets import QApplication
 
+# Local application imports
 from cache_manager import CacheManager
 from shot_model import Shot
 

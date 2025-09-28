@@ -7,11 +7,13 @@ protection and immutable shot identifier handling.
 
 from __future__ import annotations
 
+# Standard library imports
 import sys
 from concurrent.futures import Future
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Q_ARG, QMetaObject, Qt
 from PySide6.QtGui import QImage
@@ -19,12 +21,13 @@ from PySide6.QtTest import QSignalSpy
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Local application imports
 from cache_manager import ThumbnailCacheResult
 from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.critical]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.critical, pytest.mark.xdist_group("qt_state")]
 
 
 class TestAsyncCallbackRaceConditions:
@@ -147,6 +150,7 @@ class TestAsyncCallbackRaceConditions:
                 cache_result.future.set_result(Path("/cache/thumbnail.jpg"))
 
                 # Process Qt events multiple times to ensure queued calls are processed
+                # Third-party imports
                 from PySide6.QtCore import QCoreApplication
 
                 for _ in range(5):

@@ -15,13 +15,16 @@ Key improvements over the original:
 
 from __future__ import annotations
 
+# Standard library imports
 import threading
 import time
 from pathlib import Path
 from typing import Self
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from process_pool_manager import (
     CommandCache,
     ProcessMetrics,
@@ -107,6 +110,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
     def __new__(cls, *args, **kwargs) -> Self:
         """Override to bypass singleton pattern in tests."""
         # Don't use singleton for test instances - use QObject's __new__
+        # Third-party imports
         from PySide6.QtCore import QObject
 
         instance = QObject.__new__(cls)
@@ -115,10 +119,13 @@ class InjectableProcessPoolManager(ProcessPoolManager):
     def __init__(self, max_workers: int = 4) -> None:
         """Initialize with optional session injection."""
         # Initialize directly without calling super().__init__() to avoid singleton issues
+        # Standard library imports
         import concurrent.futures
 
+        # Third-party imports
         from PySide6.QtCore import QObject
 
+        # Local application imports
         from secure_command_executor import get_secure_executor
 
         QObject.__init__(self)  # Initialize QObject directly
@@ -136,6 +143,11 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         self._metrics = ProcessMetrics()
         self._initialized = True
         self._test_session: BashSessionDouble | None = None
+        # Instance-level mutex and shutdown flag (added to parent class)
+        # Third-party imports
+        from PySide6.QtCore import QMutex
+        self._mutex = QMutex()
+        self._shutdown_requested = False
 
     def set_test_session(self, session: BashSessionDouble) -> None:
         """Inject test session for testing."""
@@ -150,6 +162,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         """Override to use test session when available."""
         if self._test_session:
             # Use test session instead of secure executor
+            # Standard library imports
             import time
 
             # Check cache first (same as parent)
@@ -194,6 +207,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         """Override to use test session for batch execution."""
         if self._test_session:
             # Use test session instead of secure executor for batch commands
+            # Standard library imports
             import time
 
             start_time = time.time()
@@ -495,6 +509,7 @@ class TestProcessPoolManagerBehavior:
         2. The singleton pattern works under concurrent access
         3. No Qt threading violations occur
         """
+        # Standard library imports
         import queue
         from concurrent.futures import ThreadPoolExecutor
 
@@ -604,6 +619,7 @@ class TestPythonFileOperations:
 
         # Test BEHAVIOR: Manager remains functional after error
         # (Can still perform other operations)
+        # Standard library imports
         import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:

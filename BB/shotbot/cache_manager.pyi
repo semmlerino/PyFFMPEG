@@ -1,11 +1,14 @@
 """Type stubs for cache_manager module."""
 
+# Standard library imports
 import threading
 from collections.abc import Sequence
 from pathlib import Path
 
+# Third-party imports
 from PySide6.QtCore import QObject, QRunnable, Signal
 
+# Local application imports
 from cache.thumbnail_loader import ThumbnailCacheResult
 from shot_model import Shot
 from type_definitions import ShotDict, ThreeDESceneDict

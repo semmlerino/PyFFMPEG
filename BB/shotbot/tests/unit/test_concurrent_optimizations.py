@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Test concurrent operations and race conditions in ShotModel."""
 
+# Standard library imports
 import threading
 import time
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from shot_model import ShotModel
 
 

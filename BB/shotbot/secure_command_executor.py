@@ -6,7 +6,7 @@ PersistentBashSession implementation.
 
 from __future__ import annotations
 
-import logging
+# Standard library imports
 import os
 import re
 import shlex
@@ -15,10 +15,11 @@ import threading
 import time
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# Local application imports
+from logging_mixin import LoggingMixin
 
 
-class SecureCommandExecutor:
+class SecureCommandExecutor(LoggingMixin):
     """Secure command executor with whitelisting and validation."""
 
     # Strictly allowed executables (no bash/sh allowed)
@@ -89,7 +90,7 @@ class SecureCommandExecutor:
         if cache_ttl > 0:
             cached = self._get_cached(command)
             if cached is not None:
-                logger.debug(f"Cache hit for command: {command[:50]}...")
+                self.logger.debug(f"Cache hit for command: {command[:50]}...")
                 return cached
 
         # Validate command safety
@@ -241,10 +242,10 @@ class SecureCommandExecutor:
                 )
                 return result.stdout
             except subprocess.TimeoutExpired:
-                logger.error(f"Command timed out after {timeout}s: {parts[0]}")
+                self.logger.error(f"Command timed out after {timeout}s: {parts[0]}")
                 raise
             except subprocess.CalledProcessError as e:
-                logger.error(f"Command failed: {e.cmd}, stderr: {e.stderr}")
+                self.logger.error(f"Command failed: {e.cmd}, stderr: {e.stderr}")
                 raise
 
     def _execute_workspace_function(self, command: str, timeout: int) -> str:
@@ -286,10 +287,10 @@ class SecureCommandExecutor:
                 )
                 return result.stdout
             except subprocess.TimeoutExpired:
-                logger.error(f"Workspace command timed out after {timeout}s")
+                self.logger.error(f"Workspace command timed out after {timeout}s")
                 raise
             except subprocess.CalledProcessError as e:
-                logger.error(f"Workspace command failed: {e.stderr}")
+                self.logger.error(f"Workspace command failed: {e.stderr}")
                 raise
 
     def _get_safe_environment(self) -> dict[str, str]:

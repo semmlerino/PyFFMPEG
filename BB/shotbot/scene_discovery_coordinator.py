@@ -10,10 +10,12 @@ Part of the Phase 2 refactoring to break down the monolithic scene finder.
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
+# Local application imports
 from filesystem_scanner import FileSystemScanner
 from logging_mixin import LoggingMixin, log_execution
 from scene_cache import SceneCache
@@ -23,8 +25,10 @@ from scene_discovery_strategy import (
 from scene_parser import SceneParser
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable, Generator
 
+    # Local application imports
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
@@ -243,6 +247,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         """
         try:
             # Use progressive strategy if available
+            # Local application imports
             from scene_discovery_strategy import ProgressiveDiscoveryStrategy
 
             if not isinstance(self.strategy, ProgressiveDiscoveryStrategy):
@@ -284,6 +289,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         This is a hook method that can be overridden by subclasses.
         """
+        # Local application imports
         from utils import ValidationUtils
 
         if not ValidationUtils.validate_shot_components(show, sequence, shot):
@@ -330,6 +336,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         This is a hook method that can be overridden by subclasses.
         """
+        # Standard library imports
         from pathlib import Path
 
         show_info: dict[str, set[str]] = {}
@@ -519,8 +526,10 @@ class RefactoredThreeDESceneFinder:
         Provides parallel scene discovery with progress and cancellation support.
         """
         # Import components needed for parallel discovery
+        # Standard library imports
         from pathlib import Path
 
+        # Local application imports
         from config import Config
         from filesystem_scanner import FileSystemScanner
         from scene_parser import SceneParser
@@ -555,6 +564,7 @@ class RefactoredThreeDESceneFinder:
         SceneParser()
 
         # Import necessary modules for parallel processing
+        # Standard library imports
         import threading
 
         # Create a thread-safe lock for appending results
@@ -619,6 +629,7 @@ class RefactoredThreeDESceneFinder:
 
                 # Create scene for ALL found files from other users
                 # This is the "Other 3DE scenes" tab - it should show everything
+                # Local application imports
                 from threede_scene_model import ThreeDEScene
 
                 scene = ThreeDEScene(

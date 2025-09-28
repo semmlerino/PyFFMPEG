@@ -15,11 +15,14 @@ This module provides lightweight test doubles that follow the guide's principles
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 from typing import Any
 
+# Third-party imports
 from PySide6.QtCore import QObject, Signal
 
+# Local application imports
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)

@@ -10,19 +10,31 @@ they work together correctly. Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Third-party imports
 import pytest
 from PySide6.QtWidgets import QApplication
 
-from main_window import MainWindow
+# Local application imports
+# Moved to lazy import to fix Qt initialization
+# from main_window import MainWindow
 from tests.test_doubles_library import TestProcessPool
 from threede_scene_model import ThreeDEScene
 
 if TYPE_CHECKING:
+    # Third-party imports
     from pytestqt.qtbot import QtBot
+
+# Module-level fixture to handle lazy imports after Qt initialization
+@pytest.fixture(scope="module", autouse=True)
+def setup_qt_imports():
+    """Import Qt and MainWindow components after test setup."""
+    global MainWindow
+    from main_window import MainWindow
 
 pytestmark = [
     pytest.mark.integration,
@@ -38,6 +50,7 @@ class TestCrossTabSynchronization:
     def setup_and_teardown(self, qtbot: QtBot) -> None:
         """Clean up Qt state between tests to prevent segfaults."""
         # Clear ProcessPoolManager singleton before test
+        # Local application imports
         from process_pool_manager import ProcessPoolManager
 
         ProcessPoolManager._instance = None
@@ -51,6 +64,7 @@ class TestCrossTabSynchronization:
         for window in self.test_windows:
             if window:
                 # Explicitly call closeEvent to ensure workers are stopped
+                # Third-party imports
                 from PySide6.QtGui import QCloseEvent
 
                 close_event = QCloseEvent()
@@ -76,6 +90,7 @@ class TestCrossTabSynchronization:
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
                 # Use small timeout, don't use QTest.qWait which might crash
+                # Standard library imports
                 import time
 
                 time.sleep(0.01)
@@ -97,6 +112,7 @@ class TestCrossTabSynchronization:
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
         # Temporarily disable QTimer to prevent background refreshes
+        # Third-party imports
         from PySide6.QtCore import QTimer
         original_singleshot = QTimer.singleShot
         QTimer.singleShot = lambda *args, **kwargs: None  # Disable all timers
@@ -112,6 +128,7 @@ class TestCrossTabSynchronization:
 
         # Stop any background loaders that might have started
         # This is critical - must stop before setting up test pool
+        # Third-party imports
         from PySide6.QtCore import QMutexLocker
         with QMutexLocker(window.shot_model._loader_lock):
             if window.shot_model._async_loader:
@@ -238,6 +255,7 @@ class TestCrossTabSynchronization:
         3. Each tab can have independent filter settings
         """
         # Prevent any async loading by stubbing out the initialization
+        # Local application imports
         from shot_model import AsyncShotLoader
         original_init_async = AsyncShotLoader.__init__
         def no_op_init(self, *args, **kwargs) -> None:
@@ -246,14 +264,17 @@ class TestCrossTabSynchronization:
         AsyncShotLoader.__init__ = no_op_init
 
         # Disable background refresh from QTimer
+        # Third-party imports
         from PySide6.QtCore import QTimer
         original_singleshot = QTimer.singleShot
         QTimer.singleShot = lambda *args, **kwargs: None  # Disable all timers
 
         # Create a temporary cache manager in a fresh directory to avoid old data
+        # Standard library imports
         import tempfile
         from pathlib import Path
 
+        # Local application imports
         from cache_manager import CacheManager
         temp_cache_dir = Path(tempfile.mkdtemp(prefix="shotbot_test_"))
         test_cache_manager = CacheManager(cache_dir=temp_cache_dir)
@@ -271,6 +292,7 @@ class TestCrossTabSynchronization:
         window.shot_item_model.set_shots([])
 
         # Make sure no background loading can interfere
+        # Third-party imports
         from PySide6.QtCore import QMutexLocker
         with QMutexLocker(window.shot_model._loader_lock):
             if window.shot_model._async_loader:
@@ -320,11 +342,13 @@ class TestCacheUICoordination:
     @pytest.fixture(autouse=True)
     def setup_and_teardown(self, qtbot: QtBot, tmp_path: Path) -> None:
         """Clean up state between tests."""
+        # Local application imports
         from process_pool_manager import ProcessPoolManager
 
         ProcessPoolManager._instance = None
 
         # Clear test cache directory
+        # Standard library imports
         import shutil
         from pathlib import Path
 
@@ -341,6 +365,7 @@ class TestCacheUICoordination:
         for window in self.test_windows:
             if window:
                 # Explicitly call closeEvent to ensure workers are stopped
+                # Third-party imports
                 from PySide6.QtGui import QCloseEvent
 
                 close_event = QCloseEvent()
@@ -365,6 +390,7 @@ class TestCacheUICoordination:
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
                 # Use small timeout, don't use QTest.qWait which might crash
+                # Standard library imports
                 import time
 
                 time.sleep(0.01)
@@ -414,6 +440,7 @@ class TestCacheUICoordination:
         # Create a valid test image file to cache
         fake_thumb = tmp_path / "test_thumb.jpg"
         # Create a minimal valid JPEG (1x1 red pixel)
+        # Third-party imports
         from PySide6.QtGui import QColor, QImage
 
         img = QImage(1, 1, QImage.Format.Format_RGB32)
@@ -482,6 +509,7 @@ class TestErrorPropagationChains:
     @pytest.fixture(autouse=True)
     def setup_and_teardown(self, qtbot: QtBot) -> None:
         """Clean up state between tests."""
+        # Local application imports
         from process_pool_manager import ProcessPoolManager
 
         ProcessPoolManager._instance = None
@@ -495,6 +523,7 @@ class TestErrorPropagationChains:
         for window in self.test_windows:
             if window:
                 # Explicitly call closeEvent to ensure workers are stopped
+                # Third-party imports
                 from PySide6.QtGui import QCloseEvent
 
                 close_event = QCloseEvent()
@@ -519,6 +548,7 @@ class TestErrorPropagationChains:
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
                 # Use small timeout, don't use QTest.qWait which might crash
+                # Standard library imports
                 import time
 
                 time.sleep(0.01)

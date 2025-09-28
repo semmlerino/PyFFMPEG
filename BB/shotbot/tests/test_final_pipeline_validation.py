@@ -5,6 +5,7 @@ This test validates the entire pipeline from ws -sg parsing through
 3DE scene discovery and thumbnail paths, ensuring all fixes are working.
 """
 
+# Standard library imports
 import sys
 from pathlib import Path
 

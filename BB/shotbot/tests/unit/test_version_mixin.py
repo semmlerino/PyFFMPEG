@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import re
 from pathlib import Path
 from unittest.mock import patch
 
+# Local application imports
 from version_mixin import VersionHandlingMixin
 
 
 class ConcreteVersionClass(VersionHandlingMixin):
     """Concrete class for testing the mixin."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize test class."""
         super().__init__()
 
@@ -22,7 +24,7 @@ class CustomPatternClass(VersionHandlingMixin):
 
     VERSION_PATTERN = re.compile(r"\.v(\d{4})\.")
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize test class."""
         super().__init__()
 
@@ -30,7 +32,7 @@ class CustomPatternClass(VersionHandlingMixin):
 class FallbackEnabledClass(VersionHandlingMixin):
     """Class with fallback patterns enabled."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize test class."""
         super().__init__()
         self.use_fallback_patterns = True

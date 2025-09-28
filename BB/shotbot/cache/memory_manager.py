@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import threading
 from pathlib import Path
 from typing import Any
 
+# Local application imports
 from config import ThreadingConfig
 
 logger = logging.getLogger(__name__)

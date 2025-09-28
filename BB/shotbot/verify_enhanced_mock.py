@@ -3,6 +3,7 @@
 Verify enhanced mock environment has 3DE files for both tabs.
 """
 
+# Standard library imports
 from pathlib import Path
 
 
@@ -82,6 +83,7 @@ def verify_mock_environment(shows_root: str | Path) -> bool:
 
 if __name__ == "__main__":
     # Test the enhanced mock environment
+    # Standard library imports
     import sys
 
     shows_root = sys.argv[1] if len(sys.argv) > 1 else "/tmp/mock_vfx_final/shows"

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from command_launcher import CommandLauncher
 from persistent_terminal_manager import PersistentTerminalManager
 
@@ -60,6 +63,7 @@ class TestTerminalIntegrationFlow:
             patch("os.path.exists", return_value=True),
             patch("os.stat") as mock_stat,
         ):
+            # Standard library imports
             import stat
 
             mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
@@ -226,6 +230,7 @@ class TestTerminalIntegrationFlow:
             return True
 
         # Simulate terminal dying and being restarted
+        # Standard library imports
         import errno
 
         with (
@@ -381,6 +386,7 @@ class TestTerminalCleanup:
                 patch("os.stat") as mock_stat,
                 patch("os.unlink") as mock_unlink,
             ):
+                # Standard library imports
                 import stat
 
                 mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
@@ -414,6 +420,7 @@ class TestTerminalCleanup:
                 patch("os.stat") as mock_stat,
                 patch("os.unlink") as mock_unlink,
             ):
+                # Standard library imports
                 import stat
 
                 mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)

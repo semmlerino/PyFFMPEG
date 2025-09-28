@@ -6,17 +6,19 @@ Replace TODO markers with actual implementation.
 
 from __future__ import annotations
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtTest import QSignalSpy
 
+# Local application imports
 # Import test doubles instead of unittest.mock
 from tests.test_doubles_library import (
     TestSubprocess,
 )
 
 # Mark all tests in this file
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
 # TODO: Replace with actual class being tested

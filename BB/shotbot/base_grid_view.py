@@ -6,8 +6,10 @@ and behavior for ShotGridView, ThreeDEGridView, and PreviousShotsView.
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import (
     QAbstractItemModel,
     QModelIndex,
@@ -28,13 +30,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
+    # Third-party imports
     from PySide6.QtGui import QKeyEvent, QWheelEvent
 
+    # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
 
 

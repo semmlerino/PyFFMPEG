@@ -12,6 +12,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import os
 import threading
@@ -19,8 +20,10 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from cache.memory_manager import MemoryManager
 from config import ThreadingConfig
 

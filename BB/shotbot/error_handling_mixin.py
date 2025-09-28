@@ -19,17 +19,21 @@ Usage:
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import traceback
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
+# Third-party imports
 from typing_extensions import ParamSpec
 
+# Local application imports
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable, Generator
 
 # Type variables for generic functions
@@ -268,6 +272,7 @@ class ErrorHandlingMixin(LoggingMixin):
         Returns:
             Operation result or None if all retries failed
         """
+        # Standard library imports
         import time
 
         current_delay = delay_seconds

@@ -12,6 +12,7 @@ Replaces:
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import os
 import subprocess
@@ -20,12 +21,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import QObject, Signal
 
+# Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
+from nuke_launch_handler import NukeLaunchHandler
 
 if TYPE_CHECKING:
+    # Local application imports
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
@@ -63,6 +68,9 @@ class SimplifiedLauncher(LoggingMixin, QObject):
 
         # Current shot context
         self.current_shot: Shot | None = None
+
+        # Initialize Nuke handler for consolidated Nuke functionality
+        self.nuke_handler = NukeLaunchHandler()
 
         self.logger.info("SimplifiedLauncher initialized with 30-minute cache TTL")
 
@@ -103,7 +111,46 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             self._emit_error(f"Unknown application: {app_name}")
             return False
 
-        # Build command based on app and options
+        # Special handling for Nuke using NukeLaunchHandler
+        if app_name == "nuke" and shot:
+            # NukeLaunchHandler returns complete command with environment fixes
+            nuke_options = {
+                "open_latest_scene": bool(options.get("open_latest")),
+                "create_new_file": bool(options.get("create_new_file")),
+                "include_raw_plate": bool(options.get("include_plate")),
+                "include_undistortion": bool(options.get("include_undistortion")),
+            }
+
+            base_command = Config.APPS[app_name]
+            command, log_messages = self.nuke_handler.prepare_nuke_command(
+                shot, base_command, nuke_options
+            )
+
+            # Log messages from handler
+            for msg in log_messages:
+                self.logger.info(msg)
+
+            # Get environment fixes as bash commands
+            env_fixes = self.nuke_handler.get_environment_fixes()
+            if env_fixes:
+                # Prepend environment fixes to command
+                command = f"{env_fixes}{command}"
+
+            # Use basic environment for shot context
+            env = {
+                "SHOT": shot.full_name,
+                "SHOT_WORKSPACE": str(shot.workspace_path),
+                "SHOW": shot.show,
+            }
+
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.command_executed.emit(
+                timestamp, f"Launching {app_name} with command: {command[:100]}..."
+            )
+
+            return self._execute_in_terminal(command, env)
+
+        # Build command based on app and options (for non-Nuke apps)
         command = self._build_app_command(app_name, shot, scene, options)
 
         # Get environment for the app
@@ -144,18 +191,9 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                     command_parts.append(f"-open {self._quote_path(latest)}")
 
         elif app_name == "nuke":
-            if options.get("open_latest") and shot:
-                # Find and open latest Nuke script
-                latest = self._find_latest_scene(shot.workspace_path, "nuke")
-                if latest:
-                    command_parts.append(self._quote_path(latest))
-            elif options.get("include_plate") and shot:
-                # Create script with plate - simplified version
-                plate = self._find_raw_plate(shot.workspace_path, shot.full_name)
-                if plate:
-                    # For simplicity, just open Nuke - full script generation
-                    # would be added if needed
-                    self.logger.info(f"Found plate at: {plate}")
+            # Nuke command building is now handled in launch_vfx_app
+            # This clause is kept for consistency but returns base command
+            return base_command
 
         elif app_name == "maya":
             if options.get("open_latest") and shot:
@@ -184,11 +222,8 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             env["SHOW"] = shot.show
 
         # App-specific environment
-        if app_name == "nuke":
-            # Prevent OCIO crashes
-            if Config.NUKE_FIX_OCIO_CRASH:
-                env["OCIO"] = ""
-                env["NUKE_NO_CRASH_PROMPT"] = "1"
+        # Note: Nuke environment is now handled directly in launch_vfx_app
+        # using NukeLaunchHandler.get_environment_fixes()
 
         return env
 
@@ -415,85 +450,19 @@ class SimplifiedLauncher(LoggingMixin, QObject):
     def _find_latest_nuke_workspace_script(self, workspace_path: Path) -> Path | None:
         """Find the latest Nuke script in VFX workspace structure.
 
-        Uses the VFX workspace path: {workspace}/user/{user}/mm/nuke/scripts/{plate}/scene/{pass}/
-        Looks for files: {shot}_{plate}_{pass}_scene_v*.nk
+        DEPRECATED: This method is replaced by NukeLaunchHandler's workspace management.
+        Kept only for backward compatibility if needed.
         """
+        # Delegate to NukeLaunchHandler's workspace manager
         if not self.current_shot:
             return None
 
-        import os
-        import re
-
-        # Get user (same logic as NukeWorkspaceManager)
-        user = os.environ.get("USER", "gabriel-h")
-        plate = "mm-default"  # Default plate name
-        pass_name = "PL01"  # Default pass name
-
-        # Build VFX workspace script directory path
-        script_dir = (
-            workspace_path
-            / "user"
-            / user
-            / "mm"
-            / "nuke"
-            / "scripts"
-            / plate
-            / "scene"
-            / pass_name
+        script_dir = self.nuke_handler.workspace_manager.get_workspace_script_directory(
+            str(workspace_path)
         )
-
-        if not script_dir.exists():
-            self.logger.debug(
-                f"Nuke workspace script directory not found: {script_dir}"
-            )
-            return None
-
-        # Build pattern for expected filename format
-        # Pattern: {shot}_{plate}_{pass}_scene_v*.nk
-        shot_name = self.current_shot.full_name
-        pattern = f"{shot_name}_{plate}_{pass_name}_scene_v*.nk"
-        regex_pattern = pattern.replace(".", r"\.").replace("*", r"(\d{3})")
-
-        try:
-            version_regex = re.compile(regex_pattern)
-        except re.error:
-            self.logger.error(
-                f"Invalid regex pattern for Nuke script search: {pattern}"
-            )
-            return None
-
-        latest_file = None
-        latest_version = 0
-
-        try:
-            for file_path in script_dir.iterdir():
-                if file_path.is_file() and file_path.suffix == ".nk":
-                    match = version_regex.match(file_path.name)
-                    if match:
-                        try:
-                            version = int(match.group(1))
-                            if version > latest_version:
-                                latest_version = version
-                                latest_file = file_path
-                        except (ValueError, IndexError):
-                            continue
-        except (OSError, PermissionError) as e:
-            self.logger.error(
-                f"Error scanning Nuke workspace directory {script_dir}: {e}"
-            )
-            return None
-
-        if latest_file:
-            self.logger.info(
-                f"Found latest Nuke workspace script: {latest_file.name} (v{latest_version:03d})"
-            )
-        else:
-            self.logger.debug(
-                f"No Nuke workspace scripts found in {script_dir} for shot {shot_name}"
-            )
-
-        return latest_file
-
+        return self.nuke_handler.workspace_manager.find_latest_nuke_script(
+            script_dir, self.current_shot.full_name
+        )
     # ========== Cache Management ==========
 
     def _cache_get(self, command: str) -> str | None:
@@ -524,7 +493,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
 
     def cleanup_processes(self) -> None:
         """Clean up finished processes from tracking."""
-        finished_pids = []
+        finished_pids: list[int] = []
 
         for pid, proc in self._active_processes.items():
             poll = proc.poll()

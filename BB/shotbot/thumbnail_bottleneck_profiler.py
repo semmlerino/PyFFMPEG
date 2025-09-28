@@ -10,6 +10,7 @@ Focuses specifically on the performance areas requested:
 5. Parallel processing efficiency
 """
 
+# Standard library imports
 import cProfile
 import io
 import logging
@@ -20,15 +21,18 @@ import sys
 import time
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 import psutil
 
 if TYPE_CHECKING:
+    # Standard library imports
     from pathlib import Path
 
 # Add current directory for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
+    # Local application imports
     from config import Config
     from shot_model import Shot
     from utils import FileUtils, PathUtils, get_cache_stats
@@ -747,6 +751,7 @@ class ThumbnailBottleneckProfiler:
 
 def main() -> None:
     """Main entry point."""
+    # Standard library imports
     import argparse
 
     parser = argparse.ArgumentParser(

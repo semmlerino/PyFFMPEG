@@ -21,6 +21,7 @@ PERFORMANCE OPTIMIZATION FIXES:
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import subprocess
 import sys
@@ -29,8 +30,10 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from threede_scene_finder_optimized import DirectoryCache, OptimizedThreeDESceneFinder
 
 # Add the project root to path for imports
@@ -176,6 +179,7 @@ class TestOptimizedFileFinding:
             (threede_dir / f"{user}_fg01.3de").write_text("# FG scene")
 
         # Test Python method using the refactored FileSystemScanner
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
@@ -203,6 +207,7 @@ class TestOptimizedFileFinding:
             (threede_dir / f"scene_{user}.3de").write_text(f"# Scene for {user}")
 
         # Test subprocess method using the refactored FileSystemScanner
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
@@ -220,6 +225,7 @@ class TestOptimizedFileFinding:
 
     def test_subprocess_fallback_behavior(self, tmp_path) -> None:
         """Test subprocess fallback to Python method."""
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         user_dir = tmp_path / "user"
@@ -242,6 +248,7 @@ class TestOptimizedFileFinding:
 
     def test_subprocess_timeout_handling(self, tmp_path) -> None:
         """Test subprocess timeout handling."""
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         user_dir = tmp_path / "user"

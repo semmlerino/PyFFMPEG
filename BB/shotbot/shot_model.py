@@ -15,10 +15,12 @@ Thread Safety:
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
+# Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal, Slot
 from typing_extensions import override
 
@@ -30,10 +32,10 @@ if TYPE_CHECKING:
     from process_pool_factory import ProcessPoolInterface
     from type_definitions import PerformanceMetricsDict, ShotDict
 
+# Local application imports
 from base_shot_model import BaseShotModel
 from config import Config
 from exceptions import WorkspaceError
-from logging_mixin import LoggingMixin
 from thread_safe_worker import ThreadSafeWorker
 from type_definitions import RefreshResult
 from utils import PathUtils
@@ -127,7 +129,7 @@ class Shot:
         return shot
 
 
-class AsyncShotLoader(LoggingMixin, ThreadSafeWorker):
+class AsyncShotLoader(ThreadSafeWorker):
     """Background worker for loading shots without blocking UI.
 
     Thread Safety:
@@ -692,9 +694,11 @@ def create_optimized_shot_model(
 
 if __name__ == "__main__":
     # Demo the optimized model
+    # Standard library imports
     import sys
     import time
 
+    # Third-party imports
     from PySide6.QtWidgets import QApplication
 
     app = QApplication.instance() or QApplication(sys.argv)

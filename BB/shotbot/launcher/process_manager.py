@@ -6,12 +6,14 @@ extracted from the original launcher_manager.py for better separation of concern
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import subprocess
 import time
 import uuid
 from typing import Any
 
+# Third-party imports
 from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
@@ -22,6 +24,7 @@ from PySide6.QtCore import (
     Signal,
 )
 
+# Local application imports
 from config import ThreadingConfig
 from launcher.models import ProcessInfo
 from launcher.worker import LauncherWorker

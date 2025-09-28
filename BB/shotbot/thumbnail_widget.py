@@ -8,20 +8,22 @@ providing 98.9% memory reduction by eliminating widget creation overhead.
 Note: Still used by threede_shot_grid.py which needs migration to Model/View.
 """
 
-import logging
+# Standard library imports
 
+# Third-party imports
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QLabel, QMenu
 
+# Local application imports
 from config import Config
+from logging_mixin import LoggingMixin
 from shot_model import Shot
 from thumbnail_widget_base import ThumbnailWidgetBase
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
 
 
-class ThumbnailWidget(ThumbnailWidgetBase):
+class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
     """Widget displaying a shot thumbnail and name."""
 
     # Signals - maintain backward compatibility

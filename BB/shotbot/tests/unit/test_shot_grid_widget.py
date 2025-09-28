@@ -23,10 +23,12 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy, QTest
 
+# Local application imports
 from shot_grid_view import ShotGridView  # Modern Model/View
 
 # from shot_grid import ShotGrid  # Module deleted during Model/View migration
@@ -38,6 +40,8 @@ from tests.test_doubles_library import (
     TestCacheManager,
     TestShot,
 )
+
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 # TestShotGridWidget removed - tested the deleted ShotGrid widget.
 # Use TestShotGridView below for Model/View architecture tests.

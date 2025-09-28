@@ -8,11 +8,14 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+# Standard library imports
 import time
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
+# Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from threede_scene_finder import ThreeDESceneFinder
 
@@ -435,6 +438,7 @@ def test_show_root_path_extraction_no_double_slash() -> None:
     Regression test for bug where path extraction created '//shows' instead of '/shows'.
     This follows UNIFIED_TESTING_GUIDE by testing behavior with real Shot objects.
     """
+    # Local application imports
     from shot_model import Shot
 
     # Create test shots with realistic workspace paths
@@ -490,8 +494,10 @@ def test_path_parsing_for_deep_nested_structure() -> None:
 
     This follows UNIFIED_TESTING_GUIDE by testing behavior, not implementation details.
     """
+    # Standard library imports
     from pathlib import Path
 
+    # Local application imports
     from threede_scene_finder import OptimizedThreeDESceneFinder
 
     # Create realistic file path that was causing issues

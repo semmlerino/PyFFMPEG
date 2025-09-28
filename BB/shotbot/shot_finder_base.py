@@ -6,11 +6,13 @@ eliminating duplication between targeted and previous shot finders.
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
+# Local application imports
 from config import Config
 from finder_utils import FinderUtils
 from optimized_shot_parser import OptimizedShotParser
@@ -133,6 +135,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         Returns:
             Path to thumbnail or None if not found
         """
+        # Local application imports
         from utils import FileUtils, PathUtils
 
         try:

@@ -6,6 +6,7 @@ extracted from the original launcher_manager.py for better separation of concern
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import os
 import re
@@ -14,13 +15,16 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+# Local application imports
 from config import Config
 
 if TYPE_CHECKING:
+    # Local application imports
     from launcher.models import CustomLauncher, LauncherEnvironment
 
 # Import Shot conditionally since it requires Qt
 try:
+    # Local application imports
     from shot_model import Shot
 except ImportError:
     Shot = None

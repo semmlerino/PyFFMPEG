@@ -6,10 +6,13 @@ Background workers are managed properly through Qt mechanisms.
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING
 
+# Third-party imports
 import pytest
 
+# Local application imports
 # Lazy imports to avoid Qt initialization at module level
 # from cache_manager import CacheManager
 # from main_window import MainWindow
@@ -21,6 +24,7 @@ from tests.test_doubles_library import (
 )
 
 if TYPE_CHECKING:
+    # Standard library imports
     from pathlib import Path
 
 pytestmark = [
@@ -35,6 +39,7 @@ pytestmark = [
 def setup_qt_imports():
     """Import Qt and MainWindow components after test setup."""
     global MainWindow, CacheManager, Shot
+    # Local application imports
     from cache_manager import CacheManager
     from main_window import MainWindow
     from shot_model import Shot
@@ -179,6 +184,7 @@ class TestApplicationLaunchingNoHang:
 
         # Mock the NukeWorkspaceManager to avoid creating directories
 
+        # Local application imports
         from nuke_workspace_manager import NukeWorkspaceManager
 
         def mock_get_workspace_script_directory(
@@ -216,7 +222,7 @@ class TestApplicationLaunchingNoHang:
 
         try:
             # Launch app
-            result = main_window._launch_app("nuke")
+            result = main_window.launch_app("nuke")
 
             # Test behavior: verify command was executed
             if original_run:

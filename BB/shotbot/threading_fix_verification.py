@@ -7,13 +7,16 @@ by ensuring all worker thread signals use QueuedConnection to force execution
 in the main thread.
 """
 
+# Standard library imports
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Standard library imports
 import logging
 
+# Third-party imports
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
@@ -32,6 +35,7 @@ def test_threading_fix() -> bool | None:
 
     try:
         # Import the fixed model
+        # Third-party imports
         from shot_model_optimized import OptimizedShotModel
 
         # Create model instance

@@ -9,18 +9,22 @@ Part of the Phase 2 refactoring to break down the monolithic scene finder.
 
 from __future__ import annotations
 
+# Standard library imports
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+# Local application imports
 from filesystem_scanner import FileSystemScanner
 from logging_mixin import LoggingMixin
 from scene_cache import SceneCache
 from scene_parser import SceneParser
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Generator
     from pathlib import Path
 
+    # Local application imports
     from threede_scene_model import ThreeDEScene
 
 
@@ -110,8 +114,10 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
         scenes: list[ThreeDEScene] = []
 
         try:
+            # Standard library imports
             from pathlib import Path
 
+            # Local application imports
             from utils import ValidationUtils
 
             # Input validation
@@ -206,6 +212,7 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
         scenes: list[ThreeDEScene] = []
 
         try:
+            # Standard library imports
             from pathlib import Path
 
             show_path = Path(show_root) / show
@@ -350,6 +357,7 @@ class ParallelFileSystemStrategy(SceneDiscoveryStrategy):
         scenes: list[ThreeDEScene] = []
 
         try:
+            # Standard library imports
             from pathlib import Path
 
             show_path = Path(show_root) / show
@@ -480,6 +488,7 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
                 for username, threede_file in file_batch:
                     try:
                         # Extract shot info from the file path
+                        # Standard library imports
                         from pathlib import Path
 
                         show_path = Path(show_root) / show

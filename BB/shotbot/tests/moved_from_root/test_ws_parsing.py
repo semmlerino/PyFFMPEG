@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Test script to verify ws output parsing with actual VFX data."""
 
+# Standard library imports
 import re
 
+# Local application imports
 from shot_model import Shot
 
 # Actual ws -sg output from VFX environment

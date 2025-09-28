@@ -25,16 +25,21 @@ Usage:
 
 from __future__ import annotations
 
+# Standard library imports
 import weakref
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 from PySide6.QtCore import QObject, Qt, Signal
 
+# Local application imports
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable
 
+    # Third-party imports
     from PySide6.QtCore import SignalInstance
 
 
@@ -317,6 +322,7 @@ class SignalManager(LoggingMixin):
         Returns:
             True if connection succeeded
         """
+        # Third-party imports
         from PySide6.QtCore import QTimer
 
         def delayed_slot(*args: Any, **kwargs: Any) -> None:
@@ -387,6 +393,7 @@ class SignalThrottler(QObject):
             parent: Optional parent QObject
         """
         super().__init__(parent)
+        # Third-party imports
         from PySide6.QtCore import QTimer
 
         self.source_signal = source_signal

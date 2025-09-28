@@ -27,6 +27,7 @@ Test Scenarios:
 
 from __future__ import annotations
 
+# Standard library imports
 import cProfile
 import io
 import pstats
@@ -36,9 +37,11 @@ import tempfile
 import time
 from pathlib import Path
 
+# Third-party imports
 import psutil
 import pytest
 
+# Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from threede_scene_finder import ThreeDESceneFinder
 

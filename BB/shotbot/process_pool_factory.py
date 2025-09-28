@@ -6,12 +6,14 @@ of ProcessPoolManager for testing and development environments.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import os
 import threading
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    # Local application imports
     from type_definitions import PerformanceMetricsDict
 
 logger = logging.getLogger(__name__)
@@ -146,6 +148,7 @@ class ProcessPoolFactory:
         Returns:
             ProcessPoolManager instance
         """
+        # Local application imports
         from process_pool_manager import ProcessPoolManager
 
         # Use the singleton pattern from ProcessPoolManager
@@ -161,10 +164,12 @@ class ProcessPoolFactory:
         Returns:
             Mock pool instance with demo data
         """
+        # Standard library imports
         from pathlib import Path
 
         # Try to use the enhanced mock pool first
         try:
+            # Local application imports
             from mock_workspace_pool import create_mock_pool_from_filesystem
 
             logger.info("Using enhanced MockWorkspacePool")
@@ -179,8 +184,10 @@ class ProcessPoolFactory:
         except ImportError:
             # Fall back to simple test pool
             logger.info("Falling back to TestProcessPool")
+            # Standard library imports
             import json
 
+            # Local application imports
             from tests.test_doubles_library import TestProcessPool
 
             mock_pool = TestProcessPool()

@@ -93,7 +93,6 @@ from controllers.settings_controller import (
 from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
-from launcher_dialog import LauncherManagerDialog  # Need at runtime for dialogs
 from launcher_manager import LauncherManager  # Need at runtime
 from launcher_panel import LauncherPanel  # Improved launcher UI
 from log_viewer import LogViewer

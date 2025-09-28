@@ -11,12 +11,14 @@ Or specify a custom root:
     python recreate_vfx_structure.py vfx_structure.json --root /tmp/mock_vfx
 """
 
+# Standard library imports
 import argparse
 import json
 import random
 from pathlib import Path
 from typing import Any
 
+# Third-party imports
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -260,6 +262,7 @@ class VFXStructureRecreator:
             return
 
         # Create 3DE files for about 25% of the shots for each other user
+        # Standard library imports
         import random
 
         random.seed(42)  # Consistent results
@@ -585,6 +588,7 @@ def main() -> None:
     if args.clean:
         root = Path(args.root)
         if root.exists():
+            # Standard library imports
             import shutil
 
             print(f"Cleaning existing structure at {root}")

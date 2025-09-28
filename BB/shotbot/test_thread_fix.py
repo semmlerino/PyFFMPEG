@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """Test script to verify thread cleanup fix without PySide6."""
 
+# Standard library imports
 import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Local application imports
+from logging_mixin import LoggingMixin, get_module_logger
 
-class MockWorker:
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s')
+
+# Module-level logger for test functions
+logger = get_module_logger(__name__)
+
+class MockWorker(LoggingMixin):
     """Mock worker to test zombie thread handling."""
 
     def __init__(self) -> None:
@@ -23,7 +29,7 @@ class MockWorker:
 
     def request_stop(self) -> None:
         """Request thread to stop."""
-        logger.info("Stop requested")
+        self.logger.info("Stop requested")
         self._stop_requested = True
 
     def should_stop(self) -> bool:
@@ -32,7 +38,7 @@ class MockWorker:
 
     def run_parallel_task(self) -> None:
         """Simulate parallel scanning with ThreadPoolExecutor."""
-        logger.info("Starting parallel task")
+        self.logger.info("Starting parallel task")
 
         def cancel_flag() -> bool:
             return self.should_stop()
@@ -48,7 +54,7 @@ class MockWorker:
             try:
                 for future in futures:
                     if cancel_flag():
-                        logger.info("Cancelling remaining futures")
+                        self.logger.info("Cancelling remaining futures")
                         for f in futures:
                             if not f.done():
                                 f.cancel()
@@ -57,26 +63,26 @@ class MockWorker:
 
                     try:
                         result = future.result(timeout=0.1)
-                        logger.debug(f"Got result: {result}")
+                        self.logger.debug(f"Got result: {result}")
                     except TimeoutError:
                         if cancel_flag():
                             executor.shutdown(wait=False, cancel_futures=True)
                             break
                         result = future.result()
             except Exception as e:
-                logger.error(f"Error: {e}")
+                self.logger.error(f"Error: {e}")
                 for f in futures:
                     if not f.done():
                         f.cancel()
                 executor.shutdown(wait=False, cancel_futures=True)
 
-        logger.info("Parallel task completed")
+        self.logger.info("Parallel task completed")
 
     def process_item(self, item: int) -> str | None:
         """Process a single item."""
         for i in range(5):
             if self.should_stop():
-                logger.debug(f"Item {item} cancelled at step {i}")
+                self.logger.debug(f"Item {item} cancelled at step {i}")
                 return None
             time.sleep(0.1)
         return f"Processed {item}"
@@ -86,7 +92,7 @@ class MockWorker:
         try:
             self.run_parallel_task()
         finally:
-            logger.info("Worker thread exiting")
+            self.logger.info("Worker thread exiting")
 
     def start(self) -> None:
         """Start the worker thread."""
@@ -99,11 +105,11 @@ class MockWorker:
         self._thread.join(timeout)
 
         if self._thread.is_alive():
-            logger.warning("Thread still running after timeout - marking as zombie")
+            self.logger.warning("Thread still running after timeout - marking as zombie")
             self._zombie = True
             return False
         else:
-            logger.info("Thread stopped successfully")
+            self.logger.info("Thread stopped successfully")
             return True
 
 def test_cleanup() -> None:

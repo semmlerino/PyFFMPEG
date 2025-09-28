@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Test error recovery scenarios for ShotModel."""
 
+# Standard library imports
 import time
 from typing import NoReturn
 
+# Third-party imports
 import pytest
 from PySide6.QtTest import QSignalSpy
 
+# Local application imports
 from shot_model import AsyncShotLoader, ShotModel
 
 
@@ -100,6 +103,7 @@ class TestErrorRecovery:
         cache_file.write_text("invalid json data {corrupt")
 
         # Replace cache manager with one using corrupted cache
+        # Local application imports
         from cache_manager import CacheManager
 
         corrupted_cache = CacheManager(cache_dir=cache_dir)
@@ -135,6 +139,7 @@ class TestErrorRecovery:
         failing_pool = CriticalErrorPool()
 
         # Need to provide parse_function (from UNIFIED_TESTING_GUIDE)
+        # Local application imports
         from base_shot_model import BaseShotModel
 
         base_model = BaseShotModel()
@@ -158,6 +163,7 @@ class TestErrorRecovery:
     def test_partial_data_handling(self) -> None:
         """Test handling of partial or malformed workspace data."""
         # Test the parsing directly without async complications
+        # Local application imports
         from cache_manager import CacheManager
 
         # Use test double returning partial data
@@ -171,6 +177,7 @@ workspace incomplete_path_without_enough_parts
 workspace /shows/test/shots/seq03/seq03_0030"""
 
         # Use regular ShotModel (not Optimized) for simpler synchronous testing
+        # Local application imports
         from shot_model import ShotModel
 
         model = ShotModel(CacheManager(), load_cache=False)

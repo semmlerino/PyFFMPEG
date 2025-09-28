@@ -22,23 +22,28 @@ This module provides reusable test doubles that:
 
 from __future__ import annotations
 
+# Standard library imports
 import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtGui import QColor, QImage
 
+# Local application imports
 # Import synchronization helpers to replace time.sleep()
 from tests.helpers.synchronization import simulate_work_without_sleep
 
 # Import types for type annotations
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable
 
+    # Local application imports
     from cache.failure_tracker import FailureTracker
     from cache.thumbnail_processor import ThumbnailProcessor
 
@@ -486,6 +491,7 @@ class TestCacheManager(QObject):
         self.thumbnails_dir = self.cache_dir / "thumbnails"
 
         # Initialize required dependencies with test doubles
+        # Local application imports
         from cache.failure_tracker import FailureTracker
         from cache.thumbnail_processor import ThumbnailProcessor
 
@@ -547,8 +553,10 @@ class TestCacheManager(QObject):
     ) -> Any:
         """Load a thumbnail asynchronously (test double)."""
         # For tests, just create a simple image and call the callback
+        # Standard library imports
         from concurrent.futures import Future
 
+        # Third-party imports
         from PySide6.QtCore import Qt
         from PySide6.QtGui import QImage
 
@@ -1050,110 +1058,10 @@ class ThreadSafeTestImage:
         return self._image.sizeInBytes()
 
 
-class SubprocessModuleDouble:
-    """Test double for the entire subprocess module.
-
-    This class can replace the entire subprocess module for testing,
-    providing both run() and Popen() methods that work correctly
-    with the context manager protocol.
-    """
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    def __init__(self, test_subprocess: TestSubprocess) -> None:
-        """Initialize with a TestSubprocess instance for configuration."""
-        self._test_subprocess = test_subprocess
-
-    def run(
-        self,
-        command: str | list[str],
-        shell: bool = False,
-        capture_output: bool = False,
-        text: bool = False,
-        check: bool = False,
-        timeout: float | None = None,
-        **kwargs: Any,
-    ) -> TestCompletedProcess:
-        """Mock subprocess.run() method."""
-        return self._test_subprocess.run(
-            command,
-            shell=shell,
-            capture_output=capture_output,
-            text=text,
-            check=check,
-            timeout=timeout,
-            **kwargs,
-        )
-
-    def Popen(
-        self,
-        command: str | list[str],
-        shell: bool = False,
-        stdout: Any = None,
-        stderr: Any = None,
-        **kwargs: Any,
-    ) -> PopenDouble:
-        """Mock subprocess.Popen() method."""
-        return self._test_subprocess.Popen(
-            command, shell=shell, stdout=stdout, stderr=stderr, **kwargs
-        )
-
-    def __call__(
-        self,
-        command: str | list[str],
-        shell: bool = False,
-        stdout: Any = None,
-        stderr: Any = None,
-        **kwargs: Any,
-    ) -> PopenDouble:
-        """Allow Popen to be called directly on the module double."""
-        return self.Popen(command, shell=shell, stdout=stdout, stderr=stderr, **kwargs)
-
-
-class TestPILImage:
-    """Test double for PIL Image with real behavior."""
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    def __init__(self, width: int = 100, height: int = 100, mode: str = "RGB") -> None:
-        """Create a test PIL image."""
-        self.size = (width, height)
-        self.mode = mode
-        self._width = width
-        self._height = height
-        self._thumbnail_called = False
-        self._thumbnail_size = None
-
-    def thumbnail(self, size: tuple[int, int], resample=None) -> None:
-        """Simulate thumbnail operation."""
-        self._thumbnail_called = True
-        self._thumbnail_size = size
-        # Simulate thumbnail resizing by updating size
-        self.size = (min(self._width, size[0]), min(self._height, size[1]))
-
-    def save(self, path: str | Path, format: str | None = None) -> None:
-        """Simulate saving the image."""
-        # Test double: just record that save was called
-        pass
-
-    def convert(self, mode: str) -> TestPILImage:
-        """Convert image mode."""
-        new_image = TestPILImage(self._width, self._height, mode)
-        new_image._thumbnail_called = self._thumbnail_called
-        new_image._thumbnail_size = self._thumbnail_size
-        return new_image
-
-    def was_thumbnail_called(self) -> bool:
-        """Check if thumbnail method was called (for testing)."""
-        return self._thumbnail_called
-
-    def get_thumbnail_size(self) -> tuple[int, int | None]:
-        """Get the thumbnail size that was requested (for testing)."""
-        return self._thumbnail_size
-
-
 class SignalDouble:
-    """Test double for signals when not using real Qt objects."""
+    """Test double for Qt signals with real behavior."""
+
+    __test__ = False  # Prevent pytest from collecting this as a test class
 
     def __init__(self) -> None:
         """Initialize test signal."""
@@ -1265,138 +1173,25 @@ class TestProcessPool:
         }
 
 
-class TestBashSession:
-    """Test double for PersistentBashSession with real behavior."""
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    def __init__(self) -> None:
-        """Initialize test bash session."""
-        self.executed_commands: list[str] = []
-        self.command_outputs: dict[str, str] = {}
-        self.default_output = "test output"
-        self.side_effect: Exception | None = None
-        self._current_output_index = 0
-        self._output_sequence: list[str] = []
-
-    def execute(self, command: str, timeout: float = 30.0) -> str:
-        """Execute a command and return test output."""
-        self.executed_commands.append(command)
-
-        # Raise exception if configured
-        if self.side_effect:
-            raise self.side_effect
-
-        # Check for specific command outputs
-        for pattern, output in self.command_outputs.items():
-            if pattern in command:
-                return output
-
-        # Use sequence outputs if configured
-        if self._output_sequence and self._current_output_index < len(
-            self._output_sequence
-        ):
-            output = self._output_sequence[self._current_output_index]
-            self._current_output_index += 1
-            return output
-
-        return self.default_output
-
-    def set_command_output(self, pattern: str, output: str) -> None:
-        """Set output for commands matching pattern."""
-        self.command_outputs[pattern] = output
-
-    def set_output_sequence(self, outputs: list[str]) -> None:
-        """Set sequence of outputs for subsequent calls."""
-        self._output_sequence = outputs
-        self._current_output_index = 0
-
-    def set_side_effect(self, exception: Exception) -> None:
-        """Set exception to be raised."""
-        self.side_effect = exception
-
-    def shutdown(self) -> None:
-        """Simulate session shutdown."""
-        pass
-
-    def was_command_executed(self, pattern: str) -> bool:
-        """Check if any command contained the pattern."""
-        return any(pattern in cmd for cmd in self.executed_commands)
-
-    def get_executed_commands(self) -> list[str]:
-        """Get all executed commands."""
-        return self.executed_commands.copy()
-
-    def reset(self) -> None:
-        """Reset for fresh test."""
-        self.executed_commands.clear()
-        self.command_outputs.clear()
-        self._output_sequence.clear()
-        self._current_output_index = 0
-        self.side_effect = None
-
-
 # =============================================================================
 # PROGRESS MANAGER TEST DOUBLES
 # =============================================================================
 
 
+@dataclass
 class TestProgressOperation:
-    """Test double for ProgressOperation with real behavior."""
+    """Minimal test double for progress operations (internal to TestProgressManager)."""
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    def __init__(self, title: str = "Test Operation", cancelable: bool = False) -> None:
-        """Initialize test progress operation."""
-        self.title = title
-        self.cancelable = cancelable
-        self.current_value = 0
-        self.total_value = 0
-        self.is_indeterminate = True
-        self.is_cancelled_flag = False
-        self.current_message = title
-        self.start_time = time.time()
-        self.last_update_time = 0.0
-
-    def set_total(self, total: int) -> None:
-        """Set the total number of steps for determinate progress."""
-        self.total_value = total
-        self.is_indeterminate = False
-
-    def set_indeterminate(self) -> None:
-        """Set progress to indeterminate mode (spinner)."""
-        self.is_indeterminate = True
-
-    def update(self, value: int, message: str = "") -> None:
-        """Update progress value and optional message."""
-        self.current_value = value
-        if message:
-            self.current_message = message
-        self.last_update_time = time.time()
-
-    def is_cancelled(self) -> bool:
-        """Check if the operation has been cancelled."""
-        return self.is_cancelled_flag
-
-    def cancel(self) -> None:
-        """Cancel the operation and trigger cleanup."""
-        self.is_cancelled_flag = True
-
-    def get_eta_string(self) -> str:
-        """Calculate and return ETA string."""
-        if self.is_indeterminate or self.total_value == 0:
-            return "Unknown"
-        elapsed = time.time() - self.start_time
-        if self.current_value == 0:
-            return "Unknown"
-        remaining = (
-            (self.total_value - self.current_value) * elapsed / self.current_value
-        )
-        return f"{remaining:.0f}s"
+    title: str
+    cancelable: bool = False
+    progress: int = 0
+    finished: bool = False
 
 
 class TestProgressManager:
-    """Test double for ProgressManager with static methods."""
+    """Test double for progress manager."""
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
@@ -1465,7 +1260,6 @@ __all__ = [
     "TestSubprocess",
     "PopenDouble",
     "TestCompletedProcess",
-    "SubprocessModuleDouble",
     # Models
     "TestShot",
     "TestShotModel",
@@ -1480,12 +1274,9 @@ __all__ = [
     "TestWorker",
     # Qt/Threading
     "ThreadSafeTestImage",
-    "TestPILImage",
     "SignalDouble",
     # Process Pool
     "TestProcessPool",
-    "TestBashSession",
     # Progress Manager
-    "TestProgressOperation",
     "TestProgressManager",
 ]

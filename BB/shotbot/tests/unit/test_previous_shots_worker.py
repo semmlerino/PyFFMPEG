@@ -27,17 +27,21 @@ Focus areas:
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING, NoReturn
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtTest import QSignalSpy
 
+# Local application imports
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
 from tests.test_doubles_library import TestCompletedProcess
 
 if TYPE_CHECKING:
+    # Standard library imports
     from pathlib import Path
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
@@ -154,6 +158,7 @@ class TestPreviousShotsWorkerWorkflow:
         )
 
         # Replace finder with base class that uses subprocess.run for testing
+        # Local application imports
         from previous_shots_finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
@@ -201,6 +206,7 @@ class TestPreviousShotsWorkerWorkflow:
         shot_found_spy = QSignalSpy(worker.shot_found)
 
         # Replace finder with base class that uses subprocess.run for testing
+        # Local application imports
         from previous_shots_finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
@@ -232,6 +238,7 @@ class TestPreviousShotsWorkerWorkflow:
         # Mock slow subprocess to allow time for stop
         def slow_subprocess(*args, **kwargs):
             # Small delay to allow stop request to be processed
+            # Standard library imports
             import time
 
             time.sleep(0.1)
@@ -251,6 +258,7 @@ class TestPreviousShotsWorkerWorkflow:
         QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses subprocess.run for testing
+        # Local application imports
         from previous_shots_finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
@@ -286,6 +294,7 @@ class TestPreviousShotsWorkerWorkflow:
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses subprocess.run for testing
+        # Local application imports
         from previous_shots_finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
@@ -331,6 +340,7 @@ class TestPreviousShotsWorkerWorkflow:
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses subprocess.run for testing
+        # Local application imports
         from previous_shots_finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
@@ -468,6 +478,7 @@ class TestPreviousShotsWorkerIntegration:
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
         # Replace finder with base class that uses subprocess.run for testing
+        # Local application imports
         from previous_shots_finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")

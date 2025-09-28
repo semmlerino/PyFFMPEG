@@ -7,9 +7,11 @@ tracking code across multiple finder implementations.
 
 from __future__ import annotations
 
+# Standard library imports
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+# Local application imports
 from logging_mixin import LoggingMixin
 
 T = TypeVar('T')

@@ -8,8 +8,10 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
 
@@ -23,6 +25,7 @@ class TestSceneFiltering:
     @pytest.fixture
     def make_shot(self):
         """Factory fixture for creating test shots (GUIDE line 27)."""
+        # Standard library imports
         from collections import namedtuple
 
         Shot = namedtuple("Shot", ["workspace_path", "show", "sequence", "shot"])
@@ -203,6 +206,7 @@ class TestSceneFiltering:
 
     def test_excluded_users_still_filtered(self, make_file_tuple) -> None:
         """Test that excluded users are still properly filtered out."""
+        # Local application imports
         from scene_parser import SceneParser
 
         parser = SceneParser()

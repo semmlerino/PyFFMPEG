@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import re
 from abc import abstractmethod
 from pathlib import Path
 from re import Pattern
 
+# Local application imports
 from version_mixin import VersionHandlingMixin
 
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Apply critical threading fixes to ShotBot codebase"""
 
+# Standard library imports
 import sys
 from pathlib import Path
 
@@ -75,6 +76,7 @@ def patch_threede_scene_worker() -> bool:
                     self.finished.emit(scenes_to_emit)'''
 
     # Find and replace the run method
+    # Standard library imports
     import re
 
     run_pattern = r"@Slot\(\)\s+def run\(self\) -> None:.*?(?=\n    def )"

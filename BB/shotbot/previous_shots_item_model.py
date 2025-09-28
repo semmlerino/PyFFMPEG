@@ -6,8 +6,10 @@ inherits common functionality from BaseItemModel, reducing code duplication.
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import (
     QObject,
     Qt,
@@ -15,10 +17,12 @@ from PySide6.QtCore import (
 )
 from typing_extensions import override
 
+# Local application imports
 from base_item_model import BaseItemModel
 from shot_item_model import ShotRole  # Reuse the same roles
 
 if TYPE_CHECKING:
+    # Local application imports
     from cache_manager import CacheManager
     from previous_shots_model import PreviousShotsModel
     from shot_model import Shot

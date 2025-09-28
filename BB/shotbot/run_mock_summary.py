@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Run ShotBot in mock mode and display a summary of available shots."""
 
+# Standard library imports
 import os
 import sys
 from collections import defaultdict
 
+# Local application imports
 from cache_manager import CacheManager
 from process_pool_factory import ProcessPoolFactory
 from shot_model import ShotModel

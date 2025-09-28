@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import re
 import time
@@ -9,12 +10,15 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Local application imports
 from config import Config
 from logging_mixin import LoggingMixin, get_module_logger
 
 if TYPE_CHECKING:
+    # Standard library imports
     from types import TracebackType
 
+    # Third-party imports
     from PySide6.QtCore import QSize
 
 # Performance monitoring removed - was using archived module
@@ -853,6 +857,7 @@ class VersionUtils(LoggingMixin):
 
         # Convert pattern to regex, replacing * with appropriate patterns
         # Handle patterns like "shot_*_v*.nk" -> "shot_.*_v(\d{3})\.nk"
+        # Standard library imports
         import re
 
         regex_pattern = pattern.replace(".", r"\.")  # Escape dots

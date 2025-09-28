@@ -12,11 +12,14 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from nuke_script_generator import NukeScriptGenerator
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]

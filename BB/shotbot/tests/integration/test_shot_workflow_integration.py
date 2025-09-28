@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import json
 import shutil
 import sys
@@ -16,8 +17,10 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
+# Local application imports
 # Import real application components for integration testing
 from cache_manager import CacheManager
 from shot_model import RefreshResult, ShotModel

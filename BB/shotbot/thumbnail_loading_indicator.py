@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Third-party imports
 from PySide6.QtCore import Property, QPropertyAnimation, QRect, Qt, QTimer
 from PySide6.QtGui import QColor, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QWidget

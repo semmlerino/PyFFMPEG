@@ -400,7 +400,7 @@ class TestQApplication:
         pass
 
     @staticmethod
-    def instance():
+    def instance() -> TestQApplication:
         """Get application instance."""
         if not hasattr(TestQApplication, "_instance"):
             TestQApplication._instance = TestQApplication()

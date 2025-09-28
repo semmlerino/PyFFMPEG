@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import time
 from pathlib import Path
 
+# Third-party imports
 from PySide6.QtCore import QObject, Signal
 
-from logging_mixin import LoggingMixin
+# Local application imports
 from previous_shots_finder import ParallelShotsFinder
 from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
 
 
-class PreviousShotsWorker(LoggingMixin, ThreadSafeWorker):
+class PreviousShotsWorker(ThreadSafeWorker):
     """Background worker thread for finding approved shots.
 
     This worker runs in a separate thread to avoid blocking the UI

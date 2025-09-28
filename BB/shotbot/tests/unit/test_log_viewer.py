@@ -10,16 +10,18 @@ This test suite:
 
 from __future__ import annotations
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout
 
+# Local application imports
 from config import Config
 from log_viewer import LogViewer
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation

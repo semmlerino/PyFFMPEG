@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, QTimer, Signal
 
+# Local application imports
 from cache_manager import CacheManager
 from logging_mixin import LoggingMixin
 from previous_shots_finder import ParallelShotsFinder
@@ -15,6 +18,7 @@ from shot_model import Shot
 from type_definitions import ShotDict
 
 if TYPE_CHECKING:
+    # Local application imports
     from base_shot_model import BaseShotModel
 
 
@@ -147,6 +151,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             active_shots = self._shot_model.get_shots()
 
             # Create and configure worker thread
+            # Local application imports
             from config import Config
 
             self._worker = PreviousShotsWorker(
@@ -398,6 +403,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
             self.clear_cache()
 
             # Clear directory cache in 3DE scene finder
+            # Local application imports
             from threede_scene_finder import ThreeDESceneFinder
 
             if hasattr(ThreeDESceneFinder, "refresh_cache"):
@@ -405,6 +411,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 self.logger.debug(f"Cleared {cleared_count} directory cache entries")
 
             # Clear path cache in utils
+            # Local application imports
             from utils import clear_all_caches
 
             clear_all_caches()

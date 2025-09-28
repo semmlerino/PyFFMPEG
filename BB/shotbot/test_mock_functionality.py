@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test mock functionality without GUI."""
 
+# Standard library imports
 import os
 import sys
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 os.environ["SHOTBOT_MOCK"] = "1"
 os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx/shows"
 
+# Local application imports
 # Import modules
 from maya_latest_finder import MayaLatestFinder
 from process_pool_factory import get_process_pool
@@ -199,6 +201,7 @@ def main():
 
     except Exception as e:
         print(f"\n❌ Error during testing: {e}")
+        # Standard library imports
         import traceback
         traceback.print_exc()
         return 1

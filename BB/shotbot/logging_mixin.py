@@ -19,6 +19,7 @@ Usage:
 
 from __future__ import annotations
 
+# Standard library imports
 import functools
 import logging
 import threading
@@ -26,9 +27,11 @@ import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
+# Third-party imports
 from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable, Generator
 
 # Type variables for generic decorator

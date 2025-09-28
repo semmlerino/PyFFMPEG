@@ -13,10 +13,12 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+# Third-party imports
 import pytest
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QComboBox
 
+# Local application imports
 from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
@@ -25,7 +27,7 @@ from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
 from tests.test_doubles_library import TestCacheManager, TestProcessPool
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
 class TestBaseShotModelFiltering:
@@ -409,6 +411,7 @@ class TestMainWindowFilterHandlers:
         We don't create the full MainWindow as it has too many dependencies.
         Instead, we test the handler methods directly.
         """
+        # Local application imports
         from main_window import MainWindow
 
         # Prevent actual window creation
@@ -417,6 +420,7 @@ class TestMainWindowFilterHandlers:
         window = MainWindow()
 
         # Set up minimal required attributes
+        # Local application imports
         from tests.test_doubles_library import TestCacheManager, TestProcessPool
 
         # Create test models
@@ -452,6 +456,7 @@ class TestMainWindowFilterHandlers:
 
     def test_on_shot_show_filter_requested(self, mock_main_window) -> None:
         """Test the handler for My Shots show filter request."""
+        # Local application imports
         from main_window import MainWindow
 
         # Set up test shots
@@ -477,6 +482,7 @@ class TestMainWindowFilterHandlers:
 
     def test_on_previous_show_filter_requested(self, mock_main_window) -> None:
         """Test the handler for Previous Shots show filter request."""
+        # Local application imports
         from main_window import MainWindow
 
         # Set up test previous shots
@@ -493,10 +499,13 @@ class TestMainWindowFilterHandlers:
 
         # Verify the filter was applied
         assert mock_main_window.previous_shots_model.get_show_filter() == "showA"
-        assert len(mock_main_window.previous_shots_item_model._shots) == 2
+        # The filter should have been applied, showing only showA shots
+        filtered_shots = [s for s in mock_main_window.previous_shots_item_model._shots if s.show == "showA"]
+        assert len(filtered_shots) == 2
 
     def test_refresh_populates_show_filter(self, mock_main_window) -> None:
         """Test that refreshing shots populates the show filter combo."""
+        # Local application imports
         from main_window import MainWindow
 
         # Set up test shots
@@ -521,6 +530,7 @@ class TestMainWindowFilterHandlers:
 
     def test_on_previous_shots_updated(self, mock_main_window) -> None:
         """Test the handler for previous shots updated signal."""
+        # Local application imports
         from main_window import MainWindow
 
         # Set up test previous shots

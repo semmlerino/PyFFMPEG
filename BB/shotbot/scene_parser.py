@@ -9,13 +9,16 @@ Part of the Phase 2 refactoring to break down the monolithic scene finder.
 
 from __future__ import annotations
 
+# Standard library imports
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Local application imports
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    # Local application imports
     from threede_scene_model import ThreeDEScene
 
 
@@ -213,6 +216,7 @@ class SceneParser(LoggingMixin):
         Returns:
             ThreeDEScene instance
         """
+        # Local application imports
         from threede_scene_model import ThreeDEScene
 
         scene = ThreeDEScene(

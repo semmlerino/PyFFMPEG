@@ -9,6 +9,7 @@ Part of the Phase 2 refactoring to break down the monolithic scene finder.
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import subprocess
 import threading
@@ -16,9 +17,11 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Local application imports
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Generator
 
 
@@ -601,9 +604,11 @@ class FileSystemScanner(LoggingMixin):
         Returns:
             List of tuples: (file_path, show, sequence, shot, user, plate)
         """
+        # Standard library imports
         import subprocess
         import traceback
 
+        # Local application imports
         from scene_parser import SceneParser
 
         if not hasattr(self, "parser"):
@@ -786,6 +791,7 @@ class FileSystemScanner(LoggingMixin):
         This uses a more efficient approach than the original by using
         glob patterns directly on the shots directory.
         """
+        # Local application imports
         from scene_parser import SceneParser
 
         if not hasattr(self, "parser"):

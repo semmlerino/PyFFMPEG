@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+# Third-party imports
 import pytest
 
+# Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from undistortion_finder import UndistortionFinder
 

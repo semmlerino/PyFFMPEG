@@ -6,6 +6,7 @@ or deadlocks exist in the optimized implementation.
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import sys
 import tempfile
@@ -15,6 +16,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
@@ -22,6 +24,7 @@ from PySide6.QtWidgets import QApplication
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# Local application imports
 from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
 from shot_model import AsyncShotLoader, ShotModel
@@ -34,6 +37,7 @@ class TestAsyncShotLoaderThreadSafety:
         """Set up test fixtures."""
         self.app = QApplication.instance() or QApplication([])
         # Use real test double at system boundary
+        # Local application imports
         from tests.test_helpers import TestProcessPoolManager
 
         self.test_process_pool = TestProcessPoolManager()

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test cache directory separation between production, mock, and test modes."""
 
+# Standard library imports
 import logging
 import os
 import shutil
@@ -22,6 +23,7 @@ def test_cache_config() -> None:
     logger.info("Testing CacheConfig")
     logger.info("=" * 50)
 
+    # Local application imports
     from cache_config import CacheConfig
 
     # Save original environment
@@ -64,6 +66,7 @@ def test_cache_manager_separation() -> None:
     logger.info("Testing CacheManager directory separation")
     logger.info("=" * 50)
 
+    # Local application imports
     from cache_config import CacheConfig
     from cache_manager import CacheManager
 
@@ -109,6 +112,7 @@ def test_cache_isolation() -> None:
     logger.info("Testing cache isolation")
     logger.info("=" * 50)
 
+    # Local application imports
     from cache_config import CacheConfig
     from cache_manager import CacheManager
 
@@ -186,6 +190,7 @@ def test_cache_info() -> None:
     logger.info("Testing cache info")
     logger.info("=" * 50)
 
+    # Local application imports
     from cache_config import CacheConfig
 
     info = CacheConfig.get_cache_info()
@@ -220,6 +225,7 @@ def main() -> None:
         sys.exit(1)
     except Exception as e:
         logger.error(f"❌ Unexpected error: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

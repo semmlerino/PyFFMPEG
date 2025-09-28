@@ -3,6 +3,7 @@
 This package provides modular components for managing custom VFX application launchers.
 """
 
+# Local application imports
 # Import data models (no Qt dependencies)
 # Import non-Qt components
 from launcher.config_manager import LauncherConfigManager
@@ -18,6 +19,7 @@ from launcher.validator import LauncherValidator
 
 # Qt-dependent components imported conditionally
 try:
+    # Local application imports
     from launcher.process_manager import LauncherProcessManager
     from launcher.worker import LauncherWorker
 

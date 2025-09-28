@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import logging
+# Standard library imports
 import time
 from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
@@ -19,20 +20,22 @@ from PySide6.QtCore import (
     Slot,
 )
 
+# Local application imports
 from config import Config
+from logging_mixin import LoggingMixin
 from thread_safe_worker import ThreadSafeWorker
 from threede_scene_finder import ThreeDESceneFinder
 from utils import ValidationUtils
 
 if TYPE_CHECKING:
+    # Local application imports
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
 
 
-class QtProgressReporter(QObject):
+class QtProgressReporter(LoggingMixin, QObject):
     """Simple Qt-based progress reporter for thread-safe signal emission.
 
     This class provides a clean way to emit progress signals from any thread,
@@ -50,7 +53,7 @@ class QtProgressReporter(QObject):
     def __init__(self) -> None:
         """Initialize the progress reporter."""
         super().__init__()
-        logger.debug("QtProgressReporter created in thread: %s", self.thread())
+        self.logger.debug("QtProgressReporter created in thread: %s", self.thread())
 
     def report_progress(self, files_found: int, status: str) -> None:
         """Report progress from any thread.
@@ -67,7 +70,7 @@ class QtProgressReporter(QObject):
         self.progress_update.emit(files_found, status)
 
 
-class ProgressCalculator:
+class ProgressCalculator(LoggingMixin):
     """Helper class for calculating progress and ETA during file scanning."""
 
     def __init__(self, smoothing_window: int | None = None) -> None:
@@ -255,7 +258,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         Uses the thread-safe base class stop mechanism.
         """
-        logger.debug("Stop requested for 3DE scene worker")
+        self.logger.debug("Stop requested for 3DE scene worker")
         # Wake up paused thread so it can exit
         self.resume()
         # Use base class thread-safe stop
@@ -263,7 +266,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
     def pause(self) -> None:
         """Request the worker to pause processing."""
-        logger.debug("Pause requested for 3DE scene worker")
+        self.logger.debug("Pause requested for 3DE scene worker")
         should_emit = False
         self._pause_mutex.lock()
         try:
@@ -279,7 +282,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
     def resume(self) -> None:
         """Resume processing if paused."""
-        logger.debug("Resume requested for 3DE scene worker")
+        self.logger.debug("Resume requested for 3DE scene worker")
         should_emit = False
         self._pause_mutex.lock()
         try:
@@ -344,9 +347,9 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         )
 
         if not scenes_to_emit:
-            logger.debug("Worker finishing, emitting finished signal with empty list")
+            self.logger.debug("Worker finishing, emitting finished signal with empty list")
         else:
-            logger.debug(
+            self.logger.debug(
                 f"Worker finishing, emitting finished signal with {len(scenes_to_emit)} scenes"
             )
 
@@ -385,14 +388,14 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         """
         # Check for cancellation using base class method
         if self.should_stop():
-            logger.debug("Worker received stop signal")
+            self.logger.debug("Worker received stop signal")
             return False
 
         # Check for pause
         self._pause_mutex.lock()
         try:
             while self._is_paused and not self.should_stop():
-                logger.debug("Worker paused, waiting for resume...")
+                self.logger.debug("Worker paused, waiting for resume...")
                 self._pause_condition.wait(
                     self._pause_mutex,
                     Config.WORKER_PAUSE_CHECK_INTERVAL_MS,
@@ -423,19 +426,19 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             self._progress_reporter.progress_update.connect(
                 self._handle_progress_update, Qt.ConnectionType.QueuedConnection
             )
-            logger.debug("Progress reporter created and connected in worker thread")
+            self.logger.debug("Progress reporter created and connected in worker thread")
 
-            logger.info("Starting enhanced 3DE scene discovery")
+            self.logger.info("Starting enhanced 3DE scene discovery")
             self.started.emit()
 
             if not self.shots:
-                logger.warning("No shots provided for 3DE scene discovery")
+                self.logger.warning("No shots provided for 3DE scene discovery")
                 self._emit_finished_signal_once([])
                 return
 
             # Check for initial cancellation using base class method
             if self.should_stop():
-                logger.info("3DE scene discovery cancelled before starting")
+                self.logger.info("3DE scene discovery cancelled before starting")
                 self._emit_finished_signal_once([])
                 return
 
@@ -447,19 +450,19 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
             # Final cancellation check
             if self.should_stop():
-                logger.info("3DE scene discovery cancelled during processing")
+                self.logger.info("3DE scene discovery cancelled during processing")
                 # Return partial results
                 self._emit_finished_signal_once()
                 return
 
-            logger.info(
+            self.logger.info(
                 f"Enhanced 3DE scene discovery completed: {len(scenes)} scenes found",
             )
             # Emit final results
             self._emit_finished_signal_once(scenes)
 
         except Exception as e:
-            logger.error(f"Error in enhanced 3DE scene discovery worker: {e}")
+            self.logger.error(f"Error in enhanced 3DE scene discovery worker: {e}")
             self.error.emit(str(e))
             # Re-raise to trigger worker_error signal from base class
             raise
@@ -470,7 +473,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         Returns:
             List of all discovered ThreeDEScene objects
         """
-        logger.info("Starting progressive 3DE scene discovery")
+        self.logger.info("Starting progressive 3DE scene discovery")
 
         if self.scan_all_shots:
             # When scanning all shots, use the efficient file-first discovery
@@ -491,7 +494,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 shot_tuples,
                 self.excluded_users,
             )
-            logger.debug(
+            self.logger.debug(
                 f"Scan estimate: {estimated_users} users, ~{estimated_files} files",
             )
 
@@ -510,7 +513,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             )
 
         except Exception as e:
-            logger.warning(f"Could not estimate scan size: {e}")
+            self.logger.warning(f"Could not estimate scan size: {e}")
             estimated_files = len(shot_tuples) * 10  # Fallback estimate
 
         # Use the progressive finder generator
@@ -534,7 +537,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                     self._all_scenes.extend(scene_batch)
                     self.batch_ready.emit(scene_batch)
 
-                    logger.debug(f"Processed batch of {len(scene_batch)} scenes")
+                    self.logger.debug(f"Processed batch of {len(scene_batch)} scenes")
 
                 # Update progress tracking
                 self._files_processed += len(scene_batch)
@@ -567,7 +570,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 self.scan_progress.emit(current_shot, total_shots, status_msg)
 
         except Exception as e:
-            logger.error(f"Error in progressive discovery: {e}")
+            self.logger.error(f"Error in progressive discovery: {e}")
             raise
 
         return self._all_scenes
@@ -581,7 +584,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         Returns:
             List of all discovered ThreeDEScene objects
         """
-        logger.info(
+        self.logger.info(
             "Discovering ALL 3DE scenes in shows using parallel file-first strategy"
         )
 
@@ -608,7 +611,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             return self.should_stop()
 
         # Use the new parallel file-first discovery
-        logger.info("Using parallel discovery with progress reporting")
+        self.logger.info("Using parallel discovery with progress reporting")
         all_scenes = (
             ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(
                 self.user_shots,  # Used to determine which shows to search
@@ -620,7 +623,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         # Check for cancellation after scan
         if self.should_stop():
-            logger.info("3DE scene discovery cancelled during parallel scan")
+            self.logger.info("3DE scene discovery cancelled during parallel scan")
             return []
 
         # Create a set of user's shot identifiers for filtering
@@ -648,11 +651,11 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         # Log appropriate message based on scan mode
         if self.scan_all_shots:
-            logger.info(
+            self.logger.info(
                 f"Found {len(all_scenes)} total scenes using parallel scan, keeping all {len(other_scenes)} scenes from other users",
             )
         else:
-            logger.info(
+            self.logger.info(
                 f"Found {len(all_scenes)} total scenes using parallel scan, {len(other_scenes)} are from other users on assigned shots",
             )
 
@@ -679,7 +682,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         Returns:
             List of discovered ThreeDEScene objects
         """
-        logger.info("Using traditional 3DE scene discovery method")
+        self.logger.info("Using traditional 3DE scene discovery method")
 
         all_scenes: list[ThreeDEScene] = []
 
@@ -730,7 +733,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 )
 
                 if not all_shots:
-                    logger.warning(f"No shots discovered in {show}")
+                    self.logger.warning(f"No shots discovered in {show}")
                     continue
 
                 self.progress.emit(

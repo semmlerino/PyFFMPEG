@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import functools
 import logging
 import time
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable
 
 # Set up logger for this module

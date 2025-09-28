@@ -10,12 +10,15 @@ This refactored version:
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 from datetime import datetime
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)

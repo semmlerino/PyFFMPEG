@@ -7,6 +7,7 @@ just like the real 'ws -sg' command would.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from pathlib import Path
 
@@ -208,6 +209,7 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
     Returns:
         MockWorkspacePool configured with user's assigned shots only
     """
+    # Standard library imports
     import json
 
     pool = MockWorkspacePool()

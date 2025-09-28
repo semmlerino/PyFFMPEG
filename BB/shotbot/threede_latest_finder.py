@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import re
 from pathlib import Path
 
+# Local application imports
 from version_mixin import VersionHandlingMixin
 
 

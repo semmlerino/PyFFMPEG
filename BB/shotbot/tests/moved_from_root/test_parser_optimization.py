@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Test different parser optimization strategies."""
 
+# Standard library imports
 import re
 import time
 from typing import NamedTuple
 
+# Local application imports
 from config import Config
 
 
@@ -115,6 +117,7 @@ def benchmark_all_approaches(iterations: int = 100000) -> None:
     inline_time = time.perf_counter() - start
 
     # Import and test the current OptimizedShotParser
+    # Local application imports
     from optimized_shot_parser import OptimizedShotParser
 
     parser = OptimizedShotParser()

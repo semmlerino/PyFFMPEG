@@ -39,6 +39,7 @@ Usage Example:
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import logging
 import threading
@@ -47,12 +48,16 @@ import uuid
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+# Local application imports
 from config import ThreadingConfig
+from logging_mixin import LoggingMixin, get_module_logger
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable
 
-logger = logging.getLogger(__name__)
+# Module-level logger
+logger = get_module_logger(__name__)
 
 # Log a debug message if this module is imported (helps track unexpected imports)
 logger.debug(
@@ -61,7 +66,7 @@ logger.debug(
 )
 
 
-class ThreadSafeProgressTracker:
+class ThreadSafeProgressTracker(LoggingMixin):
     """Thread-safe progress tracking for concurrent operations.
 
     This class solves the race condition problem in parallel processing by tracking
@@ -105,7 +110,7 @@ class ThreadSafeProgressTracker:
         self._completed_workers: set[str] = set()
         self._id = str(uuid.uuid4())[:8]
 
-        logger.debug(
+        self.logger.debug(
             f"ThreadSafeProgressTracker {self._id} created with interval={update_interval}"
         )
 
@@ -151,7 +156,7 @@ class ThreadSafeProgressTracker:
                 )
                 self._progress_callback(total_progress, aggregated_status)
             except Exception as e:
-                logger.error(
+                self.logger.error(
                     f"ThreadSafeProgressTracker {self._id} callback error: {e}"
                 )
 
@@ -180,7 +185,7 @@ class ThreadSafeProgressTracker:
         with self._lock:
             self._completed_workers.add(worker_id)
 
-        logger.debug(
+        self.logger.debug(
             f"ThreadSafeProgressTracker {self._id} worker {worker_id} completed"
         )
 
@@ -232,7 +237,7 @@ class ThreadSafeProgressTracker:
             final_status = status or f"Completed: {total_progress} items processed"
             self._progress_callback(total_progress, final_status)
         except Exception as e:
-            logger.error(
+            self.logger.error(
                 f"ThreadSafeProgressTracker {self._id} force report error: {e}"
             )
 
@@ -249,7 +254,7 @@ class ThreadSafeProgressTracker:
             self._last_reported_progress = 0
             self._completed_workers.clear()
 
-        logger.debug(f"ThreadSafeProgressTracker {self._id} reset to initial state")
+        self.logger.debug(f"ThreadSafeProgressTracker {self._id} reset to initial state")
 
     def __repr__(self) -> str:
         """String representation for debugging."""
@@ -257,7 +262,7 @@ class ThreadSafeProgressTracker:
         return f"ThreadSafeProgressTracker(id={stats['id']}, total={stats['total_progress']}, workers={stats['active_workers']})"
 
 
-class CancellationEvent:
+class CancellationEvent(LoggingMixin):
     """Thread-safe cancellation event with resource cleanup support.
 
     This class provides a robust cancellation mechanism for multi-threaded
@@ -300,7 +305,7 @@ class CancellationEvent:
         self._cancel_time: float | None = None
         self._id = str(uuid.uuid4())[:8]
 
-        logger.debug(f"CancellationEvent {self._id} initialized")
+        self.logger.debug(f"CancellationEvent {self._id} initialized")
 
     def cancel(self) -> None:
         """Cancel the operation and execute all cleanup callbacks.
@@ -311,13 +316,13 @@ class CancellationEvent:
         """
         with self._cancel_lock:
             if self._cancelled:
-                logger.debug(f"CancellationEvent {self._id} already cancelled")
+                self.logger.debug(f"CancellationEvent {self._id} already cancelled")
                 return
 
             self._cancelled = True
             self._cancel_time = time.time()
 
-        logger.info(f"CancellationEvent {self._id} cancellation requested")
+        self.logger.info(f"CancellationEvent {self._id} cancellation requested")
 
         # Signal cancellation to all waiting threads
         self._event.set()
@@ -325,7 +330,7 @@ class CancellationEvent:
         # Execute cleanup callbacks
         self._execute_cleanup_callbacks()
 
-        logger.info(f"CancellationEvent {self._id} cancellation completed")
+        self.logger.info(f"CancellationEvent {self._id} cancellation completed")
 
     def is_cancelled(self) -> bool:
         """Check if the operation has been cancelled.
@@ -353,7 +358,7 @@ class CancellationEvent:
             self._callbacks.append(callback)
             callback_count = len(self._callbacks)
 
-        logger.debug(
+        self.logger.debug(
             f"CancellationEvent {self._id} registered cleanup callback "
             f"({callback_count} total)"
         )
@@ -371,7 +376,7 @@ class CancellationEvent:
         if timeout is None:
             timeout = ThreadingConfig.WORKER_STOP_TIMEOUT_MS / 1000.0
 
-        logger.debug(
+        self.logger.debug(
             f"CancellationEvent {self._id} waiting for cancellation "
             f"(timeout={timeout}s)"
         )
@@ -379,9 +384,9 @@ class CancellationEvent:
         result = self._event.wait(timeout)
 
         if result:
-            logger.debug(f"CancellationEvent {self._id} cancellation detected")
+            self.logger.debug(f"CancellationEvent {self._id} cancellation detected")
         else:
-            logger.warning(
+            self.logger.warning(
                 f"CancellationEvent {self._id} wait timeout after {timeout}s"
             )
 
@@ -398,12 +403,12 @@ class CancellationEvent:
             callbacks = self._callbacks.copy()
 
         if not callbacks:
-            logger.debug(
+            self.logger.debug(
                 f"CancellationEvent {self._id} no cleanup callbacks to execute"
             )
             return
 
-        logger.info(
+        self.logger.info(
             f"CancellationEvent {self._id} executing {len(callbacks)} cleanup callbacks"
         )
 
@@ -412,19 +417,19 @@ class CancellationEvent:
 
         for i, callback in enumerate(callbacks):
             try:
-                logger.debug(
+                self.logger.debug(
                     f"CancellationEvent {self._id} executing callback {i + 1}/{len(callbacks)}"
                 )
                 callback()
                 executed += 1
             except Exception as e:
                 failed += 1
-                logger.error(
+                self.logger.error(
                     f"CancellationEvent {self._id} cleanup callback {i + 1} failed: {e}",
                     exc_info=True,
                 )
 
-        logger.info(
+        self.logger.info(
             f"CancellationEvent {self._id} cleanup completed: "
             f"{executed} succeeded, {failed} failed"
         )
@@ -455,7 +460,7 @@ class CancellationEvent:
         return f"CancellationEvent(id={stats['id']}, cancelled={stats['cancelled']}, callbacks={stats['callback_count']})"
 
 
-class ThreadPoolManager:
+class ThreadPoolManager(LoggingMixin):
     """Enhanced ThreadPoolExecutor manager with cancellation support.
 
     This class provides a wrapper around ThreadPoolExecutor with integrated
@@ -500,7 +505,7 @@ class ThreadPoolManager:
         self.executor: concurrent.futures.ThreadPoolExecutor | None = None
         self._entered = False
 
-        logger.debug(
+        self.logger.debug(
             f"ThreadPoolManager created with max_workers={self.max_workers}, "
             f"timeout={self.shutdown_timeout}s"
         )
@@ -519,7 +524,7 @@ class ThreadPoolManager:
         if self.cancel_event:
             self.cancel_event.add_cleanup_callback(self._shutdown_executor)
 
-        logger.debug(
+        self.logger.debug(
             f"ThreadPoolManager executor created with {self.max_workers} workers"
         )
         return self.executor
@@ -542,7 +547,7 @@ class ThreadPoolManager:
         if not self.executor:
             return
 
-        logger.debug(
+        self.logger.debug(
             f"ThreadPoolManager shutting down executor (timeout={self.shutdown_timeout}s)"
         )
 
@@ -556,20 +561,20 @@ class ThreadPoolManager:
                 # Check if all threads have finished
                 # Access internal thread set (this is implementation-dependent but works)
                 if hasattr(self.executor, "_threads") and not self.executor._threads:
-                    logger.debug("All executor threads completed")
+                    self.logger.debug("All executor threads completed")
                     break
 
                 time.sleep(0.05)  # Short polling interval
             else:
                 # Timeout reached - use debug level to be less noisy
-                logger.debug(
+                self.logger.debug(
                     f"Executor shutdown timeout after {self.shutdown_timeout}s, "
                     f"some threads may still be running (this is usually not critical)"
                 )
 
-            logger.debug("ThreadPoolManager executor shutdown completed gracefully")
+            self.logger.debug("ThreadPoolManager executor shutdown completed gracefully")
         except Exception as e:
-            logger.error(f"ThreadPoolManager executor shutdown failed: {e}")
+            self.logger.error(f"ThreadPoolManager executor shutdown failed: {e}")
         finally:
             self.executor = None
 

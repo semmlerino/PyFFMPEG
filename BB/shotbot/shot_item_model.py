@@ -6,15 +6,18 @@ inherits common functionality from BaseItemModel, reducing code duplication.
 
 from __future__ import annotations
 
+# Standard library imports
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from typing_extensions import override
 
 if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
 
+# Third-party imports
 from PySide6.QtCore import (
     QModelIndex,
     QObject,
@@ -22,6 +25,7 @@ from PySide6.QtCore import (
     Slot,
 )
 
+# Local application imports
 from base_item_model import BaseItemModel, BaseItemRole
 from shot_model import RefreshResult, Shot
 

@@ -12,13 +12,17 @@ to ensure type safety without over-specification.
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING, Any, Protocol
 
+# Third-party imports
 import pytest
 
 if TYPE_CHECKING:
+    # Standard library imports
     import pathlib
 
+    # Local application imports
     from shot_model import Shot
 
 pytestmark = pytest.mark.unit

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from threede_latest_finder import ThreeDELatestFinder
 
 
@@ -543,6 +546,7 @@ class TestPerformance:
     @pytest.mark.slow
     def test_many_plates_performance(self, tmp_path: Path) -> None:
         """Test performance with many plate directories."""
+        # Standard library imports
         import time
 
         workspace = tmp_path / "workspace"
@@ -567,6 +571,7 @@ class TestPerformance:
     @pytest.mark.slow
     def test_many_files_per_plate_performance(self, tmp_path: Path) -> None:
         """Test performance with many files in each plate."""
+        # Standard library imports
         import time
 
         workspace = tmp_path / "workspace"

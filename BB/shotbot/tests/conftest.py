@@ -21,6 +21,7 @@ Test doubles are used only at system boundaries.
 
 from __future__ import annotations
 
+# Standard library imports
 import gc
 import os
 import sys
@@ -34,6 +35,7 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"
 os.environ["PYTEST_QT_API"] = "pyside6"
 
+# Third-party imports
 import pytest
 
 # Now we can import Qt, but immediately patch show methods
@@ -105,6 +107,7 @@ def _mock_dialog_exec(self):
 def _mock_eventloop_exec(self) -> int:
     """Prevent event loops from blocking in tests while allowing signal delivery."""
     # Process events more thoroughly to allow QThreadPool signals to propagate
+    # Standard library imports
     import time
 
     start_time = time.time()
@@ -141,6 +144,7 @@ QMessageBox.information = lambda *args, **kwargs: QMessageBox.StandardButton.Ok
 QMessageBox.question = lambda *args, **kwargs: QMessageBox.StandardButton.Yes
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Generator
 
 # Import protocols for type safety
@@ -148,6 +152,7 @@ if TYPE_CHECKING:
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Local application imports
 # Import test doubles library for proper test double patterns
 from tests.test_doubles_library import TestProcessPool  # noqa: E402
 
@@ -163,6 +168,7 @@ def make_shot():
     Following UNIFIED_TESTING_GUIDE pattern from lines 27-37.
     Creates Shot instances with flexible, test-specific parameters.
     """
+    # Local application imports
     from shot_model import Shot
 
     def _make_shot(show="test", seq="seq1", shot="0010", workspace_path=None):
@@ -180,6 +186,7 @@ def make_launcher():
     Following UNIFIED_TESTING_GUIDE factory pattern.
     Creates CustomLauncher instances with flexible parameters for testing.
     """
+    # Local application imports
     from launcher.models import CustomLauncher
 
     created_launchers = []
@@ -215,6 +222,7 @@ def make_cache_manager():
     Following UNIFIED_TESTING_GUIDE factory pattern.
     Creates isolated CacheManager instances with temporary directories.
     """
+    # Local application imports
     from cache_manager import CacheManager
 
     created_managers = []
@@ -246,6 +254,7 @@ def make_process_pool():
     Following UNIFIED_TESTING_GUIDE factory pattern.
     Creates test doubles for process pool boundary mocking.
     """
+    # Local application imports
     from tests.test_doubles_library import TestProcessPool
 
     created_pools = []
@@ -272,6 +281,7 @@ def make_test_widget(qtbot):
     """Factory for creating test Qt widgets with proper cleanup.
     Following UNIFIED_TESTING_GUIDE pattern for Qt testing.
     """
+    # Third-party imports
     from PySide6.QtWidgets import QWidget
 
     created_widgets = []
@@ -295,6 +305,7 @@ def make_test_worker():
     """Factory for creating thread-safe test workers.
     CRITICAL: Uses ThreadSafeTestImage, not QPixmap!
     """
+    # Local application imports
     from tests.test_doubles_extended import TestWorker
 
     created_workers = []
@@ -321,6 +332,7 @@ def make_test_cache(tmp_path):
     created_caches = []
 
     def _make_cache(name="cache"):
+        # Local application imports
         from tests.test_doubles_extended import TestCache
 
         cache_dir = tmp_path / name
@@ -344,6 +356,7 @@ def make_test_command():
     """
 
     def _make_command(default_output="success"):
+        # Local application imports
         from tests.test_doubles_extended import TestCommand
 
         executor = TestCommand()
@@ -360,6 +373,7 @@ def make_test_filesystem(tmp_path):
     """
 
     def _make_filesystem():
+        # Local application imports
         from tests.test_doubles_extended import TestFileSystem
 
         fs = TestFileSystem(tmp_path)
@@ -458,6 +472,7 @@ def isolated_test_environment() -> Generator[None, None, None]:
     """
     # Clear utils caches and disable caching before test
     try:
+        # Local application imports
         from utils import clear_all_caches, disable_caching
 
         clear_all_caches()
@@ -468,8 +483,10 @@ def isolated_test_environment() -> Generator[None, None, None]:
     # Clear any Qt-related caches or shared objects
     try:
         # Process any pending Qt events to ensure cleanup
+        # Third-party imports
         from PySide6.QtCore import QCoreApplication
 
+        # Local application imports
         from tests.helpers.synchronization import process_qt_events
 
         app = QCoreApplication.instance()
@@ -485,6 +502,7 @@ def isolated_test_environment() -> Generator[None, None, None]:
 
     # Clear utils caches and re-enable caching after test
     try:
+        # Local application imports
         from utils import clear_all_caches, enable_caching
 
         clear_all_caches()
@@ -494,8 +512,10 @@ def isolated_test_environment() -> Generator[None, None, None]:
 
     # Process Qt events after test cleanup
     try:
+        # Third-party imports
         from PySide6.QtCore import QCoreApplication
 
+        # Local application imports
         from tests.helpers.synchronization import process_qt_events
 
         app = QCoreApplication.instance()
@@ -521,11 +541,13 @@ def cache_isolation():
     for example when testing cache behavior itself.
     """
     try:
+        # Local application imports
         from utils import CacheIsolation
 
         return CacheIsolation
     except ImportError:
         # Fallback no-op context manager
+        # Standard library imports
         from contextlib import contextmanager
 
         @contextmanager
@@ -587,6 +609,7 @@ def qt_signal_blocker():
 @pytest.fixture
 def test_signal():
     """Create a SignalDouble instance for non-Qt signal testing."""
+    # Local application imports
     from tests.test_doubles_library import SignalDouble
 
     return SignalDouble()
@@ -595,6 +618,7 @@ def test_signal():
 @pytest.fixture
 def test_process_pool():
     """Create a TestProcessPool for subprocess boundary mocking."""
+    # Local application imports
     from tests.test_doubles_library import TestProcessPool
 
     pool = TestProcessPool()
@@ -605,6 +629,7 @@ def test_process_pool():
 @pytest.fixture
 def test_filesystem():
     """Create a TestFileSystem for in-memory file operations."""
+    # Local application imports
     from tests.unit.test_doubles import TestFileSystem
 
     fs = TestFileSystem()
@@ -615,6 +640,7 @@ def test_filesystem():
 @pytest.fixture
 def test_cache():
     """Create a TestCache for in-memory caching."""
+    # Local application imports
     from tests.unit.test_doubles import TestCache
 
     cache = TestCache()
@@ -633,6 +659,7 @@ def real_cache_manager(tmp_path):
 
     This follows UNIFIED_TESTING_GUIDE: use real components with test boundaries.
     """
+    # Local application imports
     from cache_manager import CacheManager
 
     cache_dir = tmp_path / "cache"
@@ -655,6 +682,7 @@ def real_shot_model(real_cache_manager, test_process_pool):
 
     This follows UNIFIED_TESTING_GUIDE: real components with boundary mocks.
     """
+    # Local application imports
     from shot_model import ShotModel
 
     model = ShotModel(cache_manager=real_cache_manager, load_cache=False)
@@ -670,6 +698,7 @@ def make_test_shot(tmp_path):
 
     This follows UNIFIED_TESTING_GUIDE: test with real files, not mocks.
     """
+    # Local application imports
     from shot_model import Shot
 
     def _make_shot(show="test", seq="seq01", shot="0010", with_thumbnail=True):
@@ -786,6 +815,7 @@ def make_real_plate_files(tmp_path):
 @pytest.fixture
 def make_test_launcher():
     """Factory for creating CustomLauncher instances."""
+    # Local application imports
     from launcher.models import CustomLauncher
 
     def _make_launcher(
@@ -811,6 +841,7 @@ def make_thread_safe_image():
     """Factory for creating thread-safe images.
     CRITICAL: Use this instead of QPixmap in worker threads!
     """
+    # Local application imports
     from tests.test_doubles_library import ThreadSafeTestImage
 
     def _make_image(width=100, height=100, color=None):
@@ -900,6 +931,7 @@ def mock_filesystem(tmp_path):
 @pytest.fixture
 def cache_manager(temp_cache_dir):
     """Create a CacheManager instance with temporary storage."""
+    # Local application imports
     from cache_manager import CacheManager
 
     # Create instance with isolated cache directory
@@ -918,6 +950,7 @@ def cache_manager(temp_cache_dir):
 @pytest.fixture
 def sample_shot():
     """Create a sample Shot instance for testing."""
+    # Local application imports
     from shot_model import Shot
 
     return Shot(
@@ -931,6 +964,7 @@ def sample_shot():
 @pytest.fixture
 def shot_model(cache_manager):
     """Create a ShotModel instance for testing."""
+    # Local application imports
     from shot_model import ShotModel
 
     return ShotModel(cache_manager=cache_manager, load_cache=False)
@@ -939,6 +973,7 @@ def shot_model(cache_manager):
 @pytest.fixture
 def shot_model_with_shots(cache_manager):
     """Create a ShotModel with pre-populated shots."""
+    # Local application imports
     from shot_model import Shot, ShotModel
 
     model = ShotModel(cache_manager=cache_manager, load_cache=False)
@@ -975,6 +1010,7 @@ def test_image_file(tmp_path):
 
     # Create a valid image using PIL if available, else use Qt
     try:
+        # Third-party imports
         from PIL import Image
 
         # Create a simple 100x100 red image
@@ -982,6 +1018,7 @@ def test_image_file(tmp_path):
         img.save(str(image_file), format="JPEG")
     except ImportError:
         # Fall back to Qt if PIL not available
+        # Third-party imports
         from PySide6.QtGui import QColor, QImage
 
         img = QImage(100, 100, QImage.Format.Format_RGB32)
@@ -999,6 +1036,7 @@ def test_image_file(tmp_path):
 @pytest.fixture
 def benchmark_timer():
     """Simple timer for performance benchmarking."""
+    # Standard library imports
     import time
 
     class BenchmarkTimer:
@@ -1030,8 +1068,10 @@ def benchmark_timer():
 @pytest.fixture
 def memory_tracker():
     """Track memory usage for performance tests."""
+    # Standard library imports
     import os
 
+    # Third-party imports
     import psutil
 
     class MemoryTracker:
@@ -1072,6 +1112,7 @@ def memory_tracker():
 @pytest.fixture
 def concurrent_executor():
     """Execute functions concurrently for thread safety testing."""
+    # Standard library imports
     import concurrent.futures
 
     def _execute_concurrent(func, args_list, max_workers=10):
@@ -1096,6 +1137,7 @@ def concurrent_executor():
 @pytest.fixture
 def thread_safety_monitor():
     """Monitor for detecting thread safety violations."""
+    # Standard library imports
     import threading
 
     class ThreadSafetyMonitor:
@@ -1147,6 +1189,7 @@ def ensure_clean_state_before_test():
     This fixture runs BEFORE each test to clean up any leftover state
     from previous tests that could cause crashes.
     """
+    # Standard library imports
     import sys
     import threading
     import time
@@ -1159,13 +1202,15 @@ def ensure_clean_state_before_test():
 
     # Clean up ProcessPoolManager singleton BEFORE test starts
     try:
+        # Local application imports
         from process_pool_manager import ProcessPoolManager
+
         # Check if singleton was created by a previous test
         if hasattr(ProcessPoolManager, '_instance') and ProcessPoolManager._instance is not None:
             print("DEBUG: Found existing ProcessPoolManager, cleaning up before test", file=sys.stderr)
             try:
-                # Shutdown the executor to clean up threads with short timeout
-                ProcessPoolManager._instance.shutdown(timeout=0.5)
+                # Shutdown the executor to clean up threads with very short timeout
+                ProcessPoolManager._instance.shutdown(timeout=0.1)
             except Exception:
                 pass  # Ignore shutdown errors
             # Reset the singleton so test gets a fresh instance
@@ -1177,15 +1222,17 @@ def ensure_clean_state_before_test():
 
     # Clean up QThreadPool (only if QApplication exists)
     try:
+        # Third-party imports
         from PySide6.QtCore import QCoreApplication
         app = QCoreApplication.instance()
         if app:
             # Only access QThreadPool if app exists
+            # Third-party imports
             from PySide6.QtCore import QThreadPool
             pool = QThreadPool.globalInstance()
             if pool and pool.activeThreadCount() > 0:
                 print(f"DEBUG: Waiting for {pool.activeThreadCount()} QThreadPool threads", file=sys.stderr)
-                pool.waitForDone(2000)  # Wait up to 2 seconds
+                pool.waitForDone(500)  # Wait up to 0.5 seconds
     except Exception as e:
         print(f"Warning: QThreadPool cleanup error: {e}", file=sys.stderr)
 
@@ -1219,15 +1266,18 @@ def cleanup_qt_resources():
 
     # Clean up ProcessPoolManager singleton threads FIRST before Qt cleanup
     try:
+        # Standard library imports
         import sys
 
+        # Local application imports
         from process_pool_manager import ProcessPoolManager
+
         # Check if singleton was created
         if hasattr(ProcessPoolManager, '_instance') and ProcessPoolManager._instance is not None:
             print("DEBUG: Cleaning up ProcessPoolManager singleton", file=sys.stderr)
             try:
-                # Shutdown the executor to clean up threads with short timeout
-                ProcessPoolManager._instance.shutdown(timeout=0.5)
+                # Shutdown the executor to clean up threads with very short timeout
+                ProcessPoolManager._instance.shutdown(timeout=0.1)
             except Exception:
                 pass  # Ignore shutdown errors
             # Reset the singleton so next test gets a fresh instance
@@ -1236,11 +1286,13 @@ def cleanup_qt_resources():
     except ImportError:
         pass  # Module might not be imported
     except Exception as e:
+        # Standard library imports
         import sys
         print(f"Warning: ProcessPoolManager cleanup error: {e}", file=sys.stderr)
 
     # After test completes, clean up Qt resources
     try:
+        # Third-party imports
         from PySide6.QtCore import QCoreApplication, QObject, Qt, QThread, QTimer
         from PySide6.QtWidgets import QApplication
 
@@ -1275,9 +1327,9 @@ def cleanup_qt_resources():
                 try:
                     if thread.isRunning():
                         thread.quit()
-                        if not thread.wait(1000):  # Wait up to 1 second
+                        if not thread.wait(100):  # Wait up to 0.1 second
                             thread.terminate()  # Force terminate if still running
-                            thread.wait(100)
+                            thread.wait(50)
                     thread.deleteLater()
                 except RuntimeError:
                     pass
@@ -1288,13 +1340,13 @@ def cleanup_qt_resources():
                 if app:  # Only access QThreadPool if app exists
                     pool = QThreadPool.globalInstance()
                     if pool.activeThreadCount() > 0:
-                        pool.waitForDone(300)  # Reduced from 2000ms to 300ms for tests
+                        pool.waitForDone(100)  # Reduced to 100ms for fast test cleanup
             except RuntimeError:
                 pass
 
-            # Process events fewer times to speed up cleanup
-            # In tests, we don't need as extensive event processing
-            for _ in range(5):  # Reduced from 20 to 5 iterations
+            # Process events minimal times to speed up cleanup
+            # In tests, we only need basic event processing
+            for _ in range(2):  # Reduced to 2 iterations for speed
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all events
 
@@ -1319,6 +1371,7 @@ def cleanup_qt_resources():
 
     except Exception as e:
         # Don't let cleanup errors fail tests, but log for debugging
+        # Standard library imports
         import sys
 
         print(f"Warning: Qt cleanup error: {e}", file=sys.stderr)
@@ -1337,10 +1390,12 @@ def enhanced_mainwindow_cleanup():
 
     # Enhanced cleanup after test
     try:
+        # Third-party imports
         from PySide6.QtCore import QCoreApplication
         app = QCoreApplication.instance()
         if app:
             # Find and cleanup any MainWindow instances
+            # Local application imports
             from main_window import MainWindow
             for widget in app.topLevelWidgets():
                 if isinstance(widget, MainWindow):
@@ -1350,13 +1405,16 @@ def enhanced_mainwindow_cleanup():
                         # Ensure it's marked for deletion
                         widget.deleteLater()
                     except Exception as e:
+                        # Standard library imports
                         import sys
                         print(f"Warning: MainWindow cleanup error: {e}", file=sys.stderr)
 
             # Clean up any CacheManager instances
             try:
                 # Force cache cleanup to prevent memory leaks
+                # Local application imports
                 from cache_manager import CacheManager
+
                 # The CacheManager might be a singleton or instance
                 # Try to clean up any static/global references
                 if hasattr(CacheManager, '_instance'):
@@ -1371,19 +1429,22 @@ def enhanced_mainwindow_cleanup():
                 pass
 
             # Additional QPixmap cleanup - force cleanup of Qt image cache
+            # Third-party imports
             from PySide6.QtGui import QPixmapCache
             QPixmapCache.clear()
 
-            # Process events one more time after MainWindow cleanup
-            for _ in range(10):
+            # Process events briefly after MainWindow cleanup
+            for _ in range(2):
                 app.processEvents()
 
         # Force additional garbage collection after MainWindow cleanup
+        # Standard library imports
         import gc
         gc.collect()
         gc.collect()  # Second pass to clean up circular references
 
     except Exception as e:
+        # Standard library imports
         import sys
         print(f"Warning: Enhanced MainWindow cleanup error: {e}", file=sys.stderr)
 
@@ -1415,6 +1476,7 @@ def mock_gui_blocking_components(monkeypatch):
 
     # Mock ProcessPoolManager.get_instance() to return TestProcessPool
     # This prevents real subprocess execution that could trigger errors -> NotificationManager -> QMessageBox
+    # Local application imports
     from tests.test_doubles_library import TestProcessPool
 
     test_pool = TestProcessPool()
@@ -1429,8 +1491,10 @@ def mock_gui_blocking_components(monkeypatch):
     # Also patch it at the module level for direct imports
 
     # Create MockProcessPoolManager with required class attributes
+    # Third-party imports
     from PySide6.QtCore import QMutex
 
+    # Local application imports
     import process_pool_manager
 
     MockProcessPoolManagerClass = type(
@@ -1450,6 +1514,7 @@ def mock_gui_blocking_components(monkeypatch):
 
     # CRITICAL FIX: Disable persistent terminal to prevent FIFO hangs
     # This prevents MainWindow from creating PersistentTerminalManager that uses FIFO operations
+    # Local application imports
     from config import Config
 
     monkeypatch.setattr(Config, "USE_PERSISTENT_TERMINAL", False)

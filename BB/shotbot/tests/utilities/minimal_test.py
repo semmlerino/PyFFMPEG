@@ -1,5 +1,6 @@
 """Minimal test to isolate the timeout issue."""
 
+# Standard library imports
 import sys
 from pathlib import Path
 
@@ -13,6 +14,7 @@ def test_basic_import() -> None:
 
 def test_path_validation() -> None:
     print("Testing path validation...")
+    # Local application imports
     from utils import PathUtils
 
     # Create a temporary directory
@@ -27,6 +29,7 @@ def test_path_validation() -> None:
 
 def test_find_thumbnail() -> None:
     print("Testing find_turnover_plate_thumbnail...")
+    # Local application imports
     from utils import PathUtils
 
     # Create a temporary structure
@@ -62,6 +65,7 @@ def test_find_thumbnail() -> None:
     print(f"Find result: {result}")
 
     # Cleanup
+    # Standard library imports
     import shutil
 
     shutil.rmtree(base, ignore_errors=True)

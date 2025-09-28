@@ -1,9 +1,11 @@
 """Configuration and fixtures for integration tests."""
 
+# Standard library imports
 import os
 import tempfile
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
 
@@ -95,6 +97,7 @@ def mock_shows_structure(integration_temp_dir):
                 ).touch()
 
                 # Create shot object
+                # Local application imports
                 from shot_model import Shot
 
                 shot = Shot(show_name, seq_name, shot_name, str(shot_path))
@@ -137,6 +140,7 @@ def performance_dataset(integration_temp_dir):
                     / f"{full_shot_name}_turnover-plate_FG01_aces_v001.1001.exr"
                 ).touch()
 
+                # Local application imports
                 from shot_model import Shot
 
                 shot = Shot(show_name, seq_name, shot_name, str(shot_path))
@@ -262,6 +266,7 @@ def vfx_production_environment(integration_temp_dir):
                                 )  # Realistic file size
 
                                 # Set realistic modification times
+                                # Standard library imports
                                 import time
 
                                 base_time = time.time() - (
@@ -290,6 +295,7 @@ def vfx_production_environment(integration_temp_dir):
                                 )
 
                 # Create shot object
+                # Local application imports
                 from shot_model import Shot
 
                 shot = Shot(

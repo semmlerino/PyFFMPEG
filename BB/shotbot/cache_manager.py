@@ -7,10 +7,12 @@ monolithic CacheManager.
 
 from __future__ import annotations
 
+# Standard library imports
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+# Third-party imports
 from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
@@ -25,6 +27,7 @@ from PySide6.QtWidgets import QApplication
 # Use typing_extensions for override (available in venv)
 from typing_extensions import override
 
+# Local application imports
 from cache.cache_validator import CacheValidator
 from cache.failure_tracker import FailureTracker
 from cache.memory_manager import MemoryManager
@@ -36,15 +39,17 @@ from cache.threede_cache import ThreeDECache
 from cache.thumbnail_loader import ThumbnailCacheResult, ThumbnailLoader
 from cache.thumbnail_processor import ThumbnailProcessor
 
-# Import unified cache configuration
-from cache_config_unified import UnifiedCacheConfig, create_unified_cache_config
+# Import cache configuration (now includes unified config)
+from cache_config import UnifiedCacheConfig, create_unified_cache_config
 from config import Config
 from exceptions import CacheError, ThumbnailError
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Sequence
 
+    # Local application imports
     from settings_manager import SettingsManager
     from shot_model import Shot
     from type_definitions import (
@@ -101,6 +106,7 @@ class CacheManager(LoggingMixin, QObject):
 
         # Set up cache directory structure using CacheConfig for mode separation
         if cache_dir is None:
+            # Local application imports
             from cache_config import CacheConfig
 
             self.cache_dir = CacheConfig.get_cache_directory()
@@ -554,6 +560,7 @@ class CacheManager(LoggingMixin, QObject):
             self._active_loaders.clear()
 
             # Remove thumbnail directory
+            # Standard library imports
             import shutil
 
             if self.thumbnails_dir.exists():
@@ -778,6 +785,7 @@ class ThumbnailCacheLoader(QRunnable):
     ) -> None:
         """Initialize with original constructor signature."""
         super().__init__()
+        # Local application imports
         from cache.thumbnail_loader import ThumbnailLoader
 
         # Map to new constructor

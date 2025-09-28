@@ -6,12 +6,14 @@ functionality from BaseThumbnailDelegate.
 
 from __future__ import annotations
 
-import logging
+# Standard library imports
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtGui import QColor
 from typing_extensions import override
 
+# Local application imports
 from base_thumbnail_delegate import (
     BaseThumbnailDelegate,
     DelegateTheme,
@@ -20,10 +22,10 @@ from base_thumbnail_delegate import (
 from threede_item_model import ThreeDERole
 
 if TYPE_CHECKING:
+    # Third-party imports
     from PySide6.QtCore import QModelIndex, QPersistentModelIndex
     from PySide6.QtWidgets import QWidget
 
-logger = logging.getLogger(__name__)
 
 
 class ThreeDEGridDelegate(BaseThumbnailDelegate):
@@ -40,7 +42,7 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
             parent: Optional parent widget
         """
         super().__init__(parent)
-        logger.debug("ThreeDEGridDelegate initialized")
+        self.logger.debug("ThreeDEGridDelegate initialized")
 
     @override
     def get_theme(self) -> DelegateTheme:

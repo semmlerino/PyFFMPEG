@@ -7,14 +7,17 @@ in background threads.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QApplication
 
 if TYPE_CHECKING:
+    # Standard library imports
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -235,8 +238,10 @@ def create_thread_safe_pixmap(
 
 if __name__ == "__main__":
     # Demo the thread-safe cache
+    # Standard library imports
     import sys
 
+    # Third-party imports
     from PySide6.QtWidgets import QApplication
 
     app = QApplication.instance() or QApplication(sys.argv)

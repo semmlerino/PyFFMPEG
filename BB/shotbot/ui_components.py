@@ -6,8 +6,10 @@ loading states, and accessibility features.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 
+# Third-party imports
 from PySide6.QtCore import (
     QEasingCurve,
     QEvent,
@@ -31,6 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Local application imports
 from design_system import design_system
 
 logger = logging.getLogger(__name__)
@@ -506,6 +509,7 @@ class FloatingActionButton(QPushButton):
         """)
 
         # Add shadow
+        # Third-party imports
         from PySide6.QtWidgets import QGraphicsDropShadowEffect
 
         shadow = QGraphicsDropShadowEffect()

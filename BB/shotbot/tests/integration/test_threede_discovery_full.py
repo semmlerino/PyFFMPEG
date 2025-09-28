@@ -8,8 +8,10 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
+# Standard library imports
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QObject, Signal
 
@@ -91,6 +93,7 @@ class TestThreeDEDiscoveryIntegration:
     @pytest.fixture
     def make_user_shots(self, temp_vfx_structure):
         """Factory for creating user's assigned shots."""
+        # Standard library imports
         from collections import namedtuple
 
         Shot = namedtuple("Shot", ["workspace_path", "show", "sequence", "shot"])
@@ -126,6 +129,7 @@ class TestThreeDEDiscoveryIntegration:
         shows_root, created_files = temp_vfx_structure
         user_shots = make_user_shots()
 
+        # Local application imports
         from config import Config
         from scene_discovery_coordinator import RefactoredThreeDESceneFinder
 
@@ -173,12 +177,14 @@ class TestThreeDEDiscoveryIntegration:
 
         Following Worker Thread Pattern (GUIDE line 91).
         """
+        # Local application imports
         from threede_scene_worker import ThreeDESceneWorker
 
         shows_root, created_files = temp_vfx_structure
         user_shots = make_user_shots()
 
         # Mock Config to use temp structure
+        # Local application imports
         from config import Config
 
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
@@ -214,6 +220,7 @@ class TestThreeDEDiscoveryIntegration:
 
     def test_scene_filtering_with_real_parser(self, temp_vfx_structure) -> None:
         """Test scene filtering using the real SceneParser component."""
+        # Local application imports
         from scene_parser import SceneParser
 
         shows_root, created_files = temp_vfx_structure
@@ -241,6 +248,7 @@ class TestThreeDEDiscoveryIntegration:
 
     def test_end_to_end_with_filesystem_scanner(self, temp_vfx_structure) -> None:
         """Test complete end-to-end with FileSystemScanner."""
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         shows_root, created_files = temp_vfx_structure
@@ -280,6 +288,7 @@ class TestThreeDEDiscoveryIntegration:
 
         if not user_shots:
             # Create a dummy shot for shows user isn't assigned to
+            # Standard library imports
             from collections import namedtuple
 
             Shot = namedtuple("Shot", ["workspace_path", "show", "sequence", "shot"])
@@ -287,6 +296,7 @@ class TestThreeDEDiscoveryIntegration:
                 Shot(f"{shows_root}/{show}/shots/dummy/dummy_001", show, "dummy", "001")
             ]
 
+        # Local application imports
         from config import Config
         from scene_discovery_coordinator import RefactoredThreeDESceneFinder
 

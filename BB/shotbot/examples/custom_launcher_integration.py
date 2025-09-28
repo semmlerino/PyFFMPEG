@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Example integration of persistent terminal with ShotBot's command system."""
 
+# Standard library imports
 import os
 import sys
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ sys.modules["PySide6.QtCore"].Signal = Mock()
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Local application imports
 # Import the persistent terminal manager
 from persistent_terminal_manager import PersistentTerminalManager  # noqa: E402
 

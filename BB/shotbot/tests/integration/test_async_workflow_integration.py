@@ -6,17 +6,20 @@ with focus on async operations and race condition prevention.
 
 from __future__ import annotations
 
+# Standard library imports
 import sys
 import threading
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Local application imports
 from cache_manager import CacheManager
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel, ShotRole

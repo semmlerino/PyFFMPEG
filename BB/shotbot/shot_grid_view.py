@@ -7,8 +7,10 @@ and proper Model/View integration.
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import (
     QModelIndex,
     Qt,
@@ -22,6 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Local application imports
 from base_grid_view import BaseGridView
 from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotItemModel, ShotRole
@@ -29,8 +32,10 @@ from shot_model import Shot
 from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:
+    # Third-party imports
     from PySide6.QtGui import QContextMenuEvent
 
+    # Local application imports
     from base_shot_model import BaseShotModel
     from base_thumbnail_delegate import BaseThumbnailDelegate
 
@@ -354,10 +359,13 @@ class ShotGridView(BaseGridView):
 
 # Example usage
 if __name__ == "__main__":
+    # Standard library imports
     import sys
 
+    # Third-party imports
     from PySide6.QtWidgets import QApplication
 
+    # Local application imports
     from shot_model import Shot
 
     app = QApplication(sys.argv)

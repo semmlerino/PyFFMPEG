@@ -5,6 +5,7 @@ This script sets up the environment to closely resemble the VFX workstation
 by properly mapping paths and using the recreated filesystem structure.
 """
 
+# Standard library imports
 import logging
 import os
 import subprocess
@@ -122,6 +123,7 @@ def create_shows_symlink() -> bool:
         logger.info("ℹ️  Updating paths for mock environment...")
         demo_shots_file = Path(__file__).parent / "demo_shots.json"
         if demo_shots_file.exists():
+            # Standard library imports
             import json
 
             with open(demo_shots_file) as f:

@@ -25,9 +25,9 @@ from PySide6.QtCore import Qt
 
 # Removed sys.path modification - can cause import issues
 # sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 # Local application imports
 from launcher_panel import LauncherPanel
+
 # Moved to lazy import to fix Qt initialization
 # from main_window import MainWindow
 from shot_model import Shot
@@ -35,6 +35,7 @@ from shot_model import Shot
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 from tests.test_doubles_library import TestSubprocess
+
 
 # Module-level fixture to handle lazy imports after Qt initialization
 @pytest.fixture(scope="module", autouse=True)

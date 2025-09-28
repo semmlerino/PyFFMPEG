@@ -48,12 +48,15 @@ Type Safety:
 
 from __future__ import annotations
 
+# Standard library imports
 import json
 from pathlib import Path
 from typing import Any
 
+# Third-party imports
 from PySide6.QtCore import QByteArray, QObject, QSettings, QSize, Signal
 
+# Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
 

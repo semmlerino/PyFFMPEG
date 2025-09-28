@@ -7,8 +7,10 @@ the UNIFIED_TESTING_GUIDE principles:
 - Uses factory fixtures for flexible test data
 """
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from shot_model import ShotModel
 from tests.test_doubles_library import TestProcessPool
 
@@ -104,6 +106,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
     def test_thumbnail_path_construction(self, make_shot) -> None:
         """Test correct thumbnail path construction for VFX shots."""
+        # Local application imports
         from config import Config
         from utils import PathUtils
 
@@ -185,6 +188,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         assert shot.full_name == "DB_256_1200"
 
         # Verify thumbnail path construction
+        # Local application imports
         from config import Config
         from utils import PathUtils
 
@@ -197,8 +201,10 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
     def test_vfx_asset_paths(self) -> None:
         """Test construction and discovery of VFX asset paths."""
+        # Standard library imports
         from pathlib import Path
 
+        # Local application imports
         from utils import PathUtils
 
         # Test 3DE scene path construction
@@ -244,6 +250,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
     def test_actual_vfx_file_paths(self) -> None:
         """Test parsing and construction of actual VFX file paths provided by user."""
+        # Standard library imports
         from pathlib import Path
 
         # Test data from actual VFX pipeline

@@ -13,11 +13,13 @@ Examples:
     python run_tests.py --cov              # Run with coverage
 """
 
+# Standard library imports
 import argparse
 import os
 import sys
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
 # Set up paths

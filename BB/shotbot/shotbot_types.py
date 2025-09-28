@@ -7,6 +7,7 @@ from the primary type_definitions module.
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import Any, TypedDict
 
 # Import common types from primary definitions to avoid duplication

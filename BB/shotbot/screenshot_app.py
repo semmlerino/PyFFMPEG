@@ -3,9 +3,11 @@
 Script to run ShotBot in mock mode and capture a screenshot.
 """
 
+# Standard library imports
 import os
 import sys
 
+# Third-party imports
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
@@ -13,6 +15,7 @@ from PySide6.QtWidgets import QApplication
 os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx/shows"
 os.environ["SHOTBOT_DEBUG"] = "1"
 
+# Local application imports
 # Import ShotBot modules
 from main_window import MainWindow
 from process_pool_factory import ProcessPoolFactory
@@ -20,6 +23,7 @@ from process_pool_factory import ProcessPoolFactory
 
 def capture_screenshot() -> None:
     """Capture screenshot of the ShotBot main window."""
+    # Standard library imports
     import glob
 
     app = QApplication.instance()

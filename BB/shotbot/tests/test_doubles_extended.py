@@ -11,12 +11,14 @@ These test doubles complement the existing test_doubles_library.py.
 
 from __future__ import annotations
 
+# Standard library imports
 import threading
 import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+# Local application imports
 from tests.helpers.synchronization import simulate_work_without_sleep
 
 

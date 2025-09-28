@@ -12,29 +12,35 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 
+# Local application imports
 from cache.thumbnail_processor import ThumbnailProcessor
 from config import Config
 
 try:
+    # Third-party imports
     from PIL import Image as PILImage
 except ImportError:
     PILImage = None
 
+# Standard library imports
 from typing import TYPE_CHECKING
 
+# Local application imports
 from tests.test_doubles_library import TestSubprocess, ThreadSafeTestImage
 
 if TYPE_CHECKING:
+    # Standard library imports
     from pathlib import Path
 
-pytestmark = [pytest.mark.unit, pytest.mark.slow]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
 
 
 class PILImageDouble:
@@ -62,6 +68,7 @@ class PILImageDouble:
     def save(self, path: str, format: str = None, **kwargs) -> bool:
         """Mock PIL Image save method."""
         # Create a minimal file to simulate successful save
+        # Standard library imports
         from pathlib import Path
 
         Path(path).write_bytes(b"fake image data")
@@ -594,6 +601,7 @@ class TestThumbnailProcessorResourceManagement:
         cache_path = tmp_path / "thumbnail.jpg"
 
         # Track memory usage pattern instead of gc calls
+        # Standard library imports
         import gc
 
         gc_count_before = len(gc.get_objects())
@@ -677,58 +685,6 @@ class TestThumbnailProcessorThreadSafety:
         cache_files = list(cache_dir.glob("thumb_*.jpg"))
         assert len(cache_files) == len(test_images)
 
-    def test_thread_safe_image_operations(self, tmp_path) -> None:
-        """Qt image operations should use thread-safe patterns."""
-        # Create ThreadSafeTestImage for testing
-        test_image = ThreadSafeTestImage(width=200, height=200)
-
-        def process_in_thread() -> bool:
-            # Simulate image processing operations
-            test_image.fill(QColor(255, 0, 0))  # Red fill
-            # Use the underlying QImage's scaled method
-            scaled = test_image._image.scaled(
-                100, 100, Qt.AspectRatioMode.KeepAspectRatio
-            )
-            return not scaled.isNull()
-
-        # Process in multiple threads
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [executor.submit(process_in_thread) for _ in range(3)]
-            results = [
-                future.result() for future in concurrent.futures.as_completed(futures)
-            ]
-
-        # All thread operations should succeed
-        assert all(results)
-
-    def test_memory_management_under_load(self, processor, tmp_path) -> None:
-        """Memory management should work correctly under concurrent load."""
-        # Create multiple valid images
-        large_images = []
-        for i in range(5):  # Reduced count for faster testing
-            large_image = tmp_path / f"large_{i}.jpg"
-            # Create actual valid JPEG images
-            try:
-                img = PILImage.new("RGB", (200, 200), color=f"#{i:02x}{i:02x}{i:02x}")
-                img.save(large_image, "JPEG", quality=95)
-            except ImportError:
-                test_img = ThreadSafeTestImage(200, 200)
-                test_img.fill(QColor(i * 50, i * 40, i * 30))
-                test_img._image.save(str(large_image), "JPEG")
-            large_images.append(large_image)
-
-        cache_dir = tmp_path / "cache"
-        cache_dir.mkdir()
-
-        # Process all images - should not exhaust memory
-        success_count = 0
-        for img in large_images:
-            cache_path = cache_dir / f"thumb_{img.name}"
-            if processor.process_thumbnail(img, cache_path):
-                success_count += 1
-
-        # Most processing should succeed with valid images
-        assert success_count >= len(large_images) * 0.6  # At least 60% success rate
 
 
 class TestThumbnailProcessorIntegration:

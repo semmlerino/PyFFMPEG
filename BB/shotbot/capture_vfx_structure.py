@@ -18,6 +18,7 @@ Usage:
     python capture_vfx_structure.py --stdout | gzip > structure.json.gz
 """
 
+# Standard library imports
 import argparse
 import json
 import os
@@ -27,7 +28,15 @@ import time
 from pathlib import Path
 from typing import Any, cast
 
+# Third-party imports
 from typing_extensions import TypedDict
+
+
+class ShowStructure(TypedDict):
+    """Type definition for show structure."""
+
+    root: str
+    structure: dict[str, Any]  # Complex nested structure from scan_directory
 
 
 class StructureDict(TypedDict, total=False):
@@ -36,7 +45,7 @@ class StructureDict(TypedDict, total=False):
     capture_time: float
     capture_host: str
     workspace_shots: list[str]
-    shows: dict[str, list[dict[str, Any]]]
+    shows: dict[str, list[ShowStructure]]
     show_roots: list[str]
     patterns: dict[str, list[str]]
 
@@ -292,6 +301,7 @@ def main() -> None:
             output_file = args.output
         else:
             # Auto-generate filename with timestamp and hostname
+            # Standard library imports
             from datetime import datetime
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

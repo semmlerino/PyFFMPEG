@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import shutil
 import tempfile
 from pathlib import Path
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QThread, QTimer
 

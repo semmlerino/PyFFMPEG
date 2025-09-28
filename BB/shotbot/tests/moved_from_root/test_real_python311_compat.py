@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test actual Python 3.11 compatibility by compiling with limited features."""
 
+# Standard library imports
 from pathlib import Path
 
 
@@ -14,6 +15,7 @@ def check_real_compatibility(filepath: Path) -> list:
 
         # Look for actual nested f-strings (f"...{f'...'}...")
         # These have quotes inside the braces
+        # Standard library imports
         import re
 
         # Pattern for actual nested f-strings like f"outer {f'inner'}"

@@ -6,8 +6,8 @@ eliminating the need to spawn new terminals for each command.
 
 from __future__ import annotations
 
+# Standard library imports
 import errno
-import logging
 import os
 import signal
 import stat
@@ -15,12 +15,14 @@ import subprocess
 import time
 from pathlib import Path
 
+# Third-party imports
 from PySide6.QtCore import QObject, Signal
 
-logger = logging.getLogger(__name__)
+# Local application imports
+from logging_mixin import LoggingMixin
 
 
-class PersistentTerminalManager(QObject):
+class PersistentTerminalManager(LoggingMixin, QObject):
     """Manages a single persistent terminal for all commands."""
 
     # Signals
@@ -55,11 +57,11 @@ class PersistentTerminalManager(QObject):
 
         # Ensure FIFO exists
         if not self._ensure_fifo():
-            logger.warning(
+            self.logger.warning(
                 f"Failed to create FIFO at {self.fifo_path}, persistent terminal may not work properly"
             )
 
-        logger.info(
+        self.logger.info(
             f"PersistentTerminalManager initialized with FIFO: {self.fifo_path}"
         )
 
@@ -78,14 +80,14 @@ class PersistentTerminalManager(QObject):
                     pass
 
                 os.mkfifo(self.fifo_path, 0o600)  # Only user can read/write
-                logger.debug(f"Created FIFO at {self.fifo_path}")
+                self.logger.debug(f"Created FIFO at {self.fifo_path}")
             except OSError as e:
-                logger.error(f"Could not create FIFO at {self.fifo_path}: {e}")
+                self.logger.error(f"Could not create FIFO at {self.fifo_path}: {e}")
                 return False
 
         # Verify it's actually a FIFO
         if not os.path.exists(self.fifo_path):
-            logger.error(
+            self.logger.error(
                 f"FIFO does not exist after creation attempt: {self.fifo_path}"
             )
             return False
@@ -94,10 +96,10 @@ class PersistentTerminalManager(QObject):
         try:
             file_stat = os.stat(self.fifo_path)
             if not stat.S_ISFIFO(file_stat.st_mode):
-                logger.error(f"Path exists but is not a FIFO: {self.fifo_path}")
+                self.logger.error(f"Path exists but is not a FIFO: {self.fifo_path}")
                 return False
         except OSError as e:
-            logger.error(f"Could not stat FIFO path {self.fifo_path}: {e}")
+            self.logger.error(f"Could not stat FIFO path {self.fifo_path}: {e}")
             return False
 
         return True
@@ -134,7 +136,7 @@ class PersistentTerminalManager(QObject):
             os.kill(self.terminal_pid, 0)
             return True
         except ProcessLookupError:
-            logger.debug(f"Terminal process {self.terminal_pid} no longer exists")
+            self.logger.debug(f"Terminal process {self.terminal_pid} no longer exists")
             self.terminal_pid = None
             self.terminal_process = None
             return False
@@ -149,7 +151,7 @@ class PersistentTerminalManager(QObject):
             True if terminal launched successfully, False otherwise
         """
         if not os.path.exists(self.dispatcher_path):
-            logger.error(f"Dispatcher script not found: {self.dispatcher_path}")
+            self.logger.error(f"Dispatcher script not found: {self.dispatcher_path}")
             return False
 
         # Try different terminal emulators
@@ -189,7 +191,7 @@ class PersistentTerminalManager(QObject):
 
         for cmd in terminal_commands:
             try:
-                logger.debug(f"Trying to launch terminal with: {cmd[0]}")
+                self.logger.debug(f"Trying to launch terminal with: {cmd[0]}")
                 self.terminal_process = subprocess.Popen(cmd, start_new_session=True)
                 self.terminal_pid = self.terminal_process.pid
 
@@ -197,20 +199,20 @@ class PersistentTerminalManager(QObject):
                 time.sleep(0.5)
 
                 if self._is_terminal_alive():
-                    logger.info(
+                    self.logger.info(
                         f"Terminal launched successfully with PID: {self.terminal_pid}"
                     )
                     self.terminal_started.emit(self.terminal_pid)
                     return True
 
             except FileNotFoundError:
-                logger.debug(f"Terminal emulator not found: {cmd[0]}")
+                self.logger.debug(f"Terminal emulator not found: {cmd[0]}")
                 continue
             except Exception as e:
-                logger.error(f"Error launching terminal with {cmd[0]}: {e}")
+                self.logger.error(f"Error launching terminal with {cmd[0]}: {e}")
                 continue
 
-        logger.error("Failed to launch terminal with any available emulator")
+        self.logger.error("Failed to launch terminal with any available emulator")
         return False
 
     def send_command(self, command: str, ensure_terminal: bool = True) -> bool:
@@ -225,25 +227,25 @@ class PersistentTerminalManager(QObject):
         """
         # Ensure terminal is running if requested
         if ensure_terminal and not self._is_terminal_alive():
-            logger.info("Terminal not running, launching new instance...")
+            self.logger.info("Terminal not running, launching new instance...")
             if not self._launch_terminal():
-                logger.error("Failed to launch terminal")
+                self.logger.error("Failed to launch terminal")
                 return False
             # Give terminal time to set up
             time.sleep(0.5)
 
         # Ensure FIFO exists before trying to use it
         if not os.path.exists(self.fifo_path):
-            logger.warning(f"FIFO missing, attempting to recreate: {self.fifo_path}")
+            self.logger.warning(f"FIFO missing, attempting to recreate: {self.fifo_path}")
             if not self._ensure_fifo():
-                logger.error(f"Failed to recreate FIFO: {self.fifo_path}")
+                self.logger.error(f"Failed to recreate FIFO: {self.fifo_path}")
                 return False
             # Give the terminal a moment to reconnect to the new FIFO
             time.sleep(0.2)
 
         # Check if dispatcher is running
         if not self._is_dispatcher_running():
-            logger.warning(
+            self.logger.warning(
                 f"Terminal dispatcher not reading from FIFO {self.fifo_path}. "
                 f"Terminal process alive: {self._is_terminal_alive()}"
             )
@@ -264,10 +266,10 @@ class PersistentTerminalManager(QObject):
                     fifo.write(f"{command}\n")
                     fifo.flush()
 
-                logger.info(
+                self.logger.info(
                     f"Successfully sent command to terminal via FIFO: {command}"
                 )
-                logger.debug(
+                self.logger.debug(
                     f"FIFO path: {self.fifo_path}, Terminal PID: {self.terminal_pid}"
                 )
                 self.command_sent.emit(command)
@@ -277,36 +279,36 @@ class PersistentTerminalManager(QObject):
                 if e.errno == errno.ENOENT:
                     # FIFO doesn't exist
                     if attempt < max_retries - 1:
-                        logger.warning(
+                        self.logger.warning(
                             f"FIFO disappeared during write, recreating (attempt {attempt + 1}/{max_retries})"
                         )
                         if self._ensure_fifo():
                             time.sleep(0.2)
                             continue
-                    logger.error(f"Failed to send command to FIFO: {e}")
+                    self.logger.error(f"Failed to send command to FIFO: {e}")
                 elif e.errno == errno.ENXIO:
                     # No reader available - terminal not running
                     if attempt == 0 and ensure_terminal:
                         # Try to restart terminal once
-                        logger.warning(
+                        self.logger.warning(
                             "No reader available for FIFO, attempting to restart terminal..."
                         )
                         if self.restart_terminal():
-                            logger.info(
+                            self.logger.info(
                                 "Terminal restarted successfully, retrying command..."
                             )
                             time.sleep(0.5)  # Give terminal time to set up
                             continue  # Retry the command
                         else:
-                            logger.error("Failed to restart terminal")
+                            self.logger.error("Failed to restart terminal")
                     else:
-                        logger.warning(
+                        self.logger.warning(
                             "No reader available for FIFO (terminal_dispatcher.sh not running?)"
                         )
                 elif e.errno == errno.EAGAIN:
-                    logger.warning("FIFO write would block (buffer full?)")
+                    self.logger.warning("FIFO write would block (buffer full?)")
                 else:
-                    logger.error(f"Failed to send command to FIFO: {e}")
+                    self.logger.error(f"Failed to send command to FIFO: {e}")
                 return False
             finally:
                 # Clean up file descriptor if it wasn't converted to file object
@@ -346,11 +348,11 @@ class PersistentTerminalManager(QObject):
                 time.sleep(0.5)
                 if self._is_terminal_alive():
                     os.kill(self.terminal_pid, signal.SIGKILL)
-                logger.info(f"Force killed terminal process {self.terminal_pid}")
+                self.logger.info(f"Force killed terminal process {self.terminal_pid}")
             except ProcessLookupError:
                 pass
             except Exception as e:
-                logger.error(f"Error killing terminal process: {e}")
+                self.logger.error(f"Error killing terminal process: {e}")
 
         self.terminal_pid = None
         self.terminal_process = None
@@ -377,9 +379,9 @@ class PersistentTerminalManager(QObject):
         if os.path.exists(self.fifo_path):
             try:
                 os.unlink(self.fifo_path)
-                logger.debug(f"Removed FIFO at {self.fifo_path}")
+                self.logger.debug(f"Removed FIFO at {self.fifo_path}")
             except OSError as e:
-                logger.warning(f"Could not remove FIFO: {e}")
+                self.logger.warning(f"Could not remove FIFO: {e}")
 
     def cleanup_fifo_only(self) -> None:
         """Clean up FIFO without closing the terminal.
@@ -391,9 +393,9 @@ class PersistentTerminalManager(QObject):
         if os.path.exists(self.fifo_path):
             try:
                 os.unlink(self.fifo_path)
-                logger.debug(f"Removed FIFO at {self.fifo_path}, terminal left running")
+                self.logger.debug(f"Removed FIFO at {self.fifo_path}, terminal left running")
             except OSError as e:
-                logger.warning(f"Could not remove FIFO: {e}")
+                self.logger.warning(f"Could not remove FIFO: {e}")
 
     def __del__(self) -> None:
         """Cleanup on deletion."""

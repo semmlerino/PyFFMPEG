@@ -5,11 +5,13 @@ This module provides a singleton tracker for QRunnable instances to ensure
 proper cleanup and prevent memory leaks from untracked thread pool tasks.
 """
 
+# Standard library imports
 import logging
 import threading
 import weakref
 from typing import Any
 
+# Third-party imports
 from PySide6.QtCore import QRunnable, QThreadPool
 
 logger = logging.getLogger(__name__)
@@ -124,6 +126,7 @@ class QRunnableTracker:
         Returns:
             True if all completed, False if timeout
         """
+        # Standard library imports
         import time
 
         start_time = time.time()

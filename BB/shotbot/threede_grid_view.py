@@ -7,9 +7,11 @@ loading indicators, and proper Model/View integration for 3DE scenes.
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import (
     QModelIndex,
     QPoint,
@@ -27,13 +29,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Local application imports
 from base_grid_view import BaseGridView
 from threede_grid_delegate import ThreeDEGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:
+    # Third-party imports
     from PySide6.QtGui import QKeyEvent
 
+    # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from threede_item_model import ThreeDEItemModel
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
@@ -325,6 +330,7 @@ class ThreeDEGridView(BaseGridView):
         Args:
             scene: Scene whose path to copy
         """
+        # Third-party imports
         from PySide6.QtWidgets import QApplication
 
         clipboard = QApplication.clipboard()

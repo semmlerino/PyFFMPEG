@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Summary of regex pattern optimizations with performance benchmarks."""
 
+# Standard library imports
 import re
 import time
 
+# Local application imports
 from config import Config
 
 
-def comprehensive_regex_benchmark():
+def comprehensive_regex_benchmark() -> None:
     """Benchmark all optimized regex patterns in the codebase."""
 
     shows_root_escaped = re.escape(Config.SHOWS_ROOT)

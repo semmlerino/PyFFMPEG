@@ -16,13 +16,16 @@ Usage:
 
 from __future__ import annotations
 
+# Standard library imports
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 import pytest
 from PySide6.QtWidgets import QApplication
 
+# Local application imports
 # pyright: reportPrivateUsage=false
 # Import test patterns
 from tests.test_type_safe_patterns import (
@@ -34,6 +37,7 @@ from tests.test_type_safe_patterns import (
 )
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Iterator
     from unittest.mock import Mock
 

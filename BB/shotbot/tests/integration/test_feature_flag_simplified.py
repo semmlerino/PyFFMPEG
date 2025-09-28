@@ -6,18 +6,22 @@ Following testing guide principles:
 - Mock only at system boundaries
 """
 
+# Standard library imports
 import os
 import sys
 import tempfile
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# Third-party imports
 from PySide6.QtCore import QThread, Signal
 
+# Local application imports
 from cache_manager import CacheManager
 from shot_model import Shot, ShotModel
 

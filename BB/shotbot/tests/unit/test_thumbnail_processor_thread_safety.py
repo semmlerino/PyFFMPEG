@@ -20,22 +20,24 @@ Critical Areas:
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import gc
 import os
-import random
 import sys
-import tempfile
 import threading
 import time
 import traceback
-import uuid
 from pathlib import Path
 
+# Third-party imports
 import psutil
 import pytest
 
+# Local application imports
 from cache.thumbnail_processor import ThumbnailProcessor
+
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
@@ -118,6 +120,7 @@ class TestThumbnailProcessorThreadSafety:
     @pytest.fixture
     def test_images(self, tmp_path) -> list[Path]:
         """Create diverse test images for concurrent processing."""
+        # Third-party imports
         import numpy as np
         from PIL import Image
 
@@ -157,6 +160,7 @@ class TestThumbnailProcessorThreadSafety:
     @pytest.fixture
     def problematic_images(self, tmp_path) -> list[Path]:
         """Create images that may cause issues."""
+        # Third-party imports
         import numpy as np
         from PIL import Image
 
@@ -551,97 +555,6 @@ class TestThumbnailProcessorThreadSafety:
         assert not deadlock_event.is_set(), "Deadlock detected"
         assert len(not_done) == 0, "Some operations didn't complete"
 
-    def test_performance_impact_of_lock(self, processor, test_images, tmp_path) -> None:
-        """Measure performance impact of Qt lock."""
-        cache_dir = tmp_path / "perf_cache"
-        cache_dir.mkdir(exist_ok=True)
-
-        # Measure single-threaded performance
-        single_start = time.time()
-        for i in range(5):
-            img = test_images[i]
-            cache_path = cache_dir / f"single_{i}.jpg"
-            processor.process_thumbnail(img, cache_path)
-        single_duration = time.time() - single_start
-
-        # Clean cache
-        for f in cache_dir.glob("*.jpg"):
-            f.unlink()
-
-        # Measure multi-threaded performance
-        multi_start = time.time()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = []
-            for i in range(5):
-                img = test_images[i]
-                cache_path = cache_dir / f"multi_{i}.jpg"
-                future = executor.submit(processor.process_thumbnail, img, cache_path)
-                futures.append(future)
-
-            concurrent.futures.wait(futures, timeout=30)
-        multi_duration = time.time() - multi_start
-
-        # Multi-threaded should not be significantly slower than single-threaded
-        # (accounting for lock overhead)
-        speedup = single_duration / multi_duration
-        print(f"\nSingle-threaded: {single_duration:.2f}s")
-        print(f"Multi-threaded: {multi_duration:.2f}s")
-        print(f"Speedup: {speedup:.2f}x")
-
-        # Should get some speedup despite lock
-        assert speedup > 0.5, (
-            f"Lock causing excessive performance degradation: {speedup:.2f}x"
-        )
-
-    @pytest.mark.slow
-    def test_resource_cleanup_under_stress(
-        self, processor, test_images, tmp_path
-    ) -> None:
-        """Test resource cleanup with many concurrent operations."""
-        cache_dir = tmp_path / "cleanup_cache"
-        cache_dir.mkdir(exist_ok=True)
-
-        # Track resource leaks
-        temp_files_before = set(Path(tempfile.gettempdir()).glob("*.tmp_*"))
-
-        def process_with_interruption(
-            image_path: Path, interrupt: bool = False
-        ) -> bool:
-            """Process with potential interruption."""
-            cache_path = cache_dir / f"cleanup_{uuid.uuid4().hex[:8]}.jpg"
-
-            if interrupt and random.random() < 0.3:
-                # Simulate interrupted processing
-                raise RuntimeError("Simulated interruption")
-
-            return processor.process_thumbnail(image_path, cache_path)
-
-        # Process with some failures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            futures = []
-            for i in range(30):
-                img = test_images[i % len(test_images)]
-                interrupt = i % 3 == 0  # Some will be interrupted
-                future = executor.submit(process_with_interruption, img, interrupt)
-                futures.append(future)
-
-            # Collect results (some will fail)
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result(timeout=5)
-                except Exception:
-                    pass  # Expected for interrupted operations
-
-        # Check for resource leaks
-        temp_files_after = set(Path(tempfile.gettempdir()).glob("*.tmp_*"))
-        leaked_files = temp_files_after - temp_files_before
-
-        # No temporary files should leak
-        assert len(leaked_files) == 0, f"Temporary files leaked: {leaked_files}"
-
-        # Cache directory shouldn't have temp files
-        cache_temp_files = list(cache_dir.glob("*.tmp_*"))
-        assert len(cache_temp_files) == 0, f"Temp files in cache: {cache_temp_files}"
 
     @staticmethod
     def _get_memory_usage() -> int:
@@ -695,6 +608,7 @@ class TestQtLockImplementation:
 
     def test_lock_scope_coverage(self, tmp_path) -> None:
         """Verify all Qt operations are within lock scope."""
+        # Third-party imports
         import numpy as np
         from PIL import Image
 

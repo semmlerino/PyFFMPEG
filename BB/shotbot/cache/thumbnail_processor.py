@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import gc
 import logging
 import threading
@@ -9,14 +10,17 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 
+# Local application imports
 from config import Config
 from error_handling_mixin import ErrorHandlingMixin
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    # Third-party imports
     from PIL import Image as PIL
 
 logger = logging.getLogger(__name__)
@@ -163,11 +167,13 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
             # Handle different PIL/Pillow versions for LANCZOS constant
             try:
                 # Modern Pillow (>= 10.0.0)
+                # Third-party imports
                 from PIL.Image import Resampling
 
                 resample_filter = Resampling.LANCZOS
             except ImportError:
                 # Older Pillow (< 10.0.0)
+                # Third-party imports
                 from PIL import Image as PILImage
 
                 resample_filter = PILImage.LANCZOS
@@ -274,6 +280,7 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
                     return pil_image
 
             # Standard PIL loading for other formats
+            # Third-party imports
             from PIL import Image as PILImage
 
             pil_image = PILImage.open(str(source_path))
@@ -294,6 +301,7 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
         Returns:
             dict: Rez environment details
         """
+        # Standard library imports
         import os
         import sys
 
@@ -407,9 +415,11 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
         Returns:
             PIL Image object or None if failed
         """
+        # Standard library imports
         import subprocess
         import tempfile
 
+        # Third-party imports
         from PIL import Image as PILImage
 
         self.logger.info(
@@ -543,8 +553,10 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
             PIL Image object
         """
         # Rez environment diagnostics
+        # Standard library imports
         import os
 
+        # Third-party imports
         import numpy as np
         from PIL import Image as PILImage
 
@@ -559,6 +571,7 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
 
         # Strategy 1: Try official OpenEXR (uppercase)
         try:
+            # Third-party imports
             import Imath
             import OpenEXR
 
@@ -574,15 +587,18 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
         # Strategy 2: Try alternative openexr (lowercase) - common in Rez
         if openexr_module is None:
             try:
+                # Third-party imports
                 import openexr
 
                 # Alternative packages often have different Imath location
                 try:
+                    # Third-party imports
                     import Imath
 
                     imath_module = Imath
                 except ImportError:
                     # Some packages bundle Imath differently
+                    # Third-party imports
                     import imath as Imath  # type: ignore[import-untyped]
 
                     imath_module = Imath
@@ -658,8 +674,10 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
         Returns:
             PIL Image object
         """
+        # Standard library imports
         import os
 
+        # Third-party imports
         import numpy as np
         from PIL import Image as PILImage
 
@@ -671,12 +689,14 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
         # Try imageio import with version fallback
         imageio_module = None
         try:
+            # Third-party imports
             import imageio.v3 as iio
 
             imageio_module = iio
             self.logger.debug("Using imageio.v3 API")
         except ImportError:
             try:
+                # Third-party imports
                 import imageio as iio
 
                 imageio_module = iio
@@ -737,6 +757,7 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
             True if dimensions are safe
         """
         try:
+            # Third-party imports
             from PIL import Image as PILImage
 
             with PILImage.open(str(source_path)) as pil_img:
@@ -863,6 +884,7 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
             ...     if thumb:
             ...         print(f"Processed {img} -> {thumb}")
         """
+        # Standard library imports
         import time
         from concurrent.futures import ThreadPoolExecutor, as_completed
 

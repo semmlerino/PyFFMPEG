@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Comprehensive Python 3.11 compatibility checker."""
 
+# Standard library imports
 import ast
 import sys
 from pathlib import Path

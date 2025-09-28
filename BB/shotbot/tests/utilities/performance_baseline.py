@@ -6,6 +6,7 @@ the various finder classes to ensure performance doesn't degrade
 over time.
 """
 
+# Standard library imports
 import sys
 import tempfile
 import time
@@ -17,6 +18,7 @@ from unittest.mock import MagicMock, patch
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# Local application imports
 from maya_latest_finder import MayaLatestFinder
 from shot_model import Shot
 from targeted_shot_finder import TargetedShotsFinder

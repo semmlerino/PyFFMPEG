@@ -10,6 +10,7 @@ This test suite validates:
 Run with: python test_critical_fixes_complete.py
 """
 
+# Standard library imports
 import json
 import os
 import re
@@ -40,14 +41,17 @@ def test_shows_root_dynamic_configuration():
         # Set environment variable
         with mock.patch.dict(os.environ, {"SHOWS_ROOT": shows_root}):
             # Force reload of config to pick up new environment
+            # Standard library imports
             import importlib
 
+            # Local application imports
             import config
 
             importlib.reload(config)
 
             # Test shot_finder_base.py
             try:
+                # Local application imports
                 from shot_finder_base import ShotFinderBase
 
                 class TestFinder(ShotFinderBase):
@@ -84,6 +88,7 @@ def test_shows_root_dynamic_configuration():
 
             # Test base_shot_model.py
             try:
+                # Local application imports
                 from base_shot_model import BaseShotModel
 
                 # Create a mock implementation
@@ -162,6 +167,7 @@ def test_previous_shots_model_cleanup():
             print(f"  ✗ {check_name} not found")
 
     # Verify cleanup is in closeEvent method
+    # Standard library imports
     import re
 
     pattern = r"def closeEvent\(self.*?\).*?previous_shots_model.*?cleanup\(\)"
@@ -179,8 +185,10 @@ def test_json_error_handling():
     """Test comprehensive JSON error handling in mock_workspace_pool."""
     print("\n=== Testing JSON Error Handling ===")
 
+    # Standard library imports
     import logging
 
+    # Local application imports
     from mock_workspace_pool import create_mock_pool_from_filesystem
 
     # Set up logging to capture error messages
@@ -372,6 +380,7 @@ def run_all_tests():
 
 
 if __name__ == "__main__":
+    # Standard library imports
     import logging
 
     logging.basicConfig(level=logging.WARNING)  # Reduce noise during tests

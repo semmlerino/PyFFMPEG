@@ -13,11 +13,14 @@ UNIFIED_TESTING_GUIDE COMPLIANCE:
 
 from __future__ import annotations
 
+# Standard library imports
 import tempfile
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from shot_model import Shot
 from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
 
@@ -39,6 +42,7 @@ class TestParallelDiscoveryIntegration:
 
     def teardown_method(self) -> None:
         """Clean up test directories."""
+        # Standard library imports
         import shutil
 
         if self.temp_dir.exists():
@@ -262,6 +266,7 @@ class TestParallelDiscoveryIntegration:
 
     def test_concurrent_parallel_discovery(self) -> None:
         """Test multiple parallel discoveries running concurrently."""
+        # Standard library imports
         import threading
 
         shows_root, test_shots = self._create_test_vfx_structure()
@@ -368,6 +373,7 @@ class TestParallelDiscoveryIntegration:
             progress_updates.append((time.time() - start_time, count, status))
 
         # Test parallel discovery on larger dataset
+        # Standard library imports
         import time
 
         start = time.time()

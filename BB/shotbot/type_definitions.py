@@ -6,9 +6,11 @@ used throughout the application for better type safety.
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 from typing import Literal, NamedTuple, Protocol, TypedDict, TypeVar
 
+# Third-party imports
 from PySide6.QtCore import Signal
 
 # ==============================================================================

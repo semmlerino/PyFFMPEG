@@ -40,9 +40,12 @@ Type Safety:
 
 from __future__ import annotations
 
+# Standard library imports
 from enum import Enum, auto
 from typing import TYPE_CHECKING
+from collections.abc import Callable
 
+# Third-party imports
 from PySide6.QtCore import (
     QEasingCurve,
     QObject,
@@ -66,9 +69,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Local application imports
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable
 
 
@@ -439,7 +444,7 @@ class NotificationManager(LoggingMixin, QObject):
         title: str,
         message: str = "",
         cancelable: bool = False,
-        callback: Callable | None = None,
+        callback: Callable[[], None] | None = None,
     ) -> QProgressDialog:
         """Show a progress dialog for long operations.
 

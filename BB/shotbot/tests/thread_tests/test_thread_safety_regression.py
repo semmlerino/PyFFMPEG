@@ -1,5 +1,6 @@
 """Regression tests for thread safety fixes in the Stabilization Sprint."""
 
+# Standard library imports
 import concurrent.futures
 import sys
 import tempfile
@@ -7,6 +8,7 @@ import threading
 import time
 from pathlib import Path
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication
@@ -15,6 +17,7 @@ from PySide6.QtWidgets import QApplication
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
+# Local application imports
 from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
 from shot_model import AsyncShotLoader, RefreshResult, ShotModel
@@ -173,6 +176,7 @@ class TestQThreadInterruptionFix:
         model = ShotModel(cache_manager)
 
         # Use real AsyncShotLoader with TestProcessPoolDouble at boundary
+        # Local application imports
         from tests.test_helpers import TestProcessPoolManager
 
         test_pool = TestProcessPoolManager()
@@ -209,6 +213,7 @@ class TestQThreadInterruptionFix:
     def test_interruption_request_used_in_thread(self) -> None:
         """Test that AsyncShotLoader uses interruption requests."""
         # Use real test double at system boundary
+        # Local application imports
         from tests.test_helpers import TestProcessPoolManager
 
         test_pool = TestProcessPoolManager()
@@ -231,6 +236,7 @@ class TestQThreadInterruptionFix:
 
     def test_stop_event_and_interruption_work_together(self) -> None:
         """Test that both stop mechanisms work together."""
+        # Local application imports
         from tests.test_helpers import TestProcessPoolManager
 
         test_process_pool = TestProcessPoolManager()
@@ -290,6 +296,7 @@ class TestDoubleCheckedLockingFix:
             t.join()
 
         # Wait briefly for any async operations
+        # Standard library imports
         import time
 
         time.sleep(0.1)

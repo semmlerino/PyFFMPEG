@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import re
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from config import Config
 from finder_utils import FinderUtils
 

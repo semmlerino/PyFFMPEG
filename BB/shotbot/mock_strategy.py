@@ -6,15 +6,19 @@ for different mock data sources.
 
 from __future__ import annotations
 
+# Standard library imports
 import json
-import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# Local application imports
+from logging_mixin import LoggingMixin, get_module_logger
+
+# Module-level logger for static methods
+logger = get_module_logger(__name__)
 
 
-class MockDataStrategy(ABC):
+class MockDataStrategy(LoggingMixin, ABC):
     """Abstract strategy for loading mock shot data."""
 
     @abstractmethod
@@ -27,7 +31,7 @@ class MockDataStrategy(ABC):
         pass
 
 
-class FilesystemMockStrategy(MockDataStrategy):
+class FilesystemMockStrategy(LoggingMixin, MockDataStrategy):
     """Load mock data from filesystem structure."""
 
     def __init__(self, mock_root: Path | None = None) -> None:
@@ -48,7 +52,7 @@ class FilesystemMockStrategy(MockDataStrategy):
         shows_dir = self.mock_root / "shows"
 
         if not shows_dir.exists():
-            logger.warning(f"Shows directory not found: {shows_dir}")
+            self.logger.warning(f"Shows directory not found: {shows_dir}")
             return shots
 
         # Scan shows/sequences/shots
@@ -73,7 +77,7 @@ class FilesystemMockStrategy(MockDataStrategy):
                         workspace_path = f"/shows/{show_dir.name}/shots/{seq_dir.name}/{shot_dir.name}"
                         shots.append(f"workspace {workspace_path}")
 
-        logger.info(f"Loaded {len(shots)} shots from filesystem")
+        self.logger.info(f"Loaded {len(shots)} shots from filesystem")
         return shots
 
     @staticmethod
@@ -99,7 +103,7 @@ class FilesystemMockStrategy(MockDataStrategy):
         return shot_name.startswith(f"{sequence}_")
 
 
-class JSONMockStrategy(MockDataStrategy):
+class JSONMockStrategy(LoggingMixin, MockDataStrategy):
     """Load mock data from JSON file."""
 
     def __init__(self, json_path: Path | str | None = None) -> None:
@@ -119,7 +123,7 @@ class JSONMockStrategy(MockDataStrategy):
             List of workspace paths
         """
         if not self.json_path.exists():
-            logger.warning(f"JSON file not found: {self.json_path}")
+            self.logger.warning(f"JSON file not found: {self.json_path}")
             return self._get_fallback_shots()
 
         try:
@@ -134,11 +138,11 @@ class JSONMockStrategy(MockDataStrategy):
                 workspace_path = f"/shows/{show}/shots/{seq}/{seq}_{shot_num}"
                 shots.append(f"workspace {workspace_path}")
 
-            logger.info(f"Loaded {len(shots)} shots from JSON")
+            self.logger.info(f"Loaded {len(shots)} shots from JSON")
             return shots
 
         except Exception as e:
-            logger.error(f"Error loading JSON: {e}")
+            self.logger.error(f"Error loading JSON: {e}")
             return self._get_fallback_shots()
 
     @staticmethod
@@ -155,7 +159,7 @@ class JSONMockStrategy(MockDataStrategy):
         ]
 
 
-class ProductionDataStrategy(MockDataStrategy):
+class ProductionDataStrategy(LoggingMixin, MockDataStrategy):
     """Load real production data from captured JSON."""
 
     def __init__(self, capture_file: Path | str | None = None) -> None:
@@ -175,7 +179,7 @@ class ProductionDataStrategy(MockDataStrategy):
             List of workspace paths matching production
         """
         if not self.capture_file.exists():
-            logger.warning(f"Capture file not found: {self.capture_file}")
+            self.logger.warning(f"Capture file not found: {self.capture_file}")
             return []
 
         try:
@@ -196,15 +200,15 @@ class ProductionDataStrategy(MockDataStrategy):
                         )
                         shots.append(f"workspace {workspace_path}")
 
-            logger.info(f"Loaded {len(shots)} production shots from capture")
+            self.logger.info(f"Loaded {len(shots)} production shots from capture")
             return shots
 
         except Exception as e:
-            logger.error(f"Error loading capture file: {e}")
+            self.logger.error(f"Error loading capture file: {e}")
             return []
 
 
-class UnifiedMockPool:
+class UnifiedMockPool(LoggingMixin):
     """Unified mock pool using strategy pattern for data sources."""
 
     def __init__(self, strategy: MockDataStrategy | None = None) -> None:
@@ -218,7 +222,7 @@ class UnifiedMockPool:
         self._cache = {}
         self.commands_executed = []
 
-        logger.info(
+        self.logger.info(
             f"UnifiedMockPool initialized with {len(self.shots)} shots "
             f"using {self.strategy.__class__.__name__}"
         )
@@ -315,7 +319,7 @@ class UnifiedMockPool:
             try:
                 results[command] = self.execute_workspace_command(command, cache_ttl)
             except Exception as e:
-                logger.error(f"Error executing {command}: {e}")
+                self.logger.error(f"Error executing {command}: {e}")
                 results[command] = None
 
         return results
@@ -336,7 +340,7 @@ class UnifiedMockPool:
     def shutdown(self) -> None:
         """Shutdown the pool."""
         self._cache.clear()
-        logger.info("UnifiedMockPool shutdown complete")
+        self.logger.info("UnifiedMockPool shutdown complete")
 
 
 def create_mock_pool(mode: str = "auto") -> UnifiedMockPool:

@@ -7,18 +7,23 @@ enabling automated testing in CI/CD pipelines and headless servers.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import os
 import sys
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 from typing_extensions import ParamSpec, TypeVar
 
+# Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable
 
+    # Third-party imports
     from PySide6.QtWidgets import QApplication
 
 # Module-level logger for static methods
@@ -116,6 +121,7 @@ class HeadlessMode(LoggingMixin):
         Returns:
             QApplication configured for headless mode
         """
+        # Third-party imports
         from PySide6.QtCore import QCoreApplication, Qt
         from PySide6.QtWidgets import QApplication
 
@@ -177,6 +183,7 @@ class HeadlessMode(LoggingMixin):
 
         # Try to import Qt and check if we can create widgets
         try:
+            # Third-party imports
             from PySide6.QtCore import QCoreApplication
 
             # If application already exists, display is likely available
@@ -247,8 +254,9 @@ class HeadlessMainWindow(LoggingMixin):
     useful for testing core functionality without UI.
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: object, **kwargs: object) -> None:
         """Initialize headless main window."""
+        # Local application imports
         from cache_manager import CacheManager
         from process_pool_factory import ProcessPoolFactory
         from shot_model import ShotModel
@@ -288,6 +296,7 @@ class HeadlessMainWindow(LoggingMixin):
 
 def run_headless_app() -> bool:
     """Run the application in headless mode for testing."""
+    # Third-party imports
     from PySide6.QtCore import QTimer
 
     # Configure headless mode

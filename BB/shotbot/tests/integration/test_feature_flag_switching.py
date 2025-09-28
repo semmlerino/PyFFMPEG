@@ -1,24 +1,37 @@
 """Integration tests for feature flag switching between ShotModel implementations."""
 
+# Standard library imports
 import os
-import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
+# Removed sys.path modification - can cause import issues
+# sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Local application imports
 from base_shot_model import BaseShotModel
 from cache_manager import CacheManager
-from main_window import MainWindow
+
+# Moved to lazy import to fix Qt initialization
+# from main_window import MainWindow
 from shot_model import Shot, ShotModel
 
 # Import test doubles instead of using raw Mock()
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from test_doubles_library import TestCacheManager
+# Removed sys.path modification - can cause import issues
+# sys.path.insert(0, str(Path(__file__).parent.parent))
+# Third-party imports
+from tests.test_doubles_library import TestCacheManager
+
+
+# Module-level fixture to handle lazy imports after Qt initialization
+@pytest.fixture(scope="module", autouse=True)
+def setup_qt_imports():
+    """Import Qt and MainWindow components after test setup."""
+    global MainWindow
+    from main_window import MainWindow
 
 
 class ExtendedTestCacheManager(TestCacheManager):
@@ -72,6 +85,7 @@ class TestFeatureFlagSwitching:
                     "process_pool_manager.ProcessPoolManager.get_instance"
                 ) as mock_get_instance:
                     # Return a test double for ProcessPoolManager
+                    # Local application imports
                     from tests.test_doubles_library import TestProcessPool
 
                     mock_get_instance.return_value = TestProcessPool()
@@ -157,6 +171,7 @@ class TestFeatureFlagSwitching:
                             with patch(
                                 "process_pool_manager.ProcessPoolManager.get_instance"
                             ) as mock_get_instance:
+                                # Local application imports
                                 from tests.test_doubles_library import TestProcessPool
 
                                 mock_get_instance.return_value = TestProcessPool()
@@ -393,6 +408,7 @@ class TestMainWindowIntegration:
                 with patch(
                     "process_pool_manager.ProcessPoolManager.get_instance"
                 ) as mock_get_instance:
+                    # Local application imports
                     from tests.test_doubles_library import TestProcessPool
 
                     mock_get_instance.return_value = TestProcessPool()
@@ -458,6 +474,7 @@ class TestMainWindowIntegration:
                     with patch(
                         "process_pool_manager.ProcessPoolManager.get_instance"
                     ) as mock_get_instance:
+                        # Local application imports
                         from tests.test_doubles_library import TestProcessPool
 
                         mock_get_instance.return_value = TestProcessPool()

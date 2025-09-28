@@ -8,12 +8,14 @@ This test validates:
 4. Integration with ws -sg output format
 """
 
+# Standard library imports
 import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Local application imports
 from shot_model import Shot
 from targeted_shot_finder import TargetedShotsFinder
 from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
@@ -325,6 +327,7 @@ def test_integration() -> None:
         print("  ✓ 3DE scene model initialized")
 
         # 4. Test deduplication
+        # Local application imports
         from threede_scene_model import ThreeDEScene
 
         # Create mock scenes for deduplication test

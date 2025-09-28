@@ -1,19 +1,21 @@
 """Enhanced thumbnail widget for displaying 3DE scene thumbnails with additional info."""
 
-import logging
+# Standard library imports
 
+# Third-party imports
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QLabel, QMenu
 
+# Local application imports
 from config import Config
+from logging_mixin import LoggingMixin
 from threede_scene_model import ThreeDEScene
 from thumbnail_widget_base import ThumbnailWidgetBase
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
 
 
-class ThreeDEThumbnailWidget(ThumbnailWidgetBase):
+class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
     """Widget displaying a 3DE scene thumbnail with shot, user, and plate info."""
 
     # Signals - maintain backward compatibility

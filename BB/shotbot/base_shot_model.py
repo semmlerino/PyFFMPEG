@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import QObject, Signal
 
 if TYPE_CHECKING:
@@ -13,6 +15,7 @@ if TYPE_CHECKING:
     from shot_model import Shot
     from type_definitions import PerformanceMetricsDict, RefreshResult
 
+# Local application imports
 from logging_mixin import LoggingMixin
 from optimized_shot_parser import OptimizedShotParser
 from process_pool_manager import ProcessPoolManager
@@ -62,6 +65,7 @@ class BaseShotModel(LoggingMixin, QObject):
             load_cache: Whether to load from cache on init
         """
         super().__init__()
+        # Local application imports
         from cache_manager import CacheManager
 
         self.shots: list[Shot] = []
@@ -77,6 +81,7 @@ class BaseShotModel(LoggingMixin, QObject):
 
         # Use the factory for clean dependency injection support
         try:
+            # Local application imports
             from process_pool_factory import get_process_pool
 
             self._process_pool = get_process_pool()
@@ -106,6 +111,7 @@ class BaseShotModel(LoggingMixin, QObject):
         Returns:
             True if cache was loaded, False otherwise
         """
+        # Local application imports
         from shot_model import Shot  # Import here to avoid circular import
 
         cached_data = self.cache_manager.get_cached_shots()
@@ -180,6 +186,7 @@ class BaseShotModel(LoggingMixin, QObject):
                         )
                         continue
 
+                    # Local application imports
                     from shot_model import Shot  # Import here to avoid circular import
 
                     shots.append(

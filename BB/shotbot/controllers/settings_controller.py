@@ -19,15 +19,19 @@ separation of concerns and easier testing.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from typing import TYPE_CHECKING, Any, Protocol
 
+# Third-party imports
 from PySide6.QtWidgets import QMessageBox
 
 if TYPE_CHECKING:
+    # Third-party imports
     from PySide6.QtCore import QByteArray, QSize
     from PySide6.QtWidgets import QSplitter, QTabWidget
 
+    # Local application imports
     from cache_manager import CacheManager
     from settings_dialog import SettingsDialog
     from settings_manager import SettingsManager
@@ -152,6 +156,7 @@ class SettingsController:
                 self.window.resize(default_size[0], default_size[1])
             else:
                 # Fallback to config defaults
+                # Local application imports
                 from config import Config
 
                 self.window.resize(
@@ -237,6 +242,7 @@ class SettingsController:
 
     def show_preferences(self) -> None:
         """Show the preferences dialog."""
+        # Local application imports
         from settings_dialog import SettingsDialog
 
         if self.window._settings_dialog is None:
@@ -282,6 +288,7 @@ class SettingsController:
 
     def import_settings(self) -> None:
         """Import settings from file."""
+        # Third-party imports
         from PySide6.QtWidgets import QFileDialog
 
         # Cast to QMainWindow for dialog parent - safe since MainWindow implements both protocols
@@ -313,6 +320,7 @@ class SettingsController:
 
     def export_settings(self) -> None:
         """Export settings to file."""
+        # Third-party imports
         from PySide6.QtWidgets import QFileDialog
 
         # Cast to QMainWindow for dialog parent - safe since MainWindow implements both protocols
@@ -341,6 +349,7 @@ class SettingsController:
 
     def reset_layout(self) -> None:
         """Reset window layout to defaults."""
+        # Local application imports
         from config import Config
 
         # Cast to QMainWindow for dialog parent - safe since MainWindow implements both protocols

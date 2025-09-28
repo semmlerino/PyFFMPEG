@@ -6,12 +6,14 @@
 # - Real components where possible
 # - Thread-safe testing patterns
 
+# Standard library imports
 import shutil
 import sys
 import tempfile
 import traceback
 from pathlib import Path
 
+# Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     TestSubprocess,

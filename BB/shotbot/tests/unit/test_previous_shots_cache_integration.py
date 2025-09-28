@@ -13,13 +13,16 @@ Focus areas:
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import json
 import time
 from typing import TYPE_CHECKING
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from cache_manager import CacheManager
 from previous_shots_model import PreviousShotsModel
 from shot_model import Shot
@@ -28,9 +31,10 @@ from shot_model import Shot
 from tests.test_doubles_library import TestShot, TestShotModel
 
 if TYPE_CHECKING:
+    # Standard library imports
     from pathlib import Path
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
@@ -238,6 +242,7 @@ class TestPreviousShootsCacheIntegration:
         ]
 
         # Use local import for patch since we removed the global import
+        # Standard library imports
         from unittest.mock import patch
 
         # Need to patch the ParallelShotsFinder class that the worker uses

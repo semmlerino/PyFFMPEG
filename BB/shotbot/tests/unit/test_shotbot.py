@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import os
 import sys
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtGui import QColor, QPalette
 
@@ -67,6 +69,7 @@ class TestShotbotLogging:
             mock_home.return_value = tmp_path
 
             # Import after patching to ensure clean state
+            # Local application imports
             from shotbot import setup_logging
 
             setup_logging()
@@ -90,6 +93,7 @@ class TestShotbotLogging:
             for handler in root_logger.handlers[:]:
                 root_logger.removeHandler(handler)
 
+            # Local application imports
             from shotbot import setup_logging
 
             setup_logging()
@@ -115,6 +119,7 @@ class TestShotbotLogging:
 
             # Test with debug enabled
             with patch.dict(os.environ, {"SHOTBOT_DEBUG": "1"}):
+                # Local application imports
                 from shotbot import setup_logging
 
                 setup_logging()
@@ -133,6 +138,7 @@ class TestShotbotLogging:
         with patch("shotbot.Path.home") as mock_home:
             mock_home.return_value = tmp_path
 
+            # Local application imports
             from shotbot import setup_logging
 
             setup_logging()
@@ -168,6 +174,7 @@ class TestShotbotMain:
             mock_window_class.return_value = test_window
             mock_exit.return_value = None
 
+            # Local application imports
             from shotbot import main
 
             main()
@@ -191,6 +198,7 @@ class TestShotbotMain:
             mock_window_class.return_value = test_window
             mock_exit.return_value = None
 
+            # Local application imports
             from shotbot import main
 
             main()
@@ -216,6 +224,7 @@ class TestShotbotMain:
             mock_window_class.return_value = test_window
             mock_exit.return_value = None
 
+            # Local application imports
             from shotbot import main
 
             main()
@@ -249,6 +258,7 @@ class TestShotbotMain:
             mock_window_class.return_value = test_window
             mock_exit.return_value = None
 
+            # Local application imports
             from shotbot import main
 
             main()
@@ -272,6 +282,7 @@ class TestShotbotMain:
             mock_window_class.return_value = test_window
             mock_exit.return_value = None
 
+            # Local application imports
             from shotbot import main
 
             main()
@@ -286,6 +297,7 @@ class TestShotbotMain:
         """Test that Qt imports happen after logging setup."""
         # This tests the critical requirement that logging is configured
         # before any imports that might trigger PIL
+        # Standard library imports
         import sys
 
         # Remove shotbot from modules if it exists
@@ -298,6 +310,7 @@ class TestShotbotMain:
             patch("main_window.MainWindow"),
             patch("sys.exit"),
         ):
+            # Local application imports
             from shotbot import main
 
             main()
@@ -314,6 +327,7 @@ class TestShotbotIntegration:
         """Test that all main components can be imported without errors."""
         # UNIFIED_TESTING_GUIDE: Test real import behavior
         try:
+            # Local application imports
             from shotbot import main, setup_logging
 
             assert callable(setup_logging)
@@ -326,6 +340,7 @@ class TestShotbotIntegration:
         with patch("shotbot.Path.home") as mock_home:
             mock_home.return_value = tmp_path
 
+            # Local application imports
             from shotbot import setup_logging
 
             # Call setup_logging multiple times
@@ -352,6 +367,7 @@ class TestShotbotIntegration:
                 root_logger.removeHandler(handler)
 
             with patch.dict(os.environ, {"SHOTBOT_DEBUG": debug_value}):
+                # Local application imports
                 from shotbot import setup_logging
 
                 setup_logging()

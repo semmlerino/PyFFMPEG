@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import re
 from pathlib import Path
 
+# Local application imports
 from base_scene_finder import BaseSceneFinder
 
 

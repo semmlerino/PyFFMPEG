@@ -7,10 +7,12 @@ version numbers are parsed and compared across the codebase.
 
 from __future__ import annotations
 
+# Standard library imports
 import re
 from pathlib import Path
 from re import Pattern
 
+# Local application imports
 from logging_mixin import LoggingMixin
 
 

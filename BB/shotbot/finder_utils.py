@@ -7,10 +7,12 @@ a single source of truth for common operations.
 
 from __future__ import annotations
 
+# Standard library imports
 import re
 from pathlib import Path
 from re import Pattern
 
+# Local application imports
 from config import Config
 
 # Compiled regex patterns for performance

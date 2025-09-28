@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import subprocess
 import time
 from unittest.mock import MagicMock
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QTimer
 
+# Local application imports
 from launcher_manager import LauncherManager
 from tests.test_doubles_library import TestSubprocess
 from thread_safe_worker import ThreadSafeWorker, WorkerState
@@ -125,6 +128,7 @@ class TestQTimerCascadePrevention:
 
     def test_cleanup_coordination(self, launcher_manager, qtbot) -> None:
         """Test cleanup coordination behavior."""
+        # Third-party imports
         from PySide6.QtCore import QMutexLocker
 
         mock_worker = MagicMock()

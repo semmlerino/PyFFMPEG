@@ -9,13 +9,16 @@ following UNIFIED_TESTING_GUIDE principles:
 - No time.sleep() - use Qt event processing
 """
 
+# Standard library imports
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QDialog, QMessageBox
 
+# Local application imports
 from launcher_dialog import (
     LauncherEditDialog,
     LauncherListWidget,
@@ -31,7 +34,7 @@ from tests.test_doubles_library import (
     TestLauncherTerminal,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
 
 # Test Data Factories
 

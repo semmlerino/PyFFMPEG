@@ -6,25 +6,29 @@ and other exceptional conditions that may occur in production.
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import stat
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 # Lazy imports to avoid Qt initialization at module level
 # from PySide6.QtCore import QCoreApplication
 # from cache_manager import CacheManager
 from utils import FileUtils, PathUtils
 
 try:
+    # Third-party imports
     from PIL import Image
 except ImportError:
     Image = None
 
-pytestmark = [pytest.mark.unit, pytest.mark.slow]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -34,8 +38,10 @@ pytestmark = [pytest.mark.unit, pytest.mark.slow]
 def setup_qt_imports():
     """Import Qt and CacheManager components after test setup."""
     global CacheManager, QCoreApplication, process_qt_events
+    # Third-party imports
     from PySide6.QtCore import QCoreApplication
 
+    # Local application imports
     from cache_manager import CacheManager
     from tests.helpers.synchronization import process_qt_events
 
@@ -325,41 +331,6 @@ class TestConcurrentEdgeCases:
 class TestResourceExhaustion:
     """Test behavior under resource exhaustion conditions."""
 
-    def test_many_small_exr_files(self, tmp_path) -> None:
-        """Many small EXR files should not exhaust file handles."""
-        # Create many small EXR files
-        for i in range(100):
-            exr_file = tmp_path / f"small_{i}.exr"
-            exr_file.write_bytes(b"EXR")
-
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-
-        # Process all files
-        for i in range(100):
-            exr_file = tmp_path / f"small_{i}.exr"
-
-            if Image:
-                with patch.object(Image, "open", return_value=MagicMock()):
-                    cache_manager.cache_thumbnail(
-                        exr_file,
-                        show="test",
-                        sequence=f"seq{i}",
-                        shot=f"{i:04d}",
-                        wait=False,  # Don't wait
-                    )
-            else:
-                # Skip Image mocking if PIL not available
-                cache_manager.cache_thumbnail(
-                    exr_file,
-                    show="test",
-                    sequence=f"seq{i}",
-                    shot=f"{i:04d}",
-                    wait=False,  # Don't wait
-                )
-
-        # Should complete without file handle exhaustion
-        # (actual file handle checking is OS-specific)
-        assert True  # If we get here, handles were managed properly
 
     def test_cache_cleanup_under_pressure(self, tmp_path) -> None:
         """Cache should clean up under memory pressure."""

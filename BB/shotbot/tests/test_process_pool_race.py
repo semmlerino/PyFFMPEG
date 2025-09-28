@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Test to demonstrate ProcessPoolManager singleton race condition."""
 
+# Standard library imports
 import os
 import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Standard library imports
 import threading
 import time
 from typing import Any
 
+# Third-party imports
 from PySide6.QtCore import QCoreApplication
 
 # Import after QCoreApplication exists
@@ -24,6 +27,7 @@ def test_process_pool_manager_race_condition() -> None:
     concurrently to expose the duplicate initialization bug.
     """
     # Clear any existing instance first
+    # Local application imports
     from process_pool_manager import ProcessPoolManager
 
     # Reset singleton state for testing
@@ -104,8 +108,10 @@ def test_process_pool_manager_resource_leak() -> None:
     The duplicate self._initialized = True on line 257 could cause
     resources to be created multiple times.
     """
+    # Standard library imports
     import concurrent.futures
 
+    # Local application imports
     from process_pool_manager import ProcessPoolManager
 
     # Reset singleton completely

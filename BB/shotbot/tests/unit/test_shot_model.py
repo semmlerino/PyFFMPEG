@@ -9,16 +9,20 @@ This refactored version:
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 
 # pyright: basic
 from typing import TYPE_CHECKING
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from shot_model import RefreshResult, Shot
 
 if TYPE_CHECKING:
+    # Local application imports
     from tests.unit.test_protocols import TestShotFactory
 
 

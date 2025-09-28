@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from concurrent.futures import Future
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
@@ -16,10 +18,12 @@ from PySide6.QtCore import (
     Signal,
 )
 
+# Local application imports
 from runnable_tracker import get_tracker
 
 # Import sip at module level to avoid threading issues
 try:
+    # Third-party imports
     import sip
 
     SIP_AVAILABLE = True

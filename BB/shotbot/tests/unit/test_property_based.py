@@ -12,8 +12,10 @@ Key Properties Tested:
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 
+# Third-party imports
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
@@ -62,6 +64,7 @@ class TestShotPathProperties:
     def test_shot_path_roundtrip(self, path: str) -> None:
         """Any valid shot path should parse and reconstruct identically."""
         # Import locally to avoid circular dependencies
+        # Local application imports
         from shot_model import Shot
 
         # Parse the path
@@ -82,6 +85,7 @@ class TestShotPathProperties:
     @given(show_name(), sequence_name(), shot_number())
     def test_shot_creation_consistency(self, show: str, seq: str, shot: str) -> None:
         """Shot creation should be consistent regardless of input format."""
+        # Local application imports
         from shot_model import Shot
 
         # Create shot with explicit workspace path
@@ -169,8 +173,10 @@ class TestWorkspaceCommandProperties:
     @given(st.lists(shot_path(), min_size=0, max_size=50))
     def test_workspace_parsing_consistency(self, paths) -> None:
         """Workspace output parsing should handle any valid format."""
+        # Standard library imports
         import tempfile
 
+        # Local application imports
         from shot_model import ShotModel
 
         # Generate mock workspace output
@@ -216,6 +222,7 @@ class TestWorkspaceCommandProperties:
     )
     def test_invalid_workspace_line_handling(self, line: str) -> None:
         """Invalid workspace lines should be handled gracefully."""
+        # Local application imports
         from shot_model import ShotModel
 
         # Create model without cache
@@ -242,6 +249,7 @@ class TestPathValidationProperties:
     @given(st.text(min_size=1, max_size=200))
     def test_path_validation_consistency(self, path_str: str) -> None:
         """Path validation should be consistent."""
+        # Local application imports
         from utils import PathUtils
 
         # Skip invalid paths
@@ -270,6 +278,7 @@ class TestPathValidationProperties:
     )
     def test_path_building_consistency(self, components) -> None:
         """Path building should be consistent."""
+        # Local application imports
         from utils import PathUtils
 
         if not components:
@@ -308,8 +317,10 @@ class TestSceneFinderProperties:
     )
     def test_scene_finding_consistency(self, scene_list) -> None:
         """Scene finding should be consistent."""
+        # Standard library imports
         import tempfile
 
+        # Local application imports
         from threede_scene_finder import ThreeDESceneFinder
 
         with tempfile.TemporaryDirectory() as temp_dir:

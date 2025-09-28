@@ -6,12 +6,15 @@ thread synchronization to prevent race conditions and resource leaks.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, QThread, Signal, Slot
 
 if TYPE_CHECKING:
+    # Local application imports
     from base_shot_model import BaseShotModel
     from threede_scene_model import ThreeDESceneModel
     from threede_scene_worker import ThreeDESceneWorker
@@ -72,6 +75,7 @@ class ThreadingManager(QObject):
                 return False
 
             # Import here to avoid circular imports
+            # Local application imports
             from threede_scene_worker import ThreeDESceneWorker
 
             # Clean up any existing worker

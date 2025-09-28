@@ -8,17 +8,20 @@ This reduces the search space by 95%+ compared to scanning all shows.
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import re
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Local application imports
 from config import Config, ThreadingConfig
 from shot_finder_base import ShotFinderBase
 from shot_model import Shot
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Generator
 
 
@@ -91,6 +94,7 @@ class TargetedShotsFinder(ShotFinderBase):
         Returns:
             List of Shot objects found in this show
         """
+        # Local application imports
         from config import Config
 
         shots: list[Shot] = []
@@ -211,6 +215,7 @@ class TargetedShotsFinder(ShotFinderBase):
         Yields:
             Shot objects as they are discovered
         """
+        # Local application imports
         from config import Config
 
         if not target_shows:
@@ -289,8 +294,10 @@ class TargetedShotsFinder(ShotFinderBase):
         Returns:
             List of approved/completed shots
         """
+        # Standard library imports
         import time
 
+        # Local application imports
         from config import Config
 
         start_time = time.time()
@@ -383,6 +390,7 @@ class TargetedShotsFinder(ShotFinderBase):
         Returns:
             Path to thumbnail or None if not found
         """
+        # Local application imports
         from config import Config
         from utils import FileUtils, PathUtils
 

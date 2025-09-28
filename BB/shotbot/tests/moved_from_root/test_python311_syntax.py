@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test Python 3.11 syntax compatibility using compile with feature flags."""
 
+# Standard library imports
 import ast
 import sys
 from pathlib import Path

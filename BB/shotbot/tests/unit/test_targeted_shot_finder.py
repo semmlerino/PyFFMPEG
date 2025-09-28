@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import subprocess
 from concurrent.futures import Future, TimeoutError
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from shot_model import Shot
 from targeted_shot_finder import TargetedShotsFinder
 
@@ -92,6 +95,7 @@ class TestExtractShowsFromActiveShots:
 
                 mock_info.assert_called_once()
                 assert "Extracted 1 unique shows from 1 active shots" in mock_info.call_args[0][0]
+                assert len(shows) == 1  # Verify the expected show count
                 mock_debug.assert_called_once()
                 assert "test_show" in str(mock_debug.call_args[0][0])
 
@@ -678,6 +682,7 @@ class TestPerformance:
     @pytest.mark.slow
     def test_many_target_shows_performance(self) -> None:
         """Test performance with many target shows."""
+        # Standard library imports
         import time
 
         finder = TargetedShotsFinder(max_workers=4)
@@ -697,6 +702,7 @@ class TestPerformance:
     @pytest.mark.slow
     def test_large_shot_list_performance(self) -> None:
         """Test performance with large shot lists."""
+        # Standard library imports
         import time
 
         finder = TargetedShotsFinder()

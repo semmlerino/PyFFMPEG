@@ -5,13 +5,16 @@ These tests verify that core functionality works before, during, and after
 the architecture surgery refactoring.
 """
 
+# Standard library imports
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Signal
 
+# Local application imports
 from launcher.models import CustomLauncher
 from launcher_manager import LauncherManager
 from shot_model import Shot
@@ -259,6 +262,7 @@ class TestMainWindowRefactoringSafety:
 
     def test_ui_initialization(self, app, qtbot) -> None:
         """Verify UI initializes without errors."""
+        # Local application imports
         from main_window import MainWindow
 
         # Create window
@@ -274,6 +278,7 @@ class TestMainWindowRefactoringSafety:
 
     def test_tab_creation(self, app, qtbot) -> None:
         """Verify all tabs are created."""
+        # Local application imports
         from main_window import MainWindow
 
         window = MainWindow()
@@ -292,6 +297,7 @@ class TestMainWindowRefactoringSafety:
 
     def test_menu_structure(self, app, qtbot) -> None:
         """Verify menu structure is preserved."""
+        # Local application imports
         from main_window import MainWindow
 
         window = MainWindow()
@@ -309,6 +315,7 @@ class TestMainWindowRefactoringSafety:
 
     def test_signal_connections(self, app, qtbot) -> None:
         """Verify critical signal-slot connections work."""
+        # Local application imports
         from main_window import MainWindow
 
         with patch("main_window.ShotModel") as mock_model_class:
@@ -334,8 +341,10 @@ class TestCombinedIntegration:
 
     def test_launcher_execution_from_ui(self, qapp, qtbot) -> None:
         """Verify launchers can be executed from UI context."""
+        # Standard library imports
         import time
 
+        # Local application imports
         from main_window import MainWindow
 
         with patch("subprocess.Popen"):
@@ -367,6 +376,7 @@ class TestCombinedIntegration:
 def test_import_compatibility() -> None:
     """Verify all imports still work after refactoring."""
     # These imports should not fail
+    # Local application imports
     from launcher.models import (
         CustomLauncher,
     )

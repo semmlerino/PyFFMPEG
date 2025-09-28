@@ -6,11 +6,13 @@ keyboard navigation, and tooltip management.
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 # Qt imports needed at runtime for Protocol definitions
 
 if TYPE_CHECKING:
+    # Third-party imports
     from PySide6.QtGui import QAction
     from PySide6.QtWidgets import (
         QListView,

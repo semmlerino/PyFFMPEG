@@ -13,13 +13,16 @@ UNIFIED_TESTING_GUIDE COMPLIANCE:
 
 from __future__ import annotations
 
+# Standard library imports
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Third-party imports
 import pytest
 from PySide6.QtTest import QSignalSpy
 
+# Local application imports
 from shot_model import Shot
 
 # Test doubles for behavior testing
@@ -27,9 +30,10 @@ from threede_scene_model import ThreeDEScene
 from threede_scene_worker import ProgressCalculator, ThreeDESceneWorker
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Generator
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
 class TestThreeDESceneFinder:
@@ -307,6 +311,7 @@ class TestThreeDESceneWorker:
 
         # Inject test double by replacing the module-level finder
         # This follows UNIFIED_TESTING_GUIDE: "Real components with test doubles at boundaries"
+        # Local application imports
         import threede_scene_worker
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
@@ -427,6 +432,7 @@ class TestThreeDESceneWorker:
         test_finder.set_estimate_result(2, 10)  # 2 users, ~10 files
 
         # Inject test double and create worker
+        # Local application imports
         import threede_scene_worker
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
@@ -499,6 +505,7 @@ class TestThreeDESceneWorker:
         test_finder.set_estimate_result(2, 10)  # 2 users, ~10 files
 
         # Inject test double
+        # Local application imports
         import threede_scene_worker
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
@@ -534,6 +541,7 @@ class TestThreeDESceneWorker:
         test_finder.raise_error_on_next_call(Exception("Test error"))
 
         # Inject test double
+        # Local application imports
         import threede_scene_worker
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)

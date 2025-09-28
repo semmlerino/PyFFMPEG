@@ -6,10 +6,12 @@ shot paths, reducing processing time from 912K ops/s to 3M+ ops/s.
 
 from __future__ import annotations
 
+# Standard library imports
 import re
 import time
 from typing import NamedTuple
 
+# Local application imports
 from config import Config
 
 

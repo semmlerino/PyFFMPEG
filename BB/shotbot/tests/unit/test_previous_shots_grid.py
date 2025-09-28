@@ -16,12 +16,15 @@ Follows best practices:
 
 from __future__ import annotations
 
+# Standard library imports
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtTest import QSignalSpy, QTest
 
+# Local application imports
 from cache_manager import CacheManager
 from config import Config
 from previous_shots_item_model import PreviousShotsItemModel
@@ -266,6 +269,7 @@ class TestPreviousShotsView:
 
         # Simulate click on item by calling the handler directly
         # (In Model/View, we don't have direct widget access)
+        # Third-party imports
         from PySide6.QtCore import QModelIndex
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
@@ -291,6 +295,7 @@ class TestPreviousShotsView:
         shot_selected_spy = QSignalSpy(grid_widget.shot_selected)
 
         # Simulate shot selection using model index
+        # Third-party imports
         from PySide6.QtCore import QModelIndex
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
@@ -316,6 +321,7 @@ class TestPreviousShotsView:
         shot_double_clicked_spy = QSignalSpy(grid_widget.shot_double_clicked)
 
         # Simulate double-click using model index
+        # Third-party imports
         from PySide6.QtCore import QModelIndex
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
@@ -346,18 +352,6 @@ class TestPreviousShotsView:
         # Selection should be reset
         assert grid_widget.selected_shot is None
 
-    def test_resize_debouncing(self, grid_widget, test_model, qtbot) -> None:
-        """Test that resize events are debounced for performance.
-
-        Following UNIFIED_TESTING_GUIDE:
-        - Test actual behavior (debouncing)
-        - Verify performance optimization works
-        """
-        # Skip test - Model/View implementation handles resize differently
-        # The list view automatically handles resize without custom reflow logic
-        pytest.skip(
-            "Model/View implementation uses QListView's built-in resize handling"
-        )
 
     def test_grid_column_calculation(self, grid_widget, test_model, qtbot) -> None:
         """Test that grid columns are calculated correctly based on width."""
@@ -418,6 +412,7 @@ class TestPreviousShotsView:
         )
 
         # Select the shot through the proper API
+        # Third-party imports
         from PySide6.QtCore import QModelIndex
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
@@ -432,6 +427,7 @@ class TestPreviousShotsViewIntegration:
     @pytest.fixture
     def integration_grid(self, qtbot, tmp_path) -> PreviousShotsView:
         """Create view with all real components for integration testing."""
+        # Local application imports
         from shot_model import ShotModel
 
         # Real components

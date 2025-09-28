@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Standalone test script to verify ws output parsing without PySide6."""
 
+# Standard library imports
 import re
 
 # Actual ws -sg output from VFX environment

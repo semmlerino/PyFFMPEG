@@ -5,6 +5,7 @@ This script tests that mock mode properly injects test data
 without requiring PySide6 or Qt GUI components.
 """
 
+# Standard library imports
 import json
 import os
 import sys
@@ -41,6 +42,7 @@ def test_mock_setup() -> bool:
     # 2. Check that mock flag is recognized
     print("\n2. Testing command-line argument parsing...")
     try:
+        # Standard library imports
         import argparse
 
         parser = argparse.ArgumentParser()

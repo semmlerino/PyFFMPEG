@@ -13,16 +13,19 @@ UNIFIED_TESTING_GUIDE COMPLIANCE:
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import threading
 from typing import NoReturn
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from tests.helpers.synchronization import simulate_work_without_sleep
 from threading_utils import CancellationEvent, ThreadSafeProgressTracker
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
 class TestThreadSafeProgressTracker:

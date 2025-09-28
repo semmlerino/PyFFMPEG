@@ -59,6 +59,7 @@ Thread Safety:
     thumbnail loading and scene discovery.
 """
 
+# Standard library imports
 import argparse
 import logging
 import os
@@ -219,6 +220,7 @@ Environment Variables:
 
     if headless_mode:
         logger.info("Starting ShotBot in HEADLESS MODE - no display required")
+        # Local application imports
         from headless_mode import HeadlessMode
 
         HeadlessMode.configure_qt_for_headless()
@@ -234,6 +236,7 @@ Environment Variables:
         os.environ["SHOTBOT_MOCK"] = "1"
 
         # Use the new ProcessPoolFactory for clean dependency injection
+        # Local application imports
         from process_pool_factory import ProcessPoolFactory
 
         # Enable mock mode in the factory
@@ -244,17 +247,20 @@ Environment Variables:
 
     # Now import Qt and main window AFTER logging is configured
     # This ensures PIL logging is suppressed before PIL is imported
+    # Third-party imports
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication
 
     # Create application (headless-aware)
     if headless_mode:
+        # Local application imports
         from headless_mode import HeadlessMode
 
         app = HeadlessMode.create_headless_application(sys.argv)
     else:
         app = QApplication(sys.argv)
 
+    # Local application imports
     from main_window import MainWindow
 
     # Set application info
@@ -265,6 +271,7 @@ Environment Variables:
     app.setStyle("Fusion")
 
     # Dark palette
+    # Third-party imports
     from PySide6.QtGui import QColor, QPalette
 
     palette = QPalette()
@@ -313,6 +320,7 @@ Environment Variables:
 
     # In headless mode, patch the window to prevent display operations
     if headless_mode:
+        # Local application imports
         from headless_mode import HeadlessMode
 
         HeadlessMode.patch_for_headless(window)

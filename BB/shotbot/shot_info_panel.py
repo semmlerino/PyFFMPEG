@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import QCoreApplication, QObject, QRunnable, Qt, QThreadPool, Signal
 from PySide6.QtGui import QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
@@ -15,6 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Local application imports
 from cache_manager import CacheManager, ThumbnailCacheLoader
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
@@ -22,6 +25,7 @@ from runnable_tracker import get_tracker
 from utils import ImageUtils
 
 if TYPE_CHECKING:
+    # Local application imports
     from shot_model import Shot
 
 
@@ -30,6 +34,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
         # Ensure we're in the main thread for Qt widget creation
+        # Third-party imports
         from PySide6.QtCore import QCoreApplication, QThread
         from PySide6.QtWidgets import QApplication
 
@@ -50,6 +55,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
 
         # Additional safety check for QApplication type (relaxed for tests)
         # In test environments, QCoreApplication is acceptable since pytest-qt may create it
+        # Standard library imports
         import sys
 
         is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
@@ -214,6 +220,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
                 return
 
             # Use utility for memory bounds checking (with smaller limits for info panel)
+            # Local application imports
             from config import Config
 
             if not ImageUtils.validate_image_dimensions(
@@ -238,6 +245,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
                 return
 
             # Convert to QPixmap only in main thread for display
+            # Third-party imports
             from PySide6.QtCore import QThread
 
             if QThread.currentThread() == QCoreApplication.instance().thread():
@@ -288,6 +296,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
         placeholder_image.fill(Qt.GlobalColor.transparent)
 
         # Convert to QPixmap only when setting on label (main thread only)
+        # Third-party imports
         from PySide6.QtCore import QThread
 
         if QThread.currentThread() == QCoreApplication.instance().thread():
@@ -348,6 +357,7 @@ class InfoPanelPixmapLoader(QRunnable):
         tracker.register(self, metadata)
 
         try:
+            # Local application imports
             from config import Config
 
             path_obj = Path(self.path) if isinstance(self.path, str) else self.path

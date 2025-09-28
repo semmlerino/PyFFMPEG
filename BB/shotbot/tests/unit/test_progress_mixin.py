@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+# Standard library imports
 from unittest.mock import MagicMock, patch
 
+# Local application imports
 from progress_mixin import ProgressReportingMixin
 
 
 class ConcreteProgressClass(ProgressReportingMixin):
     """Concrete class for testing the mixin."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize test class."""
         super().__init__()
         self.operations_performed = []
@@ -42,7 +44,7 @@ class TestProgressReportingMixinInitialization:
     def test_multiple_inheritance_chain(self):
         """Test that mixin works in multiple inheritance chain."""
         class MultipleInheritance(ProgressReportingMixin):
-            def __init__(self):
+            def __init__(self) -> None:
                 super().__init__()
                 self.custom_attr = "test"
 

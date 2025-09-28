@@ -35,6 +35,7 @@ Example Usage:
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import sys
 import threading
@@ -53,6 +54,7 @@ from typing import (
     TypeVar,
 )
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import (
     QEventLoop,
@@ -62,20 +64,24 @@ from PySide6.QtCore import (
     Signal,
 )
 
+# Local application imports
 from tests.helpers.synchronization import (
     simulate_work_without_sleep,
 )
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable, Iterator
 
 # Import project modules
 try:
+    # Local application imports
     from launcher import LauncherWorker
     from launcher_manager import LauncherManager
     from thread_safe_worker import WorkerState
 except ImportError:
     # Handle relative imports for test context
+    # Standard library imports
     import sys
     from pathlib import Path
 
@@ -83,6 +89,7 @@ except ImportError:
     project_root = Path(__file__).parent.parent.parent
     sys.path.insert(0, str(project_root))
 
+    # Local application imports
     from launcher import LauncherWorker
     from launcher_manager import LauncherManager
     from thread_safe_worker import WorkerState
@@ -1068,6 +1075,7 @@ def isolated_launcher_manager() -> Iterator[LauncherManager]:
         manager.shutdown()
 
         # Remove temporary config
+        # Standard library imports
         import shutil
 
         if temp_config_dir.exists():

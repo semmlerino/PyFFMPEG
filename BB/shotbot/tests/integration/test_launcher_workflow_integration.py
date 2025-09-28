@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import json
 import shutil
 import tempfile
@@ -15,8 +16,10 @@ import traceback
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 # Import the module under test
 from launcher_manager import LauncherManager
 

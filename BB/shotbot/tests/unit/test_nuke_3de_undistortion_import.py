@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 
+# Local application imports
 from nuke_script_generator import NukeScriptGenerator
+from nuke_undistortion_parser import NukeUndistortionParser
 
 # Mock 3DE undistortion export with actual 3DE node types
 MOCK_3DE_UNDISTORTION = """#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
@@ -122,8 +125,9 @@ class TestNuke3DEUndistortionImport:
         undist_file = tmp_path / "test_undistortion.nk"
         undist_file.write_text(MOCK_3DE_UNDISTORTION)
 
-        # Test simple import
-        result = NukeScriptGenerator._import_undistortion_nodes(
+        # Test parsing with NukeUndistortionParser
+        parser = NukeUndistortionParser()
+        result = parser.parse_undistortion_file(
             str(undist_file),
             ypos_offset=-200,
         )
@@ -145,7 +149,8 @@ class TestNuke3DEUndistortionImport:
         undist_file.write_text(MOCK_3DE_COPY_PASTE)
 
         # Test simple import (should handle copy/paste format too)
-        result = NukeScriptGenerator._import_undistortion_nodes(
+        parser = NukeUndistortionParser()
+        result = parser.parse_undistortion_file(
             str(undist_file),
             ypos_offset=-200,
         )
@@ -164,7 +169,8 @@ class TestNuke3DEUndistortionImport:
         undist_file = tmp_path / "classic.nk"
         undist_file.write_text(MOCK_3DE_CLASSIC)
 
-        result = NukeScriptGenerator._import_undistortion_nodes(
+        parser = NukeUndistortionParser()
+        result = parser.parse_undistortion_file(
             str(undist_file),
             ypos_offset=-200,
         )
@@ -180,7 +186,8 @@ class TestNuke3DEUndistortionImport:
         undist_file.write_text("")
 
         # This should fail all parsers and return empty
-        result = NukeScriptGenerator._import_undistortion_nodes(
+        parser = NukeUndistortionParser()
+        result = parser.parse_undistortion_file(
             str(undist_file),
             ypos_offset=-200,
         )
@@ -219,6 +226,7 @@ class TestNuke3DEUndistortionImport:
 
     def test_3de_node_types_accepted(self) -> None:
         """Verify 3DE node types are accepted by simplified pattern matching."""
+        # Standard library imports
         import re
 
         # Test that our simplified pattern accepts all 3DE node types
@@ -263,7 +271,8 @@ end_group
         undist_file = tmp_path / "mixed.nk"
         undist_file.write_text(mixed_content)
 
-        result = NukeScriptGenerator._import_undistortion_nodes(
+        parser = NukeUndistortionParser()
+        result = parser.parse_undistortion_file(
             str(undist_file),
             ypos_offset=-200,
         )

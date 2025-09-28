@@ -5,6 +5,7 @@ This script tests that ShotBot can properly load and work with
 the recreated VFX filesystem containing hundreds of real shots.
 """
 
+# Standard library imports
 import logging
 import os
 import sys
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    # Local application imports
     from shot_model import Shot
 
 # Set up environment
@@ -25,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 def test_mock_pool() -> int:
     """Test the mock workspace pool directly."""
+    # Local application imports
     from mock_workspace_pool import create_mock_pool_from_filesystem
 
     logger.info("=" * 70)
@@ -69,6 +72,7 @@ def test_mock_pool() -> int:
 
 def test_shot_model() -> int:
     """Test that ShotModel properly loads all shots."""
+    # Local application imports
     from cache_manager import CacheManager
     from process_pool_factory import ProcessPoolFactory
     from shot_model import ShotModel
@@ -120,6 +124,7 @@ def test_shot_model() -> int:
 
 def test_headless_app() -> int:
     """Test running the app in headless mode."""
+    # Local application imports
     from headless_mode import HeadlessMainWindow
 
     logger.info("\n" + "=" * 70)

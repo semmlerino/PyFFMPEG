@@ -6,9 +6,11 @@ inherits common functionality from BaseItemModel, reducing code duplication.
 
 from __future__ import annotations
 
+# Standard library imports
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import (
     QModelIndex,
     QObject,
@@ -17,9 +19,11 @@ from PySide6.QtCore import (
 )
 from typing_extensions import override
 
+# Local application imports
 from base_item_model import BaseItemModel, BaseItemRole
 
 if TYPE_CHECKING:
+    # Local application imports
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 
@@ -210,6 +214,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         if self._selected_index != index:
             # Clear old selection
             if self._selected_index.isValid():
+                # Third-party imports
                 from PySide6.QtCore import QModelIndex
 
                 old_index = QModelIndex(self._selected_index)
@@ -218,6 +223,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
                 )
 
             # Set new selection
+            # Third-party imports
             from PySide6.QtCore import QPersistentModelIndex
 
             self._selected_index = QPersistentModelIndex(index)
@@ -275,6 +281,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         self.clear_thumbnail_cache()
 
         # Clear selection
+        # Third-party imports
         from PySide6.QtCore import QPersistentModelIndex
 
         self._selected_index = QPersistentModelIndex()

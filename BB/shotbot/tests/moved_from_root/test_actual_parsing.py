@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Test script to verify parsing with the actual ws -sg output from VFX environment."""
 
+# Standard library imports
 import sys
 from pathlib import Path
 
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Local application imports
 from config import Config
 from optimized_shot_parser import OptimizedShotParser
 from shot_model import Shot
@@ -99,9 +101,11 @@ def test_parsing():
 
 def test_shot_item_model():
     """Test ShotItemModel with parsed shots."""
+    # Third-party imports
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication
 
+    # Local application imports
     from shot_item_model import ShotItemModel
 
     # Create QApplication if not exists (required for Qt operations)

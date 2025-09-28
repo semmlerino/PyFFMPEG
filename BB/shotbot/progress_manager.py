@@ -52,12 +52,14 @@ Type Safety:
 
 from __future__ import annotations
 
+# Standard library imports
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+# Local application imports
 from notification_manager import NotificationManager
 
 if TYPE_CHECKING:
@@ -70,6 +72,7 @@ if TYPE_CHECKING:
         QStatusBar,
     )
 
+# Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
 
 # Module-level logger

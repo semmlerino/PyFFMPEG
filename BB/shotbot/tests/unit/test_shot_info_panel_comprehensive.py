@@ -6,17 +6,20 @@ QRunnable implementation added to ShotInfoPanel for async thumbnail loading.
 
 from __future__ import annotations
 
+# Standard library imports
 import sys
 import threading
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QImage
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Local application imports
 from shot_info_panel import InfoPanelPixmapLoader, ShotInfoPanel
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager

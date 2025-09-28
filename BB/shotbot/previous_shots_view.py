@@ -7,8 +7,10 @@ with virtualization and proper Model/View architecture.
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import (
     QModelIndex,
     Qt,
@@ -26,6 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Local application imports
 from base_grid_view import BaseGridView
 from progress_manager import ProgressManager
 from shot_grid_delegate import ShotGridDelegate
@@ -33,8 +36,10 @@ from shot_item_model import ShotRole
 from thumbnail_widget_base import FolderOpenerWorker
 
 if TYPE_CHECKING:
+    # Third-party imports
     from PySide6.QtGui import QCloseEvent, QContextMenuEvent
 
+    # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from previous_shots_item_model import PreviousShotsItemModel
     from previous_shots_model import PreviousShotsModel
@@ -387,6 +392,7 @@ class PreviousShotsView(BaseGridView):
             self.logger.error(f"No workspace path for shot: {shot.full_name}")
             return
 
+        # Standard library imports
         from pathlib import Path
 
         if not Path(folder_path).exists():

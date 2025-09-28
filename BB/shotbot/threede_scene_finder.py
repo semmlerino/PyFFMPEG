@@ -13,6 +13,7 @@ Performance improvements:
 - Memory-efficient processing with generators
 """
 
+# Local application imports
 # Import the optimized implementation
 from threede_scene_finder_optimized import (
     DirectoryCache,

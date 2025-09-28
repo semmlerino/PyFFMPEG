@@ -8,19 +8,22 @@ with real Qt components and minimal mocking.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+# Standard library imports
 from typing import Any
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import QMessageBox
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
+# Removed sys.path modification - can cause import issues
+# sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Local application imports
 from cache_manager import CacheManager
-from main_window import MainWindow
+
+# Moved to lazy import to fix Qt initialization
+# from main_window import MainWindow
 from notification_manager import NotificationType
 from shot_model import RefreshResult, Shot
 
@@ -30,6 +33,14 @@ from tests.test_doubles_library import (
     TestSubprocess,
 )
 from tests.test_helpers import TestProcessPoolManager
+
+
+# Module-level fixture to handle lazy imports after Qt initialization
+@pytest.fixture(scope="module", autouse=True)
+def setup_qt_imports():
+    """Import Qt and MainWindow components after test setup."""
+    global MainWindow
+    from main_window import MainWindow
 
 # =============================================================================
 # TEST DOUBLES FOR INTEGRATION TESTING
@@ -221,12 +232,14 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
         return test_pool
 
     # Mock at the system boundary - ProcessPoolManager singleton
+    # Local application imports
     from process_pool_manager import ProcessPoolManager
 
     monkeypatch.setattr(ProcessPoolManager, "get_instance", mock_get_instance)
 
     # CRITICAL: Replace NotificationManager BEFORE creating MainWindow
     # This prevents Fatal Python errors when Qt objects are called from worker threads
+    # Local application imports
     from notification_manager import NotificationManager
 
     # Clear any previous test notifications
@@ -241,6 +254,7 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     NotificationManager.toast = TestNotificationManager.toast
 
     # Replace ProgressManager with test double to avoid Qt object deletion issues
+    # Local application imports
     from progress_manager import ProgressManager
 
     test_progress_manager = TestProgressManager()
@@ -293,6 +307,7 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     window.close()
 
     # Process events to ensure cleanup happens
+    # Third-party imports
     from PySide6.QtCore import QCoreApplication
     app = QCoreApplication.instance()
     if app:
@@ -302,6 +317,7 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     window.deleteLater()
 
     # Force garbage collection
+    # Standard library imports
     import gc
     gc.collect()
 
@@ -468,6 +484,7 @@ workspace /shows/test/shots/seq01/shot02""")
         window = main_window_with_real_components
 
         # Trigger an error through command launcher (this is the real error pathway)
+        # Standard library imports
         from datetime import datetime
 
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -722,6 +739,7 @@ class TestMainWindowErrorScenarios:
         # Remove cache directory
         cache_dir = tmp_path / "cache"
         if cache_dir.exists():
+            # Standard library imports
             import shutil
 
             shutil.rmtree(cache_dir)

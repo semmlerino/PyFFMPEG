@@ -4,6 +4,7 @@ Simple test suite for critical fixes in ShotBot.
 Tests the actual code changes we made.
 """
 
+# Standard library imports
 import os
 import re
 import sys
@@ -251,6 +252,7 @@ def test_import_functionality():
 
         try:
             # Force reload of modules
+            # Standard library imports
             import sys
 
             # Remove modules from cache
@@ -259,6 +261,7 @@ def test_import_functionality():
                     del sys.modules[mod]
 
             # Import config and verify SHOWS_ROOT
+            # Local application imports
             import config
 
             if config.Config.SHOWS_ROOT == shows_root:

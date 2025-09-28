@@ -7,6 +7,7 @@ copies them to a temporary directory, and optionally encodes them using transfer
 
 from __future__ import annotations
 
+# Standard library imports
 import argparse
 import json
 import os
@@ -440,17 +441,20 @@ def main() -> None:
         "--config",
         help="Configuration file path",
         default="transfer_config.json",
+        type=str,
     )
     parser.add_argument(
         "-o",
         "--output",
         help="Output file for encoded bundle",
         default=None,
+        type=str,
     )
     parser.add_argument(
         "--bundle-dir",
         help="Directory to create bundle in (temp dir if not specified)",
         default=None,
+        type=str,
     )
     parser.add_argument(
         "--keep-bundle",
@@ -473,13 +477,16 @@ def main() -> None:
 
     try:
         # Create bundler
+        config_str: str = args.config
+        verbose_bool: bool = args.verbose
         bundler = ApplicationBundler(
-            config_path=args.config if os.path.exists(args.config) else None,
-            verbose=args.verbose,
+            config_path=config_str if os.path.exists(config_str) else None,
+            verbose=verbose_bool,
         )
 
         # List files mode
-        if args.list_files:
+        list_files_bool: bool = args.list_files
+        if list_files_bool:
             files = bundler.collect_files()
             print(f"Found {len(files)} files to bundle:")
             for source_path, relative_path in sorted(files, key=lambda x: x[1]):
@@ -488,26 +495,29 @@ def main() -> None:
             sys.exit(0)
 
         # Create bundle
-        if args.verbose:
+        if verbose_bool:
             print("Creating application bundle...", file=sys.stderr)
 
-        bundle_dir = bundler.create_bundle(args.bundle_dir)
+        bundle_dir_arg: str | None = args.bundle_dir
+        bundle_dir = bundler.create_bundle(bundle_dir_arg)
 
-        if args.verbose:
+        if verbose_bool:
             print(f"Bundle created at: {bundle_dir}", file=sys.stderr)
 
         # Encode bundle
-        if args.verbose:
+        if verbose_bool:
             print("Encoding bundle...", file=sys.stderr)
 
-        output_file = bundler.encode_bundle(bundle_dir, args.output)
+        output_arg: str | None = args.output
+        output_file = bundler.encode_bundle(bundle_dir, output_arg)
 
         print(f"Encoded bundle saved to: {output_file}")
 
         # Clean up bundle directory if not keeping it
-        if not args.keep_bundle and not args.bundle_dir:
+        keep_bundle_bool: bool = args.keep_bundle
+        if not keep_bundle_bool and not bundle_dir_arg:
             shutil.rmtree(bundle_dir)
-            if args.verbose:
+            if verbose_bool:
                 print(f"Cleaned up bundle directory: {bundle_dir}", file=sys.stderr)
 
     except Exception as e:

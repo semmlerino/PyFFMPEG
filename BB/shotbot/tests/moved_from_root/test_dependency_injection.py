@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test the new dependency injection system for ProcessPoolManager."""
 
+# Standard library imports
 import logging
 import sys
 
@@ -18,6 +19,7 @@ def test_production_mode() -> None:
     logger.info("Testing PRODUCTION mode")
     logger.info("=" * 50)
 
+    # Local application imports
     from process_pool_factory import ProcessPoolFactory, get_process_pool
 
     # Reset to clean state
@@ -30,11 +32,13 @@ def test_production_mode() -> None:
     logger.info(f"Instance type: {type(pool)}")
 
     # Verify it's the real ProcessPoolManager
+    # Local application imports
     from process_pool_manager import ProcessPoolManager
     logger.info(f"ProcessPoolManager type: {ProcessPoolManager}")
     logger.info(f"ProcessPoolManager module: {ProcessPoolManager.__module__}")
 
     # In test environment, we might be getting TestProcessPool or MockWorkspacePool which is expected
+    # Local application imports
     from mock_workspace_pool import MockWorkspacePool
     from tests.test_doubles_library import TestProcessPool
     if isinstance(pool, TestProcessPool | MockWorkspacePool):
@@ -58,6 +62,7 @@ def test_mock_mode() -> None:
     logger.info("Testing MOCK mode")
     logger.info("=" * 50)
 
+    # Local application imports
     from process_pool_factory import ProcessPoolFactory, get_process_pool
 
     # Reset to clean state
@@ -71,6 +76,7 @@ def test_mock_mode() -> None:
     logger.info(f"Got instance: {pool.__class__.__name__}")
 
     # Verify it's one of the test doubles
+    # Local application imports
     from mock_workspace_pool import MockWorkspacePool
     from tests.test_doubles_library import TestProcessPool
 
@@ -96,6 +102,7 @@ def test_custom_injection() -> None:
     logger.info("Testing CUSTOM injection")
     logger.info("=" * 50)
 
+    # Local application imports
     from process_pool_factory import ProcessPoolFactory, get_process_pool
     from tests.test_doubles_library import TestProcessPool
 
@@ -134,6 +141,7 @@ def test_singleton_behavior() -> None:
     logger.info("Testing SINGLETON behavior")
     logger.info("=" * 50)
 
+    # Local application imports
     from process_pool_factory import ProcessPoolFactory, get_process_pool
 
     # Reset to clean state
@@ -159,6 +167,7 @@ def test_backward_compatibility() -> None:
     logger.info("Testing BACKWARD COMPATIBILITY")
     logger.info("=" * 50)
 
+    # Local application imports
     from process_pool_factory import ProcessPoolFactory
     from process_pool_manager import ProcessPoolManager
 
@@ -170,6 +179,7 @@ def test_backward_compatibility() -> None:
     logger.info(f"Got instance via old method: {pool.__class__.__name__}")
 
     # In test environment, might get TestProcessPool which is OK
+    # Local application imports
     from mock_workspace_pool import MockWorkspacePool
     from tests.test_doubles_library import TestProcessPool
 
@@ -205,6 +215,7 @@ def main() -> None:
         sys.exit(1)
     except Exception as e:
         logger.error(f"❌ Unexpected error: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

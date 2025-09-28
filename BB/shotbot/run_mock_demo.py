@@ -4,6 +4,7 @@
 This script demonstrates that ShotBot can run without VFX infrastructure.
 """
 
+# Standard library imports
 import json
 import sys
 from pathlib import Path
@@ -59,6 +60,7 @@ def test_mock_environment() -> bool:
     print("🧪 Testing mock ProcessPoolManager...")
 
     # Import and mock the ProcessPoolManager
+    # Local application imports
     from tests.test_doubles_library import TestProcessPool
 
     mock_pool = TestProcessPool()
@@ -91,6 +93,7 @@ if __name__ == "__main__":
     try:
         # Check if PySide6 is available
         try:
+            # Third-party imports
             import PySide6
 
             print(f"✅ PySide6 {PySide6.__version__} is installed")  # type: ignore[attr-defined]
@@ -108,6 +111,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"❌ Error: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

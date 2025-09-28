@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import subprocess
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import QObject, Signal
 
+# Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
+from nuke_launch_handler import NukeLaunchHandler
 
 if TYPE_CHECKING:
+    # Local application imports
     from maya_latest_finder import MayaLatestFinder as MayaLatestFinderType
     from nuke_script_generator import NukeScriptGenerator as NukeScriptGeneratorType
     from persistent_terminal_manager import PersistentTerminalManager
@@ -23,6 +28,7 @@ if TYPE_CHECKING:
     from undistortion_finder import UndistortionFinder as UndistortionFinderType
 else:
     # Import at runtime to avoid circular imports
+    # Local application imports
     from shot_model import Shot  # noqa: TC001
     from threede_scene_model import ThreeDEScene  # noqa: TC001
 
@@ -61,8 +67,14 @@ class CommandLauncher(LoggingMixin, QObject):
         self.current_shot: Shot | None = None
         self.persistent_terminal = persistent_terminal
 
+        # Initialize the Nuke launch handler
+        self.nuke_handler = NukeLaunchHandler()
+
         # Use injected dependencies or fall back to defaults
+        # Note: These are now deprecated and will be removed in the next phase
+        # They're kept for backward compatibility with other methods
         if raw_plate_finder is None:
+            # Local application imports
             from raw_plate_finder import RawPlateFinder
 
             self._raw_plate_finder = RawPlateFinder
@@ -70,6 +82,7 @@ class CommandLauncher(LoggingMixin, QObject):
             self._raw_plate_finder = raw_plate_finder
 
         if undistortion_finder is None:
+            # Local application imports
             from undistortion_finder import UndistortionFinder
 
             self._undistortion_finder = UndistortionFinder
@@ -77,6 +90,7 @@ class CommandLauncher(LoggingMixin, QObject):
             self._undistortion_finder = undistortion_finder
 
         if nuke_script_generator is None:
+            # Local application imports
             from nuke_script_generator import NukeScriptGenerator
 
             self._nuke_script_generator = NukeScriptGenerator
@@ -84,6 +98,7 @@ class CommandLauncher(LoggingMixin, QObject):
             self._nuke_script_generator = nuke_script_generator
 
         if threede_latest_finder is None:
+            # Local application imports
             from threede_latest_finder import ThreeDELatestFinder
 
             self._threede_latest_finder = ThreeDELatestFinder()
@@ -91,6 +106,7 @@ class CommandLauncher(LoggingMixin, QObject):
             self._threede_latest_finder = threede_latest_finder()
 
         if maya_latest_finder is None:
+            # Local application imports
             from maya_latest_finder import MayaLatestFinder
 
             self._maya_latest_finder = MayaLatestFinder()
@@ -152,6 +168,7 @@ class CommandLauncher(LoggingMixin, QObject):
         Raises:
             ValueError: If path contains dangerous characters that cannot be escaped
         """
+        # Standard library imports
         import shlex
 
         # Check for command injection attempts
@@ -195,76 +212,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # This adds single quotes around the string and escapes any single quotes within
         return shlex.quote(path)
 
-    def _get_nuke_environment_fixes(self) -> str:
-        """Generate environment variable exports to fix Nuke OCIO crashes.
-
-        Returns:
-            String containing bash export statements for environment fixes
-        """
-        if not Config.NUKE_FIX_OCIO_CRASH:
-            return ""
-
-        env_exports: list[str] = []
-
-        # Skip problematic plugin paths by modifying NUKE_PATH at runtime
-        if (
-            Config.NUKE_SKIP_PROBLEMATIC_PLUGINS
-            and Config.NUKE_PROBLEMATIC_PLUGIN_PATHS
-        ):
-            self.logger.info(
-                f"Setting up runtime filter for {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
-                f"plugin paths in NUKE_PATH"
-            )
-
-            # Build grep patterns for all problematic paths
-            # Each path needs to be escaped for use in grep
-            grep_patterns: list[str] = []
-            for problematic_path in Config.NUKE_PROBLEMATIC_PLUGIN_PATHS:
-                # Escape special characters for grep
-                escaped_path = problematic_path.replace(".", r"\.")
-                grep_patterns.append(f'-e "{escaped_path}"')
-
-            grep_pattern_str = " ".join(grep_patterns)
-
-            # Create a bash command that filters NUKE_PATH at runtime
-            # This runs AFTER rez has set up the environment
-            filter_command = (
-                f'FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\\n" | '
-                f'grep -v {grep_pattern_str} | tr "\\n" ":" | sed "s/:$//") && '
-                f'export NUKE_PATH="$FILTERED_NUKE_PATH"'
-            )
-
-            env_exports.append(filter_command)
-
-            self.logger.debug(f"Generated runtime NUKE_PATH filter: {filter_command}")
-
-        # Set fallback OCIO configuration if the default one might be problematic
-        if Config.NUKE_OCIO_FALLBACK_CONFIG:
-            # Check if a fallback config exists
-            fallback_config = Config.NUKE_OCIO_FALLBACK_CONFIG
-            if os.path.exists(fallback_config):
-                env_exports.append(f'export OCIO="{fallback_config}"')
-                self.logger.info(f"Using fallback OCIO config: {fallback_config}")
-            else:
-                # Unset OCIO to use Nuke's built-in default
-                env_exports.append("unset OCIO")
-                self.logger.info("Unsetting OCIO to use Nuke's built-in configuration")
-
-        # Additional stability environment variables
-        env_exports.extend(
-            [
-                "export NUKE_DISABLE_CRASH_REPORTING=1",  # Disable crash reporting to avoid hang
-                'export NUKE_TEMP_DIR="/tmp"',  # Ensure temp directory is accessible
-                'export NUKE_DISK_CACHE="/tmp/nuke_cache"',  # Set disk cache location
-            ]
-        )
-
-        if env_exports:
-            env_string = " && ".join(env_exports)
-            self.logger.debug(f"Generated Nuke environment fixes: {env_string}")
-            return env_string + " && "
-
-        return ""
+    # Method removed - now using NukeLaunchHandler.get_environment_fixes()
 
     def launch_app(
         self,
@@ -301,351 +249,26 @@ class CommandLauncher(LoggingMixin, QObject):
         # Get the command
         command = Config.APPS[app_name]
 
-        # Apply Nuke-specific environment fixes to prevent crashes
-        if app_name == "nuke" and Config.NUKE_FIX_OCIO_CRASH:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            self.command_executed.emit(
-                timestamp,
-                "Applying Nuke environment fixes to prevent OCIO plugin crashes...",
+        # Handle Nuke-specific launching logic
+        if app_name == "nuke":
+            # Use the unified Nuke handler for all Nuke-specific logic
+            options = {
+                "open_latest_scene": open_latest_scene,
+                "create_new_file": create_new_file,
+                "include_raw_plate": include_raw_plate,
+                "include_undistortion": include_undistortion,
+            }
+
+            command, log_messages = self.nuke_handler.prepare_nuke_command(
+                self.current_shot, command, options
             )
 
-        # Handle Nuke workspace scripts (open latest or create new)
-        if app_name == "nuke" and (open_latest_scene or create_new_file):
-            from nuke_workspace_manager import NukeWorkspaceManager
+            # Emit log messages
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            for msg in log_messages:
+                self.command_executed.emit(timestamp, msg)
 
-            manager = NukeWorkspaceManager()
-
-            # Note: open_latest_scene takes priority if both are checked
-            if open_latest_scene and create_new_file:
-                create_new_file = False
-
-            if open_latest_scene:
-                # Try to find existing script
-                script_dir = manager.get_workspace_script_directory(
-                    self.current_shot.workspace_path
-                )
-                latest_script = manager.find_latest_nuke_script(
-                    script_dir, self.current_shot.full_name
-                )
-
-                if latest_script:
-                    # Open existing script
-                    safe_script_path = self._validate_path_for_shell(str(latest_script))
-                    command = f"{command} {safe_script_path}"
-                    timestamp = datetime.now().strftime("%H:%M:%S")
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Opening existing Nuke script: {latest_script.name}",
-                    )
-                else:
-                    # No existing script, create v001
-                    timestamp = datetime.now().strftime("%H:%M:%S")
-                    self.command_executed.emit(
-                        timestamp,
-                        "No existing Nuke scripts found, creating v001...",
-                    )
-
-                    saved_path = None
-                    # Create a basic script or with plate if requested
-                    if include_raw_plate:
-                        raw_plate_path = self._raw_plate_finder.find_latest_raw_plate(
-                            self.current_shot.workspace_path,
-                            self.current_shot.full_name,
-                        )
-                        if (
-                            raw_plate_path
-                            and self._raw_plate_finder.verify_plate_exists(
-                                raw_plate_path
-                            )
-                        ):
-                            saved_path = self._nuke_script_generator.create_workspace_plate_script(
-                                raw_plate_path,
-                                self.current_shot.workspace_path,
-                                self.current_shot.full_name,
-                                version=1,
-                            )
-                        else:
-                            # Create empty script
-                            script_content = (
-                                self._nuke_script_generator.create_plate_script(
-                                    "", self.current_shot.full_name
-                                )
-                            )
-                            if script_content:
-                                with open(script_content, encoding="utf-8") as f:
-                                    content = f.read()
-                                saved_path = (
-                                    self._nuke_script_generator.save_workspace_script(
-                                        content,
-                                        self.current_shot.workspace_path,
-                                        self.current_shot.full_name,
-                                        version=1,
-                                    )
-                                )
-                    else:
-                        # Create empty script
-                        script_content = (
-                            self._nuke_script_generator.create_plate_script(
-                                "", self.current_shot.full_name
-                            )
-                        )
-                        if script_content:
-                            with open(script_content, encoding="utf-8") as f:
-                                content = f.read()
-                            saved_path = (
-                                self._nuke_script_generator.save_workspace_script(
-                                    content,
-                                    self.current_shot.workspace_path,
-                                    self.current_shot.full_name,
-                                    version=1,
-                                )
-                            )
-
-                    if saved_path:
-                        safe_script_path = self._validate_path_for_shell(saved_path)
-                        command = f"{command} {safe_script_path}"
-                        self.command_executed.emit(
-                            timestamp,
-                            "Created and opening new Nuke script: v001",
-                        )
-                    else:
-                        self._emit_error("Failed to create Nuke script")
-                        return False
-
-            elif create_new_file:
-                # Always create new version
-                script_dir = manager.get_workspace_script_directory(
-                    self.current_shot.workspace_path
-                )
-                _, version = manager.get_next_script_path(
-                    script_dir, self.current_shot.full_name
-                )
-
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                self.command_executed.emit(
-                    timestamp,
-                    f"Creating new Nuke script version: v{version:03d}",
-                )
-
-                saved_path = None
-                # Create script with plate if requested
-                if include_raw_plate:
-                    raw_plate_path = self._raw_plate_finder.find_latest_raw_plate(
-                        self.current_shot.workspace_path,
-                        self.current_shot.full_name,
-                    )
-                    if raw_plate_path and self._raw_plate_finder.verify_plate_exists(
-                        raw_plate_path
-                    ):
-                        saved_path = (
-                            self._nuke_script_generator.create_workspace_plate_script(
-                                raw_plate_path,
-                                self.current_shot.workspace_path,
-                                self.current_shot.full_name,
-                                version=version,
-                            )
-                        )
-                    else:
-                        # Create empty script
-                        script_content = (
-                            self._nuke_script_generator.create_plate_script(
-                                "", self.current_shot.full_name
-                            )
-                        )
-                        if script_content:
-                            with open(script_content, encoding="utf-8") as f:
-                                content = f.read()
-                            saved_path = (
-                                self._nuke_script_generator.save_workspace_script(
-                                    content,
-                                    self.current_shot.workspace_path,
-                                    self.current_shot.full_name,
-                                    version=version,
-                                )
-                            )
-                else:
-                    # Create empty script
-                    script_content = self._nuke_script_generator.create_plate_script(
-                        "", self.current_shot.full_name
-                    )
-                    if script_content:
-                        with open(script_content, encoding="utf-8") as f:
-                            content = f.read()
-                        saved_path = self._nuke_script_generator.save_workspace_script(
-                            content,
-                            self.current_shot.workspace_path,
-                            self.current_shot.full_name,
-                            version=version,
-                        )
-
-                if saved_path:
-                    safe_script_path = self._validate_path_for_shell(saved_path)
-                    command = f"{command} {safe_script_path}"
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Created and opening new Nuke script: v{version:03d}",
-                    )
-                else:
-                    self._emit_error("Failed to create Nuke script")
-                    return False
-
-            # Skip the normal raw plate/undistortion handling if we've already handled it
-            # in workspace script creation
-
-        # Handle raw plate and undistortion for Nuke (integrated approach) - only if not using workspace scripts
-        elif app_name == "nuke" and (include_raw_plate or include_undistortion):
-            raw_plate_path = None
-            undistortion_path = None
-
-            # Get raw plate if requested
-            if include_raw_plate:
-                raw_plate_path = self._raw_plate_finder.find_latest_raw_plate(
-                    self.current_shot.workspace_path,
-                    self.current_shot.full_name,
-                )
-                # Verify plate exists
-                if raw_plate_path and not self._raw_plate_finder.verify_plate_exists(
-                    raw_plate_path,
-                ):
-                    raw_plate_path = None
-
-            # Get undistortion if requested
-            if include_undistortion:
-                undistortion_path = self._undistortion_finder.find_latest_undistortion(
-                    self.current_shot.workspace_path,
-                    self.current_shot.full_name,
-                )
-
-            # Handle different scenarios based on what we have
-            if raw_plate_path or undistortion_path:
-                if (
-                    Config.NUKE_UNDISTORTION_MODE == "direct"
-                    and undistortion_path
-                    and not raw_plate_path
-                ):
-                    # Direct mode: Open undistortion file directly (no plate)
-                    safe_undist_path = self._validate_path_for_shell(
-                        str(undistortion_path)
-                    )
-                    command = f"{command} {safe_undist_path}"
-                    timestamp = datetime.now().strftime("%H:%M:%S")
-                    version = self._undistortion_finder.get_version_from_path(
-                        undistortion_path
-                    )
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Opening undistortion file directly: {version}",
-                    )
-                elif (
-                    raw_plate_path
-                    and undistortion_path
-                    and Config.NUKE_USE_LOADER_SCRIPT
-                ):
-                    # Both plate and undistortion - create loader script
-                    script_path = self._nuke_script_generator.create_loader_script(
-                        raw_plate_path,
-                        str(undistortion_path),
-                        self.current_shot.full_name,
-                    )
-                    if script_path:
-                        safe_script_path = self._validate_path_for_shell(script_path)
-                        command = f"{command} {safe_script_path}"
-                        timestamp = datetime.now().strftime("%H:%M:%S")
-                        plate_version = self._raw_plate_finder.get_version_from_path(
-                            raw_plate_path
-                        )
-                        undist_version = (
-                            self._undistortion_finder.get_version_from_path(
-                                undistortion_path
-                            )
-                        )
-                        self.command_executed.emit(
-                            timestamp,
-                            f"Created loader script with plate ({plate_version}) and undistortion ({undist_version})",
-                        )
-                    else:
-                        # Fallback to old parsing method if loader script fails
-                        script_path = self._nuke_script_generator.create_plate_script_with_undistortion(
-                            raw_plate_path,
-                            str(undistortion_path),
-                            self.current_shot.full_name,
-                        )
-                        if script_path:
-                            safe_script_path = self._validate_path_for_shell(
-                                script_path
-                            )
-                            command = f"{command} {safe_script_path}"
-                            timestamp = datetime.now().strftime("%H:%M:%S")
-                            self.command_executed.emit(
-                                timestamp,
-                                "Warning: Using fallback parsing method for undistortion",
-                            )
-                        else:
-                            timestamp = datetime.now().strftime("%H:%M:%S")
-                            self.command_executed.emit(
-                                timestamp,
-                                "Error: Failed to generate Nuke script",
-                            )
-                elif raw_plate_path:
-                    # Plate only
-                    script_path = self._nuke_script_generator.create_plate_script(
-                        raw_plate_path,
-                        self.current_shot.full_name,
-                    )
-                    if script_path:
-                        safe_script_path = self._validate_path_for_shell(script_path)
-                        command = f"{command} {safe_script_path}"
-                        timestamp = datetime.now().strftime("%H:%M:%S")
-                        version = self._raw_plate_finder.get_version_from_path(
-                            raw_plate_path
-                        )
-                        self.command_executed.emit(
-                            timestamp,
-                            f"Generated Nuke script with plate: {version}",
-                        )
-                    else:
-                        timestamp = datetime.now().strftime("%H:%M:%S")
-                        self.command_executed.emit(
-                            timestamp,
-                            "Error: Failed to generate plate script",
-                        )
-                elif undistortion_path and Config.NUKE_UNDISTORTION_MODE != "direct":
-                    # Undistortion only with parse mode (backward compatibility)
-                    script_path = self._nuke_script_generator.create_plate_script_with_undistortion(
-                        "",
-                        str(undistortion_path),
-                        self.current_shot.full_name,
-                    )
-                    if script_path:
-                        safe_script_path = self._validate_path_for_shell(script_path)
-                        command = f"{command} {safe_script_path}"
-                        timestamp = datetime.now().strftime("%H:%M:%S")
-                        version = self._undistortion_finder.get_version_from_path(
-                            undistortion_path
-                        )
-                        self.command_executed.emit(
-                            timestamp,
-                            f"Generated Nuke script with undistortion (parse mode): {version}",
-                        )
-                    else:
-                        timestamp = datetime.now().strftime("%H:%M:%S")
-                        self.command_executed.emit(
-                            timestamp,
-                            "Error: Failed to generate undistortion script",
-                        )
-            else:
-                # Log warnings for missing files
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                if include_raw_plate:
-                    self.command_executed.emit(
-                        timestamp,
-                        "Warning: Raw plate not found or no frames exist for this shot",
-                    )
-                if include_undistortion:
-                    self.command_executed.emit(
-                        timestamp,
-                        "Warning: Undistortion file not found for this shot",
-                    )
+        # Old Nuke handling code has been removed - see NukeLaunchHandler
 
         # Handle 3DE with latest scene file
         if app_name == "3de" and open_latest_threede:
@@ -715,7 +338,7 @@ class CommandLauncher(LoggingMixin, QObject):
             # Apply Nuke environment fixes if needed
             env_fixes = ""
             if app_name == "nuke":
-                env_fixes = self._get_nuke_environment_fixes()
+                env_fixes = self.nuke_handler.get_environment_fixes()
                 if env_fixes:
                     timestamp = datetime.now().strftime("%H:%M:%S")
                     fix_details: list[str] = []
@@ -866,7 +489,7 @@ class CommandLauncher(LoggingMixin, QObject):
             # Apply Nuke environment fixes if needed (same as regular launch)
             env_fixes = ""
             if app_name == "nuke":
-                env_fixes = self._get_nuke_environment_fixes()
+                env_fixes = self.nuke_handler.get_environment_fixes()
                 if env_fixes:
                     timestamp = datetime.now().strftime("%H:%M:%S")
                     fix_details: list[str] = []

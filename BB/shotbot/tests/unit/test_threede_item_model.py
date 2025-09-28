@@ -5,17 +5,22 @@ made to ThreeDEItemModel, including mutex protection for dictionaries
 and proper resource cleanup.
 """
 
+# Standard library imports
 from concurrent.futures import Future
 from pathlib import Path
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtGui import QImage
 
+# Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import TestCacheManager
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene
+
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
 @pytest.fixture
@@ -112,6 +117,7 @@ class TestThreadSafety:
         test_image.fill(Qt.GlobalColor.blue)
 
         # Manually populate cache to test limit - no need to patch anything
+        # Third-party imports
         from PySide6.QtCore import QMutexLocker
 
         for i, scene in enumerate(many_scenes[:110]):  # Try to exceed limit
@@ -154,6 +160,7 @@ class TestThreadSafety:
         # Populate some cache data
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
         # Use QMutexLocker for Qt mutex
+        # Third-party imports
         from PySide6.QtCore import QMutexLocker
 
         with QMutexLocker(model._cache_mutex):
@@ -280,6 +287,7 @@ class TestThreadSafety:
 
         # Loading all visible thumbnails should stop timer
         # Simulate all loaded
+        # Third-party imports
         from PySide6.QtCore import QMutexLocker
 
         with QMutexLocker(model._cache_mutex):
@@ -310,6 +318,7 @@ class TestDataIntegrity:
 
     def test_role_data_consistency(self, model, test_scenes) -> None:
         """Test that all data roles return consistent data."""
+        # Local application imports
         from threede_item_model import ThreeDERole
 
         model.set_scenes(test_scenes)
@@ -332,6 +341,7 @@ class TestDataIntegrity:
 
         # Add to cache
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
+        # Third-party imports
         from PySide6.QtCore import QMutexLocker
 
         with QMutexLocker(model._cache_mutex):

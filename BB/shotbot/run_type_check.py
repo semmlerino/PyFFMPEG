@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run comprehensive type checking and linting for shotbot."""
 
+# Standard library imports
 import subprocess
 import sys
 from pathlib import Path
@@ -43,6 +44,7 @@ def main() -> int:
     script_dir = Path(__file__).parent
     if script_dir != Path.cwd():
         print(f"Changing directory to {script_dir}")
+        # Standard library imports
         import os
 
         os.chdir(script_dir)

@@ -12,14 +12,17 @@ Key Components:
 
 from __future__ import annotations
 
+# Standard library imports
 import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 from PySide6.QtCore import QObject, QSize, Signal
 from PySide6.QtGui import QColor, QImage
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable
     from pathlib import Path
 
@@ -148,6 +151,7 @@ class TestProcessPoolManager:
         self.failure_message = "Test failure"
         # Simple cache implementation for testing
         self._cache: dict[str, tuple[str, float]] = {}  # command -> (output, timestamp)
+        # Standard library imports
         import time
         self._time = time
 
@@ -414,6 +418,7 @@ def with_thread_safe_images(test_func: Callable) -> Callable:
     Automatically patches QPixmap creation to use ThreadSafeTestImage
     in the decorated test function.
     """
+    # Standard library imports
     from unittest.mock import patch
 
     def wrapper(*args, **kwargs):

@@ -45,10 +45,12 @@ Type Safety:
 
 from __future__ import annotations
 
+# Standard library imports
 import json
 import logging
 from typing import TYPE_CHECKING, Any
 
+# Third-party imports
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
@@ -74,11 +76,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
+    # Local application imports
     from settings_manager import SettingsManager
 
 # Set up logger for this module
@@ -116,6 +120,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.setModal(True)
 
         # Use QtWidgetMixin for window geometry
+        # Third-party imports
         from PySide6.QtCore import QSize
 
         self.setup_window_geometry("settings_dialog", QSize(700, 600))

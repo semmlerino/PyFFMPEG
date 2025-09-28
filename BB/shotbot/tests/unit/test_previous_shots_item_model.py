@@ -4,15 +4,19 @@ Tests the thread safety improvements and resource management
 in the PreviousShotsItemModel class.
 """
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QMutexLocker, Qt
 from PySide6.QtGui import QImage
 
+# Local application imports
 from previous_shots_item_model import PreviousShotsItemModel
 from shot_model import Shot
 
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import SignalDouble, TestCacheManager
+
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
 class MockPreviousShotsModel:
@@ -136,26 +140,10 @@ class TestPreviousShotsThreadSafety:
         assert len(model._thumbnail_cache) <= 100
         assert added_count <= 100
 
-    def test_concurrent_thumbnail_loading(self, model, test_shots, qtbot) -> None:
-        """Test concurrent thumbnail loading callbacks."""
-        pytest.skip(
-            "PreviousShotsItemModel doesn't have async thumbnail loading (_on_thumbnail_loaded, _load_thumbnail_async)"
-        )
-
-    def test_cleanup_method(self, model, test_shots) -> None:
-        """Test cleanup() properly releases resources."""
-        pytest.skip(
-            "PreviousShotsItemModel doesn't have cleanup() method or _thumbnail_timer - simpler implementation without async loading"
-        )
-
-    def test_reset_while_loading(self, model, test_shots, qtbot) -> None:
-        """Test model reset during active thumbnail loading."""
-        pytest.skip(
-            "PreviousShotsItemModel doesn't have update_visible_range() - simpler implementation without async loading"
-        )
 
     def test_data_roles_thread_safety(self, model, test_shots) -> None:
         """Test data() method with various roles."""
+        # Local application imports
         from shot_item_model import ShotRole
 
         # Update the underlying model's shots
@@ -194,23 +182,6 @@ class TestPreviousShotsThreadSafety:
             elif role == ShotRole.ShotNameRole:
                 assert data == shot.shot
 
-    def test_selection_during_updates(self, model, test_shots) -> None:
-        """Test selection changes during model updates."""
-        pytest.skip(
-            "PreviousShotsItemModel doesn't have set_selected_index() or _selected_index - uses _selected_shot instead"
-        )
-
-    def test_visible_range_updates(self, model, test_shots) -> None:
-        """Test visible range boundary conditions."""
-        pytest.skip(
-            "PreviousShotsItemModel doesn't have update_visible_range() - uses simpler implementation"
-        )
-
-    def test_timer_lifecycle(self, model, test_shots) -> None:
-        """Test thumbnail timer management."""
-        pytest.skip(
-            "PreviousShotsItemModel doesn't have _thumbnail_timer - simpler implementation without async loading"
-        )
 
     def test_rapid_scene_changes(self, model, test_shots, qtbot) -> None:
         """Test rapid shot list changes."""
@@ -244,6 +215,7 @@ class TestDataConsistency:
 
     def test_shot_data_integrity(self, model, test_shots) -> None:
         """Test that shot data remains consistent."""
+        # Local application imports
         from shot_item_model import ShotRole
 
         # Update the underlying model's shots

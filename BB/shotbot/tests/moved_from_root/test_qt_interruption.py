@@ -1,5 +1,7 @@
+# Standard library imports
 import sys
 
+# Third-party imports
 from PySide6.QtCore import QCoreApplication, QThread
 
 app = (

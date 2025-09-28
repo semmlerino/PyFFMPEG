@@ -5,6 +5,7 @@ This script helps identify why shot names aren't appearing in the VFX environmen
 by checking the workspace command output and parsing logic.
 """
 
+# Standard library imports
 import os
 import sys
 from pathlib import Path
@@ -12,6 +13,7 @@ from pathlib import Path
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Local application imports
 from config import Config
 from optimized_shot_parser import OptimizedShotParser
 from process_pool_manager import ProcessPoolManager
@@ -58,6 +60,7 @@ def debug_workspace_output() -> list[str]:
 
     except Exception as e:
         print(f"ERROR executing workspace command: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

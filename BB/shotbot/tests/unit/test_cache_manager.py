@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import json
 import logging
 import tempfile
@@ -12,8 +13,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 # Lazy imports to avoid Qt initialization at module level
 # These will be imported inside test functions/fixtures
 # from PySide6.QtCore import QThreadPool
@@ -24,7 +27,7 @@ from config import ThreadingConfig
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
 
 """Tests caching operations, TTL expiration, memory management, and thread safety.
 
@@ -58,10 +61,12 @@ def setup_qt_imports():
     global CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
     global QThreadPool, QImage, QColor, QSignalSpy, ThreadSafeTestImage
 
+    # Third-party imports
     from PySide6.QtCore import QThreadPool
     from PySide6.QtGui import QColor, QImage
     from PySide6.QtTest import QSignalSpy
 
+    # Local application imports
     from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
     from tests.test_helpers import ThreadSafeTestImage
 # ThreadSafeTestImage imported at top of file
@@ -333,6 +338,7 @@ class TestCacheManager:
         shot = Shot("test", "seq1", "0010", "/test/path")
 
         # Test thread-safe behavior - use real components where possible
+        # Third-party imports
         from PySide6.QtCore import QThread
         from PySide6.QtWidgets import QApplication
 
@@ -948,6 +954,7 @@ class TestThreadSafety:
 
     def test_thread_safety_lock_exists(self, cache_manager) -> None:
         """Test that cache manager has thread safety lock."""
+        # Third-party imports
         from PySide6.QtCore import QMutexLocker
 
         # Verify the lock exists for thread safety
@@ -1136,6 +1143,7 @@ class TestCacheManagerThreading:
 
         def add_memory_usage(thread_id: int, amount: int) -> None:
             """Add memory usage from multiple threads."""
+            # Third-party imports
             from PySide6.QtCore import QMutexLocker
 
             try:
@@ -1231,6 +1239,7 @@ class TestCacheManagerThreading:
 
         def cleanup_cache() -> None:
             """Perform cache cleanup."""
+            # Third-party imports
             from PySide6.QtCore import QMutexLocker
 
             try:
@@ -1245,6 +1254,7 @@ class TestCacheManagerThreading:
 
         def access_cache() -> None:
             """Access cache during cleanup."""
+            # Third-party imports
             from PySide6.QtCore import QMutexLocker
 
             try:
@@ -1378,6 +1388,7 @@ class TestCacheManagerThreading:
         # In a real scenario, Qt would handle QPixmap cleanup automatically
         # We just verify the structure is correct
         assert hasattr(result, "_completed_mutex")
+        # Third-party imports
         from PySide6.QtCore import QMutex
 
         assert isinstance(result._completed_mutex, QMutex)
@@ -1387,6 +1398,7 @@ class TestCacheManagerThreading:
 
     def test_lock_basic_behavior(self, cache_manager) -> None:
         """Test that QMutex provides basic thread safety."""
+        # Third-party imports
         from PySide6.QtCore import QMutexLocker
 
         manager = cache_manager

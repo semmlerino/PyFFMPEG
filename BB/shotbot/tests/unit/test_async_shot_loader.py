@@ -5,9 +5,11 @@ Refactored to eliminate unittest.mock and fix thread safety issues.
 Follows UNIFIED_TESTING_GUIDE patterns with real components and TestProcessPool boundaries.
 """
 
+# Third-party imports
 import pytest
 from PySide6.QtTest import QSignalSpy
 
+# Local application imports
 from base_shot_model import BaseShotModel
 from shot_model import AsyncShotLoader, ShotModel
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool

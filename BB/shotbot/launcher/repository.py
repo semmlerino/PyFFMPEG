@@ -6,11 +6,13 @@ extracted from the original launcher_manager.py for better separation of concern
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import uuid
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    # Local application imports
     from launcher.config_manager import LauncherConfigManager
     from launcher.models import CustomLauncher
 

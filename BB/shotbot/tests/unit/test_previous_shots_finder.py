@@ -9,21 +9,26 @@ Following best practices:
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import subprocess
 import sys
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from previous_shots_finder import PreviousShotsFinder
 from shot_model import Shot
 
 # Import test helpers
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Standard library imports
 from typing import NoReturn
 
+# Local application imports
 from tests.test_doubles_library import TestSubprocess
 from tests.test_doubles_previous_shots import create_test_shot, create_test_shots
 
@@ -241,6 +246,7 @@ class TestPreviousShotsFinder:
         test_subprocess.stderr = ""
 
         # Import patch locally
+        # Standard library imports
         from unittest.mock import patch
 
         with patch("subprocess.run", test_subprocess.run):
@@ -290,6 +296,7 @@ class TestPreviousShotsFinder:
             raise subprocess.TimeoutExpired("find", 30)
 
         # Import patch locally since we're removing the global import
+        # Standard library imports
         from unittest.mock import patch
 
         with patch("subprocess.run", timeout_run):
@@ -308,6 +315,7 @@ class TestPreviousShotsFinder:
         test_subprocess.stdout = ""
 
         # Import patch locally
+        # Standard library imports
         from unittest.mock import patch
 
         with patch("subprocess.run", test_subprocess.run):
@@ -396,6 +404,7 @@ class TestPreviousShotsFinder:
         ]
 
         # Import patch locally
+        # Standard library imports
         from unittest.mock import patch
 
         with patch("subprocess.run", test_subprocess.run):

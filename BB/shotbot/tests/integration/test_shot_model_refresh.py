@@ -10,17 +10,21 @@ focusing on behavior rather than implementation details.
 # - Real components where possible
 # - Thread-safe testing patterns
 
+# Standard library imports
 # Add parent directory to path for imports
 import sys
 from pathlib import Path
 
+# Third-party imports
 import pytest
 from PySide6.QtTest import QSignalSpy
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# Standard library imports
 from typing import NoReturn
 
+# Local application imports
 from cache_manager import CacheManager
 from shot_model import RefreshResult, Shot, ShotModel
 

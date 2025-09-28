@@ -20,13 +20,16 @@ Test Coverage:
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import time
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from config import Config
 from utils import (
     FileUtils,

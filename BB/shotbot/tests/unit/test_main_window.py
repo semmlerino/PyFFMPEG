@@ -7,12 +7,15 @@ Following UNIFIED_TESTING_GUIDE principles:
 - Use qtbot for proper Qt testing
 """
 
+# Standard library imports
 from pathlib import Path
 from typing import Self
 
+# Third-party imports
 import pytest
 from pytestqt.qtbot import QtBot
 
+# Local application imports
 # Lazy imports to avoid Qt initialization at module level
 # from cache_manager import CacheManager
 # from main_window import MainWindow
@@ -32,6 +35,7 @@ pytestmark = [
 def setup_qt_imports():
     """Import Qt and MainWindow components after test setup."""
     global MainWindow, CacheManager, Shot
+    # Local application imports
     from cache_manager import CacheManager
     from main_window import MainWindow
     from shot_model import Shot
@@ -287,7 +291,7 @@ class TestApplicationLaunching:
         monkeypatch.setattr("subprocess.run", mock_run)
 
         # Launch an app - test behavior, not implementation
-        main_window._launch_app("nuke")
+        main_window.launch_app("nuke")
 
         # Test behavior: command should have been executed
         assert len(executed_commands) > 0
@@ -523,7 +527,7 @@ class TestMainWindowIntegration:
             pass  # Don't actually create directories
 
         monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
-        main_window._launch_app("nuke")
+        main_window.launch_app("nuke")
 
         # Test behavior: app launch completed without errors
         # (If it failed, it would have shown an error notification which is mocked)

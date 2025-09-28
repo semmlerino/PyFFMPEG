@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import tempfile
 import time
@@ -17,6 +18,7 @@ os.environ["QT_LOGGING_RULES"] = "*.debug=false"
 
 def test_original_startup() -> dict[str, Any]:
     """Measure original ShotModel startup time."""
+    # Local application imports
     from cache_manager import CacheManager
     from shot_model import ShotModel
 
@@ -43,6 +45,7 @@ workspace /shows/TEST/seq02/0010"""
 
 def test_optimized_startup() -> dict[str, Any]:
     """Measure optimized ShotModel startup time."""
+    # Local application imports
     from cache_manager import CacheManager
     from shot_model import ShotModel
 
@@ -50,6 +53,7 @@ def test_optimized_startup() -> dict[str, Any]:
         cache = CacheManager(cache_dir=Path(tmpdir))
 
         # Pre-cache some data to simulate real scenario
+        # Local application imports
         from shot_model import Shot
 
         cached_shot = Shot("CACHED", "seq01", "0010", "/cached/path")
@@ -90,6 +94,7 @@ workspace /shows/TEST/seq02/0010"""
 
 def test_with_session_warming() -> dict[str, Any]:
     """Test with session pre-warming strategy."""
+    # Local application imports
     from cache_manager import CacheManager
     from process_pool_manager import ProcessPoolManager
     from shot_model import ShotModel

@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """Test Qt event loop integration and performance validation."""
 
+# Standard library imports
 import time
 from unittest.mock import Mock
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QTimer
 
+# Local application imports
 from shot_model import ShotModel
+
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
 class TestQtIntegration:
@@ -211,8 +216,10 @@ class TestPerformanceValidation:
 
     def test_memory_usage_optimization(self, real_cache_manager) -> None:
         """Test memory usage remains reasonable with optimizations."""
+        # Standard library imports
         import os
 
+        # Third-party imports
         import psutil
 
         process = psutil.Process(os.getpid())

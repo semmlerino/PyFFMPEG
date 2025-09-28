@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test script to verify QThread cleanup fixes."""
 
+# Standard library imports
 import os
 import sys
 
@@ -192,6 +193,7 @@ if __name__ == "__main__":
         sys.exit(0 if success else 1)
     except Exception as e:
         print(f"\n❌ Error during testing: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

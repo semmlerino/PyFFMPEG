@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Local application imports
 from cache_manager import CacheManager
 from config import Config
 from utils import PathUtils, ValidationUtils
 
 if TYPE_CHECKING:
+    # Local application imports
     from shot_model import Shot
 
 logger = logging.getLogger(__name__)
@@ -159,6 +162,7 @@ class ThreeDESceneModel:
         Returns:
             (success, has_changes) - whether refresh succeeded and if scenes changed
         """
+        # Local application imports
         from threede_scene_finder import ThreeDESceneFinder
 
         try:

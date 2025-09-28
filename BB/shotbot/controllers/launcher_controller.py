@@ -376,7 +376,7 @@ class LauncherController:
         """Show the launcher manager dialog."""
         if not self.window.launcher_manager:
             QMessageBox.information(
-                cast(QWidget, self.window),  # Cast to QWidget for dialog parent
+                cast("QWidget", self.window),  # Cast to QWidget for dialog parent
                 "Custom Launchers",
                 "Custom launchers are not available when using simplified launcher mode.\n"
                 "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers."
@@ -385,7 +385,7 @@ class LauncherController:
 
         if self._launcher_dialog is None:
             from launcher_dialog import LauncherManagerDialog
-            self._launcher_dialog = LauncherManagerDialog(self.window.launcher_manager, cast(QWidget, self.window))
+            self._launcher_dialog = LauncherManagerDialog(self.window.launcher_manager, cast("QWidget", self.window))
 
         # At this point, _launcher_dialog is guaranteed to be not None
         self._launcher_dialog.show()
@@ -406,7 +406,7 @@ class LauncherController:
 
         if not launchers:
             # Add disabled placeholder
-            no_launchers_action = QAction("No custom launchers", cast(QWidget, self.window))
+            no_launchers_action = QAction("No custom launchers", cast("QWidget", self.window))
             no_launchers_action.setEnabled(False)
             self.window.custom_launcher_menu.addAction(no_launchers_action)
             return
@@ -427,7 +427,7 @@ class LauncherController:
                 # Add category as submenu if multiple categories
                 category_menu = self.window.custom_launcher_menu.addMenu(category.title())
                 for launcher in category_launchers:
-                    action = QAction(launcher.name, cast(QWidget, self.window))
+                    action = QAction(launcher.name, cast("QWidget", self.window))
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
                     _ = action.triggered.connect(
@@ -438,7 +438,7 @@ class LauncherController:
             else:
                 # Add directly to main menu if only one category
                 for launcher in category_launchers:
-                    action = QAction(launcher.name, cast(QWidget, self.window))
+                    action = QAction(launcher.name, cast("QWidget", self.window))
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
                     _ = action.triggered.connect(

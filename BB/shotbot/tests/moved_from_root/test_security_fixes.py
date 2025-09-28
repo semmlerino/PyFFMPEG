@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import sys
 
+# Local application imports
 from secure_command_executor import SecureCommandExecutor
 
 
@@ -96,6 +98,7 @@ def test_bash_removed_from_whitelist() -> bool:
     print("\nTesting launcher whitelist...")
 
     # Import would fail without PySide6, so we'll check the file content
+    # Standard library imports
     import re
 
     with open("launcher_manager.py") as f:

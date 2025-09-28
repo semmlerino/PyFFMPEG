@@ -6,6 +6,7 @@ that might create singleton instances using the new dependency injection system.
 It also detects and uses recreated VFX filesystem if available.
 """
 
+# Standard library imports
 import logging
 import os
 import sys
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 logger.info("🚀 Starting ShotBot in MOCK MODE")
 
+# Standard library imports
 # Check for recreated VFX structure
 from pathlib import Path  # noqa: E402
 
@@ -61,6 +63,7 @@ if not mock_filesystem_found:
     logger.info("   The app will work but paths won't exist.")
     logger.info(f"   SHOWS_ROOT is: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")
 
+# Local application imports
 # CRITICAL: Use the new dependency injection system BEFORE any app imports
 from process_pool_factory import ProcessPoolFactory  # noqa: E402
 
@@ -74,6 +77,7 @@ logger.info("✅ Mock mode enabled in ProcessPoolFactory")
 # NOW we can import the rest of the app
 logger.info("Loading ShotBot application...")
 
+# Local application imports
 # Import the original main function
 from shotbot import main  # noqa: E402
 
@@ -95,6 +99,7 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         logger.error(f"❌ Error running ShotBot: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

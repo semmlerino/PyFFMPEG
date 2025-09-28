@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Real Python 3.11 compatibility test using actual interpreter."""
 
+# Standard library imports
 import ast
 import sys
 from pathlib import Path

@@ -13,6 +13,7 @@ Options:
     --verbose: Enable verbose output with detailed logging
 """
 
+# Standard library imports
 import argparse
 import logging
 import sys
@@ -23,13 +24,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent / "tests" / "moved_from_root"))
 
+# Third-party imports
 from test_thread_safety_validation import (  # type: ignore[import-not-found]
     ThreadSafetyValidationTests,
     run_validation_tests,
 )
 
 
-def run_quick_tests():
+def run_quick_tests() -> bool:
     """Run only the most critical thread safety tests for faster validation."""
     print("Running QUICK thread safety validation tests...")
 
@@ -52,7 +54,7 @@ def run_quick_tests():
     return len(result.failures) == 0 and len(result.errors) == 0
 
 
-def run_performance_tests():
+def run_performance_tests() -> bool:
     """Run only performance benchmark tests."""
     print("Running PERFORMANCE benchmark tests...")
 
@@ -111,6 +113,7 @@ def main() -> int:
     except Exception as e:
         print(f"❌ Test execution failed with error: {e}")
         if args.verbose:
+            # Standard library imports
             import traceback
 
             traceback.print_exc()

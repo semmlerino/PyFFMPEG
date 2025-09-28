@@ -7,16 +7,20 @@ the proper directory structure.
 
 from __future__ import annotations
 
+# Standard library imports
 import os
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Local application imports
 from error_handling_mixin import ErrorHandlingMixin
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from logging_mixin import ContextualLogger
+
+# Local application imports
 from utils import VersionUtils
 
 

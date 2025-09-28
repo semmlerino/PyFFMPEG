@@ -12,11 +12,14 @@ This test file follows UNIFIED_TESTING_GUIDE best practices:
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 
+# Third-party imports
 import pytest
 from PySide6.QtGui import QColor
 
+# Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     SignalDouble,

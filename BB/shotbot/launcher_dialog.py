@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+# Standard library imports
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QShortcut
 from PySide6.QtWidgets import (
@@ -27,6 +29,7 @@ from PySide6.QtWidgets import (
 )
 from typing_extensions import override
 
+# Local application imports
 from launcher.models import (
     CustomLauncher,
     LauncherEnvironment,
@@ -37,6 +40,7 @@ from notification_manager import NotificationManager, NotificationType
 from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
+    # Local application imports
     from launcher_manager import LauncherManager
 
 

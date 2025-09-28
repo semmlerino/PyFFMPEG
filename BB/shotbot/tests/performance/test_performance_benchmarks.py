@@ -14,13 +14,16 @@ Tests performance improvements from optimizations:
 
 from __future__ import annotations
 
+# Standard library imports
 import statistics
 import time
 from typing import TYPE_CHECKING
 
+# Third-party imports
 import pytest
 from PySide6.QtGui import QColor, QImage
 
+# Local application imports
 from cache.thumbnail_processor import ThumbnailProcessor
 from cache_manager import CacheManager
 
@@ -29,6 +32,7 @@ from process_pool_manager import ProcessPoolManager
 from shot_model import Shot
 
 if TYPE_CHECKING:
+    # Standard library imports
     from pathlib import Path
 
 # Create alias for optimized version (same implementation for now)
@@ -48,7 +52,7 @@ class MockProcessPoolManager:
         self._metrics = {"cache_hit_rate": 0.0}
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> MockProcessPoolManager:
         return cls()
 
     def execute_workspace_command(
@@ -87,7 +91,7 @@ class MockOptimizedProcessPoolManager:
         self.cache_hits = 0
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> MockOptimizedProcessPoolManager:
         return cls()
 
     def execute_workspace_command(
@@ -429,8 +433,10 @@ class TestThumbnailProcessorPerformance:
     @pytest.mark.slow
     def test_memory_efficiency(self, test_images, tmp_path) -> None:
         """Test memory efficiency of parallel processing."""
+        # Standard library imports
         import os
 
+        # Third-party imports
         import psutil
 
         process = psutil.Process(os.getpid())
@@ -496,9 +502,10 @@ class TestCachePerformance:
         original_cache.cache_shots(sample_shots)
 
         # Simulate time passing (would expire with 30s TTL)
+        # Standard library imports
         import time
-        # time.sleep(0.1)  # Small delay to simulate usage - OPTIMIZED: Removed sleep
 
+        # time.sleep(0.1)  # Small delay to simulate usage - OPTIMIZED: Removed sleep
         # Access cached data multiple times
         start = time.perf_counter()
         for _ in range(10):

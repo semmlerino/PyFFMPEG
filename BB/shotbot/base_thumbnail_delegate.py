@@ -8,9 +8,11 @@ colors, fonts, and specific data roles.
 
 from __future__ import annotations
 
+# Standard library imports
 # Note: Can't use ABC with Qt classes due to metaclass conflict
 from dataclasses import dataclass, field
 
+# Third-party imports
 from PySide6.QtCore import (
     QModelIndex,
     QPersistentModelIndex,
@@ -38,6 +40,7 @@ from PySide6.QtWidgets import (
 )
 from typing_extensions import TypedDict, override
 
+# Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
 

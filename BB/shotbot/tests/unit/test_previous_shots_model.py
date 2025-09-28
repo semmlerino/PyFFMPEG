@@ -10,16 +10,19 @@ Follows best practices:
 
 from __future__ import annotations
 
+# Standard library imports
 import concurrent.futures
 import sys
 import threading
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QTimer
 from PySide6.QtTest import QSignalSpy
 
+# Local application imports
 from cache_manager import CacheManager
 from previous_shots_model import PreviousShotsModel
 from tests.test_doubles_previous_shots import (
@@ -30,6 +33,7 @@ from tests.test_doubles_previous_shots import (
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestCacheManager
 
@@ -156,6 +160,7 @@ class TestPreviousShotsModel:
         - Set up signal spy BEFORE triggering action
         """
         # Mock PreviousShotsWorker creation to use test double
+        # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
         # Create test worker that will emit signals synchronously
@@ -275,6 +280,7 @@ class TestPreviousShotsModel:
 
     def test_refresh_shots_error_handling(self, model, qtbot) -> None:
         """Test error handling during refresh."""
+        # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
         scan_finished_spy = QSignalSpy(model.scan_finished)
@@ -372,6 +378,7 @@ class TestPreviousShotsModel:
         self, model_with_real_cache, temp_cache_dir
     ) -> None:
         """Test cache saving and loading with real CacheManager."""
+        # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
         model = model_with_real_cache
@@ -436,6 +443,7 @@ class TestPreviousShotsModel:
         self, model_with_real_cache, temp_cache_dir
     ) -> None:
         """Test cache clearing functionality."""
+        # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
         model = model_with_real_cache
@@ -476,6 +484,7 @@ class TestPreviousShotsModel:
         self, test_shot_model, test_cache_manager, qtbot
     ) -> None:
         """Test refresh triggered by timer with proper signal handling."""
+        # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
         model = PreviousShotsModel(test_shot_model, test_cache_manager)
@@ -543,6 +552,7 @@ class TestPreviousShotsModelIntegration:
 
     def test_full_workflow(self, integration_setup, qtbot) -> None:
         """Test complete workflow with real components."""
+        # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
         model, shot_model, cache_manager = integration_setup

@@ -8,6 +8,7 @@ Extracted from process_pool_manager.py to reduce complexity.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import os
 import subprocess
@@ -15,10 +16,12 @@ import threading
 import time
 from typing import Any
 
+# Local application imports
 from config import ThreadingConfig
 
 # Try to import fcntl for non-blocking I/O (Unix-only)
 try:
+    # Standard library imports
     import fcntl
 
     _has_fcntl = True
@@ -30,6 +33,7 @@ HAS_FCNTL = _has_fcntl
 
 # Import debug utilities
 try:
+    # Local application imports
     from debug_utils import (
         CommandTracer,
         deadlock_detector,
@@ -144,6 +148,7 @@ class PersistentBashSession:
                     f"[{self.session_id}] Creating subprocess.Popen with interactive bash",
                 )
                 # Log file descriptors before subprocess creation
+                # Standard library imports
                 import sys
 
                 logger.debug(
@@ -221,6 +226,7 @@ class PersistentBashSession:
                     time.sleep(0.1)  # Standard delay for first session
 
                 # Send a unique marker to verify session is ready
+                # Standard library imports
                 import uuid
 
                 marker = f"SHOTBOT_INIT_{uuid.uuid4().hex[:8]}"
@@ -266,6 +272,7 @@ class PersistentBashSession:
                             if HAS_FCNTL:
                                 # Non-blocking read - check if data is available
                                 try:
+                                    # Standard library imports
                                     import select
 
                                     if (
@@ -435,6 +442,7 @@ class PersistentBashSession:
         Returns:
             Clean text without escape sequences
         """
+        # Standard library imports
         import re
 
         # Remove OSC (Operating System Command) sequences like ]777;...
@@ -480,6 +488,7 @@ class PersistentBashSession:
         # Decide whether to use select or fcntl based on availability
         use_select = False
         try:
+            # Standard library imports
             import select
 
             use_select = True
@@ -608,6 +617,7 @@ class PersistentBashSession:
                 # Handle EAGAIN for non-blocking I/O
                 # Note: select.error is a subclass of IOError, so it's handled here too
                 if HAS_FCNTL:
+                    # Standard library imports
                     import errno
 
                     if e.errno == errno.EAGAIN:

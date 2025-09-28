@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Test script for the persistent terminal implementation."""
 
+# Standard library imports
 import logging
 import sys
 import time
 
+# Third-party imports
 from PySide6.QtCore import QCoreApplication
 
+# Local application imports
 from config import Config
 from persistent_terminal_manager import PersistentTerminalManager
 

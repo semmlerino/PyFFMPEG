@@ -21,18 +21,20 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
+# Local application imports
 from config import Config
 from shot_model import Shot
 from thumbnail_widget import ThumbnailWidget
 from thumbnail_widget_base import ThumbnailWidgetBase
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation

@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Test that file locking ensures proper serialization of cache writes."""
 
+# Standard library imports
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Standard library imports
 import tempfile
 import threading
 import time
 from pathlib import Path
 
+# Local application imports
 from cache.storage_backend import StorageBackend
 
 

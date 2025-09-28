@@ -57,23 +57,27 @@ python run_mock_vfx_env.py
 ### Testing
 
 ```bash
-# Quick validation (2 seconds)
+source venv/bin/activate
+
+# Recommended: Full test suite with parallel execution (~67 seconds)
+python3 -m pytest tests/unit/ -n auto --timeout=5
+
+# Quick validation
 python3 tests/utilities/quick_test.py
 
-# Fast test suite (50-60 seconds)
-./run_fast_tests.sh
+# Specific test files (sequential)
+python3 -m pytest tests/unit/test_shot_model.py -v
 
-# Full test suite (100-120 seconds, 1,114 tests)
-python3 -m pytest tests/
-
-# Specific categories
+# Categories
 python3 -m pytest tests/ -m fast       # Tests under 100ms
 python3 -m pytest tests/ -m unit       # Unit tests only
 python3 -m pytest tests/ -m integration # Integration tests
-
-# Run specific test
-python3 -m pytest tests/unit/test_shot_model.py -v
 ```
+
+**Known Issues:**
+- Sequential execution may timeout due to Qt resource accumulation
+- 2-3 tests fail in parallel mode due to isolation issues (pass when run individually)
+- Use parallel execution (`-n auto`) for best results
 
 ### Code Quality
 
@@ -302,10 +306,14 @@ APPS = {
 
 ## Test Organization
 
-- **1,114 tests** with 99.9% pass rate
+- **1,047 tests** (1,044 pass = 99.7% pass rate)
 - **Markers**: `fast`, `slow`, `unit`, `integration`, `qt`, `gui`, `critical`
-- **WSL optimizations** in `run_tests_wsl.py`
-- **Common issues**: Usually environment setup, not code problems
+- **Execution time**: ~67 seconds with parallel execution (`-n auto`)
+- **Recent fixes**:
+  - Removed all `pytest.skip()` tests
+  - Fixed MRO issues in `launcher_panel.py` (duplicate LoggingMixin)
+  - Optimized Qt cleanup fixtures (reduced timeouts to 0.1s)
+  - Fixed ProcessPoolManager `_mutex` attribute and shutdown
 
 ## Type System
 

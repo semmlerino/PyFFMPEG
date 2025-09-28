@@ -6,11 +6,14 @@ architecture with QListView, not manual widget management.
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 
+# Local application imports
 from config import Config
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel

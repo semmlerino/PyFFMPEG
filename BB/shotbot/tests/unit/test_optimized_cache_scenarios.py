@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Test cache behavior and performance metrics for ShotModel."""
 
+# Standard library imports
 import time
 from unittest.mock import Mock, patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from shot_model import ShotModel
 
 
@@ -158,6 +161,7 @@ class TestCacheScenarios:
         model = optimized_model_with_cache
 
         # Use test double instead of mock to track behavior
+        # Local application imports
         from tests.test_doubles_library import TestProcessPool
 
         test_pool = TestProcessPool()

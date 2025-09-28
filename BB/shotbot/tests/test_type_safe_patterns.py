@@ -24,6 +24,7 @@ Examples:
 
 from __future__ import annotations
 
+# Standard library imports
 import tempfile
 import threading
 import time
@@ -39,17 +40,22 @@ from typing import (
 )
 from unittest.mock import MagicMock, Mock
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
+# Local application imports
 from tests.helpers.synchronization import process_qt_events
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable, Iterator
 
+    # Third-party imports
     from PySide6.QtGui import QPixmap
 
+    # Local application imports
     from cache_manager import CacheManager
     from process_pool_manager import ProcessPoolManager
     from shot_model import Shot
@@ -184,6 +190,7 @@ def create_real_cache_manager(cache_dir: Path) -> CacheManager:
     Returns:
         Real CacheManager instance with temporary storage
     """
+    # Local application imports
     from cache_manager import CacheManager
 
     return CacheManager(cache_dir=cache_dir)
@@ -206,6 +213,7 @@ def create_test_shot_data(
     Returns:
         ShotTestData with real Shot object and paths
     """
+    # Local application imports
     from shot_model import Shot
 
     if workspace_path is None:
@@ -328,6 +336,7 @@ def assert_signal_emitted(
     Raises:
         AssertionError: If signal wasn't emitted as expected
     """
+    # Third-party imports
     from PySide6.QtTest import QSignalSpy
 
     spy = QSignalSpy(signal)
@@ -378,6 +387,7 @@ class TypedThreadTestHelper:
         Returns:
             List of successful operation results
         """
+        # Standard library imports
         import concurrent.futures
 
         count = operation_count or self.thread_count

@@ -5,10 +5,13 @@ This module adds comprehensive tests for uncovered functionality in utils.py.
 
 from __future__ import annotations
 
+# Standard library imports
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
+# Local application imports
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
 # - Use test doubles instead of mocks

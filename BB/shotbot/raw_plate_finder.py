@@ -2,21 +2,23 @@
 
 from __future__ import annotations
 
-import logging
+# Standard library imports
 import re
 from pathlib import Path
 from re import Match, Pattern
 
+# Local application imports
 from config import Config
+from logging_mixin import LoggingMixin, get_module_logger
 
 # Performance monitoring removed - was using archived module
 from utils import PathUtils, VersionUtils
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 
-class RawPlateFinder:
+class RawPlateFinder(LoggingMixin):
     """Finds the latest raw plate file for a shot."""
 
     # Pre-compiled regex patterns for performance (compiled once at class level)

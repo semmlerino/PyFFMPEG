@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Test script to verify SHOWS_ROOT configuration is working correctly."""
 
+# Standard library imports
 import os
 import sys
 
 # Set mock environment
 os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx"
 
+# Local application imports
 # Import after setting environment
 from config import Config
 from mock_workspace_pool import MockWorkspacePool
@@ -49,6 +51,7 @@ def test_shows_root_configuration() -> bool:
 
     # Test workspace path construction
     print("\nTesting workspace path construction...")
+    # Local application imports
     from shot_model import Shot
 
     shot = Shot(
@@ -71,6 +74,7 @@ if __name__ == "__main__":
         sys.exit(0 if success else 1)
     except Exception as e:
         print(f"\n❌ Error during testing: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

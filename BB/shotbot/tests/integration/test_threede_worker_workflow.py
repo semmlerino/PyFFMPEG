@@ -13,12 +13,15 @@ UNIFIED_TESTING_GUIDE COMPLIANCE:
 
 from __future__ import annotations
 
+# Standard library imports
 import tempfile
 import time
 from pathlib import Path
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from shot_model import Shot
 from threede_scene_worker import ThreeDESceneWorker
 
@@ -44,6 +47,7 @@ class TestThreeDEWorkerWorkflow:
 
     def teardown_method(self) -> None:
         """Clean up test directories."""
+        # Standard library imports
         import shutil
 
         if self.temp_dir.exists():
@@ -367,6 +371,7 @@ class TestThreeDEWorkerWorkflow:
         )
 
         # Use thread-safe collections for signal tracking
+        # Standard library imports
         import threading
 
         signal_lock = threading.Lock()

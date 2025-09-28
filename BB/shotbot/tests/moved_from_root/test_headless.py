@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test headless mode functionality."""
 
+# Standard library imports
 import logging
 import os
 import subprocess
@@ -20,6 +21,7 @@ def test_headless_detection() -> None:
     logger.info("Testing headless detection")
     logger.info("=" * 50)
 
+    # Local application imports
     from headless_mode import HeadlessMode
 
     # Save original env
@@ -68,6 +70,7 @@ def test_headless_qt_config() -> None:
     logger.info("Testing Qt headless configuration")
     logger.info("=" * 50)
 
+    # Local application imports
     from headless_mode import HeadlessMode
 
     # Save original env
@@ -103,8 +106,10 @@ def test_headless_app_creation() -> None:
     logger.info("Testing headless QApplication creation")
     logger.info("=" * 50)
 
+    # Third-party imports
     from PySide6.QtCore import QCoreApplication
 
+    # Local application imports
     from headless_mode import HeadlessMode
 
     # Check if application already exists
@@ -139,6 +144,7 @@ def test_headless_main_window() -> None:
     logger.info("Testing HeadlessMainWindow")
     logger.info("=" * 50)
 
+    # Local application imports
     from headless_mode import HeadlessMainWindow
 
     # Create headless window
@@ -202,6 +208,7 @@ def test_decorators() -> None:
     logger.info("Testing headless decorators")
     logger.info("=" * 50)
 
+    # Local application imports
     from headless_mode import HeadlessMode
 
     # Save original env
@@ -260,6 +267,7 @@ def main() -> None:
         sys.exit(1)
     except Exception as e:
         logger.error(f"❌ Unexpected error: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

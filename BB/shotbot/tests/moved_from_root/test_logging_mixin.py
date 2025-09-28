@@ -4,6 +4,7 @@
 This script verifies that the LoggingMixin works correctly and demonstrates its usage.
 """
 
+# Standard library imports
 import logging
 import sys
 from pathlib import Path
@@ -11,6 +12,7 @@ from pathlib import Path
 # Add current directory to path to import logging_mixin
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Local application imports
 from logging_mixin import LoggingMixin, log_context, log_execution
 
 # Configure logging to see output
@@ -38,6 +40,7 @@ class MockLoggingClass(LoggingMixin):
     @log_execution
     def decorated_method(self, value: int) -> int:
         """Method with log_execution decorator."""
+        # Standard library imports
         import time
 
         time.sleep(0.1)  # Simulate work

@@ -18,6 +18,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+# Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
@@ -33,16 +34,9 @@ from PySide6.QtWidgets import (
 )
 
 # Lazy import to avoid Qt initialization at module level
-# from main_window import MainWindow
+# MainWindow imported inside each test/fixture to avoid module-level issues
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
-
-# Module-level fixture to handle lazy imports
-@pytest.fixture(scope="module", autouse=True)
-def setup_qt_imports():
-    """Import MainWindow after test setup."""
-    global MainWindow
-    from main_window import MainWindow
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -51,6 +45,7 @@ def setup_qt_imports():
 @pytest.fixture
 def real_cache_manager(tmp_path):
     """Create real CacheManager for testing."""
+    # Local application imports
     from cache_manager import CacheManager
 
     return CacheManager(cache_dir=tmp_path / "test_cache")
@@ -62,6 +57,8 @@ class TestMainWindowInitialization:
     @pytest.fixture
     def main_window(self, qtbot, real_cache_manager):
         """Create MainWindow for testing."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         return window
@@ -114,6 +111,8 @@ class TestMainWindowUIComponents:
     @pytest.fixture
     def main_window_ui(self, qtbot, real_cache_manager):
         """Create MainWindow with UI setup for testing."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         # Allow UI to initialize
@@ -179,6 +178,8 @@ class TestMainWindowTabFunctionality:
     @pytest.fixture
     def tabbed_window(self, qtbot, real_cache_manager):
         """Create MainWindow with tabs for testing."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         qtbot.wait(100)  # Allow tabs to initialize
@@ -255,6 +256,8 @@ class TestMainWindowSignalConnections:
     @pytest.fixture
     def connected_window(self, qtbot, real_cache_manager):
         """Create MainWindow with signal connections for testing."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         qtbot.wait(100)  # Allow connections to establish
@@ -304,6 +307,8 @@ class TestMainWindowKeyboardShortcuts:
     @pytest.fixture
     def shortcut_window(self, qtbot, real_cache_manager):
         """Create MainWindow for shortcut testing."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         window.show()
@@ -376,6 +381,8 @@ class TestMainWindowStateManagement:
     @pytest.fixture
     def stateful_window(self, qtbot, real_cache_manager):
         """Create MainWindow for state testing."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         window.show()
@@ -441,6 +448,8 @@ class TestMainWindowErrorHandling:
 
     def test_window_creation_with_no_cache_manager(self, qtbot) -> None:
         """Test window creates with default cache manager."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=None)
         qtbot.addWidget(window)
 
@@ -450,6 +459,8 @@ class TestMainWindowErrorHandling:
 
     def test_window_close_event_handling(self, qtbot, real_cache_manager) -> None:
         """Test window handles close events properly."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
 
@@ -468,6 +479,8 @@ class TestMainWindowErrorHandling:
 
     def test_window_with_missing_components(self, qtbot, real_cache_manager) -> None:
         """Test window handles missing components gracefully."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
 
@@ -482,6 +495,8 @@ class TestMainWindowIntegration:
     @pytest.fixture
     def integrated_window(self, qtbot, real_cache_manager):
         """Create fully integrated MainWindow for testing."""
+        # Local import to avoid module-level issues
+        from main_window import MainWindow
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         window.show()

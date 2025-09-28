@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+# Third-party imports
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -19,10 +21,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from logging_mixin import LoggingMixin
+# Local application imports
 from qt_widget_mixin import QtWidgetMixin
 
 if TYPE_CHECKING:
+    # Local application imports
     from shot_model import Shot
 
 logger = logging.getLogger(__name__)
@@ -51,7 +54,7 @@ class CheckboxConfig:
     default: bool = False
 
 
-class AppLauncherSection(QtWidgetMixin, LoggingMixin, QWidget):
+class AppLauncherSection(QtWidgetMixin, QWidget):
     """Individual app launcher section with grouped options."""
 
     # Signals
@@ -225,7 +228,7 @@ class AppLauncherSection(QtWidgetMixin, LoggingMixin, QWidget):
         return {key: cb.isChecked() for key, cb in self.checkboxes.items()}
 
 
-class LauncherPanel(QtWidgetMixin, LoggingMixin, QWidget):
+class LauncherPanel(QtWidgetMixin, QWidget):
     """Improved launcher panel with organized app sections."""
 
     # Signals

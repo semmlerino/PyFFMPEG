@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Test regex pattern optimization performance."""
 
+# Standard library imports
 import re
 import time
 
+# Local application imports
 from config import Config
 
 

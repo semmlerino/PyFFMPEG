@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-import logging
+# Standard library imports
 from pathlib import Path
 
+# Local application imports
 from config import Config
+from logging_mixin import LoggingMixin, get_module_logger
 from utils import VersionUtils
 
 # Set up logger for this module
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 
-class UndistortionFinder:
+class UndistortionFinder(LoggingMixin):
     """Finds the latest undistortion .nk file for a shot."""
 
     # Pattern for version directories (v001, v002, etc.)

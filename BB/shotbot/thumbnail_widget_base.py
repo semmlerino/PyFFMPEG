@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 import subprocess
 import sys
@@ -10,6 +11,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Protocol
 
+# Third-party imports
 from PySide6.QtCore import (
     QObject,
     QRunnable,
@@ -32,6 +34,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QFrame, QLabel, QMenu, QSizePolicy, QVBoxLayout, QWidget
 
+# Local application imports
 from cache_manager import CacheManager, ThumbnailCacheLoader
 from config import Config
 from runnable_tracker import get_tracker
@@ -230,6 +233,7 @@ class BaseThumbnailLoader(QRunnable):
                 return
 
             # Use utility for memory bounds checking
+            # Local application imports
             from utils import ImageUtils
 
             if not ImageUtils.validate_image_dimensions(image.width(), image.height()):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Simple test to verify SHOWS_ROOT configuration without PySide6 dependencies."""
 
+# Standard library imports
 import os
 import re
 import sys
@@ -18,6 +19,7 @@ def test_shows_root() -> bool:
 
     # Test 1: Config module
     print("\n1. Testing config.py...")
+    # Local application imports
     from config import Config
 
     assert Config.SHOWS_ROOT == "/tmp/mock_vfx", (
@@ -150,6 +152,7 @@ if __name__ == "__main__":
         sys.exit(0 if success else 1)
     except Exception as e:
         print(f"\n❌ Error during testing: {e}")
+        # Standard library imports
         import traceback
 
         traceback.print_exc()

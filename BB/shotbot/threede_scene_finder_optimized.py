@@ -13,18 +13,22 @@ while using the clean, modular architecture from Phase 2 refactoring.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Local application imports
 from filesystem_scanner import DirectoryCache
 
 # Import the refactored components
 from scene_discovery_coordinator import RefactoredThreeDESceneFinder
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Callable, Generator
 
+    # Local application imports
     from shot_model import Shot
 
     # Import ThreeDEScene for type annotations
@@ -109,6 +113,7 @@ class OptimizedThreeDESceneFinder:
         base_paths: list[str], timeout_seconds: int = 15
     ) -> bool:
         """Quick check for .3de file existence using refactored scanner."""
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
@@ -117,6 +122,7 @@ class OptimizedThreeDESceneFinder:
     @staticmethod
     def verify_scene_exists(scene_path: Path) -> bool:
         """Scene existence verification using refactored scanner."""
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
@@ -127,6 +133,7 @@ class OptimizedThreeDESceneFinder:
         show_root: str, show: str
     ) -> list[tuple[str, str, str, str]]:
         """Discover all shots in a show using refactored scanner."""
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
@@ -137,6 +144,7 @@ class OptimizedThreeDESceneFinder:
         show_root: str, show: str, excluded_users: set[str] | None = None
     ) -> list[tuple[Path, str, str, str, str, str]]:
         """Find all .3de files using refactored scanner."""
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
@@ -186,6 +194,7 @@ class OptimizedThreeDESceneFinder:
     @staticmethod
     def extract_plate_from_path(file_path: Path, user_path: Path) -> str:
         """Extract plate from path using refactored parser."""
+        # Local application imports
         from scene_parser import SceneParser
 
         parser = SceneParser()
@@ -199,6 +208,7 @@ class OptimizedThreeDESceneFinder:
         excluded_users: set[str],
     ) -> tuple[Path, str, str, str, str, str] | None:
         """Parse 3DE file path using refactored parser."""
+        # Local application imports
         from scene_parser import SceneParser
 
         parser = SceneParser()
@@ -210,6 +220,7 @@ class OptimizedThreeDESceneFinder:
         excluded_users: set[str] | None = None,
     ) -> tuple[int, int]:
         """Estimate scan size using refactored scanner."""
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
@@ -222,6 +233,7 @@ class OptimizedThreeDESceneFinder:
         batch_size: int = 10,
     ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
         """Progressive scene finder using refactored coordinator."""
+        # Local application imports
         from scene_discovery_coordinator import SceneDiscoveryCoordinator
 
         coordinator = SceneDiscoveryCoordinator(strategy_type="progressive")
@@ -229,6 +241,7 @@ class OptimizedThreeDESceneFinder:
         # The coordinator's progressive method expects show parameters differently
         # For now, use the filesystem scanner's progressive method for file discovery
         # and convert to scenes in the coordinator
+        # Local application imports
         from filesystem_scanner import FileSystemScanner
 
         scanner = FileSystemScanner()
@@ -275,6 +288,7 @@ logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # Quick test of refactored finder
+    # Standard library imports
     import tempfile
 
     print("Testing refactored OptimizedThreeDESceneFinder...")
@@ -294,6 +308,7 @@ if __name__ == "__main__":
         test_file.write_text("# Test 3DE Scene")
 
         # Test refactored finder
+        # Standard library imports
         import time
 
         start_time = time.perf_counter()

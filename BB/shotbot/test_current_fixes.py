@@ -8,13 +8,14 @@ This script verifies that:
 3. The new MainWindow cleanup() method is working
 """
 
+# Standard library imports
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 
-def run_test(description, cmd, timeout=60):
+def run_test(description: str, cmd: list[str], timeout: int = 60) -> bool:
     """Run a test command and report results."""
     print(f"\n{'='*50}")
     print(f"Testing: {description}")
@@ -37,6 +38,7 @@ def run_test(description, cmd, timeout=60):
             print(f"✅ PASS ({duration:.1f}s)")
             # Show test count from output
             if "passed" in result.stdout:
+                # Standard library imports
                 import re
                 match = re.search(r'(\d+) passed', result.stdout)
                 if match:
@@ -56,7 +58,7 @@ def run_test(description, cmd, timeout=60):
         return False
 
 
-def main():
+def main() -> int:
     """Test current fixes."""
     print("=== Testing Current Test Suite Fixes ===")
     print(f"Working directory: {Path(__file__).parent}")
@@ -129,5 +131,6 @@ def main():
 
 
 if __name__ == "__main__":
+    # Standard library imports
     import os
     sys.exit(main())

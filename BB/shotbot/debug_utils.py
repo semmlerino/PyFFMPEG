@@ -7,6 +7,7 @@ state tracking, and system diagnostics.
 
 from __future__ import annotations
 
+# Standard library imports
 import json
 import os
 import platform
@@ -18,9 +19,11 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+# Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
 
 if TYPE_CHECKING:
+    # Standard library imports
     from collections.abc import Generator
 
 # Module-level logger for static methods
@@ -250,6 +253,7 @@ class SystemDiagnostics(LoggingMixin):
 
         # Memory info (if psutil available)
         try:
+            # Third-party imports
             import psutil
 
             process = psutil.Process()

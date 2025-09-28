@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import errno
 import stat
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
+# Third-party imports
 import pytest
 
+# Local application imports
 from persistent_terminal_manager import PersistentTerminalManager
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 # Following UNIFIED_TESTING_GUIDE principles:
 # - Test behavior, not implementation

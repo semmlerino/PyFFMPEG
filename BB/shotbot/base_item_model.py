@@ -7,11 +7,13 @@ code duplication by ~70-80%.
 
 from __future__ import annotations
 
+# Standard library imports
 from abc import abstractmethod
 from enum import IntEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Generic, TypeVar
 
+# Third-party imports
 from PySide6.QtCore import (
     Q_ARG,
     QAbstractListModel,
@@ -30,14 +32,17 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QImage, QPixmap
 from typing_extensions import override
 
+# Local application imports
 from cache_manager import CacheManager
 from config import Config
 from logging_mixin import LoggingMixin
 from protocols import SceneDataProtocol
 
 if TYPE_CHECKING:
+    # Standard library imports
     from concurrent.futures import Future
 
+    # Local application imports
     from cache.thumbnail_loader import ThumbnailCacheResult
 
 # Type variable for the data items (Shot or ThreeDEScene)
@@ -99,6 +104,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
             parent: Optional parent QObject
         """
         # Ensure we're in the main thread for Qt model creation
+        # Third-party imports
         from PySide6.QtCore import QCoreApplication, QThread
 
         app = QCoreApplication.instance()
@@ -216,6 +222,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         if role == Qt.ItemDataRole.DecorationRole:
             # Return thumbnail icon for decoration
             pixmap = self._get_thumbnail_pixmap(item)
+            # Third-party imports
             from PySide6.QtGui import QIcon
 
             return QIcon(pixmap) if pixmap else None
@@ -347,6 +354,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
             # Use cache manager for proper thumbnail handling
             if self._cache_manager:
                 # First, cache the thumbnail (handles EXR with PIL resizing)
+                # Local application imports
                 from cache.thumbnail_loader import ThumbnailCacheResult
 
                 cached_result = self._cache_manager.cache_thumbnail(
