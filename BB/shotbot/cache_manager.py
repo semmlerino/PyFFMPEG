@@ -19,7 +19,6 @@ from PySide6.QtCore import (
     QObject,
     QRunnable,
     QThread,
-    QThreadPool,
     Signal,
 )
 from PySide6.QtWidgets import QApplication
@@ -322,9 +321,10 @@ class CacheManager(LoggingMixin, QObject):
                 try:
                     if wait:
                         cached_path = async_result.future.result(timeout)
-                        result.set_result(cached_path)
-                        self._on_thumbnail_loaded(cache_key, cache_path)
-                        self._cleanup_loader(cache_key)
+                        if cached_path:
+                            result.set_result(cached_path)
+                            self._on_thumbnail_loaded(cache_key, cached_path)
+                            self._cleanup_loader(cache_key)
                         return cached_path
                     else:
                         # Non-blocking - return the async result directly
@@ -812,7 +812,7 @@ class ThumbnailCacheLoader(QRunnable):
         self.show = show
         self.sequence = sequence
         self.shot = shot
-        self.signals = self._loader.signals  # type: ignore[attr-defined]
+        self.signals = self._loader.signals
         self.result = self._loader.result  # type: ignore[attr-defined]
 
     @override

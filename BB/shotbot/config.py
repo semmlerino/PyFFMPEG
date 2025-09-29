@@ -69,9 +69,9 @@ class Config:
     MIN_WINDOW_HEIGHT = 600
 
     # Thumbnail settings
-    DEFAULT_THUMBNAIL_SIZE = 200
-    MIN_THUMBNAIL_SIZE = 100
-    MAX_THUMBNAIL_SIZE = 400
+    DEFAULT_THUMBNAIL_SIZE = 350
+    MIN_THUMBNAIL_SIZE = 250
+    MAX_THUMBNAIL_SIZE = 600
     THUMBNAIL_SPACING = 20  # Increased to accommodate selection highlight
     PLACEHOLDER_COLOR = "#444444"
 

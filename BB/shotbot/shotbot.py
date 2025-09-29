@@ -353,7 +353,7 @@ Environment Variables:
 
                 if success:
                     logger.info(f"✓ Auto-screenshot saved to: {output_path}")
-                    logger.info(f"  Windows path: C:\\temp\\shotbot_auto.png")
+                    logger.info("  Windows path: C:\\temp\\shotbot_auto.png")
                 else:
                     logger.error("✗ Failed to save auto-screenshot")
             except Exception as e:
