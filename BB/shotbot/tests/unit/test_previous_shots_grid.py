@@ -352,7 +352,6 @@ class TestPreviousShotsView:
         # Selection should be reset
         assert grid_widget.selected_shot is None
 
-
     def test_grid_column_calculation(self, grid_widget, test_model, qtbot) -> None:
         """Test that grid columns are calculated correctly based on width."""
         # Set specific size

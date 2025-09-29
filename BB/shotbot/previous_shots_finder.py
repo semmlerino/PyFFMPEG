@@ -295,8 +295,8 @@ class PreviousShotsFinder(ShotFinderBase):
             List of Shot objects found
         """
         # Extract parameters
-        active_shots = kwargs.get('active_shots', [])
-        shows_root = kwargs.get('shows_root')
+        active_shots = kwargs.get("active_shots", [])
+        shows_root = kwargs.get("shows_root")
 
         # Use the main search method
         return self.find_approved_shots(active_shots, shows_root)
@@ -328,6 +328,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
         # Use FilesystemCoordinator for shared directory caching
         from filesystem_coordinator import FilesystemCoordinator
+
         self._fs_coordinator = FilesystemCoordinator()
 
     # Progress methods are inherited from ShotFinderBase (ProgressReportingMixin):
@@ -361,12 +362,16 @@ class ParallelShotsFinder(PreviousShotsFinder):
 
                 # Use coordinator to check if shots dir exists (will be cached)
                 shots_contents = self._fs_coordinator.get_directory_listing(show_path)
-                has_shots = any(item.name == "shots" and item.is_dir() for item in shots_contents)
+                has_shots = any(
+                    item.name == "shots" and item.is_dir() for item in shots_contents
+                )
 
                 if has_shots:
                     shows.append(show_path)
 
-        self.logger.info(f"Discovered {len(shows)} shows in {shows_root} (via coordinator)")
+        self.logger.info(
+            f"Discovered {len(shows)} shows in {shows_root} (via coordinator)"
+        )
 
         # Share discovered paths with other workers
         discovered = {shows_root: contents}

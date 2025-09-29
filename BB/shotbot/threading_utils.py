@@ -254,7 +254,9 @@ class ThreadSafeProgressTracker(LoggingMixin):
             self._last_reported_progress = 0
             self._completed_workers.clear()
 
-        self.logger.debug(f"ThreadSafeProgressTracker {self._id} reset to initial state")
+        self.logger.debug(
+            f"ThreadSafeProgressTracker {self._id} reset to initial state"
+        )
 
     def __repr__(self) -> str:
         """String representation for debugging."""
@@ -572,7 +574,9 @@ class ThreadPoolManager(LoggingMixin):
                     f"some threads may still be running (this is usually not critical)"
                 )
 
-            self.logger.debug("ThreadPoolManager executor shutdown completed gracefully")
+            self.logger.debug(
+                "ThreadPoolManager executor shutdown completed gracefully"
+            )
         except Exception as e:
             self.logger.error(f"ThreadPoolManager executor shutdown failed: {e}")
         finally:

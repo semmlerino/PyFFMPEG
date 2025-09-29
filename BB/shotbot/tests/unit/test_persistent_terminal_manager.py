@@ -105,7 +105,9 @@ class TestPersistentTerminalManager:
         assert terminal_manager._is_terminal_alive() is False
 
     @patch("os.kill")
-    def test_is_terminal_alive_with_valid_pid(self, mock_kill, terminal_manager) -> None:
+    def test_is_terminal_alive_with_valid_pid(
+        self, mock_kill, terminal_manager
+    ) -> None:
         """Test terminal alive check with valid process."""
         # Arrange: Set a PID
         terminal_manager.terminal_pid = 12345
@@ -135,7 +137,9 @@ class TestPersistentTerminalManager:
 
     @patch("subprocess.Popen")
     @patch("time.sleep")
-    def test_launch_terminal_success(self, mock_sleep, mock_popen, terminal_manager) -> None:
+    def test_launch_terminal_success(
+        self, mock_sleep, mock_popen, terminal_manager
+    ) -> None:
         """Test successful terminal launch."""
         # Arrange: Mock successful process launch
         mock_process = MagicMock()
@@ -252,7 +256,9 @@ class TestPersistentTerminalManager:
         mock_file.write.assert_called_with("test command\n")
 
     @patch("os.open")
-    def test_send_command_handles_missing_fifo(self, mock_open, terminal_manager) -> None:
+    def test_send_command_handles_missing_fifo(
+        self, mock_open, terminal_manager
+    ) -> None:
         """Test command sending when FIFO disappears."""
         # Arrange: FIFO doesn't exist
         mock_open.side_effect = OSError(errno.ENOENT, "File not found")
@@ -280,7 +286,9 @@ class TestPersistentTerminalManager:
 
     @patch("os.kill")
     @patch("time.sleep")
-    def test_close_terminal(self, mock_sleep, mock_kill, terminal_manager, qtbot) -> None:
+    def test_close_terminal(
+        self, mock_sleep, mock_kill, terminal_manager, qtbot
+    ) -> None:
         """Test terminal closing."""
         # Arrange: Terminal is running
         terminal_manager.terminal_pid = 12345
@@ -341,7 +349,9 @@ class TestPersistentTerminalManager:
 
     @patch("os.path.exists", return_value=True)
     @patch("os.unlink")
-    def test_cleanup_fifo_only(self, mock_unlink, mock_exists, terminal_manager) -> None:
+    def test_cleanup_fifo_only(
+        self, mock_unlink, mock_exists, terminal_manager
+    ) -> None:
         """Test FIFO-only cleanup (keeps terminal open)."""
         with patch.object(terminal_manager, "close_terminal") as mock_close:
             # Act: Cleanup FIFO only

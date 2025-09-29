@@ -17,7 +17,7 @@ from pathlib import Path
 
 def run_test(description: str, cmd: list[str], timeout: int = 60) -> bool:
     """Run a test command and report results."""
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Testing: {description}")
     print(f"Command: {' '.join(cmd)}")
 
@@ -28,7 +28,7 @@ def run_test(description: str, cmd: list[str], timeout: int = 60) -> bool:
             timeout=timeout,
             capture_output=True,
             text=True,
-            cwd=Path(__file__).parent
+            cwd=Path(__file__).parent,
         )
 
         duration = time.time() - start_time
@@ -40,7 +40,8 @@ def run_test(description: str, cmd: list[str], timeout: int = 60) -> bool:
             if "passed" in result.stdout:
                 # Standard library imports
                 import re
-                match = re.search(r'(\d+) passed', result.stdout)
+
+                match = re.search(r"(\d+) passed", result.stdout)
                 if match:
                     print(f"   {match.group(1)} tests passed")
         else:
@@ -70,24 +71,46 @@ def main() -> int:
     try:
         tests_to_run = [
             # These should work based on previous conversation
-            ("Cache Manager Tests (57 tests)", ["python3", "-m", "pytest", "tests/unit/test_cache_manager.py", "-v"]),
-            ("EXR Edge Cases", ["python3", "-m", "pytest", "tests/unit/test_exr_edge_cases.py", "-v"]),
-            ("MainWindow Unit Tests", ["python3", "-m", "pytest", "tests/unit/test_main_window.py", "-v"]),
-
+            (
+                "Cache Manager Tests (57 tests)",
+                ["python3", "-m", "pytest", "tests/unit/test_cache_manager.py", "-v"],
+            ),
+            (
+                "EXR Edge Cases",
+                ["python3", "-m", "pytest", "tests/unit/test_exr_edge_cases.py", "-v"],
+            ),
+            (
+                "MainWindow Unit Tests",
+                ["python3", "-m", "pytest", "tests/unit/test_main_window.py", "-v"],
+            ),
             # Small batch that should work
-            ("Small Batch (3 files)", [
-                "python3", "-m", "pytest",
-                "tests/unit/test_cache_manager.py",
-                "tests/unit/test_exr_edge_cases.py",
-                "tests/unit/test_main_window.py",
-                "-v"
-            ], 120),
-
+            (
+                "Small Batch (3 files)",
+                [
+                    "python3",
+                    "-m",
+                    "pytest",
+                    "tests/unit/test_cache_manager.py",
+                    "tests/unit/test_exr_edge_cases.py",
+                    "tests/unit/test_main_window.py",
+                    "-v",
+                ],
+                120,
+            ),
             # Quick validation tests
             ("Quick Validation", ["python3", "tests/utilities/quick_test.py"]),
-
             # Test MainWindow cleanup is working - run integration test
-            ("MainWindow Integration (cleanup test)", ["python3", "-m", "pytest", "tests/integration/test_main_window_complete.py", "-v"], 90),
+            (
+                "MainWindow Integration (cleanup test)",
+                [
+                    "python3",
+                    "-m",
+                    "pytest",
+                    "tests/integration/test_main_window_complete.py",
+                    "-v",
+                ],
+                90,
+            ),
         ]
 
         results = []
@@ -108,7 +131,7 @@ def main() -> int:
                 break
 
         # Summary
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print("SUMMARY:")
         passed = sum(1 for _, success in results if success)
         total = len(results)
@@ -133,4 +156,5 @@ def main() -> int:
 if __name__ == "__main__":
     # Standard library imports
     import os
+
     sys.exit(main())

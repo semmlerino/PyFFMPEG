@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     # Local application imports
     from shot_model import Shot
 
+
 @dataclass
 class AppConfig:
     """Configuration for an application launcher section."""

@@ -73,9 +73,7 @@ class TestBaseAssetFinder:
         finder = ConcreteAssetFinder()
         # Mock the _matches_asset_type to filter jpg only
         with patch.object(
-            finder,
-            "_matches_asset_type",
-            side_effect=lambda p, t: "jpg" in p.lower()
+            finder, "_matches_asset_type", side_effect=lambda p, t: "jpg" in p.lower()
         ):
             assets = finder.find_assets(str(workspace), asset_type="jpg")
 
@@ -126,11 +124,7 @@ class TestBaseAssetFinder:
         finder = ConcreteAssetFinder()
         version_pattern = re.compile(r"_v(\d{3})")
 
-        latest = finder.find_latest_asset(
-            str(workspace),
-            "diffuse",
-            version_pattern
-        )
+        latest = finder.find_latest_asset(str(workspace), "diffuse", version_pattern)
 
         assert latest is not None
         assert latest.name == "diffuse_v003.jpg"

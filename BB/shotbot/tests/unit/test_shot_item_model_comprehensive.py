@@ -27,7 +27,12 @@ from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.critical, pytest.mark.xdist_group("qt_state")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.critical,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 
 class TestAsyncCallbackRaceConditions:

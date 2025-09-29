@@ -9,13 +9,13 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 
 # Module-level logger for static methods
 logger = get_module_logger(__name__)
 
 
-class NukeUndistortionParser(LoggingMixin):
+class NukeUndistortionParser:
     """Parser for Nuke undistortion files."""
 
     @staticmethod

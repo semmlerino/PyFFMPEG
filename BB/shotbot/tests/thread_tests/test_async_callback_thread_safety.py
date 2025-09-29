@@ -380,7 +380,6 @@ class TestShotInfoPanelThreadSafety:
         )
 
 
-
 class TestCrossComponentThreadSafety:
     """Test thread safety across multiple components."""
 

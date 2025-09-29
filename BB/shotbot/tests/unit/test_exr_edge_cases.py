@@ -28,10 +28,16 @@ try:
 except ImportError:
     Image = None
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.slow,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
+
 
 # Module-level fixture to handle lazy imports
 @pytest.fixture(scope="module", autouse=True)
@@ -330,7 +336,6 @@ class TestConcurrentEdgeCases:
 
 class TestResourceExhaustion:
     """Test behavior under resource exhaustion conditions."""
-
 
     def test_cache_cleanup_under_pressure(self, tmp_path) -> None:
         """Cache should clean up under memory pressure."""

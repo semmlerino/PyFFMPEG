@@ -60,9 +60,16 @@ class TestSimplifiedLauncherNukeIntegration:
         mock_popen.return_value = MagicMock()
 
         # Mock NukeLaunchHandler methods
-        with patch.object(launcher.nuke_handler, "prepare_nuke_command") as mock_prepare:
-            with patch.object(launcher.nuke_handler, "get_environment_fixes") as mock_env:
-                mock_prepare.return_value = ("nuke /path/to/script.nk", ["Opening script"])
+        with patch.object(
+            launcher.nuke_handler, "prepare_nuke_command"
+        ) as mock_prepare:
+            with patch.object(
+                launcher.nuke_handler, "get_environment_fixes"
+            ) as mock_env:
+                mock_prepare.return_value = (
+                    "nuke /path/to/script.nk",
+                    ["Opening script"],
+                )
                 mock_env.return_value = "export OCIO=/fallback.ocio && "
 
                 # Launch Nuke with options
@@ -70,7 +77,7 @@ class TestSimplifiedLauncherNukeIntegration:
                     "nuke",
                     open_latest=True,
                     include_plate=True,
-                    include_undistortion=True
+                    include_undistortion=True,
                 )
 
                 # Should launch successfully
@@ -122,9 +129,12 @@ class TestSimplifiedLauncherNukeIntegration:
         assert result is False
 
     @patch("simplified_launcher.subprocess.Popen")
-    def test_nuke_handler_logs_are_captured(self, mock_popen, launcher, mock_shot, caplog):
+    def test_nuke_handler_logs_are_captured(
+        self, mock_popen, launcher, mock_shot, caplog
+    ):
         """Test that log messages from NukeLaunchHandler are captured."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         launcher.set_current_shot(mock_shot)
@@ -133,10 +143,12 @@ class TestSimplifiedLauncherNukeIntegration:
         mock_popen.return_value = MagicMock()
 
         # Mock NukeLaunchHandler to return log messages
-        with patch.object(launcher.nuke_handler, "prepare_nuke_command") as mock_prepare:
+        with patch.object(
+            launcher.nuke_handler, "prepare_nuke_command"
+        ) as mock_prepare:
             mock_prepare.return_value = (
                 "nuke /path/to/script.nk",
-                ["Opening existing Nuke script: v001", "Script loaded successfully"]
+                ["Opening existing Nuke script: v001", "Script loaded successfully"],
             )
 
             # Launch Nuke
@@ -158,18 +170,20 @@ class TestSimplifiedLauncherNukeIntegration:
         launcher.set_current_shot(mock_shot)
 
         with patch.object(
-            launcher.nuke_handler.workspace_manager,
-            "get_workspace_script_directory"
+            launcher.nuke_handler.workspace_manager, "get_workspace_script_directory"
         ) as mock_get_dir:
             with patch.object(
-                launcher.nuke_handler.workspace_manager,
-                "find_latest_nuke_script"
+                launcher.nuke_handler.workspace_manager, "find_latest_nuke_script"
             ) as mock_find:
                 mock_get_dir.return_value = Path("/test/scripts")
                 mock_find.return_value = Path("/test/script.nk")
 
-                result = launcher._find_latest_nuke_workspace_script(Path("/test/workspace"))
+                result = launcher._find_latest_nuke_workspace_script(
+                    Path("/test/workspace")
+                )
 
                 assert result == Path("/test/script.nk")
-                mock_get_dir.assert_called_once_with("/test/workspace")  # Method expects str, not Path
+                mock_get_dir.assert_called_once_with(
+                    "/test/workspace"
+                )  # Method expects str, not Path
                 mock_find.assert_called_once()

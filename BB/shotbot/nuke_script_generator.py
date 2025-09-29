@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import ClassVar
 
 # Local application imports
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 from nuke_media_detector import NukeMediaDetector
 from nuke_script_templates import NukeScriptTemplates
 from nuke_undistortion_parser import NukeUndistortionParser
@@ -23,7 +23,7 @@ from nuke_undistortion_parser import NukeUndistortionParser
 logger = get_module_logger(__name__)
 
 
-class NukeScriptGenerator(LoggingMixin):
+class NukeScriptGenerator:
     """Generate temporary Nuke scripts with proper Read nodes.
 
     This class tracks temporary files and ensures they are cleaned up

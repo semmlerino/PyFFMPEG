@@ -214,12 +214,19 @@ class TestCommandLauncher:
         # Verify subprocess was called
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
-        assert "gnome-terminal" in call_args or "xterm" in call_args or "konsole" in call_args or "/bin/bash" in call_args
+        assert (
+            "gnome-terminal" in call_args
+            or "xterm" in call_args
+            or "konsole" in call_args
+            or "/bin/bash" in call_args
+        )
         assert "nuke" in " ".join(call_args)
 
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
-    def test_launch_nuke_with_raw_plate(self, mock_popen, mock_rez, launcher, test_shot, qtbot):
+    def test_launch_nuke_with_raw_plate(
+        self, mock_popen, mock_rez, launcher, test_shot, qtbot
+    ):
         """Test launching Nuke with raw plate."""
         launcher.set_current_shot(test_shot)
 
@@ -281,7 +288,9 @@ class TestCommandLauncher:
 
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
-    def test_launch_3de_with_scene(self, mock_popen, mock_rez, launcher, test_scene, qtbot):
+    def test_launch_3de_with_scene(
+        self, mock_popen, mock_rez, launcher, test_scene, qtbot
+    ):
         """Test launching 3DE with specific scene."""
         # Setup mock
         mock_popen.return_value = MagicMock()
@@ -413,8 +422,10 @@ class TestCommandLauncher:
         shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
         launcher.set_current_shot(shot)
 
-        with patch("command_launcher.subprocess.Popen") as mock_popen, \
-             patch.object(CommandLauncher, "_is_rez_available", return_value=False):
+        with (
+            patch("command_launcher.subprocess.Popen") as mock_popen,
+            patch.object(CommandLauncher, "_is_rez_available", return_value=False),
+        ):
             mock_popen.return_value = MagicMock()
 
             # Launch app - should fall back to subprocess
@@ -447,8 +458,10 @@ class TestCommandLauncherSignals:
         shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
         launcher.set_current_shot(shot)
 
-        with patch("command_launcher.subprocess.Popen") as mock_popen, \
-             patch.object(CommandLauncher, "_is_rez_available", return_value=False):
+        with (
+            patch("command_launcher.subprocess.Popen") as mock_popen,
+            patch.object(CommandLauncher, "_is_rez_available", return_value=False),
+        ):
             mock_popen.return_value = MagicMock()
 
             # Launch should succeed

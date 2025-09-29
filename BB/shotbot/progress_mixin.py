@@ -14,7 +14,7 @@ from typing import Any, TypeVar
 # Local application imports
 from logging_mixin import LoggingMixin
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class ProgressReportingMixin(LoggingMixin):
@@ -40,12 +40,11 @@ class ProgressReportingMixin(LoggingMixin):
         super().__init__(*args, **kwargs)
         self._stop_requested: bool = False
         self._progress_callback: Callable[[int, int, str], None] | None = None
-        self._last_reported_progress: int = -1  # Track last reported to avoid duplicates
+        self._last_reported_progress: int = (
+            -1
+        )  # Track last reported to avoid duplicates
 
-    def set_progress_callback(
-        self,
-        callback: Callable[[int, int, str], None]
-    ) -> None:
+    def set_progress_callback(self, callback: Callable[[int, int, str], None]) -> None:
         """Set callback for progress reporting.
 
         The callback will be called with (current, total, message) arguments
@@ -91,12 +90,7 @@ class ProgressReportingMixin(LoggingMixin):
         """
         return self._stop_requested
 
-    def _report_progress(
-        self,
-        current: int,
-        total: int,
-        message: str = ""
-    ) -> None:
+    def _report_progress(self, current: int, total: int, message: str = "") -> None:
         """Report progress if callback is set.
 
         Includes safety checks to prevent callback errors from
@@ -120,10 +114,7 @@ class ProgressReportingMixin(LoggingMixin):
             self._progress_callback(current, total, message)
         except Exception as e:
             # Log error but don't disrupt the operation
-            self.logger.error(
-                f"Error in progress callback: {e}",
-                exc_info=True
-            )
+            self.logger.error(f"Error in progress callback: {e}", exc_info=True)
             # Disable callback to prevent further errors
             self._progress_callback = None
 
@@ -145,11 +136,7 @@ class ProgressReportingMixin(LoggingMixin):
             return 100
         return int((current / total) * 100)
 
-    def _report_progress_percentage(
-        self,
-        percentage: float,
-        message: str = ""
-    ) -> None:
+    def _report_progress_percentage(self, percentage: float, message: str = "") -> None:
         """Report progress as a percentage.
 
         Convenience method for reporting progress as a percentage
@@ -182,9 +169,7 @@ class ProgressReportingMixin(LoggingMixin):
                 try:
                     # Report current state with cancellation message
                     self._progress_callback(
-                        self._last_reported_progress,
-                        100,
-                        "Operation cancelled by user"
+                        self._last_reported_progress, 100, "Operation cancelled by user"
                     )
                 except Exception:
                     pass  # Ignore errors in final callback
@@ -195,7 +180,7 @@ class ProgressReportingMixin(LoggingMixin):
         self,
         items: list[T],
         operation: Callable[[T], Any],
-        message_formatter: Callable[[int, T], str] | None = None
+        message_formatter: Callable[[int, T], str] | None = None,
     ) -> list[Any]:
         """Process items with automatic progress tracking.
 
@@ -244,10 +229,7 @@ class ProgressReportingMixin(LoggingMixin):
         return results
 
     def _estimate_remaining_time(
-        self,
-        current: int,
-        total: int,
-        elapsed_seconds: float
+        self, current: int, total: int, elapsed_seconds: float
     ) -> float:
         """Estimate remaining time based on current progress.
 

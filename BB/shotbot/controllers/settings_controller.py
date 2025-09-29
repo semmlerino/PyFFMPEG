@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from settings_dialog import SettingsDialog
     from settings_manager import SettingsManager
 
+
 class GridWidget(Protocol):
     """Protocol for grid widgets that have size sliders."""
 

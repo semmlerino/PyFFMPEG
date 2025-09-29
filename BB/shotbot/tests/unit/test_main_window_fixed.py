@@ -34,6 +34,7 @@ pytestmark = [
     pytest.mark.xdist_group("qt_state"),
 ]
 
+
 # Module-level fixture to handle lazy imports
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports():

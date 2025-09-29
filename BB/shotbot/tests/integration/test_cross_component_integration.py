@@ -29,12 +29,14 @@ if TYPE_CHECKING:
     # Third-party imports
     from pytestqt.qtbot import QtBot
 
+
 # Module-level fixture to handle lazy imports after Qt initialization
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports():
     """Import Qt and MainWindow components after test setup."""
     global MainWindow
     from main_window import MainWindow
+
 
 pytestmark = [
     pytest.mark.integration,
@@ -114,6 +116,7 @@ class TestCrossTabSynchronization:
         # Temporarily disable QTimer to prevent background refreshes
         # Third-party imports
         from PySide6.QtCore import QTimer
+
         original_singleshot = QTimer.singleShot
         QTimer.singleShot = lambda *args, **kwargs: None  # Disable all timers
 
@@ -130,6 +133,7 @@ class TestCrossTabSynchronization:
         # This is critical - must stop before setting up test pool
         # Third-party imports
         from PySide6.QtCore import QMutexLocker
+
         with QMutexLocker(window.shot_model._loader_lock):
             if window.shot_model._async_loader:
                 window.shot_model._async_loader.stop()
@@ -257,15 +261,19 @@ class TestCrossTabSynchronization:
         # Prevent any async loading by stubbing out the initialization
         # Local application imports
         from shot_model import AsyncShotLoader
+
         original_init_async = AsyncShotLoader.__init__
+
         def no_op_init(self, *args, **kwargs) -> None:
             super(AsyncShotLoader, self).__init__()
             self._should_stop = True  # Mark as stopped immediately
+
         AsyncShotLoader.__init__ = no_op_init
 
         # Disable background refresh from QTimer
         # Third-party imports
         from PySide6.QtCore import QTimer
+
         original_singleshot = QTimer.singleShot
         QTimer.singleShot = lambda *args, **kwargs: None  # Disable all timers
 
@@ -276,6 +284,7 @@ class TestCrossTabSynchronization:
 
         # Local application imports
         from cache_manager import CacheManager
+
         temp_cache_dir = Path(tempfile.mkdtemp(prefix="shotbot_test_"))
         test_cache_manager = CacheManager(cache_dir=temp_cache_dir)
 
@@ -294,6 +303,7 @@ class TestCrossTabSynchronization:
         # Make sure no background loading can interfere
         # Third-party imports
         from PySide6.QtCore import QMutexLocker
+
         with QMutexLocker(window.shot_model._loader_lock):
             if window.shot_model._async_loader:
                 window.shot_model._async_loader.stop()

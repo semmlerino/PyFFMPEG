@@ -94,7 +94,6 @@ from controllers.settings_controller import (
 from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
-from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from launcher_manager import LauncherManager  # Need at runtime
 from launcher_panel import LauncherPanel  # Improved launcher UI
 from log_viewer import LogViewer
@@ -107,6 +106,7 @@ from previous_shots_view import PreviousShotsView
 from process_pool_manager import ProcessPoolManager
 from progress_manager import ProgressManager
 from qt_widget_mixin import QtWidgetMixin
+from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
@@ -254,7 +254,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
         # Create persistent terminal manager if enabled
         # Feature flag for simplified launcher
-        USE_SIMPLIFIED_LAUNCHER = os.environ.get("USE_SIMPLIFIED_LAUNCHER", "false").lower() == "true"
+        USE_SIMPLIFIED_LAUNCHER = (
+            os.environ.get("USE_SIMPLIFIED_LAUNCHER", "false").lower() == "true"
+        )
 
         if USE_SIMPLIFIED_LAUNCHER:
             # Use new simplified launcher (500 lines vs 2,872 lines)
@@ -262,7 +264,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             from process_pool_factory import ProcessPoolFactory
             from simplified_launcher import SimplifiedLauncher
 
-            self.logger.info("Using SimplifiedLauncher - streamlined process management")
+            self.logger.info(
+                "Using SimplifiedLauncher - streamlined process management"
+            )
             self.command_launcher = SimplifiedLauncher()
 
             # Inject SimplifiedLauncher as the ProcessPool implementation
@@ -511,7 +515,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Launcher manager
         self.launcher_manager_action = QAction("&Manage Custom Launchers...", self)
         self.launcher_manager_action.setShortcut("Ctrl+L")
-        _ = self.launcher_manager_action.triggered.connect(self.launcher_controller.show_launcher_manager)
+        _ = self.launcher_manager_action.triggered.connect(
+            self.launcher_controller.show_launcher_manager
+        )
         tools_menu.addAction(self.launcher_manager_action)
 
         _ = tools_menu.addSeparator()
@@ -590,14 +596,18 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Shot selection
         _ = self.shot_grid.shot_selected.connect(self._on_shot_selected)
         _ = self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
-        _ = self.shot_grid.app_launch_requested.connect(self.launcher_controller.launch_app)
+        _ = self.shot_grid.app_launch_requested.connect(
+            self.launcher_controller.launch_app
+        )
         _ = self.shot_grid.show_filter_requested.connect(
             self._on_shot_show_filter_requested
         )
 
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
-        _ = self.threede_shot_grid.app_launch_requested.connect(self.launcher_controller.launch_app)
+        _ = self.threede_shot_grid.app_launch_requested.connect(
+            self.launcher_controller.launch_app
+        )
 
         # 3DE show filter - handled by controller
         # Controller handles show filter in its own signal setup
@@ -607,7 +617,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.previous_shots_grid.shot_double_clicked.connect(
             self._on_shot_double_clicked
         )
-        _ = self.previous_shots_grid.app_launch_requested.connect(self.launcher_controller.launch_app)
+        _ = self.previous_shots_grid.app_launch_requested.connect(
+            self.launcher_controller.launch_app
+        )
         _ = self.previous_shots_grid.show_filter_requested.connect(
             self._on_previous_show_filter_requested
         )
@@ -724,7 +736,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             if not self.cache_manager.has_valid_threede_cache():  # type: ignore[attr-defined]
                 self.logger.info("3DE cache invalid/expired - starting discovery")
                 if self.threede_controller:
-                    QTimer.singleShot(100, self.threede_controller.refresh_threede_scenes)
+                    QTimer.singleShot(
+                        100, self.threede_controller.refresh_threede_scenes
+                    )
             else:
                 self.logger.info("3DE cache is valid - skipping initial scan")
                 # Cache is valid but might be empty - that's OK, we cached the "no scenes" state
@@ -955,7 +969,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.launcher_controller.set_current_scene(scene)
         self.launcher_controller.launch_app("3de")
 
-    def _apply_show_filter(self, item_model: object, model: object, show: str, tab_name: str) -> None:
+    def _apply_show_filter(
+        self, item_model: object, model: object, show: str, tab_name: str
+    ) -> None:
         """Generic show filter handler for all tabs.
 
         Args:
@@ -982,14 +998,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _on_shot_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from My Shots grid view."""
-        self._apply_show_filter(
-            self.shot_item_model, self.shot_model, show, "My Shots"
-        )
+        self._apply_show_filter(self.shot_item_model, self.shot_model, show, "My Shots")
 
     def _on_previous_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from Previous Shots grid view."""
         self._apply_show_filter(
-            self.previous_shots_item_model, self.previous_shots_model, show, "Previous Shots"
+            self.previous_shots_item_model,
+            self.previous_shots_model,
+            show,
+            "Previous Shots",
         )
 
     def _on_previous_shots_updated(self) -> None:
@@ -997,10 +1014,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Populate show filter with available shows
         self.previous_shots_grid.populate_show_filter(self.previous_shots_model)
         self.logger.debug("Previous shots updated, refreshed show filter")
-
-
-
-
 
     def _increase_thumbnail_size(self) -> None:
         """Increase thumbnail size."""
@@ -1081,9 +1094,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Update status bar."""
         self.status_bar.showMessage(message)
 
-
-
-
     def _show_shortcuts(self) -> None:
         """Show keyboard shortcuts dialog."""
         shortcuts_text = """<h3>Keyboard Shortcuts</h3>
@@ -1122,12 +1132,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             + "VFX Shot Launcher\n\n"
             + "A tool for browsing and launching applications in shot context.",
         )
-
-
-
-
-
-
 
     def get_window_size(self) -> tuple[int, int]:
         """Get window size as tuple for SettingsTarget protocol compliance."""

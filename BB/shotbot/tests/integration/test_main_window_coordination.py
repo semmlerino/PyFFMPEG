@@ -42,6 +42,7 @@ def setup_qt_imports():
     global MainWindow
     from main_window import MainWindow
 
+
 # =============================================================================
 # TEST DOUBLES FOR INTEGRATION TESTING
 # =============================================================================
@@ -284,15 +285,15 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
 
     # CRITICAL: Proper cleanup to prevent crashes
     # Stop all timers first
-    if hasattr(window, 'auto_refresh_timer') and window.auto_refresh_timer:
+    if hasattr(window, "auto_refresh_timer") and window.auto_refresh_timer:
         window.auto_refresh_timer.stop()
 
     # Stop model refresh timers
-    if hasattr(window, 'previous_shots_model'):
+    if hasattr(window, "previous_shots_model"):
         window.previous_shots_model.stop_auto_refresh()
 
     # Stop any workers
-    if hasattr(window, 'threede_worker') and window.threede_worker:
+    if hasattr(window, "threede_worker") and window.threede_worker:
         if window.threede_worker.isRunning():
             window.threede_worker.quit()
             window.threede_worker.wait(1000)
@@ -309,6 +310,7 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     # Process events to ensure cleanup happens
     # Third-party imports
     from PySide6.QtCore import QCoreApplication
+
     app = QCoreApplication.instance()
     if app:
         app.processEvents()
@@ -319,6 +321,7 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     # Force garbage collection
     # Standard library imports
     import gc
+
     gc.collect()
 
 
@@ -613,7 +616,9 @@ workspace /shows/test/shots/seq01/shot02""")
         # Use waitUntil to check for refresh message - more robust than fixed timing
         def status_contains_refresh_or_loading():
             status = window.status_bar.currentMessage()
-            return status and ("refresh" in status.lower() or "loading" in status.lower())
+            return status and (
+                "refresh" in status.lower() or "loading" in status.lower()
+            )
 
         qtbot.waitUntil(status_contains_refresh_or_loading, timeout=1000)
 

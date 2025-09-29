@@ -107,7 +107,7 @@ class TestVersionExtraction:
         """Test that extraction logs appropriately."""
         obj = ConcreteVersionClass()
 
-        with patch.object(obj.logger, 'debug') as mock_debug:
+        with patch.object(obj.logger, "debug") as mock_debug:
             version = obj._extract_version("file_v042.ma")
             assert version == 42
             mock_debug.assert_called_once()
@@ -119,7 +119,9 @@ class TestVersionExtraction:
 
         # Should extract first match
         assert obj._extract_version("file_v001_v002.ma") == 1
-        assert obj._extract_version("text_v001_file_v002.txt") == 1  # Fixed pattern match
+        assert (
+            obj._extract_version("text_v001_file_v002.txt") == 1
+        )  # Fixed pattern match
 
 
 class TestFindLatestByVersion:
@@ -151,7 +153,7 @@ class TestFindLatestByVersion:
             Path("another_file.txt"),
         ]
 
-        with patch.object(obj.logger, 'debug') as mock_debug:
+        with patch.object(obj.logger, "debug") as mock_debug:
             result = obj._find_latest_by_version(files)
             assert result is None
             mock_debug.assert_called()
@@ -188,11 +190,13 @@ class TestFindLatestByVersion:
         obj = ConcreteVersionClass()
         files = [Path("file_v001.ma"), Path("file_v002.ma")]
 
-        with patch.object(obj.logger, 'info') as mock_info:
+        with patch.object(obj.logger, "info") as mock_info:
             latest = obj._find_latest_by_version(files)
             assert latest == Path("file_v002.ma")
             mock_info.assert_called_once()
-            assert "Found latest version: file_v002.ma (v002)" in mock_info.call_args[0][0]
+            assert (
+                "Found latest version: file_v002.ma (v002)" in mock_info.call_args[0][0]
+            )
 
 
 class TestFindEarliestByVersion:
@@ -226,11 +230,14 @@ class TestFindEarliestByVersion:
         obj = ConcreteVersionClass()
         files = [Path("file_v002.ma"), Path("file_v001.ma")]
 
-        with patch.object(obj.logger, 'info') as mock_info:
+        with patch.object(obj.logger, "info") as mock_info:
             earliest = obj._find_earliest_by_version(files)
             assert earliest == Path("file_v001.ma")
             mock_info.assert_called_once()
-            assert "Found earliest version: file_v001.ma (v001)" in mock_info.call_args[0][0]
+            assert (
+                "Found earliest version: file_v001.ma (v001)"
+                in mock_info.call_args[0][0]
+            )
 
 
 class TestSortFilesByVersion:
@@ -549,7 +556,7 @@ class TestClassInheritance:
     def test_mixin_with_logging(self):
         """Test that mixin includes logging."""
         obj = ConcreteVersionClass()
-        assert hasattr(obj, 'logger')
+        assert hasattr(obj, "logger")
         assert obj.logger is not None
 
 

@@ -449,6 +449,7 @@ class TestMainWindowFilterHandlers:
 
         # Add RefreshOrchestrator for refactored MainWindow
         from refresh_orchestrator import RefreshOrchestrator
+
         window.refresh_orchestrator = RefreshOrchestrator(window)
 
         # Logger is already provided by LoggingMixin
@@ -504,7 +505,11 @@ class TestMainWindowFilterHandlers:
         # Verify the filter was applied
         assert mock_main_window.previous_shots_model.get_show_filter() == "showA"
         # The filter should have been applied, showing only showA shots
-        filtered_shots = [s for s in mock_main_window.previous_shots_item_model._shots if s.show == "showA"]
+        filtered_shots = [
+            s
+            for s in mock_main_window.previous_shots_item_model._shots
+            if s.show == "showA"
+        ]
         assert len(filtered_shots) == 2
 
     def test_refresh_populates_show_filter(self, mock_main_window) -> None:

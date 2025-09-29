@@ -146,6 +146,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         # Instance-level mutex and shutdown flag (added to parent class)
         # Third-party imports
         from PySide6.QtCore import QMutex
+
         self._mutex = QMutex()
         self._shutdown_requested = False
 

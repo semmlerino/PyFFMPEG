@@ -55,8 +55,7 @@ class FinderUtils:
 
     @staticmethod
     def extract_version(
-        path: Path | str,
-        pattern: str | Pattern[str] = DEFAULT_VERSION_PATTERN
+        path: Path | str, pattern: str | Pattern[str] = DEFAULT_VERSION_PATTERN
     ) -> int | None:
         """Extract version number from a file path.
 
@@ -84,10 +83,7 @@ class FinderUtils:
 
     @staticmethod
     def build_user_path(
-        workspace: Path,
-        username: str,
-        app: str,
-        subdir: str = "scenes"
+        workspace: Path, username: str, app: str, subdir: str = "scenes"
     ) -> Path:
         """Build standard VFX user path.
 
@@ -105,15 +101,23 @@ class FinderUtils:
         """
         if app == "3de":
             # 3DE has special structure: user/{username}/mm/3de/mm-default/scenes/scene
-            return workspace / "user" / username / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+            return (
+                workspace
+                / "user"
+                / username
+                / "mm"
+                / "3de"
+                / "mm-default"
+                / "scenes"
+                / "scene"
+            )
         else:
             # Standard structure for maya, nuke: user/{username}/{app}/{subdir}
             return workspace / "user" / username / app / subdir
 
     @staticmethod
     def find_latest_by_version(
-        files: list[Path],
-        version_pattern: str | Pattern[str] = DEFAULT_VERSION_PATTERN
+        files: list[Path], version_pattern: str | Pattern[str] = DEFAULT_VERSION_PATTERN
     ) -> Path | None:
         """Find the latest file by version number.
 
@@ -147,7 +151,7 @@ class FinderUtils:
     def sort_by_version(
         files: list[Path],
         version_pattern: str | Pattern[str] = DEFAULT_VERSION_PATTERN,
-        reverse: bool = False
+        reverse: bool = False,
     ) -> list[Path]:
         """Sort files by version number.
 
@@ -182,8 +186,7 @@ class FinderUtils:
 
     @staticmethod
     def sort_by_priority(
-        items: list[tuple[str, Path]],
-        priority_order: list[str]
+        items: list[tuple[str, Path]], priority_order: list[str]
     ) -> list[tuple[str, Path]]:
         """Sort items by priority order.
 
@@ -197,6 +200,7 @@ class FinderUtils:
         Returns:
             Sorted list with highest priority first
         """
+
         def get_priority(item: tuple[str, Path]) -> int:
             key = item[0]
             try:
@@ -259,9 +263,7 @@ class FinderUtils:
 
     @staticmethod
     def filter_by_extensions(
-        files: list[Path],
-        extensions: list[str],
-        case_sensitive: bool = False
+        files: list[Path], extensions: list[str], case_sensitive: bool = False
     ) -> list[Path]:
         """Filter files by allowed extensions.
 
@@ -276,15 +278,9 @@ class FinderUtils:
         if not case_sensitive:
             # Convert extensions to lowercase for comparison
             extensions = [ext.lower() for ext in extensions]
-            return [
-                f for f in files
-                if f.suffix.lower() in extensions
-            ]
+            return [f for f in files if f.suffix.lower() in extensions]
         else:
-            return [
-                f for f in files
-                if f.suffix in extensions
-            ]
+            return [f for f in files if f.suffix in extensions]
 
     @staticmethod
     def get_relative_path(path: Path, base: Path) -> Path:
@@ -305,9 +301,7 @@ class FinderUtils:
 
     @staticmethod
     def find_files_recursive(
-        root: Path,
-        pattern: str,
-        max_depth: int | None = None
+        root: Path, pattern: str, max_depth: int | None = None
     ) -> list[Path]:
         """Find files recursively with optional depth limit.
 

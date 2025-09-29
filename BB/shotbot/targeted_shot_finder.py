@@ -461,9 +461,9 @@ class TargetedShotsFinder(ShotFinderBase):
             List of Shot objects found
         """
         # Extract parameters
-        target_shows = kwargs.get('target_shows', set())
-        shows_root = kwargs.get('shows_root')
-        active_shots = kwargs.get('active_shots', [])
+        target_shows = kwargs.get("target_shows", set())
+        shows_root = kwargs.get("shows_root")
+        active_shots = kwargs.get("active_shots", [])
 
         # If we have active shots but no target shows, extract them
         if active_shots and not target_shows:

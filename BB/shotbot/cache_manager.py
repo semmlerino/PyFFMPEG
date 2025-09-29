@@ -10,7 +10,7 @@ from __future__ import annotations
 # Standard library imports
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -27,17 +27,10 @@ from PySide6.QtWidgets import QApplication
 # Use typing_extensions for override (available in venv)
 from typing_extensions import override
 
-# Local application imports
-from cache.cache_validator import CacheValidator
-from cache.failure_tracker import FailureTracker
-from cache.memory_manager import MemoryManager
-from cache.shot_cache import ShotCache
-
-# Import new modular components
+# Import new unified components
 from cache.storage_backend import StorageBackend
-from cache.threede_cache import ThreeDECache
-from cache.thumbnail_loader import ThumbnailCacheResult, ThumbnailLoader
-from cache.thumbnail_processor import ThumbnailProcessor
+from cache.thumbnail_manager import ThumbnailCacheResult, ThumbnailManager, create_thumbnail_loader
+from cache.unified_cache import UnifiedCache, create_shot_cache, create_threede_cache
 
 # Import cache configuration (now includes unified config)
 from cache_config import UnifiedCacheConfig, create_unified_cache_config
@@ -66,14 +59,10 @@ class CacheManager(LoggingMixin, QObject):
     This is a facade that delegates to specialized components while maintaining
     full backward compatibility with the original monolithic implementation.
 
-    New Architecture:
-        - StorageBackend: Atomic file operations
-        - FailureTracker: Exponential backoff for failed operations
-        - MemoryManager: Memory usage tracking and eviction
-        - ThumbnailProcessor: Multi-format image processing
-        - ShotCache/ThreeDECache: Data caching with TTL
-        - CacheValidator: Consistency validation and repair
-        - ThumbnailLoader: Async background processing
+    Unified Architecture (3 Components):
+        - StorageBackend: Atomic file operations with validation methods
+        - ThumbnailManager: Unified thumbnail processing, memory management, failure tracking
+        - UnifiedCache: Generic TTL cache replacing shot_cache and threede_cache
     """
 
     # Signals - maintain backward compatibility
@@ -118,13 +107,12 @@ class CacheManager(LoggingMixin, QObject):
         self.threede_scenes_cache_file = self.cache_dir / "threede_scenes.json"
         self.previous_shots_cache_file = self.cache_dir / "previous_shots.json"
 
-        # Initialize modular components
+        # Initialize unified components (3-component architecture)
         self._storage_backend = StorageBackend()
-        self._failure_tracker = FailureTracker()
 
-        # Use unified config for memory manager if available
+        # Use unified config for thumbnail manager if available
         if self._unified_config:
-            self._memory_manager = self._unified_config.create_memory_manager()
+            max_memory_mb = self._unified_config.memory_limit_mb
             # Connect to configuration changes
             self._unified_config.memory_limit_changed.connect(
                 self._on_memory_limit_changed
@@ -133,9 +121,9 @@ class CacheManager(LoggingMixin, QObject):
                 self._on_expiry_time_changed
             )
         else:
-            self._memory_manager = MemoryManager()
+            max_memory_mb = None  # Use default
 
-        self._thumbnail_processor = ThumbnailProcessor()
+        self._thumbnail_manager = ThumbnailManager(max_memory_mb=max_memory_mb)
 
         # Initialize data caches with unified config if available
         expiry_minutes = (
@@ -144,22 +132,15 @@ class CacheManager(LoggingMixin, QObject):
             else None  # Use config defaults
         )
 
-        self._shot_cache = ShotCache(
-            self.shots_cache_file, self._storage_backend, expiry_minutes=expiry_minutes
+        self._shot_cache = create_shot_cache(
+            self.shots_cache_file, expiry_minutes=expiry_minutes
         )
-        self._threede_cache = ThreeDECache(
-            self.threede_scenes_cache_file,
-            self._storage_backend,
-            expiry_minutes=expiry_minutes,
+        self._threede_cache = create_threede_cache(
+            self.threede_scenes_cache_file, expiry_minutes=expiry_minutes
         )
-        self._previous_shots_cache = ShotCache(
-            self.previous_shots_cache_file,
-            self._storage_backend,
-            expiry_minutes=expiry_minutes,
+        self._previous_shots_cache = create_shot_cache(
+            self.previous_shots_cache_file, expiry_minutes=expiry_minutes
         )
-
-        # Initialize validator (will be created after directory setup)
-        self._cache_validator: CacheValidator | None = None
 
         # Track active async loaders for synchronization
         self._active_loaders: dict[str, ThumbnailCacheResult] = {}
@@ -171,49 +152,44 @@ class CacheManager(LoggingMixin, QObject):
         # Ensure cache directories exist
         self._ensure_cache_dirs()
 
-        # Initialize validator after directories are set up
-        self._cache_validator = CacheValidator(
-            self.thumbnails_dir, self._memory_manager, self._storage_backend
-        )
-
-        self.logger.debug("CacheManager facade initialized with modular architecture")
+        self.logger.debug("CacheManager facade initialized with unified architecture")
 
     # Backward compatibility properties for internal test access
     @property
     def _cached_thumbnails(self) -> dict[str, int]:
         """Backward compatibility property for memory tracking."""
         # Return direct reference for backward compatibility with tests
-        # Note: In production code, use get_memory_usage() for read-only access
-        return self._memory_manager.cached_items
+        # Note: In production code, use get_usage_stats() for read-only access
+        return self._thumbnail_manager._cached_items
 
     @property
     def _memory_usage_bytes(self) -> int:
         """Backward compatibility property for memory usage."""
-        return self._memory_manager.memory_usage_bytes
+        return self._thumbnail_manager._memory_usage_bytes
 
     @_memory_usage_bytes.setter
     def _memory_usage_bytes(self, value: int) -> None:
         """Backward compatibility setter for memory usage."""
-        self._memory_manager.memory_usage_bytes = value
+        self._thumbnail_manager._memory_usage_bytes = value
 
     @property
     def _max_memory_bytes(self) -> int:
         """Backward compatibility property for memory limit."""
-        return self._memory_manager.max_memory_bytes
+        return self._thumbnail_manager._max_memory_bytes
 
     @_max_memory_bytes.setter
     def _max_memory_bytes(self, value: int) -> None:
         """Backward compatibility setter for memory limit (test use only)."""
         # Note: In production, memory limit should be set via constructor
         # This setter exists only for backward compatibility with existing tests
-        self._memory_manager.set_memory_limit(
+        self._thumbnail_manager.set_memory_limit(
             value // (1024 * 1024)
         )  # Convert bytes to MB
 
     @property
     def _failed_attempts(self) -> dict[str, dict[str, object]]:
         """Backward compatibility property for failure tracking."""
-        return self._failure_tracker.get_failure_status()
+        return self._thumbnail_manager.get_failure_status()
 
     # Configuration properties - maintain backward compatibility
     @property
@@ -320,22 +296,18 @@ class CacheManager(LoggingMixin, QObject):
             # Determine processing approach - check Qt availability defensively
             try:
                 app = QApplication.instance()
-                is_main_thread = app is not None and QThread.currentThread() == app.thread()
+                is_main_thread = (
+                    app is not None and QThread.currentThread() == app.thread()
+                )
             except (RuntimeError, AttributeError):
                 # Qt not initialized or error accessing - treat as background thread
                 is_main_thread = False
 
             if not is_main_thread:
                 # Background thread - use ThumbnailLoader
-                loader: ThumbnailLoader = ThumbnailLoader(
+                loader = create_thumbnail_loader(
                     self._thumbnail_processor,
                     self._failure_tracker,
-                    source_path_obj,
-                    cache_path,
-                    show,
-                    sequence,
-                    shot,
-                    result,
                 )
 
                 # Connect cleanup
@@ -389,19 +361,14 @@ class CacheManager(LoggingMixin, QObject):
         """Direct thumbnail caching implementation (backward compatibility)."""
         cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
 
-        if self._thumbnail_processor.process_thumbnail(source_path, cache_path):
-            _ = self._memory_manager.track_item(cache_path)
-            # Trigger eviction if memory limit exceeded
-            _ = self._memory_manager.evict_if_needed()
+        if self._thumbnail_manager.process_thumbnail_sync(source_path, cache_path):
             return cache_path
         return None
 
     def _on_thumbnail_loaded(self, cache_key: str, cache_path: Path) -> None:
         """Handle successful thumbnail loading."""
-        # Track in memory manager
-        _ = self._memory_manager.track_item(cache_path)
-        # Trigger eviction if memory limit exceeded
-        _ = self._memory_manager.evict_if_needed()
+        # Track in thumbnail manager
+        _ = self._thumbnail_manager.track_item(cache_path)
 
     def _cleanup_loader(self, cache_key: str) -> None:
         """Remove completed loader from tracking."""
@@ -420,25 +387,25 @@ class CacheManager(LoggingMixin, QObject):
     # Shot caching methods - delegate to ShotCache
     def get_cached_shots(self) -> list[ShotDict] | None:
         """Get cached shot list if valid."""
-        return self._shot_cache.get_cached_shots()
+        return self._shot_cache.get_cached_data()
 
     def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
         """Cache shot list to file."""
-        _ = self._shot_cache.cache_shots(shots)
+        _ = self._shot_cache.cache_data(shots)
 
     # Previous shots caching methods - delegate to ShotCache
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
         """Get cached previous/approved shot list if valid."""
-        return self._previous_shots_cache.get_cached_shots()
+        return self._previous_shots_cache.get_cached_data()
 
     def cache_previous_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
         """Cache previous/approved shot list to file."""
-        _ = self._previous_shots_cache.cache_shots(shots)
+        _ = self._previous_shots_cache.cache_data(shots)
 
     # 3DE scene caching methods - delegate to ThreeDECache
     def get_cached_threede_scenes(self) -> list[ThreeDESceneDict] | None:
         """Get cached 3DE scene list if valid."""
-        return self._threede_cache.get_cached_scenes()
+        return self._threede_cache.get_cached_data()
 
     def has_valid_threede_cache(self) -> bool:
         """Check if we have a valid 3DE cache (including valid empty results)."""
@@ -448,7 +415,7 @@ class CacheManager(LoggingMixin, QObject):
         self, scenes: list[ThreeDESceneDict], metadata: dict[str, object] | None = None
     ) -> None:
         """Cache 3DE scene list to file with optional metadata."""
-        _ = self._threede_cache.cache_scenes(scenes, metadata)
+        _ = self._threede_cache.cache_data(scenes, metadata)
 
     # Generic data caching methods for backward compatibility
     def cache_data(self, key: str, data: object) -> None:
@@ -515,132 +482,72 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             Dictionary mapping shot keys to cached thumbnail paths
         """
-        from cache.thumbnail_processor import AsyncEXRProcessor
-
         self.logger.info(f"Starting batch EXR processing for {len(exr_files)} files")
 
-        # Group files by their metadata for result mapping
-        file_metadata = {}
-        source_paths = []
+        # Process files individually using thumbnail manager
+        results = {}
+
         for source_path, show, sequence, shot in exr_files:
             cache_key = f"{show}_{sequence}_{shot}"
-            file_metadata[str(source_path)] = (cache_key, show, sequence, shot)
-            source_paths.append(source_path)
+            cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
 
-        # Create async processor
-        processor = AsyncEXRProcessor(
-            self._thumbnail_processor,
-            source_paths,
-            parent=None
-        )
+            # Use async processing from thumbnail manager
+            thumbnail_result = self._thumbnail_manager.cache_thumbnail_async(
+                source_path, cache_path
+            )
 
-        # Track results
-        results = {}
-        processed_count = 0
+            if thumbnail_result and thumbnail_result.wait_for_completion(timeout=30):
+                if thumbnail_result.cache_path:
+                    results[cache_key] = thumbnail_result.cache_path
+                    self.logger.debug(f"Processed EXR thumbnail: {cache_key}")
+                else:
+                    results[cache_key] = None
+                    self.logger.warning(f"Failed to process EXR thumbnail: {cache_key}")
+            else:
+                results[cache_key] = None
+                self.logger.warning(f"Timeout processing EXR thumbnail: {cache_key}")
 
-        def on_progress(count: int) -> None:
-            nonlocal processed_count
-            processed_count = count
-            self.logger.debug(f"Processed {count}/{len(exr_files)} EXR files")
-
-        def on_completed(thumbnails: dict[Path, Path]) -> None:
-            """Handle batch completion."""
-            self.logger.info(f"Batch EXR processing completed: {len(thumbnails)} succeeded")
-
-            # Map results to cache structure
-            for source, thumbnail in thumbnails.items():
-                if str(source) in file_metadata:
-                    cache_key, show, sequence, shot = file_metadata[str(source)]
-
-                    # Move thumbnail to proper cache location
-                    cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
-                    cache_path.parent.mkdir(parents=True, exist_ok=True)
-
-                    try:
-                        # Move or copy thumbnail to cache location
-                        import shutil
-                        shutil.move(str(thumbnail), str(cache_path))
-                        results[cache_key] = cache_path
-
-                        # Track in memory manager
-                        self._memory_manager.track_item(cache_path)
-                    except Exception as e:
-                        self.logger.error(f"Failed to move thumbnail: {e}")
-                        results[cache_key] = None
-
-        def on_error(error_msg: str) -> None:
-            self.logger.error(f"Batch EXR processing error: {error_msg}")
-
-        # Connect signals
-        processor.progress_updated.connect(on_progress)
-        processor.batch_completed.connect(on_completed)
-        processor.error_occurred.connect(on_error)
-
-        # Start processing
-        processor.start()
-
-        # Wait for completion with timeout (30 seconds per file max)
-        timeout_ms = len(exr_files) * 30000
-        if processor.wait(timeout_ms):
-            self.logger.info("Batch EXR processing completed successfully")
-        else:
-            self.logger.warning("Batch EXR processing timed out")
-            processor.terminate()
-            processor.wait(1000)
-
+        self.logger.info("Batch EXR processing completed")
         return results
 
     def get_memory_usage(self) -> dict[str, float | int]:
         """Get current cache memory usage statistics (backward compatible)."""
-        stats = self._memory_manager.get_usage_stats()
-        total_bytes = cast("int", stats.get("total_bytes", 0))
-        max_bytes = self._memory_manager.max_memory_bytes
+        stats = self._thumbnail_manager.get_usage_stats()
+        total_bytes = cast("int", stats.get("total_size_mb", 0) * 1024 * 1024)
 
         # Return old format for backward compatibility
         return {
             "total_bytes": total_bytes,
-            "total_mb": total_bytes / (1024 * 1024),
-            "max_mb": max_bytes / (1024 * 1024),
+            "total_mb": stats.get("total_size_mb", 0.0),
+            "max_mb": stats.get("memory_limit_mb", 0.0),
             "usage_percent": stats.get("usage_percent", 0.0),
-            "thumbnail_count": stats.get("tracked_items", 0),
+            "thumbnail_count": stats.get("total_items", 0),
         }
 
     def validate_cache(self) -> dict[str, object]:
         """Validate cache consistency and fix issues (backward compatible)."""
-        if self._cache_validator:
-            result = self._cache_validator.validate_cache()
-            # Return old format for backward compatibility with all expected fields
-            return {
-                "valid": result.get("valid", False),
-                "issues_found": result.get("issues_found", 0),
-                "issues_fixed": result.get("issues_fixed", 0),
-                "orphaned_files": result.get("orphaned_files", 0),
-                "missing_files": result.get("missing_files", 0),
-                "invalid_entries": [],  # Not tracked in new implementation
-                "size_mismatches": result.get("size_mismatches", 0),
-                "memory_usage_corrected": result.get("memory_usage_corrected", False),
-                "details": result.get("details", []),
-            }
+        # Use storage backend validation with thumbnail manager
+        result = self._storage_backend.validate_cache(
+            self.thumbnails_dir, memory_manager=self._thumbnail_manager, fix_issues=True
+        )
+        # Return old format for backward compatibility with all expected fields
         return {
-            "valid": False,
-            "issues_found": 0,
-            "issues_fixed": 0,
-            "orphaned_files": 0,
-            "missing_files": 0,
-            "invalid_entries": [],
-            "size_mismatches": 0,
-            "memory_usage_corrected": False,
-            "details": [],
+            "valid": result.get("valid", False),
+            "issues_found": result.get("issues_found", 0),
+            "issues_fixed": result.get("issues_fixed", 0),
+            "orphaned_files": result.get("orphaned_files", 0),
+            "missing_files": result.get("missing_files", 0),
+            "invalid_entries": [],  # Not tracked in new implementation
+            "size_mismatches": result.get("size_mismatches", 0),
+            "memory_usage_corrected": result.get("memory_usage_corrected", False),
+            "details": result.get("details", []),
         }
 
     def clear_cache(self) -> None:
         """Clear all cached data."""
         with QMutexLocker(self._lock):
-            # Clear memory tracking
-            self._memory_manager.clear_all_tracking()
-
-            # Clear failure tracking
-            self._failure_tracker.clear_failures()
+            # Clear thumbnail manager (handles memory and failure tracking)
+            self._thumbnail_manager.clear_cache()
 
             # Clear data caches
             _ = self._shot_cache.clear_cache()
@@ -666,18 +573,19 @@ class CacheManager(LoggingMixin, QObject):
 
             self.logger.info("Cache cleared successfully")
 
-    # Failure tracking methods - delegate to FailureTracker
+    # Failure tracking methods - delegate to ThumbnailManager
     def clear_failed_attempts(self, cache_key: str | None = None) -> None:
         """Clear failed attempts to allow immediate retry."""
-        self._failure_tracker.clear_failures(cache_key)
+        self._thumbnail_manager.clear_failure(cache_key)
 
     def get_failed_attempts_status(self) -> dict[str, dict[str, object]]:
         """Get current status of failed attempts for debugging."""
-        return self._failure_tracker.get_failure_status()
+        return self._thumbnail_manager.get_failure_status()
 
     def _evict_old_thumbnails(self) -> int:
         """Backward compatibility method for evicting old thumbnails."""
-        return self._memory_manager.evict_if_needed()
+        # Not applicable - eviction is automatic in ThumbnailManager
+        return 0
 
     # Shutdown method for graceful cleanup
     def shutdown(self) -> None:
@@ -686,22 +594,20 @@ class CacheManager(LoggingMixin, QObject):
 
         with QMutexLocker(self._lock):
             try:
-                # Validate and fix any cache inconsistencies
-                if self._cache_validator:
-                    validation_result = self._cache_validator.validate_cache(
-                        fix_issues=True
+                # Validate and fix any cache inconsistencies using storage backend
+                validation_result = self._storage_backend.validate_cache(
+                    self.thumbnails_dir,
+                    memory_manager=self._thumbnail_manager,
+                    fix_issues=True,
+                )
+                if not validation_result.get("valid", False):
+                    self.logger.info(
+                        f"Fixed {validation_result.get('issues_fixed', 0)} cache issues during shutdown"
                     )
-                    if not validation_result.get("valid", False):
-                        self.logger.info(
-                            f"Fixed {validation_result.get('issues_fixed', 0)} cache issues during shutdown"
-                        )
 
-                # Clear memory tracking
-                self._memory_manager.clear_all_tracking()
-
-                # Clear failure tracking
-                failed_count = self._failure_tracker.get_failure_count()
-                self._failure_tracker.clear_failures()
+                # Clear thumbnail manager (handles memory and failure tracking)
+                failed_count = len(self._thumbnail_manager._failures)
+                self._thumbnail_manager.clear_cache()
                 if failed_count > 0:
                     self.logger.debug(
                         f"Cleared {failed_count} failed attempts during shutdown"
@@ -721,8 +627,8 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             max_memory_mb: Maximum memory in megabytes
         """
-        # Use the public method to set memory limit
-        self._memory_manager.set_memory_limit(max_memory_mb)
+        # Use the public method to set memory limit on thumbnail manager
+        self._thumbnail_manager.set_memory_limit(max_memory_mb)
         self.logger.info(f"Cache memory limit set to {max_memory_mb} MB")
 
     def _on_memory_limit_changed(self, new_limit_mb: int) -> None:
@@ -731,7 +637,7 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             new_limit_mb: New memory limit in MB
         """
-        self._memory_manager.set_memory_limit(new_limit_mb)
+        self._thumbnail_manager.set_memory_limit(new_limit_mb)
         self.logger.info(
             f"Cache memory limit updated to {new_limit_mb}MB via unified config"
         )
@@ -775,29 +681,35 @@ class CacheManager(LoggingMixin, QObject):
         return self._storage_backend
 
     @property
-    def test_failure_tracker(self) -> FailureTracker:
-        """Test-only access to failure tracker."""
-        return self._failure_tracker
+    def test_thumbnail_manager(self) -> ThumbnailManager:
+        """Test-only access to thumbnail manager."""
+        return self._thumbnail_manager
 
     @property
-    def test_thumbnail_processor(self) -> ThumbnailProcessor:
-        """Test-only access to thumbnail processor."""
-        return self._thumbnail_processor
-
-    @property
-    def test_memory_manager(self) -> MemoryManager:
-        """Test-only access to memory manager."""
-        return self._memory_manager
-
-    @property
-    def test_shot_cache(self) -> ShotCache:
+    def test_shot_cache(self) -> UnifiedCache[Any]:
         """Test-only access to shot cache."""
         return self._shot_cache
 
     @property
-    def test_threede_cache(self) -> ThreeDECache:
+    def test_threede_cache(self) -> UnifiedCache[Any]:
         """Test-only access to 3DE cache."""
         return self._threede_cache
+
+    # Legacy test properties for backward compatibility
+    @property
+    def test_failure_tracker(self) -> ThumbnailManager:
+        """Test-only access to failure tracker (now handled by thumbnail manager)."""
+        return self._thumbnail_manager
+
+    @property
+    def test_thumbnail_processor(self) -> ThumbnailManager:
+        """Test-only access to thumbnail processor (now handled by thumbnail manager)."""
+        return self._thumbnail_manager
+
+    @property
+    def test_memory_manager(self) -> ThumbnailManager:
+        """Test-only access to memory manager (now handled by thumbnail manager)."""
+        return self._thumbnail_manager
 
     @property
     def test_cached_thumbnails(self) -> dict[str, int]:

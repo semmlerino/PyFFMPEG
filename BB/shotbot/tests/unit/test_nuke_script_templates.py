@@ -25,7 +25,7 @@ class TestNukeScriptTemplates:
             first_frame=1001,
             last_frame=1100,
             width=1920,
-            height=1080
+            height=1080,
         )
 
         assert "Root {" in root
@@ -46,7 +46,7 @@ class TestNukeScriptTemplates:
             last_frame=1100,
             width=1920,
             height=1080,
-            fps=30
+            fps=30,
         )
 
         assert "fps 30" in root
@@ -58,7 +58,7 @@ class TestNukeScriptTemplates:
             first_frame=1001,
             last_frame=1100,
             width=1920,
-            height=1080
+            height=1080,
         )
 
         # Check ACES-specific settings
@@ -79,7 +79,7 @@ class TestNukeScriptTemplates:
             width=1920,
             height=1080,
             colorspace="linear",
-            raw_flag=True
+            raw_flag=True,
         )
 
         assert "Read {" in read_node
@@ -107,7 +107,7 @@ class TestNukeScriptTemplates:
             raw_flag=False,
             xpos=100,
             ypos=-500,
-            node_name="Custom_Read"
+            node_name="Custom_Read",
         )
 
         assert 'file "/custom/path_%04d.exr"' in read_node
@@ -129,7 +129,7 @@ class TestNukeScriptTemplates:
             width=2048,
             height=1556,
             colorspace="linear",
-            raw_flag=True
+            raw_flag=True,
         )
 
         assert 'format "2048 1556 0 0 2048 1556 1 format_test_format"' in read_node
@@ -154,7 +154,7 @@ class TestNukeScriptTemplates:
             xpos=200,
             ypos=-100,
             node_name="Custom_Grade",
-            label="Custom Color Correction"
+            label="Custom Color Correction",
         )
 
         assert "name Custom_Grade" in grade
@@ -164,10 +164,7 @@ class TestNukeScriptTemplates:
 
     def test_get_viewer_node_basic(self):
         """Test basic Viewer node generation."""
-        viewer = NukeScriptTemplates.get_viewer_node(
-            first_frame=1001,
-            last_frame=1100
-        )
+        viewer = NukeScriptTemplates.get_viewer_node(first_frame=1001, last_frame=1100)
 
         assert "Viewer {" in viewer
         assert "frame_range 1001-1100" in viewer
@@ -187,7 +184,7 @@ class TestNukeScriptTemplates:
             xpos=150,
             ypos=200,
             node_name="Custom_Viewer",
-            fps=30
+            fps=30,
         )
 
         assert "frame_range 2001-2200" in viewer
@@ -200,9 +197,7 @@ class TestNukeScriptTemplates:
     def test_get_sticky_note_basic(self):
         """Test basic StickyNote generation."""
         note = NukeScriptTemplates.get_sticky_note(
-            label="Test Note",
-            xpos=100,
-            ypos=200
+            label="Test Note", xpos=100, ypos=200
         )
 
         assert "StickyNote {" in note
@@ -222,7 +217,7 @@ class TestNukeScriptTemplates:
             ypos=400,
             node_name="Custom_Note",
             font_size=18,
-            color="0xff0000ff"
+            color="0xff0000ff",
         )
 
         assert "name Custom_Note" in note
@@ -235,10 +230,7 @@ class TestNukeScriptTemplates:
     def test_get_noop_node_basic(self):
         """Test basic NoOp node generation."""
         noop = NukeScriptTemplates.get_noop_node(
-            node_name="Test_NoOp",
-            label="Test Label",
-            xpos=50,
-            ypos=75
+            node_name="Test_NoOp", label="Test Label", xpos=50, ypos=75
         )
 
         assert "NoOp {" in noop
@@ -259,12 +251,12 @@ class TestNukeScriptTemplates:
             xpos=100,
             ypos=150,
             tile_color="0x00ff00ff",
-            oncreate_script="print('Hello from onCreate')"
+            oncreate_script="print('Hello from onCreate')",
         )
 
         assert "name Script_NoOp" in noop
         assert "tile_color 0x00ff00ff" in noop
-        assert 'onCreate "print(\'Hello from onCreate\')"' in noop
+        assert "onCreate \"print('Hello from onCreate')\"" in noop
 
     def test_escape_path_windows(self):
         """Test path escaping for Windows paths."""
@@ -335,7 +327,7 @@ class TestNukeScriptTemplates:
             width=1920,
             height=1080,
             colorspace="logc3ei800",
-            raw_flag=False
+            raw_flag=False,
         )
 
         # Check label contains colorspace reference and frame range
@@ -351,7 +343,7 @@ class TestNukeScriptTemplates:
             width=1920,
             height=1080,
             colorspace="linear",
-            raw_flag=True
+            raw_flag=True,
         )
 
         assert "file_type exr" in read_node

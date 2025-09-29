@@ -73,7 +73,7 @@ if TYPE_CHECKING:
     )
 
 # Local application imports
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 
 # Module-level logger
 logger = get_module_logger(__name__)
@@ -277,7 +277,7 @@ class ProgressOperation:
                 self.status_bar = None
 
 
-class ProgressManager(LoggingMixin):
+class ProgressManager:
     """Centralized progress management system.
 
     This singleton class provides various types of progress indicators and

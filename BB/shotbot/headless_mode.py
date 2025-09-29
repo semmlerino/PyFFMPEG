@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import ParamSpec, TypeVar
 
 # Local application imports
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 
 if TYPE_CHECKING:
     # Standard library imports
@@ -34,7 +34,7 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
-class HeadlessMode(LoggingMixin):
+class HeadlessMode:
     """Manage headless mode configuration and detection."""
 
     @staticmethod
@@ -247,7 +247,7 @@ class HeadlessMode(LoggingMixin):
         return wrapper
 
 
-class HeadlessMainWindow(LoggingMixin):
+class HeadlessMainWindow:
     """Minimal MainWindow for headless testing.
 
     This provides a simplified MainWindow that can run without a display,

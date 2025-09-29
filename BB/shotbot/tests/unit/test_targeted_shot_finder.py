@@ -66,7 +66,9 @@ class TestExtractShowsFromActiveShots:
         active_shots = [
             Shot(show="show1", sequence="seq1", shot="0010", workspace_path="/path1"),
             Shot(show="show2", sequence="seq1", shot="0020", workspace_path="/path2"),
-            Shot(show="show1", sequence="seq2", shot="0030", workspace_path="/path3"),  # Duplicate show
+            Shot(
+                show="show1", sequence="seq2", shot="0030", workspace_path="/path3"
+            ),  # Duplicate show
             Shot(show="show3", sequence="seq1", shot="0040", workspace_path="/path4"),
         ]
 
@@ -94,7 +96,10 @@ class TestExtractShowsFromActiveShots:
                 shows = finder.extract_shows_from_active_shots(active_shots)
 
                 mock_info.assert_called_once()
-                assert "Extracted 1 unique shows from 1 active shots" in mock_info.call_args[0][0]
+                assert (
+                    "Extracted 1 unique shows from 1 active shots"
+                    in mock_info.call_args[0][0]
+                )
                 assert len(shows) == 1  # Verify the expected show count
                 mock_debug.assert_called_once()
                 assert "test_show" in str(mock_debug.call_args[0][0])
@@ -105,7 +110,12 @@ class TestExtractShowsFromActiveShots:
 
         # Create shots from many shows
         active_shots = [
-            Shot(show=f"show{i}", sequence="seq", shot=f"{j:04d}", workspace_path=f"/path{i}_{j}")
+            Shot(
+                show=f"show{i}",
+                sequence="seq",
+                shot=f"{j:04d}",
+                workspace_path=f"/path{i}_{j}",
+            )
             for i in range(10)
             for j in range(5)
         ]
@@ -299,7 +309,9 @@ class TestParseShotFromPath:
 
         path = "/shows/test_show/shots/010/010_0010/user/john"
 
-        with patch("targeted_shot_finder.Shot", side_effect=Exception("Shot creation failed")):
+        with patch(
+            "targeted_shot_finder.Shot", side_effect=Exception("Shot creation failed")
+        ):
             with patch.object(finder.logger, "debug") as mock_debug:
                 shot = finder._parse_shot_from_path(path)
 
@@ -322,11 +334,21 @@ class TestFindUserShotsInShows:
         def mock_scan(show_name, shows_root):
             if show_name == "show1":
                 return [
-                    Shot(show="show1", sequence="010", shot="0010", workspace_path="/path1"),
+                    Shot(
+                        show="show1",
+                        sequence="010",
+                        shot="0010",
+                        workspace_path="/path1",
+                    ),
                 ]
             elif show_name == "show2":
                 return [
-                    Shot(show="show2", sequence="020", shot="0020", workspace_path="/path2"),
+                    Shot(
+                        show="show2",
+                        sequence="020",
+                        shot="0020",
+                        workspace_path="/path2",
+                    ),
                 ]
             return []
 
@@ -353,7 +375,9 @@ class TestFindUserShotsInShows:
         finder = TargetedShotsFinder()
 
         with patch.object(finder.logger, "warning") as mock_warning:
-            shots = list(finder.find_user_shots_in_shows({"show1"}, Path("/nonexistent")))
+            shots = list(
+                finder.find_user_shots_in_shows({"show1"}, Path("/nonexistent"))
+            )
 
             assert shots == []
             mock_warning.assert_called()
@@ -404,7 +428,9 @@ class TestFindUserShotsInShows:
             # Should have reported progress
             progress_callback.assert_called()
             # Should have initial and final progress
-            assert any("Searching" in str(call) for call in progress_callback.call_args_list)
+            assert any(
+                "Searching" in str(call) for call in progress_callback.call_args_list
+            )
 
 
 class TestFindApprovedShotsTargeted:
@@ -422,13 +448,23 @@ class TestFindApprovedShotsTargeted:
 
         # All user shots (including approved)
         all_shots = [
-            Shot(show="show1", sequence="010", shot="0010", workspace_path="/path1"),  # Active
-            Shot(show="show1", sequence="010", shot="0020", workspace_path="/path2"),  # Active
-            Shot(show="show1", sequence="010", shot="0030", workspace_path="/path3"),  # Approved
-            Shot(show="show1", sequence="020", shot="0010", workspace_path="/path4"),  # Approved
+            Shot(
+                show="show1", sequence="010", shot="0010", workspace_path="/path1"
+            ),  # Active
+            Shot(
+                show="show1", sequence="010", shot="0020", workspace_path="/path2"
+            ),  # Active
+            Shot(
+                show="show1", sequence="010", shot="0030", workspace_path="/path3"
+            ),  # Approved
+            Shot(
+                show="show1", sequence="020", shot="0010", workspace_path="/path4"
+            ),  # Approved
         ]
 
-        with patch.object(finder, "extract_shows_from_active_shots", return_value={"show1"}):
+        with patch.object(
+            finder, "extract_shows_from_active_shots", return_value={"show1"}
+        ):
             with patch.object(finder, "find_user_shots_in_shows") as mock_find:
                 mock_find.return_value = iter(all_shots)
 
@@ -436,16 +472,20 @@ class TestFindApprovedShotsTargeted:
 
                 assert len(approved) == 2
                 # Only non-active shots should be returned
-                assert all((s.show, s.sequence, s.shot) not in
-                          [(a.show, a.sequence, a.shot) for a in active_shots]
-                          for s in approved)
+                assert all(
+                    (s.show, s.sequence, s.shot)
+                    not in [(a.show, a.sequence, a.shot) for a in active_shots]
+                    for s in approved
+                )
 
     def test_find_approved_with_no_target_shows(self) -> None:
         """Test when no target shows are found."""
         finder = TargetedShotsFinder()
         active_shots = []
 
-        with patch.object(finder, "extract_shows_from_active_shots", return_value=set()):
+        with patch.object(
+            finder, "extract_shows_from_active_shots", return_value=set()
+        ):
             with patch.object(finder.logger, "warning") as mock_warning:
                 approved = finder.find_approved_shots_targeted(active_shots)
 
@@ -478,29 +518,43 @@ class TestFindApprovedShotsTargeted:
             Shot(show="show1", sequence="010", shot="0010", workspace_path="/path1"),
         ]
 
-        with patch.object(finder, "extract_shows_from_active_shots", return_value={"show1"}):
-            with patch.object(finder, "find_user_shots_in_shows", return_value=iter([])):
+        with patch.object(
+            finder, "extract_shows_from_active_shots", return_value={"show1"}
+        ):
+            with patch.object(
+                finder, "find_user_shots_in_shows", return_value=iter([])
+            ):
                 finder.find_approved_shots_targeted(active_shots)
 
                 # Progress should be reported multiple times
                 assert progress_callback.call_count > 2
                 # Should reach 100%
-                assert any(call[0][0] == 100 for call in progress_callback.call_args_list)
+                assert any(
+                    call[0][0] == 100 for call in progress_callback.call_args_list
+                )
 
     def test_find_approved_performance_logging(self) -> None:
         """Test that performance is logged."""
         finder = TargetedShotsFinder()
         active_shots = []
 
-        with patch.object(finder, "extract_shows_from_active_shots", return_value={"show1"}):
-            with patch.object(finder, "find_user_shots_in_shows", return_value=iter([])):
+        with patch.object(
+            finder, "extract_shows_from_active_shots", return_value={"show1"}
+        ):
+            with patch.object(
+                finder, "find_user_shots_in_shows", return_value=iter([])
+            ):
                 with patch.object(finder.logger, "info") as mock_info:
                     finder.find_approved_shots_targeted(active_shots)
 
                     # Should log performance
-                    assert any("seconds" in str(call) for call in mock_info.call_args_list)
-                    assert any("Targeted search found" in str(call)
-                              for call in mock_info.call_args_list)
+                    assert any(
+                        "seconds" in str(call) for call in mock_info.call_args_list
+                    )
+                    assert any(
+                        "Targeted search found" in str(call)
+                        for call in mock_info.call_args_list
+                    )
 
     def test_find_approved_filters_correctly(self) -> None:
         """Test that filtering works correctly for complex scenarios."""
@@ -522,8 +576,12 @@ class TestFindApprovedShotsTargeted:
             Shot(show="show1", sequence="020", shot="0010", workspace_path="/path5"),
         ]
 
-        with patch.object(finder, "extract_shows_from_active_shots", return_value={"show1"}):
-            with patch.object(finder, "find_user_shots_in_shows", return_value=iter(all_shots)):
+        with patch.object(
+            finder, "extract_shows_from_active_shots", return_value={"show1"}
+        ):
+            with patch.object(
+                finder, "find_user_shots_in_shows", return_value=iter(all_shots)
+            ):
                 approved = finder.find_approved_shots_targeted(active_shots)
 
                 assert len(approved) == 3
@@ -543,7 +601,7 @@ class TestGetShotDetails:
             show="test_show",
             sequence="010",
             shot="0010",
-            workspace_path="/shows/test_show/shots/010/0010"
+            workspace_path="/shows/test_show/shots/010/0010",
         )
 
         details = finder.get_shot_details(shot)
@@ -553,7 +611,9 @@ class TestGetShotDetails:
         assert details["shot"] == "0010"
         assert details["workspace_path"] == "/shows/test_show/shots/010/0010"
         assert details["user_path"] == "/shows/test_show/shots/010/0010/user/john"
-        assert details["status"] == "approved"  # TargetedShotsFinder always returns approved
+        assert (
+            details["status"] == "approved"
+        )  # TargetedShotsFinder always returns approved
 
     def test_get_details_with_existing_user_dir(self, tmp_path: Path) -> None:
         """Test details when user directory exists."""
@@ -569,10 +629,7 @@ class TestGetShotDetails:
         (user_dir / "anim.ma").touch()
 
         shot = Shot(
-            show="test",
-            sequence="010",
-            shot="0010",
-            workspace_path=str(workspace)
+            show="test", sequence="010", shot="0010", workspace_path=str(workspace)
         )
 
         details = finder.get_shot_details(shot)
@@ -586,10 +643,7 @@ class TestGetShotDetails:
         """Test details when user directory doesn't exist."""
         finder = TargetedShotsFinder(username="john")
         shot = Shot(
-            show="test",
-            sequence="010",
-            shot="0010",
-            workspace_path="/nonexistent/path"
+            show="test", sequence="010", shot="0010", workspace_path="/nonexistent/path"
         )
 
         details = finder.get_shot_details(shot)
@@ -665,8 +719,18 @@ class TestEdgeCases:
         finder = TargetedShotsFinder()
 
         active_shots = [
-            Shot(show="test-show_2024", sequence="010", shot="0010", workspace_path="/path"),
-            Shot(show="show.with.dots", sequence="020", shot="0020", workspace_path="/path2"),
+            Shot(
+                show="test-show_2024",
+                sequence="010",
+                shot="0010",
+                workspace_path="/path",
+            ),
+            Shot(
+                show="show.with.dots",
+                sequence="020",
+                shot="0020",
+                workspace_path="/path2",
+            ),
         ]
 
         shows = finder.extract_shows_from_active_shots(active_shots)
@@ -709,8 +773,12 @@ class TestPerformance:
 
         # Create large active shot list
         active_shots = [
-            Shot(show=f"show{i//100}", sequence=f"{i//10:03d}",
-                 shot=f"{i:04d}", workspace_path=f"/path{i}")
+            Shot(
+                show=f"show{i // 100}",
+                sequence=f"{i // 10:03d}",
+                shot=f"{i:04d}",
+                workspace_path=f"/path{i}",
+            )
             for i in range(1000)
         ]
 

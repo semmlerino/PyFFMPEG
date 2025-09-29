@@ -9,7 +9,6 @@ Following UNIFIED_TESTING_GUIDE best practices:
 
 from __future__ import annotations
 
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -47,6 +46,7 @@ def coordinator():
 @pytest.fixture
 def make_test_directory(tmp_path):
     """Factory for creating test directory structures."""
+
     def _make(name="test_dir", file_count=5, subdirs=2):
         """Create a directory with files and subdirectories."""
         dir_path = tmp_path / name
@@ -63,6 +63,7 @@ def make_test_directory(tmp_path):
             (subdir / "nested.txt").touch()
 
         return dir_path
+
     return _make
 
 
@@ -158,7 +159,9 @@ class TestDirectoryCaching:
 
     def test_cache_invalidation_on_change(self, coordinator, make_test_directory):
         """Test that cache detects filesystem changes."""
-        test_dir = make_test_directory(file_count=2, subdirs=0)  # Only files, no subdirs
+        test_dir = make_test_directory(
+            file_count=2, subdirs=0
+        )  # Only files, no subdirs
 
         # Get initial listing
         listing1 = coordinator.get_directory_listing(test_dir)
@@ -177,10 +180,12 @@ class TestDirectoryCaching:
 
     def test_cache_ttl_expiration(self, coordinator, make_test_directory):
         """Test that cache expires after TTL."""
-        test_dir = make_test_directory(file_count=2, subdirs=0)  # Only files, no subdirs
+        test_dir = make_test_directory(
+            file_count=2, subdirs=0
+        )  # Only files, no subdirs
 
         # Mock time to control TTL
-        with patch('time.time') as mock_time:
+        with patch("time.time") as mock_time:
             # Initial scan at time 0
             mock_time.return_value = 0
             listing1 = coordinator.get_directory_listing(test_dir)
@@ -237,7 +242,7 @@ class TestSharedCaching:
         listing1 = coord1.get_directory_listing(test_dir)
 
         # Track if other models hit cache (mock scandir to detect)
-        with patch('os.scandir') as mock_scandir:
+        with patch("os.scandir") as mock_scandir:
             # Other models should use cache, not scan
             listing2 = coord2.get_directory_listing(test_dir)
             listing3 = coord3.get_directory_listing(test_dir)
@@ -295,7 +300,9 @@ class TestCacheInvalidation:
         cached_listing2 = coordinator.get_directory_listing(dir2)
 
         # Should have updated dir1 with new file, dir2 unchanged
-        assert len(new_listing1) == 5  # 2 original files + 2 default subdirs + 1 new file
+        assert (
+            len(new_listing1) == 5
+        )  # 2 original files + 2 default subdirs + 1 new file
         assert any(p.name == "new.txt" for p in new_listing1)
         assert len(cached_listing2) == 5  # Still cached (3 files + 2 default subdirs)
 
@@ -432,7 +439,7 @@ class TestAdditionalMethods:
         dir2 = make_test_directory(name="dir2")
 
         # Cache directories with mocked time
-        with patch('time.time') as mock_time:
+        with patch("time.time") as mock_time:
             # Cache at time 0
             mock_time.return_value = 0
             coordinator.get_directory_listing(dir1)
@@ -467,7 +474,9 @@ class TestErrorHandling:
         restricted_dir.mkdir()
 
         # Mock OSError for permission denied
-        with patch('pathlib.Path.iterdir', side_effect=PermissionError("Access denied")):
+        with patch(
+            "pathlib.Path.iterdir", side_effect=PermissionError("Access denied")
+        ):
             listing = coordinator.get_directory_listing(restricted_dir)
 
         # Should return empty list on error
@@ -483,6 +492,7 @@ class TestErrorHandling:
 
         # Delete the directory
         import shutil
+
         shutil.rmtree(test_dir)
 
         # Invalidate cache after deletion (proper usage pattern)

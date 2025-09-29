@@ -44,6 +44,7 @@ def setup_qt_imports():
     global MainWindow
     from main_window import MainWindow
 
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
@@ -167,12 +168,16 @@ class TestMainWindowLauncherIntegration:
 
             def mock_command_launcher_launch_app(*args, **kwargs) -> bool:
                 # Extract app name from args (first argument)
-                app_name = args[0] if args else kwargs.get('app_name', 'unknown')
+                app_name = args[0] if args else kwargs.get("app_name", "unknown")
                 launch_calls.append(app_name)
                 return True  # Return success
 
             # Patch the command launcher's app launch method
-            with patch.object(window.command_launcher, "launch_app", side_effect=mock_command_launcher_launch_app):
+            with patch.object(
+                window.command_launcher,
+                "launch_app",
+                side_effect=mock_command_launcher_launch_app,
+            ):
                 # Trigger app launch from launcher panel
                 nuke_section = window.launcher_panel.app_sections["nuke"]
                 qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
@@ -203,11 +208,15 @@ class TestMainWindowLauncherIntegration:
 
             def mock_command_launcher_launch_app(*args, **kwargs) -> bool:
                 # Extract app name from args (first argument)
-                app_name = args[0] if args else kwargs.get('app_name', 'unknown')
+                app_name = args[0] if args else kwargs.get("app_name", "unknown")
                 launch_calls.append(app_name)
                 return True  # Return success
 
-            with patch.object(window.command_launcher, "launch_app", side_effect=mock_command_launcher_launch_app):
+            with patch.object(
+                window.command_launcher,
+                "launch_app",
+                side_effect=mock_command_launcher_launch_app,
+            ):
                 # Launch multiple apps in sequence
                 apps_to_launch = ["3de", "maya", "rv"]
                 for app_name in apps_to_launch:
@@ -264,6 +273,7 @@ class TestMainWindowLauncherIntegration:
 
             # Mock launcher_manager for custom launcher support
             from unittest.mock import Mock
+
             mock_launcher = Mock()
             mock_launcher.name = "Test Custom Launcher"
             mock_launcher_manager = Mock()
@@ -282,23 +292,26 @@ class TestMainWindowLauncherIntegration:
             # No need to mock execute_custom_launcher - let it run with our mocked launcher_manager
 
             # Trigger custom launcher
-            custom_button = window.launcher_panel.custom_launcher_buttons[
-                "test_custom"
-            ]
+            custom_button = window.launcher_panel.custom_launcher_buttons["test_custom"]
 
             # Debug: Check button state
             assert custom_button is not None, "Custom button should exist"
-            assert custom_button.isEnabled(), f"Custom button should be enabled, current shot: {window.launcher_panel._current_shot}"
+            assert custom_button.isEnabled(), (
+                f"Custom button should be enabled, current shot: {window.launcher_panel._current_shot}"
+            )
 
             # Add signal spy to verify signal emission
             from PySide6.QtTest import QSignalSpy
+
             signal_spy = QSignalSpy(window.launcher_panel.custom_launcher_requested)
 
             qtbot.mouseClick(custom_button, Qt.MouseButton.LeftButton)
             qtbot.wait(50)  # Allow event loop to process
 
             # Debug: Check if signal was emitted
-            assert signal_spy.count() >= 1, f"Signal should have been emitted, spy count: {signal_spy.count()}"
+            assert signal_spy.count() >= 1, (
+                f"Signal should have been emitted, spy count: {signal_spy.count()}"
+            )
 
             # Verify custom launcher was called through launcher_manager
             mock_launcher_manager.get_launcher.assert_called_once_with("test_custom")
@@ -352,7 +365,7 @@ class TestEndToEndLauncherWorkflow:
 
             def mock_command_launcher_launch_nuke(*args, **kwargs) -> bool:
                 # Extract app name from args (first argument)
-                app_name = args[0] if args else kwargs.get('app_name', 'unknown')
+                app_name = args[0] if args else kwargs.get("app_name", "unknown")
                 launch_context["app"] = app_name
                 launch_context["shot"] = window.launcher_panel._current_shot
                 launch_context["undistortion"] = (
@@ -365,7 +378,11 @@ class TestEndToEndLauncherWorkflow:
                 )
                 return True  # Return success
 
-            with patch.object(window.command_launcher, "launch_app", side_effect=mock_command_launcher_launch_nuke):
+            with patch.object(
+                window.command_launcher,
+                "launch_app",
+                side_effect=mock_command_launcher_launch_nuke,
+            ):
                 # Step 5: Launch nuke
                 # Use waitSignal if possible, otherwise use safe wait
                 qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
@@ -400,7 +417,7 @@ class TestEndToEndLauncherWorkflow:
 
             def mock_command_launcher_launch_3de(*args, **kwargs) -> bool:
                 # Extract app name from args (first argument)
-                app_name = args[0] if args else kwargs.get('app_name', 'unknown')
+                app_name = args[0] if args else kwargs.get("app_name", "unknown")
                 launch_context["app"] = app_name
                 launch_context["shot"] = window.launcher_panel._current_shot
                 launch_context["open_latest"] = (
@@ -410,7 +427,11 @@ class TestEndToEndLauncherWorkflow:
                 )
                 return True  # Return success
 
-            with patch.object(window.command_launcher, "launch_app", side_effect=mock_command_launcher_launch_3de):
+            with patch.object(
+                window.command_launcher,
+                "launch_app",
+                side_effect=mock_command_launcher_launch_3de,
+            ):
                 qtbot.mouseClick(
                     threede_section.launch_button, Qt.MouseButton.LeftButton
                 )

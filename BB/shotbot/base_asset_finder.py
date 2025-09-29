@@ -131,8 +131,7 @@ class BaseAssetFinder(ProgressReportingMixin, ABC):
 
         # Filter by name
         matching_assets = [
-            a for a in all_assets
-            if asset_name.lower() in a.name.lower()
+            a for a in all_assets if asset_name.lower() in a.name.lower()
         ]
 
         if not matching_assets:
@@ -353,8 +352,7 @@ class BaseAssetFinder(ProgressReportingMixin, ABC):
         if workspace_path:
             # Clear specific workspace
             keys_to_remove = [
-                k for k in self._asset_cache
-                if k.startswith(f"{workspace_path}:")
+                k for k in self._asset_cache if k.startswith(f"{workspace_path}:")
             ]
             for key in keys_to_remove:
                 del self._asset_cache[key]

@@ -236,7 +236,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Ensure FIFO exists before trying to use it
         if not os.path.exists(self.fifo_path):
-            self.logger.warning(f"FIFO missing, attempting to recreate: {self.fifo_path}")
+            self.logger.warning(
+                f"FIFO missing, attempting to recreate: {self.fifo_path}"
+            )
             if not self._ensure_fifo():
                 self.logger.error(f"Failed to recreate FIFO: {self.fifo_path}")
                 return False
@@ -393,7 +395,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         if os.path.exists(self.fifo_path):
             try:
                 os.unlink(self.fifo_path)
-                self.logger.debug(f"Removed FIFO at {self.fifo_path}, terminal left running")
+                self.logger.debug(
+                    f"Removed FIFO at {self.fifo_path}, terminal left running"
+                )
             except OSError as e:
                 self.logger.warning(f"Could not remove FIFO: {e}")
 

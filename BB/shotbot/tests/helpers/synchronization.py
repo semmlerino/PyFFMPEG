@@ -134,7 +134,9 @@ class SynchronizationHelpers:
 
     @staticmethod
     @contextmanager
-    def wait_for_threads_to_start(max_wait_ms: int = 100) -> Generator[None, None, None]:
+    def wait_for_threads_to_start(
+        max_wait_ms: int = 100,
+    ) -> Generator[None, None, None]:
         """Context manager to ensure threads have started.
 
         Example:

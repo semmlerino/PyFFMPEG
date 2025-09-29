@@ -140,7 +140,6 @@ class TestPreviousShotsThreadSafety:
         assert len(model._thumbnail_cache) <= 100
         assert added_count <= 100
 
-
     def test_data_roles_thread_safety(self, model, test_shots) -> None:
         """Test data() method with various roles."""
         # Local application imports
@@ -181,7 +180,6 @@ class TestPreviousShotsThreadSafety:
                 assert data == shot.sequence
             elif role == ShotRole.ShotNameRole:
                 assert data == shot.shot
-
 
     def test_rapid_scene_changes(self, model, test_shots, qtbot) -> None:
         """Test rapid shot list changes."""

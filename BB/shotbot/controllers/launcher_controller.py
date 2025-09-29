@@ -150,7 +150,9 @@ class LauncherController(LoggingMixin):
             scene: ThreeDEScene to set as current context, or None to clear
         """
         self._current_scene = scene
-        self.logger.debug(f"Current scene set to: {scene.scene_path if scene else None}")
+        self.logger.debug(
+            f"Current scene set to: {scene.scene_path if scene else None}"
+        )
 
     def get_launch_options(self, app_name: str) -> dict[str, bool]:
         """Get app-specific launch options from checkbox states.
@@ -167,16 +169,18 @@ class LauncherController(LoggingMixin):
                 "include_undistortion",
                 "include_raw_plate",
                 "open_latest_scene",
-                "create_new_file"
+                "create_new_file",
             ],
             "3de": ["open_latest_threede"],
-            "maya": ["open_latest_maya"]
+            "maya": ["open_latest_maya"],
         }
 
         # Get options for this app and check their states
         options = {}
         for option in app_options.get(app_name, []):
-            options[option] = self.window.launcher_panel.get_checkbox_state(app_name, option)
+            options[option] = self.window.launcher_panel.get_checkbox_state(
+                app_name, option
+            )
 
         return options
 
@@ -264,11 +268,15 @@ class LauncherController(LoggingMixin):
         # Check if we should include undistortion and/or raw plate for Nuke
         include_undistortion = (
             app_name == "nuke"
-            and self.window.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
+            and self.window.launcher_panel.get_checkbox_state(
+                "nuke", "include_undistortion"
+            )
         )
         include_raw_plate = (
             app_name == "nuke"
-            and self.window.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
+            and self.window.launcher_panel.get_checkbox_state(
+                "nuke", "include_raw_plate"
+            )
         )
 
         # Check if the launcher supports scene context (CommandLauncher vs SimplifiedLauncher)
@@ -284,6 +292,7 @@ class LauncherController(LoggingMixin):
         else:
             # SimplifiedLauncher doesn't support scene context, fall back to regular launch
             from shot_model import Shot
+
             scene_shot = Shot(
                 show=scene.show,
                 sequence=scene.sequence,
@@ -311,6 +320,7 @@ class LauncherController(LoggingMixin):
         if self._current_scene:
             # Create a Shot object from the scene for context
             from shot_model import Shot
+
             shot = Shot(
                 show=self._current_scene.show,
                 sequence=self._current_scene.sequence,
@@ -332,17 +342,23 @@ class LauncherController(LoggingMixin):
         # Execute the launcher
         if not self.window.launcher_manager:
             return
-        success = self.window.launcher_manager.execute_in_shot_context(launcher_id, shot)
+        success = self.window.launcher_manager.execute_in_shot_context(
+            launcher_id, shot
+        )
 
         if success:
             self.window.update_status(f"Launched '{launcher.name}'")
             # Log the execution
             from datetime import datetime
+
             timestamp = datetime.now().strftime("%H:%M:%S")
-            self.window.log_viewer.add_command(timestamp, f"Custom launcher: {launcher.name}")
+            self.window.log_viewer.add_command(
+                timestamp, f"Custom launcher: {launcher.name}"
+            )
         else:
             self.window.update_status(f"Failed to launch '{launcher.name}'")
             from datetime import datetime
+
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.window.log_viewer.add_error(
                 timestamp,
@@ -377,13 +393,16 @@ class LauncherController(LoggingMixin):
                 cast("QWidget", self.window),  # Cast to QWidget for dialog parent
                 "Custom Launchers",
                 "Custom launchers are not available when using simplified launcher mode.\n"
-                "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers."
+                "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers.",
             )
             return
 
         if self._launcher_dialog is None:
             from launcher_dialog import LauncherManagerDialog
-            self._launcher_dialog = LauncherManagerDialog(self.window.launcher_manager, cast("QWidget", self.window))
+
+            self._launcher_dialog = LauncherManagerDialog(
+                self.window.launcher_manager, cast("QWidget", self.window)
+            )
 
         # At this point, _launcher_dialog is guaranteed to be not None
         self._launcher_dialog.show()
@@ -404,7 +423,9 @@ class LauncherController(LoggingMixin):
 
         if not launchers:
             # Add disabled placeholder
-            no_launchers_action = QAction("No custom launchers", cast("QWidget", self.window))
+            no_launchers_action = QAction(
+                "No custom launchers", cast("QWidget", self.window)
+            )
             no_launchers_action.setEnabled(False)
             self.window.custom_launcher_menu.addAction(no_launchers_action)
             return
@@ -423,7 +444,9 @@ class LauncherController(LoggingMixin):
 
             if len(categories) > 1:
                 # Add category as submenu if multiple categories
-                category_menu = self.window.custom_launcher_menu.addMenu(category.title())
+                category_menu = self.window.custom_launcher_menu.addMenu(
+                    category.title()
+                )
                 for launcher in category_launchers:
                     action = QAction(launcher.name, cast("QWidget", self.window))
                     action.setToolTip(launcher.description)

@@ -44,16 +44,14 @@ class VersionHandlingMixin(LoggingMixin):
     # Secondary patterns for common version formats
     # These are tried if the primary pattern fails
     FALLBACK_PATTERNS: list[Pattern[str]] = [
-        re.compile(r"\.v(\d{3})"),     # .v001 format
-        re.compile(r"_ver(\d{3})"),    # _ver001 format
-        re.compile(r"\.(\d{4})\."),    # .0001. format (frame numbers)
-        re.compile(r"_(\d{3})$"),      # _001 at end of name
+        re.compile(r"\.v(\d{3})"),  # .v001 format
+        re.compile(r"_ver(\d{3})"),  # _ver001 format
+        re.compile(r"\.(\d{4})\."),  # .0001. format (frame numbers)
+        re.compile(r"_(\d{3})$"),  # _001 at end of name
     ]
 
     def _extract_version(
-        self,
-        path: Path | str,
-        pattern: str | Pattern[str] | None = None
+        self, path: Path | str, pattern: str | Pattern[str] | None = None
     ) -> int | None:
         """Extract version number from a file path.
 
@@ -83,7 +81,7 @@ class VersionHandlingMixin(LoggingMixin):
             return version
 
         # Try fallback patterns if configured
-        if hasattr(self, 'FALLBACK_PATTERNS') and self.FALLBACK_PATTERNS:
+        if hasattr(self, "FALLBACK_PATTERNS") and self.FALLBACK_PATTERNS:
             for fallback in self.FALLBACK_PATTERNS:
                 match = fallback.search(path_str)
                 if match:
@@ -97,9 +95,7 @@ class VersionHandlingMixin(LoggingMixin):
         return None
 
     def _find_latest_by_version(
-        self,
-        files: list[Path],
-        pattern: str | Pattern[str] | None = None
+        self, files: list[Path], pattern: str | Pattern[str] | None = None
     ) -> Path | None:
         """Find the latest file by version number.
 
@@ -134,9 +130,7 @@ class VersionHandlingMixin(LoggingMixin):
         return latest_file
 
     def _find_earliest_by_version(
-        self,
-        files: list[Path],
-        pattern: str | Pattern[str] | None = None
+        self, files: list[Path], pattern: str | Pattern[str] | None = None
     ) -> Path | None:
         """Find the earliest file by version number.
 
@@ -173,7 +167,7 @@ class VersionHandlingMixin(LoggingMixin):
         self,
         files: list[Path],
         reverse: bool = False,
-        pattern: str | Pattern[str] | None = None
+        pattern: str | Pattern[str] | None = None,
     ) -> list[Path]:
         """Sort files by version number.
 
@@ -216,9 +210,7 @@ class VersionHandlingMixin(LoggingMixin):
         return sorted_files
 
     def _get_version_range(
-        self,
-        files: list[Path],
-        pattern: str | Pattern[str] | None = None
+        self, files: list[Path], pattern: str | Pattern[str] | None = None
     ) -> tuple[int, int] | None:
         """Get the version range (min, max) from a list of files.
 
@@ -246,7 +238,7 @@ class VersionHandlingMixin(LoggingMixin):
         files: list[Path],
         min_version: int | None = None,
         max_version: int | None = None,
-        pattern: str | Pattern[str] | None = None
+        pattern: str | Pattern[str] | None = None,
     ) -> list[Path]:
         """Filter files by version range.
 
@@ -278,9 +270,7 @@ class VersionHandlingMixin(LoggingMixin):
         return filtered
 
     def _group_files_by_version(
-        self,
-        files: list[Path],
-        pattern: str | Pattern[str] | None = None
+        self, files: list[Path], pattern: str | Pattern[str] | None = None
     ) -> dict[int, list[Path]]:
         """Group files by their version numbers.
 
@@ -303,16 +293,12 @@ class VersionHandlingMixin(LoggingMixin):
                     groups[version] = []
                 groups[version].append(file)
 
-        self.logger.debug(
-            f"Grouped files into {len(groups)} version groups"
-        )
+        self.logger.debug(f"Grouped files into {len(groups)} version groups")
 
         return groups
 
     def _find_next_version(
-        self,
-        files: list[Path],
-        pattern: str | Pattern[str] | None = None
+        self, files: list[Path], pattern: str | Pattern[str] | None = None
     ) -> int:
         """Find the next available version number.
 
@@ -339,11 +325,7 @@ class VersionHandlingMixin(LoggingMixin):
         self.logger.debug(f"Next available version: {next_version:03d}")
         return next_version
 
-    def _format_version_string(
-        self,
-        version: int,
-        padding: int = 3
-    ) -> str:
+    def _format_version_string(self, version: int, padding: int = 3) -> str:
         """Format a version number as a padded string.
 
         Args:

@@ -43,7 +43,15 @@ class TestFindLatestThreeDEScene:
         # Create 3DE-specific directory structure
         workspace = tmp_path / "workspace"
         threede_scenes = (
-            workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         threede_scenes.mkdir(parents=True)
 
@@ -63,7 +71,16 @@ class TestFindLatestThreeDEScene:
     def test_find_latest_across_plates(self, tmp_path: Path) -> None:
         """Test finding latest across different plate directories."""
         workspace = tmp_path / "workspace"
-        base_3de = workspace / "user" / "artist" / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+        base_3de = (
+            workspace
+            / "user"
+            / "artist"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
 
         # Create different plate directories
         fg_dir = base_3de / "FG01"
@@ -92,14 +109,30 @@ class TestFindLatestThreeDEScene:
 
         # Create files for user1
         user1_scenes = (
-            workspace / "user" / "alice" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "alice"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         user1_scenes.mkdir(parents=True)
         (user1_scenes / "track_v002.3de").touch()
 
         # Create files for user2
         user2_scenes = (
-            workspace / "user" / "bob" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "bob"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         user2_scenes.mkdir(parents=True)
         (user2_scenes / "track_v004.3de").touch()
@@ -118,7 +151,15 @@ class TestFindLatestThreeDEScene:
 
         # Correct structure
         correct_path = (
-            workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         correct_path.mkdir(parents=True)
         (correct_path / "track_v001.3de").touch()
@@ -173,7 +214,14 @@ class TestFindLatestThreeDEScene:
         """Test 3DE structure without plate subdirectories."""
         workspace = tmp_path / "workspace"
         threede_base = (
-            workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
         )
         threede_base.mkdir(parents=True)
         # No plate subdirectories created
@@ -187,7 +235,15 @@ class TestFindLatestThreeDEScene:
         """Test directory with no versioned 3DE files."""
         workspace = tmp_path / "workspace"
         threede_scenes = (
-            workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         threede_scenes.mkdir(parents=True)
 
@@ -225,14 +281,24 @@ class TestFindLatestThreeDEScene:
         """Test that shot name is used in logging."""
         workspace = tmp_path / "workspace"
         threede_scenes = (
-            workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         threede_scenes.mkdir(parents=True)
         (threede_scenes / "track_v001.3de").touch()
 
         finder = ThreeDELatestFinder()
         with patch.object(finder.logger, "info") as mock_info:
-            latest = finder.find_latest_threede_scene(str(workspace), shot_name="shot_010")
+            latest = finder.find_latest_threede_scene(
+                str(workspace), shot_name="shot_010"
+            )
 
             assert latest is not None
             mock_info.assert_called_with(
@@ -243,7 +309,15 @@ class TestFindLatestThreeDEScene:
         """Test debug logging for found files."""
         workspace = tmp_path / "workspace"
         threede_scenes = (
-            workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         threede_scenes.mkdir(parents=True)
         (threede_scenes / "track_v001.3de").touch()
@@ -271,7 +345,15 @@ class TestFindAllThreeDEScenes:
         """Test finding all 3DE scene files."""
         workspace = tmp_path / "workspace"
         threede_scenes = (
-            workspace / "user" / "artist" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "artist"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         threede_scenes.mkdir(parents=True)
 
@@ -288,7 +370,16 @@ class TestFindAllThreeDEScenes:
     def test_find_all_across_plates(self, tmp_path: Path) -> None:
         """Test finding files across different plates."""
         workspace = tmp_path / "workspace"
-        base_3de = workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+        base_3de = (
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
 
         # FG01 plate
         fg_dir = base_3de / "FG01"
@@ -320,14 +411,30 @@ class TestFindAllThreeDEScenes:
 
         # User 1 - Add version numbers for files to be included
         user1_scenes = (
-            workspace / "user" / "alice" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "alice"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         user1_scenes.mkdir(parents=True)
         (user1_scenes / "alice_track_v001.3de").touch()
 
         # User 2 - Add version numbers for files to be included
         user2_scenes = (
-            workspace / "user" / "bob" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "BG01"
+            workspace
+            / "user"
+            / "bob"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "BG01"
         )
         user2_scenes.mkdir(parents=True)
         (user2_scenes / "bob_track_v002.3de").touch()
@@ -401,7 +508,16 @@ class TestPlateHandling:
     def test_standard_plate_names(self, tmp_path: Path) -> None:
         """Test handling of standard VFX plate names."""
         workspace = tmp_path / "workspace"
-        base_3de = workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+        base_3de = (
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
 
         # Standard plate names
         plates = ["FG01", "FG02", "BG01", "BG02", "PL01", "BC01", "MP01"]
@@ -420,7 +536,16 @@ class TestPlateHandling:
     def test_non_standard_plate_names(self, tmp_path: Path) -> None:
         """Test handling of non-standard plate names."""
         workspace = tmp_path / "workspace"
-        base_3de = workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+        base_3de = (
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
 
         # Non-standard names
         plate_dir = base_3de / "CustomPlate"
@@ -441,7 +566,16 @@ class TestPlateHandling:
     def test_empty_plate_directories(self, tmp_path: Path) -> None:
         """Test handling of empty plate directories."""
         workspace = tmp_path / "workspace"
-        base_3de = workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+        base_3de = (
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
 
         # Empty plate directory
         empty_plate = base_3de / "FG01"
@@ -465,7 +599,15 @@ class TestEdgeCases:
         """Test handling of mixed case file extensions."""
         workspace = tmp_path / "workspace"
         threede_scenes = (
-            workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         threede_scenes.mkdir(parents=True)
 
@@ -483,7 +625,16 @@ class TestEdgeCases:
     def test_deeply_nested_plates(self, tmp_path: Path) -> None:
         """Test with nested plate structures."""
         workspace = tmp_path / "workspace"
-        base_3de = workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+        base_3de = (
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
 
         # Create nested structure (shouldn't happen but test robustness)
         nested = base_3de / "FG01" / "subfolder"
@@ -505,13 +656,30 @@ class TestEdgeCases:
         """Test handling of symlinks in 3DE directory structure."""
         workspace = tmp_path / "workspace"
         real_3de = (
-            workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         real_3de.mkdir(parents=True)
         (real_3de / "track_v001.3de").touch()
 
         # Create symlink from another user
-        link_base = workspace / "user" / "alice" / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+        link_base = (
+            workspace
+            / "user"
+            / "alice"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
         link_base.mkdir(parents=True)
         symlink = link_base / "FG01"
         symlink.symlink_to(real_3de)
@@ -525,7 +693,15 @@ class TestEdgeCases:
         """Test handling of special characters in filenames."""
         workspace = tmp_path / "workspace"
         threede_scenes = (
-            workspace / "user" / "john-doe" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG-01"
+            workspace
+            / "user"
+            / "john-doe"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG-01"
         )
         threede_scenes.mkdir(parents=True)
 
@@ -550,13 +726,22 @@ class TestPerformance:
         import time
 
         workspace = tmp_path / "workspace"
-        base_3de = workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+        base_3de = (
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+        )
 
         # Create many plate directories
         for i in range(50):
             plate_dir = base_3de / f"PLATE{i:02d}"
             plate_dir.mkdir(parents=True)
-            (plate_dir / f"track_v{i+1:03d}.3de").touch()
+            (plate_dir / f"track_v{i + 1:03d}.3de").touch()
 
         finder = ThreeDELatestFinder()
         start = time.time()
@@ -576,13 +761,21 @@ class TestPerformance:
 
         workspace = tmp_path / "workspace"
         threede_scenes = (
-            workspace / "user" / "john" / "mm" / "3de" / "mm-default" / "scenes" / "scene" / "FG01"
+            workspace
+            / "user"
+            / "john"
+            / "mm"
+            / "3de"
+            / "mm-default"
+            / "scenes"
+            / "scene"
+            / "FG01"
         )
         threede_scenes.mkdir(parents=True)
 
         # Create many versioned files in single plate
         for i in range(100):
-            (threede_scenes / f"track_v{i+1:03d}.3de").touch()
+            (threede_scenes / f"track_v{i + 1:03d}.3de").touch()
 
         finder = ThreeDELatestFinder()
         start = time.time()

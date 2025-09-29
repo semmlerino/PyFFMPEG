@@ -255,7 +255,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 self.logger.debug(f"Worker {id(self)}: Disconnected signal")
             except (RuntimeError, TypeError) as e:
                 # Already disconnected or object deleted - this is fine
-                self.logger.debug(f"Worker {id(self)}: Signal already disconnected: {e}")
+                self.logger.debug(
+                    f"Worker {id(self)}: Signal already disconnected: {e}"
+                )
 
         self._connections.clear()
 
@@ -290,7 +292,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             if self._force_stop:
                 return
             if self.thread() and self.thread().isInterruptionRequested():
-                self.logger.debug(f"Worker {id(self)}: Interruption requested before work")
+                self.logger.debug(
+                    f"Worker {id(self)}: Interruption requested before work"
+                )
                 return
 
             self.do_work()
@@ -351,7 +355,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             if current == WorkerState.STOPPED:
                 # Valid transition: STOPPED -> DELETED
                 self._state = WorkerState.DELETED
-                self.logger.debug(f"Worker {id(self)}: STOPPED -> DELETED (on finished)")
+                self.logger.debug(
+                    f"Worker {id(self)}: STOPPED -> DELETED (on finished)"
+                )
             elif current in [WorkerState.RUNNING, WorkerState.STOPPING]:
                 # Need to transition through STOPPED first
                 self.logger.debug(
@@ -422,7 +428,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         # Wait for thread to finish
         if not self.wait(timeout_ms):
-            self.logger.warning(f"Worker failed to stop gracefully within {timeout_ms}ms")
+            self.logger.warning(
+                f"Worker failed to stop gracefully within {timeout_ms}ms"
+            )
             # Use safe termination instead of terminate()
             self.safe_terminate()
             return False
@@ -450,10 +458,14 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         state = self.get_state()
 
         if state in [WorkerState.STOPPED, WorkerState.DELETED]:
-            self.logger.debug(f"Worker {id(self)}: Already stopped, no termination needed")
+            self.logger.debug(
+                f"Worker {id(self)}: Already stopped, no termination needed"
+            )
             return
 
-        self.logger.warning(f"Worker {id(self)}: Requesting stop from state {state.value}")
+        self.logger.warning(
+            f"Worker {id(self)}: Requesting stop from state {state.value}"
+        )
 
         # Disconnect signals before any termination attempt
         self.disconnect_all()

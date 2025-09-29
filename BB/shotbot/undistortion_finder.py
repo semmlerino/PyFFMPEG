@@ -7,14 +7,14 @@ from pathlib import Path
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 from utils import VersionUtils
 
 # Set up logger for this module
 logger = get_module_logger(__name__)
 
 
-class UndistortionFinder(LoggingMixin):
+class UndistortionFinder:
     """Finds the latest undistortion .nk file for a shot."""
 
     # Pattern for version directories (v001, v002, etc.)

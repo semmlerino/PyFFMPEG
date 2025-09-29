@@ -410,7 +410,9 @@ class PersistentBashSession(LoggingMixin):
 
             self.logger.info(f"Started persistent bash session: {self.session_id}")
             if DEBUG_VERBOSE:
-                self.logger.debug(f"[{self.session_id}] Session fully initialized and ready")
+                self.logger.debug(
+                    f"[{self.session_id}] Session fully initialized and ready"
+                )
 
             # Track successful initialization
             if HAS_DEBUG_UTILS:

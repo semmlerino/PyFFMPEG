@@ -21,13 +21,15 @@ class TestNukeMediaDetector:
 
     def test_detect_frame_range_nonexistent_directory(self):
         """Test frame range detection with non-existent directory."""
-        first, last = NukeMediaDetector.detect_frame_range("/nonexistent/path/shot_####.exr")
+        first, last = NukeMediaDetector.detect_frame_range(
+            "/nonexistent/path/shot_####.exr"
+        )
 
         assert first == 1001
         assert last == 1100
 
-    @patch('pathlib.Path.exists')
-    @patch('pathlib.Path.iterdir')
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.iterdir")
     def test_detect_frame_range_with_hash_pattern(self, mock_iterdir, mock_exists):
         """Test frame range detection with #### pattern."""
         # Setup mock directory that exists
@@ -35,7 +37,12 @@ class TestNukeMediaDetector:
 
         # Create mock files with frame numbers
         mock_files = []
-        for filename in ["shot_1001.exr", "shot_1050.exr", "shot_1100.exr", "other_file.txt"]:
+        for filename in [
+            "shot_1001.exr",
+            "shot_1050.exr",
+            "shot_1100.exr",
+            "other_file.txt",
+        ]:
             mock_file = MagicMock()
             mock_file.name = filename
             mock_files.append(mock_file)
@@ -46,8 +53,8 @@ class TestNukeMediaDetector:
         assert first == 1001
         assert last == 1100
 
-    @patch('pathlib.Path.exists')
-    @patch('pathlib.Path.iterdir')
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.iterdir")
     def test_detect_frame_range_with_printf_pattern(self, mock_iterdir, mock_exists):
         """Test frame range detection with %04d pattern."""
         mock_exists.return_value = True
@@ -65,8 +72,8 @@ class TestNukeMediaDetector:
         assert first == 2001
         assert last == 2050
 
-    @patch('pathlib.Path.exists')
-    @patch('pathlib.Path.iterdir')
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.iterdir")
     def test_detect_frame_range_no_matching_files(self, mock_iterdir, mock_exists):
         """Test frame range detection when no files match pattern."""
         mock_exists.return_value = True
@@ -79,8 +86,8 @@ class TestNukeMediaDetector:
         assert first == 1001
         assert last == 1100
 
-    @patch('pathlib.Path.exists')
-    @patch('pathlib.Path.iterdir')
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.iterdir")
     def test_detect_frame_range_exception_handling(self, mock_iterdir, mock_exists):
         """Test frame range detection handles exceptions gracefully."""
         mock_exists.return_value = True
@@ -104,7 +111,7 @@ class TestNukeMediaDetector:
             "/path/to/lin_plate_v001.exr",
             "/path/to/linear_shot.exr",
             "/path/to/LIN_PLATE.EXR",
-            "/path/to/LINEAR_SHOT.EXR"
+            "/path/to/LINEAR_SHOT.EXR",
         ]
 
         for path in test_paths:
@@ -118,7 +125,7 @@ class TestNukeMediaDetector:
             "/path/to/logc_plate.exr",
             "/path/to/alexa_shot.exr",
             "/path/to/LOGC_PLATE.EXR",
-            "/path/to/ALEXA_SHOT.EXR"
+            "/path/to/ALEXA_SHOT.EXR",
         ]
 
         for path in test_paths:
@@ -128,28 +135,36 @@ class TestNukeMediaDetector:
 
     def test_detect_colorspace_log_plates(self):
         """Test colorspace detection for generic log plates."""
-        colorspace, raw_flag = NukeMediaDetector.detect_colorspace("/path/to/log_plate.exr")
+        colorspace, raw_flag = NukeMediaDetector.detect_colorspace(
+            "/path/to/log_plate.exr"
+        )
 
         assert colorspace == "log"
         assert raw_flag is False
 
     def test_detect_colorspace_rec709_plates(self):
         """Test colorspace detection for Rec.709 plates."""
-        colorspace, raw_flag = NukeMediaDetector.detect_colorspace("/path/to/rec709_plate.exr")
+        colorspace, raw_flag = NukeMediaDetector.detect_colorspace(
+            "/path/to/rec709_plate.exr"
+        )
 
         assert colorspace == "rec709"
         assert raw_flag is False
 
     def test_detect_colorspace_srgb_plates(self):
         """Test colorspace detection for sRGB plates."""
-        colorspace, raw_flag = NukeMediaDetector.detect_colorspace("/path/to/srgb_plate.exr")
+        colorspace, raw_flag = NukeMediaDetector.detect_colorspace(
+            "/path/to/srgb_plate.exr"
+        )
 
         assert colorspace == "sRGB"
         assert raw_flag is False
 
     def test_detect_colorspace_default_fallback(self):
         """Test colorspace detection defaults to linear for unknown formats."""
-        colorspace, raw_flag = NukeMediaDetector.detect_colorspace("/path/to/unknown_plate.exr")
+        colorspace, raw_flag = NukeMediaDetector.detect_colorspace(
+            "/path/to/unknown_plate.exr"
+        )
 
         assert colorspace == "linear"
         assert raw_flag is True
@@ -177,14 +192,18 @@ class TestNukeMediaDetector:
 
     def test_detect_resolution_with_underscore_separator(self):
         """Test resolution detection with underscore separator."""
-        width, height = NukeMediaDetector.detect_resolution("/path/to/shot_2048_1556.exr")
+        width, height = NukeMediaDetector.detect_resolution(
+            "/path/to/shot_2048_1556.exr"
+        )
 
         assert width == 2048
         assert height == 1556
 
     def test_detect_resolution_no_match(self):
         """Test resolution detection when no pattern matches."""
-        width, height = NukeMediaDetector.detect_resolution("/path/to/shot_no_resolution.exr")
+        width, height = NukeMediaDetector.detect_resolution(
+            "/path/to/shot_no_resolution.exr"
+        )
 
         assert width == 4312
         assert height == 2304
@@ -200,7 +219,9 @@ class TestNukeMediaDetector:
     def test_detect_resolution_out_of_range(self):
         """Test resolution detection with out-of-range values."""
         # Too large values should fall back to default
-        width, height = NukeMediaDetector.detect_resolution("/path/to/shot_10000x10000.exr")
+        width, height = NukeMediaDetector.detect_resolution(
+            "/path/to/shot_10000x10000.exr"
+        )
 
         assert width == 4312
         assert height == 2304
@@ -224,12 +245,18 @@ class TestNukeMediaDetector:
 
     def test_detect_media_properties_comprehensive(self):
         """Test comprehensive media properties detection."""
-        properties = NukeMediaDetector.detect_media_properties("/path/to/lin_1920x1080_shot.exr")
+        properties = NukeMediaDetector.detect_media_properties(
+            "/path/to/lin_1920x1080_shot.exr"
+        )
 
         # Should contain all expected keys
         expected_keys = {
-            "first_frame", "last_frame", "width", "height",
-            "colorspace", "raw_flag"
+            "first_frame",
+            "last_frame",
+            "width",
+            "height",
+            "colorspace",
+            "raw_flag",
         }
         assert set(properties.keys()) == expected_keys
 
@@ -241,20 +268,28 @@ class TestNukeMediaDetector:
         assert isinstance(properties["colorspace"], str)
         assert isinstance(properties["raw_flag"], bool)
 
-    @patch('pathlib.Path.exists')
-    @patch('pathlib.Path.iterdir')
-    def test_detect_media_properties_with_frame_detection(self, mock_iterdir, mock_exists):
+    @patch("pathlib.Path.exists")
+    @patch("pathlib.Path.iterdir")
+    def test_detect_media_properties_with_frame_detection(
+        self, mock_iterdir, mock_exists
+    ):
         """Test media properties detection with actual frame detection."""
         # Setup mock for frame range detection
         mock_exists.return_value = True
         mock_files = []
-        for filename in ["logc_2048x1556_shot_1010.exr", "logc_2048x1556_shot_1020.exr", "logc_2048x1556_shot_1030.exr"]:
+        for filename in [
+            "logc_2048x1556_shot_1010.exr",
+            "logc_2048x1556_shot_1020.exr",
+            "logc_2048x1556_shot_1030.exr",
+        ]:
             mock_file = MagicMock()
             mock_file.name = filename
             mock_files.append(mock_file)
         mock_iterdir.return_value = mock_files
 
-        properties = NukeMediaDetector.detect_media_properties("/path/to/logc_2048x1556_shot_####.exr")
+        properties = NukeMediaDetector.detect_media_properties(
+            "/path/to/logc_2048x1556_shot_####.exr"
+        )
 
         assert properties["first_frame"] == 1010
         assert properties["last_frame"] == 1030

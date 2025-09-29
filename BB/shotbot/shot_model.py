@@ -410,10 +410,12 @@ class ShotModel(BaseShotModel):
         """Override to use async strategy if no shots loaded yet."""
         # If we're in a test environment (process pool is a test double),
         # use synchronous refresh for compatibility
-        if (
-            hasattr(self._process_pool, "__class__")
-            and self._process_pool.__class__.__name__ in ["TestProcessPool", "TestProcessPoolManager"]
-        ):
+        if hasattr(
+            self._process_pool, "__class__"
+        ) and self._process_pool.__class__.__name__ in [
+            "TestProcessPool",
+            "TestProcessPoolManager",
+        ]:
             return self.refresh_shots_sync()
 
         # Check loading state with lock held

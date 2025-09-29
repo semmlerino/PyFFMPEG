@@ -430,7 +430,7 @@ class TestEdgeCases:
         for i, user in enumerate(users):
             scenes = workspace / "user" / user / "maya" / "scenes"
             scenes.mkdir(parents=True)
-            (scenes / f"scene_v{i+1:03d}.ma").touch()
+            (scenes / f"scene_v{i + 1:03d}.ma").touch()
 
         finder = MayaLatestFinder()
         latest = finder.find_latest_maya_scene(str(workspace))
@@ -448,7 +448,9 @@ class TestEdgeCases:
         finder = MayaLatestFinder()
 
         # Mock iterdir to raise PermissionError
-        with patch.object(Path, "iterdir", side_effect=PermissionError("Access denied")):
+        with patch.object(
+            Path, "iterdir", side_effect=PermissionError("Access denied")
+        ):
             # The implementation doesn't catch PermissionError, so it should be raised
             with pytest.raises(PermissionError):
                 finder.find_latest_maya_scene(str(workspace))
@@ -469,7 +471,7 @@ class TestPerformance:
 
         # Create many versioned files
         for i in range(100):
-            (maya_scenes / f"scene_v{i+1:03d}.ma").touch()
+            (maya_scenes / f"scene_v{i + 1:03d}.ma").touch()
 
         finder = MayaLatestFinder()
         start = time.time()
@@ -493,7 +495,7 @@ class TestPerformance:
         for i in range(20):
             user_scenes = workspace / "user" / f"user{i:02d}" / "maya" / "scenes"
             user_scenes.mkdir(parents=True)
-            (user_scenes / f"scene_v{i+1:03d}.ma").touch()
+            (user_scenes / f"scene_v{i + 1:03d}.ma").touch()
 
         finder = MayaLatestFinder()
         start = time.time()

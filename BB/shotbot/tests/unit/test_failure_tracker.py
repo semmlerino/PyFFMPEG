@@ -1,10 +1,10 @@
-"""Unit tests for FailureTracker functionality.
+"""Unit tests for ThumbnailManager failure tracking functionality.
 
 Tests exponential backoff, thread safety, time-based logic, and cleanup operations.
 
 Following UNIFIED_TESTING_GUIDE principles:
 - Test behavior, not implementation
-- Use real FailureTracker instances
+- Use real ThumbnailManager instances
 - Mock only time/datetime for testing backoff logic
 - Comprehensive thread safety testing
 - Clear, descriptive test names and docstrings
@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cache.failure_tracker import FailureTracker
+from cache.thumbnail_manager import ThumbnailManager
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
@@ -33,17 +33,17 @@ pytestmark = pytest.mark.unit
 
 
 class TestFailureTracker:
-    """Test suite for FailureTracker class covering all public methods and edge cases."""
+    """Test suite for ThumbnailManager failure tracking covering all public methods and edge cases."""
 
     @pytest.fixture
     def failure_tracker(self):
-        """Create a standard FailureTracker instance for testing."""
-        return FailureTracker()
+        """Create a standard ThumbnailManager instance for testing."""
+        return ThumbnailManager()
 
     @pytest.fixture
     def custom_failure_tracker(self):
-        """Create a FailureTracker with custom configuration for testing different parameters."""
-        return FailureTracker(
+        """Create a ThumbnailManager with custom configuration for testing different parameters."""
+        return ThumbnailManager(
             base_retry_delay_minutes=2,
             max_retry_delay_minutes=60,
             retry_multiplier=2,
@@ -72,12 +72,12 @@ class TestFailureTracker:
         )()
 
     def test_initial_state(self, failure_tracker) -> None:
-        """Test that a new FailureTracker starts in clean state."""
+        """Test that a new ThumbnailManager starts in clean state."""
         assert len(failure_tracker) == 0
         assert failure_tracker.get_failure_count() == 0
         assert failure_tracker.get_failure_status() == {}
         assert "test_key" not in failure_tracker
-        assert repr(failure_tracker) == "FailureTracker(failures=0, max_delay=120min)"
+        assert repr(failure_tracker) == "ThumbnailManager(failures=0, max_delay=120min)"
 
     def test_should_retry_no_previous_failures(self, failure_tracker) -> None:
         """Test should_retry returns True when no failures are recorded."""
@@ -100,8 +100,8 @@ class TestFailureTracker:
         error_message = "Test error"
         source_path = Path("/test/image.jpg")
 
-        # Use real FailureTracker with controllable time
-        tracker = FailureTracker(
+        # Use real ThumbnailManager with controllable time
+        tracker = ThumbnailManager(
             base_retry_delay_minutes=5,
             max_retry_delay_minutes=120,
             retry_multiplier=3,
@@ -141,7 +141,7 @@ class TestFailureTracker:
     def test_exponential_backoff_progression(self) -> None:
         """Test exponential backoff follows expected progression: 5min → 15min → 45min → 120min."""
         # Create tracker with known configuration for predictable testing
-        tracker = FailureTracker(
+        tracker = ThumbnailManager(
             base_retry_delay_minutes=5,
             max_retry_delay_minutes=120,
             retry_multiplier=3,
@@ -190,7 +190,7 @@ class TestFailureTracker:
     def test_should_retry_after_backoff_period(self) -> None:
         """Test should_retry returns True after backoff period expires."""
         # Use very short delays for testing without actual waiting
-        tracker = FailureTracker(
+        tracker = ThumbnailManager(
             base_retry_delay_minutes=0.01,  # 0.6 seconds
             max_retry_delay_minutes=1,
             retry_multiplier=2,
@@ -202,7 +202,7 @@ class TestFailureTracker:
         # Mock datetime to control time
         # Following UNIFIED_TESTING_GUIDE: Mock only at system boundaries (time)
         base_time = datetime.now()
-        with patch("cache.failure_tracker.datetime") as mock_datetime:
+        with patch("cache.thumbnail_manager.datetime") as mock_datetime:
             # Record a failure at base time
             mock_datetime.now.return_value = base_time
             tracker.record_failure(cache_key, "Test error")
@@ -220,7 +220,7 @@ class TestFailureTracker:
     def test_should_retry_exact_boundary_condition(self) -> None:
         """Test should_retry behavior exactly at retry time boundary."""
         # Use very short delay for precise testing
-        tracker = FailureTracker(
+        tracker = ThumbnailManager(
             base_retry_delay_minutes=0.02,  # 1.2 seconds
             max_retry_delay_minutes=1,
             retry_multiplier=2,
@@ -232,7 +232,7 @@ class TestFailureTracker:
         # Mock datetime to control time precisely
         # Following UNIFIED_TESTING_GUIDE: Mock only at system boundaries (time)
         base_time = datetime.now()
-        with patch("cache.failure_tracker.datetime") as mock_datetime:
+        with patch("cache.thumbnail_manager.datetime") as mock_datetime:
             # Record failure at base time
             mock_datetime.now.return_value = base_time
             tracker.record_failure(cache_key, "Test error")
@@ -304,7 +304,7 @@ class TestFailureTracker:
     def test_cleanup_old_failures(self) -> None:
         """Test automatic cleanup of old failure records."""
         # Use very short cleanup age for testing
-        tracker = FailureTracker(
+        tracker = ThumbnailManager(
             base_retry_delay_minutes=1,
             max_retry_delay_minutes=5,
             retry_multiplier=2,
@@ -315,7 +315,7 @@ class TestFailureTracker:
         # Mock datetime to control time
         # Following UNIFIED_TESTING_GUIDE: Mock only at system boundaries (time)
         base_time = datetime.now()
-        with patch("cache.failure_tracker.datetime") as mock_datetime:
+        with patch("cache.thumbnail_manager.datetime") as mock_datetime:
             # Record old failure at base time
             mock_datetime.now.return_value = base_time
             tracker.record_failure("old_key", "Old error")
@@ -345,13 +345,13 @@ class TestFailureTracker:
         assert len(failure_tracker) == 12
 
     def test_custom_configuration(self, custom_failure_tracker) -> None:
-        """Test FailureTracker with custom configuration parameters."""
+        """Test ThumbnailManager with custom configuration parameters."""
         cache_key = "test_key"
 
         # Mock datetime to control time precisely
         # Following UNIFIED_TESTING_GUIDE: Mock only at system boundaries (time)
         base_time = datetime.now()
-        with patch("cache.failure_tracker.datetime") as mock_datetime:
+        with patch("cache.thumbnail_manager.datetime") as mock_datetime:
             # First failure at base time
             mock_datetime.now.return_value = base_time
             custom_failure_tracker.record_failure(cache_key, "Error")
@@ -562,28 +562,28 @@ class TestFailureTracker:
     def test_dunder_repr_method(self, failure_tracker, custom_failure_tracker) -> None:
         """Test __repr__ magic method returns informative string."""
         # Empty tracker
-        assert repr(failure_tracker) == "FailureTracker(failures=0, max_delay=120min)"
+        assert repr(failure_tracker) == "ThumbnailManager(failures=0, max_delay=120min)"
 
         # With failures
         failure_tracker.record_failure("key1", "Error 1")
         failure_tracker.record_failure("key2", "Error 2")
-        assert repr(failure_tracker) == "FailureTracker(failures=2, max_delay=120min)"
+        assert repr(failure_tracker) == "ThumbnailManager(failures=2, max_delay=120min)"
 
         # Custom configuration
         assert (
             repr(custom_failure_tracker)
-            == "FailureTracker(failures=0, max_delay=60min)"
+            == "ThumbnailManager(failures=0, max_delay=60min)"
         )
 
     def test_cleanup_age_configuration(self) -> None:
         """Test cleanup with custom age configuration."""
         # Create tracker with very short cleanup age for testing
-        tracker = FailureTracker(cleanup_age_hours=0.001)  # About 3.6 seconds
+        tracker = ThumbnailManager(cleanup_age_hours=0.001)  # About 3.6 seconds
 
         # Mock datetime to control time
         # Following UNIFIED_TESTING_GUIDE: Mock only at system boundaries (time)
         base_time = datetime.now()
-        with patch("cache.failure_tracker.datetime") as mock_datetime:
+        with patch("cache.thumbnail_manager.datetime") as mock_datetime:
             # Record failure at base time
             mock_datetime.now.return_value = base_time
             tracker.record_failure("old_key", "Old error")
@@ -600,7 +600,7 @@ class TestFailureTracker:
     def test_max_attempts_capping(self) -> None:
         """Test that delays are capped at max_failed_attempts."""
         # Create tracker with known configuration
-        tracker = FailureTracker(
+        tracker = ThumbnailManager(
             base_retry_delay_minutes=5,
             max_retry_delay_minutes=120,
             retry_multiplier=3,
@@ -615,7 +615,7 @@ class TestFailureTracker:
         # Mock datetime to control time
         # Following UNIFIED_TESTING_GUIDE: Mock only at system boundaries (time)
         base_time = datetime.now()
-        with patch("cache.failure_tracker.datetime") as mock_datetime:
+        with patch("cache.thumbnail_manager.datetime") as mock_datetime:
             # Default config: max_failed_attempts=4, so attempts 4+ should use max delay
             for attempt in range(6):  # Go beyond max attempts
                 # Set time for this attempt (increment by 1 second each iteration)
@@ -637,12 +637,12 @@ class TestFailureTracker:
 
     def test_edge_case_zero_cleanup_age(self) -> None:
         """Test edge case with zero cleanup age (immediate cleanup)."""
-        tracker = FailureTracker(cleanup_age_hours=0)
+        tracker = ThumbnailManager(cleanup_age_hours=0)
 
         # Mock datetime to control time
         # Following UNIFIED_TESTING_GUIDE: Mock only at system boundaries (time)
         base_time = datetime.now()
-        with patch("cache.failure_tracker.datetime") as mock_datetime:
+        with patch("cache.thumbnail_manager.datetime") as mock_datetime:
             # Record failure at base time
             mock_datetime.now.return_value = base_time
             tracker.record_failure("key", "Error")
@@ -675,7 +675,7 @@ class TestFailureTracker:
         assert "image file.jpg" in reason  # Should show just the filename
 
     def test_memory_cleanup_pattern(self, failure_tracker) -> None:
-        """Test that FailureTracker properly cleans up references."""
+        """Test that ThumbnailManager properly cleans up references."""
 
         # Create a large object to test memory management
         large_error_message = "x" * 10000  # Large string

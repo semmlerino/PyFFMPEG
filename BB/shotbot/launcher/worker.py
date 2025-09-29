@@ -128,6 +128,7 @@ class LauncherWorker(ThreadSafeWorker):
                         # Note: Using module-level log since this is a static validation method
                         # Will be converted to self.logger when this becomes an instance method
                         import logging
+
                         logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Command '{base_command}' not in whitelist. Command: {command[:100]}"
@@ -144,6 +145,7 @@ class LauncherWorker(ThreadSafeWorker):
             # Do not fall back to shell=True - this is a security risk
             # Note: Using module-level log since this is a static validation method
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to parse command safely: {command[:100]}")
             raise SecurityError(
@@ -257,7 +259,9 @@ class LauncherWorker(ThreadSafeWorker):
                 self._process.kill()
                 self._process.wait(timeout=5)
         except Exception as e:
-            self.logger.error(f"Error terminating process for '{self.launcher_id}': {e}")
+            self.logger.error(
+                f"Error terminating process for '{self.launcher_id}': {e}"
+            )
 
     def _cleanup_process(self) -> None:
         """Clean up process resources."""

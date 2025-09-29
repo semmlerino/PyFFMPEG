@@ -347,7 +347,9 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         )
 
         if not scenes_to_emit:
-            self.logger.debug("Worker finishing, emitting finished signal with empty list")
+            self.logger.debug(
+                "Worker finishing, emitting finished signal with empty list"
+            )
         else:
             self.logger.debug(
                 f"Worker finishing, emitting finished signal with {len(scenes_to_emit)} scenes"
@@ -426,7 +428,9 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             self._progress_reporter.progress_update.connect(
                 self._handle_progress_update, Qt.ConnectionType.QueuedConnection
             )
-            self.logger.debug("Progress reporter created and connected in worker thread")
+            self.logger.debug(
+                "Progress reporter created and connected in worker thread"
+            )
 
             self.logger.info("Starting enhanced 3DE scene discovery")
             self.started.emit()

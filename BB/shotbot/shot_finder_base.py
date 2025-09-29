@@ -52,8 +52,9 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
 
         # Progress tracking is handled by ProgressReportingMixin
 
-        self.logger.info(f"{self.__class__.__name__} initialized for user: {self.username}")
-
+        self.logger.info(
+            f"{self.__class__.__name__} initialized for user: {self.username}"
+        )
 
     # Progress methods are inherited from ProgressReportingMixin:
     # - set_progress_callback()

@@ -27,7 +27,12 @@ from config import ThreadingConfig
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.slow,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 """Tests caching operations, TTL expiration, memory management, and thread safety.
 
@@ -53,6 +58,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
+
 # Module-level fixture to handle lazy imports
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports():
@@ -69,6 +75,8 @@ def setup_qt_imports():
     # Local application imports
     from cache_manager import CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult
     from tests.test_helpers import ThreadSafeTestImage
+
+
 # ThreadSafeTestImage imported at top of file
 
 

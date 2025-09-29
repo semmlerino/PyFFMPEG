@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from threading import Lock
-from typing import Optional
 
 from logging_mixin import LoggingMixin
 
@@ -18,10 +17,10 @@ class FilesystemCoordinator(LoggingMixin):
     I/O operations by up to 50% by sharing cached results between workers.
     """
 
-    _instance: Optional["FilesystemCoordinator"] = None
+    _instance: FilesystemCoordinator | None = None
     _lock = Lock()
 
-    def __new__(cls) -> "FilesystemCoordinator":
+    def __new__(cls) -> FilesystemCoordinator:
         """Create singleton instance with thread-safe initialization."""
         if cls._instance is None:
             with cls._lock:

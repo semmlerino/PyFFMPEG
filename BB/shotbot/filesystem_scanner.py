@@ -167,6 +167,7 @@ class FileSystemScanner(LoggingMixin):
         super().__init__()
         # Import here to avoid circular dependency
         from filesystem_coordinator import FilesystemCoordinator
+
         self._fs_coordinator = FilesystemCoordinator()
 
     @classmethod

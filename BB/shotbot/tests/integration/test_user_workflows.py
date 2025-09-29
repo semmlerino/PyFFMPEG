@@ -70,6 +70,7 @@ def setup_qt_imports():
     global MainWindow
     from main_window import MainWindow
 
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
@@ -404,7 +405,9 @@ class TestUserWorkflows:
             )
 
             # Launch Maya with the scene directly
-            success = main_window.launcher_controller._launch_app_with_scene("maya", test_scene)
+            success = main_window.launcher_controller._launch_app_with_scene(
+                "maya", test_scene
+            )
 
             # Verify launch succeeded
             assert success is True
@@ -728,6 +731,7 @@ class TestUserWorkflows:
         # Stop any async loaders that might interfere
         # Third-party imports
         from PySide6.QtCore import QMutexLocker
+
         with QMutexLocker(main_window.shot_model._loader_lock):
             if main_window.shot_model._async_loader:
                 main_window.shot_model._async_loader.stop()

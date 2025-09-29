@@ -19,6 +19,7 @@ from base_thumbnail_delegate import (
     DelegateTheme,
     ThumbnailItemData,
 )
+from logging_mixin import get_module_logger
 from shot_item_model import ShotRole
 
 if TYPE_CHECKING:
@@ -26,6 +27,8 @@ if TYPE_CHECKING:
     from PySide6.QtCore import QModelIndex, QPersistentModelIndex
     from PySide6.QtWidgets import QWidget
 
+# Module-level logger
+logger = get_module_logger(__name__)
 
 
 class ShotGridDelegate(BaseThumbnailDelegate):
@@ -42,7 +45,7 @@ class ShotGridDelegate(BaseThumbnailDelegate):
             parent: Optional parent widget
         """
         super().__init__(parent)
-        self.logger.debug("ShotGridDelegate initialized")
+        logger.debug("ShotGridDelegate initialized")
 
     @override
     def get_theme(self) -> DelegateTheme:

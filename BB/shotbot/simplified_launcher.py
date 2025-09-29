@@ -460,6 +460,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         return self.nuke_handler.workspace_manager.find_latest_nuke_script(
             script_dir, self.current_shot.full_name
         )
+
     # ========== Cache Management ==========
 
     def _cache_get(self, command: str) -> str | None:

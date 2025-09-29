@@ -407,7 +407,9 @@ class TestCacheIntegration:
 
             # Final check - fail test if threads are still running
             still_alive = [t for t in threads if t.is_alive()]
-            assert not still_alive, f"Threads failed to terminate: {len(still_alive)} threads still running"
+            assert not still_alive, (
+                f"Threads failed to terminate: {len(still_alive)} threads still running"
+            )
 
         # Verify results
         assert len(errors) == 0, f"Concurrent access errors: {errors}"

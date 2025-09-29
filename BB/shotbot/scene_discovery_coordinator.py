@@ -594,7 +594,9 @@ class RefactoredThreeDESceneFinder:
                 return show_scenes
 
             # Convert file tuples to ThreeDEScene objects
-            for i, (scene_path, show_name, seq, shot, user, plate) in enumerate(file_tuples):
+            for i, (scene_path, show_name, seq, shot, user, plate) in enumerate(
+                file_tuples
+            ):
                 # Check cancellation frequently during processing
                 # Check every 10 items to balance responsiveness with performance
                 if i % 10 == 0 and cancel_flag and cancel_flag():

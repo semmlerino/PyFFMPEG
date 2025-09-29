@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from launcher.models import CustomLauncher
 
 
-
 class LauncherRepository(LoggingMixin):
     """Repository for launcher CRUD operations."""
 
@@ -75,7 +74,9 @@ class LauncherRepository(LoggingMixin):
 
         # Save to storage
         if self.save():
-            self.logger.info(f"Created launcher '{launcher.name}' with ID {launcher.id}")
+            self.logger.info(
+                f"Created launcher '{launcher.name}' with ID {launcher.id}"
+            )
             return True
         else:
             # Rollback on save failure
@@ -120,7 +121,9 @@ class LauncherRepository(LoggingMixin):
             True if successful, False otherwise
         """
         if launcher_id not in self._launchers:
-            self.logger.warning(f"Launcher with ID {launcher_id} not found for deletion")
+            self.logger.warning(
+                f"Launcher with ID {launcher_id} not found for deletion"
+            )
             return False
 
         # Keep backup for rollback

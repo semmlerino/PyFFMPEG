@@ -18,7 +18,7 @@ class TestNukeUndistortionParser:
 
         assert result == ""
 
-    @patch('pathlib.Path.exists')
+    @patch("pathlib.Path.exists")
     def test_parse_undistortion_file_nonexistent(self, mock_exists):
         """Test parsing with non-existent file."""
         mock_exists.return_value = False
@@ -27,8 +27,8 @@ class TestNukeUndistortionParser:
 
         assert result == ""
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_copy_paste_format_detection(self, mock_file, mock_exists):
         """Test detection of copy/paste format."""
         mock_exists.return_value = True
@@ -47,8 +47,8 @@ Constant {
         assert "Constant {" in result
         assert "name Constant1" in result
 
-    @patch('nuke_undistortion_parser.Path')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("nuke_undistortion_parser.Path")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_standard_format_fallback(self, mock_file, mock_path):
         """Test fallback to standard format when copy/paste fails."""
         mock_path.return_value.exists.return_value = True
@@ -69,8 +69,8 @@ Constant {
         assert "Constant {" in result
         assert "name Constant1" in result
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_copy_paste_format_basic(self, mock_file, mock_exists):
         """Test basic copy/paste format parsing."""
         mock_exists.return_value = True
@@ -83,7 +83,9 @@ Lens {
 }"""
         mock_file.return_value.read.return_value = content
 
-        result = NukeUndistortionParser._parse_copy_paste_format("/path/test.nk", ypos_offset=0)
+        result = NukeUndistortionParser._parse_copy_paste_format(
+            "/path/test.nk", ypos_offset=0
+        )
 
         assert "Lens {" in result
         assert "name Lens1" in result
@@ -93,8 +95,8 @@ Lens {
         assert "set cut_paste_input" not in result
         assert "push $cut_paste_input" not in result
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_copy_paste_format_ypos_offset(self, mock_file, mock_exists):
         """Test ypos offset adjustment in copy/paste format."""
         mock_exists.return_value = True
@@ -106,12 +108,14 @@ Lens {
 }"""
         mock_file.return_value.read.return_value = content
 
-        result = NukeUndistortionParser._parse_copy_paste_format("/path/test.nk", ypos_offset=-300)
+        result = NukeUndistortionParser._parse_copy_paste_format(
+            "/path/test.nk", ypos_offset=-300
+        )
 
         assert "ypos -400" in result  # -100 + (-300) = -400
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_copy_paste_format_python_block(self, mock_file, mock_exists):
         """Test Python block handling in copy/paste format."""
         mock_exists.return_value = True
@@ -134,8 +138,8 @@ def test_function():
         assert 'return "test"' in result
         assert "}" in result
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_copy_paste_format_skip_root(self, mock_file, mock_exists):
         """Test Root node skipping in copy/paste format."""
         mock_exists.return_value = True
@@ -160,8 +164,8 @@ Lens {
         assert "Lens {" in result
         assert "name Lens1" in result
 
-    @patch('nuke_undistortion_parser.Path')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("nuke_undistortion_parser.Path")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_standard_format_basic(self, mock_file, mock_path):
         """Test basic standard format parsing."""
         mock_path.return_value.exists.return_value = True
@@ -183,8 +187,8 @@ Lens {
         assert "#!" not in result
         assert "version 12.0" not in result
 
-    @patch('nuke_undistortion_parser.Path')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("nuke_undistortion_parser.Path")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_standard_format_skip_window_layout(self, mock_file, mock_path):
         """Test window layout skipping in standard format."""
         mock_path.return_value.exists.return_value = True
@@ -210,8 +214,8 @@ Lens {
         assert "Lens {" in result
         assert "name Lens1" in result
 
-    @patch('nuke_undistortion_parser.Path')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("nuke_undistortion_parser.Path")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_standard_format_python_dedentation(self, mock_file, mock_path):
         """Test Python code dedentation in standard format."""
         mock_path.return_value.exists.return_value = True
@@ -310,28 +314,46 @@ Lens {
 
     def test_should_skip_boilerplate_line_version(self):
         """Test skipping version lines."""
-        assert NukeUndistortionParser._should_skip_boilerplate_line("version 12.0", "version 12.0")
-        assert NukeUndistortionParser._should_skip_boilerplate_line("  version 16.0 v4", "version 16.0 v4")
+        assert NukeUndistortionParser._should_skip_boilerplate_line(
+            "version 12.0", "version 12.0"
+        )
+        assert NukeUndistortionParser._should_skip_boilerplate_line(
+            "  version 16.0 v4", "version 16.0 v4"
+        )
 
     def test_should_skip_boilerplate_line_shebang(self):
         """Test skipping shebang lines."""
-        assert NukeUndistortionParser._should_skip_boilerplate_line("#! /usr/local/Nuke", "#! /usr/local/Nuke")
-        assert NukeUndistortionParser._should_skip_boilerplate_line("#!/usr/bin/nuke", "#!/usr/bin/nuke")
+        assert NukeUndistortionParser._should_skip_boilerplate_line(
+            "#! /usr/local/Nuke", "#! /usr/local/Nuke"
+        )
+        assert NukeUndistortionParser._should_skip_boilerplate_line(
+            "#!/usr/bin/nuke", "#!/usr/bin/nuke"
+        )
 
     def test_should_skip_boilerplate_line_cut_paste(self):
         """Test skipping copy/paste specific lines."""
-        assert NukeUndistortionParser._should_skip_boilerplate_line("set cut_paste_input [stack 0]", "set cut_paste_input [stack 0]")
-        assert NukeUndistortionParser._should_skip_boilerplate_line("push $cut_paste_input", "push $cut_paste_input")
+        assert NukeUndistortionParser._should_skip_boilerplate_line(
+            "set cut_paste_input [stack 0]", "set cut_paste_input [stack 0]"
+        )
+        assert NukeUndistortionParser._should_skip_boilerplate_line(
+            "push $cut_paste_input", "push $cut_paste_input"
+        )
         assert NukeUndistortionParser._should_skip_boilerplate_line("push 0", "push 0")
 
     def test_should_skip_boilerplate_line_keep_normal(self):
         """Test not skipping normal lines."""
-        assert not NukeUndistortionParser._should_skip_boilerplate_line("Lens {", "Lens {")
-        assert not NukeUndistortionParser._should_skip_boilerplate_line(" name Lens1", "name Lens1")
-        assert not NukeUndistortionParser._should_skip_boilerplate_line(" xpos 100", "xpos 100")
+        assert not NukeUndistortionParser._should_skip_boilerplate_line(
+            "Lens {", "Lens {"
+        )
+        assert not NukeUndistortionParser._should_skip_boilerplate_line(
+            " name Lens1", "name Lens1"
+        )
+        assert not NukeUndistortionParser._should_skip_boilerplate_line(
+            " xpos 100", "xpos 100"
+        )
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_copy_paste_format_empty_file(self, mock_file, mock_exists):
         """Test copy/paste format parsing with empty file."""
         mock_exists.return_value = True
@@ -341,8 +363,8 @@ Lens {
 
         assert result == ""
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_copy_paste_format_not_copy_paste(self, mock_file, mock_exists):
         """Test copy/paste format parser with non-copy/paste content."""
         mock_exists.return_value = True
@@ -356,8 +378,8 @@ Lens {
 
         assert result == ""  # Should return empty for non-copy/paste format
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_standard_format_empty_file(self, mock_file, mock_exists):
         """Test standard format parsing with empty file."""
         mock_exists.return_value = True
@@ -367,7 +389,7 @@ Lens {
 
         assert result == ""
 
-    @patch('pathlib.Path.exists')
+    @patch("pathlib.Path.exists")
     def test_parse_standard_format_nonexistent_file(self, mock_exists):
         """Test standard format parsing with non-existent file."""
         mock_exists.return_value = False
@@ -376,8 +398,10 @@ Lens {
 
         assert result == ""
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "invalid"))
+    @patch("pathlib.Path.exists")
+    @patch(
+        "builtins.open", side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "invalid")
+    )
     def test_parse_standard_format_unicode_error(self, mock_file, mock_exists):
         """Test standard format parsing with unicode decode error."""
         mock_exists.return_value = True
@@ -386,8 +410,8 @@ Lens {
 
         assert result == ""
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', side_effect=Exception("Unexpected error"))
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", side_effect=Exception("Unexpected error"))
     def test_parse_standard_format_unexpected_error(self, mock_file, mock_exists):
         """Test standard format parsing with unexpected error."""
         mock_exists.return_value = True
@@ -396,8 +420,8 @@ Lens {
 
         assert result == ""
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', side_effect=Exception("Unexpected error"))
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", side_effect=Exception("Unexpected error"))
     def test_parse_copy_paste_format_exception(self, mock_file, mock_exists):
         """Test copy/paste format parsing with exception."""
         mock_exists.return_value = True
@@ -406,8 +430,8 @@ Lens {
 
         assert result == ""
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_complex_python_indentation(self, mock_file, mock_exists):
         """Test complex Python code indentation handling."""
         mock_exists.return_value = True
@@ -438,8 +462,8 @@ Lens {
         assert "if i > 5:" in result
         assert 'print(f"Result: {result}")' in result
 
-    @patch('pathlib.Path.exists')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_nested_braces_handling(self, mock_file, mock_exists):
         """Test handling of nested braces in nodes."""
         mock_exists.return_value = True
@@ -466,8 +490,8 @@ Lens {
         assert "k2 0.2" in result
         assert "name Lens1" in result
 
-    @patch('nuke_undistortion_parser.Path')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch("nuke_undistortion_parser.Path")
+    @patch("builtins.open", new_callable=mock_open)
     def test_parse_undistortion_file_logs_appropriately(self, mock_file, mock_path):
         """Test that parse_undistortion_file handles both formats and logs appropriately."""
         mock_path.return_value.exists.return_value = True
@@ -483,7 +507,9 @@ Lens {
 }"""
         mock_file.return_value.read.return_value = standard_content
 
-        result = NukeUndistortionParser.parse_undistortion_file("/path/test.nk", ypos_offset=-200)
+        result = NukeUndistortionParser.parse_undistortion_file(
+            "/path/test.nk", ypos_offset=-200
+        )
 
         # Should contain imported content
         assert "Imported undistortion content from /path/test.nk" in result
@@ -511,7 +537,10 @@ Lens {
         test_cases = [
             (" name test-node", " name test_node"),
             ("  name  test-node", "  name  test_node"),  # Multiple spaces
-            ("\tname\ttest-node", "\tname\ttest-node"),  # Tab spacing - no change (early return)
+            (
+                "\tname\ttest-node",
+                "\tname\ttest-node",
+            ),  # Tab spacing - no change (early return)
             (" name test_node", " name test_node"),  # Already valid
             (" node_name test", " node_name test"),  # Not a name attribute
             (" filename test", " filename test"),  # Not a name attribute

@@ -13,7 +13,6 @@ import threading
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 # Local application imports
-from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     # Local application imports
@@ -58,7 +57,7 @@ class ProcessPoolInterface(Protocol):
         ...
 
 
-class ProcessPoolFactory(LoggingMixin):
+class ProcessPoolFactory:
     """Factory for creating and managing ProcessPoolManager instances.
 
     This factory allows clean dependency injection of mock implementations
@@ -96,7 +95,9 @@ class ProcessPoolFactory(LoggingMixin):
             cls._override = implementation
             if implementation is not None:
                 cls._factory_mode = "custom"
-                cls._get_logger().info("ProcessPoolFactory: Custom implementation injected")
+                cls._get_logger().info(
+                    "ProcessPoolFactory: Custom implementation injected"
+                )
 
     @classmethod
     def set_mock_mode(cls, mock_mode: bool = True) -> None:
@@ -145,7 +146,9 @@ class ProcessPoolFactory(LoggingMixin):
                 cls._get_logger().info("ProcessPoolFactory: Creating mock instance")
                 cls._instance = cls._create_mock_instance()
             else:
-                cls._get_logger().info("ProcessPoolFactory: Creating production instance")
+                cls._get_logger().info(
+                    "ProcessPoolFactory: Creating production instance"
+                )
                 cls._instance = cls._create_production_instance()
 
             return cls._instance
@@ -186,7 +189,9 @@ class ProcessPoolFactory(LoggingMixin):
 
             # The pool already loaded shots from filesystem or demo
             if hasattr(mock_pool, "shots") and mock_pool.shots:
-                cls._get_logger().info(f"Mock pool has {len(mock_pool.shots)} shots ready")
+                cls._get_logger().info(
+                    f"Mock pool has {len(mock_pool.shots)} shots ready"
+                )
 
             return mock_pool  # type: ignore[return-value]
 

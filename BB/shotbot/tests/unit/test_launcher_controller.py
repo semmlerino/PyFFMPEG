@@ -56,15 +56,18 @@ class TestCommandLauncher(QObject):
         """Simulate launching an application."""
         self.last_command = f"{app_name} with options"
         self.executed_commands.append(
-            (app_name, {
-                "include_undistortion": include_undistortion,
-                "include_raw_plate": include_raw_plate,
-                "open_latest_threede": open_latest_threede,
-                "open_latest_maya": open_latest_maya,
-                "open_latest_scene": open_latest_scene,
-                "create_new_file": create_new_file,
-                "shot": self.current_shot.full_name if self.current_shot else None
-            })
+            (
+                app_name,
+                {
+                    "include_undistortion": include_undistortion,
+                    "include_raw_plate": include_raw_plate,
+                    "open_latest_threede": open_latest_threede,
+                    "open_latest_maya": open_latest_maya,
+                    "open_latest_scene": open_latest_scene,
+                    "create_new_file": create_new_file,
+                    "shot": self.current_shot.full_name if self.current_shot else None,
+                },
+            )
         )
 
         if self.launch_success:
@@ -77,15 +80,15 @@ class TestCommandLauncher(QObject):
     def launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:
         """Simulate launching app with 3DE scene."""
         self.last_command = f"{app_name} {scene.scene_path}"
-        self.executed_commands.append(
-            (app_name, {"scene": scene.scene_path})
-        )
+        self.executed_commands.append((app_name, {"scene": scene.scene_path}))
 
         if self.launch_success:
             self.command_executed.emit("00:00:00", self.last_command)
             return True
         else:
-            self.command_error.emit("00:00:00", f"Failed to launch {app_name} with scene")
+            self.command_error.emit(
+                "00:00:00", f"Failed to launch {app_name} with scene"
+            )
             return False
 
     def launch_app_with_scene_context(
@@ -98,11 +101,14 @@ class TestCommandLauncher(QObject):
         """Simulate launching app with scene context."""
         self.last_command = f"{app_name} in context of {scene.scene_path}"
         self.executed_commands.append(
-            (app_name, {
-                "scene_context": scene.scene_path,
-                "include_undistortion": include_undistortion,
-                "include_raw_plate": include_raw_plate,
-            })
+            (
+                app_name,
+                {
+                    "scene_context": scene.scene_path,
+                    "include_undistortion": include_undistortion,
+                    "include_raw_plate": include_raw_plate,
+                },
+            )
         )
 
         if self.launch_success:
@@ -139,6 +145,7 @@ class MockLauncherTarget(QObject):
 @pytest.fixture
 def make_launcher_controller():
     """Factory fixture for LauncherController."""
+
     def _make(launcher_manager=Mock(), launch_success=True):
         target = MockLauncherTarget()
         # Always set launcher_manager - could be None, Mock, or custom value
@@ -146,6 +153,7 @@ def make_launcher_controller():
         target.command_launcher.launch_success = launch_success
         controller = LauncherController(target)
         return controller, target
+
     return _make
 
 
@@ -156,7 +164,7 @@ def test_shot():
         show="TEST",
         sequence="seq01",
         shot="0010",
-        workspace_path="/shows/TEST/shots/seq01/seq01_0010"
+        workspace_path="/shows/TEST/shots/seq01/seq01_0010",
     )
 
 
@@ -164,6 +172,7 @@ def test_shot():
 def test_scene():
     """Create a test 3DE scene."""
     from pathlib import Path
+
     return ThreeDEScene(
         scene_path=Path("/shows/TEST/shots/seq01/seq01_0010/3de/v001/scene.3de"),
         show="TEST",
@@ -232,12 +241,14 @@ class TestApplicationLaunching:
         controller, target = make_launcher_controller()
 
         # Mock launcher panel checkbox states
-        target.launcher_panel.get_checkbox_state = Mock(side_effect=lambda app, opt: {
-            ("nuke", "include_undistortion"): True,
-            ("nuke", "include_raw_plate"): False,
-            ("nuke", "open_latest_scene"): True,
-            ("nuke", "create_new_file"): False,
-        }.get((app, opt), False))
+        target.launcher_panel.get_checkbox_state = Mock(
+            side_effect=lambda app, opt: {
+                ("nuke", "include_undistortion"): True,
+                ("nuke", "include_raw_plate"): False,
+                ("nuke", "open_latest_scene"): True,
+                ("nuke", "create_new_file"): False,
+            }.get((app, opt), False)
+        )
 
         options = controller.get_launch_options("nuke")
 
@@ -250,9 +261,11 @@ class TestApplicationLaunching:
         """Test getting 3DE launch options."""
         controller, target = make_launcher_controller()
 
-        target.launcher_panel.get_checkbox_state = Mock(side_effect=lambda app, opt: {
-            ("3de", "open_latest_threede"): True,
-        }.get((app, opt), False))
+        target.launcher_panel.get_checkbox_state = Mock(
+            side_effect=lambda app, opt: {
+                ("3de", "open_latest_threede"): True,
+            }.get((app, opt), False)
+        )
 
         options = controller.get_launch_options("3de")
 
@@ -275,7 +288,9 @@ class TestApplicationLaunching:
         assert opts["shot"] == test_shot.full_name
         assert "Launched nuke" in target.status_messages
 
-    def test_launch_app_with_scene_context_3de(self, make_launcher_controller, test_scene):
+    def test_launch_app_with_scene_context_3de(
+        self, make_launcher_controller, test_scene
+    ):
         """Test launching 3DE with scene context."""
         controller, target = make_launcher_controller()
         controller.set_current_scene(test_scene)
@@ -289,16 +304,20 @@ class TestApplicationLaunching:
         assert opts["scene"] == test_scene.scene_path
         assert "Launched 3de with testuser's scene" in target.status_messages
 
-    def test_launch_app_with_scene_context_nuke(self, make_launcher_controller, test_scene):
+    def test_launch_app_with_scene_context_nuke(
+        self, make_launcher_controller, test_scene
+    ):
         """Test launching Nuke with scene context (not the scene file itself)."""
         controller, target = make_launcher_controller()
         controller.set_current_scene(test_scene)
 
         # Mock checkbox states for Nuke options
-        target.launcher_panel.get_checkbox_state = Mock(side_effect=lambda app, opt: {
-            ("nuke", "include_undistortion"): True,
-            ("nuke", "include_raw_plate"): True,
-        }.get((app, opt), False))
+        target.launcher_panel.get_checkbox_state = Mock(
+            side_effect=lambda app, opt: {
+                ("nuke", "include_undistortion"): True,
+                ("nuke", "include_raw_plate"): True,
+            }.get((app, opt), False)
+        )
 
         # Add launch_app_with_scene_context method to test launcher
         target.command_launcher.launch_app_with_scene_context = Mock(return_value=True)
@@ -325,16 +344,20 @@ class TestApplicationLaunching:
         # Verify failure was handled
         assert "Failed to launch nuke" in target.status_messages
 
-    def test_launch_app_priority_open_latest_over_create_new(self, make_launcher_controller, test_shot):
+    def test_launch_app_priority_open_latest_over_create_new(
+        self, make_launcher_controller, test_shot
+    ):
         """Test that open_latest_scene takes priority over create_new_file."""
         controller, target = make_launcher_controller()
         controller.set_current_shot(test_shot)
 
         # Both options are True, but open_latest should take priority
-        target.launcher_panel.get_checkbox_state = Mock(side_effect=lambda app, opt: {
-            ("nuke", "open_latest_scene"): True,
-            ("nuke", "create_new_file"): True,
-        }.get((app, opt), False))
+        target.launcher_panel.get_checkbox_state = Mock(
+            side_effect=lambda app, opt: {
+                ("nuke", "open_latest_scene"): True,
+                ("nuke", "create_new_file"): True,
+            }.get((app, opt), False)
+        )
 
         controller.launch_app("nuke")
 
@@ -349,7 +372,9 @@ class TestApplicationLaunching:
 class TestCustomLaunchers:
     """Test custom launcher functionality."""
 
-    def test_execute_custom_launcher_with_shot(self, make_launcher_controller, test_shot):
+    def test_execute_custom_launcher_with_shot(
+        self, make_launcher_controller, test_shot
+    ):
         """Test executing a custom launcher with shot context."""
         controller, target = make_launcher_controller()
         controller.set_current_shot(test_shot)
@@ -370,7 +395,9 @@ class TestCustomLaunchers:
         assert call_args[0][1] == test_shot
         assert "Launched 'Test Launcher'" in target.status_messages
 
-    def test_execute_custom_launcher_with_scene(self, make_launcher_controller, test_scene):
+    def test_execute_custom_launcher_with_scene(
+        self, make_launcher_controller, test_scene
+    ):
         """Test executing a custom launcher with scene context."""
         controller, target = make_launcher_controller()
         controller.set_current_scene(test_scene)
@@ -406,7 +433,9 @@ class TestCustomLaunchers:
         # Should not attempt to execute
         target.launcher_manager.execute_in_shot_context.assert_not_called()
 
-    def test_execute_custom_launcher_not_found(self, make_launcher_controller, test_shot):
+    def test_execute_custom_launcher_not_found(
+        self, make_launcher_controller, test_shot
+    ):
         """Test executing a custom launcher that doesn't exist."""
         controller, target = make_launcher_controller()
         controller.set_current_shot(test_shot)
@@ -461,10 +490,12 @@ class TestCustomLaunchers:
         launcher2.category = "scripts"
         launcher2.description = "Script launcher"
 
-        target.launcher_manager.list_launchers = Mock(return_value=[launcher1, launcher2])
+        target.launcher_manager.list_launchers = Mock(
+            return_value=[launcher1, launcher2]
+        )
 
         # Mock QAction creation to avoid QWidget issues
-        with patch('controllers.launcher_controller.QAction') as MockQAction:
+        with patch("controllers.launcher_controller.QAction") as MockQAction:
             mock_action = Mock()
             MockQAction.return_value = mock_action
 
@@ -488,7 +519,7 @@ class TestCustomLaunchers:
         target.launcher_manager.list_launchers = Mock(return_value=[launcher1])
 
         # Mock QAction creation
-        with patch('controllers.launcher_controller.QAction') as MockQAction:
+        with patch("controllers.launcher_controller.QAction") as MockQAction:
             mock_action = Mock()
             MockQAction.return_value = mock_action
 
@@ -505,7 +536,7 @@ class TestCustomLaunchers:
         target.launcher_manager.list_launchers = Mock(return_value=[])
 
         # Mock QAction creation for placeholder
-        with patch('controllers.launcher_controller.QAction') as MockQAction:
+        with patch("controllers.launcher_controller.QAction") as MockQAction:
             mock_action = Mock()
             MockQAction.return_value = mock_action
 
@@ -527,21 +558,22 @@ class TestCustomLaunchers:
         launcher2.id = "2"
         launcher2.name = "Launcher 2"
 
-        target.launcher_manager.list_launchers = Mock(return_value=[launcher1, launcher2])
+        target.launcher_manager.list_launchers = Mock(
+            return_value=[launcher1, launcher2]
+        )
 
         controller.update_custom_launcher_buttons()
 
-        target.launcher_panel.update_custom_launchers.assert_called_once_with([
-            ("1", "Launcher 1"),
-            ("2", "Launcher 2")
-        ])
+        target.launcher_panel.update_custom_launchers.assert_called_once_with(
+            [("1", "Launcher 1"), ("2", "Launcher 2")]
+        )
 
     def test_show_launcher_manager_dialog(self, make_launcher_controller):
         """Test showing launcher manager dialog."""
         controller, target = make_launcher_controller()
 
         # Mock the dialog import (it's imported locally in the method)
-        with patch('launcher_dialog.LauncherManagerDialog') as MockDialog:
+        with patch("launcher_dialog.LauncherManagerDialog") as MockDialog:
             mock_dialog = Mock()
             MockDialog.return_value = mock_dialog
 
@@ -556,7 +588,7 @@ class TestCustomLaunchers:
         """Test showing launcher manager when using simplified launcher."""
         controller, target = make_launcher_controller(launcher_manager=None)
 
-        with patch.object(QMessageBox, 'information') as mock_info:
+        with patch.object(QMessageBox, "information") as mock_info:
             controller.show_launcher_manager()
 
             mock_info.assert_called_once()
@@ -572,7 +604,7 @@ class TestErrorHandling:
         """Test error notification for application not found."""
         controller, target = make_launcher_controller()
 
-        with patch('controllers.launcher_controller.NotificationManager') as MockNotif:
+        with patch("controllers.launcher_controller.NotificationManager") as MockNotif:
             controller._on_command_error("12:00:00", "nuke: command not found")
 
             MockNotif.error.assert_called()
@@ -583,7 +615,7 @@ class TestErrorHandling:
         """Test error notification for permission denied."""
         controller, target = make_launcher_controller()
 
-        with patch('controllers.launcher_controller.NotificationManager') as MockNotif:
+        with patch("controllers.launcher_controller.NotificationManager") as MockNotif:
             controller._on_command_error("12:00:00", "Permission denied: /usr/bin/app")
 
             MockNotif.error.assert_called()
@@ -594,7 +626,7 @@ class TestErrorHandling:
         """Test error notification for no shot selected."""
         controller, target = make_launcher_controller()
 
-        with patch('controllers.launcher_controller.NotificationManager') as MockNotif:
+        with patch("controllers.launcher_controller.NotificationManager") as MockNotif:
             controller._on_command_error("12:00:00", "No shot selected")
 
             MockNotif.warning.assert_called()
@@ -605,7 +637,7 @@ class TestErrorHandling:
         """Test error notification for generic errors."""
         controller, target = make_launcher_controller()
 
-        with patch('controllers.launcher_controller.NotificationManager') as MockNotif:
+        with patch("controllers.launcher_controller.NotificationManager") as MockNotif:
             controller._on_command_error("12:00:00", "Something went wrong")
 
             MockNotif.error.assert_called()
@@ -620,17 +652,21 @@ class TestErrorHandling:
         mock_launcher.name = "Test Launcher"
         target.launcher_manager.get_launcher = Mock(return_value=mock_launcher)
 
-        with patch('controllers.launcher_controller.ProgressManager') as MockProgress:
+        with patch("controllers.launcher_controller.ProgressManager") as MockProgress:
             controller._on_launcher_started("test_launcher")
 
-            MockProgress.start_operation.assert_called_once_with("Launching Test Launcher")
+            MockProgress.start_operation.assert_called_once_with(
+                "Launching Test Launcher"
+            )
 
     def test_launcher_finished_success(self, make_launcher_controller):
         """Test handling successful launcher completion."""
         controller, target = make_launcher_controller()
 
-        with patch('controllers.launcher_controller.ProgressManager') as MockProgress:
-            with patch('controllers.launcher_controller.NotificationManager') as MockNotif:
+        with patch("controllers.launcher_controller.ProgressManager") as MockProgress:
+            with patch(
+                "controllers.launcher_controller.NotificationManager"
+            ) as MockNotif:
                 controller._on_launcher_finished("test_launcher", True)
 
                 MockProgress.finish_operation.assert_called_once_with(success=True)
@@ -642,8 +678,10 @@ class TestErrorHandling:
         """Test handling failed launcher completion."""
         controller, target = make_launcher_controller()
 
-        with patch('controllers.launcher_controller.ProgressManager') as MockProgress:
-            with patch('controllers.launcher_controller.NotificationManager') as MockNotif:
+        with patch("controllers.launcher_controller.ProgressManager") as MockProgress:
+            with patch(
+                "controllers.launcher_controller.NotificationManager"
+            ) as MockNotif:
                 controller._on_launcher_finished("test_launcher", False)
 
                 MockProgress.finish_operation.assert_called_once_with(success=False)

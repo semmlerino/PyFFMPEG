@@ -1,4 +1,4 @@
-"""Tests for heap-based LRU cache eviction in MemoryManager.
+"""Tests for heap-based LRU cache eviction in ThumbnailManager.
 
 Following UNIFIED_TESTING_GUIDE best practices:
 - Test behavior not implementation
@@ -13,11 +13,11 @@ import heapq
 import time
 from pathlib import Path
 from threading import Thread
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from cache.memory_manager import CacheEntry, MemoryManager
+from cache.thumbnail_manager import CacheEntry, ThumbnailManager
 
 # Test markers
 pytestmark = [
@@ -30,34 +30,38 @@ pytestmark = [
 @pytest.fixture
 def make_cache_entry():
     """Factory for creating CacheEntry instances with custom times."""
+
     def _make(path="/test/file.jpg", size_bytes=1024, access_offset=0):
         """Create cache entry with time offset from now."""
         return CacheEntry(
-            access_time=time.time() + access_offset,
-            path=path,
-            size_bytes=size_bytes
+            access_time=time.time() + access_offset, path=path, size_bytes=size_bytes
         )
+
     return _make
 
 
 @pytest.fixture
 def make_memory_manager(tmp_path):
-    """Factory for creating MemoryManager with custom settings."""
+    """Factory for creating ThumbnailManager with custom settings."""
+
     def _make(max_memory_mb=1):
-        manager = MemoryManager(max_memory_mb=max_memory_mb)
+        manager = ThumbnailManager(max_memory_mb=max_memory_mb)
         # Clear any existing state
         manager._memory_usage_bytes = 0
         manager._cached_items.clear()
         manager._access_times.clear()
         manager._eviction_heap.clear()
         manager._heap_dirty = False
+        # Disable auto-eviction for heap testing (test explicit eviction logic)
+        manager.set_auto_evict(False)
         return manager
+
     return _make
 
 
 @pytest.fixture
 def populated_memory_manager(make_memory_manager, tmp_path):
-    """Create a MemoryManager with test data already loaded."""
+    """Create a ThumbnailManager with test data already loaded."""
     manager = make_memory_manager(max_memory_mb=1)  # 1MB limit
 
     # Add entries with different access times
@@ -80,7 +84,7 @@ class TestCacheEntry:
     def test_cache_entry_comparison(self, make_cache_entry):
         """Test that CacheEntry compares by access_time for heap ordering."""
         entry1 = make_cache_entry(access_offset=-10)  # Older
-        entry2 = make_cache_entry(access_offset=0)     # Newer
+        entry2 = make_cache_entry(access_offset=0)  # Newer
 
         # Older entry should be "less than" newer (min heap)
         assert entry1 < entry2
@@ -90,8 +94,7 @@ class TestCacheEntry:
         """Test that heap operations maintain LRU order."""
         # Create entries with different access times
         entries = [
-            make_cache_entry(path=f"/file{i}", access_offset=i)
-            for i in range(5)
+            make_cache_entry(path=f"/file{i}", access_offset=i) for i in range(5)
         ]
 
         # Build heap
@@ -109,8 +112,8 @@ class TestCacheEntry:
             assert popped[i].access_time <= popped[i + 1].access_time
 
 
-class TestMemoryManagerHeap:
-    """Test heap-based LRU eviction in MemoryManager."""
+class TestThumbnailManagerHeap:
+    """Test heap-based LRU eviction in ThumbnailManager."""
 
     def test_eviction_order_is_lru(self, make_memory_manager, tmp_path):
         """Test that eviction follows LRU order using heap."""
@@ -311,7 +314,7 @@ class TestMemoryManagerHeap:
         manager._memory_usage_bytes = manager._max_memory_bytes + 1
 
         # Mock file deletion to test logic without actually deleting
-        with patch.object(Path, 'unlink'):
+        with patch.object(Path, "unlink"):
             evicted = manager._evict_lru_items(0.5)
 
         # Should have evicted files to reach ~50% of limit
@@ -340,20 +343,20 @@ class TestMemoryManagerHeap:
         # Old file should now have newer timestamp in access_times
         assert str(old_path) in manager._access_times
         assert str(new_path) in manager._access_times
-        assert manager._access_times[str(old_path)] > manager._access_times[str(new_path)]
+        assert (
+            manager._access_times[str(old_path)] > manager._access_times[str(new_path)]
+        )
 
-    @pytest.mark.parametrize("memory_limit_mb,file_count,file_size_kb", [
-        (1, 5, 300),    # Over limit, eviction needed
-        (10, 5, 300),   # Under limit, no eviction
-        (2, 20, 100),   # Many small files
-    ])
+    @pytest.mark.parametrize(
+        "memory_limit_mb,file_count,file_size_kb",
+        [
+            (1, 5, 300),  # Over limit, eviction needed
+            (10, 5, 300),  # Under limit, no eviction
+            (2, 20, 100),  # Many small files
+        ],
+    )
     def test_various_memory_scenarios(
-        self,
-        make_memory_manager,
-        tmp_path,
-        memory_limit_mb,
-        file_count,
-        file_size_kb
+        self, make_memory_manager, tmp_path, memory_limit_mb, file_count, file_size_kb
     ):
         """Test various memory limit scenarios.
 

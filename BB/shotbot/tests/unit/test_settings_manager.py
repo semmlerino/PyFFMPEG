@@ -27,12 +27,11 @@ pytestmark = [
 @pytest.fixture
 def make_settings_manager():
     """Factory for creating SettingsManager instances with custom configuration."""
+
     def _make(tmp_path, organization="TestOrg", application="TestApp"):
         # Use temporary directory for test settings
         QSettings.setPath(
-            QSettings.Format.IniFormat,
-            QSettings.Scope.UserScope,
-            str(tmp_path)
+            QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path)
         )
         manager = SettingsManager(organization=organization, application=application)
         # Clear any existing settings to ensure clean state
@@ -40,21 +39,24 @@ def make_settings_manager():
         # Re-initialize defaults after clearing
         manager._initialize_defaults()
         return manager
+
     return _make
 
 
 @pytest.fixture
 def make_test_settings():
     """Factory for creating test settings data."""
+
     def _make(category="window", **kwargs):
         defaults = {
             "window": {"current_tab": 0, "maximized": True},
             "preferences": {"thumbnail_size": 256, "refresh_interval": 10},
-            "performance": {"max_threads": 4}
+            "performance": {"max_threads": 4},
         }
         if category in defaults:
             defaults[category].update(kwargs)
         return defaults.get(category, kwargs)
+
     return _make
 
 
@@ -82,8 +84,12 @@ class TestSettingsManager:
 
         # Check all categories exist
         expected_categories = [
-            "window", "preferences", "performance",
-            "applications", "ui", "advanced"
+            "window",
+            "preferences",
+            "performance",
+            "applications",
+            "ui",
+            "advanced",
         ]
         for category in expected_categories:
             assert category in defaults
@@ -249,7 +255,7 @@ class TestSettingsManager:
         # Test setting
         test_launchers = [
             {"name": "Test1", "command": "cmd1"},
-            {"name": "Test2", "command": "cmd2"}
+            {"name": "Test2", "command": "cmd2"},
         ]
         settings_manager.set_custom_launchers(test_launchers)
 
@@ -269,11 +275,7 @@ class TestSettingsManager:
     def test_set_category(self, settings_manager):
         """Test setting multiple values in a category."""
         # Set multiple window settings at once
-        new_settings = {
-            "current_tab": 1,
-            "maximized": True,
-            "size": QSize(1600, 900)
-        }
+        new_settings = {"current_tab": 1, "maximized": True, "size": QSize(1600, 900)}
 
         settings_manager.set_category("window", new_settings)
 
@@ -336,7 +338,7 @@ class TestSettingsManager:
         # Create import file
         import_data = {
             "window": {"current_tab": 2},
-            "preferences": {"thumbnail_size": 300}
+            "preferences": {"thumbnail_size": 300},
         }
 
         import_path = tmp_path / "settings_import.json"
@@ -438,9 +440,7 @@ class TestSettingsManager:
         """Test migration from old settings format."""
         # Set up old-style settings
         QSettings.setPath(
-            QSettings.Format.IniFormat,
-            QSettings.Scope.UserScope,
-            str(tmp_path)
+            QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path)
         )
 
         old_settings = QSettings("TestOrg", "TestApp")
@@ -464,9 +464,7 @@ class TestSettingsManager:
     def test_settings_persistence(self, tmp_path):
         """Test that settings persist across instances."""
         QSettings.setPath(
-            QSettings.Format.IniFormat,
-            QSettings.Scope.UserScope,
-            str(tmp_path)
+            QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path)
         )
 
         # Create first instance and set values

@@ -24,7 +24,12 @@ from tests.test_doubles_library import (
     TestWorker,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.slow,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 
 # Using TestWorker from test_doubles_library instead of custom MockWorker

@@ -284,7 +284,9 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         # Handle loading state
         if role == BaseItemRole.LoadingStateRole:
             with QMutexLocker(self._cache_mutex):
-                self._loading_states[item.full_name] = str(value) if value is not None else ""
+                self._loading_states[item.full_name] = (
+                    str(value) if value is not None else ""
+                )
             self.dataChanged.emit(index, index, [BaseItemRole.LoadingStateRole])
             return True
 

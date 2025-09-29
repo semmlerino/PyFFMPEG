@@ -88,7 +88,9 @@ class TestExtractVersion:
     def test_multiple_versions(self):
         """Test that first matching version is extracted."""
         assert FinderUtils.extract_version("file_v001_v002.ma") == 1
-        assert FinderUtils.extract_version("text_v001_file_v002.txt") == 1  # Fixed to match _v pattern
+        assert (
+            FinderUtils.extract_version("text_v001_file_v002.txt") == 1
+        )  # Fixed to match _v pattern
 
 
 class TestBuildUserPath:
@@ -110,7 +112,9 @@ class TestBuildUserPath:
         """Test 3DE special directory structure."""
         workspace = Path("/shows/test/shots/030/0030")
         path = FinderUtils.build_user_path(workspace, "bob", "3de")
-        expected = Path("/shows/test/shots/030/0030/user/bob/mm/3de/mm-default/scenes/scene")
+        expected = Path(
+            "/shows/test/shots/030/0030/user/bob/mm/3de/mm-default/scenes/scene"
+        )
         assert path == expected
 
     def test_custom_subdir(self):
@@ -124,7 +128,9 @@ class TestBuildUserPath:
         workspace = Path("/shows/test/shots/050/0050")
         path = FinderUtils.build_user_path(workspace, "charlie", "3de", "custom")
         # 3DE should still use its special structure
-        expected = Path("/shows/test/shots/050/0050/user/charlie/mm/3de/mm-default/scenes/scene")
+        expected = Path(
+            "/shows/test/shots/050/0050/user/charlie/mm/3de/mm-default/scenes/scene"
+        )
         assert path == expected
 
 
@@ -272,27 +278,29 @@ class TestSortByPriority:
 class TestParseShotPath:
     """Test shot path parsing."""
 
-    @patch.object(Config, 'SHOWS_ROOT', '/tmp/mock_vfx/shows')
+    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
     def test_valid_shot_path(self):
         """Test parsing valid VFX shot path."""
         path = "/tmp/mock_vfx/shows/test_show/shots/010/0010/user/john/maya/scenes"
         result = FinderUtils.parse_shot_path(path)
         assert result == ("test_show", "010", "0010")
 
-    @patch.object(Config, 'SHOWS_ROOT', '/tmp/mock_vfx/shows')
+    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
     def test_partial_shot_path(self):
         """Test parsing path up to shot level."""
         path = "/tmp/mock_vfx/shows/myshow/shots/020/0020/"
         result = FinderUtils.parse_shot_path(path)
         assert result == ("myshow", "020", "0020")
 
-    @patch.object(Config, 'SHOWS_ROOT', '/tmp/mock_vfx/shows')
+    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
     def test_invalid_path_returns_none(self):
         """Test that invalid paths return None."""
         # Missing shots directory
         assert FinderUtils.parse_shot_path("/tmp/mock_vfx/shows/test/010/0010") is None
         # Not under shows root
-        assert FinderUtils.parse_shot_path("/different/root/test/shots/010/0010") is None
+        assert (
+            FinderUtils.parse_shot_path("/different/root/test/shots/010/0010") is None
+        )
         # Empty path
         assert FinderUtils.parse_shot_path("") is None
 
@@ -300,14 +308,14 @@ class TestParseShotPath:
 class TestGetWorkspaceFromPath:
     """Test workspace extraction from path."""
 
-    @patch.object(Config, 'SHOWS_ROOT', '/tmp/mock_vfx/shows')
+    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
     def test_extract_workspace(self):
         """Test extracting workspace from full path."""
         path = "/tmp/mock_vfx/shows/test/shots/010/0010/user/john/maya/scenes/file.ma"
         workspace = FinderUtils.get_workspace_from_path(path)
         assert workspace == "/tmp/mock_vfx/shows/test/shots/010/0010"
 
-    @patch.object(Config, 'SHOWS_ROOT', '/tmp/mock_vfx/shows')
+    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
     def test_invalid_path_returns_none(self):
         """Test that invalid paths return None."""
         assert FinderUtils.get_workspace_from_path("/invalid/path") is None
@@ -317,18 +325,28 @@ class TestGetWorkspaceFromPath:
 class TestIsValidVfxPath:
     """Test VFX path validation."""
 
-    @patch.object(Config, 'SHOWS_ROOT', '/tmp/mock_vfx/shows')
+    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
     def test_valid_vfx_paths(self):
         """Test that valid VFX paths return True."""
-        assert FinderUtils.is_valid_vfx_path("/tmp/mock_vfx/shows/test/shots/010/0010/") is True
-        assert FinderUtils.is_valid_vfx_path("/tmp/mock_vfx/shows/show/shots/seq/shot/user") is True
+        assert (
+            FinderUtils.is_valid_vfx_path("/tmp/mock_vfx/shows/test/shots/010/0010/")
+            is True
+        )
+        assert (
+            FinderUtils.is_valid_vfx_path(
+                "/tmp/mock_vfx/shows/show/shots/seq/shot/user"
+            )
+            is True
+        )
 
-    @patch.object(Config, 'SHOWS_ROOT', '/tmp/mock_vfx/shows')
+    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
     def test_invalid_vfx_paths(self):
         """Test that invalid paths return False."""
         assert FinderUtils.is_valid_vfx_path("/random/path") is False
         assert FinderUtils.is_valid_vfx_path("") is False
-        assert FinderUtils.is_valid_vfx_path("/tmp/mock_vfx/shows/test/010/0010") is False
+        assert (
+            FinderUtils.is_valid_vfx_path("/tmp/mock_vfx/shows/test/010/0010") is False
+        )
 
 
 class TestFilterByExtensions:
@@ -353,7 +371,9 @@ class TestFilterByExtensions:
             Path("scene.mb"),
             Path("test.txt"),
         ]
-        filtered = FinderUtils.filter_by_extensions(files, [".ma", ".mb"], case_sensitive=True)
+        filtered = FinderUtils.filter_by_extensions(
+            files, [".ma", ".mb"], case_sensitive=True
+        )
         assert filtered == [Path("scene.mb")]
 
     def test_empty_files_list(self):

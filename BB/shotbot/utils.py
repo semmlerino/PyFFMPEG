@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 
 if TYPE_CHECKING:
     # Standard library imports
@@ -57,11 +57,10 @@ def enable_caching() -> None:
     logger.debug("Caching re-enabled after testing")
 
 
-class CacheIsolation(LoggingMixin):
+class CacheIsolation:
     """Context manager for cache isolation in tests."""
 
     def __init__(self) -> None:
-        super().__init__()
         self.original_cache_state: dict[str, tuple[bool, float]] | None = None
         self.original_disabled_state: bool | None = None
 
@@ -106,7 +105,7 @@ def get_cache_stats() -> dict[str, object]:
     return stats
 
 
-class PathUtils(LoggingMixin):
+class PathUtils:
     """Utilities for path construction and validation."""
 
     @staticmethod
@@ -702,7 +701,7 @@ class PathUtils(LoggingMixin):
         return found_plates
 
 
-class VersionUtils(LoggingMixin):
+class VersionUtils:
     """Utilities for handling versioned directories and files."""
 
     # Pattern for version directories (v001, v002, etc.)
@@ -889,7 +888,7 @@ class VersionUtils(LoggingMixin):
         return max_version + 1
 
 
-class FileUtils(LoggingMixin):
+class FileUtils:
     """Utilities for file operations and validation."""
 
     @staticmethod
@@ -1057,7 +1056,7 @@ class FileUtils(LoggingMixin):
             return False
 
 
-class ImageUtils(LoggingMixin):
+class ImageUtils:
     """Utilities for image validation and processing."""
 
     @staticmethod
@@ -1144,7 +1143,7 @@ class ImageUtils(LoggingMixin):
         )
 
 
-class ValidationUtils(LoggingMixin):
+class ValidationUtils:
     """Common validation utilities."""
 
     @staticmethod

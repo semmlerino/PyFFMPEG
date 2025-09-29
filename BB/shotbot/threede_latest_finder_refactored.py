@@ -146,8 +146,7 @@ class ThreeDELatestFinder(BaseSceneFinder):
             elif scenes:
                 # No versioned files, use most recent
                 latest_per_plate[plate] = max(
-                    scenes,
-                    key=lambda p: p.stat().st_mtime if p.exists() else 0
+                    scenes, key=lambda p: p.stat().st_mtime if p.exists() else 0
                 )
 
         return latest_per_plate

@@ -10,10 +10,11 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(message)s")
 
 # Module-level logger for test functions
 logger = get_module_logger(__name__)
+
 
 class MockWorker(LoggingMixin):
     """Mock worker to test zombie thread handling."""
@@ -105,12 +106,15 @@ class MockWorker(LoggingMixin):
         self._thread.join(timeout)
 
         if self._thread.is_alive():
-            self.logger.warning("Thread still running after timeout - marking as zombie")
+            self.logger.warning(
+                "Thread still running after timeout - marking as zombie"
+            )
             self._zombie = True
             return False
         else:
             self.logger.info("Thread stopped successfully")
             return True
+
 
 def test_cleanup() -> None:
     """Test the thread cleanup behavior."""
@@ -134,6 +138,7 @@ def test_cleanup() -> None:
         # In real code, we would call deleteLater() here
 
     logger.info("=== Test complete ===")
+
 
 if __name__ == "__main__":
     test_cleanup()

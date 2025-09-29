@@ -34,6 +34,7 @@ def test_production_mode() -> None:
     # Verify it's the real ProcessPoolManager
     # Local application imports
     from process_pool_manager import ProcessPoolManager
+
     logger.info(f"ProcessPoolManager type: {ProcessPoolManager}")
     logger.info(f"ProcessPoolManager module: {ProcessPoolManager.__module__}")
 
@@ -41,6 +42,7 @@ def test_production_mode() -> None:
     # Local application imports
     from mock_workspace_pool import MockWorkspacePool
     from tests.test_doubles_library import TestProcessPool
+
     if isinstance(pool, TestProcessPool | MockWorkspacePool):
         logger.info(f"✅ Got {pool.__class__.__name__} in test environment (expected)")
         return
@@ -51,7 +53,7 @@ def test_production_mode() -> None:
     logger.info("✅ Production mode works correctly")
 
     # Clean up - only call shutdown if it exists
-    if hasattr(pool, 'shutdown'):
+    if hasattr(pool, "shutdown"):
         pool.shutdown()
     ProcessPoolFactory.reset()
 
@@ -156,7 +158,7 @@ def test_singleton_behavior() -> None:
     logger.info("✅ Singleton behavior maintained")
 
     # Clean up - only call shutdown if it exists (ProcessPoolManager has it, TestProcessPool doesn't)
-    if hasattr(pool1, 'shutdown'):
+    if hasattr(pool1, "shutdown"):
         pool1.shutdown()
     ProcessPoolFactory.reset()
 
@@ -189,7 +191,7 @@ def test_backward_compatibility() -> None:
     logger.info("✅ Backward compatibility maintained")
 
     # Clean up - only call shutdown if it exists
-    if hasattr(pool, 'shutdown'):
+    if hasattr(pool, "shutdown"):
         pool.shutdown()
     ProcessPoolFactory.reset()
 

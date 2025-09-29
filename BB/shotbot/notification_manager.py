@@ -71,7 +71,10 @@ from PySide6.QtWidgets import (
 )
 
 # Local application imports
-from logging_mixin import LoggingMixin
+from logging_mixin import get_module_logger
+
+# Module-level logger
+logger = get_module_logger(__name__)
 
 if TYPE_CHECKING:
     # Standard library imports
@@ -258,7 +261,7 @@ class ToastNotification(QFrame):
         super().mousePressEvent(event)
 
 
-class NotificationManager(LoggingMixin, QObject):
+class NotificationManager(QObject):
     """Centralized notification management system.
 
     This singleton class provides various types of notifications:
@@ -291,7 +294,7 @@ class NotificationManager(LoggingMixin, QObject):
         self._initialized = True
         self._active_toasts = []
         self._current_progress = None
-        self.logger.debug("NotificationManager initialized")
+        logger.debug("NotificationManager initialized")
 
     @classmethod
     def _get_instance(cls) -> NotificationManager:
@@ -316,9 +319,7 @@ class NotificationManager(LoggingMixin, QObject):
         instance = cls()
         cls._main_window = main_window
         cls._status_bar = status_bar
-        cls._get_instance().logger.info(
-            "NotificationManager initialized with UI references"
-        )
+        logger.info("NotificationManager initialized with UI references")
         return instance
 
     @classmethod
@@ -337,7 +338,7 @@ class NotificationManager(LoggingMixin, QObject):
             toast.close()
         cls._active_toasts.clear()
         if cls._instance:
-            cls._instance.logger.debug("NotificationManager cleaned up")
+            logger.debug("NotificationManager cleaned up")
 
     @classmethod
     def error(cls, title: str, message: str = "", details: str = "") -> None:
@@ -361,9 +362,7 @@ class NotificationManager(LoggingMixin, QObject):
 
         # Also log the error
         if cls._instance:
-            cls._instance.logger.error(
-                f"Error notification: {title} - {message} - {details}"
-            )
+            logger.error(f"Error notification: {title} - {message} - {details}")
 
     @classmethod
     def warning(cls, title: str, message: str = "", details: str = "") -> None:
@@ -386,9 +385,7 @@ class NotificationManager(LoggingMixin, QObject):
             QMessageBox.warning(None, f"Warning - {title}", full_message or title)
 
         if cls._instance:
-            cls._instance.logger.warning(
-                f"Warning notification: {title} - {message} - {details}"
-            )
+            logger.warning(f"Warning notification: {title} - {message} - {details}")
 
     @classmethod
     def info(cls, message: str, timeout: int = 3000) -> None:
@@ -402,7 +399,7 @@ class NotificationManager(LoggingMixin, QObject):
             cls._status_bar.showMessage(message, timeout)
 
         if cls._instance:
-            cls._instance.logger.info(f"Info notification: {message}")
+            logger.info(f"Info notification: {message}")
 
     @classmethod
     def success(cls, message: str, timeout: int = 3000) -> None:
@@ -437,7 +434,7 @@ class NotificationManager(LoggingMixin, QObject):
                 QTimer.singleShot(timeout, restore_style)
 
         if cls._instance:
-            cls._instance.logger.info(f"Success notification: {message}")
+            logger.info(f"Success notification: {message}")
 
     @classmethod
     def progress(
@@ -479,7 +476,7 @@ class NotificationManager(LoggingMixin, QObject):
         cls._current_progress = progress
 
         if cls._instance:
-            cls._instance.logger.info(f"Progress dialog shown: {title}")
+            logger.info(f"Progress dialog shown: {title}")
         return progress
 
     @classmethod
@@ -505,7 +502,7 @@ class NotificationManager(LoggingMixin, QObject):
         """
         if not cls._main_window:
             if cls._instance:
-                cls._instance.logger.warning(
+                logger.warning(
                     "Cannot show toast notification: no main window reference"
                 )
             return
@@ -524,7 +521,7 @@ class NotificationManager(LoggingMixin, QObject):
         toast.show_animated()
 
         if cls._instance:
-            cls._instance.logger.debug(
+            logger.debug(
                 f"Toast notification shown: {message} ({notification_type.name})"
             )
 

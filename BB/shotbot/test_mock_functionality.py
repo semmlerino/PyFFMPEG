@@ -78,7 +78,7 @@ def test_shot_model():
         # Show first few shots
         print("\nFirst 5 shots:")
         for i, shot in enumerate(shots[:5]):
-            print(f"   {i+1}. {shot.show}/{shot.sequence}/{shot.shot}")
+            print(f"   {i + 1}. {shot.show}/{shot.sequence}/{shot.shot}")
             print(f"      Path: {shot.workspace_path}")
 
     print()
@@ -120,14 +120,21 @@ def test_finders():
 
         # Create mock active shots
         active_shots = [
-            Shot(show="gator", sequence="012_DC", shot="1000", workspace_path=str(workspace))
+            Shot(
+                show="gator",
+                sequence="012_DC",
+                shot="1000",
+                workspace_path=str(workspace),
+            )
         ]
 
         shows = targeted_finder.extract_shows_from_active_shots(active_shots)
         print(f"   ✅ Extracted shows: {shows}")
 
         # Find user shots in shows
-        shots = list(targeted_finder.find_user_shots_in_shows(shows, Path("/tmp/mock_vfx/shows")))
+        shots = list(
+            targeted_finder.find_user_shots_in_shows(shows, Path("/tmp/mock_vfx/shows"))
+        )
         print(f"   ✅ Found {len(shots)} user shots")
     else:
         print(f"❌ Test workspace does not exist: {workspace}")
@@ -160,8 +167,16 @@ def test_filesystem_structure():
             for show in sorted(shows):
                 show_path = shows_root / show / "shots"
                 if show_path.exists():
-                    shot_count = len([d for d in show_path.rglob("*/") if d.is_dir() and "user" not in d.parts])
-                    print(f"   • {show}: ~{shot_count//2} shots")  # Approximate since we count seq and shot dirs
+                    shot_count = len(
+                        [
+                            d
+                            for d in show_path.rglob("*/")
+                            if d.is_dir() and "user" not in d.parts
+                        ]
+                    )
+                    print(
+                        f"   • {show}: ~{shot_count // 2} shots"
+                    )  # Approximate since we count seq and shot dirs
 
         # Check for 3DE files
         threede_files = list(mock_root.rglob("*.3de"))
@@ -203,6 +218,7 @@ def main():
         print(f"\n❌ Error during testing: {e}")
         # Standard library imports
         import traceback
+
         traceback.print_exc()
         return 1
 

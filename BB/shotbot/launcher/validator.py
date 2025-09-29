@@ -30,7 +30,6 @@ except ImportError:
     Shot = None
 
 
-
 class LauncherValidator(LoggingMixin):
     """Validates launcher configurations and commands."""
 

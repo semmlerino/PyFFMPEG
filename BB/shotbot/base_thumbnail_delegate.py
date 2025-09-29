@@ -42,7 +42,10 @@ from typing_extensions import TypedDict, override
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin
+from logging_mixin import get_module_logger
+
+# Module-level logger
+logger = get_module_logger(__name__)
 
 
 class ThumbnailItemData(TypedDict, total=False):
@@ -60,7 +63,7 @@ class ThumbnailItemData(TypedDict, total=False):
 
 
 @dataclass
-class DelegateTheme(LoggingMixin):
+class DelegateTheme:
     """Theme configuration for thumbnail delegates."""
 
     # Colors (use factory to avoid mutable default issue)
@@ -86,7 +89,7 @@ class DelegateTheme(LoggingMixin):
     info_font_size: int = 8
 
 
-class BaseThumbnailDelegate(LoggingMixin, QStyledItemDelegate):
+class BaseThumbnailDelegate(QStyledItemDelegate):
     """Base delegate for rendering thumbnails in a grid.
 
     This delegate provides:
@@ -134,9 +137,7 @@ class BaseThumbnailDelegate(LoggingMixin, QStyledItemDelegate):
         self._loading_angle = 0
         self._loading_timer: QTimer | None = None
 
-        self.logger.debug(
-            f"{self.__class__.__name__} initialized with optimized painting"
-        )
+        logger.debug(f"{self.__class__.__name__} initialized with optimized painting")
 
     def get_theme(self) -> DelegateTheme:
         """Get the theme configuration for this delegate.

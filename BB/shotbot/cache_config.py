@@ -25,7 +25,7 @@ logger = get_module_logger(__name__)
 
 if TYPE_CHECKING:
     # Local application imports
-    from cache.memory_manager import MemoryManager
+    from cache.thumbnail_manager import ThumbnailManager
     from settings_manager import SettingsManager
 
 
@@ -318,27 +318,36 @@ class UnifiedCacheConfig(LoggingMixin, QObject):
                 self.expiry_time_changed.emit(int(new_value))
                 self.config_updated.emit()
 
-    def apply_to_memory_manager(self, memory_manager: MemoryManager) -> None:
-        """Apply current settings to a MemoryManager instance.
+    def apply_to_thumbnail_manager(self, thumbnail_manager: ThumbnailManager) -> None:
+        """Apply current settings to a ThumbnailManager instance.
 
         Args:
-            memory_manager: MemoryManager instance to configure
+            thumbnail_manager: ThumbnailManager instance to configure
         """
-        memory_manager.set_memory_limit(self.memory_limit_mb)
+        thumbnail_manager.set_memory_limit(self.memory_limit_mb)
         self.logger.debug(
-            f"Applied memory limit {self.memory_limit_mb}MB to MemoryManager"
+            f"Applied memory limit {self.memory_limit_mb}MB to ThumbnailManager"
         )
 
-    def create_memory_manager(self) -> MemoryManager:
-        """Create a MemoryManager with current unified settings.
+    def create_thumbnail_manager(self) -> ThumbnailManager:
+        """Create a ThumbnailManager with current unified settings.
 
         Returns:
-            MemoryManager instance configured with current settings
+            ThumbnailManager instance configured with current settings
         """
         # Local application imports
-        from cache.memory_manager import MemoryManager
+        from cache.thumbnail_manager import ThumbnailManager
 
-        return MemoryManager(max_memory_mb=self.memory_limit_mb)
+        return ThumbnailManager(max_memory_mb=self.memory_limit_mb)
+
+    # Legacy methods for backward compatibility
+    def apply_to_memory_manager(self, memory_manager: ThumbnailManager) -> None:
+        """Legacy method - delegates to apply_to_thumbnail_manager."""
+        self.apply_to_thumbnail_manager(memory_manager)
+
+    def create_memory_manager(self) -> ThumbnailManager:
+        """Legacy method - delegates to create_thumbnail_manager."""
+        return self.create_thumbnail_manager()
 
 
 # Global instance for easy access (initialized by CacheManager)

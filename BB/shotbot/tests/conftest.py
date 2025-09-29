@@ -1206,8 +1206,14 @@ def ensure_clean_state_before_test():
         from process_pool_manager import ProcessPoolManager
 
         # Check if singleton was created by a previous test
-        if hasattr(ProcessPoolManager, '_instance') and ProcessPoolManager._instance is not None:
-            print("DEBUG: Found existing ProcessPoolManager, cleaning up before test", file=sys.stderr)
+        if (
+            hasattr(ProcessPoolManager, "_instance")
+            and ProcessPoolManager._instance is not None
+        ):
+            print(
+                "DEBUG: Found existing ProcessPoolManager, cleaning up before test",
+                file=sys.stderr,
+            )
             try:
                 # Shutdown the executor to clean up threads with very short timeout
                 ProcessPoolManager._instance.shutdown(timeout=0.1)
@@ -1218,20 +1224,27 @@ def ensure_clean_state_before_test():
     except ImportError:
         pass  # Module might not be imported yet
     except Exception as e:
-        print(f"Warning: Pre-test ProcessPoolManager cleanup error: {e}", file=sys.stderr)
+        print(
+            f"Warning: Pre-test ProcessPoolManager cleanup error: {e}", file=sys.stderr
+        )
 
     # Clean up QThreadPool (only if QApplication exists)
     try:
         # Third-party imports
         from PySide6.QtCore import QCoreApplication
+
         app = QCoreApplication.instance()
         if app:
             # Only access QThreadPool if app exists
             # Third-party imports
             from PySide6.QtCore import QThreadPool
+
             pool = QThreadPool.globalInstance()
             if pool and pool.activeThreadCount() > 0:
-                print(f"DEBUG: Waiting for {pool.activeThreadCount()} QThreadPool threads", file=sys.stderr)
+                print(
+                    f"DEBUG: Waiting for {pool.activeThreadCount()} QThreadPool threads",
+                    file=sys.stderr,
+                )
                 pool.waitForDone(500)  # Wait up to 0.5 seconds
     except Exception as e:
         print(f"Warning: QThreadPool cleanup error: {e}", file=sys.stderr)
@@ -1273,7 +1286,10 @@ def cleanup_qt_resources():
         from process_pool_manager import ProcessPoolManager
 
         # Check if singleton was created
-        if hasattr(ProcessPoolManager, '_instance') and ProcessPoolManager._instance is not None:
+        if (
+            hasattr(ProcessPoolManager, "_instance")
+            and ProcessPoolManager._instance is not None
+        ):
             print("DEBUG: Cleaning up ProcessPoolManager singleton", file=sys.stderr)
             try:
                 # Shutdown the executor to clean up threads with very short timeout
@@ -1288,6 +1304,7 @@ def cleanup_qt_resources():
     except Exception as e:
         # Standard library imports
         import sys
+
         print(f"Warning: ProcessPoolManager cleanup error: {e}", file=sys.stderr)
 
     # After test completes, clean up Qt resources
@@ -1392,11 +1409,13 @@ def enhanced_mainwindow_cleanup():
     try:
         # Third-party imports
         from PySide6.QtCore import QCoreApplication
+
         app = QCoreApplication.instance()
         if app:
             # Find and cleanup any MainWindow instances
             # Local application imports
             from main_window import MainWindow
+
             for widget in app.topLevelWidgets():
                 if isinstance(widget, MainWindow):
                     try:
@@ -1407,7 +1426,10 @@ def enhanced_mainwindow_cleanup():
                     except Exception as e:
                         # Standard library imports
                         import sys
-                        print(f"Warning: MainWindow cleanup error: {e}", file=sys.stderr)
+
+                        print(
+                            f"Warning: MainWindow cleanup error: {e}", file=sys.stderr
+                        )
 
             # Clean up any CacheManager instances
             try:
@@ -1417,7 +1439,7 @@ def enhanced_mainwindow_cleanup():
 
                 # The CacheManager might be a singleton or instance
                 # Try to clean up any static/global references
-                if hasattr(CacheManager, '_instance'):
+                if hasattr(CacheManager, "_instance"):
                     instance = CacheManager._instance
                     if instance:
                         try:
@@ -1431,6 +1453,7 @@ def enhanced_mainwindow_cleanup():
             # Additional QPixmap cleanup - force cleanup of Qt image cache
             # Third-party imports
             from PySide6.QtGui import QPixmapCache
+
             QPixmapCache.clear()
 
             # Process events briefly after MainWindow cleanup
@@ -1440,12 +1463,14 @@ def enhanced_mainwindow_cleanup():
         # Force additional garbage collection after MainWindow cleanup
         # Standard library imports
         import gc
+
         gc.collect()
         gc.collect()  # Second pass to clean up circular references
 
     except Exception as e:
         # Standard library imports
         import sys
+
         print(f"Warning: Enhanced MainWindow cleanup error: {e}", file=sys.stderr)
 
 

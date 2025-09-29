@@ -345,7 +345,9 @@ class LauncherProcessManager(LoggingMixin, QObject):
                 try:
                     worker.request_stop()
                     if not worker.wait(5000):  # Wait 5 seconds
-                        self.logger.warning(f"Worker {process_key} did not stop gracefully")
+                        self.logger.warning(
+                            f"Worker {process_key} did not stop gracefully"
+                        )
 
                     # Disconnect signals to prevent warnings
                     try:

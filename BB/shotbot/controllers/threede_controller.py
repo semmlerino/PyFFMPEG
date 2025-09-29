@@ -127,7 +127,7 @@ class ThreeDEController(LoggingMixin):
         grid.scene_double_clicked.connect(self.on_scene_double_clicked)
 
         # Show filtering (if available)
-        if hasattr(grid, 'show_filter_requested'):
+        if hasattr(grid, "show_filter_requested"):
             grid.show_filter_requested.connect(self._on_show_filter_requested)
 
         self.logger.debug("ThreeDEController signals connected")
@@ -234,8 +234,11 @@ class ThreeDEController(LoggingMixin):
             # Use shorter timeout in test environments
             # Standard library imports
             import sys
+
             is_test_environment = "pytest" in sys.modules
-            worker_timeout_ms = 500 if is_test_environment else Config.WORKER_STOP_TIMEOUT_MS
+            worker_timeout_ms = (
+                500 if is_test_environment else Config.WORKER_STOP_TIMEOUT_MS
+            )
 
             if not worker_to_cleanup.wait(worker_timeout_ms):
                 self.logger.warning(
@@ -254,7 +257,7 @@ class ThreeDEController(LoggingMixin):
                 self._threede_worker = None
 
         # Only delete if not a zombie thread
-        if hasattr(worker_to_cleanup, 'is_zombie') and worker_to_cleanup.is_zombie():
+        if hasattr(worker_to_cleanup, "is_zombie") and worker_to_cleanup.is_zombie():
             self.logger.warning(
                 "3DE worker thread is a zombie and will not be deleted to prevent crash"
             )
@@ -394,7 +397,9 @@ class ThreeDEController(LoggingMixin):
 
         # Update model progress
         if self.window.threede_item_model:
-            self.window.threede_item_model.update_loading_progress(current_shot, total_shots)
+            self.window.threede_item_model.update_loading_progress(
+                current_shot, total_shots
+            )
 
     # ============================================================================
     # Scene Selection Handlers (Phase 3.5)
@@ -452,7 +457,7 @@ class ThreeDEController(LoggingMixin):
             self.window.threede_item_model,
             self.window.threede_scene_model,
             show,
-            "3DE Scenes"
+            "3DE Scenes",
         )
 
     # ============================================================================
@@ -511,7 +516,9 @@ class ThreeDEController(LoggingMixin):
         # Update status
         scene_count = len(self.window.threede_scene_model.scenes)
         if scene_count > 0:
-            self.window.update_status(f"Found {scene_count} 3DE scenes from other users")
+            self.window.update_status(
+                f"Found {scene_count} 3DE scenes from other users"
+            )
         else:
             self.window.update_status("No 3DE scenes found from other users")
 
@@ -547,14 +554,20 @@ class ThreeDEController(LoggingMixin):
 
     def update_ui(self) -> None:
         """Update the 3DE UI elements with current scenes."""
-        self.window.threede_item_model.set_scenes(self.window.threede_scene_model.scenes)
+        self.window.threede_item_model.set_scenes(
+            self.window.threede_scene_model.scenes
+        )
         # Populate show filter with available shows
-        self.window.threede_shot_grid.populate_show_filter(self.window.threede_scene_model)
+        self.window.threede_shot_grid.populate_show_filter(
+            self.window.threede_scene_model
+        )
         self.logger.info(
             f"✅ UI model updated with {len(self.window.threede_scene_model.scenes)} scenes"
         )
 
-    def _apply_show_filter(self, item_model: object, model: object, show: str, tab_name: str) -> None:
+    def _apply_show_filter(
+        self, item_model: object, model: object, show: str, tab_name: str
+    ) -> None:
         """Generic show filter handler for all tabs.
 
         Args:

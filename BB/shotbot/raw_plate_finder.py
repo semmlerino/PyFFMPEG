@@ -9,7 +9,7 @@ from re import Match, Pattern
 
 # Local application imports
 from config import Config
-from logging_mixin import LoggingMixin, get_module_logger
+from logging_mixin import get_module_logger
 
 # Performance monitoring removed - was using archived module
 from utils import PathUtils, VersionUtils
@@ -18,7 +18,7 @@ from utils import PathUtils, VersionUtils
 logger = get_module_logger(__name__)
 
 
-class RawPlateFinder(LoggingMixin):
+class RawPlateFinder:
     """Finds the latest raw plate file for a shot."""
 
     # Pre-compiled regex patterns for performance (compiled once at class level)
@@ -95,7 +95,9 @@ class RawPlateFinder(LoggingMixin):
         return None
 
     @staticmethod
-    def _get_plate_patterns(shot_name: str, plate_name: str, version: str) -> tuple[Pattern[str], Pattern[str]]:
+    def _get_plate_patterns(
+        shot_name: str, plate_name: str, version: str
+    ) -> tuple[Pattern[str], Pattern[str]]:
         """Get or create compiled regex patterns for plate matching.
 
         Uses caching to avoid recompiling the same patterns.

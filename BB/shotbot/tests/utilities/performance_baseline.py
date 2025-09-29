@@ -26,9 +26,7 @@ from threede_latest_finder import ThreeDELatestFinder
 
 
 def measure_performance(
-    name: str,
-    func: Callable[[], Any],
-    iterations: int = 10
+    name: str, func: Callable[[], Any], iterations: int = 10
 ) -> dict[str, float]:
     """Measure performance of a function.
 
@@ -57,11 +55,13 @@ def measure_performance(
         "avg_ms": avg_time * 1000,
         "min_ms": min_time * 1000,
         "max_ms": max_time * 1000,
-        "iterations": iterations
+        "iterations": iterations,
     }
 
 
-def create_test_workspace(path: Path, num_users: int = 5, files_per_user: int = 10) -> None:
+def create_test_workspace(
+    path: Path, num_users: int = 5, files_per_user: int = 10
+) -> None:
     """Create a test workspace structure.
 
     Args:
@@ -75,18 +75,25 @@ def create_test_workspace(path: Path, num_users: int = 5, files_per_user: int = 
         maya_scenes.mkdir(parents=True, exist_ok=True)
 
         for j in range(files_per_user):
-            (maya_scenes / f"scene_v{j+1:03d}.ma").touch()
+            (maya_scenes / f"scene_v{j + 1:03d}.ma").touch()
 
         # 3DE structure
         for plate in ["PL01", "PL02", "FG01"]:
             threede_path = (
-                path / "user" / f"user_{i:03d}" / "mm" / "3de" /
-                "mm-default" / "scenes" / "scene" / plate
+                path
+                / "user"
+                / f"user_{i:03d}"
+                / "mm"
+                / "3de"
+                / "mm-default"
+                / "scenes"
+                / "scene"
+                / plate
             )
             threede_path.mkdir(parents=True, exist_ok=True)
 
             for j in range(files_per_user):
-                (threede_path / f"track_v{j+1:03d}.3de").touch()
+                (threede_path / f"track_v{j + 1:03d}.3de").touch()
 
 
 def test_maya_finder_performance() -> dict[str, float]:
@@ -148,20 +155,26 @@ def test_targeted_finder_performance() -> dict[str, float]:
             # Mock find command output
             mock_result = MagicMock()
             mock_result.returncode = 0
-            mock_result.stdout = "\n".join([
-                f"/test/shows/show{i}/shots/seq{j:02d}/seq{j:02d}_{k:04d}/user/testuser"
-                for i in range(3)
-                for j in range(5)
-                for k in range(10)
-            ])
+            mock_result.stdout = "\n".join(
+                [
+                    f"/test/shows/show{i}/shots/seq{j:02d}/seq{j:02d}_{k:04d}/user/testuser"
+                    for i in range(3)
+                    for j in range(5)
+                    for k in range(10)
+                ]
+            )
             mock_run.return_value = mock_result
 
             finder = TargetedShotsFinder(username="testuser")
 
             # Create mock active shots
             active_shots = [
-                Shot(show=f"show{i}", sequence=f"seq{j:02d}", shot=f"{k:04d}",
-                     workspace_path=f"/test/shows/show{i}/shots/seq{j:02d}/seq{j:02d}_{k:04d}")
+                Shot(
+                    show=f"show{i}",
+                    sequence=f"seq{j:02d}",
+                    shot=f"{k:04d}",
+                    workspace_path=f"/test/shows/show{i}/shots/seq{j:02d}/seq{j:02d}_{k:04d}",
+                )
                 for i in range(3)
                 for j in range(2)
                 for k in range(5)
@@ -177,7 +190,9 @@ def test_targeted_finder_performance() -> dict[str, float]:
 
                 return list(finder.find_user_shots_in_shows(shows, shows_root))
 
-    return measure_performance("TargetedShotsFinder.find_targeted", find_targeted, iterations=5)
+    return measure_performance(
+        "TargetedShotsFinder.find_targeted", find_targeted, iterations=5
+    )
 
 
 def main():
@@ -226,9 +241,9 @@ def main():
     # Define performance targets
     targets = {
         "MayaLatestFinder.find_latest": 50.0,  # 50ms for finding latest
-        "MayaLatestFinder.find_all": 100.0,    # 100ms for finding all
+        "MayaLatestFinder.find_all": 100.0,  # 100ms for finding all
         "ThreeDELatestFinder.find_latest": 75.0,  # 75ms (more complex structure)
-        "ThreeDELatestFinder.find_all": 150.0,    # 150ms for all 3DE files
+        "ThreeDELatestFinder.find_all": 150.0,  # 150ms for all 3DE files
         "TargetedShotsFinder.find_targeted": 200.0,  # 200ms with subprocess
     }
 
@@ -237,20 +252,15 @@ def main():
 
     all_pass = True
     for result in results:
-        name = result['name']
+        name = result["name"]
         target = targets.get(name, 100.0)
-        actual = result['avg_ms']
+        actual = result["avg_ms"]
         status = "✓ PASS" if actual <= target else "✗ FAIL"
 
         if actual > target:
             all_pass = False
 
-        print(
-            f"{name:<40} "
-            f"{target:>12.2f} "
-            f"{actual:>12.2f} "
-            f"{status:>10}"
-        )
+        print(f"{name:<40} {target:>12.2f} {actual:>12.2f} {status:>10}")
 
     print()
     if all_pass:

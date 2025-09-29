@@ -73,7 +73,10 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
     def _refresh_threede(self) -> None:
         """Refresh Other 3DE scenes."""
-        if hasattr(self.main_window, "threede_controller") and self.main_window.threede_controller:
+        if (
+            hasattr(self.main_window, "threede_controller")
+            and self.main_window.threede_controller
+        ):
             self.main_window.threede_controller.refresh_threede_scenes()
             self.refresh_finished.emit(1, True)
         else:
@@ -82,8 +85,10 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
     def _refresh_previous(self) -> None:
         """Refresh Previous Shots."""
-        if (hasattr(self.main_window, "previous_shots_model") and
-            self.main_window.previous_shots_model):
+        if (
+            hasattr(self.main_window, "previous_shots_model")
+            and self.main_window.previous_shots_model
+        ):
             self.main_window.previous_shots_model.refresh_shots()
             self.refresh_finished.emit(2, True)
         else:
@@ -135,8 +140,9 @@ class RefreshOrchestrator(QObject, LoggingMixin):
                 self.logger.debug("Refresh completed without changes")
 
             # Restore last selected shot if available
-            if (hasattr(self.main_window, "_last_selected_shot_name") and
-                isinstance(self.main_window._last_selected_shot_name, str)):
+            if hasattr(self.main_window, "_last_selected_shot_name") and isinstance(
+                self.main_window._last_selected_shot_name, str
+            ):
                 shot = self.main_window.shot_model.find_shot_by_name(
                     self.main_window._last_selected_shot_name
                 )
@@ -145,8 +151,10 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
             # Also refresh 3DE scenes when shots are refreshed
             if self.main_window.shot_model.shots:
-                if (hasattr(self.main_window, "threede_controller") and
-                    self.main_window.threede_controller):
+                if (
+                    hasattr(self.main_window, "threede_controller")
+                    and self.main_window.threede_controller
+                ):
                     self.main_window.threede_controller.refresh_threede_scenes()
         else:
             self._update_status("Failed to refresh shots")
@@ -169,8 +177,10 @@ class RefreshOrchestrator(QObject, LoggingMixin):
             self.logger.info(
                 f"Triggering previous shots refresh after loading {len(shots)} active shots"
             )
-            if (hasattr(self.main_window, "previous_shots_model") and
-                self.main_window.previous_shots_model):
+            if (
+                hasattr(self.main_window, "previous_shots_model")
+                and self.main_window.previous_shots_model
+            ):
                 self.main_window.previous_shots_model.refresh_shots()
         else:
             self.logger.debug("No active shots loaded, skipping previous shots refresh")
@@ -178,9 +188,12 @@ class RefreshOrchestrator(QObject, LoggingMixin):
     def _refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
         # Always use Model/View implementation
-        if (hasattr(self.main_window, "shot_item_model") and
-            hasattr(self.main_window, "shot_grid")):
-            self.main_window.shot_item_model.set_shots(self.main_window.shot_model.shots)
+        if hasattr(self.main_window, "shot_item_model") and hasattr(
+            self.main_window, "shot_grid"
+        ):
+            self.main_window.shot_item_model.set_shots(
+                self.main_window.shot_model.shots
+            )
             # Populate show filter with available shows
             self.main_window.shot_grid.populate_show_filter(self.main_window.shot_model)
 

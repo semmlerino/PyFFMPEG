@@ -288,6 +288,7 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
 # Example usage
 if __name__ == "__main__":
     import logging
+
     logging.basicConfig(level=logging.INFO)
 
     # Create pool from filesystem

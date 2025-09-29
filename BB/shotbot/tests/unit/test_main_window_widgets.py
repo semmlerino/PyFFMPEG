@@ -59,6 +59,7 @@ class TestMainWindowInitialization:
         """Create MainWindow for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         return window
@@ -113,6 +114,7 @@ class TestMainWindowUIComponents:
         """Create MainWindow with UI setup for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         # Allow UI to initialize
@@ -180,6 +182,7 @@ class TestMainWindowTabFunctionality:
         """Create MainWindow with tabs for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         qtbot.wait(100)  # Allow tabs to initialize
@@ -258,6 +261,7 @@ class TestMainWindowSignalConnections:
         """Create MainWindow with signal connections for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         qtbot.wait(100)  # Allow connections to establish
@@ -309,6 +313,7 @@ class TestMainWindowKeyboardShortcuts:
         """Create MainWindow for shortcut testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         window.show()
@@ -383,6 +388,7 @@ class TestMainWindowStateManagement:
         """Create MainWindow for state testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         window.show()
@@ -450,6 +456,7 @@ class TestMainWindowErrorHandling:
         """Test window creates with default cache manager."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=None)
         qtbot.addWidget(window)
 
@@ -461,6 +468,7 @@ class TestMainWindowErrorHandling:
         """Test window handles close events properly."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
 
@@ -481,6 +489,7 @@ class TestMainWindowErrorHandling:
         """Test window handles missing components gracefully."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
 
@@ -497,6 +506,7 @@ class TestMainWindowIntegration:
         """Create fully integrated MainWindow for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
+
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         window.show()

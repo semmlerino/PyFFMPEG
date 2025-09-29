@@ -47,6 +47,7 @@ from tests.test_doubles_library import (
 # from main_window import MainWindow
 # from shot_model import Shot
 
+
 # Module-level fixture to handle lazy imports after Qt initialization
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports():
@@ -55,6 +56,7 @@ def setup_qt_imports():
     # Local application imports
     from main_window import MainWindow
     from shot_model import Shot
+
 
 # Mark all tests in this module as qt_heavy and integration_unsafe
 pytestmark = [pytest.mark.qt_heavy, pytest.mark.integration_unsafe]
@@ -124,7 +126,7 @@ class TestMainWindowCompleteWorkflows:
 
         # CRITICAL: Proper cleanup to prevent crashes
         # Stop all timers first
-        if hasattr(window, 'auto_refresh_timer') and window.auto_refresh_timer:
+        if hasattr(window, "auto_refresh_timer") and window.auto_refresh_timer:
             window.auto_refresh_timer.stop()
 
         # Disconnect all signals to prevent crashes during cleanup
@@ -139,6 +141,7 @@ class TestMainWindowCompleteWorkflows:
         # Process events to ensure cleanup happens
         # Third-party imports
         from PySide6.QtCore import QCoreApplication
+
         app = QCoreApplication.instance()
         if app:
             app.processEvents()
@@ -149,6 +152,7 @@ class TestMainWindowCompleteWorkflows:
         # Force garbage collection
         # Standard library imports
         import gc
+
         gc.collect()
 
     def test_shot_selection_to_launch_workflow(
@@ -234,7 +238,9 @@ class TestMainWindowCompleteWorkflows:
         assert window.threede_scene_model.scenes[0] == test_scene
 
         # Step 4: Test scene launching workflow (simplified)
-        with patch("controllers.launcher_controller.LauncherController._launch_app_with_scene") as mock_launch:
+        with patch(
+            "controllers.launcher_controller.LauncherController._launch_app_with_scene"
+        ) as mock_launch:
             mock_launch.return_value = True
 
             # Test the launch method exists and can be called

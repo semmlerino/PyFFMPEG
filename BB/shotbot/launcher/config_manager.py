@@ -33,7 +33,9 @@ class LauncherConfigManager(LoggingMixin):
         try:
             self.config_dir.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            self.logger.error(f"Failed to create config directory {self.config_dir}: {e}")
+            self.logger.error(
+                f"Failed to create config directory {self.config_dir}: {e}"
+            )
             raise
 
     def load_launchers(self) -> dict[str, CustomLauncher]:

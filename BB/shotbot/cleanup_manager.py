@@ -66,13 +66,19 @@ class CleanupManager(QObject, LoggingMixin):
 
     def _cleanup_threede_controller(self) -> None:
         """Clean up the 3DE controller and its worker."""
-        if hasattr(self.main_window, "threede_controller") and self.main_window.threede_controller:
+        if (
+            hasattr(self.main_window, "threede_controller")
+            and self.main_window.threede_controller
+        ):
             self.logger.debug("Cleaning up 3DE controller")
             self.main_window.threede_controller.cleanup_worker()
 
     def _cleanup_session_warmer(self) -> None:
         """Clean up the session warmer thread."""
-        if not (hasattr(self.main_window, "_session_warmer") and self.main_window._session_warmer):
+        if not (
+            hasattr(self.main_window, "_session_warmer")
+            and self.main_window._session_warmer
+        ):
             return
 
         warmer = self.main_window._session_warmer
@@ -83,6 +89,7 @@ class CleanupManager(QObject, LoggingMixin):
 
             # Determine timeout based on environment
             import sys
+
             is_test_environment = "pytest" in sys.modules
             session_timeout_ms = 200 if is_test_environment else 2000
 
@@ -100,7 +107,7 @@ class CleanupManager(QObject, LoggingMixin):
                     )
 
         # Only delete if not a zombie
-        if hasattr(warmer, 'is_zombie') and warmer.is_zombie():
+        if hasattr(warmer, "is_zombie") and warmer.is_zombie():
             self.logger.warning(
                 "Session warmer thread is a zombie and will not be deleted"
             )
@@ -112,29 +119,38 @@ class CleanupManager(QObject, LoggingMixin):
     def _cleanup_managers(self) -> None:
         """Clean up manager instances."""
         # Shutdown launcher manager to stop all worker threads
-        if (hasattr(self.main_window, "launcher_manager") and
-            self.main_window.launcher_manager and
-            hasattr(self.main_window.launcher_manager, "shutdown")):
+        if (
+            hasattr(self.main_window, "launcher_manager")
+            and self.main_window.launcher_manager
+            and hasattr(self.main_window.launcher_manager, "shutdown")
+        ):
             self.logger.debug("Shutting down launcher manager")
             self.main_window.launcher_manager.shutdown()
 
         # Shutdown cache manager
-        if hasattr(self.main_window, "cache_manager") and self.main_window.cache_manager:
+        if (
+            hasattr(self.main_window, "cache_manager")
+            and self.main_window.cache_manager
+        ):
             self.logger.debug("Shutting down cache manager")
             self.main_window.cache_manager.shutdown()
 
     def _cleanup_models(self) -> None:
         """Clean up model instances and their background workers."""
         # Clean up ShotModel background threads
-        if (hasattr(self.main_window, "shot_model") and
-            self.main_window.shot_model and
-            hasattr(self.main_window.shot_model, "cleanup")):
+        if (
+            hasattr(self.main_window, "shot_model")
+            and self.main_window.shot_model
+            and hasattr(self.main_window.shot_model, "cleanup")
+        ):
             self.logger.debug("Cleaning up ShotModel background threads")
             self.main_window.shot_model.cleanup()
 
         # Clean up previous shots model (stops auto-refresh timer and worker)
-        if (hasattr(self.main_window, "previous_shots_model") and
-            self.main_window.previous_shots_model):
+        if (
+            hasattr(self.main_window, "previous_shots_model")
+            and self.main_window.previous_shots_model
+        ):
             self.logger.debug("Cleaning up PreviousShotsModel")
             try:
                 self.main_window.previous_shots_model.cleanup()
@@ -142,8 +158,10 @@ class CleanupManager(QObject, LoggingMixin):
                 self.logger.error(f"Error cleaning up PreviousShotsModel: {e}")
 
         # Also clean up the item model if it exists
-        if (hasattr(self.main_window, "previous_shots_item_model") and
-            self.main_window.previous_shots_item_model):
+        if (
+            hasattr(self.main_window, "previous_shots_item_model")
+            and self.main_window.previous_shots_item_model
+        ):
             self.logger.debug("Cleaning up PreviousShotsItemModel")
             try:
                 if hasattr(self.main_window.previous_shots_item_model, "cleanup"):
@@ -153,8 +171,10 @@ class CleanupManager(QObject, LoggingMixin):
 
     def _cleanup_terminal(self) -> None:
         """Clean up persistent terminal if it exists."""
-        if not (hasattr(self.main_window, "persistent_terminal") and
-                self.main_window.persistent_terminal):
+        if not (
+            hasattr(self.main_window, "persistent_terminal")
+            and self.main_window.persistent_terminal
+        ):
             return
 
         self.logger.debug("Cleaning up persistent terminal")
@@ -184,6 +204,7 @@ class CleanupManager(QObject, LoggingMixin):
 
         # Force garbage collection to clean up any circular references
         import gc
+
         gc.collect()
 
         self.logger.debug("Final cleanup complete - GC collection done")

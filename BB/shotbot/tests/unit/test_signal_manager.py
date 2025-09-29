@@ -39,17 +39,21 @@ class MockWidget(QObject):
 @pytest.fixture
 def make_mock_widget():
     """Factory for creating MockWidget instances."""
+
     def _make():
         return MockWidget()
+
     return _make
 
 
 @pytest.fixture
 def make_signal_manager():
     """Factory for creating SignalManager instances with owner."""
+
     def _make(owner=None):
         owner = owner or MockWidget()
         return SignalManager(owner), owner
+
     return _make
 
 
@@ -81,10 +85,7 @@ class TestSignalManager:
         received = []
 
         # Connect signal
-        result = manager.connect_safely(
-            widget.test_signal,
-            lambda: received.append(1)
-        )
+        result = manager.connect_safely(widget.test_signal, lambda: received.append(1))
 
         assert result is True
         assert manager.has_connections()
@@ -105,7 +106,7 @@ class TestSignalManager:
         result = manager.connect_safely(
             widget.data_signal,
             lambda data: received.append(data),
-            connection_type=Qt.ConnectionType.QueuedConnection
+            connection_type=Qt.ConnectionType.QueuedConnection,
         )
 
         assert result is True
@@ -120,11 +121,7 @@ class TestSignalManager:
         widget = MockWidget()
 
         # Connect without tracking
-        result = manager.connect_safely(
-            widget.test_signal,
-            lambda: None,
-            track=False
-        )
+        result = manager.connect_safely(widget.test_signal, lambda: None, track=False)
 
         assert result is True
         assert not manager.has_connections()  # Should not be tracked
@@ -135,6 +132,7 @@ class TestSignalManager:
         widget = MockWidget()
 
         received = []
+
         def slot():
             received.append(1)
 
@@ -180,10 +178,7 @@ class TestSignalManager:
         target.test_signal.connect(lambda: received.append(1))
 
         # Chain signals
-        result = manager.chain_signals(
-            source.test_signal,
-            target.test_signal
-        )
+        result = manager.chain_signals(source.test_signal, target.test_signal)
 
         assert result is True
         assert manager.get_connection_count() == 1
@@ -208,7 +203,7 @@ class TestSignalManager:
         result = manager.chain_signals(
             source.data_signal,
             target.data_signal,
-            connection_type=Qt.ConnectionType.QueuedConnection
+            connection_type=Qt.ConnectionType.QueuedConnection,
         )
 
         assert result is True
@@ -229,7 +224,10 @@ class TestSignalManager:
         connections = [
             (widget.test_signal, lambda: received.update({"test": 1})),
             (widget.data_signal, lambda x: received.update({"data": x})),
-            (widget.multi_param_signal, lambda x, y, z: received.update({"multi": (x, y, z)}))
+            (
+                widget.multi_param_signal,
+                lambda x, y, z: received.update({"multi": (x, y, z)}),
+            ),
         ]
 
         count = manager.connect_group(connections)
@@ -288,14 +286,16 @@ class TestSignalManager:
             "started": lambda: None,
             "finished": lambda: None,
             "progress": lambda x: None,
-            "nonexistent": lambda: None  # This should generate warning
+            "nonexistent": lambda: None,  # This should generate warning
         }
 
         # Connect worker signals
         count = manager.connect_worker_signals(worker, handlers)
         assert count == 3  # Only 3 should connect (nonexistent fails)
 
-    @pytest.mark.xfail(reason="QTimer.singleShot may not fire reliably in test environment")
+    @pytest.mark.xfail(
+        reason="QTimer.singleShot may not fire reliably in test environment"
+    )
     def test_create_delayed_connection(self, signal_manager, qtbot):
         """Test creating a connection with a delay."""
         manager, owner = signal_manager
@@ -305,9 +305,7 @@ class TestSignalManager:
 
         # Create delayed connection (50ms delay)
         result = manager.create_delayed_connection(
-            widget.test_signal,
-            lambda: received.append(1),
-            delay_ms=50
+            widget.test_signal, lambda: received.append(1), delay_ms=50
         )
 
         assert result is True
@@ -338,12 +336,15 @@ class TestSignalManager:
         # Owner should be None after deletion
         assert manager.owner is None
 
-    def test_signal_not_emitted_after_disconnect(self, qtbot, make_mock_widget, make_signal_manager):
+    def test_signal_not_emitted_after_disconnect(
+        self, qtbot, make_mock_widget, make_signal_manager
+    ):
         """Test that signal is not emitted after disconnection."""
         widget = make_mock_widget()
         manager, _ = make_signal_manager()
 
         received = []
+
         def slot():
             received.append(1)
 
@@ -553,8 +554,7 @@ class TestSignalManagerIntegration:
 
         # Connect button click
         manager.connect_safely(
-            button.clicked,
-            lambda: clicked_count.__setitem__(0, clicked_count[0] + 1)
+            button.clicked, lambda: clicked_count.__setitem__(0, clicked_count[0] + 1)
         )
 
         # Simulate clicks
@@ -597,6 +597,7 @@ class TestSignalManagerIntegration:
 
     def test_thread_safety_with_worker(self, qtbot):
         """Test thread-safe connections with worker thread."""
+
         class Worker(QObject):
             result = Signal(str)
 
@@ -612,7 +613,7 @@ class TestSignalManagerIntegration:
         manager.connect_safely(
             worker.result,
             lambda x: results.append(x),
-            connection_type=Qt.ConnectionType.QueuedConnection
+            connection_type=Qt.ConnectionType.QueuedConnection,
         )
 
         # Process in same thread (for testing)

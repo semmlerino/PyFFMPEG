@@ -11,12 +11,9 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
-from PySide6.QtCore import QThread
-
-from cache.thumbnail_processor import AsyncEXRProcessor, ThumbnailProcessor
 
 # Test markers for categorization and parallel safety
 pytestmark = [
@@ -30,9 +27,11 @@ pytestmark = [
 @pytest.fixture
 def make_thumbnail_processor():
     """Factory for creating ThumbnailProcessor instances."""
+
     def _make(thumbnail_size=256):
         processor = ThumbnailProcessor(thumbnail_size=thumbnail_size)
         return processor
+
     return _make
 
 
@@ -62,6 +61,7 @@ def make_exr_processor(make_thumbnail_processor):
 @pytest.fixture
 def make_test_exr_files(tmp_path):
     """Factory for creating test EXR file paths."""
+
     def _make(count=3):
         files = []
         for i in range(count):
@@ -69,6 +69,7 @@ def make_test_exr_files(tmp_path):
             exr_file.touch()  # Create empty file
             files.append(exr_file)
         return files
+
     return _make
 
 
@@ -103,7 +104,9 @@ class TestAsyncEXRProcessor:
             return {f: f.with_suffix(".jpg") for f in batch}
 
         # Apply mock
-        with patch.object(processor._processor, "process_exr_batch_async", new=mock_process):
+        with patch.object(
+            processor._processor, "process_exr_batch_async", new=mock_process
+        ):
             # Set up signal spy before starting (avoid race condition)
             with qtbot.waitSignal(processor.batch_completed, timeout=2000) as blocker:
                 processor.start()
@@ -126,8 +129,9 @@ class TestAsyncEXRProcessor:
             await asyncio.sleep(0)
             return {f: f.with_suffix(".jpg") for f in batch}
 
-        with patch.object(processor._processor, "process_exr_batch_async", new=mock_process):
-
+        with patch.object(
+            processor._processor, "process_exr_batch_async", new=mock_process
+        ):
             # Track all progress updates
             progress_values = []
             processor.progress_updated.connect(progress_values.append)
@@ -154,8 +158,9 @@ class TestAsyncEXRProcessor:
             await asyncio.sleep(0)
             return {f: f.with_suffix(".jpg") for f in batch}
 
-        with patch.object(processor._processor, "process_exr_batch_async", new=mock_process):
-
+        with patch.object(
+            processor._processor, "process_exr_batch_async", new=mock_process
+        ):
             # Process batch
             with qtbot.waitSignal(processor.batch_completed, timeout=2000):
                 processor.start()
@@ -164,7 +169,9 @@ class TestAsyncEXRProcessor:
             assert processor.wait(1000)  # Should finish within 1 second
             assert not processor.isRunning()
 
-    def test_error_handling_in_async_processing(self, qtbot, make_exr_processor, make_thumbnail_processor):
+    def test_error_handling_in_async_processing(
+        self, qtbot, make_exr_processor, make_thumbnail_processor
+    ):
         """Test that exceptions in async processing are handled gracefully."""
         thumb_processor = make_thumbnail_processor()
         processor = AsyncEXRProcessor(thumb_processor, [Path("/test.exr")])
@@ -179,7 +186,7 @@ class TestAsyncEXRProcessor:
         with patch.object(
             thumb_processor,
             "process_exr_batch_async",
-            new=mock_error_batch  # Use real async function that raises
+            new=mock_error_batch,  # Use real async function that raises
         ):
             # Should emit error signal
             with qtbot.waitSignal(processor.error_occurred, timeout=2000) as blocker:
@@ -202,7 +209,14 @@ class TestAsyncEXRProcessor:
         assert blocker.args[0] == {}
 
     @pytest.mark.parametrize("file_count", [1, 5, 10])
-    def test_various_batch_sizes(self, qtbot, make_test_exr_files, make_thumbnail_processor, file_count, mock_subprocess):
+    def test_various_batch_sizes(
+        self,
+        qtbot,
+        make_test_exr_files,
+        make_thumbnail_processor,
+        file_count,
+        mock_subprocess,
+    ):
         """Test processing various batch sizes.
 
         Following guide: Parametrization for comprehensive testing.
@@ -223,7 +237,7 @@ class TestAsyncEXRProcessor:
         with patch.object(
             thumb_processor,
             "process_exr_batch_async",
-            new=mock_batch_processor  # Use real async function
+            new=mock_batch_processor,  # Use real async function
         ):
             with qtbot.waitSignal(processor.batch_completed, timeout=3000) as blocker:
                 processor.start()
@@ -248,9 +262,14 @@ class TestAsyncEXRProcessor:
             await asyncio.sleep(0)
             return {f: f.with_suffix(".jpg") for f in batch}
 
-        with patch.object(processor1._processor, "process_exr_batch_async", new=mock_process), \
-             patch.object(processor2._processor, "process_exr_batch_async", new=mock_process):
-
+        with (
+            patch.object(
+                processor1._processor, "process_exr_batch_async", new=mock_process
+            ),
+            patch.object(
+                processor2._processor, "process_exr_batch_async", new=mock_process
+            ),
+        ):
             completed = []
             processor1.batch_completed.connect(lambda r: completed.append(1))
             processor2.batch_completed.connect(lambda r: completed.append(2))
@@ -275,8 +294,9 @@ class TestAsyncEXRProcessor:
             await asyncio.sleep(0)
             return {f: f.with_suffix(".jpg") for f in batch}
 
-        with patch.object(processor._processor, "process_exr_batch_async", new=mock_process):
-
+        with patch.object(
+            processor._processor, "process_exr_batch_async", new=mock_process
+        ):
             # First run
             with qtbot.waitSignal(processor.batch_completed, timeout=2000):
                 processor.start()
@@ -288,7 +308,9 @@ class TestAsyncEXRProcessor:
         # QThread cannot be restarted after finishing
         # Create a new processor for second run
         processor2 = make_exr_processor()
-        with patch.object(processor2._processor, "process_exr_batch_async", new=mock_process):
+        with patch.object(
+            processor2._processor, "process_exr_batch_async", new=mock_process
+        ):
             with qtbot.waitSignal(processor2.batch_completed, timeout=2000):
                 processor2.start()
 
@@ -297,7 +319,9 @@ class TestAsyncEXRProcessor:
             assert processor2.wait(1000)  # Wait for completion
 
     @pytest.mark.slow
-    def test_actual_subprocess_integration(self, qtbot, tmp_path, make_thumbnail_processor):
+    def test_actual_subprocess_integration(
+        self, qtbot, tmp_path, make_thumbnail_processor
+    ):
         """Integration test with actual subprocess (if OpenEXR available).
 
         Following guide: Integration test at system boundary.

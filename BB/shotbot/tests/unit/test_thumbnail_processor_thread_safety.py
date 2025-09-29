@@ -1,4 +1,4 @@
-"""Comprehensive thread safety stress tests for ThumbnailProcessor.
+"""Comprehensive thread safety stress tests for ThumbnailManager.
 
 This test suite verifies that the Qt lock implementation prevents race conditions
 and segfaults during high-concurrency thumbnail processing scenarios.
@@ -35,9 +35,14 @@ import psutil
 import pytest
 
 # Local application imports
-from cache.thumbnail_processor import ThumbnailProcessor
+from cache.thumbnail_manager import ThumbnailManager
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow, pytest.mark.xdist_group("qt_state")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.slow,
+    pytest.mark.xdist_group("qt_state"),
+]
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
@@ -104,13 +109,13 @@ class ThreadSafetyMonitor:
             }
 
 
-class TestThumbnailProcessorThreadSafety:
-    """Comprehensive thread safety tests for ThumbnailProcessor."""
+class TestThumbnailManagerThreadSafety:
+    """Comprehensive thread safety tests for ThumbnailManager."""
 
     @pytest.fixture
     def processor(self):
-        """Create ThumbnailProcessor instance."""
-        return ThumbnailProcessor(thumbnail_size=150)
+        """Create ThumbnailManager instance."""
+        return ThumbnailManager(thumbnail_size=150)
 
     @pytest.fixture
     def monitor(self):
@@ -555,7 +560,6 @@ class TestThumbnailProcessorThreadSafety:
         assert not deadlock_event.is_set(), "Deadlock detected"
         assert len(not_done) == 0, "Some operations didn't complete"
 
-
     @staticmethod
     def _get_memory_usage() -> int:
         """Get current process memory usage in bytes."""
@@ -578,7 +582,7 @@ class TestQtLockImplementation:
 
     def test_lock_is_reentrant_safe(self) -> None:
         """Verify the lock handles reentrant calls correctly."""
-        processor = ThumbnailProcessor()
+        processor = ThumbnailManager()
 
         # The lock should be a threading.Lock (not RLock)
         assert isinstance(processor._qt_lock, type(threading.Lock()))
@@ -612,7 +616,7 @@ class TestQtLockImplementation:
         import numpy as np
         from PIL import Image
 
-        processor = ThumbnailProcessor()
+        processor = ThumbnailManager()
 
         # Create test image using PIL to avoid Qt dependency in test
         test_img = tmp_path / "test.jpg"

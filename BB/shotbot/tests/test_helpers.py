@@ -153,6 +153,7 @@ class TestProcessPoolManager:
         self._cache: dict[str, tuple[str, float]] = {}  # command -> (output, timestamp)
         # Standard library imports
         import time
+
         self._time = time
 
     def execute_workspace_command(self, command: str, **kwargs) -> str:

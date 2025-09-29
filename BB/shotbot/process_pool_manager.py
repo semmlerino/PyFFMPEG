@@ -531,7 +531,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """
         with QMutexLocker(self._mutex):
             if self._shutdown_requested:
-                self.logger.debug("ProcessPoolManager shutdown already requested, skipping")
+                self.logger.debug(
+                    "ProcessPoolManager shutdown already requested, skipping"
+                )
                 return
             self._shutdown_requested = True
 
@@ -543,7 +545,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 session_count = len(self._session_round_robin)
                 self._session_round_robin.clear()
                 if session_count > 0:
-                    self.logger.debug(f"Cleared {session_count} session tracking entries")
+                    self.logger.debug(
+                        f"Cleared {session_count} session tracking entries"
+                    )
         except Exception as e:
             self.logger.warning(f"Error clearing session tracking: {e}")
 
@@ -584,7 +588,10 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 # Check if threads are actually gone (quick check only)
                 start_time = time.time()
                 while time.time() - start_time < 0.1:  # Only wait 100ms max
-                    if hasattr(self._executor, "_threads") and len(self._executor._threads) == 0:
+                    if (
+                        hasattr(self._executor, "_threads")
+                        and len(self._executor._threads) == 0
+                    ):
                         shutdown_successful = True
                         break
                     time.sleep(0.01)
@@ -634,6 +641,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         try:
             # Standard library imports
             import gc
+
             gc.collect()
         except Exception as e:
             self.logger.debug(f"Error during garbage collection: {e}")

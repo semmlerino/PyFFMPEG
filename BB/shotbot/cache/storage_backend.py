@@ -15,6 +15,12 @@ if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable
 
+    # Local application imports
+    from type_definitions import ValidationResultDict
+
+    from .memory_manager import MemoryManager
+    from .thumbnail_manager import ThumbnailManager
+
 # Platform-specific file locking
 if sys.platform == "win32":
     # Standard library imports
@@ -417,6 +423,351 @@ class StorageBackend(ErrorHandlingMixin, LoggingMixin):
         except OSError as e:
             self.logger.debug(f"Failed to get size of {file_path}: {e}")
             return None
+
+    # ============= Cache Validation Methods (from CacheValidator) =============
+
+    def validate_cache(
+        self,
+        cache_directory: Path,
+        memory_manager: MemoryManager | ThumbnailManager | None = None,
+        fix_issues: bool = True,
+    ) -> ValidationResultDict:
+        """Validate cache consistency and optionally fix issues.
+
+        Integrates validation logic from the original CacheValidator class.
+
+        Args:
+            cache_directory: Directory containing cached files to validate
+            memory_manager: Optional memory manager to validate tracking
+            fix_issues: If True, automatically fix issues found
+
+        Returns:
+            Dictionary with validation results and statistics
+        """
+        self.logger.info(f"Starting cache validation for {cache_directory}...")
+
+        results: ValidationResultDict = {
+            "valid": True,
+            "issues_found": 0,
+            "issues_fixed": 0,
+            "orphaned_files": 0,
+            "missing_files": 0,
+            "size_mismatches": 0,
+            "memory_usage_corrected": False,
+            "details": [],
+        }
+
+        try:
+            # Validate directory structure
+            structure_results = self._validate_directory_structure(
+                cache_directory, fix_issues
+            )
+            # Merge details properly to avoid overwriting
+            results["details"].extend(structure_results.get("details", []))
+            structure_results_copy = structure_results.copy()
+            structure_results_copy.pop("details", None)
+            results.update(structure_results_copy)
+
+            # Validate memory tracking if memory manager provided
+            if memory_manager is not None:
+                memory_results = self._validate_memory_tracking(
+                    memory_manager, fix_issues
+                )
+                # Merge details properly to avoid overwriting
+                results["details"].extend(memory_results.get("details", []))
+                memory_results_copy = memory_results.copy()
+                memory_results_copy.pop("details", None)
+                results.update(memory_results_copy)
+
+                # Find orphaned files
+                orphan_results = self._find_orphaned_files(
+                    cache_directory, memory_manager, fix_issues
+                )
+                # Merge details properly to avoid overwriting
+                results["details"].extend(orphan_results.get("details", []))
+                orphan_results_copy = orphan_results.copy()
+                orphan_results_copy.pop("details", None)
+                results.update(orphan_results_copy)
+
+            # Calculate final status
+            total_issues = (
+                results["missing_files"]
+                + results["size_mismatches"]
+                + results["orphaned_files"]
+                + results.get("structure_issues", 0)
+            )
+
+            results["issues_found"] = total_issues
+            results["valid"] = total_issues == 0
+
+            if results["valid"]:
+                self.logger.info("Cache validation passed - no issues found")
+            else:
+                self.logger.info(
+                    f"Cache validation found {total_issues} issues, "
+                    + f"fixed {results['issues_fixed']}"
+                )
+
+            return results
+
+        except Exception as e:
+            self.logger.error(f"Error during cache validation: {e}")
+            return {
+                "valid": False,
+                "error": str(e),
+                "issues_found": 0,
+                "issues_fixed": 0,
+            }
+
+    def repair_cache(
+        self,
+        cache_directory: Path,
+        memory_manager: MemoryManager | ThumbnailManager | None = None,
+    ) -> ValidationResultDict:
+        """Perform comprehensive cache repair operations.
+
+        Args:
+            cache_directory: Directory containing cached files to repair
+            memory_manager: Optional memory manager for tracking validation
+
+        Returns:
+            Dictionary with repair results
+        """
+        self.logger.info(
+            f"Starting comprehensive cache repair for {cache_directory}..."
+        )
+        return self.validate_cache(cache_directory, memory_manager, fix_issues=True)
+
+    def get_cache_stats(
+        self,
+        cache_directory: Path,
+        memory_manager: MemoryManager | ThumbnailManager | None = None,
+    ) -> dict[str, Any]:
+        """Get detailed cache statistics without making changes.
+
+        Args:
+            cache_directory: Directory containing cached files
+            memory_manager: Optional memory manager for memory stats
+
+        Returns:
+            Dictionary with cache statistics
+        """
+        stats = {
+            "cache_directory": str(cache_directory),
+            "directory_exists": cache_directory.exists(),
+        }
+
+        # Add memory stats if memory manager provided
+        if memory_manager:
+            stats["memory_stats"] = memory_manager.get_usage_stats()
+
+        if cache_directory.exists():
+            # Count actual files on disk (look for common cache file types)
+            cache_files = []
+            for pattern in ["*.jpg", "*.jpeg", "*.png", "*.json"]:
+                cache_files.extend(list(cache_directory.rglob(pattern)))
+
+            stats["actual_file_count"] = len(cache_files)
+            stats["actual_total_size_mb"] = sum(
+                f.stat().st_size for f in cache_files if f.exists()
+            ) / (1024 * 1024)
+
+            # Directory structure info
+            subdirs = [d for d in cache_directory.iterdir() if d.is_dir()]
+            stats["subdirectories"] = len(subdirs)
+
+            # File type breakdown
+            file_types = {}
+            for cache_file in cache_files:
+                ext = cache_file.suffix.lower()
+                file_types[ext] = file_types.get(ext, 0) + 1
+            stats["file_types"] = file_types
+
+        else:
+            stats["actual_file_count"] = 0
+            stats["actual_total_size_mb"] = 0
+            stats["subdirectories"] = 0
+            stats["file_types"] = {}
+
+        return stats
+
+    def clean_empty_directories(self, cache_directory: Path) -> int:
+        """Remove empty subdirectories in the cache.
+
+        Args:
+            cache_directory: Directory to clean
+
+        Returns:
+            Number of directories removed
+        """
+        if not cache_directory.exists():
+            return 0
+
+        removed_count = 0
+
+        # Find empty directories (bottom-up to handle nested empty dirs)
+        for dirpath in sorted(cache_directory.rglob("*"), reverse=True):
+            if not dirpath.is_dir():
+                continue
+
+            try:
+                # Try to remove if empty
+                if not any(dirpath.iterdir()):
+                    dirpath.rmdir()
+                    removed_count += 1
+                    self.logger.debug(f"Removed empty directory: {dirpath}")
+            except OSError as e:
+                self.logger.debug(f"Failed to remove directory {dirpath}: {e}")
+
+        if removed_count > 0:
+            self.logger.info(f"Cleaned up {removed_count} empty directories")
+
+        return removed_count
+
+    def _validate_memory_tracking(
+        self, memory_manager: MemoryManager | ThumbnailManager, fix_issues: bool
+    ) -> dict[str, Any]:
+        """Validate memory manager tracking accuracy.
+
+        Args:
+            memory_manager: Memory manager instance to validate
+            fix_issues: Whether to fix issues found
+
+        Returns:
+            Dictionary with validation results
+        """
+        results = {
+            "missing_files": 0,
+            "size_mismatches": 0,
+            "memory_usage_corrected": False,
+            "details": [],
+        }
+
+        try:
+            # Use the memory manager's validate_tracking method if available
+            if hasattr(memory_manager, "validate_tracking"):
+                validation_result = memory_manager.validate_tracking()
+
+                results["missing_files"] = validation_result.get("invalid_files", 0)
+                results["size_mismatches"] = validation_result.get("size_mismatches", 0)
+                results["issues_fixed"] = validation_result.get("issues_fixed", 0)
+
+                if validation_result.get("issues_fixed", 0) > 0:
+                    results["memory_usage_corrected"] = True
+                    results["details"].append(
+                        f"Fixed {validation_result['issues_fixed']} memory tracking issues"
+                    )
+            else:
+                self.logger.debug("Memory manager does not support validation")
+
+        except Exception as e:
+            self.logger.error(f"Error validating memory tracking: {e}")
+            results["details"].append(f"Memory tracking validation failed: {e}")
+
+        return results
+
+    def _find_orphaned_files(
+        self,
+        cache_directory: Path,
+        memory_manager: MemoryManager | ThumbnailManager,
+        fix_issues: bool,
+    ) -> dict[str, Any]:
+        """Find cache files not being tracked by memory manager.
+
+        Args:
+            cache_directory: Directory containing cache files
+            memory_manager: Memory manager instance
+            fix_issues: Whether to add orphaned files to tracking
+
+        Returns:
+            Dictionary with orphan file results
+        """
+        results = {
+            "orphaned_files": 0,
+            "details": [],
+        }
+
+        if not cache_directory.exists():
+            return results
+
+        orphaned_files = []
+
+        # Find all cache files (look for common extensions)
+        for pattern in ["*.jpg", "*.jpeg", "*.png"]:
+            for cache_file in cache_directory.rglob(pattern):
+                if not cache_file.exists():
+                    continue
+
+                # Check if tracked by memory manager
+                try:
+                    if hasattr(
+                        memory_manager, "is_item_tracked"
+                    ) and not memory_manager.is_item_tracked(cache_file):
+                        orphaned_files.append(cache_file)
+                except Exception as e:
+                    self.logger.debug(f"Error checking tracking for {cache_file}: {e}")
+
+        results["orphaned_files"] = len(orphaned_files)
+
+        if orphaned_files and fix_issues:
+            fixed_count = 0
+            for orphan_file in orphaned_files:
+                try:
+                    if hasattr(
+                        memory_manager, "track_item"
+                    ) and memory_manager.track_item(orphan_file):
+                        fixed_count += 1
+                except Exception as e:
+                    self.logger.debug(
+                        f"Failed to track orphaned file {orphan_file}: {e}"
+                    )
+
+            results["issues_fixed"] = fixed_count
+            if fixed_count > 0:
+                results["details"].append(
+                    f"Added {fixed_count} orphaned files to tracking"
+                )
+
+        elif orphaned_files:
+            results["details"].append(f"Found {len(orphaned_files)} orphaned files")
+
+        return results
+
+    def _validate_directory_structure(
+        self, cache_directory: Path, fix_issues: bool
+    ) -> dict[str, Any]:
+        """Validate the cache directory structure.
+
+        Args:
+            cache_directory: Directory to validate
+            fix_issues: Whether to fix structural issues
+
+        Returns:
+            Dictionary with structure validation results
+        """
+        results = {
+            "structure_issues": 0,
+            "details": [],
+        }
+
+        # Ensure main cache directory exists
+        if not cache_directory.exists():
+            if fix_issues:
+                try:
+                    if self.ensure_directory(cache_directory):
+                        results["details"].append("Created missing cache directory")
+                        results["issues_fixed"] = results.get("issues_fixed", 0) + 1
+                    else:
+                        results["structure_issues"] += 1
+                        results["details"].append("Failed to create cache directory")
+                except Exception as e:
+                    results["structure_issues"] += 1
+                    results["details"].append(f"Directory creation error: {e}")
+            else:
+                results["structure_issues"] += 1
+                results["details"].append("Cache directory does not exist")
+
+        return results
 
     def _cleanup_temp_file(self, temp_file: Path) -> None:
         """Clean up temporary file if it exists.

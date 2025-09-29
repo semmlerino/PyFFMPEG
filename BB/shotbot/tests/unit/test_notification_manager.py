@@ -34,14 +34,19 @@ pytestmark = [
 @pytest.fixture
 def make_toast():
     """Factory for creating ToastNotification instances."""
-    def _make(message="Test message", notification_type=NotificationType.INFO, duration=2000):
+
+    def _make(
+        message="Test message", notification_type=NotificationType.INFO, duration=2000
+    ):
         return ToastNotification(message, notification_type, duration)
+
     return _make
 
 
 @pytest.fixture
 def make_manager_with_ui(qtbot):
     """Factory for creating NotificationManager with UI components."""
+
     def _make():
         main_window = QMainWindow()
         status_bar = QStatusBar()
@@ -50,6 +55,7 @@ def make_manager_with_ui(qtbot):
 
         manager = NotificationManager.initialize(main_window, status_bar)
         return manager, main_window, status_bar
+
     return _make
 
 
@@ -58,11 +64,7 @@ class TestToastNotification:
 
     def test_toast_initialization(self, qtbot):
         """Test toast notification initialization."""
-        toast = ToastNotification(
-            "Test message",
-            NotificationType.INFO,
-            duration=2000
-        )
+        toast = ToastNotification("Test message", NotificationType.INFO, duration=2000)
         qtbot.addWidget(toast)
 
         assert toast.message_label.text() == "Test message"
@@ -75,7 +77,7 @@ class TestToastNotification:
         toast = ToastNotification(
             "Auto dismiss test",
             NotificationType.SUCCESS,
-            duration=100  # Short duration for testing
+            duration=100,  # Short duration for testing
         )
         qtbot.addWidget(toast)
 
@@ -85,8 +87,7 @@ class TestToastNotification:
 
         # Wait for auto-dismiss with conditional check
         qtbot.waitUntil(
-            lambda: len(dismissed) > 0 or not toast.isVisible(),
-            timeout=300
+            lambda: len(dismissed) > 0 or not toast.isVisible(), timeout=300
         )
 
     def test_toast_manual_dismiss(self, qtbot):
@@ -94,7 +95,7 @@ class TestToastNotification:
         toast = ToastNotification(
             "Manual dismiss test",
             NotificationType.WARNING,
-            duration=5000  # Long duration
+            duration=5000,  # Long duration
         )
         qtbot.addWidget(toast)
 
@@ -107,8 +108,7 @@ class TestToastNotification:
 
         # Wait for dismissal to complete
         qtbot.waitUntil(
-            lambda: len(dismissed) > 0 or not toast.isVisible(),
-            timeout=100
+            lambda: len(dismissed) > 0 or not toast.isVisible(), timeout=100
         )
 
         # Check timer is no longer active
@@ -116,11 +116,7 @@ class TestToastNotification:
 
     def test_toast_no_auto_dismiss(self, qtbot):
         """Test toast with no auto-dismiss (duration=0)."""
-        toast = ToastNotification(
-            "No auto dismiss",
-            NotificationType.ERROR,
-            duration=0
-        )
+        toast = ToastNotification("No auto dismiss", NotificationType.ERROR, duration=0)
         qtbot.addWidget(toast)
 
         # Timer should not be active
@@ -131,12 +127,15 @@ class TestToastNotification:
         # Check that toast was created properly
         assert toast is not None
 
-    @pytest.mark.parametrize("notif_type", [
-        NotificationType.ERROR,
-        NotificationType.WARNING,
-        NotificationType.INFO,
-        NotificationType.SUCCESS,
-    ])
+    @pytest.mark.parametrize(
+        "notif_type",
+        [
+            NotificationType.ERROR,
+            NotificationType.WARNING,
+            NotificationType.INFO,
+            NotificationType.SUCCESS,
+        ],
+    )
     def test_toast_types_styling(self, qtbot, make_toast, notif_type):
         """Test different notification types have appropriate styling."""
         toast = make_toast(f"{notif_type.name} message", notif_type, duration=0)
@@ -185,7 +184,7 @@ class TestNotificationManager:
         manager, main_window, status_bar = manager_with_ui
 
         # Mock QMessageBox.critical
-        with patch.object(QMessageBox, 'critical') as mock_critical:
+        with patch.object(QMessageBox, "critical") as mock_critical:
             NotificationManager.error("Test Error", "Error message", "Details")
 
             mock_critical.assert_called_once()
@@ -198,7 +197,7 @@ class TestNotificationManager:
         """Test warning notification display."""
         manager, main_window, status_bar = manager_with_ui
 
-        with patch.object(QMessageBox, 'warning') as mock_warning:
+        with patch.object(QMessageBox, "warning") as mock_warning:
             NotificationManager.warning("Test Warning", "Warning message")
 
             mock_warning.assert_called_once()
@@ -217,8 +216,9 @@ class TestNotificationManager:
 
         # Wait for message to clear or remain
         qtbot.waitUntil(
-            lambda: status_bar.currentMessage() == "" or "Info message" in status_bar.currentMessage(),
-            timeout=250
+            lambda: status_bar.currentMessage() == ""
+            or "Info message" in status_bar.currentMessage(),
+            timeout=250,
         )
 
     def test_success_notification(self, manager_with_ui):
@@ -237,11 +237,7 @@ class TestNotificationManager:
         manager, main_window, status_bar = manager_with_ui
 
         # Create toast
-        NotificationManager.toast(
-            "Toast message",
-            NotificationType.INFO,
-            duration=100
-        )
+        NotificationManager.toast("Toast message", NotificationType.INFO, duration=100)
 
         # Check toast was created and added to active list
         assert len(NotificationManager._active_toasts) > 0
@@ -252,10 +248,10 @@ class TestNotificationManager:
         # Wait for toast visibility state
         qtbot.waitUntil(
             lambda: toast is not None,  # Simple check that toast exists
-            timeout=50
+            timeout=50,
         )
 
-    @patch.object(QProgressDialog, '__new__')
+    @patch.object(QProgressDialog, "__new__")
     def test_progress_notification(self, mock_progress_new, manager_with_ui):
         """Test progress dialog creation."""
         manager, main_window, status_bar = manager_with_ui
@@ -265,11 +261,7 @@ class TestNotificationManager:
         mock_progress_new.return_value = mock_progress
 
         # Show progress - progress() takes title, message, cancelable, callback
-        NotificationManager.progress(
-            "Loading...",
-            "Processing items",
-            cancelable=True
-        )
+        NotificationManager.progress("Loading...", "Processing items", cancelable=True)
 
         # Check that progress dialog methods were called
         mock_progress.setWindowTitle.assert_called_with("Loading...")
@@ -299,7 +291,7 @@ class TestNotificationManager:
             NotificationManager.toast(
                 f"Toast {i}",
                 NotificationType.INFO,
-                duration=0  # No auto-dismiss
+                duration=0,  # No auto-dismiss
             )
 
         # Check all toasts were created
@@ -317,18 +309,17 @@ class TestNotificationManager:
         for toast in NotificationManager._active_toasts[:]:
             toast.close()
 
-
     def test_notification_without_ui(self):
         """Test notifications work without UI initialization."""
         # Don't initialize with UI
         NotificationManager()
 
         # These should not crash
-        with patch.object(QMessageBox, 'critical') as mock_critical:
+        with patch.object(QMessageBox, "critical") as mock_critical:
             NotificationManager.error("Error without UI")
             mock_critical.assert_called_once()
 
-        with patch.object(QMessageBox, 'warning') as mock_warning:
+        with patch.object(QMessageBox, "warning") as mock_warning:
             NotificationManager.warning("Warning without UI")
             mock_warning.assert_called_once()
 
@@ -354,7 +345,6 @@ class TestNotificationManager:
         assert NotificationManager._current_progress is None
         mock_progress.close.assert_called_once()
 
-
     def test_notification_types_enum(self):
         """Test NotificationType enum values."""
         # Check all expected types exist
@@ -368,4 +358,3 @@ class TestNotificationManager:
 
         for notif_type in expected_types:
             assert isinstance(notif_type, NotificationType)
-

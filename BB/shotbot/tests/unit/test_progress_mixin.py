@@ -39,18 +39,19 @@ class TestProgressReportingMixinInitialization:
         assert obj._progress_callback is None
         assert obj._last_reported_progress == -1
         # Should also have logger from LoggingMixin
-        assert hasattr(obj, 'logger')
+        assert hasattr(obj, "logger")
 
     def test_multiple_inheritance_chain(self):
         """Test that mixin works in multiple inheritance chain."""
+
         class MultipleInheritance(ProgressReportingMixin):
             def __init__(self) -> None:
                 super().__init__()
                 self.custom_attr = "test"
 
         obj = MultipleInheritance()
-        assert hasattr(obj, '_stop_requested')
-        assert hasattr(obj, 'custom_attr')
+        assert hasattr(obj, "_stop_requested")
+        assert hasattr(obj, "custom_attr")
         assert obj.custom_attr == "test"
 
 
@@ -97,7 +98,7 @@ class TestProgressCallback:
         callback = MagicMock(side_effect=Exception("Callback error"))
         obj.set_progress_callback(callback)
 
-        with patch.object(obj.logger, 'error') as mock_error:
+        with patch.object(obj.logger, "error") as mock_error:
             # Should not raise exception
             obj._report_progress(5, 10, "Test")
             mock_error.assert_called_once()
@@ -150,7 +151,7 @@ class TestStopRequest:
         assert obj._check_stop() is False
 
         obj.request_stop()
-        with patch.object(obj.logger, 'info') as mock_info:
+        with patch.object(obj.logger, "info") as mock_info:
             assert obj._check_stop() is True
             mock_info.assert_called_once()
             assert "Operation stopped by user request" in mock_info.call_args[0][0]
@@ -231,21 +232,23 @@ class TestProgressReportingIntegration:
         progress_reports = []
 
         def capture_progress(current, total, message):
-            progress_reports.append({
-                'current': current,
-                'total': total,
-                'message': message,
-                'percentage': obj._calculate_percentage(current, total)
-            })
+            progress_reports.append(
+                {
+                    "current": current,
+                    "total": total,
+                    "message": message,
+                    "percentage": obj._calculate_percentage(current, total),
+                }
+            )
 
         obj.set_progress_callback(capture_progress)
         result = obj.long_operation()
 
         assert result is True
         assert len(progress_reports) == 10
-        assert progress_reports[0]['percentage'] == 10
-        assert progress_reports[-1]['percentage'] == 100
-        assert progress_reports[-1]['current'] == 10
+        assert progress_reports[0]["percentage"] == 10
+        assert progress_reports[-1]["percentage"] == 100
+        assert progress_reports[-1]["current"] == 10
 
     def test_multiple_operations_with_reset(self):
         """Test running multiple operations with reset between."""
@@ -270,9 +273,9 @@ class TestProgressReportingIntegration:
         obj = ConcreteProgressClass()
 
         # These attributes should exist for thread-safe operation
-        assert hasattr(obj, '_stop_requested')
-        assert hasattr(obj, '_progress_callback')
-        assert hasattr(obj, '_last_reported_progress')
+        assert hasattr(obj, "_stop_requested")
+        assert hasattr(obj, "_progress_callback")
+        assert hasattr(obj, "_last_reported_progress")
 
         # Should be able to safely check stop from different contexts
         assert obj.stop_requested is False
@@ -286,7 +289,7 @@ class TestLogging:
     def test_logging_on_callback_set(self):
         """Test that setting callback logs debug message."""
         obj = ConcreteProgressClass()
-        with patch.object(obj.logger, 'debug') as mock_debug:
+        with patch.object(obj.logger, "debug") as mock_debug:
             obj.set_progress_callback(MagicMock())
             mock_debug.assert_called_once()
             assert "Progress callback set" in mock_debug.call_args[0][0]
@@ -294,7 +297,7 @@ class TestLogging:
     def test_logging_on_callback_clear(self):
         """Test that clearing callback logs debug message."""
         obj = ConcreteProgressClass()
-        with patch.object(obj.logger, 'debug') as mock_debug:
+        with patch.object(obj.logger, "debug") as mock_debug:
             obj.clear_progress_callback()
             mock_debug.assert_called_once()
             assert "Progress callback cleared" in mock_debug.call_args[0][0]
@@ -302,7 +305,7 @@ class TestLogging:
     def test_logging_on_stop_request(self):
         """Test that stop request logs info message."""
         obj = ConcreteProgressClass()
-        with patch.object(obj.logger, 'info') as mock_info:
+        with patch.object(obj.logger, "info") as mock_info:
             obj.request_stop()
             mock_info.assert_called_once()
             assert "Stop requested" in mock_info.call_args[0][0]
@@ -310,7 +313,7 @@ class TestLogging:
     def test_logging_on_stop_clear(self):
         """Test that clearing stop logs debug message."""
         obj = ConcreteProgressClass()
-        with patch.object(obj.logger, 'debug') as mock_debug:
+        with patch.object(obj.logger, "debug") as mock_debug:
             obj.clear_stop_request()
             mock_debug.assert_called_once()
             assert "Stop request cleared" in mock_debug.call_args[0][0]
