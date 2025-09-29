@@ -34,7 +34,12 @@ def make_settings_manager():
             QSettings.Scope.UserScope,
             str(tmp_path)
         )
-        return SettingsManager(organization=organization, application=application)
+        manager = SettingsManager(organization=organization, application=application)
+        # Clear any existing settings to ensure clean state
+        manager.settings.clear()
+        # Re-initialize defaults after clearing
+        manager._initialize_defaults()
+        return manager
     return _make
 
 

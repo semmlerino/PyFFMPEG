@@ -23,7 +23,6 @@ from __future__ import annotations
 # Standard library imports
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 # Third-party imports

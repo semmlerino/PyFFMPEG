@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 # Standard library imports
-import logging
 import threading
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
+
+# Local application imports
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     # Standard library imports
     from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
-
-class FailureTracker:
+class FailureTracker(LoggingMixin):
     """Tracks failed cache operations and implements exponential backoff.
 
     This class manages failed thumbnail generation attempts, implementing
@@ -41,6 +40,7 @@ class FailureTracker:
             max_failed_attempts: Max attempts before using max delay (default: 4)
             cleanup_age_hours: Hours after which to clean old failures (default: 24)
         """
+        super().__init__()
         self._failed_attempts: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
 
@@ -121,7 +121,7 @@ class FailureTracker:
             }
 
             source_name = source_path.name if source_path else cache_key
-            logger.info(
+            self.logger.info(
                 f"Recorded failed attempt #{attempts} for {source_name}, "
                 + f"next retry in {delay_minutes:.2f}min ({next_retry.strftime('%H:%M:%S')})"
             )
@@ -141,14 +141,14 @@ class FailureTracker:
                 if cache_key in self._failed_attempts:
                     failure_info = self._failed_attempts.pop(cache_key)
                     source_path = failure_info.get("source_path", cache_key)
-                    logger.info(f"Cleared failure record for {source_path}")
+                    self.logger.info(f"Cleared failure record for {source_path}")
                 else:
-                    logger.debug(f"No failure record found for {cache_key}")
+                    self.logger.debug(f"No failure record found for {cache_key}")
             else:
                 count = len(self._failed_attempts)
                 self._failed_attempts.clear()
                 if count > 0:
-                    logger.info(f"Cleared all {count} failure records")
+                    self.logger.info(f"Cleared all {count} failure records")
 
     def get_failure_status(self) -> dict[str, dict[str, Any]]:
         """Get current status of all failed attempts for debugging.
@@ -217,7 +217,7 @@ class FailureTracker:
             del self._failed_attempts[key]
 
         if keys_to_remove:
-            logger.debug(f"Cleaned up {len(keys_to_remove)} old failure records")
+            self.logger.debug(f"Cleaned up {len(keys_to_remove)} old failure records")
 
         return len(keys_to_remove)
 

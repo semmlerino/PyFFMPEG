@@ -447,6 +447,10 @@ class TestMainWindowFilterHandlers:
         )
         qtbot.addWidget(window.previous_shots_grid)
 
+        # Add RefreshOrchestrator for refactored MainWindow
+        from refresh_orchestrator import RefreshOrchestrator
+        window.refresh_orchestrator = RefreshOrchestrator(window)
+
         # Logger is already provided by LoggingMixin
 
         yield window

@@ -7,7 +7,6 @@ extracted from the original launcher_manager.py for better separation of concern
 from __future__ import annotations
 
 # Standard library imports
-import logging
 import subprocess
 import time
 import uuid
@@ -28,12 +27,10 @@ from PySide6.QtCore import (
 from config import ThreadingConfig
 from launcher.models import ProcessInfo
 from launcher.worker import LauncherWorker
-
-# Set up logger for this module
-logger = logging.getLogger(__name__)
+from logging_mixin import LoggingMixin
 
 
-class LauncherProcessManager(QObject):
+class LauncherProcessManager(LoggingMixin, QObject):
     """Manages launcher process lifecycle and worker threads."""
 
     # Qt signals
@@ -76,7 +73,7 @@ class LauncherProcessManager(QObject):
         # Shutdown flag for graceful cleanup
         self._shutting_down = False
 
-        logger.info(
+        self.logger.info(
             f"LauncherProcessManager initialized with cleanup interval {self.CLEANUP_INTERVAL_MS}ms",
         )
 
@@ -124,7 +121,7 @@ class LauncherProcessManager(QObject):
             with QMutexLocker(self._process_lock):
                 self._active_processes[process_key] = process_info
 
-            logger.info(
+            self.logger.info(
                 f"Started subprocess for launcher '{launcher_name}' (PID: {process.pid})",
             )
 
@@ -134,7 +131,7 @@ class LauncherProcessManager(QObject):
             return process_key
 
         except Exception as e:
-            logger.error(f"Failed to start subprocess: {e}")
+            self.logger.error(f"Failed to start subprocess: {e}")
             self.process_error.emit(launcher_id, str(e))
             return None
 
@@ -186,11 +183,11 @@ class LauncherProcessManager(QObject):
             worker.start()
 
             self.worker_created.emit(worker_key)
-            logger.info(f"Started worker thread for launcher '{launcher_name}'")
+            self.logger.info(f"Started worker thread for launcher '{launcher_name}'")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to start worker thread: {e}")
+            self.logger.error(f"Failed to start worker thread: {e}")
             self.process_error.emit(launcher_id, str(e))
             return False
 
@@ -204,7 +201,7 @@ class LauncherProcessManager(QObject):
             success: Whether execution was successful
             return_code: Process return code
         """
-        logger.info(
+        self.logger.info(
             f"Worker finished for launcher '{launcher_id}' - Success: {success}, Code: {return_code}",
         )
 
@@ -283,7 +280,7 @@ class LauncherProcessManager(QObject):
                     }
                 )
             except Exception as e:
-                logger.debug(f"Error getting process info for {process_key}: {e}")
+                self.logger.debug(f"Error getting process info for {process_key}: {e}")
 
         # Add worker info
         for worker_key, worker in workers_snapshot:
@@ -300,7 +297,7 @@ class LauncherProcessManager(QObject):
                     }
                 )
             except Exception as e:
-                logger.debug(f"Error getting worker info for {worker_key}: {e}")
+                self.logger.debug(f"Error getting worker info for {worker_key}: {e}")
 
         return info_list
 
@@ -335,11 +332,11 @@ class LauncherProcessManager(QObject):
 
                     # Remove from tracking
                     del self._active_processes[process_key]
-                    logger.info(f"Terminated process {process_key}")
+                    self.logger.info(f"Terminated process {process_key}")
                     return True
 
                 except Exception as e:
-                    logger.error(f"Failed to terminate process {process_key}: {e}")
+                    self.logger.error(f"Failed to terminate process {process_key}: {e}")
                     return False
 
             # Check if it's a worker thread
@@ -348,7 +345,7 @@ class LauncherProcessManager(QObject):
                 try:
                     worker.request_stop()
                     if not worker.wait(5000):  # Wait 5 seconds
-                        logger.warning(f"Worker {process_key} did not stop gracefully")
+                        self.logger.warning(f"Worker {process_key} did not stop gracefully")
 
                     # Disconnect signals to prevent warnings
                     try:
@@ -363,10 +360,10 @@ class LauncherProcessManager(QObject):
                     self.worker_removed.emit(process_key)
                     return True
                 except Exception as e:
-                    logger.error(f"Failed to stop worker {process_key}: {e}")
+                    self.logger.error(f"Failed to stop worker {process_key}: {e}")
                     return False
 
-        logger.warning(f"Process/worker {process_key} not found")
+        self.logger.warning(f"Process/worker {process_key} not found")
         return False
 
     def _cleanup_finished_processes(self) -> None:
@@ -388,7 +385,7 @@ class LauncherProcessManager(QObject):
                     finished_keys.append(process_key)
             except (OSError, AttributeError) as e:
                 # Process may have been cleaned up already
-                logger.debug(f"Error checking process {process_key}: {e}")
+                self.logger.debug(f"Error checking process {process_key}: {e}")
                 finished_keys.append(process_key)
 
         # Remove finished processes with lock held
@@ -397,12 +394,12 @@ class LauncherProcessManager(QObject):
                 for key in finished_keys:
                     if key in self._active_processes:
                         process_info = self._active_processes[key]
-                        logger.debug(
+                        self.logger.debug(
                             f"Cleaning up finished process: {process_info.launcher_name} "
                             + f"(PID: {process_info.process.pid}, Key: {key})",
                         )
                         del self._active_processes[key]
-                logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
+                self.logger.debug(f"Cleaned up {len(finished_keys)} finished processes")
 
     def _cleanup_finished_workers(self) -> None:
         """Clean up finished worker threads."""
@@ -421,9 +418,9 @@ class LauncherProcessManager(QObject):
                 # Check worker state
                 if not worker.isRunning():
                     finished_keys.append(worker_key)
-                    logger.debug(f"Worker {worker_key} has finished")
+                    self.logger.debug(f"Worker {worker_key} has finished")
             except Exception as e:
-                logger.debug(f"Error checking worker {worker_key}: {e}")
+                self.logger.debug(f"Error checking worker {worker_key}: {e}")
                 finished_keys.append(worker_key)
 
         # Clean up finished workers
@@ -442,7 +439,7 @@ class LauncherProcessManager(QObject):
                             # Signals may already be disconnected
                             pass
 
-                        logger.debug(f"Removing finished worker {key}")
+                        self.logger.debug(f"Removing finished worker {key}")
                         del self._active_workers[key]
                         self.worker_removed.emit(key)
 
@@ -457,7 +454,7 @@ class LauncherProcessManager(QObject):
             self._cleanup_finished_workers()
 
         except Exception as e:
-            logger.error(f"Error during periodic cleanup: {e}")
+            self.logger.error(f"Error during periodic cleanup: {e}")
 
     def _perform_cleanup_with_reset(self) -> None:
         """Perform cleanup and reset the scheduled flag."""
@@ -498,13 +495,13 @@ class LauncherProcessManager(QObject):
                     pass
 
             except Exception as e:
-                logger.error(f"Error stopping worker {worker_key}: {e}")
+                self.logger.error(f"Error stopping worker {worker_key}: {e}")
 
         # Clear all tracking
         with QMutexLocker(self._process_lock):
             self._active_workers.clear()
 
-        logger.info("All workers and processes stopped")
+        self.logger.info("All workers and processes stopped")
 
     def shutdown(self) -> None:
         """Shutdown the process manager and clean up resources."""

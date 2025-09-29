@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 # Standard library imports
-import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 # Local application imports
 from config import Config
+from logging_mixin import LoggingMixin
 
 from .storage_backend import StorageBackend
 
@@ -19,10 +19,7 @@ if TYPE_CHECKING:
     # Local application imports
     from type_definitions import CacheDataDict, CacheInfoDict, ThreeDESceneDict
 
-logger = logging.getLogger(__name__)
-
-
-class ThreeDECache:
+class ThreeDECache(LoggingMixin):
     """Manages caching of 3DE scene data with metadata and TTL expiration.
 
     This class handles persistent caching of 3DE scene discovery results
@@ -44,11 +41,12 @@ class ThreeDECache:
             storage_backend: Storage backend for file operations. If None, creates new one.
             expiry_minutes: Cache expiry time in minutes. If None, uses config default.
         """
+        super().__init__()
         self._cache_file = cache_file
         self._storage = storage_backend or StorageBackend()
         self._expiry_minutes = expiry_minutes or Config.CACHE_EXPIRY_MINUTES
 
-        logger.debug(f"ThreeDECache initialized with {self._expiry_minutes}min TTL")
+        self.logger.debug(f"ThreeDECache initialized with {self._expiry_minutes}min TTL")
 
     def set_expiry_minutes(self, expiry_minutes: int) -> None:
         """Set cache expiry time in minutes.
@@ -57,7 +55,7 @@ class ThreeDECache:
             expiry_minutes: Cache expiry time in minutes
         """
         self._expiry_minutes = expiry_minutes
-        logger.debug(f"ThreeDECache TTL updated to {expiry_minutes} minutes")
+        self.logger.debug(f"ThreeDECache TTL updated to {expiry_minutes} minutes")
 
     def get_cached_scenes(self) -> list[ThreeDESceneDict] | None:
         """Get cached 3DE scene list if valid and not expired.
@@ -66,7 +64,7 @@ class ThreeDECache:
             List of scene dictionaries if cache is valid, None if expired or invalid
         """
         if not self._cache_file.exists():
-            logger.debug("3DE scene cache file does not exist")
+            self.logger.debug("3DE scene cache file does not exist")
             return None
 
         # Read cache data
@@ -80,10 +78,10 @@ class ThreeDECache:
 
         scenes = cache_data.get("scenes", [])
         if not isinstance(scenes, list):
-            logger.warning("Invalid 3DE cache structure - scenes is not a list")
+            self.logger.warning("Invalid 3DE cache structure - scenes is not a list")
             return None
 
-        logger.debug(f"Loaded {len(scenes)} 3DE scenes from cache")
+        self.logger.debug(f"Loaded {len(scenes)} 3DE scenes from cache")
         return scenes
 
     def cache_scenes(
@@ -118,14 +116,14 @@ class ThreeDECache:
 
             # Write to cache
             if self._storage.write_json(self._cache_file, cache_data):
-                logger.debug(f"Cached {len(scenes)} 3DE scenes with metadata")
+                self.logger.debug(f"Cached {len(scenes)} 3DE scenes with metadata")
                 return True
             else:
-                logger.error(f"Failed to write 3DE cache to {self._cache_file}")
+                self.logger.error(f"Failed to write 3DE cache to {self._cache_file}")
                 return False
 
         except Exception as e:
-            logger.exception(f"Unexpected error caching 3DE scenes: {e}")
+            self.logger.exception(f"Unexpected error caching 3DE scenes: {e}")
             return False
 
     def has_valid_cache(self) -> bool:
@@ -138,7 +136,7 @@ class ThreeDECache:
             True if cache exists and is not expired (even if empty), False otherwise
         """
         if not self._cache_file.exists():
-            logger.debug("3DE scene cache file not found")
+            self.logger.debug("3DE scene cache file not found")
             return False
 
         # Read just the timestamp for validation
@@ -155,7 +153,7 @@ class ThreeDECache:
         age = self.get_cache_age()
         age_minutes = age.total_seconds() / 60 if age else 0
 
-        logger.debug(
+        self.logger.debug(
             f"3DE cache is valid (age: {age_minutes:.1f}min, scenes: {scene_count})"
         )
         return True
@@ -303,7 +301,7 @@ class ThreeDECache:
         """
         # If expiry_minutes is 0, never expire (manual refresh only)
         if self._expiry_minutes == 0:
-            logger.debug("3DE cache: manual refresh mode, never expires")
+            self.logger.debug("3DE cache: manual refresh mode, never expires")
             return False
 
         try:
@@ -311,7 +309,7 @@ class ThreeDECache:
                 cache_data.get("timestamp", "1970-01-01")
             )
         except (ValueError, TypeError) as e:
-            logger.warning(f"Invalid timestamp in 3DE cache: {e}")
+            self.logger.warning(f"Invalid timestamp in 3DE cache: {e}")
             return True
 
         age = datetime.now() - cache_time
@@ -319,7 +317,7 @@ class ThreeDECache:
 
         is_expired = age > max_age
         if is_expired:
-            logger.debug(f"3DE cache expired (age: {age})")
+            self.logger.debug(f"3DE cache expired (age: {age})")
 
         return is_expired
 

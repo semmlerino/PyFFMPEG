@@ -20,11 +20,13 @@ separation of concerns and easier testing.
 from __future__ import annotations
 
 # Standard library imports
-import logging
 from typing import TYPE_CHECKING, Any, Protocol
 
 # Third-party imports
 from PySide6.QtWidgets import QMessageBox
+
+# Local application imports
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     # Third-party imports
@@ -35,9 +37,6 @@ if TYPE_CHECKING:
     from cache_manager import CacheManager
     from settings_dialog import SettingsDialog
     from settings_manager import SettingsManager
-
-logger = logging.getLogger(__name__)
-
 
 class GridWidget(Protocol):
     """Protocol for grid widgets that have size sliders."""
@@ -82,7 +81,7 @@ class SettingsTarget(Protocol):
     _settings_dialog: SettingsDialog | None
 
 
-class SettingsController:
+class SettingsController(LoggingMixin):
     """Controller for managing all settings-related functionality.
 
     This controller encapsulates all settings operations that were previously
@@ -100,8 +99,9 @@ class SettingsController:
         Args:
             window: The window object that provides the SettingsTarget interface
         """
+        super().__init__()
         self.window = window
-        logger.debug("SettingsController initialized")
+        self.logger.debug("SettingsController initialized")
 
     def load_settings(self) -> None:
         """Load settings from settings manager."""
@@ -146,10 +146,10 @@ class SettingsController:
             # Apply cache settings
             self.apply_cache_settings()
 
-            logger.info("Settings loaded successfully")
+            self.logger.info("Settings loaded successfully")
 
         except Exception as e:
-            logger.error(f"Error loading settings: {e}")
+            self.logger.error(f"Error loading settings: {e}")
             # Fallback to default window size
             default_size = self.window.settings_manager.get_window_size()
             if isinstance(default_size, tuple) and len(default_size) == 2:
@@ -190,10 +190,10 @@ class SettingsController:
             # Sync to disk
             self.window.settings_manager.sync()
 
-            logger.info("Settings saved successfully")
+            self.logger.info("Settings saved successfully")
 
         except Exception as e:
-            logger.error(f"Error saving settings: {e}")
+            self.logger.error(f"Error saving settings: {e}")
 
     def apply_ui_settings(self) -> None:
         """Apply UI settings from settings manager."""
@@ -211,10 +211,10 @@ class SettingsController:
             if dark_theme:
                 self.apply_dark_theme()
 
-            logger.debug("UI settings applied")
+            self.logger.debug("UI settings applied")
 
         except Exception as e:
-            logger.error(f"Error applying UI settings: {e}")
+            self.logger.error(f"Error applying UI settings: {e}")
 
     def apply_cache_settings(self) -> None:
         """Apply cache settings from settings manager."""
@@ -229,10 +229,10 @@ class SettingsController:
             if hasattr(self.window.cache_manager, "set_expiry_minutes"):
                 self.window.cache_manager.set_expiry_minutes(expiry_minutes)
 
-            logger.debug("Cache settings applied")
+            self.logger.debug("Cache settings applied")
 
         except Exception as e:
-            logger.error(f"Error applying cache settings: {e}")
+            self.logger.error(f"Error applying cache settings: {e}")
 
     def apply_dark_theme(self) -> None:
         """Apply dark theme to the application."""
@@ -284,7 +284,7 @@ class SettingsController:
         ):
             self.window.previous_shots_grid.size_slider.setValue(thumbnail_size)
 
-        logger.info("Settings applied successfully")
+        self.logger.info("Settings applied successfully")
 
     def import_settings(self) -> None:
         """Import settings from file."""
@@ -372,4 +372,4 @@ class SettingsController:
             # Reset splitter
             self.window.splitter.setSizes([840, 360])  # 70/30 split
 
-            logger.info("Layout reset to defaults")
+            self.logger.info("Layout reset to defaults")

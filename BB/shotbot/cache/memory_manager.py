@@ -3,18 +3,31 @@
 from __future__ import annotations
 
 # Standard library imports
-import logging
+import heapq
 import threading
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 # Local application imports
 from config import ThreadingConfig
+from logging_mixin import LoggingMixin
 
-logger = logging.getLogger(__name__)
+
+@dataclass
+class CacheEntry:
+    """Entry for cache eviction heap with LRU tracking."""
+    access_time: float
+    path: str
+    size_bytes: int
+
+    def __lt__(self, other: "CacheEntry") -> bool:
+        """Compare by access time for heap ordering (oldest first)."""
+        return self.access_time < other.access_time
 
 
-class MemoryManager:
+class MemoryManager(LoggingMixin):
     """Manages memory usage for cached items with LRU eviction.
 
     This class tracks memory usage of cached files and implements
@@ -28,17 +41,21 @@ class MemoryManager:
         Args:
             max_memory_mb: Maximum memory limit in MB. If None, uses config default.
         """
+        super().__init__()
         self._lock = threading.RLock()
 
         # Memory tracking
         self._memory_usage_bytes = 0
         self._cached_items: dict[str, int] = {}  # path -> size in bytes
+        self._access_times: dict[str, float] = {}  # path -> last access time
+        self._eviction_heap: list[CacheEntry] = []  # Heap for O(log n) eviction
+        self._heap_dirty = False  # Flag to rebuild heap when needed
 
         # Memory limit
         max_mb = max_memory_mb or ThreadingConfig.CACHE_MAX_MEMORY_MB
         self._max_memory_bytes = max_mb * 1024 * 1024
 
-        logger.debug(f"MemoryManager initialized with {max_mb}MB limit")
+        self.logger.debug(f"MemoryManager initialized with {max_mb}MB limit")
 
     def set_memory_limit(self, max_memory_mb: int) -> None:
         """Set maximum memory limit in megabytes.
@@ -47,7 +64,7 @@ class MemoryManager:
             max_memory_mb: Maximum memory limit in megabytes
         """
         self._max_memory_bytes = max_memory_mb * 1024 * 1024
-        logger.debug(f"MemoryManager limit updated to {max_memory_mb}MB")
+        self.logger.debug(f"MemoryManager limit updated to {max_memory_mb}MB")
 
     def track_item(self, file_path: Path, size_bytes: int | None = None) -> bool:
         """Track a cached item's memory usage.
@@ -67,7 +84,7 @@ class MemoryManager:
                 try:
                     size_bytes = file_path.stat().st_size
                 except OSError as e:
-                    logger.debug(f"Failed to get size for {file_path}: {e}")
+                    self.logger.debug(f"Failed to get size for {file_path}: {e}")
                     return False
 
             # Update tracking
@@ -75,7 +92,11 @@ class MemoryManager:
             self._cached_items[path_str] = size_bytes
             self._memory_usage_bytes += size_bytes - old_size
 
-            logger.debug(
+            # Track access time for LRU eviction
+            self._access_times[path_str] = time.time()
+            self._heap_dirty = True  # Mark heap for rebuild
+
+            self.logger.debug(
                 f"Tracking item: {file_path.name} ({size_bytes / 1024:.1f}KB), "
                 + f"total: {self._memory_usage_bytes / 1024 / 1024:.1f}MB"
             )
@@ -97,8 +118,10 @@ class MemoryManager:
             if path_str in self._cached_items:
                 size = self._cached_items.pop(path_str)
                 self._memory_usage_bytes = max(0, self._memory_usage_bytes - size)
+                self._access_times.pop(path_str, None)  # Remove access time
+                self._heap_dirty = True  # Mark heap for rebuild
 
-                logger.debug(
+                self.logger.debug(
                     f"Untracked item: {file_path.name} ({size / 1024:.1f}KB), "
                     + f"total: {self._memory_usage_bytes / 1024 / 1024:.1f}MB"
                 )
@@ -131,7 +154,7 @@ class MemoryManager:
             if self._memory_usage_bytes <= self._max_memory_bytes:
                 return 0  # No eviction needed
 
-            logger.info(
+            self.logger.info(
                 f"Memory limit exceeded: {self._memory_usage_bytes / 1024 / 1024:.1f}MB "
                 + f"/ {self._max_memory_bytes / 1024 / 1024:.1f}MB, starting eviction"
             )
@@ -205,7 +228,7 @@ class MemoryManager:
             self._memory_usage_bytes = 0
 
             if count > 0:
-                logger.info(f"Cleared tracking for {count} items")
+                self.logger.info(f"Cleared tracking for {count} items")
 
     def validate_tracking(self) -> dict[str, Any]:
         """Validate tracking data against actual files.
@@ -260,8 +283,21 @@ class MemoryManager:
                 "tracked_items": len(self._cached_items),
             }
 
+    def _rebuild_heap(self) -> None:
+        """Rebuild the eviction heap from tracked items (called rarely)."""
+        self._eviction_heap = [
+            CacheEntry(access_time, path, self._cached_items[path])
+            for path, access_time in self._access_times.items()
+            if path in self._cached_items
+        ]
+        heapq.heapify(self._eviction_heap)
+        self._heap_dirty = False
+
     def _evict_lru_items(self, target_percent: float) -> int:
         """Evict least recently used items until target usage is reached.
+
+        This optimized version uses a heap for O(log n) eviction without
+        expensive file system calls for every tracked item.
 
         Args:
             target_percent: Target memory usage as percent of limit
@@ -272,55 +308,45 @@ class MemoryManager:
         target_bytes = int(self._max_memory_bytes * target_percent)
         evicted_count = 0
 
-        # Get items sorted by modification time (oldest first)
-        item_stats: list[tuple[str, int, float]] = []
-        paths_to_remove: list[str] = []
+        # Rebuild heap if needed (only when marked dirty)
+        if self._heap_dirty or not self._eviction_heap:
+            self._rebuild_heap()
 
-        for path_str, size in list(self._cached_items.items()):
-            try:
-                path = Path(path_str)
-                if path.exists():
-                    mtime = path.stat().st_mtime
-                    item_stats.append((path_str, size, mtime))
-                else:
-                    # File no longer exists, mark for removal
-                    paths_to_remove.append(path_str)
-            except OSError:
-                # Error accessing file, mark for removal
-                paths_to_remove.append(path_str)
+        # Evict items using heap for O(log n) performance
+        while self._eviction_heap and self._memory_usage_bytes > target_bytes:
+            entry = heapq.heappop(self._eviction_heap)
 
-        # Remove non-existent files from tracking
-        for path_str in paths_to_remove:
-            if path_str in self._cached_items:
-                size = self._cached_items.pop(path_str)
-                self._memory_usage_bytes = max(0, self._memory_usage_bytes - size)
-                evicted_count += 1
-
-        # Sort by modification time (oldest first for LRU eviction)
-        item_stats.sort(key=lambda x: x[2])
-
-        # Evict oldest items until we reach target
-        for path_str, size, _ in item_stats:
-            if self._memory_usage_bytes <= target_bytes:
-                break
+            # Skip if already removed
+            if entry.path not in self._cached_items:
+                continue
 
             try:
                 # Delete the actual file
-                path = Path(path_str)
+                path = Path(entry.path)
                 path.unlink()
 
-                # Remove from tracking
-                if path_str in self._cached_items:
-                    self._cached_items.pop(path_str)
-                    self._memory_usage_bytes = max(0, self._memory_usage_bytes - size)
+                # Update tracking (already have size from entry)
+                if entry.path in self._cached_items:
+                    self._cached_items.pop(entry.path)
+                    self._access_times.pop(entry.path, None)
+                    self._memory_usage_bytes = max(0, self._memory_usage_bytes - entry.size_bytes)
                     evicted_count += 1
 
-                logger.debug(f"Evicted LRU item: {path.name} ({size / 1024:.1f}KB)")
+                    self.logger.debug(
+                        f"Evicted LRU item: {path.name} ({entry.size_bytes / 1024:.1f}KB)"
+                    )
 
+            except FileNotFoundError:
+                # File already deleted, just update tracking
+                if entry.path in self._cached_items:
+                    self._cached_items.pop(entry.path)
+                    self._access_times.pop(entry.path, None)
+                    self._memory_usage_bytes = max(0, self._memory_usage_bytes - entry.size_bytes)
+                    evicted_count += 1
             except OSError as e:
-                logger.debug(f"Failed to evict item {path_str}: {e}")
+                self.logger.debug(f"Failed to evict item {entry.path}: {e}")
 
-        logger.info(
+        self.logger.info(
             f"Eviction complete: {evicted_count} items removed, "
             + f"usage: {self._memory_usage_bytes / 1024 / 1024:.1f}MB"
         )

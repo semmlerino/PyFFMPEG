@@ -500,6 +500,96 @@ class CacheManager(LoggingMixin, QObject):
                 cache_file.unlink()
 
     # Memory and validation methods - delegate to appropriate components
+    def cache_exr_thumbnails_batch(
+        self,
+        exr_files: list[tuple[Path, str, str, str]],
+    ) -> dict[str, Path | None]:
+        """Process multiple EXR thumbnails asynchronously without blocking UI.
+
+        This method uses AsyncEXRProcessor to handle multiple EXR files in parallel,
+        preventing UI freezes that occur with synchronous processing.
+
+        Args:
+            exr_files: List of tuples (source_path, show, sequence, shot)
+
+        Returns:
+            Dictionary mapping shot keys to cached thumbnail paths
+        """
+        from cache.thumbnail_processor import AsyncEXRProcessor
+
+        self.logger.info(f"Starting batch EXR processing for {len(exr_files)} files")
+
+        # Group files by their metadata for result mapping
+        file_metadata = {}
+        source_paths = []
+        for source_path, show, sequence, shot in exr_files:
+            cache_key = f"{show}_{sequence}_{shot}"
+            file_metadata[str(source_path)] = (cache_key, show, sequence, shot)
+            source_paths.append(source_path)
+
+        # Create async processor
+        processor = AsyncEXRProcessor(
+            self._thumbnail_processor,
+            source_paths,
+            parent=None
+        )
+
+        # Track results
+        results = {}
+        processed_count = 0
+
+        def on_progress(count: int) -> None:
+            nonlocal processed_count
+            processed_count = count
+            self.logger.debug(f"Processed {count}/{len(exr_files)} EXR files")
+
+        def on_completed(thumbnails: dict[Path, Path]) -> None:
+            """Handle batch completion."""
+            self.logger.info(f"Batch EXR processing completed: {len(thumbnails)} succeeded")
+
+            # Map results to cache structure
+            for source, thumbnail in thumbnails.items():
+                if str(source) in file_metadata:
+                    cache_key, show, sequence, shot = file_metadata[str(source)]
+
+                    # Move thumbnail to proper cache location
+                    cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
+                    cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+                    try:
+                        # Move or copy thumbnail to cache location
+                        import shutil
+                        shutil.move(str(thumbnail), str(cache_path))
+                        results[cache_key] = cache_path
+
+                        # Track in memory manager
+                        self._memory_manager.track_item(cache_path)
+                    except Exception as e:
+                        self.logger.error(f"Failed to move thumbnail: {e}")
+                        results[cache_key] = None
+
+        def on_error(error_msg: str) -> None:
+            self.logger.error(f"Batch EXR processing error: {error_msg}")
+
+        # Connect signals
+        processor.progress_updated.connect(on_progress)
+        processor.batch_completed.connect(on_completed)
+        processor.error_occurred.connect(on_error)
+
+        # Start processing
+        processor.start()
+
+        # Wait for completion with timeout (30 seconds per file max)
+        timeout_ms = len(exr_files) * 30000
+        if processor.wait(timeout_ms):
+            self.logger.info("Batch EXR processing completed successfully")
+        else:
+            self.logger.warning("Batch EXR processing timed out")
+            processor.terminate()
+            processor.wait(1000)
+
+        return results
+
     def get_memory_usage(self) -> dict[str, float | int]:
         """Get current cache memory usage statistics (backward compatible)."""
         stats = self._memory_manager.get_usage_stats()

@@ -7,20 +7,20 @@ extracted from the original launcher_manager.py for better separation of concern
 from __future__ import annotations
 
 # Standard library imports
-import logging
 import uuid
 from typing import TYPE_CHECKING
+
+# Local application imports
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     # Local application imports
     from launcher.config_manager import LauncherConfigManager
     from launcher.models import CustomLauncher
 
-# Set up logger for this module
-logger = logging.getLogger(__name__)
 
 
-class LauncherRepository:
+class LauncherRepository(LoggingMixin):
     """Repository for launcher CRUD operations."""
 
     def __init__(self, config_manager: LauncherConfigManager) -> None:
@@ -29,6 +29,7 @@ class LauncherRepository:
         Args:
             config_manager: Configuration manager for persistence
         """
+        super().__init__()
         self._config_manager = config_manager
         self._launchers: dict[str, CustomLauncher] = {}
         self.reload()
@@ -36,7 +37,7 @@ class LauncherRepository:
     def reload(self) -> None:
         """Reload launchers from storage."""
         self._launchers = self._config_manager.load_launchers()
-        logger.info(f"Loaded {len(self._launchers)} launchers from storage")
+        self.logger.info(f"Loaded {len(self._launchers)} launchers from storage")
 
     def save(self) -> bool:
         """Save current launchers to storage.
@@ -46,9 +47,9 @@ class LauncherRepository:
         """
         success = self._config_manager.save_launchers(self._launchers)
         if success:
-            logger.info(f"Saved {len(self._launchers)} launchers to storage")
+            self.logger.info(f"Saved {len(self._launchers)} launchers to storage")
         else:
-            logger.error("Failed to save launchers to storage")
+            self.logger.error("Failed to save launchers to storage")
         return success
 
     def create(self, launcher: CustomLauncher) -> bool:
@@ -66,7 +67,7 @@ class LauncherRepository:
 
         # Check if ID already exists
         if launcher.id in self._launchers:
-            logger.warning(f"Launcher with ID {launcher.id} already exists")
+            self.logger.warning(f"Launcher with ID {launcher.id} already exists")
             return False
 
         # Add to collection
@@ -74,7 +75,7 @@ class LauncherRepository:
 
         # Save to storage
         if self.save():
-            logger.info(f"Created launcher '{launcher.name}' with ID {launcher.id}")
+            self.logger.info(f"Created launcher '{launcher.name}' with ID {launcher.id}")
             return True
         else:
             # Rollback on save failure
@@ -91,7 +92,7 @@ class LauncherRepository:
             True if successful, False otherwise
         """
         if launcher.id not in self._launchers:
-            logger.warning(f"Launcher with ID {launcher.id} not found for update")
+            self.logger.warning(f"Launcher with ID {launcher.id} not found for update")
             return False
 
         # Keep backup for rollback
@@ -102,7 +103,7 @@ class LauncherRepository:
 
         # Save to storage
         if self.save():
-            logger.info(f"Updated launcher '{launcher.name}'")
+            self.logger.info(f"Updated launcher '{launcher.name}'")
             return True
         else:
             # Rollback on save failure
@@ -119,7 +120,7 @@ class LauncherRepository:
             True if successful, False otherwise
         """
         if launcher_id not in self._launchers:
-            logger.warning(f"Launcher with ID {launcher_id} not found for deletion")
+            self.logger.warning(f"Launcher with ID {launcher_id} not found for deletion")
             return False
 
         # Keep backup for rollback
@@ -131,7 +132,7 @@ class LauncherRepository:
 
         # Save to storage
         if self.save():
-            logger.info(f"Deleted launcher '{launcher_name}'")
+            self.logger.info(f"Deleted launcher '{launcher_name}'")
             return True
         else:
             # Rollback on save failure

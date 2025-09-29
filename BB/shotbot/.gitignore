@@ -4,6 +4,11 @@ __pycache__/
 *$py.class
 *.so
 *.bak
+*.backup
+*.orig
+*.rej
+*.save
+*.tmp
 .Python
 venv/
 ENV/

@@ -165,6 +165,9 @@ class FileSystemScanner(LoggingMixin):
     def __init__(self) -> None:
         """Initialize FileSystemScanner."""
         super().__init__()
+        # Import here to avoid circular dependency
+        from filesystem_coordinator import FilesystemCoordinator
+        self._fs_coordinator = FilesystemCoordinator()
 
     @classmethod
     def get_cache_stats(cls) -> dict[str, int]:
@@ -187,27 +190,28 @@ class FileSystemScanner(LoggingMixin):
         return cls._dir_cache.refresh_cache()
 
     def get_directory_listing_cached(self, path: Path) -> list[tuple[str, bool, bool]]:
-        """Get directory listing with caching.
+        """Get directory listing with caching using FilesystemCoordinator.
 
         Returns list of tuples: (name, is_dir, is_file)
         """
-        # Try cache first
-        cached = self._dir_cache.get_listing(path)
-        if cached is not None:
-            return cached
+        # Use FilesystemCoordinator for shared caching across workers
+        raw_listing = self._fs_coordinator.get_directory_listing(path)
 
-        # Generate listing
+        # Convert Path objects to the expected tuple format
         listing: list[tuple[str, bool, bool]] = []
-        try:
-            with os.scandir(path) as entries:
-                for entry in entries:
-                    listing.append((entry.name, entry.is_dir(), entry.is_file()))
-        except (OSError, PermissionError):
-            self.logger.warning(f"Permission denied accessing {path}")
-            listing = []
+        for item in raw_listing:
+            try:
+                # Determine if directory or file
+                is_dir = item.is_dir()
+                is_file = item.is_file()
+                listing.append((item.name, is_dir, is_file))
+            except (OSError, PermissionError):
+                # Skip items we can't stat
+                continue
 
-        # Cache the result
+        # Also update the old cache for backward compatibility
         self._dir_cache.set_listing(path, listing)
+
         return listing
 
     def find_3de_files_python_optimized(

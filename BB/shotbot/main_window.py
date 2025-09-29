@@ -82,6 +82,7 @@ if TYPE_CHECKING:
 # Runtime imports (needed at runtime)
 # Local application imports
 from cache_manager import CacheManager  # Need at runtime for instantiation
+from cleanup_manager import CleanupManager  # Extracted cleanup logic
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
 from controllers.launcher_controller import (
@@ -93,6 +94,7 @@ from controllers.settings_controller import (
 from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
+from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from launcher_manager import LauncherManager  # Need at runtime
 from launcher_panel import LauncherPanel  # Improved launcher UI
 from log_viewer import LogViewer
@@ -218,6 +220,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager()
+
+        # Initialize cleanup and refresh managers (extracted from MainWindow)
+        self.cleanup_manager = CleanupManager(self)
+        self.refresh_orchestrator = RefreshOrchestrator(self)
 
         # Initialize settings manager
         self.settings_manager = SettingsManager()
@@ -725,26 +731,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
-        # Start progress operation for shot refresh
-        with ProgressManager.operation(
-            "Refreshing shots", cancelable=False
-        ) as progress:
-            progress.set_indeterminate()
-
-            # Simply call refresh_shots on the model
-            # The model will emit signals that trigger the appropriate handlers
-            # which will handle UI updates, notifications, and 3DE refresh
-            _ = self.shot_model.refresh_shots()
+        # Delegate to RefreshOrchestrator
+        self.refresh_orchestrator._refresh_shots()
 
     # Note: Background refresh methods removed - now handled by reactive signals
 
     def _refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
-        # Always use Model/View implementation
-        if hasattr(self, "shot_item_model"):
-            self.shot_item_model.set_shots(self.shot_model.shots)
-            # Populate show filter with available shows
-            self.shot_grid.populate_show_filter(self.shot_model)
+        # Delegate to RefreshOrchestrator
+        self.refresh_orchestrator._refresh_shot_display()
 
     def _on_shots_loaded(self, shots: list[Shot]) -> None:
         """Handle shots loaded signal from model.
@@ -752,10 +747,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             shots: List of loaded Shot objects
         """
-        self.logger.info(f"Shots loaded signal received: {len(shots)} shots")
-        self._refresh_shot_display()
-        self._update_status(f"Loaded {len(shots)} shots")
-        NotificationManager.info(f"{len(shots)} shots loaded from cache")
+        # Delegate to RefreshOrchestrator
+        self.refresh_orchestrator.handle_shots_loaded(shots)
 
     def _on_shots_changed(self, shots: list[Shot]) -> None:
         """Handle shots changed signal from model.
@@ -763,16 +756,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             shots: List of updated Shot objects
         """
-        self.logger.info(f"Shots changed signal received: {len(shots)} shots")
-        self._refresh_shot_display()
-        self._update_status(f"Shot list updated: {len(shots)} shots")
-        NotificationManager.success(f"Refreshed {len(shots)} shots")
+        # Delegate to RefreshOrchestrator
+        self.refresh_orchestrator.handle_shots_changed(shots)
 
     def _on_refresh_started(self) -> None:
         """Handle refresh started signal from model."""
-        # Update status bar to show refresh in progress
-        self._update_status("Refreshing shots...")
-        # Note: When called via _refresh_shots(), ProgressManager also shows progress
+        # Delegate to RefreshOrchestrator
+        self.refresh_orchestrator.handle_refresh_started()
 
     def _on_refresh_finished(self, success: bool, has_changes: bool) -> None:
         """Handle refresh finished signal from model.
@@ -781,37 +771,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             success: Whether the refresh was successful
             has_changes: Whether the shot list changed
         """
-        if success:
-            if has_changes:
-                # UI update already handled by shots_changed signal
-                self.logger.debug("Refresh completed with changes")
-            else:
-                self._update_status(f"{len(self.shot_model.shots)} shots (no changes)")
-                NotificationManager.info(
-                    f"{len(self.shot_model.shots)} shots (no changes)"
-                )
-                self.logger.debug("Refresh completed without changes")
-
-            # Restore last selected shot if available
-            if hasattr(self, "_last_selected_shot_name") and isinstance(
-                self._last_selected_shot_name,
-                str,
-            ):
-                shot = self.shot_model.find_shot_by_name(self._last_selected_shot_name)
-                if shot:
-                    self.shot_grid.select_shot_by_name(shot.full_name)
-
-            # Also refresh 3DE scenes when shots are refreshed
-            if self.shot_model.shots:
-                if self.threede_controller:
-                    self.threede_controller.refresh_threede_scenes()
-        else:
-            self._update_status("Failed to refresh shots")
-            NotificationManager.error(
-                "Failed to Load Shots",
-                "Unable to retrieve shot data from the workspace.",
-                "Make sure the 'ws -sg' command is available and you're in a valid workspace.",
-            )
+        # Delegate to RefreshOrchestrator
+        self.refresh_orchestrator.handle_refresh_finished(success, has_changes)
 
     def _on_shot_error(self, error_msg: str) -> None:
         """Handle error signal from model.
@@ -832,13 +793,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             shots: The loaded shots (from signal)
         """
-        if shots:  # Only refresh if we actually have shots
-            self.logger.info(
-                f"Triggering previous shots refresh after loading {len(shots)} active shots"
-            )
-            self.previous_shots_model.refresh_shots()
-        else:
-            self.logger.debug("No active shots loaded, skipping previous shots refresh")
+        # Delegate to RefreshOrchestrator
+        self.refresh_orchestrator.trigger_previous_shots_refresh(shots)
 
     def _on_model_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selected signal from model.
@@ -1204,147 +1160,22 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         This method can be called independently of closeEvent, making it
         suitable for test environments where widgets are destroyed without
-        proper close events. It performs the same cleanup as closeEvent
-        but without accepting the close event.
+        proper close events.
         """
         self.logger.debug("Starting explicit MainWindow cleanup")
-
-        # Perform the same cleanup as closeEvent
-        self._perform_cleanup()
-
+        # Delegate to CleanupManager
+        self.cleanup_manager.perform_cleanup()
         self.logger.debug("Completed explicit MainWindow cleanup")
-
-    def _perform_cleanup(self) -> None:
-        """Internal cleanup logic shared by cleanup() and closeEvent()."""
-        self._mark_closing()
-        if self.threede_controller:
-            self.threede_controller.cleanup_worker()
-        self._cleanup_session_warmer()
-        self._cleanup_managers()
-        self._cleanup_models()
-        self._cleanup_terminal()
-        self._final_cleanup()
-
-    def _mark_closing(self) -> None:
-        """Mark that the application is closing to prevent new operations."""
-        self._closing = True
-
-    def _cleanup_session_warmer(self) -> None:
-        """Clean up the session warmer thread."""
-        if not (hasattr(self, "_session_warmer") and self._session_warmer):
-            return
-
-        if not self._session_warmer.isFinished():
-            self.logger.debug("Requesting session warmer to stop")
-            self._session_warmer.request_stop()
-
-            # Standard library imports
-            import sys
-            is_test_environment = "pytest" in sys.modules
-            session_timeout_ms = 200 if is_test_environment else 2000
-
-            if not self._session_warmer.wait(session_timeout_ms):
-                self.logger.warning(
-                    f"Session warmer didn't finish gracefully within {session_timeout_ms}ms, using safe termination"
-                )
-                self._session_warmer.safe_terminate()
-                final_session_timeout_ms = 100 if is_test_environment else 1000
-                if not self._session_warmer.wait(final_session_timeout_ms):
-                    self.logger.warning(
-                        "Session warmer thread abandoned - will be cleaned on exit"
-                    )
-
-        # Only delete if not a zombie
-        if hasattr(self._session_warmer, 'is_zombie') and self._session_warmer.is_zombie():
-            self.logger.warning(
-                "Session warmer thread is a zombie and will not be deleted"
-            )
-        else:
-            self._session_warmer.deleteLater()
-        self._session_warmer = None
-
-    def _cleanup_managers(self) -> None:
-        """Clean up manager instances."""
-        # Shutdown launcher manager to stop all worker threads
-        if self.launcher_manager and hasattr(self.launcher_manager, "shutdown"):
-            self.launcher_manager.shutdown()
-
-        # Shutdown cache manager
-        self.cache_manager.shutdown()
-
-    def _cleanup_models(self) -> None:
-        """Clean up model instances and their background workers."""
-        # Clean up ShotModel background threads
-        if hasattr(self.shot_model, "cleanup"):
-            self.logger.debug("Cleaning up ShotModel background threads")
-            self.shot_model.cleanup()
-
-        # Clean up previous shots model (stops auto-refresh timer and worker)
-        if hasattr(self, "previous_shots_model") and self.previous_shots_model:
-            self.logger.debug("Cleaning up PreviousShotsModel")
-            try:
-                self.previous_shots_model.cleanup()
-            except Exception as e:
-                self.logger.error(f"Error cleaning up PreviousShotsModel: {e}")
-
-        # Also clean up the item model if it exists
-        if (
-            hasattr(self, "previous_shots_item_model")
-            and self.previous_shots_item_model
-        ):
-            self.logger.debug("Cleaning up PreviousShotsItemModel")
-            try:
-                if hasattr(self.previous_shots_item_model, "cleanup"):
-                    self.previous_shots_item_model.cleanup()  # type: ignore[attr-defined]
-            except Exception as e:
-                self.logger.error(f"Error cleaning up PreviousShotsItemModel: {e}")
-
-    def _cleanup_terminal(self) -> None:
-        """Clean up persistent terminal if it exists."""
-        if not (hasattr(self, "persistent_terminal") and self.persistent_terminal):
-            return
-
-        self.logger.debug("Cleaning up persistent terminal")
-        # Check if we should keep terminal open after exit
-        if not getattr(Config, "KEEP_TERMINAL_ON_EXIT", False):
-            self.persistent_terminal.cleanup()
-        else:
-            # Just cleanup FIFO but leave terminal running
-            self.logger.info("Keeping terminal open after application exit")
-            if hasattr(self.persistent_terminal, "cleanup_fifo_only"):
-                self.persistent_terminal.cleanup_fifo_only()
-
-    def _final_cleanup(self) -> None:
-        """Perform final cleanup steps - QRunnables, timers, and garbage collection."""
-        # Clean up any remaining QRunnables in the thread pool
-        # Local application imports
-        from runnable_tracker import cleanup_all_runnables
-
-        self.logger.debug("Cleaning up tracked QRunnables")
-        cleanup_all_runnables()
-
-        # Stop any remaining QTimers - check for persistent timers
-        # Third-party imports
-        from PySide6.QtWidgets import QApplication
-        app = QApplication.instance()
-        if app:
-            # Process any pending events to ensure cleanup
-            app.processEvents()
-
-        # Force garbage collection to clean up any circular references
-        # Standard library imports
-        import gc
-        gc.collect()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Thread-safe close event handler.
 
-        Implements proper shutdown sequence using shared cleanup logic.
+        Implements proper shutdown sequence using CleanupManager.
         """
         self.logger.debug("MainWindow closeEvent - starting cleanup")
 
-        # Perform shared cleanup logic
-        self._perform_cleanup()
+        # Delegate to CleanupManager
+        self.cleanup_manager.perform_cleanup()
 
         # Save settings before closing
         self.settings_controller.save_settings()

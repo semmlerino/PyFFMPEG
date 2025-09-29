@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # Standard library imports
-import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -27,9 +26,6 @@ from qt_widget_mixin import QtWidgetMixin
 if TYPE_CHECKING:
     # Local application imports
     from shot_model import Shot
-
-logger = logging.getLogger(__name__)
-
 
 @dataclass
 class AppConfig:

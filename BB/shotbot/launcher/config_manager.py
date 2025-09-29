@@ -8,21 +8,19 @@ from __future__ import annotations
 
 # Standard library imports
 import json
-import logging
 from pathlib import Path
 from typing import Any
 
 # Local application imports
 from launcher.models import CustomLauncher
-
-# Set up logger for this module
-logger = logging.getLogger(__name__)
+from logging_mixin import LoggingMixin
 
 
-class LauncherConfigManager:
+class LauncherConfigManager(LoggingMixin):
     """Manages persistence of custom launcher configurations."""
 
     def __init__(self, config_dir: str | Path | None = None) -> None:
+        super().__init__()
         if config_dir is not None:
             self.config_dir = Path(config_dir)
         else:
@@ -35,13 +33,13 @@ class LauncherConfigManager:
         try:
             self.config_dir.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            logger.error(f"Failed to create config directory {self.config_dir}: {e}")
+            self.logger.error(f"Failed to create config directory {self.config_dir}: {e}")
             raise
 
     def load_launchers(self) -> dict[str, CustomLauncher]:
         """Load launchers from configuration file."""
         if not self.config_file.exists():
-            logger.debug(f"Config file {self.config_file} does not exist")
+            self.logger.debug(f"Config file {self.config_file} does not exist")
             return {}
 
         try:
@@ -53,11 +51,11 @@ class LauncherConfigManager:
                 launcher_data["id"] = launcher_id
                 launchers[launcher_id] = CustomLauncher.from_dict(launcher_data)
 
-            logger.info(f"Loaded {len(launchers)} launchers from config")
+            self.logger.info(f"Loaded {len(launchers)} launchers from config")
             return launchers
 
         except (json.JSONDecodeError, KeyError, TypeError) as e:
-            logger.error(f"Failed to load launcher config: {e}")
+            self.logger.error(f"Failed to load launcher config: {e}")
             return {}
 
     def save_launchers(self, launchers: dict[str, CustomLauncher]) -> bool:
@@ -78,9 +76,9 @@ class LauncherConfigManager:
             with open(self.config_file, "w") as f:
                 json.dump(config_data, f, indent=2)
 
-            logger.info(f"Saved {len(launchers)} launchers to config")
+            self.logger.info(f"Saved {len(launchers)} launchers to config")
             return True
 
         except (OSError, TypeError, ValueError) as e:
-            logger.error(f"Failed to save launcher config: {e}")
+            self.logger.error(f"Failed to save launcher config: {e}")
             return False

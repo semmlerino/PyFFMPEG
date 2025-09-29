@@ -13,7 +13,6 @@ Replaces:
 from __future__ import annotations
 
 # Standard library imports
-import logging
 import os
 import subprocess
 import time
@@ -33,8 +32,6 @@ if TYPE_CHECKING:
     # Local application imports
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
-
-logger = logging.getLogger(__name__)
 
 
 class SimplifiedLauncher(LoggingMixin, QObject):

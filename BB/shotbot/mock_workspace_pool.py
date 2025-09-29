@@ -8,17 +8,18 @@ just like the real 'ws -sg' command would.
 from __future__ import annotations
 
 # Standard library imports
-import logging
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# Local application imports
+from logging_mixin import LoggingMixin
 
 
-class MockWorkspacePool:
+class MockWorkspacePool(LoggingMixin):
     """Mock ProcessPool that simulates real workspace commands."""
 
     def __init__(self) -> None:
         """Initialize mock workspace pool."""
+        super().__init__()
         self.shots: list[str] = []
         self._cache: dict[str, str] = {}
         self.commands_executed: list[str] = []
@@ -39,7 +40,7 @@ class MockWorkspacePool:
         shows_dir = self.shows_root
 
         if not shows_dir.exists():
-            logger.warning(f"Shows directory not found: {shows_dir}")
+            self.logger.warning(f"Shows directory not found: {shows_dir}")
             return
 
         # Scan each show
@@ -83,7 +84,7 @@ class MockWorkspacePool:
                     )
                     self.shots.append(f"workspace {workspace_path}")
 
-        logger.info(f"Loaded {len(self.shots)} shots from mock filesystem")
+        self.logger.info(f"Loaded {len(self.shots)} shots from mock filesystem")
 
     def set_shots_from_demo(self, demo_shots: list[dict[str, str]]) -> None:
         """Set shots from demo data.
@@ -99,7 +100,7 @@ class MockWorkspacePool:
             workspace_path = f"{self.shows_root}/{show}/shots/{seq}/{seq}_{shot_num}"
             self.shots.append(f"workspace {workspace_path}")
 
-        logger.info(f"Loaded {len(self.shots)} demo shots")
+        self.logger.info(f"Loaded {len(self.shots)} demo shots")
 
     def execute_workspace_command(
         self,
@@ -165,7 +166,7 @@ class MockWorkspacePool:
             try:
                 results[cmd] = self.execute_workspace_command(cmd, cache_ttl)
             except Exception as e:
-                logger.error(f"Failed to execute {cmd}: {e}")
+                self.logger.error(f"Failed to execute {cmd}: {e}")
                 results[cmd] = None
         return results
 
@@ -211,7 +212,9 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
     """
     # Standard library imports
     import json
+    import logging
 
+    logger = logging.getLogger(__name__)
     pool = MockWorkspacePool()
 
     # Use demo shots first (realistic user assignment of ~12 shots)
@@ -284,6 +287,7 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
 
 # Example usage
 if __name__ == "__main__":
+    import logging
     logging.basicConfig(level=logging.INFO)
 
     # Create pool from filesystem

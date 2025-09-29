@@ -7,7 +7,6 @@ execution in a separate thread, extracted from the original launcher_manager.py.
 from __future__ import annotations
 
 # Standard library imports
-import logging
 import re
 import shlex
 import subprocess
@@ -20,9 +19,6 @@ from PySide6.QtCore import Signal
 # Local application imports
 from exceptions import SecurityError
 from thread_safe_worker import ThreadSafeWorker
-
-# Set up logger for this module
-logger = logging.getLogger(__name__)
 
 
 class LauncherWorker(ThreadSafeWorker):
@@ -129,6 +125,10 @@ class LauncherWorker(ThreadSafeWorker):
                             break
 
                     if not allowed:
+                        # Note: Using module-level log since this is a static validation method
+                        # Will be converted to self.logger when this becomes an instance method
+                        import logging
+                        logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Command '{base_command}' not in whitelist. Command: {command[:100]}"
                         )
@@ -142,6 +142,9 @@ class LauncherWorker(ThreadSafeWorker):
         except ValueError as e:
             # If shlex.split fails, the command is malformed
             # Do not fall back to shell=True - this is a security risk
+            # Note: Using module-level log since this is a static validation method
+            import logging
+            logger = logging.getLogger(__name__)
             logger.error(f"Failed to parse command safely: {command[:100]}")
             raise SecurityError(
                 f"Command could not be parsed safely and was blocked: {str(e)}"
@@ -156,7 +159,7 @@ class LauncherWorker(ThreadSafeWorker):
         try:
             # Emit start signal
             self.command_started.emit(self.launcher_id, self.command)
-            logger.info(
+            self.logger.info(
                 f"Worker {id(self)} starting launcher '{self.launcher_id}': {self.command}",
             )
 
@@ -210,7 +213,7 @@ class LauncherWorker(ThreadSafeWorker):
                     return_code = self._process.wait(timeout=1.0)
                     # Process finished normally
                     success = return_code == 0
-                    logger.info(
+                    self.logger.info(
                         f"Worker {id(self)} finished launcher '{self.launcher_id}' with code {return_code}",
                     )
                     self.command_finished.emit(self.launcher_id, success, return_code)
@@ -221,7 +224,7 @@ class LauncherWorker(ThreadSafeWorker):
 
             # Stop was requested - terminate the process
             if self._process and self._process.poll() is None:
-                logger.info(
+                self.logger.info(
                     f"Worker {id(self)} stopping launcher '{self.launcher_id}' due to stop request",
                 )
                 self._terminate_process()
@@ -229,7 +232,7 @@ class LauncherWorker(ThreadSafeWorker):
 
         except Exception as e:
             error_msg = f"Worker exception for launcher '{self.launcher_id}': {str(e)}"
-            logger.exception(error_msg)
+            self.logger.exception(error_msg)
             self.command_error.emit(self.launcher_id, error_msg)
             self.command_finished.emit(self.launcher_id, False, -1)
         finally:
@@ -248,13 +251,13 @@ class LauncherWorker(ThreadSafeWorker):
                 self._process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 # Force kill if necessary
-                logger.warning(
+                self.logger.warning(
                     f"Force killing launcher '{self.launcher_id}' after timeout",
                 )
                 self._process.kill()
                 self._process.wait(timeout=5)
         except Exception as e:
-            logger.error(f"Error terminating process for '{self.launcher_id}': {e}")
+            self.logger.error(f"Error terminating process for '{self.launcher_id}': {e}")
 
     def _cleanup_process(self) -> None:
         """Clean up process resources."""
@@ -268,7 +271,7 @@ class LauncherWorker(ThreadSafeWorker):
                         self._process = None
                     else:
                         # Process still alive after termination attempt
-                        logger.error(
+                        self.logger.error(
                             f"Failed to terminate process for launcher '{self.launcher_id}', "
                             + f"process {self._process.pid} may be orphaned"
                         )
@@ -276,7 +279,7 @@ class LauncherWorker(ThreadSafeWorker):
                         # but log the issue for debugging
                         self._process = None
                 except Exception as e:
-                    logger.error(
+                    self.logger.error(
                         f"Exception during process cleanup for launcher '{self.launcher_id}': {e}, "
                         + "process may be orphaned"
                     )

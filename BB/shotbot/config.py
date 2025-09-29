@@ -144,12 +144,7 @@ class Config:
     CPU_COUNT = multiprocessing.cpu_count()  # Number of CPU cores available
     WORKER_STOP_TIMEOUT_MS = 5000  # Timeout for worker.wait() calls (5 seconds)
 
-    # Memory optimization (deprecated - Model/View is always used)
-    # The Model/View architecture provides automatic memory optimization
-    # through virtualization and delegate-based rendering
-    # These are kept temporarily for backward compatibility with legacy code
-    MAX_LOADED_THUMBNAILS = 50  # DEPRECATED - will be removed
-    VIEWPORT_BUFFER_ROWS = 2  # DEPRECATED - will be removed
+    # Thumbnail unloading settings
     THUMBNAIL_UNLOAD_DELAY_MS = 5000  # Delay before unloading invisible thumbnails
 
     # Process and command settings

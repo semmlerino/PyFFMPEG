@@ -12,11 +12,12 @@ import os
 import threading
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+# Local application imports
+from logging_mixin import LoggingMixin
+
 if TYPE_CHECKING:
     # Local application imports
     from type_definitions import PerformanceMetricsDict
-
-logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -57,7 +58,7 @@ class ProcessPoolInterface(Protocol):
         ...
 
 
-class ProcessPoolFactory:
+class ProcessPoolFactory(LoggingMixin):
     """Factory for creating and managing ProcessPoolManager instances.
 
     This factory allows clean dependency injection of mock implementations
@@ -68,6 +69,14 @@ class ProcessPoolFactory:
     _lock = threading.RLock()
     _override: ProcessPoolInterface | None = None
     _factory_mode: str = "production"  # production, mock, custom
+    _logger: logging.Logger | None = None
+
+    @classmethod
+    def _get_logger(cls) -> logging.Logger:
+        """Get class-level logger."""
+        if cls._logger is None:
+            cls._logger = logging.getLogger(cls.__name__)
+        return cls._logger
 
     @classmethod
     def set_implementation(cls, implementation: ProcessPoolInterface | None) -> None:
@@ -80,14 +89,14 @@ class ProcessPoolFactory:
         """
         with cls._lock:
             if cls._instance is not None and implementation is not None:
-                logger.warning(
+                cls._get_logger().warning(
                     "ProcessPoolManager already initialized. "
                     "Set implementation before first use for proper injection."
                 )
             cls._override = implementation
             if implementation is not None:
                 cls._factory_mode = "custom"
-                logger.info("ProcessPoolFactory: Custom implementation injected")
+                cls._get_logger().info("ProcessPoolFactory: Custom implementation injected")
 
     @classmethod
     def set_mock_mode(cls, mock_mode: bool = True) -> None:
@@ -101,10 +110,10 @@ class ProcessPoolFactory:
         with cls._lock:
             if mock_mode:
                 cls._factory_mode = "mock"
-                logger.info("ProcessPoolFactory: Mock mode enabled")
+                cls._get_logger().info("ProcessPoolFactory: Mock mode enabled")
             else:
                 cls._factory_mode = "production"
-                logger.info("ProcessPoolFactory: Production mode enabled")
+                cls._get_logger().info("ProcessPoolFactory: Production mode enabled")
 
     @classmethod
     def get_factory_mode(cls) -> str:
@@ -133,10 +142,10 @@ class ProcessPoolFactory:
 
             # Create instance based on mode
             if cls._factory_mode == "mock" or os.environ.get("SHOTBOT_MOCK") == "1":
-                logger.info("ProcessPoolFactory: Creating mock instance")
+                cls._get_logger().info("ProcessPoolFactory: Creating mock instance")
                 cls._instance = cls._create_mock_instance()
             else:
-                logger.info("ProcessPoolFactory: Creating production instance")
+                cls._get_logger().info("ProcessPoolFactory: Creating production instance")
                 cls._instance = cls._create_production_instance()
 
             return cls._instance
@@ -172,18 +181,18 @@ class ProcessPoolFactory:
             # Local application imports
             from mock_workspace_pool import create_mock_pool_from_filesystem
 
-            logger.info("Using enhanced MockWorkspacePool")
+            cls._get_logger().info("Using enhanced MockWorkspacePool")
             mock_pool = create_mock_pool_from_filesystem()
 
             # The pool already loaded shots from filesystem or demo
             if hasattr(mock_pool, "shots") and mock_pool.shots:
-                logger.info(f"Mock pool has {len(mock_pool.shots)} shots ready")
+                cls._get_logger().info(f"Mock pool has {len(mock_pool.shots)} shots ready")
 
             return mock_pool  # type: ignore[return-value]
 
         except ImportError:
             # Fall back to simple test pool
-            logger.info("Falling back to TestProcessPool")
+            cls._get_logger().info("Falling back to TestProcessPool")
             # Standard library imports
             import json
 
@@ -195,7 +204,7 @@ class ProcessPoolFactory:
             # Load demo shots and join them with newlines for ws -sg
             demo_shots_path = Path(__file__).parent / "demo_shots.json"
             if demo_shots_path.exists():
-                logger.info(f"Loading demo shots from {demo_shots_path}")
+                cls._get_logger().info(f"Loading demo shots from {demo_shots_path}")
                 with open(demo_shots_path) as f:
                     demo_data: dict[str, list[dict[str, str]]] = json.load(f)
                     outputs: list[str] = []
@@ -211,12 +220,12 @@ class ProcessPoolFactory:
                         # Set as a single output with all shots joined by newlines
                         # This simulates what 'ws -sg' actually returns
                         mock_pool.set_outputs("\n".join(outputs))
-                        logger.info(
+                        cls._get_logger().info(
                             f"Loaded {len(outputs)} demo shots as single output"
                         )
             else:
                 # Fallback demo data
-                logger.info("Using default demo shots")
+                cls._get_logger().info("Using default demo shots")
                 default_shots = [
                     "workspace /shows/demo/shots/seq01/seq01_0010",
                     "workspace /shows/demo/shots/seq01/seq01_0020",
@@ -239,12 +248,12 @@ class ProcessPoolFactory:
                     try:
                         cls._instance.shutdown()
                     except Exception as e:
-                        logger.warning(f"Error during shutdown: {e}")
+                        cls._get_logger().warning(f"Error during shutdown: {e}")
 
             cls._instance = None
             cls._override = None
             cls._factory_mode = "production"
-            logger.info("ProcessPoolFactory: Reset to initial state")
+            cls._get_logger().info("ProcessPoolFactory: Reset to initial state")
 
 
 def get_process_pool() -> ProcessPoolInterface:

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 # Standard library imports
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
-from collections.abc import Generator
 
 # Third-party imports
 from PySide6.QtCore import QEventLoop, QTimer, Signal

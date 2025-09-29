@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 # Standard library imports
-import logging
 from typing import TYPE_CHECKING, Any
+
+# Local application imports
+from logging_mixin import LoggingMixin
 
 from .storage_backend import StorageBackend
 
@@ -19,10 +21,7 @@ if TYPE_CHECKING:
 
     from .memory_manager import MemoryManager
 
-logger = logging.getLogger(__name__)
-
-
-class CacheValidator:
+class CacheValidator(LoggingMixin):
     """Validates cache consistency and performs repair operations.
 
     This class checks for common cache issues such as orphaned files,
@@ -44,11 +43,12 @@ class CacheValidator:
             memory_manager: Memory manager instance to validate
             storage_backend: Storage backend for file operations
         """
+        super().__init__()
         self._thumbnails_dir = thumbnails_directory
         self._memory_manager = memory_manager
         self._storage = storage_backend or StorageBackend()
 
-        logger.debug(f"CacheValidator initialized for {thumbnails_directory}")
+        self.logger.debug(f"CacheValidator initialized for {thumbnails_directory}")
 
     def validate_cache(self, fix_issues: bool = True) -> ValidationResultDict:
         """Validate cache consistency and optionally fix issues.
@@ -59,7 +59,7 @@ class CacheValidator:
         Returns:
             Dictionary with validation results and statistics
         """
-        logger.info("Starting cache validation...")
+        self.logger.info("Starting cache validation...")
 
         results: ValidationResultDict = {
             "valid": True,
@@ -96,9 +96,9 @@ class CacheValidator:
             results["valid"] = total_issues == 0
 
             if results["valid"]:
-                logger.info("Cache validation passed - no issues found")
+                self.logger.info("Cache validation passed - no issues found")
             else:
-                logger.info(
+                self.logger.info(
                     f"Cache validation found {total_issues} issues, "
                     + f"fixed {results['issues_fixed']}"
                 )
@@ -106,7 +106,7 @@ class CacheValidator:
             return results
 
         except Exception as e:
-            logger.error(f"Error during cache validation: {e}")
+            self.logger.error(f"Error during cache validation: {e}")
             return {
                 "valid": False,
                 "error": str(e),
@@ -120,7 +120,7 @@ class CacheValidator:
         Returns:
             Dictionary with repair results
         """
-        logger.info("Starting comprehensive cache repair...")
+        self.logger.info("Starting comprehensive cache repair...")
         return self.validate_cache(fix_issues=True)
 
     def get_cache_statistics(self) -> ValidationResultDict:
@@ -222,7 +222,7 @@ class CacheValidator:
                     if self._memory_manager.track_item(orphan_file):
                         fixed_count += 1
                 except Exception as e:
-                    logger.debug(f"Failed to track orphaned file {orphan_file}: {e}")
+                    self.logger.debug(f"Failed to track orphaned file {orphan_file}: {e}")
 
             results["issues_fixed"] = fixed_count
             if fixed_count > 0:
@@ -293,12 +293,12 @@ class CacheValidator:
                 if not any(dirpath.iterdir()):
                     dirpath.rmdir()
                     removed_count += 1
-                    logger.debug(f"Removed empty directory: {dirpath}")
+                    self.logger.debug(f"Removed empty directory: {dirpath}")
             except OSError as e:
-                logger.debug(f"Failed to remove directory {dirpath}: {e}")
+                self.logger.debug(f"Failed to remove directory {dirpath}: {e}")
 
         if removed_count > 0:
-            logger.info(f"Cleaned up {removed_count} empty directories")
+            self.logger.info(f"Cleaned up {removed_count} empty directories")
 
         return removed_count
 

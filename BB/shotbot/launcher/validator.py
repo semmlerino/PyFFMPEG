@@ -7,7 +7,6 @@ extracted from the original launcher_manager.py for better separation of concern
 from __future__ import annotations
 
 # Standard library imports
-import logging
 import os
 import re
 import string
@@ -17,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 # Local application imports
 from config import Config
+from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     # Local application imports
@@ -29,15 +29,14 @@ try:
 except ImportError:
     Shot = None
 
-# Set up logger for this module
-logger = logging.getLogger(__name__)
 
 
-class LauncherValidator:
+class LauncherValidator(LoggingMixin):
     """Validates launcher configurations and commands."""
 
     def __init__(self) -> None:
         """Initialize the validator with security patterns."""
+        super().__init__()
         # Define valid placeholder variables
         self.valid_variables = {
             # Shot context variables
@@ -163,7 +162,7 @@ class LauncherValidator:
                 if re.search(pattern, cmd_lower):
                     return False, f"Command contains dangerous pattern: {pattern}"
             except re.error:
-                logger.warning(f"Invalid regex pattern: {pattern}")
+                self.logger.warning(f"Invalid regex pattern: {pattern}")
 
         try:
             # Use string.Template to validate syntax
@@ -350,7 +349,7 @@ class LauncherValidator:
                         break
                 except re.error:
                     # Invalid regex pattern
-                    logger.warning(
+                    self.logger.warning(
                         f"Invalid regex pattern in forbidden_patterns: {pattern}"
                     )
 
@@ -370,13 +369,13 @@ class LauncherValidator:
             return_code = process.poll()
             if return_code is not None:
                 # Process has already exited
-                logger.warning(
+                self.logger.warning(
                     f"Process {process.pid} terminated with code {return_code}"
                 )
                 return False
             return True
         except Exception as e:
-            logger.error(f"Failed to validate process startup: {e}")
+            self.logger.error(f"Failed to validate process startup: {e}")
             return False
 
     def substitute_variables(
@@ -431,5 +430,5 @@ class LauncherValidator:
             template = string.Template(text)
             return template.safe_substitute(context)
         except (ValueError, KeyError) as e:
-            logger.warning(f"Variable substitution failed: {e}")
+            self.logger.warning(f"Variable substitution failed: {e}")
             return text

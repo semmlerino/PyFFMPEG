@@ -14,7 +14,7 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 # Third-party imports
 import pytest
@@ -534,12 +534,13 @@ class TestThumbnailProcessorErrorHandling:
         )
         cache_path = tmp_path / "thumbnail.jpg"
 
-        # Create test image with huge dimensions using ThreadSafeTestImage
-        huge_test_image = ThreadSafeTestImage(50000, 50000)
-
-        # Mock QImage constructor to return our huge test image
-        with patch("PySide6.QtGui.QImage") as mock_qimage:
-            mock_qimage.return_value = huge_test_image._image
+        # Mock QImage to report huge dimensions without actually allocating memory
+        with patch("PySide6.QtGui.QImage") as mock_qimage_class:
+            mock_image = Mock()
+            mock_image.isNull.return_value = False
+            mock_image.width.return_value = 50000  # Huge width
+            mock_image.height.return_value = 50000  # Huge height
+            mock_qimage_class.return_value = mock_image
 
             result = processor.process_thumbnail(source, cache_path, max_dimension=1000)
 

@@ -326,6 +326,10 @@ class ParallelShotsFinder(PreviousShotsFinder):
         self._show_cache: dict[str, float] = {}  # Cache show list with timestamps
         self._cache_ttl = ThreadingConfig.PREVIOUS_SHOTS_CACHE_TTL
 
+        # Use FilesystemCoordinator for shared directory caching
+        from filesystem_coordinator import FilesystemCoordinator
+        self._fs_coordinator = FilesystemCoordinator()
+
     # Progress methods are inherited from ShotFinderBase (ProgressReportingMixin):
     # - set_progress_callback()
     # - request_stop()
@@ -333,7 +337,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
     # - _check_stop()
 
     def _discover_shows(self, shows_root: Path) -> list[Path]:
-        """Quickly discover all shows in the root directory.
+        """Quickly discover all shows in the root directory using FilesystemCoordinator.
 
         Args:
             shows_root: Root directory containing shows
@@ -343,24 +347,37 @@ class ParallelShotsFinder(PreviousShotsFinder):
         """
         shows: list[Path] = []
 
-        try:
-            # Use os.scandir for fast directory listing
-            with os.scandir(shows_root) as entries:
-                for entry in entries:
-                    if self._stop_requested:
-                        break
+        # Use FilesystemCoordinator for cached directory listing
+        contents = self._fs_coordinator.get_directory_listing(shows_root)
 
-                    if entry.is_dir() and not entry.name.startswith("."):
-                        # Check if it looks like a show directory
-                        show_path = Path(entry.path)
-                        shots_dir = show_path / "shots"
-                        if shots_dir.exists():
-                            shows.append(show_path)
+        for entry in contents:
+            if self._stop_requested:
+                break
 
-            self.logger.info(f"Discovered {len(shows)} shows in {shows_root}")
+            if entry.is_dir() and not entry.name.startswith("."):
+                # Check if it looks like a show directory
+                show_path = entry
+                shots_dir = show_path / "shots"
 
-        except (OSError, PermissionError) as e:
-            self.logger.error(f"Error discovering shows: {e}")
+                # Use coordinator to check if shots dir exists (will be cached)
+                shots_contents = self._fs_coordinator.get_directory_listing(show_path)
+                has_shots = any(item.name == "shots" and item.is_dir() for item in shots_contents)
+
+                if has_shots:
+                    shows.append(show_path)
+
+        self.logger.info(f"Discovered {len(shows)} shows in {shows_root} (via coordinator)")
+
+        # Share discovered paths with other workers
+        discovered = {shows_root: contents}
+        for show in shows:
+            # Pre-cache the shots directory listing for other workers
+            shots_dir = show / "shots"
+            if shots_dir.exists():
+                shots_contents = self._fs_coordinator.get_directory_listing(shots_dir)
+                discovered[shots_dir] = shots_contents
+
+        self._fs_coordinator.share_discovered_paths(discovered)
 
         return shows
 

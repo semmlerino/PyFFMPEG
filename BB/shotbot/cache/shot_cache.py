@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 # Standard library imports
-import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 # Local application imports
 from config import Config
+from logging_mixin import LoggingMixin
 
 from .storage_backend import StorageBackend
 
@@ -22,10 +22,7 @@ if TYPE_CHECKING:
     from type_definitions import CacheDataDict, CacheInfoDict, ShotDict
 
 
-logger = logging.getLogger(__name__)
-
-
-class ShotCache:
+class ShotCache(LoggingMixin):
     """Manages caching of shot data with TTL expiration.
 
     This class handles persistent caching of shot list data with automatic
@@ -46,11 +43,12 @@ class ShotCache:
             storage_backend: Storage backend for file operations. If None, creates new one.
             expiry_minutes: Cache expiry time in minutes. If None, uses config default.
         """
+        super().__init__()
         self._cache_file = cache_file
         self._storage = storage_backend or StorageBackend()
         self._expiry_minutes = expiry_minutes or Config.CACHE_EXPIRY_MINUTES
 
-        logger.debug(f"ShotCache initialized with {self._expiry_minutes}min TTL")
+        self.logger.debug(f"ShotCache initialized with {self._expiry_minutes}min TTL")
 
     def set_expiry_minutes(self, expiry_minutes: int) -> None:
         """Set cache expiry time in minutes.
@@ -59,7 +57,7 @@ class ShotCache:
             expiry_minutes: Cache expiry time in minutes
         """
         self._expiry_minutes = expiry_minutes
-        logger.debug(f"ShotCache TTL updated to {expiry_minutes} minutes")
+        self.logger.debug(f"ShotCache TTL updated to {expiry_minutes} minutes")
 
     def get_cached_shots(self) -> list[ShotDict] | None:
         """Get cached shot list if valid and not expired.
@@ -68,7 +66,7 @@ class ShotCache:
             List of shot dictionaries if cache is valid, None if expired or invalid
         """
         if not self._cache_file.exists():
-            logger.debug("Shot cache file does not exist")
+            self.logger.debug("Shot cache file does not exist")
             return None
 
         # Read cache data
@@ -86,10 +84,10 @@ class ShotCache:
 
         shots_data = cache_data.get("shots", [])
         if not isinstance(shots_data, list):
-            logger.warning("Invalid shot cache structure - shots is not a list")
+            self.logger.warning("Invalid shot cache structure - shots is not a list")
             return None
 
-        logger.debug(f"Loaded {len(shots_data)} shots from cache")
+        self.logger.debug(f"Loaded {len(shots_data)} shots from cache")
         return shots_data
 
     def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> bool:
@@ -102,7 +100,7 @@ class ShotCache:
             True if caching succeeded, False otherwise
         """
         if shots is None:
-            logger.warning("Attempted to cache None shots")
+            self.logger.warning("Attempted to cache None shots")
             return False
 
         try:
@@ -122,14 +120,14 @@ class ShotCache:
 
             # Write to cache
             if self._storage.write_json(self._cache_file, cache_data):
-                logger.debug(f"Cached {len(shot_dicts)} shots to {self._cache_file}")
+                self.logger.debug(f"Cached {len(shot_dicts)} shots to {self._cache_file}")
                 return True
             else:
-                logger.error(f"Failed to write shot cache to {self._cache_file}")
+                self.logger.error(f"Failed to write shot cache to {self._cache_file}")
                 return False
 
         except Exception as e:
-            logger.exception(f"Unexpected error caching shots: {e}")
+            self.logger.exception(f"Unexpected error caching shots: {e}")
             return False
 
     def is_expired(self) -> bool:
@@ -242,15 +240,15 @@ class ShotCache:
             True if structure is valid
         """
         if not isinstance(cache_data, dict):
-            logger.warning("Cache data is not a dictionary")
+            self.logger.warning("Cache data is not a dictionary")
             return False
 
         if "timestamp" not in cache_data:
-            logger.warning("Invalid shot cache structure - missing timestamp")
+            self.logger.warning("Invalid shot cache structure - missing timestamp")
             return False
 
         if "shots" not in cache_data:
-            logger.warning("Invalid shot cache structure - missing shots")
+            self.logger.warning("Invalid shot cache structure - missing shots")
             return False
 
         return True
@@ -266,13 +264,13 @@ class ShotCache:
         """
         # If expiry_minutes is 0, never expire (manual refresh only)
         if self._expiry_minutes == 0:
-            logger.debug("Shot cache: manual refresh mode, never expires")
+            self.logger.debug("Shot cache: manual refresh mode, never expires")
             return False
 
         try:
             cache_time = datetime.fromisoformat(cache_data["timestamp"])
         except (ValueError, TypeError, KeyError) as e:
-            logger.warning(f"Invalid timestamp in shot cache: {e}")
+            self.logger.warning(f"Invalid timestamp in shot cache: {e}")
             return True
 
         age = datetime.now() - cache_time
@@ -280,7 +278,7 @@ class ShotCache:
 
         is_expired = age > max_age
         if is_expired:
-            logger.debug(f"Shot cache expired (age: {age})")
+            self.logger.debug(f"Shot cache expired (age: {age})")
 
         return is_expired
 

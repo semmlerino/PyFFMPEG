@@ -40,10 +40,11 @@ Type Safety:
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 # Standard library imports
 from enum import Enum, auto
 from typing import TYPE_CHECKING
-from collections.abc import Callable
 
 # Third-party imports
 from PySide6.QtCore import (

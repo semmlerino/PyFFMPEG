@@ -15,7 +15,6 @@ a focused, testable component. It handles:
 from __future__ import annotations
 
 # Standard library imports
-import logging
 from typing import TYPE_CHECKING, Protocol
 
 # Third-party imports
@@ -40,12 +39,11 @@ if TYPE_CHECKING:
 
 # Runtime imports (needed at runtime)
 from config import Config
+from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from progress_manager import ProgressManager
 from shot_model import Shot
 from threede_scene_worker import ThreeDESceneWorker
-
-logger = logging.getLogger(__name__)
 
 
 class ThreeDETarget(Protocol):
@@ -81,7 +79,7 @@ class ThreeDETarget(Protocol):
     def closing(self) -> bool: ...
 
 
-class ThreeDEController:
+class ThreeDEController(LoggingMixin):
     """Controller for 3DE scene discovery and management.
 
     This controller encapsulates all 3DE-related functionality that was previously
@@ -108,8 +106,8 @@ class ThreeDEController:
         Args:
             window: MainWindow implementing ThreeDETarget protocol
         """
+        super().__init__()
         self.window = window
-        self.logger = logger
 
         # Thread management - mirrors MainWindow's approach
         self._threede_worker: ThreeDESceneWorker | None = None

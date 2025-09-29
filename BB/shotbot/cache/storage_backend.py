@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Standard library imports
 import json
-import logging
 import sys
 import tempfile
 import time
@@ -26,8 +25,6 @@ else:
 # Local application imports
 from error_handling_mixin import ErrorHandlingMixin
 from logging_mixin import LoggingMixin
-
-logger = logging.getLogger(__name__)
 
 
 class StorageBackend(ErrorHandlingMixin, LoggingMixin):

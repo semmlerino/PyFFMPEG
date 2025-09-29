@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # Standard library imports
-import logging
 from concurrent.futures import Future
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -19,6 +18,7 @@ from PySide6.QtCore import (
 )
 
 # Local application imports
+from logging_mixin import LoggingMixin
 from runnable_tracker import get_tracker
 
 # Import sip at module level to avoid threading issues
@@ -34,9 +34,6 @@ except ImportError:
 if TYPE_CHECKING:
     from .failure_tracker import FailureTracker
     from .thumbnail_processor import ThumbnailProcessor
-
-logger = logging.getLogger(__name__)
-
 
 class ThumbnailCacheResult:
     """Result container for async thumbnail caching operations.
@@ -145,7 +142,7 @@ class ThumbnailCacheResult:
             return f"ThumbnailCacheResult(status={status})"
 
 
-class ThumbnailLoader(QRunnable):
+class ThumbnailLoader(QRunnable, LoggingMixin):
     """Background thumbnail loader with result synchronization.
 
     This QRunnable worker processes thumbnails in background threads
@@ -183,6 +180,7 @@ class ThumbnailLoader(QRunnable):
             result: result container for synchronization
         """
         super().__init__()
+        LoggingMixin.__init__(self)
         self._thumbnail_processor = thumbnail_processor
         self._failure_tracker = failure_tracker
         self.source_path = source_path
@@ -231,7 +229,7 @@ class ThumbnailLoader(QRunnable):
                                         self.cache_path,
                                     )
                                 else:
-                                    logger.debug(
+                                    self.logger.debug(
                                         "Signal object deleted, skipping loaded emission"
                                     )
                             except Exception:
@@ -250,7 +248,7 @@ class ThumbnailLoader(QRunnable):
                     except RuntimeError:
                         pass  # Signals deleted
 
-                logger.debug(f"Successfully cached thumbnail for {self.shot}")
+                self.logger.debug(f"Successfully cached thumbnail for {self.shot}")
             else:
                 # Set error result
                 error_msg = f"Thumbnail processing failed for {self.shot}"
@@ -274,7 +272,7 @@ class ThumbnailLoader(QRunnable):
                                         error_msg,
                                     )
                                 else:
-                                    logger.debug(
+                                    self.logger.debug(
                                         "Signal object deleted, skipping failed emission"
                                     )
                             except Exception:
@@ -293,7 +291,7 @@ class ThumbnailLoader(QRunnable):
                     except RuntimeError:
                         pass  # Signals deleted
 
-                logger.warning(error_msg)
+                self.logger.warning(error_msg)
 
         except Exception as e:
             # Set exception result
@@ -317,7 +315,7 @@ class ThumbnailLoader(QRunnable):
                                     str(e),
                                 )
                             else:
-                                logger.debug(
+                                self.logger.debug(
                                     "Signal object deleted, skipping exception emission"
                                 )
                         except Exception:
@@ -333,7 +331,7 @@ class ThumbnailLoader(QRunnable):
                 except RuntimeError:
                     pass  # Signals deleted
 
-            logger.error(error_msg)
+            self.logger.error(error_msg)
         finally:
             # Always unregister from tracker when done
             tracker.unregister(self)

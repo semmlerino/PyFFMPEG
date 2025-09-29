@@ -15,7 +15,6 @@ a focused, testable component. It handles:
 from __future__ import annotations
 
 # Standard library imports
-import logging
 from typing import TYPE_CHECKING, Protocol, cast
 
 # Third-party imports
@@ -38,10 +37,9 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
 
 # Runtime imports (needed at runtime)
+from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
 from progress_manager import ProgressManager
-
-logger = logging.getLogger(__name__)
 
 
 class LauncherTarget(Protocol):
@@ -59,7 +57,7 @@ class LauncherTarget(Protocol):
         ...
 
 
-class LauncherController:
+class LauncherController(LoggingMixin):
     """Controller for application launching functionality.
 
     This controller encapsulates all launcher-related functionality that was previously
@@ -85,8 +83,8 @@ class LauncherController:
         Args:
             window: MainWindow implementing LauncherTarget protocol
         """
+        super().__init__()
         self.window = window
-        self.logger = logger
 
         # Context tracking
         self._current_scene: ThreeDEScene | None = None

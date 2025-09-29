@@ -4,14 +4,13 @@ from __future__ import annotations
 
 # Standard library imports
 import gc
-import logging
 import threading
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Third-party imports
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QImage
 
 # Local application imports
@@ -22,8 +21,6 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     # Third-party imports
     from PIL import Image as PIL
-
-logger = logging.getLogger(__name__)
 
 
 class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
@@ -973,6 +970,202 @@ class ThumbnailProcessor(ErrorHandlingMixin, LoggingMixin):
             except OSError:
                 pass  # Ignore cleanup errors
 
+    # ==================== ASYNC EXR PROCESSING ====================
+    # Added for Day 1 of refactoring plan to fix EXR blocking issue
+
+    async def process_exr_batch_async(self, exr_files: list[Path]) -> dict[Path, Path]:
+        """Process multiple EXR files in parallel without blocking UI.
+
+        This method processes EXR files asynchronously to prevent UI freezing.
+        Each EXR conversion runs in a separate asyncio task.
+
+        Args:
+            exr_files: List of EXR file paths to process
+
+        Returns:
+            Dictionary mapping source EXR paths to generated thumbnail paths
+        """
+        import asyncio
+
+        self.logger.info(f"Starting async batch processing of {len(exr_files)} EXR files")
+
+        # Create tasks for parallel processing
+        tasks = []
+        for exr_file in exr_files:
+            task = asyncio.create_task(self._convert_single_exr_async(exr_file))
+            tasks.append(task)
+
+        # Wait for all conversions to complete
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Build result dictionary, filtering out failures
+        processed = {}
+        for exr_file, result in zip(exr_files, results):
+            if isinstance(result, Exception):
+                self.logger.error(f"Failed to process {exr_file.name}: {result}")
+            elif result is not None:
+                processed[exr_file] = result
+
+        self.logger.info(f"Completed async batch: {len(processed)}/{len(exr_files)} succeeded")
+        return processed
+
+    async def _convert_single_exr_async(self, source_path: Path) -> Path | None:
+        """Convert single EXR file asynchronously.
+
+        Runs ImageMagick conversion in a thread pool to avoid blocking.
+
+        Args:
+            source_path: Path to EXR file
+
+        Returns:
+            Path to generated thumbnail or None if failed
+        """
+        import asyncio
+        import subprocess
+        from concurrent.futures import ThreadPoolExecutor
+
+        self.logger.debug(f"Starting async conversion of {source_path.name}")
+
+        # Generate cache path for thumbnail
+        from cache_config import CacheConfig
+        cache_dir = CacheConfig.get_cache_directory() / "thumbnails"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Use hash of path for consistent cache key
+        import hashlib
+        path_hash = hashlib.md5(str(source_path).encode()).hexdigest()
+        thumbnail_path = cache_dir / f"{path_hash}_{self._thumbnail_size}.jpg"
+
+        # Skip if already cached
+        if thumbnail_path.exists():
+            self.logger.debug(f"Using cached thumbnail for {source_path.name}")
+            return thumbnail_path
+
+        # Prepare conversion command
+        cmd = [
+            "convert",
+            str(source_path),
+            "-resize",
+            f"{self._thumbnail_size}x{self._thumbnail_size}>",
+            "-quality",
+            "90",
+            "-colorspace",
+            "sRGB",
+            str(thumbnail_path),
+        ]
+
+        # Run conversion in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        executor = ThreadPoolExecutor(max_workers=4)
+
+        try:
+            # Execute subprocess in thread pool
+            def run_convert():
+                return subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+            result = await loop.run_in_executor(executor, run_convert)
+
+            if result.returncode != 0:
+                self.logger.error(
+                    f"ImageMagick failed for {source_path.name}: {result.stderr}"
+                )
+                return None
+
+            # Verify output was created
+            if not thumbnail_path.exists() or thumbnail_path.stat().st_size == 0:
+                self.logger.error(f"No output created for {source_path.name}")
+                return None
+
+            self.logger.debug(f"Successfully converted {source_path.name}")
+            return thumbnail_path
+
+        except subprocess.TimeoutExpired:
+            self.logger.error(f"Conversion timeout for {source_path.name}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Async conversion error for {source_path.name}: {e}")
+            return None
+
     def __repr__(self) -> str:
         """String representation of thumbnail processor."""
         return f"ThumbnailProcessor(size={self._thumbnail_size}px)"
+
+
+class AsyncEXRProcessor(QThread):
+    """Qt thread wrapper for async EXR processing without UI blocking.
+
+    This class provides Qt integration for the async EXR processing,
+    allowing the UI to remain responsive during batch EXR conversions.
+    """
+
+    # Signals for progress and completion
+    progress_updated = Signal(int)  # Current count of processed files
+    batch_completed = Signal(dict)  # Dict of source->thumbnail paths
+    error_occurred = Signal(str)  # Error message
+
+    def __init__(self, processor: ThumbnailProcessor, exr_files: list[Path], parent=None):
+        """Initialize async EXR processor.
+
+        Args:
+            processor: ThumbnailProcessor instance to use
+            exr_files: List of EXR files to process
+            parent: Parent QObject
+        """
+        super().__init__(parent)
+        self._processor = processor
+        self._exr_files = exr_files
+        self._results = {}
+
+    def run(self):
+        """Run async EXR processing in separate thread."""
+        import asyncio
+
+        try:
+            # Create new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            # Run the async batch processing
+            self._results = loop.run_until_complete(
+                self._process_with_progress()
+            )
+
+            # Convert Path objects to strings for Qt signal marshalling
+            # Qt can't properly serialize Path objects across threads
+            str_results = {
+                str(k): str(v) for k, v in self._results.items()
+            }
+
+            # Emit completion signal with string paths
+            self.batch_completed.emit(str_results)
+
+        except Exception as e:
+            self.error_occurred.emit(str(e))
+        finally:
+            # Clean up event loop
+            loop.close()
+
+    async def _process_with_progress(self) -> dict[Path, Path]:
+        """Process EXRs with progress updates."""
+        results = {}
+        total = len(self._exr_files)
+
+        # Process in smaller batches for more frequent updates
+        batch_size = 4
+        for i in range(0, total, batch_size):
+            batch = self._exr_files[i:i + batch_size]
+
+            # Process this batch
+            batch_results = await self._processor.process_exr_batch_async(batch)
+            results.update(batch_results)
+
+            # Emit progress
+            processed = min(i + batch_size, total)
+            self.progress_updated.emit(processed)
+
+        return results
