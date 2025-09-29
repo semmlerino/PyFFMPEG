@@ -321,10 +321,12 @@ class DesignSystem:
         QTabBar::tab {{
             background-color: {self.colors.surface};
             color: {self.colors.text_secondary};
-            padding: {self.spacing.sm}px {self.spacing.md}px;
+            padding: {self.spacing.lg}px {self.spacing.xxl}px;
             margin-right: {self.spacing.xs}px;
             border-top-left-radius: {self.borders.radius_md}px;
             border-top-right-radius: {self.borders.radius_md}px;
+            font-size: {self.typography.size_h3}px;
+            font-weight: {self.typography.weight_medium};
         }}
         
         QTabBar::tab:selected {{

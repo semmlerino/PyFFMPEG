@@ -197,6 +197,12 @@ Environment Variables:
         action="store_true",
         help="Run in headless mode without display (for CI/CD testing)",
     )
+    parser.add_argument(
+        "--screenshot",
+        type=int,
+        metavar="SECONDS",
+        help="Auto-capture screenshot after N seconds and save to C:\\temp\\shotbot_auto.png",
+    )
     args = parser.parse_args()
 
     # Initialize logging first - BEFORE any imports that might trigger PIL
@@ -328,6 +334,35 @@ Environment Variables:
 
     # Show window (will be no-op in headless mode due to patching)
     window.show()
+
+    # Auto-screenshot functionality
+    if args.screenshot and not headless_mode:
+        from pathlib import Path
+        from PySide6.QtCore import QTimer
+
+        def take_auto_screenshot():
+            """Capture window screenshot automatically."""
+            try:
+                # Grab the window contents
+                pixmap = window.grab()
+
+                # Save to file
+                output_path = Path("/mnt/c/temp/shotbot_auto.png")
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                success = pixmap.save(str(output_path))
+
+                if success:
+                    logger.info(f"✓ Auto-screenshot saved to: {output_path}")
+                    logger.info(f"  Windows path: C:\\temp\\shotbot_auto.png")
+                else:
+                    logger.error("✗ Failed to save auto-screenshot")
+            except Exception as e:
+                logger.error(f"Auto-screenshot failed: {e}")
+
+        # Schedule screenshot after specified delay
+        delay_ms = args.screenshot * 1000
+        logger.info(f"Auto-screenshot scheduled in {args.screenshot} seconds...")
+        QTimer.singleShot(delay_ms, take_auto_screenshot)
 
     # Run application
     sys.exit(app.exec())

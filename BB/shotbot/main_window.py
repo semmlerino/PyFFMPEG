@@ -356,6 +356,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Left side - Tab widget for different views
         self.tab_widget = QTabWidget()
+        # Disable focus indicators on tab bar
+        self.tab_widget.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.splitter.addWidget(self.tab_widget)
 
         # Tab 1: My Shots
@@ -377,6 +379,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             model=self.previous_shots_item_model
         )
         _ = self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
+
+        # Apply distinct color themes to each tab
+        self.tab_widget.currentChanged.connect(self._update_tab_accent_color)
+        self._update_tab_accent_color(0)  # Initialize with first tab color
 
         # Right side - Controls and log
         right_widget = QWidget()
@@ -871,6 +877,137 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             else:
                 # Clear selection
                 self._on_shot_selected(None)
+
+    def _update_tab_accent_color(self, index: int) -> None:
+        """Update tab styling with distinct background color based on selected tab.
+
+        Applies a full colored background to the selected tab to provide strong
+        visual distinction between the three main tabs (My Shots, Other 3DE, Previous).
+
+        Args:
+            index: Index of the currently selected tab (0=My Shots, 1=Other 3DE, 2=Previous)
+        """
+        # Define distinct colors for each tab (main and darker variant)
+        tab_colors = {
+            0: ("#2196F3", "#1976D2"),  # Blue - My Shots
+            1: ("#00BCD4", "#00ACC1"),  # Cyan - Other 3DE scenes
+            2: ("#9C27B0", "#7B1FA2"),  # Purple - Previous Shots
+        }
+
+        main_color, dark_color = tab_colors.get(index, ("#2196F3", "#1976D2"))
+
+        # Professional tab design: muted colors, subtle accents, proper proportions
+        # Qt supports :first, :middle, :last (NOT :nth-child)
+        tab_stylesheet = f"""
+            /* Tab bar - disable focus indicators */
+            QTabBar {{
+                qproperty-drawBase: 0;
+            }}
+
+            /* Base tab styling - professional proportions */
+            QTabBar::tab {{
+                min-width: 120px;
+                font-size: 14px;
+                font-weight: 400;
+                border: none;
+                outline: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                border-bottom-left-radius: 0px;
+                border-bottom-right-radius: 0px;
+            }}
+
+            /* Disable focus indicators */
+            QTabBar::tab:focus {{
+                outline: none;
+                border: none;
+            }}
+
+            /* Inactive tabs - subtle and recessed */
+            QTabBar::tab:!selected {{
+                background: rgba(50, 50, 50, 1.0);
+                color: rgba(180, 180, 180, 1.0);
+                padding: 10px 28px 12px 28px;
+                margin-top: 4px;
+                margin-bottom: 0px;
+                margin-left: 0px;
+                margin-right: 1px;
+                border-top: 2px solid rgba(80, 80, 80, 1.0);
+            }}
+
+            /* Tab 0 (My Shots) - Blue accent when inactive */
+            QTabBar::tab:!selected:first {{
+                border-top: 2px solid rgba(100, 150, 200, 0.3);
+            }}
+
+            /* Tab 1 (Other 3DE) - Cyan accent when inactive */
+            QTabBar::tab:!selected:middle {{
+                border-top: 2px solid rgba(80, 180, 190, 0.3);
+            }}
+
+            /* Tab 2 (Previous Shots) - Purple accent when inactive */
+            QTabBar::tab:!selected:last {{
+                border-top: 2px solid rgba(150, 100, 180, 0.3);
+                margin-right: 0px;
+            }}
+
+            /* Selected tab - elevated, no border, no outline */
+            QTabBar::tab:selected {{
+                background: rgba(65, 65, 65, 1.0);
+                color: rgba(240, 240, 240, 1.0);
+                padding: 12px 28px 14px 28px;
+                margin-top: 0px;
+                margin-bottom: -2px;
+                margin-left: 0px;
+                margin-right: 1px;
+                border: 0px solid transparent;
+                border-top: 0px solid transparent;
+                border-bottom: 0px solid transparent;
+                border-left: 0px solid transparent;
+                border-right: 0px solid transparent;
+                outline: 0px solid transparent;
+            }}
+
+            /* Override any inherited borders for selected tabs */
+            QTabBar::tab:selected:first {{
+                border: 0px solid transparent;
+                outline: 0px solid transparent;
+            }}
+
+            QTabBar::tab:selected:middle {{
+                border: 0px solid transparent;
+                outline: 0px solid transparent;
+            }}
+
+            QTabBar::tab:selected:last {{
+                border: 0px solid transparent;
+                outline: 0px solid transparent;
+            }}
+
+            /* Remove focus indicators from selected tabs */
+            QTabBar::tab:selected:focus {{
+                outline: none;
+                border: none;
+            }}
+
+            QTabBar::tab:selected:first:focus {{
+                outline: none;
+                border: none;
+            }}
+
+            QTabBar::tab:selected:middle:focus {{
+                outline: none;
+                border: none;
+            }}
+
+            QTabBar::tab:selected:last:focus {{
+                outline: none;
+                border: none;
+            }}
+        """
+
+        # Apply stylesheet to tab bar only (preserves design system defaults)
+        self.tab_widget.tabBar().setStyleSheet(tab_stylesheet)
 
     def _on_shot_selected(self, shot: Shot | None) -> None:
         """Handle shot selection or deselection.
