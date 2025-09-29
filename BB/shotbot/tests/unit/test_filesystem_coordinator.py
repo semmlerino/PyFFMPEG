@@ -286,8 +286,8 @@ class TestCacheInvalidation:
         dir2 = make_test_directory(name="dir2", file_count=3)
 
         # Cache both
-        listing1 = coordinator.get_directory_listing(dir1)
-        listing2 = coordinator.get_directory_listing(dir2)
+        coordinator.get_directory_listing(dir1)
+        coordinator.get_directory_listing(dir2)
 
         # Invalidate only dir1
         coordinator.invalidate_path(dir1)

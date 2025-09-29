@@ -301,7 +301,7 @@ class TestCacheValidator:
         assert non_empty.exists()
 
         # Clean empty directories
-        removed_count = validator.clean_empty_directories()
+        removed_count = validator.clean_empty_directories(thumbnails_dir)
 
         assert removed_count >= 3  # Should remove empty1, empty2, and nested/empty
         assert not empty_dir1.exists()
@@ -503,7 +503,7 @@ class TestCacheValidator:
             nested_file.write_bytes(b"\xff\xd8\xff\xe0" + b"test" * 100 + b"\xff\xd9")
             nested_files.append(nested_file)
 
-        results = validator.validate_cache(fix_issues=False)
+        results = validator.validate_cache(thumbnails_dir, fix_issues=False)
 
         # Should find all nested orphaned files
         assert results["orphaned_files"] >= 3

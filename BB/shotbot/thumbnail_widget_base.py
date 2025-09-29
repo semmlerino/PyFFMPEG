@@ -20,7 +20,7 @@ from PySide6.QtCore import (
     QThreadPool,
     QUrl,
     Signal,
-    Slot,
+    Slot,  # type: ignore[reportUnknownVariableType]
 )
 from PySide6.QtGui import (
     QColor,
@@ -444,7 +444,7 @@ class ThumbnailWidgetBase(QFrame):
             loader = BaseThumbnailLoader(self, cache_path)
             loader.signals.loaded.connect(self._on_thumbnail_loaded)
             loader.signals.failed.connect(self._on_thumbnail_failed)
-            QThreadPool.globalInstance().start(loader)
+            QThreadPool.globalInstance().start(loader)  # type: ignore[reportUnknownMemberType]
         else:
             # Try to load from source
             thumb_path = self.data.get_thumbnail_path()
@@ -453,7 +453,7 @@ class ThumbnailWidgetBase(QFrame):
                 loader = BaseThumbnailLoader(self, thumb_path)
                 loader.signals.loaded.connect(self._on_thumbnail_loaded)
                 loader.signals.failed.connect(self._on_thumbnail_failed)
-                QThreadPool.globalInstance().start(loader)
+                QThreadPool.globalInstance().start(loader)  # type: ignore[reportUnknownMemberType]
 
                 # Also cache it for next time
                 cache_loader = ThumbnailCacheLoader(
@@ -463,7 +463,7 @@ class ThumbnailWidgetBase(QFrame):
                     self.data.sequence,
                     self.data.shot,
                 )
-                QThreadPool.globalInstance().start(cache_loader)
+                QThreadPool.globalInstance().start(cache_loader)  # type: ignore[reportUnknownMemberType]
             else:
                 # No thumbnail available
                 self._on_thumbnail_failed(self)
@@ -558,7 +558,7 @@ class ThumbnailWidgetBase(QFrame):
         )
 
         # Start the worker
-        QThreadPool.globalInstance().start(worker)
+        QThreadPool.globalInstance().start(worker)  # type: ignore[reportUnknownMemberType]
 
     @Slot(str)
     def _on_folder_open_error(self, error_msg: str) -> None:

@@ -209,6 +209,12 @@ class ThumbnailTask(QRunnable):
             self.result.set_error(f"Thumbnail processing error: {e}")
 
 
+class ThumbnailManagerSignals(QObject):
+    """Signal container for ThumbnailManager backward compatibility."""
+    loaded = Signal(str, str, str, Path)  # show, sequence, shot, path
+    failed = Signal(str, str, str, str)  # show, sequence, shot, error
+
+
 class ThumbnailManager(QObject, ErrorHandlingMixin, LoggingMixin):
     """Unified thumbnail management system.
 
@@ -245,6 +251,9 @@ class ThumbnailManager(QObject, ErrorHandlingMixin, LoggingMixin):
             cleanup_age_hours: Age threshold for cleaning up old failures
         """
         super().__init__()
+
+        # Backward compatibility: Create signals object for old API
+        self.signals = ThumbnailManagerSignals()
 
         # Core configuration
         self._thumbnail_size = thumbnail_size or Config.CACHE_THUMBNAIL_SIZE
@@ -306,7 +315,7 @@ class ThumbnailManager(QObject, ErrorHandlingMixin, LoggingMixin):
         task = ThumbnailTask(source_path, cache_path, result, self)
 
         try:
-            self._thread_pool.start(task)
+            self._thread_pool.start(task)  # type: ignore[reportUnknownMemberType]
         except Exception as e:
             result.set_error(f"Failed to start thumbnail task: {e}")
 
@@ -1114,10 +1123,11 @@ class ThumbnailManager(QObject, ErrorHandlingMixin, LoggingMixin):
         while self._memory_usage_bytes > self._max_memory_bytes and self._cached_items:
             self._evict_lru_item()
 
-        # Emit memory pressure signal if needed
-        usage_percent = (self._memory_usage_bytes / self._max_memory_bytes) * 100
-        if usage_percent > 80:
-            self.memory_pressure.emit(int(usage_percent))
+        # Emit memory pressure signal if needed (avoid division by zero)
+        if self._max_memory_bytes > 0:
+            usage_percent = (self._memory_usage_bytes / self._max_memory_bytes) * 100
+            if usage_percent > 80:
+                self.memory_pressure.emit(int(usage_percent))
 
     def _evict_lru_item(self) -> None:
         """Evict least recently used item (assumes lock held)."""
@@ -1235,6 +1245,18 @@ class ThumbnailManager(QObject, ErrorHandlingMixin, LoggingMixin):
         """Get current memory usage in bytes (MemoryManager compatibility)."""
         with self._lock:
             return self._memory_usage_bytes
+
+    @property
+    def cached_items(self) -> dict[str, int]:
+        """Get cached items dictionary (MemoryManager compatibility)."""
+        with self._lock:
+            return self._cached_items.copy()
+
+    @property
+    def max_memory_bytes(self) -> int:
+        """Get maximum memory limit in bytes (MemoryManager compatibility)."""
+        with self._lock:
+            return self._max_memory_bytes
 
     def set_auto_evict(self, enabled: bool) -> None:
         """Enable/disable automatic eviction during item addition (MemoryManager compatibility).

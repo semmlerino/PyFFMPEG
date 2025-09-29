@@ -9,7 +9,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QRunnable, Signal
 
 # Local application imports
-from cache.thumbnail_loader import ThumbnailCacheResult
+from cache.thumbnail_manager import ThumbnailCacheResult
 from shot_model import Shot
 from type_definitions import ShotDict, ThreeDESceneDict
 

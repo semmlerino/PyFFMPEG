@@ -138,10 +138,10 @@ def main() -> None:
             return
 
         # If not ready, check again in 2 seconds
-        QTimer.singleShot(2000, check_and_capture)
+        QTimer.singleShot(2000, check_and_capture)  # type: ignore[reportUnknownMemberType]
 
     # Start checking for completion after initial setup
-    QTimer.singleShot(3000, check_and_capture)
+    QTimer.singleShot(3000, check_and_capture)  # type: ignore[reportUnknownMemberType]
 
     # Run the app
     app.exec()

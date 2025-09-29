@@ -172,7 +172,6 @@ class TestThumbnailManagerHeap:
         # Access a middle file to update its timestamp (make it most recent)
         time.sleep(0.01)
         manager.track_item(files[5], 200 * 1024)  # Update file 5
-        updated_time = manager._access_times[str(files[5])]
 
         # Verify heap contains all entries
         manager._rebuild_heap()
@@ -180,7 +179,6 @@ class TestThumbnailManagerHeap:
 
         # Verify heap is properly ordered (min heap by access time)
         heap = manager._eviction_heap[:]  # Copy for non-destructive testing
-        heap_times = [entry.access_time for entry in heap]
 
         # Check heap property: parent <= children
         for i in range(len(heap) // 2):
@@ -307,8 +305,6 @@ class TestThumbnailManagerHeap:
     def test_eviction_target_percentage(self, populated_memory_manager):
         """Test that eviction targets correct percentage."""
         manager, files = populated_memory_manager
-
-        initial_bytes = manager.memory_usage_bytes
 
         # Force over limit and evict to 50%
         manager._memory_usage_bytes = manager._max_memory_bytes + 1

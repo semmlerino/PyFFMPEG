@@ -51,7 +51,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 # Third-party imports
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal, Slot  # type: ignore[reportUnknownVariableType]
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QCheckBox,

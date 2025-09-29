@@ -24,10 +24,11 @@ if TYPE_CHECKING:
     # Standard library imports
     from pathlib import Path
 
-    # Local application imports
-    from type_definitions import CacheDataDict, CacheInfoDict
     from base_shot_model import Shot
     from threede_scene_model import ThreeDEScene
+
+    # Local application imports
+    from type_definitions import CacheDataDict, CacheInfoDict
 
 # Type variable for cached data
 T = TypeVar("T")

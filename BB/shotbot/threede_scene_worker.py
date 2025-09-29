@@ -17,7 +17,7 @@ from PySide6.QtCore import (
     QThread,
     QWaitCondition,
     Signal,
-    Slot,
+    Slot,  # type: ignore[reportUnknownVariableType]
 )
 
 # Local application imports
@@ -486,10 +486,10 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         # Original behavior: scan only the provided shots
         # Convert shots to the format expected by the finder
-        shot_tuples = []
+        shot_tuples: list[tuple[str, str, str, str]] = []
         for shot in self.shots:
             shot_tuples.append(
-                (shot.workspace_path, shot.show, shot.sequence, shot.shot),
+                (str(shot.workspace_path), shot.show, shot.sequence, shot.shot),
             )
 
         # Get size estimation for progress calculation
@@ -631,13 +631,13 @@ class ThreeDESceneWorker(ThreadSafeWorker):
             return []
 
         # Create a set of user's shot identifiers for filtering
-        user_shot_ids = set()
+        user_shot_ids: set[str] = set()
         for shot in self.user_shots:
             shot_id = f"{shot.show}/{shot.sequence}/{shot.shot}"
             user_shot_ids.add(shot_id)
 
         # Filter to keep only scenes from user's shots (from other users)
-        other_scenes = []
+        other_scenes: list[ThreeDEScene] = []
         for scene in all_scenes:
             if self.should_stop():
                 break

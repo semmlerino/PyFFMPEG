@@ -168,7 +168,7 @@ class VFXStructureRecreator:
             slate_path, f"{shot_name}\nFrames {start}-{end}", 512, 288
         )
 
-    def recreate_node(self, node: dict, parent_path: Path) -> None:
+    def recreate_node(self, node: dict[str, Any], parent_path: Path) -> None:
         """Recursively recreate a node from the captured structure.
 
         Args:
@@ -244,7 +244,7 @@ class VFXStructureRecreator:
 
             self.stats["files_created"] += 1
 
-    def create_additional_3de_files(self, structure_data: dict) -> None:
+    def create_additional_3de_files(self, structure_data: dict[str, Any]) -> None:
         """Create additional 3DE files from other users for 'Other 3DE Scenes' tab.
 
         Args:
@@ -321,7 +321,7 @@ class VFXStructureRecreator:
 
         print(f"Created additional 3DE files from {len(other_users)} other users")
 
-    def create_gabrielh_3de_files(self, structure_data: dict) -> None:
+    def create_gabrielh_3de_files(self, structure_data: dict[str, Any]) -> None:
         """Create 3DE files for gabriel-h to populate 'My Shots' tab."""
         gabrielh_3de_count = 0
 
@@ -393,7 +393,7 @@ class VFXStructureRecreator:
 
         print(f"Created {gabrielh_3de_count} 3DE files for gabriel-h")
 
-    def recreate_structure(self, structure_data: dict) -> None:
+    def recreate_structure(self, structure_data: dict[str, Any]) -> None:
         """Recreate the entire VFX structure.
 
         Args:
@@ -501,7 +501,7 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
                         existing_size = count_nodes(existing.get("structure", {}))  # type: ignore[attr-defined]
                         new_size = count_nodes(show_data.get("structure", {}))  # type: ignore[attr-defined]
                         if new_size > existing_size:
-                            existing["structure"] = show_data["structure"]  # type: ignore[index, attr-defined]
+                            existing["structure"] = show_data["structure"]  # type: ignore[index,attr-defined]
                         exists = True
                         break
 
@@ -526,7 +526,7 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
     return merged
 
 
-def count_nodes(structure: dict) -> int:
+def count_nodes(structure: dict[str, Any]) -> int:
     """Count total nodes in a structure tree."""
     if not structure or not isinstance(structure, dict):
         return 0

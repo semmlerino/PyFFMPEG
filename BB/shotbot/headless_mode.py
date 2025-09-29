@@ -282,7 +282,7 @@ class HeadlessMainWindow:
         Returns:
             True if successful
         """
-        success, has_changes = self.shot_model.refresh_shots()
+        success, _ = self.shot_model.refresh_shots()
         return success
 
     def get_shots(self) -> list:
@@ -319,7 +319,7 @@ def run_headless_app() -> bool:
             logger.info(f"  - {shot}")
 
     # Exit after a short delay
-    QTimer.singleShot(100, app.quit)
+    QTimer.singleShot(100, app.quit)  # type: ignore[reportUnknownMemberType]
 
     # Run event loop briefly
     return app.exec() == 0

@@ -191,7 +191,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
                     self._current_shot.shot,
                 )
                 cache_loader.signals.loaded.connect(self._on_thumbnail_cached)
-                QThreadPool.globalInstance().start(cache_loader)
+                QThreadPool.globalInstance().start(cache_loader)  # type: ignore[reportUnknownMemberType]
             else:
                 # Fall back to placeholder
                 self._set_placeholder_thumbnail()
@@ -319,7 +319,7 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
         loader = InfoPanelPixmapLoader(self, path)
         loader.signals.loaded.connect(self._on_pixmap_loaded)
         loader.signals.failed.connect(self._on_pixmap_failed)
-        QThreadPool.globalInstance().start(loader)
+        QThreadPool.globalInstance().start(loader)  # type: ignore[reportUnknownMemberType]
 
     def _on_pixmap_loaded(self, image: QImage) -> None:
         """Handle successful image loading - convert to pixmap in main thread."""

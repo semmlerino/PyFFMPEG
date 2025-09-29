@@ -327,7 +327,7 @@ class SignalManager(LoggingMixin):
 
         def delayed_slot(*args: Any, **kwargs: Any) -> None:
             """Wrapper that delays the actual slot call."""
-            QTimer.singleShot(delay_ms, lambda: slot(*args, **kwargs))
+            QTimer.singleShot(delay_ms, lambda: slot(*args, **kwargs))  # type: ignore[reportUnknownMemberType]
 
         return self.connect_safely(signal, delayed_slot)
 

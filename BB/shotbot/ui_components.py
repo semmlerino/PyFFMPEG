@@ -264,7 +264,7 @@ class NotificationBanner(QFrame):
 
         # Auto-hide after duration
         if duration > 0:
-            QTimer.singleShot(duration, self.hide_banner)
+            QTimer.singleShot(duration, self.hide_banner)  # type: ignore[reportUnknownMemberType]
 
     def hide_banner(self) -> None:
         """Hide the banner with animation."""

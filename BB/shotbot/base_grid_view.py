@@ -17,7 +17,7 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     Signal,
-    Slot,
+    Slot,  # type: ignore[reportUnknownVariableType]
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,

@@ -11,7 +11,14 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 # Third-party imports
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, QThread, Signal, Slot
+from PySide6.QtCore import (
+    QMutex,
+    QMutexLocker,
+    QObject,
+    QThread,
+    Signal,
+    Slot,
+)
 
 if TYPE_CHECKING:
     # Local application imports

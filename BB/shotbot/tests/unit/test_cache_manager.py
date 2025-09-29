@@ -262,7 +262,7 @@ class TestCacheManager:
         test_image = ThreadSafeTestImage(100, 100)
 
         # Patch QImage to return our thread-safe test double
-        with patch("cache.thumbnail_processor.QImage") as mock_qimage_class:
+        with patch("cache.thumbnail_manager.QImage") as mock_qimage_class:
             # Return our thread-safe test image when QImage is created
             mock_qimage_class.return_value = test_image._image
 
@@ -358,7 +358,7 @@ class TestCacheManager:
         # Use ThreadSafeTestImage for thread-safe operations
         test_image = ThreadSafeTestImage(100, 100)
 
-        with patch("cache.thumbnail_processor.QImage") as mock_qimage:
+        with patch("cache.thumbnail_manager.QImage") as mock_qimage:
             # Return the internal QImage from our test double
             mock_qimage.return_value = test_image._image
 
@@ -716,7 +716,7 @@ class TestCacheThumbnailDirect:
                 raise MemoryError("Out of memory")
             return QImage()
 
-        monkeypatch.setattr("cache.thumbnail_processor.QImage", mock_qimage_init)
+        monkeypatch.setattr("cache.thumbnail_manager.QImage", mock_qimage_init)
 
         result = cache_manager.cache_thumbnail_direct(
             test_image,
@@ -1303,7 +1303,7 @@ class TestCacheManagerThreading:
             # Use ThreadSafeTestImage to simulate large image
             test_image = ThreadSafeTestImage(500, 500)  # Large image
 
-            with patch("cache.thumbnail_processor.QImage") as mock_image_class:
+            with patch("cache.thumbnail_manager.QImage") as mock_image_class:
                 # Configure test image to exceed memory limit
                 test_image._image.sizeInBytes = lambda: 2000  # Exceeds 1KB limit
                 mock_image_class.return_value = test_image._image

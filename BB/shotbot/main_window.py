@@ -53,7 +53,7 @@ import os
 from typing import TYPE_CHECKING, cast
 
 # Third-party imports
-from PySide6.QtCore import Qt, QTimer, Slot
+from PySide6.QtCore import Qt, QTimer, Slot  # type: ignore[reportUnknownVariableType]
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -300,14 +300,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Skip controller in test environment to avoid threading issues
         if os.environ.get("PYTEST_CURRENT_TEST"):
             self.logger.info("Skipping ThreeDEController in test environment")
-            self.threede_controller = None  # type: ignore[assignment]
+            self.threede_controller = None
         else:
             self.logger.info("Using ThreeDEController for 3DE scene management")
-            self.threede_controller = ThreeDEController(self)  # type: ignore[arg-type] # Protocol works functionally
+            self.threede_controller = ThreeDEController(self)
 
         # Initialize launcher controller for all launcher functionality
         self.logger.info("Using LauncherController for launcher management")
-        self.launcher_controller = LauncherController(self)  # type: ignore[arg-type] # Protocol works functionally
+        self.launcher_controller = LauncherController(self)
         self._setup_menu()
         self._setup_accessibility()  # Add accessibility support
         self._connect_signals()
@@ -698,11 +698,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 + f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache",
             )
             # Schedule background refresh for fresh data (non-blocking)
-            QTimer.singleShot(500, self._refresh_shots)
+            QTimer.singleShot(500, self._refresh_shots)  # type: ignore[reportUnknownMemberType]
         elif has_cached_shots:
             self._update_status(f"Loaded {len(self.shot_model.shots)} shots from cache")
             # Schedule background refresh for fresh data (non-blocking)
-            QTimer.singleShot(500, self._refresh_shots)
+            QTimer.singleShot(500, self._refresh_shots)  # type: ignore[reportUnknownMemberType]
         elif has_cached_scenes:
             self._update_status(
                 f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache",
@@ -714,7 +714,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 "No cached data found - fetching fresh data in background",
             )
             # Schedule immediate background refresh
-            QTimer.singleShot(0, self._refresh_shots)
+            QTimer.singleShot(0, self._refresh_shots)  # type: ignore[reportUnknownMemberType]
 
         # Start auto-refresh for previous shots
         self.previous_shots_model.start_auto_refresh()
@@ -727,7 +727,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.logger.info(
                 "Shots already loaded from cache, triggering previous shots refresh immediately"
             )
-            QTimer.singleShot(100, self.previous_shots_model.refresh_shots)
+            QTimer.singleShot(100, self.previous_shots_model.refresh_shots)  # type: ignore[reportUnknownMemberType]
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
         # This avoids unnecessary scans when we already know there are no scenes
@@ -736,7 +736,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             if not self.cache_manager.has_valid_threede_cache():  # type: ignore[attr-defined]
                 self.logger.info("3DE cache invalid/expired - starting discovery")
                 if self.threede_controller:
-                    QTimer.singleShot(
+                    QTimer.singleShot(  # type: ignore[reportUnknownMemberType]
                         100, self.threede_controller.refresh_threede_scenes
                     )
             else:

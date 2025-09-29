@@ -131,7 +131,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         self._info_font.setPointSize(self.theme.info_font_size)
 
         # Cache for expensive calculations
-        self._metrics_cache = {}
+        self._metrics_cache: dict[str, QSize] = {}
 
         # Loading animation
         self._loading_angle = 0
@@ -404,7 +404,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         info_rect = QRect(text_rect.x(), text_rect.y() + 25, text_rect.width(), 25)
 
         # Build info text based on available data
-        info_parts = []
+        info_parts: list[str] = []
         if show := data.get("show"):
             info_parts.append(show)
         if sequence := data.get("sequence"):

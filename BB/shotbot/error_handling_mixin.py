@@ -52,11 +52,11 @@ class ErrorHandlingMixin(LoggingMixin):
     def safe_execute(
         self,
         operation: Callable[..., T],
-        *args: Any,  # noqa: ANN401
+        *args: object,
         default: T | None = None,
         log_error: bool = True,
         reraise: bool = False,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: object,
     ) -> T | None:
         """Execute an operation with standard error handling.
 

@@ -431,7 +431,7 @@ class NotificationManager(QObject):
                         # Status bar was deleted, ignore
                         pass
 
-                QTimer.singleShot(timeout, restore_style)
+                QTimer.singleShot(timeout, restore_style)  # type: ignore[reportUnknownMemberType]
 
         if cls._instance:
             logger.info(f"Success notification: {message}")

@@ -27,7 +27,7 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     Signal,
-    Slot,
+    Slot,  # type: ignore[attr-defined]
 )
 from PySide6.QtGui import QImage, QPixmap
 from typing_extensions import override
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from concurrent.futures import Future
 
     # Local application imports
-    from cache.thumbnail_loader import ThumbnailCacheResult
+    from cache.thumbnail_manager import ThumbnailCacheResult
 
 # Type variable for the data items (Shot or ThreeDEScene)
 T = TypeVar("T", bound=SceneDataProtocol)
@@ -357,7 +357,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
             if self._cache_manager:
                 # First, cache the thumbnail (handles EXR with PIL resizing)
                 # Local application imports
-                from cache.thumbnail_loader import ThumbnailCacheResult
+                from cache.thumbnail_manager import ThumbnailCacheResult
 
                 cached_result = self._cache_manager.cache_thumbnail(
                     thumbnail_path,
@@ -380,7 +380,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
                     def check_timeout() -> None:
                         self._check_thumbnail_timeout(item_full_name, cached_result)
 
-                    QTimer.singleShot(30000, check_timeout)  # 30 seconds
+                    QTimer.singleShot(30000, check_timeout)  # type: ignore[misc]  # 30 seconds
                 elif isinstance(cached_result, Path) and cached_result.exists():
                     # Sync result - cached thumbnail was already available
                     self._load_cached_pixmap(cached_result, row, item, index)
@@ -522,7 +522,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
             result: The thumbnail cache result to check
         """
         # If the result is still not complete after timeout, mark as failed
-        if not result.is_complete():
+        if not result.is_complete:
             self.logger.error(
                 f"Thumbnail loading timed out after 30 seconds for {item_full_name}"
             )

@@ -15,6 +15,9 @@ from unittest.mock import patch
 
 import pytest
 
+from cache.async_exr_processor import AsyncEXRProcessor
+from cache.thumbnail_manager import ThumbnailProcessor
+
 # Test markers for categorization and parallel safety
 pytestmark = [
     pytest.mark.unit,
@@ -226,8 +229,6 @@ class TestAsyncEXRProcessor:
         processor = AsyncEXRProcessor(thumb_processor, exr_files)
 
         # Create async function that returns appropriate results
-        expected_results = {f: f.with_suffix(".jpg") for f in exr_files}
-
         async def mock_batch_processor(batch):
             """Mock that returns expected results for the batch."""
             await asyncio.sleep(0)

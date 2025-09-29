@@ -60,8 +60,8 @@ def get_workspace_shots() -> tuple[list[str], list[str]]:
             timeout=10,
         )
 
-        shots = []
-        shows = set()
+        shots: list[str] = []
+        shows: set[str] = set()
 
         if result.returncode == 0:
             for line in result.stdout.strip().split("\n"):
@@ -106,7 +106,7 @@ def scan_directory(
         return {"type": "file", "name": path.name, "path": str(rel_path), "size": size}
 
     elif path.is_dir():
-        children = []
+        children: list[dict[str, Any]] = []
 
         # Key directories we care about
         important_dirs = {
@@ -328,7 +328,7 @@ def main() -> None:
         elif node["type"] == "file":
             total_files += 1
 
-    for show, show_data in structure_dict["shows"].items():
+    for _, show_data in structure_dict["shows"].items():
         for root_data in show_data:
             count_items(root_data["structure"])
 

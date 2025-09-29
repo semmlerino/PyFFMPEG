@@ -14,7 +14,7 @@ from PySide6.QtCore import (
     QThread,
     QWaitCondition,
     Signal,
-    Slot,
+    Slot,  # type: ignore[reportUnknownVariableType]
 )
 
 # Local application imports

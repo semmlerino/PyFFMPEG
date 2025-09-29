@@ -16,7 +16,8 @@ from collections.abc import Sequence
 
 # Standard library imports
 from enum import IntEnum, auto
-from typing import TYPE_CHECKING, Any, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, Union
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -43,9 +44,14 @@ if TYPE_CHECKING:
     class UnderlyingModelProtocol(Protocol):
         """Protocol for objects that can serve as underlying models."""
 
+        # Signal attributes - use object type to avoid Qt descriptor issues
+        shots_updated: object  # Qt Signal for models that emit this signal
+
+        # Methods
         def get_filtered_shots(self) -> Sequence[Shot]: ...
         def get_filtered_scenes(self) -> Sequence[ThreeDEScene]: ...
-        def set_items_with_type_check(self, items: Sequence[Any]) -> None: ...
+        def set_items_with_type_check(self, items: Sequence[ItemType]) -> None: ...
+        def set_show_filter(self, show: str | None) -> None: ...
 
 
 # Type alias for all supported item types
@@ -112,7 +118,7 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
         item_type: UnifiedItemType,
         cache_manager: CacheManager | None = None,
         parent: QObject | None = None,
-        underlying_model: Any | None = None,
+        underlying_model: UnderlyingModelProtocol | None = None,
     ) -> None:
         """Initialize the unified item model.
 
@@ -131,9 +137,9 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
 
         # Connect type-specific signals to the unified items_updated signal
         if item_type in (UnifiedItemType.SHOT, UnifiedItemType.PREVIOUS):
-            self.items_updated.connect(self.shots_updated)  # type: ignore[misc]
+            self.items_updated.connect(self.shots_updated)
         elif item_type == UnifiedItemType.THREEDE:
-            self.items_updated.connect(self.scenes_updated)  # type: ignore[misc]
+            self.items_updated.connect(self.scenes_updated)
 
         # For PREVIOUS type, connect to underlying model
         if item_type == UnifiedItemType.PREVIOUS and underlying_model:
@@ -142,12 +148,12 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
                 underlying_model.shots_updated, "emit"
             ):
                 # Test double - connect without Qt.ConnectionType
-                underlying_model.shots_updated.connect(
+                underlying_model.shots_updated.connect(  # type: ignore[attr-defined]
                     self._on_underlying_shots_updated
-                )  # type: ignore[misc]
+                )
             elif hasattr(underlying_model, "shots_updated"):
                 # Real Qt signal - use proper connection type
-                underlying_model.shots_updated.connect(  # type: ignore[misc]
+                underlying_model.shots_updated.connect(  # type: ignore[attr-defined]
                     self._on_underlying_shots_updated,
                     Qt.ConnectionType.QueuedConnection,
                 )
@@ -183,8 +189,8 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
         if self.item_type == UnifiedItemType.THREEDE:
             # ThreeDEScene has different tooltip format
             tooltip = f"Scene: {item.shot}\n"
-            tooltip += f"User: {item.user}\n"
-            tooltip += f"Path: {item.scene_path}"
+            tooltip += f"User: {getattr(item, 'user', '')}\n"
+            tooltip += f"Path: {getattr(item, 'scene_path', '')}"
             return tooltip
         else:
             # Shot format (for SHOT and PREVIOUS types)
@@ -210,22 +216,25 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
             and self.item_type == UnifiedItemType.THREEDE
         ):
             # Only for ThreeDEScene: return user
-            return item.user
+            return getattr(item, 'user', '')
         elif (
             role == UnifiedRole.ItemSpecificRole3
             and self.item_type == UnifiedItemType.THREEDE
         ):
             # Only for ThreeDEScene: return scene path
-            return item.scene_path
+            return getattr(item, 'scene_path', None)
         elif (
             role == UnifiedRole.ModifiedTimeRole
             and self.item_type == UnifiedItemType.THREEDE
         ):
             # Only for ThreeDEScene: return modification time
-            try:
-                return item.scene_path.stat().st_mtime
-            except OSError:
-                return 0.0  # Return 0 if file doesn't exist
+            scene_path = getattr(item, 'scene_path', None)
+            if scene_path and isinstance(scene_path, Path):
+                try:
+                    return float(scene_path.stat().st_mtime)
+                except OSError:
+                    return 0.0  # Return 0 if file doesn't exist
+            return 0.0
         elif role == UnifiedRole.ObjectRole:
             # Return the item object itself
             return item
@@ -241,28 +250,31 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
             and self.item_type == UnifiedItemType.THREEDE
         ):
             # Legacy ThreeDERole.UserRole
-            return item.user
+            return getattr(item, 'user', '')
         elif (
             role == (Qt.ItemDataRole.UserRole + 6)
             and self.item_type == UnifiedItemType.THREEDE
         ):
             # Legacy ThreeDERole.ScenePathRole
-            return item.scene_path
+            return getattr(item, 'scene_path', None)
         elif (
             role == (Qt.ItemDataRole.UserRole + 11)
             and self.item_type == UnifiedItemType.THREEDE
         ):
             # Legacy ThreeDERole.ModifiedTimeRole
-            try:
-                return item.scene_path.stat().st_mtime
-            except OSError:
-                return 0.0
+            scene_path = getattr(item, 'scene_path', None)
+            if scene_path and isinstance(scene_path, Path):
+                try:
+                    return float(scene_path.stat().st_mtime)
+                except OSError:
+                    return 0.0
+            return 0.0
 
         return None
 
     # ============= Unified methods that replace type-specific ones =============
 
-    def set_items_with_type_check(self, items: Sequence[Any]) -> None:
+    def set_items_with_type_check(self, items: Sequence[ItemType]) -> None:
         """Set items with backward compatibility aliases.
 
         Args:
@@ -282,7 +294,7 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
         else:
             # Incremental update (more complex, for future optimization)
             self.beginResetModel()
-            self._items = scenes
+            self._items = list(scenes)
             self.endResetModel()
             self.scenes_updated.emit()
         self.logger.info(f"Set {len(scenes)} items in unified model")
@@ -310,7 +322,7 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
 
         return RefreshResult(success=True, has_changes=has_changes)
 
-    def set_show_filter(self, data_model: Any, show: str | None) -> None:
+    def set_show_filter(self, data_model: UnderlyingModelProtocol, show: str | None) -> None:
         """Set show filter using appropriate strategy for item type.
 
         Args:
@@ -326,15 +338,15 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
                 self._updating_filter = True
 
             # Set filter on the data model
-            data_model.set_show_filter(show)  # type: ignore[misc]
+            data_model.set_show_filter(show)
 
             # Get filtered items based on type
             if self.item_type == UnifiedItemType.SHOT:
-                filtered_items = data_model.get_filtered_shots()  # type: ignore[misc]
+                filtered_items = data_model.get_filtered_shots()
             elif self.item_type == UnifiedItemType.THREEDE:
-                filtered_items = data_model.get_filtered_scenes()  # type: ignore[misc]
+                filtered_items = data_model.get_filtered_scenes()
             elif self.item_type == UnifiedItemType.PREVIOUS:
-                filtered_items = data_model.get_filtered_shots()  # type: ignore[misc]
+                filtered_items = data_model.get_filtered_shots()
             else:
                 return
 
@@ -458,7 +470,7 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
 
         model = cast("PreviousShotsModel", self._underlying_model)
         new_shots = model.get_shots()
-        self.set_items(new_shots)
+        self.set_items(new_shots)  # type: ignore[arg-type]
         self.logger.debug(f"Updated unified model with {len(new_shots)} previous shots")
 
     def refresh(self) -> None:
@@ -575,7 +587,7 @@ def create_threede_item_model(
 
 
 def create_previous_shots_item_model(
-    previous_shots_model: Any,
+    previous_shots_model: UnderlyingModelProtocol,
     cache_manager: CacheManager | None = None,
     parent: QObject | None = None,
 ) -> UnifiedItemModel:

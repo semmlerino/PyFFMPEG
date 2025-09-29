@@ -40,6 +40,7 @@ import pytest
 
 # Now we can import Qt, but immediately patch show methods
 from PySide6.QtCore import QCoreApplication, QEventLoop, QThreadPool, QTimer
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import QApplication, QDialog, QMainWindow, QMessageBox, QWidget
 
 # CRITICAL: Monkey-patch Qt show methods at module import time
@@ -59,7 +60,7 @@ _original_eventloop_exec_ = getattr(QEventLoop, "exec_", None)
 _virtually_visible_widgets = set()
 
 
-def _mock_widget_show(self) -> None:
+def _mock_widget_show(self: QWidget) -> None:
     """Prevent widgets from actually showing."""
     # Mark as "shown" for tests without actually showing
     _virtually_visible_widgets.add(id(self))
@@ -67,14 +68,14 @@ def _mock_widget_show(self) -> None:
     pass
 
 
-def _mock_widget_hide(self) -> None:
+def _mock_widget_hide(self: QWidget) -> None:
     """Hide widget by removing from virtually visible set."""
     _virtually_visible_widgets.discard(id(self))
     # Don't call the original hide
     pass
 
 
-def _mock_widget_setVisible(self, visible) -> None:
+def _mock_widget_setVisible(self: QWidget, visible: bool) -> None:
     """Prevent widgets from becoming visible if visible=True."""
     if not visible:
         # Allow hiding
@@ -85,13 +86,13 @@ def _mock_widget_setVisible(self, visible) -> None:
     pass
 
 
-def _mock_widget_isVisible(self):
+def _mock_widget_isVisible(self: QWidget) -> bool:
     """Return virtual visibility state for tests."""
     # Return True if widget was "shown" in test
     return id(self) in _virtually_visible_widgets
 
 
-def _mock_widget_showEvent(self, event) -> None:
+def _mock_widget_showEvent(self: QWidget, event: QShowEvent) -> None:
     """Prevent show events from propagating."""
     # Accept the event but don't show anything
     if event:
@@ -99,12 +100,12 @@ def _mock_widget_showEvent(self, event) -> None:
     pass
 
 
-def _mock_dialog_exec(self):
+def _mock_dialog_exec(self: QDialog) -> int:
     """Prevent dialogs from blocking."""
     return QDialog.DialogCode.Accepted
 
 
-def _mock_eventloop_exec(self) -> int:
+def _mock_eventloop_exec(self: QEventLoop) -> int:
     """Prevent event loops from blocking in tests while allowing signal delivery."""
     # Process events more thoroughly to allow QThreadPool signals to propagate
     # Standard library imports
@@ -162,7 +163,7 @@ from tests.test_doubles_library import TestProcessPool  # noqa: E402
 
 
 @pytest.fixture
-def make_shot():
+def make_shot():  # type: ignore[misc]
     """Factory fixture for creating Shot instances with customizable parameters.
 
     Following UNIFIED_TESTING_GUIDE pattern from lines 27-37.
@@ -171,7 +172,12 @@ def make_shot():
     # Local application imports
     from shot_model import Shot
 
-    def _make_shot(show="test", seq="seq1", shot="0010", workspace_path=None):
+    def _make_shot(
+        show: str = "test",
+        seq: str = "seq1",
+        shot: str = "0010",
+        workspace_path: str | None = None,
+    ) -> Shot:
         if workspace_path is None:
             workspace_path = f"/shows/{show}/{seq}/{seq}_{shot}"
         return Shot(show, seq, shot, workspace_path)
@@ -180,7 +186,7 @@ def make_shot():
 
 
 @pytest.fixture
-def make_launcher():
+def make_launcher():  # type: ignore[misc]
     """Factory fixture for creating CustomLauncher instances.
 
     Following UNIFIED_TESTING_GUIDE factory pattern.
@@ -192,12 +198,12 @@ def make_launcher():
     created_launchers = []
 
     def _make_launcher(
-        id=None,
-        name="Test Launcher",
-        command="echo {shot_name}",
-        description="Test launcher for unit tests",
-        category="test",
-    ):
+        id: str | None = None,
+        name: str = "Test Launcher",
+        command: str = "echo {shot_name}",
+        description: str = "Test launcher for unit tests",
+        category: str = "test",
+    ) -> CustomLauncher:
         launcher_id = id or f"test_launcher_{len(created_launchers)}"
         launcher = CustomLauncher(
             id=launcher_id,
@@ -216,7 +222,7 @@ def make_launcher():
 
 
 @pytest.fixture
-def make_cache_manager():
+def make_cache_manager():  # type: ignore[misc]
     """Factory fixture for creating CacheManager instances with tmp_path.
 
     Following UNIFIED_TESTING_GUIDE factory pattern.
@@ -225,9 +231,9 @@ def make_cache_manager():
     # Local application imports
     from cache_manager import CacheManager
 
-    created_managers = []
+    created_managers: list[CacheManager] = []
 
-    def _make_cache_manager(tmp_path, cache_subdir="cache"):
+    def _make_cache_manager(tmp_path: Path, cache_subdir: str = "cache") -> CacheManager:
         cache_dir = tmp_path / cache_subdir
         cache_dir.mkdir(exist_ok=True)
 
@@ -248,7 +254,7 @@ def make_cache_manager():
 
 
 @pytest.fixture
-def make_process_pool():
+def make_process_pool():  # type: ignore[misc]
     """Factory fixture for creating TestProcessPoolManager instances.
 
     Following UNIFIED_TESTING_GUIDE factory pattern.
@@ -257,9 +263,9 @@ def make_process_pool():
     # Local application imports
     from tests.test_doubles_library import TestProcessPool
 
-    created_pools = []
+    created_pools: list[TestProcessPool] = []
 
-    def _make_process_pool(default_output="workspace /test/path"):
+    def _make_process_pool(default_output: str = "workspace /test/path") -> TestProcessPool:
         pool = TestProcessPool()
         pool.default_output = default_output
         created_pools.append(pool)

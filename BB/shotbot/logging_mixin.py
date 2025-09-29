@@ -25,7 +25,7 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 # Third-party imports
 from typing_extensions import ParamSpec
@@ -51,35 +51,35 @@ class ContextualLogger:
 
     def _format_message(self, msg: str) -> str:
         """Format message with current context if available."""
-        context = getattr(_context_storage, "context", None)
+        context: dict[str, object] | None = getattr(_context_storage, "context", None)
         if context:
             context_str = " | ".join(f"{k}={v}" for k, v in context.items())
             return f"[{context_str}] {msg}"
         return msg
 
-    def debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
+    def debug(self, msg: str, *args: object, **kwargs: object) -> None:
         """Log debug message with context."""
-        self._logger.debug(self._format_message(msg), *args, **kwargs)
+        self._logger.debug(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
 
-    def info(self, msg: str, *args: Any, **kwargs: Any) -> None:
+    def info(self, msg: str, *args: object, **kwargs: object) -> None:
         """Log info message with context."""
-        self._logger.info(self._format_message(msg), *args, **kwargs)
+        self._logger.info(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
 
-    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None:
+    def warning(self, msg: str, *args: object, **kwargs: object) -> None:
         """Log warning message with context."""
-        self._logger.warning(self._format_message(msg), *args, **kwargs)
+        self._logger.warning(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
 
-    def error(self, msg: str, *args: Any, **kwargs: Any) -> None:
+    def error(self, msg: str, *args: object, **kwargs: object) -> None:
         """Log error message with context."""
-        self._logger.error(self._format_message(msg), *args, **kwargs)
+        self._logger.error(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
 
-    def critical(self, msg: str, *args: Any, **kwargs: Any) -> None:
+    def critical(self, msg: str, *args: object, **kwargs: object) -> None:
         """Log critical message with context."""
-        self._logger.critical(self._format_message(msg), *args, **kwargs)
+        self._logger.critical(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
 
-    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None:
+    def exception(self, msg: str, *args: object, **kwargs: object) -> None:
         """Log exception message with context."""
-        self._logger.exception(self._format_message(msg), *args, **kwargs)
+        self._logger.exception(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
 
     def isEnabledFor(self, level: int) -> bool:
         """Check if the logger is enabled for the specified level.
@@ -205,9 +205,7 @@ def log_execution(
             if log_level <= logging.DEBUG and include_args:
                 # Safely format args (avoid logging sensitive data)
                 safe_args = []
-                for i, arg in enumerate(
-                    args[1:] if args and hasattr(args[0], "logger") else args
-                ):
+                for arg in (args[1:] if args and hasattr(args[0], "logger") else args):
                     if isinstance(arg, str | int | float | bool):
                         safe_args.append(repr(arg))
                     else:

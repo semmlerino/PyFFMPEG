@@ -18,7 +18,7 @@ from PySide6.QtCore import (
     Qt,
     QThreadPool,
     Signal,
-    Slot,
+    Slot,  # type: ignore[reportUnknownVariableType]
 )
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -322,7 +322,7 @@ class ThreeDEGridView(BaseGridView):
         if scene_path.exists():
             folder_path = str(scene_path.parent)
             worker = FolderOpenerWorker(folder_path)
-            QThreadPool.globalInstance().start(worker)
+            QThreadPool.globalInstance().start(worker)  # type: ignore[reportUnknownMemberType]
 
     def _copy_scene_path(self, scene: ThreeDEScene) -> None:
         """Copy scene path to clipboard.

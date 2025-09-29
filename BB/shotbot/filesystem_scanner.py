@@ -232,7 +232,7 @@ class FileSystemScanner(LoggingMixin):
                 f"Scanning user dir: {user_dir}, found {len(user_entries)} entries"
             )
 
-            for entry_name, is_dir, is_file in user_entries:
+            for entry_name, is_dir, _ in user_entries:
                 if is_dir and (
                     excluded_users is None or entry_name not in excluded_users
                 ):
@@ -507,7 +507,7 @@ class FileSystemScanner(LoggingMixin):
         total_estimated_users = 0
         total_estimated_files = 0
 
-        for workspace_path, show, sequence, shot in shot_tuples:
+        for workspace_path, _, _, _ in shot_tuples:
             try:
                 shot_path = Path(workspace_path)
                 user_dir = shot_path / "user"

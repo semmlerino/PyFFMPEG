@@ -17,7 +17,7 @@ from PySide6.QtCore import (
     QThreadPool,
     QTimer,
     Signal,
-    Slot,
+    Slot,  # type: ignore[reportUnknownVariableType]
 )
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -411,7 +411,7 @@ class PreviousShotsView(BaseGridView):
         )
 
         # Start the worker
-        QThreadPool.globalInstance().start(worker)
+        QThreadPool.globalInstance().start(worker)  # type: ignore[reportUnknownMemberType]
 
         self.logger.info(f"Opening folder: {folder_path}")
 

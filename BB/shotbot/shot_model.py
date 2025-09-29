@@ -21,7 +21,14 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
 # Third-party imports
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal, Slot
+from PySide6.QtCore import (
+    QMutex,
+    QMutexLocker,
+    QObject,
+    Qt,
+    Signal,
+    Slot,
+)
 from typing_extensions import override
 
 if TYPE_CHECKING:

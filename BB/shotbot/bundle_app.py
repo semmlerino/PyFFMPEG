@@ -18,7 +18,7 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class BundleConfig(TypedDict):
@@ -200,7 +200,7 @@ class ApplicationBundler:
         if config_path and os.path.exists(config_path):
             try:
                 with open(config_path) as f:
-                    user_config: dict[str, int | str | list[str]] = json.load(f)
+                    user_config: dict[str, Any] = json.load(f)
                     default_config.update(user_config)  # type: ignore[typeddict-item]
                     if self.verbose:
                         print(f"Loaded config from {config_path}", file=sys.stderr)
