@@ -299,12 +299,15 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                     # Open FIFO in non-blocking mode to prevent hanging
                     fifo_fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
 
-                    # Convert file descriptor to file object with explicit UTF-8 encoding
-                    # This ensures consistent encoding across different WSL/Linux environments
-                    with os.fdopen(fifo_fd, "w", encoding="utf-8") as fifo:
+                    # Use binary mode with unbuffered I/O to prevent WSL FIFO corruption
+                    # Text mode + buffering was causing byte-level corruption in WSL2 FIFOs
+                    # Binary mode bypasses Python's text buffering layer and writes directly
+                    with os.fdopen(fifo_fd, "wb", buffering=0) as fifo:
                         fifo_fd = None  # File object now owns the descriptor
-                        fifo.write(f"{command}\n")
-                        fifo.flush()
+                        # Explicitly encode as UTF-8 bytes for complete control
+                        fifo.write(command.encode("utf-8"))
+                        fifo.write(b"\n")
+                        # No flush() needed - unbuffered mode writes immediately
 
                     self.logger.info(
                         f"Successfully sent command to terminal via FIFO: {command}"
