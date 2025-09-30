@@ -92,13 +92,13 @@ class TimingProfiler(LoggingMixin):
         finally:
             self.active_timers.pop(operation_name, None)
 
-    def get_report(self) -> dict[str, Any]:  # type: ignore[type-arg]
+    def get_report(self) -> dict[str, dict[str, int | float]]:
         """Get timing report.
 
         Returns:
             Dictionary with timing statistics
         """
-        report = {}
+        report: dict[str, dict[str, int | float]] = {}
         for operation, times in self.timings.items():
             if times:
                 report[operation] = {

@@ -263,7 +263,7 @@ class CacheManager(LoggingMixin, QObject):
             raise ThumbnailError(
                 error_msg,
                 details={
-                    "source_path": source_path,
+                    "source_path": str(source_path),
                     "show": show,
                     "sequence": sequence,
                     "shot": shot,
