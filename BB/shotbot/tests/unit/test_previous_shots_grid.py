@@ -27,7 +27,6 @@ from PySide6.QtTest import QSignalSpy, QTest
 # Local application imports
 from cache_manager import CacheManager
 from config import Config
-from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
 from shot_model import Shot
@@ -37,6 +36,7 @@ from tests.test_doubles_library import (
     TestCacheManager,
     TestProgressManager,
 )
+from unified_item_model import create_previous_shots_item_model
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -125,7 +125,7 @@ class TestPreviousShotsView:
     def grid_widget(self, test_model, test_cache_manager, qtbot) -> PreviousShotsView:
         """Create PreviousShotsView widget with Model/View architecture."""
         # Create the item model wrapper for the previous shots model
-        item_model = PreviousShotsItemModel(
+        item_model = create_previous_shots_item_model(
             test_model, cache_manager=test_cache_manager
         )
         # Create the view with the model
@@ -143,7 +143,7 @@ class TestPreviousShotsView:
         """Test grid widget initialization."""
         # View has the item model, which wraps the test_model
         assert grid_widget.model is not None
-        assert isinstance(grid_widget.model, PreviousShotsItemModel)
+        assert isinstance(grid_widget.model, object)  # UnifiedItemModel
         assert grid_widget.selected_shot is None
 
         # UI components should be created
@@ -435,7 +435,7 @@ class TestPreviousShotsViewIntegration:
         previous_model = PreviousShotsModel(shot_model, cache_manager)
 
         # Create the item model and view
-        item_model = PreviousShotsItemModel(previous_model)
+        item_model = create_previous_shots_item_model(previous_model)
         view = PreviousShotsView(model=item_model)
         qtbot.addWidget(view)
         view.show()

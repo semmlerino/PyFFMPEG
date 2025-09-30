@@ -64,18 +64,17 @@ def make_model(qtbot, make_shot):
             shots = [make_shot()]
 
         if model_class_name == "ShotItemModel":
-            from shot_item_model import ShotItemModel
             from shot_model import ShotModel
+            from unified_item_model import create_shot_item_model
 
             shot_model = ShotModel()
             shot_model._shots = shots
-            item_model = ShotItemModel(shot_model)
+            item_model = create_shot_item_model(shot_model)
             # Properly initialize the item model with shots
             item_model.set_shots(shots)
             return item_model
 
         elif model_class_name == "ThreeDEItemModel":
-            from threede_item_model import ThreeDEItemModel
             from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
             scene_model = ThreeDESceneModel(load_cache=False)
@@ -93,21 +92,22 @@ def make_model(qtbot, make_shot):
                 for s in shots
             ]
             scene_model.scenes = scenes
-            item_model = ThreeDEItemModel(scene_model)
+            from unified_item_model import create_threede_item_model
+            item_model = create_threede_item_model(scene_model)
             # Properly initialize the item model with scenes
             item_model.set_scenes(scenes)
             return item_model
 
         elif model_class_name == "PreviousShotsItemModel":
-            from previous_shots_item_model import PreviousShotsItemModel
             from previous_shots_model import PreviousShotsModel
             from shot_model import ShotModel
+            from unified_item_model import create_previous_shots_item_model
 
             # PreviousShotsModel requires a shot_model
             shot_model = ShotModel()
             prev_model = PreviousShotsModel(shot_model)
             prev_model._shots = shots
-            item_model = PreviousShotsItemModel(prev_model)
+            item_model = create_previous_shots_item_model(prev_model)
             # Trigger update to load the shots
             item_model._update_shots()
             return item_model

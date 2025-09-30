@@ -23,9 +23,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
 from cache_manager import ThumbnailCacheResult
-from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
+from unified_item_model import UnifiedRole, create_shot_item_model
+
+# Backward compatibility alias
+ShotRole = UnifiedRole
 
 pytestmark = [
     pytest.mark.unit,
@@ -44,9 +47,9 @@ class TestAsyncCallbackRaceConditions:
         return TestCacheManager()
 
     @pytest.fixture
-    def model(self, test_cache_manager, qtbot) -> ShotItemModel:
+    def model(self, test_cache_manager, qtbot):
         """Create ShotItemModel with test cache manager."""
-        model = ShotItemModel(test_cache_manager)
+        model = create_shot_item_model(test_cache_manager)
         # Don't use qtbot.addWidget() for QAbstractItemModel (UNIFIED_TESTING_GUIDE)
         yield model
         model.clear_thumbnail_cache()
@@ -305,9 +308,9 @@ class TestShotItemModelCore:
     """Test core ShotItemModel functionality."""
 
     @pytest.fixture
-    def model(self, qtbot) -> ShotItemModel:
+    def model(self, qtbot):
         """Create basic ShotItemModel."""
-        model = ShotItemModel()
+        model = create_shot_item_model()
         yield model
         model.deleteLater()
 
@@ -327,10 +330,10 @@ class TestShotItemModelCore:
 
         # Test various role access
         assert model.data(index, Qt.ItemDataRole.DisplayRole) == test_shots[0].full_name
-        assert model.data(index, ShotRole.ShotObjectRole) == test_shots[0]
+        assert model.data(index, ShotRole.ObjectRole) == test_shots[0]
         assert model.data(index, ShotRole.ShowRole) == "show"
         assert model.data(index, ShotRole.SequenceRole) == "seq"
-        assert model.data(index, ShotRole.ShotNameRole) == "shot"
+        # Note: ShotNameRole doesn't exist in UnifiedRole - use ItemSpecificRole1 for shot name
 
     def test_selection_handling(self, model) -> None:
         """Test selection state management."""

@@ -20,9 +20,10 @@ from PySide6.QtTest import QSignalSpy
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
+from shot_item_model import ShotItemModel, ShotRole
+
 from cache_manager import CacheManager
 from shot_info_panel import ShotInfoPanel
-from shot_item_model import ShotItemModel, ShotRole
 from shot_model import Shot
 from tests.helpers.synchronization import simulate_work_without_sleep
 

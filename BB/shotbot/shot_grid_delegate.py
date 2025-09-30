@@ -20,7 +20,10 @@ from base_thumbnail_delegate import (
     ThumbnailItemData,
 )
 from logging_mixin import get_module_logger
-from shot_item_model import ShotRole
+from unified_item_model import UnifiedRole
+
+# Backward compatibility alias
+ShotRole = UnifiedRole
 
 if TYPE_CHECKING:
     # Third-party imports

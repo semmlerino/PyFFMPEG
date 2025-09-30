@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 from base_grid_view import BaseGridView
 from threede_grid_delegate import ThreeDEGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
+from unified_item_model import UnifiedItemModel
 
 if TYPE_CHECKING:
     # Third-party imports
@@ -40,7 +41,6 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
-    from threede_item_model import ThreeDEItemModel
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 
@@ -65,7 +65,7 @@ class ThreeDEGridView(BaseGridView):
 
     def __init__(
         self,
-        model: ThreeDEItemModel | None = None,
+        model: UnifiedItemModel | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize the 3DE grid view.
@@ -81,7 +81,7 @@ class ThreeDEGridView(BaseGridView):
         self._selected_scene = None
         self._is_loading = False
         self._updating_filter = False  # Recursion guard for filter updates
-        self._model: ThreeDEItemModel | None = model
+        self._model: UnifiedItemModel | None = model
 
         # Enable context menu
         self.list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -136,11 +136,11 @@ class ThreeDEGridView(BaseGridView):
         """
         return ThreeDEGridDelegate(self)
 
-    def set_model(self, model: ThreeDEItemModel) -> None:
+    def set_model(self, model: UnifiedItemModel) -> None:
         """Set the item model.
 
         Args:
-            model: ThreeDEItemModel instance
+            model: UnifiedItemModel instance configured for 3DE scenes
         """
         self._model = model
         self.list_view.setModel(model)

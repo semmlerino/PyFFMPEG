@@ -32,8 +32,11 @@ from PySide6.QtWidgets import (
 from base_grid_view import BaseGridView
 from progress_manager import ProgressManager
 from shot_grid_delegate import ShotGridDelegate
-from shot_item_model import ShotRole
 from thumbnail_widget_base import FolderOpenerWorker
+from unified_item_model import UnifiedItemModel, UnifiedRole
+
+# Backward compatibility alias
+ShotRole = UnifiedRole
 
 if TYPE_CHECKING:
     # Third-party imports
@@ -41,7 +44,6 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
-    from previous_shots_item_model import PreviousShotsItemModel
     from previous_shots_model import PreviousShotsModel
     from shot_model import Shot
 
@@ -63,7 +65,7 @@ class PreviousShotsView(BaseGridView):
 
     def __init__(
         self,
-        model: PreviousShotsItemModel | None = None,
+        model: UnifiedItemModel | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize the previous shots view.
@@ -77,7 +79,7 @@ class PreviousShotsView(BaseGridView):
 
         # PreviousShotsView-specific attributes
         self._selected_shot = None
-        self._model: PreviousShotsItemModel | None = model
+        self._model: UnifiedItemModel | None = model
 
         if model:
             self.set_model(model)
@@ -133,7 +135,7 @@ class PreviousShotsView(BaseGridView):
         return widget
 
     @property
-    def model(self) -> PreviousShotsItemModel | None:
+    def model(self) -> UnifiedItemModel | None:
         """Get the current data model.
 
         Returns:
@@ -159,7 +161,7 @@ class PreviousShotsView(BaseGridView):
         """
         return self._thumbnail_size
 
-    def set_model(self, model: PreviousShotsItemModel) -> None:
+    def set_model(self, model: UnifiedItemModel) -> None:
         """Set the data model for the view.
 
         Args:
@@ -283,7 +285,7 @@ class PreviousShotsView(BaseGridView):
         if not index.isValid() or not self._model:
             return
 
-        shot = index.data(ShotRole.ShotObjectRole)
+        shot = index.data(ShotRole.ObjectRole)
         if shot:
             self._selected_shot = shot
 
@@ -305,7 +307,7 @@ class PreviousShotsView(BaseGridView):
         if not index.isValid() or not self._model:
             return
 
-        shot = index.data(ShotRole.ShotObjectRole)
+        shot = index.data(ShotRole.ObjectRole)
         if shot:
             self.shot_double_clicked.emit(shot)
             self.logger.debug(f"Shot double-clicked: {shot.full_name}")
@@ -333,7 +335,7 @@ class PreviousShotsView(BaseGridView):
         if current.isValid():
             self._model.setData(current, True, ShotRole.IsSelectedRole)
 
-            shot = current.data(ShotRole.ShotObjectRole)
+            shot = current.data(ShotRole.ObjectRole)
             if shot:
                 self._selected_shot = shot
                 self.shot_selected.emit(shot)
@@ -363,7 +365,7 @@ class PreviousShotsView(BaseGridView):
         if not index.isValid() or not self._model:
             return
 
-        shot = index.data(ShotRole.ShotObjectRole)
+        shot = index.data(ShotRole.ObjectRole)
         if not shot:
             return
 

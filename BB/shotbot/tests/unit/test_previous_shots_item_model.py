@@ -9,12 +9,13 @@ import pytest
 from PySide6.QtCore import QMutexLocker, Qt
 from PySide6.QtGui import QImage
 
-# Local application imports
-from previous_shots_item_model import PreviousShotsItemModel
 from shot_model import Shot
 
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import SignalDouble, TestCacheManager
+
+# Local application imports
+from unified_item_model import create_previous_shots_item_model
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -47,7 +48,7 @@ def model(qtbot):
     previous_shots_model = MockPreviousShotsModel()
 
     # Create the item model with required arguments
-    model = PreviousShotsItemModel(
+    model = create_previous_shots_item_model(
         previous_shots_model=previous_shots_model, cache_manager=cache_manager
     )
     yield model

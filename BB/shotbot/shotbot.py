@@ -341,7 +341,7 @@ Environment Variables:
 
         from PySide6.QtCore import QTimer
 
-        def take_auto_screenshot():
+        def take_auto_screenshot() -> None:
             """Capture window screenshot automatically."""
             try:
                 # Grab the window contents

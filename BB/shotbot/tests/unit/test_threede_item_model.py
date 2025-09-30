@@ -17,8 +17,8 @@ from PySide6.QtGui import QImage
 # Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import TestCacheManager
-from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene
+from unified_item_model import create_threede_item_model
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -28,7 +28,7 @@ def model(qtbot):
     """Create a ThreeDEItemModel instance for testing."""
     # Use test double instead of Mock(spec=)
     cache_manager = TestCacheManager()
-    model = ThreeDEItemModel(cache_manager=cache_manager)
+    model = create_threede_item_model(cache_manager=cache_manager)
     # Models are not widgets, don't add to qtbot
     return model
 
@@ -319,7 +319,7 @@ class TestDataIntegrity:
     def test_role_data_consistency(self, model, test_scenes) -> None:
         """Test that all data roles return consistent data."""
         # Local application imports
-        from threede_item_model import ThreeDERole
+        from unified_item_model import UnifiedRole as ThreeDERole
 
         model.set_scenes(test_scenes)
 
@@ -332,8 +332,8 @@ class TestDataIntegrity:
             assert model.data(index, Qt.ItemDataRole.ToolTipRole) is not None
             # Qt.ItemDataRole.UserRole returns None in this model
             assert model.data(index, Qt.ItemDataRole.UserRole) is None
-            # The scene is returned through ThreeDERole.SceneObjectRole
-            assert model.data(index, ThreeDERole.SceneObjectRole) == scene
+            # The scene is returned through ThreeDERole.ObjectRole
+            assert model.data(index, ThreeDERole.ObjectRole) == scene
 
     def test_cache_persistence_across_resets(self, model, test_scenes) -> None:
         """Test that cache is properly managed across model resets."""

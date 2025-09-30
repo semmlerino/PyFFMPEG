@@ -19,7 +19,7 @@ from targeted_shot_finder import TargetedShotsFinder
 from threede_latest_finder import ThreeDELatestFinder
 
 
-def test_mock_pool():
+def test_mock_pool() -> None:
     """Test MockWorkspacePool functionality."""
     print("=" * 70)
     print("TESTING MOCK WORKSPACE POOL")
@@ -56,7 +56,7 @@ def test_mock_pool():
     print()
 
 
-def test_shot_model():
+def test_shot_model() -> None:
     """Test ShotModel with mock data."""
     print("=" * 70)
     print("TESTING SHOT MODEL")
@@ -84,7 +84,7 @@ def test_shot_model():
     print()
 
 
-def test_finders():
+def test_finders() -> None:
     """Test finder classes with mock filesystem."""
     print("=" * 70)
     print("TESTING FINDER CLASSES")
@@ -142,7 +142,7 @@ def test_finders():
     print()
 
 
-def test_filesystem_structure():
+def test_filesystem_structure() -> None:
     """Test mock filesystem structure."""
     print("=" * 70)
     print("TESTING MOCK FILESYSTEM STRUCTURE")
@@ -192,7 +192,7 @@ def test_filesystem_structure():
     print()
 
 
-def main():
+def main() -> int:
     """Run all mock tests."""
     print("\n" + "=" * 70)
     print("SHOTBOT MOCK FUNCTIONALITY TEST")

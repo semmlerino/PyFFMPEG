@@ -100,7 +100,6 @@ from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger
 from notification_manager import NotificationManager
 from persistent_terminal_manager import PersistentTerminalManager
-from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
 from process_pool_manager import ProcessPoolManager
@@ -110,12 +109,15 @@ from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
-from shot_item_model import ShotItemModel  # Model/View data model
 from shot_model import Shot, ShotModel
 from thread_safe_worker import ThreadSafeWorker
 from threede_grid_view import ThreeDEGridView
-from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+from unified_item_model import (
+    create_previous_shots_item_model,
+    create_shot_item_model,
+    create_threede_item_model,
+)
 
 # Set up logger for this module
 # Module-level logger for non-class code (SessionWarmer, etc.)
@@ -234,8 +236,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Initialize settings controller (refactored from MainWindow methods)
         self.settings_controller = SettingsController(self)  # type: ignore[arg-type] # Protocol works functionally
 
-        # Create 3DE item model for Model/View architecture
-        self.threede_item_model = ThreeDEItemModel(cache_manager=self.cache_manager)
+        # Create 3DE item model for Model/View architecture using factory function
+        self.threede_item_model = create_threede_item_model(cache_manager=self.cache_manager)
 
         # Create the shot model with async loading and instant UI display
         self.logger.info("Creating ShotModel with 366x faster startup")
@@ -362,7 +364,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Tab 1: My Shots
         # Always use Model/View architecture for maximum efficiency
-        self.shot_item_model = ShotItemModel(cache_manager=self.cache_manager)
+        self.shot_item_model = create_shot_item_model(cache_manager=self.cache_manager)
         self.shot_item_model.set_shots(self.shot_model.shots)
         self.shot_grid = ShotGridView(model=self.shot_item_model)
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
@@ -372,7 +374,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
 
         # Tab 3: Previous Shots (approved/completed) - using Model/View architecture
-        self.previous_shots_item_model = PreviousShotsItemModel(
+        self.previous_shots_item_model = create_previous_shots_item_model(
             self.previous_shots_model, self.cache_manager
         )
         self.previous_shots_grid = PreviousShotsView(
