@@ -147,7 +147,7 @@ class LauncherController(LoggingMixin):
             self._current_scene = None
             self.logger.info(f"🎯 Set current shot: {shot.full_name} (cleared scene context)")
         else:
-            self.logger.info(f"🎯 Cleared current shot")
+            self.logger.info("🎯 Cleared current shot")
 
         # Update command launcher context
         self.window.command_launcher.set_current_shot(shot)
@@ -215,7 +215,7 @@ class LauncherController(LoggingMixin):
         """
         # DIAGNOSTIC: Log current state when button is clicked
         self.logger.info(f"🚀 launch_app() called for app: {app_name}")
-        self.logger.info(f"   Current state check:")
+        self.logger.info("   Current state check:")
         self.logger.info(f"   - _current_scene: {self._current_scene.full_name if self._current_scene else 'None'}")
         self.logger.info(f"   - _current_shot: {self._current_shot.full_name if self._current_shot else 'None'}")
 
@@ -233,7 +233,7 @@ class LauncherController(LoggingMixin):
                     self._current_scene,
                 )
         else:
-            self.logger.warning(f"⚠️  No scene context - falling back to shot context")
+            self.logger.warning("⚠️  No scene context - falling back to shot context")
             # Regular shot launch - get app-specific options
             options = self.get_launch_options(app_name)
 

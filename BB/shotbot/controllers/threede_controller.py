@@ -422,13 +422,13 @@ class ThreeDEController(LoggingMixin):
     def on_scene_selected(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene selection."""
         # DIAGNOSTIC: Verify signal is firing
-        self.logger.info(f"📡 ThreeDEController.on_scene_selected() signal received")
+        self.logger.info("📡 ThreeDEController.on_scene_selected() signal received")
         self.logger.info(f"   Scene: {scene.full_name} (user: {scene.user})")
 
         # Set scene context in launcher controller (automatically clears shot context)
-        self.logger.info(f"   Calling launcher_controller.set_current_scene()...")
+        self.logger.info("   Calling launcher_controller.set_current_scene()...")
         self.window.launcher_controller.set_current_scene(scene)
-        self.logger.info(f"   ✓ Done syncing with launcher_controller")
+        self.logger.info("   ✓ Done syncing with launcher_controller")
 
         # Create a Shot object from the scene for compatibility
         shot = Shot(
