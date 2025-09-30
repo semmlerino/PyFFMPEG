@@ -339,6 +339,21 @@ class ThumbnailManager(QObject, ErrorHandlingMixin, LoggingMixin):
 
         return self._process_thumbnail_sync(source_path, cache_path, max_dimension)
 
+    def process_thumbnail(
+        self, source_path: Path, cache_path: Path, max_dimension: int | None = None
+    ) -> bool:
+        """Process thumbnail (backward compatibility alias).
+
+        Args:
+            source_path: Source image path
+            cache_path: Target cache path
+            max_dimension: Maximum allowed image dimension (optional)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.cache_thumbnail_sync(source_path, cache_path, max_dimension)
+
     def track_item(
         self, file_path: Path, size_bytes: int = None, force_update: bool = False
     ) -> bool:
@@ -452,19 +467,23 @@ class ThumbnailManager(QObject, ErrorHandlingMixin, LoggingMixin):
             return count
 
     def record_failure(
-        self, cache_key: str, error_message: str, source_path: Path | None = None
+        self, cache_key: str | Path, error_message: str, source_path: Path | None = None
     ) -> None:
         """Record thumbnail processing failure for backoff tracking.
 
         Args:
-            cache_key: Unique key for this operation (usually string representation of path)
+            cache_key: Unique key for this operation (string or Path)
             error_message: Error message describing the failure
             source_path: Optional source path for additional context
         """
         with self._lock:
-            # Use cache_key as the primary identifier
-            key_str = cache_key
+            # Convert cache_key to string for consistent dictionary keys
+            key_str = str(cache_key)
             now = datetime.now().timestamp()
+
+            # If source_path not provided and cache_key is a Path, use it
+            if source_path is None and isinstance(cache_key, Path):
+                source_path = cache_key
 
             if key_str in self._failures:
                 record = self._failures[key_str]

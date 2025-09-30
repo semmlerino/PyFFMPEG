@@ -9,10 +9,10 @@ from PySide6.QtCore import QObject, Signal
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from progress_manager import ProgressManager
-from shot_model import Shot
 
 if TYPE_CHECKING:
     from main_window import MainWindow
+    from shot_model import Shot
 
 
 class RefreshOrchestrator(QObject, LoggingMixin):

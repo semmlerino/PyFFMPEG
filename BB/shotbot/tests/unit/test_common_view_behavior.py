@@ -243,8 +243,8 @@ class TestCommonViewBehavior:
         assert view._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
         assert view.size_label.text() == f"{Config.DEFAULT_THUMBNAIL_SIZE}px"
 
-        # Test value change through slider
-        new_size = 200
+        # Test value change through slider (use a valid value within range)
+        new_size = 300  # Between MIN (250) and MAX (600)
         view.size_slider.setValue(new_size)
 
         # Use qtbot.wait to ensure signal processing

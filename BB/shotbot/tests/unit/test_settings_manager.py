@@ -388,14 +388,15 @@ class TestSettingsManager:
         received = []
         settings_manager.settings_changed.connect(lambda k, v: received.append((k, v)))
 
-        # Change setting with signal wait
+        # Change setting with signal wait (use valid value within range)
+        new_size = 300  # Between MIN (250) and MAX (600)
         with qtbot.waitSignal(settings_manager.settings_changed, timeout=1000):
-            settings_manager.set_thumbnail_size(200)
+            settings_manager.set_thumbnail_size(new_size)
 
         # Check signal was received with correct values
         assert len(received) > 0
         assert received[0][0] == "preferences/thumbnail_size"
-        assert received[0][1] == 200
+        assert received[0][1] == new_size
 
     def test_get_performance_settings(self, settings_manager):
         """Test getting performance-related settings."""

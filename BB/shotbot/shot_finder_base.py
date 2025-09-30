@@ -183,7 +183,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         pass
 
     @abstractmethod
-    def find_shots(self, **kwargs) -> list[Shot]:
+    def find_shots(self, **kwargs: Any) -> list[Shot]:
         """Find shots based on implementation-specific logic.
 
         To be implemented by concrete subclasses.

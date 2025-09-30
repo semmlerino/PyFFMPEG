@@ -44,8 +44,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     # Local application imports
-    from cache.failure_tracker import FailureTracker
-    from cache.thumbnail_processor import ThumbnailProcessor
+    from cache.thumbnail_manager import ThumbnailManager
 
 # =============================================================================
 # SUBPROCESS TEST DOUBLES
@@ -492,21 +491,14 @@ class TestCacheManager(QObject):
 
         # Initialize required dependencies with test doubles
         # Local application imports
-        from cache.failure_tracker import FailureTracker
-        from cache.thumbnail_processor import ThumbnailProcessor
+        from cache.thumbnail_manager import ThumbnailManager
 
-        self._thumbnail_processor = ThumbnailProcessor()
-        self._failure_tracker = FailureTracker()
+        self._thumbnail_manager = ThumbnailManager()
 
     @property
-    def test_thumbnail_processor(self) -> ThumbnailProcessor:
-        """Test-only access to thumbnail processor."""
-        return self._thumbnail_processor
-
-    @property
-    def test_failure_tracker(self) -> FailureTracker:
-        """Test-only access to failure tracker."""
-        return self._failure_tracker
+    def test_thumbnail_manager(self) -> ThumbnailManager:
+        """Test-only access to thumbnail manager."""
+        return self._thumbnail_manager
 
     def cache_thumbnail(
         self,

@@ -84,8 +84,9 @@ class TestThumbnailManagerInitialization:
 
         repr_str = repr(manager)
         assert "ThumbnailManager" in repr_str
-        # Note: ThumbnailManager uses default Python object representation
-        assert "0x" in repr_str  # Memory address indicator
+        # ThumbnailManager has custom __repr__ showing failure count and delay
+        assert "failures=" in repr_str
+        assert "max_delay=" in repr_str
 
 
 class TestMemoryTracking:

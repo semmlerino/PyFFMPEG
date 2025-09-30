@@ -15,7 +15,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
@@ -62,7 +62,7 @@ if DEBUG_VERBOSE:
 
 # Setup enhanced debugging if available
 if HAS_DEBUG_UTILS:
-    setup_enhanced_debugging()
+    setup_enhanced_debugging()  # type: ignore[possibly-unbound]
 
 
 class CommandCache:
@@ -77,7 +77,7 @@ class CommandCache:
         super().__init__()
         self._cache: dict[
             str,
-            tuple[Any, float, int, str],
+            tuple[str, float, int, str],
         ] = {}  # key -> (result, timestamp, ttl, original_command)
         self._lock = threading.RLock()
         self._default_ttl = default_ttl
@@ -146,7 +146,7 @@ class CommandCache:
                     f"Invalidated {len(keys_to_remove)} cache entries matching '{pattern}'",
                 )
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, int | float]:
         """Get cache statistics.
 
         Returns:
@@ -209,7 +209,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
     command_completed = Signal(str, object)  # command_id, result
     command_failed = Signal(str, str)  # command_id, error
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> ProcessPoolManager:
+    def __new__(cls, *args: object, **kwargs: object) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety using double-checked locking.
 
         This implementation uses double-checked locking pattern which optimizes
@@ -225,7 +225,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                     cls._instance = instance
         return cls._instance
 
-    def __init__(self, max_workers: int = 4, sessions_per_type: int = 3) -> None:
+    def __init__(self, max_workers: int = 4, sessions_per_type: int = 3) -> None:  # type: ignore[misc]
         """Initialize process pool manager.
 
         Args:
@@ -281,7 +281,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             from process_pool_factory import ProcessPoolFactory
 
             # If factory has a custom instance, and it's not us, return it
-            factory_instance = ProcessPoolFactory._override
+            factory_instance = ProcessPoolFactory._override  # type: ignore[reportPrivateUsage]
             if factory_instance is not None and factory_instance is not cls._instance:
                 # This allows mock injection
                 if hasattr(factory_instance, "__class__"):
@@ -508,7 +508,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         # Build proper PerformanceMetricsDict structure
         # Use defaults for any missing required fields
-        result: PerformanceMetricsDict = {
+        result: PerformanceMetricsDict = {  # type: ignore[assignment]
             "total_shots": metrics.get("total_shots", 0),
             "total_refreshes": metrics.get("total_refreshes", 0),
             "last_refresh_time": metrics.get("last_refresh_time", 0.0),
@@ -554,13 +554,13 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # Stage 2: Cancel pending futures if possible
         try:
             if hasattr(self._executor, "_pending_work_items"):
-                pending_count = len(self._executor._pending_work_items)
+                pending_count = len(self._executor._pending_work_items)  # type: ignore[attr-defined]
                 if pending_count > 0:
                     self.logger.debug(f"Cancelling {pending_count} pending futures")
                     # Cancel all pending futures
-                    for work_item in list(self._executor._pending_work_items.values()):
-                        if hasattr(work_item, "future"):
-                            work_item.future.cancel()
+                    for work_item in list(self._executor._pending_work_items.values()):  # type: ignore[attr-defined]
+                        if hasattr(work_item, "future"):  # type: ignore[arg-type]
+                            work_item.future.cancel()  # type: ignore[attr-defined]
         except Exception as e:
             self.logger.debug(f"Could not cancel pending futures: {e}")
 
@@ -576,7 +576,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
             try:
                 # Give executor a short time to clean up normally
-                self._executor.shutdown(wait=True, timeout=min(timeout, 0.5))
+                self._executor.shutdown(wait=True, timeout=min(timeout, 0.5))  # type: ignore[call-arg]
                 shutdown_successful = True
                 self.logger.debug("ThreadPoolExecutor shutdown completed normally")
             except (FutureTimeoutError, TypeError):
@@ -619,17 +619,17 @@ class ProcessPoolManager(LoggingMixin, QObject):
         try:
             # Clear caches
             if hasattr(self, "_command_cache"):
-                cache_size = len(self._command_cache)
-                self._command_cache.clear()
+                cache_size = len(self._command_cache)  # type: ignore[attr-defined]
+                self._command_cache.clear()  # type: ignore[attr-defined]
                 if cache_size > 0:
                     self.logger.debug(f"Cleared {cache_size} command cache entries")
 
             # Disconnect Qt signals to prevent crashes during destruction
             try:
-                self.command_started.disconnect()
-                self.command_finished.disconnect()
-                self.session_created.disconnect()
-                self.session_destroyed.disconnect()
+                self.command_started.disconnect()  # type: ignore[attr-defined]
+                self.command_finished.disconnect()  # type: ignore[attr-defined]
+                self.session_created.disconnect()  # type: ignore[attr-defined]
+                self.session_destroyed.disconnect()  # type: ignore[attr-defined]
             except (RuntimeError, TypeError):
                 # Signals may already be disconnected
                 pass
@@ -673,7 +673,7 @@ class ProcessMetrics:
         self.total_response_time += time_ms
         self.response_count += 1
 
-    def get_report(self) -> dict[str, Any]:
+    def get_report(self) -> dict[str, int | float]:
         """Generate performance report.
 
         Returns:

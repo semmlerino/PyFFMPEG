@@ -780,9 +780,17 @@ class CacheManager(LoggingMixin, QObject):
         return self._lock
 
 
+# Thumbnail cache loader signals
+class ThumbnailCacheLoaderSignals(QObject):
+    """Signals for ThumbnailCacheLoader."""
+
+    loaded = Signal(str, str, str, Path)  # show, sequence, shot, cache_path
+    failed = Signal(str, str, str, str)  # show, sequence, shot, error_message
+
+
 # Backward compatibility wrapper for ThumbnailCacheLoader
 class ThumbnailCacheLoader(QRunnable):
-    """Backward compatibility wrapper for the original ThumbnailCacheLoader API."""
+    """QRunnable for caching thumbnails in background thread pool."""
 
     def __init__(
         self,
@@ -793,38 +801,57 @@ class ThumbnailCacheLoader(QRunnable):
         shot: str,
         result: dict[str, object] | None = None,
     ) -> None:
-        """Initialize with original constructor signature."""
+        """Initialize thumbnail cache loader.
+
+        Args:
+            cache_manager: Cache manager instance
+            source_path: Source image path
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
+            result: Optional result dictionary (unused, for backward compatibility)
+        """
         super().__init__()
-        # Local application imports
-        from cache.thumbnail_manager import ThumbnailManager
-
-        # Note: The following were computed in the original but not used in this
-        # backward compatibility wrapper. They're removed to fix unused variable warnings.
-        # - cache_path: Path to cached thumbnail
-        # - source_path_obj: Normalized source path
-        # - result_obj: Converted result object
-
-        self._loader = ThumbnailManager()
-
-        # Expose the same interface
         self.cache_manager = cache_manager
-        self.source_path = source_path
+        self.source_path = Path(source_path) if isinstance(source_path, str) else source_path
         self.show = show
         self.sequence = sequence
         self.shot = shot
-        self.signals = self._loader.signals
-        self.result = self._loader.result  # type: ignore[attr-defined]
+        self.signals = ThumbnailCacheLoaderSignals()
 
     @override
     def run(self) -> None:
-        """Run the thumbnail processing."""
-        return self._loader.run()  # type: ignore[attr-defined]
+        """Process the thumbnail and emit appropriate signal."""
+        try:
+            # Use cache_thumbnail with wait=True to process synchronously
+            result = self.cache_manager.cache_thumbnail(
+                self.source_path,
+                self.show,
+                self.sequence,
+                self.shot,
+                wait=True,
+                timeout=30.0,
+            )
 
-    @override
-    def setAutoDelete(self, autoDelete: bool) -> None:
-        """Set auto delete flag."""
-        super().setAutoDelete(autoDelete)
-        self._loader.setAutoDelete(autoDelete)  # type: ignore[attr-defined]
+            if result and isinstance(result, Path):
+                # Success - emit loaded signal
+                self.signals.loaded.emit(self.show, self.sequence, self.shot, result)
+            else:
+                # Failed - emit failed signal
+                self.signals.failed.emit(
+                    self.show,
+                    self.sequence,
+                    self.shot,
+                    "Failed to cache thumbnail",
+                )
+        except Exception as e:
+            # Error - emit failed signal
+            self.signals.failed.emit(
+                self.show,
+                self.sequence,
+                self.shot,
+                str(e),
+            )
 
 
 # Maintain backward compatibility by re-exporting classes

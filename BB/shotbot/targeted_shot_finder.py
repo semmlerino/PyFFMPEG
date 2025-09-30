@@ -13,7 +13,7 @@ import concurrent.futures
 import re
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Local application imports
 from config import Config, ThreadingConfig
@@ -446,7 +446,7 @@ class TargetedShotsFinder(ShotFinderBase):
 
         return "unknown"
 
-    def find_shots(self, **kwargs) -> list[Shot]:
+    def find_shots(self, **kwargs: Any) -> list[Shot]:
         """Find shots using targeted search.
 
         This is the main entry point implementing the abstract method from ShotFinderBase.

@@ -464,9 +464,12 @@ class StorageBackend(ErrorHandlingMixin, LoggingMixin):
             )
             # Merge details properly to avoid overwriting
             results["details"].extend(structure_results.get("details", []))
-            structure_results_copy = structure_results.copy()
-            structure_results_copy.pop("details", None)
-            results.update(structure_results_copy)
+            # Accumulate issues_fixed instead of overwriting
+            results["issues_fixed"] += structure_results.get("issues_fixed", 0)
+            # Merge other keys
+            for key, value in structure_results.items():
+                if key not in ("details", "issues_fixed"):
+                    results[key] = value
 
             # Validate memory tracking if memory manager provided
             if memory_manager is not None:
@@ -475,9 +478,12 @@ class StorageBackend(ErrorHandlingMixin, LoggingMixin):
                 )
                 # Merge details properly to avoid overwriting
                 results["details"].extend(memory_results.get("details", []))
-                memory_results_copy = memory_results.copy()
-                memory_results_copy.pop("details", None)
-                results.update(memory_results_copy)
+                # Accumulate issues_fixed instead of overwriting
+                results["issues_fixed"] += memory_results.get("issues_fixed", 0)
+                # Merge other keys
+                for key, value in memory_results.items():
+                    if key not in ("details", "issues_fixed"):
+                        results[key] = value
 
                 # Find orphaned files
                 orphan_results = self._find_orphaned_files(
@@ -485,9 +491,12 @@ class StorageBackend(ErrorHandlingMixin, LoggingMixin):
                 )
                 # Merge details properly to avoid overwriting
                 results["details"].extend(orphan_results.get("details", []))
-                orphan_results_copy = orphan_results.copy()
-                orphan_results_copy.pop("details", None)
-                results.update(orphan_results_copy)
+                # Accumulate issues_fixed instead of overwriting
+                results["issues_fixed"] += orphan_results.get("issues_fixed", 0)
+                # Merge other keys
+                for key, value in orphan_results.items():
+                    if key not in ("details", "issues_fixed"):
+                        results[key] = value
 
             # Calculate final status
             total_issues = (
@@ -662,7 +671,8 @@ class StorageBackend(ErrorHandlingMixin, LoggingMixin):
 
         except Exception as e:
             self.logger.error(f"Error validating memory tracking: {e}")
-            results["details"].append(f"Memory tracking validation failed: {e}")
+            # Re-raise to let outer handler deal with validation failure
+            raise
 
         return results
 

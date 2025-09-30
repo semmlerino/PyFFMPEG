@@ -242,15 +242,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.shot_model = ShotModel(self.cache_manager)
 
         # Initialize async loading for immediate UI display
-        init_result = self.shot_model.initialize_async()
-        if init_result.success:
+        init_result = self.shot_model.initialize_async()  # type: ignore[attr-defined]
+        if init_result.success:  # type: ignore[attr-defined]
             self.logger.debug(
                 f"Model initialized with {len(self.shot_model.shots)} cached shots"
             )
 
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
         self.previous_shots_model = PreviousShotsModel(
-            self.shot_model, self.cache_manager
+            self.shot_model, self.cache_manager  # type: ignore[arg-type]
         )
         # Create persistent terminal manager if enabled
         # Feature flag for simplified launcher
@@ -271,7 +271,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
             # Inject SimplifiedLauncher as the ProcessPool implementation
             # This allows ShotModel to use SimplifiedLauncher's execute_ws_command
-            ProcessPoolFactory.set_implementation(self.command_launcher)
+            ProcessPoolFactory.set_implementation(self.command_launcher)  # type: ignore[arg-type]
 
             self.launcher_manager = None  # Not needed with simplified approach
             self.persistent_terminal = None
@@ -303,7 +303,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.threede_controller = None
         else:
             self.logger.info("Using ThreeDEController for 3DE scene management")
-            self.threede_controller = ThreeDEController(self)
+            self.threede_controller = ThreeDEController(self)  # type: ignore[arg-type]
 
         # Initialize launcher controller for all launcher functionality
         self.logger.info("Using LauncherController for launcher management")
@@ -591,13 +591,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _connect_signals(self) -> None:
         """Connect signals."""
         # Connect to shot model signals for reactive updates
-        _ = self.shot_model.shots_loaded.connect(self._on_shots_loaded)
-        _ = self.shot_model.shots_changed.connect(self._on_shots_changed)
-        _ = self.shot_model.refresh_started.connect(self._on_refresh_started)
-        _ = self.shot_model.refresh_finished.connect(self._on_refresh_finished)
-        _ = self.shot_model.error_occurred.connect(self._on_shot_error)
-        _ = self.shot_model.shot_selected.connect(self._on_model_shot_selected)
-        _ = self.shot_model.cache_updated.connect(self._on_cache_updated)
+        _ = self.shot_model.shots_loaded.connect(self._on_shots_loaded)  # type: ignore[attr-defined]
+        _ = self.shot_model.shots_changed.connect(self._on_shots_changed)  # type: ignore[attr-defined]
+        _ = self.shot_model.refresh_started.connect(self._on_refresh_started)  # type: ignore[attr-defined]
+        _ = self.shot_model.refresh_finished.connect(self._on_refresh_finished)  # type: ignore[attr-defined]
+        _ = self.shot_model.error_occurred.connect(self._on_shot_error)  # type: ignore[attr-defined]
+        _ = self.shot_model.shot_selected.connect(self._on_model_shot_selected)  # type: ignore[attr-defined]
+        _ = self.shot_model.cache_updated.connect(self._on_cache_updated)  # type: ignore[attr-defined]
 
         # Shot selection
         _ = self.shot_grid.shot_selected.connect(self._on_shot_selected)
@@ -726,7 +726,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.previous_shots_model.start_auto_refresh()
         # Trigger initial refresh for previous shots ONLY after shots are loaded
         # This prevents the "No target shows found" warning when shots haven't loaded yet
-        _ = self.shot_model.shots_loaded.connect(self._trigger_previous_shots_refresh)
+        _ = self.shot_model.shots_loaded.connect(self._trigger_previous_shots_refresh)  # type: ignore[attr-defined]
 
         # If shots are already loaded from cache, trigger refresh immediately
         if self.shot_model.shots:
@@ -752,14 +752,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
         # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator._refresh_shots()
+        self.refresh_orchestrator._refresh_shots()  # type: ignore[reportPrivateUsage]
 
     # Note: Background refresh methods removed - now handled by reactive signals
 
     def _refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
         # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator._refresh_shot_display()
+        self.refresh_orchestrator._refresh_shot_display()  # type: ignore[reportPrivateUsage]
 
     def _on_shots_loaded(self, shots: list[Shot]) -> None:
         """Handle shots loaded signal from model.
@@ -888,13 +888,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             index: Index of the currently selected tab (0=My Shots, 1=Other 3DE, 2=Previous)
         """
         # Define distinct colors for each tab (main and darker variant)
+        # Note: Colors are defined for future dynamic styling but currently unused
         tab_colors = {
             0: ("#2196F3", "#1976D2"),  # Blue - My Shots
             1: ("#00BCD4", "#00ACC1"),  # Cyan - Other 3DE scenes
             2: ("#9C27B0", "#7B1FA2"),  # Purple - Previous Shots
         }
 
-        main_color, dark_color = tab_colors.get(index, ("#2196F3", "#1976D2"))
+        _ = tab_colors.get(index, ("#2196F3", "#1976D2"))  # Reserved for future styling
 
         # Professional tab design: muted colors, subtle accents, proper proportions
         # Qt supports :first, :middle, :last (NOT :nth-child)
@@ -1121,7 +1122,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         show_filter = show if show else None
 
         # Apply filter to item model
-        item_model.set_show_filter(model, show_filter)
+        item_model.set_show_filter(model, show_filter)  # type: ignore[attr-defined]
 
         self.logger.info(
             f"Applied {tab_name} show filter: {show if show else 'All Shows'}"

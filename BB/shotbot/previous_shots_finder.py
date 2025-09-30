@@ -9,7 +9,7 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Local application imports
 from config import Config, ThreadingConfig
@@ -281,7 +281,7 @@ class PreviousShotsFinder(ShotFinderBase):
         # For previous shots, we consider them completed if they're not in active shots
         return "completed"
 
-    def find_shots(self, **kwargs) -> list[Shot]:
+    def find_shots(self, **kwargs: Any) -> list[Shot]:
         """Find previous/approved shots.
 
         This is the main entry point implementing the abstract method from ShotFinderBase.

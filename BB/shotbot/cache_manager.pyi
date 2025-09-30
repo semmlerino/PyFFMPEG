@@ -79,25 +79,29 @@ class CacheManager(QObject):
     def get_failed_attempts_status(self) -> dict[str, dict[str, object]]: ...
     def shutdown(self) -> None: ...
 
+class ThumbnailCacheLoaderSignals(QObject):
+    """Signals for ThumbnailCacheLoader."""
+
+    loaded: Signal  # (show: str, sequence: str, shot: str, cache_path: Path)
+    failed: Signal  # (show: str, sequence: str, shot: str, error_message: str)
+
 class ThumbnailCacheLoader(QRunnable):
     """Background thumbnail cache loader."""
-
-    class Signals(QObject):
-        loaded: Signal
 
     cache_manager: CacheManager
     source_path: Path
     show: str
     sequence: str
     shot: str
-    signals: Signals
+    signals: ThumbnailCacheLoaderSignals
 
     def __init__(
         self,
         cache_manager: CacheManager,
-        source_path: Path,
+        source_path: Path | str,
         show: str,
         sequence: str,
         shot: str,
+        result: dict[str, object] | None = ...,
     ) -> None: ...
     def run(self) -> None: ...

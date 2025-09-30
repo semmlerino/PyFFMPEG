@@ -503,7 +503,8 @@ class TestCacheValidator:
             nested_file.write_bytes(b"\xff\xd8\xff\xe0" + b"test" * 100 + b"\xff\xd9")
             nested_files.append(nested_file)
 
-        results = validator.validate_cache(thumbnails_dir, fix_issues=False)
+        thumbnail_manager = validator._test_thumbnail_manager
+        results = validator.validate_cache(thumbnails_dir, thumbnail_manager, fix_issues=False)
 
         # Should find all nested orphaned files
         assert results["orphaned_files"] >= 3

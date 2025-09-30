@@ -26,6 +26,7 @@ from PySide6.QtCore import QObject, Signal
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
+from maya_latest_finder_refactored import MayaLatestFinder
 from nuke_launch_handler import NukeLaunchHandler
 
 if TYPE_CHECKING:
@@ -390,11 +391,16 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         if app_type == "nuke" and self.current_shot:
             return self._find_latest_nuke_workspace_script(workspace)
 
-        # Generic handling for other applications
+        # Special handling for Maya - use MayaLatestFinder for correct path structure
+        if app_type == "maya":
+            maya_finder = MayaLatestFinder()
+            shot_name = self.current_shot.full_name if self.current_shot else None
+            return maya_finder.find_latest_maya_scene(str(workspace), shot_name)
+
+        # Generic handling for other applications (3DE)
         patterns = {
             "3de": ("3de", "*.3de"),
             "nuke": ("nuke", "*.nk"),  # Fallback for non-workspace Nuke files
-            "maya": ("maya", "*.ma"),
         }
 
         if app_type not in patterns:

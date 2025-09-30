@@ -338,6 +338,7 @@ Environment Variables:
     # Auto-screenshot functionality
     if args.screenshot and not headless_mode:
         from pathlib import Path
+
         from PySide6.QtCore import QTimer
 
         def take_auto_screenshot():
