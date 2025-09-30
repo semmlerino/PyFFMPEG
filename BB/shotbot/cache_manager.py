@@ -209,7 +209,11 @@ class CacheManager(LoggingMixin, QObject):
         with QMutexLocker(self._lock):
             # Create output directory
             output_dir = self.thumbnails_dir / show / sequence
-            output_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                output_dir.mkdir(parents=True, exist_ok=True)
+            except (PermissionError, OSError) as e:
+                self.logger.error(f"Failed to create cache directories: {e}")
+                return None
             output_path = output_dir / f"{shot}_thumb.jpg"
 
             # Already cached and valid?
@@ -702,3 +706,11 @@ class CacheManager(LoggingMixin, QObject):
 
         except Exception as e:
             self.logger.error(f"Failed to write cache file {cache_file}: {e}")
+
+    def shutdown(self) -> None:
+        """Shutdown cache manager (backward compatibility stub).
+
+        The simplified cache manager doesn't need cleanup on shutdown.
+        This method exists for backward compatibility with cleanup_manager.py.
+        """
+        self.logger.debug("Cache manager shutdown called (no-op in simplified version)")
