@@ -25,7 +25,6 @@ logger = get_module_logger(__name__)
 
 if TYPE_CHECKING:
     # Local application imports
-    from cache.thumbnail_manager import ThumbnailManager
     from settings_manager import SettingsManager
 
 
@@ -318,36 +317,8 @@ class UnifiedCacheConfig(LoggingMixin, QObject):
                 self.expiry_time_changed.emit(int(new_value))
                 self.config_updated.emit()
 
-    def apply_to_thumbnail_manager(self, thumbnail_manager: ThumbnailManager) -> None:
-        """Apply current settings to a ThumbnailManager instance.
-
-        Args:
-            thumbnail_manager: ThumbnailManager instance to configure
-        """
-        thumbnail_manager.set_memory_limit(self.memory_limit_mb)
-        self.logger.debug(
-            f"Applied memory limit {self.memory_limit_mb}MB to ThumbnailManager"
-        )
-
-    def create_thumbnail_manager(self) -> ThumbnailManager:
-        """Create a ThumbnailManager with current unified settings.
-
-        Returns:
-            ThumbnailManager instance configured with current settings
-        """
-        # Local application imports
-        from cache.thumbnail_manager import ThumbnailManager
-
-        return ThumbnailManager(max_memory_mb=self.memory_limit_mb)
-
-    # Legacy methods for backward compatibility
-    def apply_to_memory_manager(self, memory_manager: ThumbnailManager) -> None:
-        """Legacy method - delegates to apply_to_thumbnail_manager."""
-        self.apply_to_thumbnail_manager(memory_manager)
-
-    def create_memory_manager(self) -> ThumbnailManager:
-        """Legacy method - delegates to create_thumbnail_manager."""
-        return self.create_thumbnail_manager()
+    # NOTE: ThumbnailManager methods removed after cache simplification
+    # These were part of the old over-engineered cache system
 
 
 # Global instance for easy access (initialized by CacheManager)

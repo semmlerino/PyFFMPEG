@@ -108,8 +108,8 @@ def make_model(qtbot, make_shot):
             prev_model = PreviousShotsModel(shot_model)
             prev_model._shots = shots
             item_model = create_previous_shots_item_model(prev_model)
-            # Trigger update to load the shots
-            item_model._update_shots()
+            # Manually set items since UnifiedItemModel doesn't have _update_shots()
+            item_model.set_items(shots)
             return item_model
 
     return _make

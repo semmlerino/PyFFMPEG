@@ -21,10 +21,11 @@ from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
-from PySide6.QtGui import QColor, QImage
 
 # Local application imports
 from cache.thumbnail_processor import ThumbnailProcessor
+from PySide6.QtGui import QColor, QImage
+
 from cache_manager import CacheManager
 
 # Import process pool manager

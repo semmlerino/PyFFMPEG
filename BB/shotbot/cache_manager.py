@@ -32,15 +32,15 @@ from typing import TYPE_CHECKING
 
 # Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
-from PySide6.QtGui import QImage
 
 # Local application imports
-from config import Config
 from exceptions import ThumbnailError
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from PySide6.QtGui import QImage
 
     from shot_model import Shot
     from type_definitions import ShotDict, ThreeDESceneDict
@@ -54,7 +54,7 @@ THUMBNAIL_QUALITY = 85
 # Backward compatibility exports from old cache system
 class ThumbnailCacheResult:
     """Stub for backward compatibility - no longer used in simplified implementation."""
-    def __init__(self):
+    def __init__(self) -> None:
         self.future = None
         self.path = None
 
@@ -265,9 +265,9 @@ class CacheManager(LoggingMixin, QObject):
             Path to created thumbnail
         """
         try:
-            import OpenEXR
             import Imath
             import numpy as np
+            import OpenEXR
             from PIL import Image
 
             # Read EXR file
@@ -661,7 +661,7 @@ class CacheManager(LoggingMixin, QObject):
                 return None
 
             # Read JSON
-            with open(cache_file, 'r') as f:
+            with open(cache_file) as f:
                 data = json.load(f)
 
             # Handle both old and new formats
