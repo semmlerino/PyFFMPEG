@@ -162,6 +162,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "--title=ShotBot Terminal",
                 "--",
                 "bash",
+                "-i",
                 self.dispatcher_path,
                 self.fifo_path,
             ],
@@ -172,6 +173,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "ShotBot Terminal",
                 "-e",
                 "bash",
+                "-i",
                 self.dispatcher_path,
                 self.fifo_path,
             ],
@@ -182,11 +184,12 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "ShotBot Terminal",
                 "-e",
                 "bash",
+                "-i",
                 self.dispatcher_path,
                 self.fifo_path,
             ],
             # fallback to any available terminal
-            ["x-terminal-emulator", "-e", "bash", self.dispatcher_path, self.fifo_path],
+            ["x-terminal-emulator", "-e", "bash", "-i", self.dispatcher_path, self.fifo_path],
         ]
 
         for cmd in terminal_commands:
