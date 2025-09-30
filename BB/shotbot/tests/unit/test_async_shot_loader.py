@@ -30,10 +30,11 @@ class TestAsyncShotLoader:
         return pool
 
     @pytest.fixture
-    def loader(self, test_process_pool, qtbot):
+    def loader(self, test_process_pool, qtbot, cache_manager):
         """Create AsyncShotLoader for testing."""
         # Create BaseShotModel instance to get the parse function
-        base_model = BaseShotModel()
+        # Use isolated cache_manager from fixture
+        base_model = BaseShotModel(cache_manager=cache_manager)
         loader = AsyncShotLoader(
             test_process_pool, parse_function=base_model._parse_ws_output
         )
@@ -70,14 +71,14 @@ class TestAsyncShotLoader:
         assert shots[0].sequence == "seq01"
         assert shots[0].shot == "0010"
 
-    def test_failed_loading_signal_emission(self, qtbot) -> None:
+    def test_failed_loading_signal_emission(self, qtbot, cache_manager) -> None:
         """Test load_failed signal is emitted on exception."""
         # Create failing process pool
         failing_pool = TestProcessPool()
         failing_pool.should_fail = True
         failing_pool.fail_with_message = "Command failed"
 
-        base_model = BaseShotModel()
+        base_model = BaseShotModel(cache_manager=cache_manager)
         loader = AsyncShotLoader(
             failing_pool, parse_function=base_model._parse_ws_output
         )
@@ -96,14 +97,14 @@ class TestAsyncShotLoader:
                 loader.quit()
                 loader.wait(1000)
 
-    def test_loader_stop_request(self, qtbot) -> None:
+    def test_loader_stop_request(self, qtbot, cache_manager) -> None:
         """Test that stop() request prevents signal emission."""
         # Create slow process pool
         slow_pool = TestProcessPool()
         slow_pool.simulated_delay = 0.1  # Simulate slow operation
         slow_pool.set_outputs("workspace /shows/TEST/shots/seq01/TEST_seq01_0010")
 
-        base_model = BaseShotModel()
+        base_model = BaseShotModel(cache_manager=cache_manager)
         loader = AsyncShotLoader(slow_pool, parse_function=base_model._parse_ws_output)
         try:
             spy = QSignalSpy(loader.shots_loaded)
@@ -130,7 +131,7 @@ class TestAsyncShotLoader:
         assert loader.isFinished()
         assert not loader.isRunning()
 
-    def test_concurrent_loader_instances(self, qtbot) -> None:
+    def test_concurrent_loader_instances(self, qtbot, cache_manager) -> None:
         """Test multiple AsyncShotLoader instances don't interfere."""
         pool1 = TestProcessPool()
         pool1.set_outputs("workspace /shows/SHOW1/shots/seq01/SHOW1_seq01_0010")
@@ -138,8 +139,8 @@ class TestAsyncShotLoader:
         pool2 = TestProcessPool()
         pool2.set_outputs("workspace /shows/SHOW2/shots/seq01/SHOW2_seq01_0020")
 
-        base_model1 = BaseShotModel()
-        base_model2 = BaseShotModel()
+        base_model1 = BaseShotModel(cache_manager=cache_manager)
+        base_model2 = BaseShotModel(cache_manager=cache_manager)
         loader1 = AsyncShotLoader(pool1, parse_function=base_model1._parse_ws_output)
         loader2 = AsyncShotLoader(pool2, parse_function=base_model2._parse_ws_output)
         # loaders are QThread objects, not widgets
