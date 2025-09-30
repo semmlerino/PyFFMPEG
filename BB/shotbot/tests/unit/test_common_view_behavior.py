@@ -56,7 +56,7 @@ def make_shot():
 
 
 @pytest.fixture
-def make_model(qtbot, make_shot):
+def make_model(qtbot, make_shot, cache_manager):
     """Factory for creating test models with proper data."""
 
     def _make(model_class_name, shots=None):
@@ -67,11 +67,11 @@ def make_model(qtbot, make_shot):
             from shot_model import ShotModel
             from unified_item_model import create_shot_item_model
 
-            shot_model = ShotModel()
+            shot_model = ShotModel(cache_manager=cache_manager)
             shot_model._shots = shots
             item_model = create_shot_item_model(shot_model)
             # Properly initialize the item model with shots
-            item_model.set_shots(shots)
+            item_model.set_items(shots)
             return item_model
 
         elif model_class_name == "ThreeDEItemModel":
@@ -95,7 +95,7 @@ def make_model(qtbot, make_shot):
             from unified_item_model import create_threede_item_model
             item_model = create_threede_item_model(scene_model)
             # Properly initialize the item model with scenes
-            item_model.set_scenes(scenes)
+            item_model.set_items(scenes)
             return item_model
 
         elif model_class_name == "PreviousShotsItemModel":
@@ -104,7 +104,7 @@ def make_model(qtbot, make_shot):
             from unified_item_model import create_previous_shots_item_model
 
             # PreviousShotsModel requires a shot_model
-            shot_model = ShotModel()
+            shot_model = ShotModel(cache_manager=cache_manager)
             prev_model = PreviousShotsModel(shot_model)
             prev_model._shots = shots
             item_model = create_previous_shots_item_model(prev_model)
