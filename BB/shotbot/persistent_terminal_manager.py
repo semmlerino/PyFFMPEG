@@ -12,6 +12,7 @@ import os
 import signal
 import stat
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -54,6 +55,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # Terminal state
         self.terminal_pid: int | None = None
         self.terminal_process: subprocess.Popen[bytes] | None = None
+
+        # Thread safety: Lock for serializing FIFO writes
+        # This prevents byte-level corruption when multiple threads
+        # call send_command() concurrently
+        self._write_lock = threading.Lock()
 
         # Ensure FIFO exists
         if not self._ensure_fifo():
@@ -234,8 +240,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             if not self._launch_terminal():
                 self.logger.error("Failed to launch terminal")
                 return False
+            # Increased delay to ensure dispatcher is fully initialized
             # Give terminal time to set up
-            time.sleep(0.5)
+            time.sleep(1.5)
 
         # Ensure FIFO exists before trying to use it
         if not os.path.exists(self.fifo_path):
@@ -278,76 +285,83 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             f"  Terminal PID: {self.terminal_pid}"
         )
 
-        # Send command to FIFO using non-blocking I/O
-        fifo_fd = None
-        max_retries = 2
+        # Acquire lock to serialize FIFO writes (prevents corruption from concurrent calls)
+        self.logger.debug("Acquiring write lock for FIFO...")
+        with self._write_lock:
+            self.logger.debug("Write lock acquired, proceeding with FIFO write")
 
-        for attempt in range(max_retries):
-            try:
-                # Open FIFO in non-blocking mode to prevent hanging
-                fifo_fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
+            # Send command to FIFO using non-blocking I/O
+            fifo_fd = None
+            max_retries = 2
 
-                # Convert file descriptor to file object with explicit UTF-8 encoding
-                # This ensures consistent encoding across different WSL/Linux environments
-                with os.fdopen(fifo_fd, "w", encoding="utf-8") as fifo:
-                    fifo_fd = None  # File object now owns the descriptor
-                    fifo.write(f"{command}\n")
-                    fifo.flush()
+            for attempt in range(max_retries):
+                try:
+                    # Open FIFO in non-blocking mode to prevent hanging
+                    fifo_fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
 
-                self.logger.info(
-                    f"Successfully sent command to terminal via FIFO: {command}"
-                )
-                self.logger.debug(
-                    f"FIFO path: {self.fifo_path}, Terminal PID: {self.terminal_pid}"
-                )
-                self.command_sent.emit(command)
-                return True
+                    # Convert file descriptor to file object with explicit UTF-8 encoding
+                    # This ensures consistent encoding across different WSL/Linux environments
+                    with os.fdopen(fifo_fd, "w", encoding="utf-8") as fifo:
+                        fifo_fd = None  # File object now owns the descriptor
+                        fifo.write(f"{command}\n")
+                        fifo.flush()
 
-            except OSError as e:
-                if e.errno == errno.ENOENT:
-                    # FIFO doesn't exist
-                    if attempt < max_retries - 1:
-                        self.logger.warning(
-                            f"FIFO disappeared during write, recreating (attempt {attempt + 1}/{max_retries})"
-                        )
-                        if self._ensure_fifo():
-                            time.sleep(0.2)
-                            continue
-                    self.logger.error(f"Failed to send command to FIFO: {e}")
-                elif e.errno == errno.ENXIO:
-                    # No reader available - terminal not running
-                    if attempt == 0 and ensure_terminal:
-                        # Try to restart terminal once
-                        self.logger.warning(
-                            "No reader available for FIFO, attempting to restart terminal..."
-                        )
-                        if self.restart_terminal():
-                            self.logger.info(
-                                "Terminal restarted successfully, retrying command..."
+                    self.logger.info(
+                        f"Successfully sent command to terminal via FIFO: {command}"
+                    )
+                    self.logger.debug(
+                        f"FIFO path: {self.fifo_path}, Terminal PID: {self.terminal_pid}"
+                    )
+                    self.command_sent.emit(command)
+                    return True
+
+                except OSError as e:
+                    if e.errno == errno.ENOENT:
+                        # FIFO doesn't exist
+                        if attempt < max_retries - 1:
+                            self.logger.warning(
+                                f"FIFO disappeared during write, recreating (attempt {attempt + 1}/{max_retries})"
                             )
-                            time.sleep(0.5)  # Give terminal time to set up
-                            continue  # Retry the command
+                            if self._ensure_fifo():
+                                time.sleep(0.2)
+                                continue
+                        self.logger.error(f"Failed to send command to FIFO: {e}")
+                    elif e.errno == errno.ENXIO:
+                        # No reader available - terminal not running
+                        if attempt == 0 and ensure_terminal:
+                            # Try to restart terminal once
+                            self.logger.warning(
+                                "No reader available for FIFO, attempting to restart terminal..."
+                            )
+                            if self.restart_terminal():
+                                self.logger.info(
+                                    "Terminal restarted successfully, retrying command..."
+                                )
+                                # Increased delay to ensure dispatcher is fully initialized
+                                # before sending command (prevents FIFO corruption)
+                                time.sleep(1.5)  # Give terminal time to set up
+                                continue  # Retry the command
+                            else:
+                                self.logger.error("Failed to restart terminal")
                         else:
-                            self.logger.error("Failed to restart terminal")
+                            self.logger.warning(
+                                "No reader available for FIFO (terminal_dispatcher.sh not running?)"
+                            )
+                    elif e.errno == errno.EAGAIN:
+                        self.logger.warning("FIFO write would block (buffer full?)")
                     else:
-                        self.logger.warning(
-                            "No reader available for FIFO (terminal_dispatcher.sh not running?)"
-                        )
-                elif e.errno == errno.EAGAIN:
-                    self.logger.warning("FIFO write would block (buffer full?)")
-                else:
-                    self.logger.error(f"Failed to send command to FIFO: {e}")
-                return False
-            finally:
-                # Clean up file descriptor if it wasn't converted to file object
-                if fifo_fd is not None:
-                    try:
-                        os.close(fifo_fd)
-                    except OSError:
-                        pass
+                        self.logger.error(f"Failed to send command to FIFO: {e}")
+                    return False
+                finally:
+                    # Clean up file descriptor if it wasn't converted to file object
+                    if fifo_fd is not None:
+                        try:
+                            os.close(fifo_fd)
+                        except OSError:
+                            pass
 
-        # If we get here, all attempts failed
-        return False
+            # If we get here, all attempts failed
+            return False
 
     def clear_terminal(self) -> bool:
         """Clear the terminal screen.
