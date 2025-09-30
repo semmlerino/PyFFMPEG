@@ -177,6 +177,38 @@ class TestPersistentTerminalManager:
         assert terminal_manager.terminal_pid == 54321
         assert mock_popen.call_count == 3  # Tried 3 emulators
 
+    @patch("subprocess.Popen")
+    @patch("time.sleep")
+    def test_launch_terminal_uses_interactive_bash(
+        self, mock_sleep, mock_popen, terminal_manager
+    ) -> None:
+        """Test that terminal launches bash in interactive mode for shell functions."""
+        # Arrange: Mock successful process launch
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_popen.return_value = mock_process
+
+        with patch.object(terminal_manager, "_is_terminal_alive", return_value=True):
+            # Act: Launch terminal
+            result = terminal_manager._launch_terminal()
+
+        # Assert: Terminal launched successfully
+        assert result is True
+
+        # Verify bash was invoked with -i flag for interactive mode
+        # This ensures shell functions (like 'ws') are loaded from .bashrc
+        call_args = mock_popen.call_args[0][0]  # Get first call's args
+
+        # Find bash and -i in the command list
+        bash_index = None
+        for i, arg in enumerate(call_args):
+            if arg == "bash":
+                bash_index = i
+                break
+
+        assert bash_index is not None, "bash not found in command"
+        assert "-i" in call_args[bash_index:], "bash -i flag missing for interactive mode"
+
     @patch("os.open")
     @patch("os.fdopen")
     def test_send_command_success(
