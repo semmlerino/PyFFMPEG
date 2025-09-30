@@ -235,8 +235,11 @@ class TestPersistentTerminalManager:
 
         # Assert: Command sent successfully
         assert result is True
-        mock_file.write.assert_called_once_with("echo test\n")
-        mock_file.flush.assert_called_once()
+        # Implementation now uses binary mode with two write calls (command + newline)
+        assert mock_file.write.call_count == 2
+        mock_file.write.assert_any_call(b"echo test")
+        mock_file.write.assert_any_call(b"\n")
+        # No flush in unbuffered mode
         assert len(signal_spy) == 1
         assert signal_spy[0] == "echo test"
 
@@ -285,7 +288,10 @@ class TestPersistentTerminalManager:
         # Assert: Terminal was restarted and command sent
         assert result is True
         mock_restart.assert_called_once()
-        mock_file.write.assert_called_with("test command\n")
+        # Implementation now uses binary mode with two write calls
+        assert mock_file.write.call_count == 2
+        mock_file.write.assert_any_call(b"test command")
+        mock_file.write.assert_any_call(b"\n")
 
     @patch("os.open")
     def test_send_command_handles_missing_fifo(

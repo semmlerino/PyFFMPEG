@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 # Local application imports
-from cache_manager import CacheManager, ThumbnailCacheLoader
+from cache_manager import CacheManager
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 from runnable_tracker import get_tracker
@@ -182,16 +182,13 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
             if thumb_path and thumb_path.exists():
                 self._load_pixmap_async(thumb_path)
 
-                # Also cache it for next time
-                cache_loader = ThumbnailCacheLoader(
-                    self.cache_manager,
+                # Cache it synchronously (simplified cache handles this efficiently)
+                self.cache_manager.cache_thumbnail(
                     thumb_path,
                     self._current_shot.show,
                     self._current_shot.sequence,
                     self._current_shot.shot,
                 )
-                cache_loader.signals.loaded.connect(self._on_thumbnail_cached)
-                QThreadPool.globalInstance().start(cache_loader)  # type: ignore[reportUnknownMemberType]
             else:
                 # Fall back to placeholder
                 self._set_placeholder_thumbnail()
@@ -272,22 +269,6 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
             # Clean up Qt objects
             del image, scaled_image
 
-    def _on_thumbnail_cached(
-        self,
-        show: str,
-        sequence: str,
-        shot: str,
-        cache_path: str,
-    ) -> None:
-        """Handle thumbnail cached signal."""
-        # Update display if this is still the current shot
-        if (
-            self._current_shot
-            and self._current_shot.show == show
-            and self._current_shot.sequence == sequence
-            and self._current_shot.shot == shot
-        ):
-            self._load_pixmap_async(cache_path)
 
     def _set_placeholder_thumbnail(self) -> None:
         """Set placeholder thumbnail - thread-safe using QImage."""

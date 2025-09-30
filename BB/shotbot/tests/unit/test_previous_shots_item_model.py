@@ -87,10 +87,10 @@ class TestPreviousShotsThreadSafety:
     def test_mutex_protection_for_cache(self, model, test_shots) -> None:
         """Test that cache operations are protected by mutex."""
         # Update the underlying model's shots to return test_shots
-        model._model._shots = test_shots
+        model._underlying_model._shots = test_shots
 
         # Manually trigger update
-        model._update_shots()
+        model._update_from_underlying_model()
 
         # Simulate concurrent cache access
         def access_cache() -> None:
@@ -120,10 +120,10 @@ class TestPreviousShotsThreadSafety:
             many_shots.append(shot)
 
         # Update the underlying model's shots
-        model._model._shots = many_shots
+        model._underlying_model._shots = many_shots
 
         # Manually trigger update
-        model._update_shots()
+        model._update_from_underlying_model()
 
         # Simulate populating cache
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
@@ -144,12 +144,12 @@ class TestPreviousShotsThreadSafety:
     def test_data_roles_thread_safety(self, model, test_shots) -> None:
         """Test data() method with various roles."""
         # Local application imports
-        from shot_item_model import ShotRole
+        from unified_item_model import UnifiedRole
 
         # Update the underlying model's shots
-        model._model._shots = test_shots
+        model._underlying_model._shots = test_shots
         # Manually trigger update
-        model._update_shots()
+        model._update_from_underlying_model()
 
         index = model.index(0, 0)
         shot = test_shots[0]
@@ -157,11 +157,11 @@ class TestPreviousShotsThreadSafety:
         # Test all custom roles
         roles = [
             Qt.ItemDataRole.DisplayRole,
-            ShotRole.ShotObjectRole,  # Shot object
-            ShotRole.FullNameRole,  # Full name
-            ShotRole.ShowRole,  # Show
-            ShotRole.SequenceRole,  # Sequence
-            ShotRole.ShotNameRole,  # Shot number
+            UnifiedRole.ObjectRole,  # Shot object
+            UnifiedRole.FullNameRole,  # Full name
+            UnifiedRole.ShowRole,  # Show
+            UnifiedRole.SequenceRole,  # Sequence
+            UnifiedRole.ItemSpecificRole1,  # Shot number (shot.shot)
         ]
 
         for role in roles:
@@ -187,22 +187,22 @@ class TestPreviousShotsThreadSafety:
         # Rapidly change shots
         for _ in range(10):
             # Update the underlying model's shots
-            model._model._shots = test_shots
+            model._underlying_model._shots = test_shots
             # Manually trigger update
-            model._update_shots()
+            model._update_from_underlying_model()
 
             # Update the underlying model's shots to empty list
-            model._model._shots = []
+            model._underlying_model._shots = []
             # Manually trigger update
-            model._update_shots()
+            model._update_from_underlying_model()
 
-            model._model._shots = test_shots[:1]
-            model._update_shots()
+            model._underlying_model._shots = test_shots[:1]
+            model._update_from_underlying_model()
 
             # Update the underlying model's shots
-            model._model._shots = test_shots
+            model._underlying_model._shots = test_shots
             # Manually trigger update
-            model._update_shots()
+            model._update_from_underlying_model()
 
         # Final state should be consistent
         assert model.rowCount() == len(test_shots)
@@ -215,29 +215,29 @@ class TestDataConsistency:
     def test_shot_data_integrity(self, model, test_shots) -> None:
         """Test that shot data remains consistent."""
         # Local application imports
-        from shot_item_model import ShotRole
+        from unified_item_model import UnifiedRole
 
         # Update the underlying model's shots
-        model._model._shots = test_shots
+        model._underlying_model._shots = test_shots
         # Manually trigger update
-        model._update_shots()
+        model._update_from_underlying_model()
 
         for i, shot in enumerate(test_shots):
             index = model.index(i, 0)
 
-            # Verify data integrity using correct ShotRole values
-            assert model.data(index, ShotRole.ShotObjectRole) == shot
-            assert model.data(index, ShotRole.FullNameRole) == shot.full_name
-            assert model.data(index, ShotRole.ShowRole) == shot.show
-            assert model.data(index, ShotRole.SequenceRole) == shot.sequence
-            assert model.data(index, ShotRole.ShotNameRole) == shot.shot
+            # Verify data integrity using correct UnifiedRole values
+            assert model.data(index, UnifiedRole.ObjectRole) == shot
+            assert model.data(index, UnifiedRole.FullNameRole) == shot.full_name
+            assert model.data(index, UnifiedRole.ShowRole) == shot.show
+            assert model.data(index, UnifiedRole.SequenceRole) == shot.sequence
+            assert model.data(index, UnifiedRole.ItemSpecificRole1) == shot.shot
 
     def test_empty_model_handling(self, model) -> None:
         """Test empty model edge cases."""
         # Update the underlying model's shots to empty list
-        model._model._shots = []
+        model._underlying_model._shots = []
         # Manually trigger update
-        model._update_shots()
+        model._update_from_underlying_model()
 
         assert model.rowCount() == 0
 
@@ -251,9 +251,9 @@ class TestDataConsistency:
     def test_cache_cleanup_on_reset(self, model, test_shots) -> None:
         """Test cache is managed properly on reset."""
         # Update the underlying model's shots
-        model._model._shots = test_shots
+        model._underlying_model._shots = test_shots
         # Manually trigger update
-        model._update_shots()
+        model._update_from_underlying_model()
 
         # Populate cache
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
@@ -266,9 +266,9 @@ class TestDataConsistency:
 
         # Reset model
         # Update the underlying model's shots to empty list
-        model._model._shots = []
+        model._underlying_model._shots = []
         # Manually trigger update
-        model._update_shots()
+        model._update_from_underlying_model()
 
         # Model should be empty
         assert model.rowCount() == 0
