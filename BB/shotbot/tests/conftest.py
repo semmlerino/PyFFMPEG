@@ -40,8 +40,10 @@ import pytest
 
 # Now we can import Qt, but immediately patch show methods
 from PySide6.QtCore import QCoreApplication, QEventLoop, QThreadPool, QTimer
-from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import QApplication, QDialog, QMainWindow, QMessageBox, QWidget
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QShowEvent
 
 # CRITICAL: Monkey-patch Qt show methods at module import time
 # This ensures no widgets can ever show, even if created at module level
@@ -1583,6 +1585,107 @@ def mock_gui_blocking_components(monkeypatch):
 
     # Store reference for tests that need to access it
     return test_pool
+
+
+# =============================================================================
+# Controller Test Targets (Single Source of Truth Testing)
+# =============================================================================
+
+
+@pytest.fixture
+def launcher_controller_target(qtbot):
+    """Create a minimal target for LauncherController testing.
+
+    This fixture provides the minimum interface required by LauncherController
+    following the LauncherTarget protocol.
+    """
+    from unittest.mock import Mock
+
+    from PySide6.QtCore import QObject, Signal
+
+    class TestCommandLauncher(QObject):
+        """Minimal command launcher for testing."""
+
+        __test__ = False
+
+        command_executed = Signal(str, str)
+        command_error = Signal(str, str)
+
+        def __init__(self):
+            super().__init__()
+            self.current_shot = None
+
+        def set_current_shot(self, shot):
+            self.current_shot = shot
+
+        def launch_app(self, *args, **kwargs):
+            return True
+
+    class LauncherControllerTestTarget:
+        """Minimal target implementing LauncherTarget protocol."""
+
+        def __init__(self):
+            self.command_launcher = TestCommandLauncher()
+            self.launcher_manager = None
+            self.launcher_panel = Mock()
+            self.log_viewer = Mock()
+            self.status_bar = Mock()
+            self.custom_launcher_menu = Mock()
+
+        def update_status(self, message: str) -> None:
+            pass
+
+    target = LauncherControllerTestTarget()
+    # Note: command_launcher is QObject (not QWidget), no need to register with qtbot
+    return target
+
+
+@pytest.fixture
+def threede_controller_target(qtbot, launcher_controller_target):
+    """Create a minimal target for ThreeDEController testing.
+
+    This fixture provides the minimum interface required by ThreeDEController
+    following the ThreeDETarget protocol, with LauncherController integration.
+    """
+    from controllers.launcher_controller import LauncherController
+    from unittest.mock import Mock
+
+    class ThreeDEControllerTestTarget:
+        """Minimal target implementing ThreeDETarget protocol."""
+
+        def __init__(self, launcher_target):
+            # Create actual launcher controller for integration testing
+            self.launcher_controller = LauncherController(launcher_target)
+
+            # Mock other required components
+            self.threede_shot_grid = Mock()
+            self.shot_info_panel = Mock()
+            self.launcher_panel = Mock()
+            self.status_bar = Mock()
+            self.shot_model = Mock()
+            self.threede_scene_model = Mock()
+            self.threede_item_model = Mock()
+            self.cache_manager = Mock()
+            self.command_launcher = launcher_target.command_launcher
+            self.closing = False
+
+        def setWindowTitle(self, title: str) -> None:
+            pass
+
+        def update_status(self, message: str) -> None:
+            pass
+
+        def update_launcher_menu_availability(self, available: bool) -> None:
+            pass
+
+        def enable_custom_launcher_buttons(self, enabled: bool) -> None:
+            pass
+
+        def launch_app(self, app_name: str) -> None:
+            pass
+
+    target = ThreeDEControllerTestTarget(launcher_controller_target)
+    return target
 
 
 # =============================================================================
