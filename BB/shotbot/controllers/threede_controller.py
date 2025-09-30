@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     # Local application imports
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
+    from controllers.launcher_controller import LauncherController
     from launcher_panel import LauncherPanel
 
     # Local type imports
@@ -71,6 +72,7 @@ class ThreeDETarget(Protocol):
     threede_item_model: ThreeDEItemModel
     cache_manager: CacheManager
     command_launcher: CommandLauncher
+    launcher_controller: LauncherController
 
     # Required methods
     def setWindowTitle(self, title: str) -> None: ...
@@ -419,6 +421,9 @@ class ThreeDEController(LoggingMixin):
         """Handle 3DE scene selection."""
         self._current_scene = scene
         self.window.command_launcher.set_current_shot(None)  # Clear regular shot
+
+        # Sync scene context with launcher controller so launcher panel buttons work
+        self.window.launcher_controller.set_current_scene(scene)
 
         # Create a Shot object from the scene for compatibility
         shot = Shot(

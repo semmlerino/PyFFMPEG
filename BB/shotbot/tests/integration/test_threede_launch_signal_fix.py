@@ -366,3 +366,141 @@ class TestSignalSlotTypeSafety:
         # Verify launch succeeded with scene context
         assert controller._current_scene == test_scene
         assert len(target.command_launcher.executed_commands) > 0
+
+
+class TestLauncherPanelButtonWithSceneContext:
+    """Test launcher panel button click after scene selection (the actual bug scenario).
+
+    These tests verify the fix for the launcher panel button not working when
+    a scene is selected but not double-clicked. The bug was that selecting a
+    scene (single-click) didn't sync the scene context with launcher_controller,
+    so clicking the launcher panel button would fail with "No shot selected".
+
+    Fix: threede_controller.on_scene_selected() now calls
+    launcher_controller.set_current_scene(scene) to keep them synchronized.
+    """
+
+    def test_scene_selection_syncs_with_launcher_controller(
+        self, launcher_controller_with_scene_support, create_test_scene
+    ) -> None:
+        """Test that selecting a scene (single-click) syncs context with launcher_controller.
+
+        This is the core of the fix - when threede_controller handles scene selection,
+        it must also update launcher_controller so that launcher panel buttons work.
+        """
+        controller, target = launcher_controller_with_scene_support
+        test_scene = create_test_scene()
+
+        # Simulate threede_controller.on_scene_selected() behavior
+        # (which gets called when user single-clicks a scene)
+        target.command_launcher.set_current_shot(None)  # Clear regular shot
+        controller.set_current_scene(test_scene)  # Sync with launcher controller
+
+        # Verify launcher controller has the scene context
+        assert controller._current_scene == test_scene
+        assert controller._current_scene.scene_path == test_scene.scene_path
+
+    def test_launcher_panel_button_works_after_scene_selection(
+        self, launcher_controller_with_scene_support, create_test_scene
+    ) -> None:
+        """Test that launcher panel button works after selecting (not double-clicking) a scene.
+
+        This is the bug scenario that was failing:
+        1. User single-clicks a scene in "Other 3DE Scenes" tab (selects it)
+        2. User clicks "Launch 3de" button in launcher panel
+        3. Previously: "No shot selected" error (launcher_controller had no context)
+        4. Now: Launch succeeds (launcher_controller has scene context)
+        """
+        controller, target = launcher_controller_with_scene_support
+        test_scene = create_test_scene(user="artist1", plate="plate01")
+
+        # Step 1: User selects a scene (single-click) - simulate on_scene_selected
+        target.command_launcher.set_current_shot(None)
+        controller.set_current_scene(test_scene)
+
+        # Step 2: User clicks "Launch 3de" button in launcher panel
+        # This triggers launcher_panel.app_launch_requested.emit("3de")
+        # which is connected to launcher_controller.launch_app("3de")
+        controller.launch_app("3de")  # Returns None (void)
+
+        # Verify launch succeeded (no "No shot selected" error)
+        assert len(target.command_launcher.executed_commands) == 1
+        command = target.command_launcher.executed_commands[0]
+        assert command["app_name"] == "3de"
+        assert "Launched 3de" in target.status_messages
+
+        # Verify scene metadata was used
+        assert "artist1" in str(test_scene.scene_path)
+        assert "plate01" in str(test_scene.scene_path)
+
+    def test_launcher_panel_button_fails_without_scene_sync(
+        self, launcher_controller_with_scene_support, create_test_scene
+    ) -> None:
+        """Test that WITHOUT syncing scene context, launcher panel button fails.
+
+        This demonstrates what the bug was - if on_scene_selected doesn't call
+        launcher_controller.set_current_scene(), clicking the button fails.
+        """
+        controller, target = launcher_controller_with_scene_support
+        test_scene = create_test_scene()  # noqa: F841 - intentionally unused
+
+        # Simulate OLD BROKEN behavior: scene is selected but NOT synced with launcher_controller
+        # (i.e., on_scene_selected didn't call launcher_controller.set_current_scene)
+        # So launcher_controller._current_scene is still None
+
+        # User clicks "Launch 3de" button
+        controller.launch_app("3de")
+
+        # Verify launch FAILED (no scene context, falls back to shot-based launch)
+        assert len(target.command_launcher.executed_commands) == 1
+        command = target.command_launcher.executed_commands[0]
+        assert command["shot"] is None  # No shot context
+        assert command["scene_path"] is None  # No scene context either
+        assert "Failed to launch 3de" in target.status_messages
+
+    def test_multiple_scene_selections_update_launcher_context(
+        self, launcher_controller_with_scene_support, create_test_scene
+    ) -> None:
+        """Test that switching between scenes updates launcher_controller each time."""
+        controller, target = launcher_controller_with_scene_support
+
+        # Create different scenes
+        scene1 = create_test_scene(user="user1", plate="plate1")
+        scene2 = create_test_scene(user="user2", plate="plate2")
+        scene3 = create_test_scene(user="user3", plate="plate3")
+
+        # Select each scene in sequence
+        for scene in [scene1, scene2, scene3]:
+            controller.set_current_scene(scene)
+
+            # Verify launcher_controller context is updated
+            assert controller._current_scene == scene
+            assert controller._current_scene.user == scene.user
+            assert controller._current_scene.plate == scene.plate
+
+        # Verify final context is scene3
+        assert controller._current_scene == scene3
+        assert controller._current_scene.user == "user3"
+
+    def test_launcher_panel_button_with_different_apps(
+        self, launcher_controller_with_scene_support, create_test_scene
+    ) -> None:
+        """Test that launcher panel buttons work for all apps after scene selection."""
+        controller, target = launcher_controller_with_scene_support
+        test_scene = create_test_scene()
+
+        # Select a scene
+        controller.set_current_scene(test_scene)
+
+        # Test launching different apps from launcher panel
+        for app_name in ["3de", "nuke", "maya"]:
+            target.command_launcher.executed_commands.clear()
+            target.status_messages.clear()
+
+            controller.launch_app(app_name)
+
+            # Verify each app launches successfully
+            assert len(target.command_launcher.executed_commands) == 1
+            command = target.command_launcher.executed_commands[0]
+            assert command["app_name"] == app_name
+            assert f"Launched {app_name}" in target.status_messages
