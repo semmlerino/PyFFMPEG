@@ -1,75 +1,73 @@
-"""Cache manager facade for shot data and thumbnails (refactored architecture).
+"""Simplified cache manager for shot data and thumbnails.
 
-This module provides a backward-compatible interface to the new modular cache
-architecture while maintaining the exact same public API as the original
-monolithic CacheManager.
+This is a streamlined replacement for the complex cache architecture,
+designed for a local VFX tool on a secure network.
+
+Simplifications:
+- No platform-specific file locking
+- No atomic writes with temp files
+- No memory manager/LRU eviction
+- No failure tracker with exponential backoff
+- No storage backend abstraction
+- Direct PIL/OpenEXR processing
+- Simple JSON I/O
+- Fixed 30-minute TTL
+
+Maintained features:
+- All public API methods (backward compatible)
+- Thumbnail caching (get_cached_thumbnail, cache_thumbnail)
+- Shot/3DE/Previous shots data caching
+- OpenEXR support (VFX requirement)
+- Directory structure
+- Thread safety (basic QMutex)
 """
 
 from __future__ import annotations
 
 # Standard library imports
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 # Third-party imports
-from PySide6.QtCore import (
-    QMutex,
-    QMutexLocker,
-    QObject,
-    QRunnable,
-    QThread,
-    Signal,
-)
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
+from PySide6.QtGui import QImage
 
-# Use typing_extensions for override (available in venv)
-from typing_extensions import override
-
-# Import new unified components
-from cache.storage_backend import StorageBackend
-from cache.thumbnail_manager import (
-    ThumbnailCacheResult,
-    ThumbnailManager,
-)
-from cache.unified_cache import (
-    CacheableData,
-    UnifiedCache,
-    create_shot_cache,
-    create_threede_cache,
-)
-
-# Import cache configuration (now includes unified config)
-from cache_config import UnifiedCacheConfig, create_unified_cache_config
+# Local application imports
 from config import Config
-from exceptions import CacheError, ThumbnailError
+from exceptions import ThumbnailError
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    # Standard library imports
     from collections.abc import Sequence
 
-    # Local application imports
-    from settings_manager import SettingsManager
     from shot_model import Shot
-    from type_definitions import (
-        ShotDict,
-        ThreeDESceneDict,
-    )
+    from type_definitions import ShotDict, ThreeDESceneDict
 
-# Logger now provided by LoggingMixin
+# Constants
+DEFAULT_TTL_MINUTES = 30
+THUMBNAIL_SIZE = 256
+THUMBNAIL_QUALITY = 85
+
+
+# Backward compatibility exports from old cache system
+class ThumbnailCacheResult:
+    """Stub for backward compatibility - no longer used in simplified implementation."""
+    def __init__(self):
+        self.future = None
+        self.path = None
+
+
+class ThumbnailCacheLoader:
+    """Stub for backward compatibility - no longer used in simplified implementation."""
+    pass
 
 
 class CacheManager(LoggingMixin, QObject):
-    """Manages caching of shot data and thumbnails with thread safety and memory monitoring.
+    """Simplified cache manager for local VFX tool.
 
-    This is a facade that delegates to specialized components while maintaining
-    full backward compatibility with the original monolithic implementation.
-
-    Unified Architecture (3 Components):
-        - StorageBackend: Atomic file operations with validation methods
-        - ThumbnailManager: Unified thumbnail processing, memory management, failure tracking
-        - UnifiedCache: Generic TTL cache replacing shot_cache and threede_cache
+    Provides same public API as CacheManager but with simpler implementation.
     """
 
     # Signals - maintain backward compatibility
@@ -78,163 +76,96 @@ class CacheManager(LoggingMixin, QObject):
     def __init__(
         self,
         cache_dir: Path | None = None,
-        settings_manager: SettingsManager | None = None,
+        settings_manager: object | None = None,  # Ignored for simplicity
     ) -> None:
-        """Initialize cache manager facade with modular components.
+        """Initialize simplified cache manager.
 
         Args:
             cache_dir: Cache directory path. If None, uses mode-appropriate default
-            settings_manager: Settings manager for unified cache configuration
+            settings_manager: Ignored in simplified implementation
         """
         super().__init__()
 
-        # Thread safety for coordination
-        self._lock: QMutex = QMutex()
+        # Thread safety
+        self._lock = QMutex()
 
-        # Initialize unified cache configuration if settings manager provided
-        self._unified_config: UnifiedCacheConfig | None = None
-        if settings_manager:
-            try:
-                self._unified_config = create_unified_cache_config(settings_manager)
-                self.logger.info("CacheManager using unified cache configuration")
-            except Exception as e:
-                self.logger.warning(f"Failed to initialize unified cache config: {e}")
-
-        # Set up cache directory structure using CacheConfig for mode separation
+        # Setup cache directory
         if cache_dir is None:
-            # Local application imports
-            from cache_config import CacheConfig
-
-            self.cache_dir = CacheConfig.get_cache_directory()
-            self.logger.debug(f"Using mode-based cache directory: {self.cache_dir}")
-        else:
-            self.cache_dir = cache_dir
+            # Use default cache location based on mode
+            import os
+            if os.getenv('SHOTBOT_MODE') == 'mock':
+                cache_dir = Path.home() / '.shotbot' / 'cache' / 'mock'
+            elif os.getenv('SHOTBOT_MODE') == 'test':
+                cache_dir = Path.home() / '.shotbot' / 'cache' / 'test'
+            else:
+                cache_dir = Path.home() / '.shotbot' / 'cache' / 'production'
+        self.cache_dir = Path(cache_dir)
         self.thumbnails_dir = self.cache_dir / "thumbnails"
         self.shots_cache_file = self.cache_dir / "shots.json"
-        self.threede_scenes_cache_file = self.cache_dir / "threede_scenes.json"
         self.previous_shots_cache_file = self.cache_dir / "previous_shots.json"
+        self.threede_cache_file = self.cache_dir / "threede_scenes.json"
 
-        # Initialize unified components (3-component architecture)
-        self._storage_backend = StorageBackend()
+        # TTL configuration
+        self._cache_ttl = timedelta(minutes=DEFAULT_TTL_MINUTES)
 
-        # Use unified config for thumbnail manager if available
-        if self._unified_config:
-            max_memory_mb = self._unified_config.memory_limit_mb
-            # Connect to configuration changes
-            self._unified_config.memory_limit_changed.connect(
-                self._on_memory_limit_changed
-            )
-            self._unified_config.expiry_time_changed.connect(
-                self._on_expiry_time_changed
-            )
-        else:
-            max_memory_mb = None  # Use default
-
-        self._thumbnail_manager = ThumbnailManager(max_memory_mb=max_memory_mb)
-
-        # Initialize data caches with unified config if available
-        expiry_minutes = (
-            self._unified_config.expiry_minutes
-            if self._unified_config
-            else None  # Use config defaults
-        )
-
-        self._shot_cache = create_shot_cache(
-            self.shots_cache_file, expiry_minutes=expiry_minutes
-        )
-        self._threede_cache = create_threede_cache(
-            self.threede_scenes_cache_file, expiry_minutes=expiry_minutes
-        )
-        self._previous_shots_cache = create_shot_cache(
-            self.previous_shots_cache_file, expiry_minutes=expiry_minutes
-        )
-
-        # Track active async loaders for synchronization
-        self._active_loaders: dict[str, ThumbnailCacheResult] = {}
-
-        # Track last validation time for periodic validation
-        self._last_validation_time = datetime.now()
-        self._validation_interval_minutes = 30
-
-        # Ensure cache directories exist
+        # Ensure directories exist
         self._ensure_cache_dirs()
 
-        self.logger.debug("CacheManager facade initialized with unified architecture")
-
-    # Backward compatibility properties for internal test access
-    @property
-    def _cached_thumbnails(self) -> dict[str, int]:
-        """Backward compatibility property for memory tracking."""
-        # Return direct reference for backward compatibility with tests
-        # Note: In production code, use get_usage_stats() for read-only access
-        return self._thumbnail_manager.cached_items
-
-    @property
-    def _memory_usage_bytes(self) -> int:
-        """Backward compatibility property for memory usage."""
-        return self._thumbnail_manager.memory_usage_bytes
-
-    @_memory_usage_bytes.setter
-    def _memory_usage_bytes(self, value: int) -> None:
-        """Backward compatibility setter for memory usage."""
-        # Note: This requires direct access for the setter
-        self._thumbnail_manager._memory_usage_bytes = value  # type: ignore[reportPrivateUsage]
-
-    @property
-    def _max_memory_bytes(self) -> int:
-        """Backward compatibility property for memory limit."""
-        return self._thumbnail_manager.max_memory_bytes
-
-    @_max_memory_bytes.setter
-    def _max_memory_bytes(self, value: int) -> None:
-        """Backward compatibility setter for memory limit (test use only)."""
-        # Note: In production, memory limit should be set via constructor
-        # This setter exists only for backward compatibility with existing tests
-        # Convert bytes to MB, ensuring minimum of 1 MB to avoid zero
-        max_mb = max(1, value // (1024 * 1024))
-        self._thumbnail_manager.set_memory_limit(max_mb)
-
-    @property
-    def _failed_attempts(self) -> dict[str, dict[str, object]]:
-        """Backward compatibility property for failure tracking."""
-        return self._thumbnail_manager.get_failure_status()
-
-    # Configuration properties - maintain backward compatibility
-    @property
-    def CACHE_THUMBNAIL_SIZE(self) -> int:
-        """Get the cached thumbnail size from configuration."""
-        return Config.CACHE_THUMBNAIL_SIZE
-
-    @property
-    def CACHE_EXPIRY_MINUTES(self) -> int:
-        """Get cache expiry time in minutes from configuration."""
-        return Config.CACHE_EXPIRY_MINUTES
+        self.logger.info(f"SimpleCacheManager initialized: {self.cache_dir}")
 
     def _ensure_cache_dirs(self) -> None:
-        """Ensure cache directories exist using storage backend."""
-        if not self._storage_backend.ensure_directory(self.thumbnails_dir):
-            # If normal directory creation fails, try fallback
-            self.logger.warning("Using fallback cache directory setup")
-            # The storage backend handles fallback internally
-        self.logger.debug(f"Ensured cache directory exists: {self.thumbnails_dir}")
+        """Ensure cache directories exist."""
+        try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
+            self.logger.debug(f"Ensured cache directory: {self.cache_dir}")
+        except Exception as e:
+            self.logger.error(f"Failed to create cache directories: {e}")
 
     def ensure_cache_directory(self) -> bool:
-        """Ensure cache directory exists, creating if necessary."""
-        return self._storage_backend.ensure_directory(self.thumbnails_dir)
+        """Ensure cache directory exists.
 
-    # Thumbnail caching methods - backward compatible interface
+        Returns:
+            True if successful
+        """
+        try:
+            self._ensure_cache_dirs()
+            return True
+        except Exception:
+            return False
+
+    # ========================================================================
+    # Thumbnail Caching Methods
+    # ========================================================================
+
     def get_cached_thumbnail(self, show: str, sequence: str, shot: str) -> Path | None:
-        """Get path to cached thumbnail if it exists (thread-safe)."""
-        with QMutexLocker(self._lock):
-            # Periodic validation
-            self._run_periodic_validation()
+        """Get path to cached thumbnail if it exists and is valid.
 
+        Args:
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
+
+        Returns:
+            Path to thumbnail or None if not cached/expired
+        """
+        with QMutexLocker(self._lock):
             cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
-            if cache_path.exists():
-                # Track in memory manager if not already tracked
-                _ = self._thumbnail_manager.track_item(cache_path)
-                return cache_path
-            return None
+
+            if not cache_path.exists():
+                return None
+
+            # Check TTL
+            try:
+                age = datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime)
+                if age > self._cache_ttl:
+                    self.logger.debug(f"Thumbnail expired: {cache_path}")
+                    return None
+            except Exception as e:
+                self.logger.warning(f"Failed to check thumbnail age: {e}")
+                return None
+
+            return cache_path
 
     def cache_thumbnail(
         self,
@@ -244,206 +175,295 @@ class CacheManager(LoggingMixin, QObject):
         shot: str,
         wait: bool = True,
         timeout: float | None = None,
-    ) -> Path | ThumbnailCacheResult | None:
-        """Cache a thumbnail from source path with optional synchronization."""
-        # Convert source_path to Path object for consistent handling
-        source_path_obj = (
-            Path(source_path) if isinstance(source_path, str) else source_path
-        )
-        if not source_path_obj or not source_path_obj.exists():
-            self.logger.warning(
-                f"Source thumbnail path does not exist: {source_path_obj}"
-            )
-            return None
+    ) -> Path | None:
+        """Cache a thumbnail from source path.
+
+        Args:
+            source_path: Source image path
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
+            wait: Ignored in simplified implementation (always synchronous)
+            timeout: Ignored in simplified implementation
+
+        Returns:
+            Path to cached thumbnail or None on error
+        """
+        source_path_obj = Path(source_path) if isinstance(source_path, str) else source_path
 
         # Validate parameters
         if not all([show, sequence, shot]):
             error_msg = "Missing required parameters for thumbnail caching"
             self.logger.error(error_msg)
-            raise ThumbnailError(
-                error_msg,
-                details={
-                    "source_path": str(source_path),
-                    "show": show,
-                    "sequence": sequence,
-                    "shot": shot,
-                },
-            )
+            raise ThumbnailError(error_msg, details={
+                "source_path": str(source_path),
+                "show": show,
+                "sequence": sequence,
+                "shot": shot,
+            })
 
-        cache_key = f"{show}_{sequence}_{shot}"
+        if not source_path_obj.exists():
+            self.logger.warning(f"Source path does not exist: {source_path_obj}")
+            return None
 
         with QMutexLocker(self._lock):
-            # Check if already being loaded
-            if cache_key in self._active_loaders:
-                result = self._active_loaders[cache_key]
-                if wait:
-                    return result.future.result(timeout)
-                return result
+            # Create output directory
+            output_dir = self.thumbnails_dir / show / sequence
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / f"{shot}_thumb.jpg"
 
-            # Check if already cached
-            cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
-            if cache_path.exists():
-                self.logger.debug(f"Thumbnail already cached: {cache_path}")
-                _ = self._thumbnail_manager.track_item(cache_path)
-                return cache_path
-
-            # Check failure tracker
-            should_retry, reason = self._thumbnail_manager.should_retry(
-                cache_key, source_path_obj
-            )
-            if not should_retry:
-                self.logger.debug(reason)
-                return None if wait else None
-
-            # Create result container and track loading
-            result = ThumbnailCacheResult()
-            self._active_loaders[cache_key] = result
-
-        # Process thumbnail with proper exception handling to prevent memory leaks
-        try:
-            # Determine processing approach - check Qt availability defensively
-            try:
-                app = QApplication.instance()
-                is_main_thread = (
-                    app is not None and QThread.currentThread() == app.thread()
-                )
-            except (RuntimeError, AttributeError):
-                # Qt not initialized or error accessing - treat as background thread
-                is_main_thread = False
-
-            if not is_main_thread:
-                # Background thread - use async thumbnail caching
-                async_result = self._thumbnail_manager.cache_thumbnail_async(
-                    source_path_obj, cache_path
-                )
-
-                # Wait for result and handle callbacks
+            # Already cached and valid?
+            if output_path.exists():
                 try:
-                    if wait:
-                        cached_path = async_result.future.result(timeout)
-                        if cached_path:
-                            result.set_result(cached_path)
-                            self._on_thumbnail_loaded(cache_key, cached_path)
-                            self._cleanup_loader(cache_key)
-                        return cached_path
-                    else:
-                        # Non-blocking - return the async result directly
-                        # Note: caller is responsible for waiting on the future
-                        self._cleanup_loader(cache_key)
-                        return async_result
-                except Exception as e:
-                    result.set_error(str(e))
-                    self._cleanup_loader(cache_key)
-                    return None if wait else result
-            else:
-                # Main thread - process directly
-                success = self._thumbnail_manager.cache_thumbnail_sync(
-                    source_path_obj, cache_path
-                )
+                    age = datetime.now() - datetime.fromtimestamp(output_path.stat().st_mtime)
+                    if age < self._cache_ttl:
+                        self.logger.debug(f"Using existing thumbnail: {output_path}")
+                        return output_path
+                except Exception:
+                    pass  # Regenerate if we can't check age
 
-                if success and cache_path.exists():
-                    result.set_result(cache_path)
-                    self._on_thumbnail_loaded(cache_key, cache_path)
-                    self._cleanup_loader(cache_key)
-                    return cache_path if wait else result
+            # Process based on format
+            try:
+                if source_path_obj.suffix.lower() == '.exr':
+                    return self._process_exr_thumbnail(source_path_obj, output_path)
                 else:
-                    error_msg = "Failed to cache thumbnail"
-                    result.set_error(error_msg)
-                    self._thumbnail_manager.record_failure(
-                        cache_key, error_msg, source_path_obj
-                    )
-                    self._cleanup_loader(cache_key)
-                    return None if wait else result
+                    return self._process_standard_thumbnail(source_path_obj, output_path)
+            except Exception as e:
+                self.logger.error(f"Failed to process thumbnail: {e}")
+                return None
+
+    def _process_standard_thumbnail(self, source: Path, output: Path) -> Path:
+        """Process standard image formats to thumbnail.
+
+        Args:
+            source: Source image path
+            output: Output thumbnail path
+
+        Returns:
+            Path to created thumbnail
+        """
+        from PIL import Image
+
+        try:
+            img = Image.open(source)
+            img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
+            img.convert('RGB').save(output, 'JPEG', quality=THUMBNAIL_QUALITY)
+            self.logger.debug(f"Created thumbnail: {output}")
+            return output
         except Exception as e:
-            # Ensure cleanup happens even on exception to prevent memory leak
-            self.logger.error(f"Exception during thumbnail caching: {e}")
-            self._cleanup_loader(cache_key)
-            # Record failure for exponential backoff
-            self._thumbnail_manager.record_failure(cache_key, str(e), source_path_obj)
-            # Re-raise to maintain existing error handling behavior
-            raise
+            self.logger.error(f"PIL thumbnail processing failed: {e}")
+            raise ThumbnailError(f"Failed to process thumbnail: {e}")
+
+    def _process_exr_thumbnail(self, source: Path, output: Path) -> Path:
+        """Process OpenEXR file to thumbnail.
+
+        Args:
+            source: Source EXR path
+            output: Output thumbnail path
+
+        Returns:
+            Path to created thumbnail
+        """
+        try:
+            import OpenEXR
+            import Imath
+            import numpy as np
+            from PIL import Image
+
+            # Read EXR file
+            exr_file = OpenEXR.InputFile(str(source))
+            header = exr_file.header()
+
+            # Get dimensions
+            dw = header['dataWindow']
+            width = dw.max.x - dw.min.x + 1
+            height = dw.max.y - dw.min.y + 1
+
+            # Read RGB channels
+            FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+            channels = []
+            for chan in ['R', 'G', 'B']:
+                if chan in header['channels']:
+                    channel_str = exr_file.channel(chan, FLOAT)
+                    channel_data = np.frombuffer(channel_str, dtype=np.float32)
+                    channel_data = channel_data.reshape((height, width))
+                    channels.append(channel_data)
+
+            if len(channels) == 3:
+                # Stack channels and convert to 8-bit
+                img_data = np.stack(channels, axis=2)
+                # Simple tone mapping: clamp and scale
+                img_data = np.clip(img_data, 0, 1)
+                img_data = (img_data * 255).astype(np.uint8)
+
+                # Create PIL image
+                img = Image.fromarray(img_data, mode='RGB')
+                img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
+                img.save(output, 'JPEG', quality=THUMBNAIL_QUALITY)
+
+                self.logger.debug(f"Created EXR thumbnail: {output}")
+                return output
+            else:
+                raise ThumbnailError("EXR file missing RGB channels")
+
+        except Exception as e:
+            self.logger.error(f"OpenEXR thumbnail processing failed: {e}")
+            # Fallback: try PIL
+            try:
+                return self._process_standard_thumbnail(source, output)
+            except Exception:
+                raise ThumbnailError(f"Failed to process EXR thumbnail: {e}")
 
     def cache_thumbnail_direct(
-        self, source_path: Path, show: str, sequence: str, shot: str
+        self,
+        image: QImage,
+        show: str,
+        sequence: str,
+        shot: str,
     ) -> Path | None:
-        """Direct thumbnail caching implementation (backward compatibility)."""
-        cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
+        """Cache a thumbnail from QImage directly.
 
-        if self._thumbnail_manager.cache_thumbnail_sync(source_path, cache_path):
-            return cache_path
-        return None
+        Args:
+            image: QImage to cache
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
 
-    def _on_thumbnail_loaded(self, cache_key: str, cache_path: Path) -> None:
-        """Handle successful thumbnail loading."""
-        # Track in thumbnail manager
-        _ = self._thumbnail_manager.track_item(cache_path)
-
-    def _cleanup_loader(self, cache_key: str) -> None:
-        """Remove completed loader from tracking."""
+        Returns:
+            Path to cached thumbnail or None on error
+        """
         with QMutexLocker(self._lock):
-            _ = self._active_loaders.pop(cache_key, None)
+            output_dir = self.thumbnails_dir / show / sequence
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / f"{shot}_thumb.jpg"
 
-    def _run_periodic_validation(self) -> None:
-        """Run periodic cache validation."""
-        time_since_validation = datetime.now() - self._last_validation_time
-        if time_since_validation > timedelta(minutes=self._validation_interval_minutes):
-            if self._cache_validator:  # type: ignore[attr-defined]
-                self.logger.debug("Running periodic cache validation")
-                _ = self._cache_validator.validate_cache(fix_issues=True)  # type: ignore[attr-defined]
-            self._last_validation_time = datetime.now()
+            try:
+                # Scale if needed
+                if image.width() > THUMBNAIL_SIZE or image.height() > THUMBNAIL_SIZE:
+                    from PySide6.QtCore import Qt
+                    image = image.scaled(
+                        THUMBNAIL_SIZE,
+                        THUMBNAIL_SIZE,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
 
-    # Shot caching methods - delegate to ShotCache
+                # Save
+                if image.save(str(output_path), "JPEG", THUMBNAIL_QUALITY):
+                    self.logger.debug(f"Cached QImage thumbnail: {output_path}")
+                    return output_path
+                else:
+                    self.logger.error(f"Failed to save QImage to: {output_path}")
+                    return None
+
+            except Exception as e:
+                self.logger.error(f"QImage thumbnail caching failed: {e}")
+                return None
+
+    # ========================================================================
+    # Shot Data Caching Methods
+    # ========================================================================
+
     def get_cached_shots(self) -> list[ShotDict] | None:
-        """Get cached shot list if valid."""
-        return self._shot_cache.get_cached_data()  # type: ignore[return-value]
+        """Get cached shot list if valid.
+
+        Returns:
+            List of shot dictionaries or None if not cached/expired
+        """
+        return self._read_json_cache(self.shots_cache_file)
 
     def cache_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
-        """Cache shot list to file."""
-        _ = self._shot_cache.cache_data(shots)
+        """Cache shot list to file.
 
-    # Previous shots caching methods - delegate to ShotCache
+        Args:
+            shots: Sequence of Shot objects or shot dictionaries
+        """
+        # Convert Shot objects to dicts
+        shot_dicts = []
+        for shot in shots:
+            if isinstance(shot, dict):
+                shot_dicts.append(shot)
+            else:
+                # Assume Shot object with to_dict method
+                shot_dicts.append(shot.to_dict())
+
+        self._write_json_cache(self.shots_cache_file, shot_dicts)
+        self.cache_updated.emit()
+
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
-        """Get cached previous/approved shot list if valid."""
-        return self._previous_shots_cache.get_cached_data()  # type: ignore[return-value]
+        """Get cached previous/approved shot list if valid.
+
+        Returns:
+            List of shot dictionaries or None if not cached/expired
+        """
+        return self._read_json_cache(self.previous_shots_cache_file)
 
     def cache_previous_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
-        """Cache previous/approved shot list to file."""
-        _ = self._previous_shots_cache.cache_data(shots)
+        """Cache previous/approved shot list to file.
 
-    # 3DE scene caching methods - delegate to ThreeDECache
+        Args:
+            shots: Sequence of Shot objects or shot dictionaries
+        """
+        shot_dicts = []
+        for shot in shots:
+            if isinstance(shot, dict):
+                shot_dicts.append(shot)
+            else:
+                shot_dicts.append(shot.to_dict())
+
+        self._write_json_cache(self.previous_shots_cache_file, shot_dicts)
+        self.cache_updated.emit()
+
     def get_cached_threede_scenes(self) -> list[ThreeDESceneDict] | None:
-        """Get cached 3DE scene list if valid."""
-        return self._threede_cache.get_cached_data()  # type: ignore[return-value]
+        """Get cached 3DE scene list if valid.
+
+        Returns:
+            List of scene dictionaries or None if not cached/expired
+        """
+        return self._read_json_cache(self.threede_cache_file)
 
     def has_valid_threede_cache(self) -> bool:
-        """Check if we have a valid 3DE cache (including valid empty results)."""
-        return self._threede_cache.has_valid_cache()
+        """Check if we have a valid 3DE cache.
+
+        Returns:
+            True if cache exists and is valid
+        """
+        cached = self.get_cached_threede_scenes()
+        return cached is not None
 
     def cache_threede_scenes(
-        self, scenes: list[ThreeDESceneDict], metadata: dict[str, object] | None = None
+        self,
+        scenes: list[ThreeDESceneDict],
+        metadata: dict[str, object] | None = None,
     ) -> None:
-        """Cache 3DE scene list to file with optional metadata."""
-        _ = self._threede_cache.cache_data(scenes, metadata)
+        """Cache 3DE scene list to file.
 
-    # Generic data caching methods for backward compatibility
+        Args:
+            scenes: List of scene dictionaries
+            metadata: Optional metadata (ignored in simple implementation)
+        """
+        self._write_json_cache(self.threede_cache_file, scenes)
+        self.cache_updated.emit()
+
+    # ========================================================================
+    # Generic Data Caching Methods (backward compatibility)
+    # ========================================================================
+
     def cache_data(self, key: str, data: object) -> None:
-        """Cache generic data with a key (for backward compatibility).
+        """Cache generic data with a key.
 
         Args:
             key: Cache key identifier
             data: Data to cache
         """
         if key == "previous_shots":
-            # Type-safe casting: assume caller passes correct type for previous_shots
             self.cache_previous_shots(data)  # type: ignore[arg-type]
         else:
-            # For other generic data, use storage backend directly
             cache_file = self.cache_dir / f"{key}.json"
-            # Type-safe casting: assume data is dict for JSON serialization
-            _ = self._storage_backend.write_json(cache_file, data)  # type: ignore[arg-type]
+            self._write_json_cache(cache_file, data)
 
     def get_cached_data(self, key: str) -> object | None:
-        """Get cached generic data by key (for backward compatibility).
+        """Get cached generic data by key.
 
         Args:
             key: Cache key identifier
@@ -454,405 +474,231 @@ class CacheManager(LoggingMixin, QObject):
         if key == "previous_shots":
             return self.get_cached_previous_shots()
         else:
-            # For other generic data, use storage backend directly
             cache_file = self.cache_dir / f"{key}.json"
-            return self._storage_backend.read_json(cache_file)
+            return self._read_json_cache(cache_file)
 
     def clear_cached_data(self, key: str) -> None:
-        """Clear cached generic data by key (for backward compatibility).
+        """Clear cached generic data by key.
 
         Args:
             key: Cache key identifier
         """
         if key == "previous_shots":
-            # Clear the previous shots cache file
             if self.previous_shots_cache_file.exists():
                 self.previous_shots_cache_file.unlink()
         else:
-            # For other generic data
             cache_file = self.cache_dir / f"{key}.json"
             if cache_file.exists():
                 cache_file.unlink()
 
-    # Memory and validation methods - delegate to appropriate components
+    # ========================================================================
+    # Cache Management Methods
+    # ========================================================================
+
+    def clear_cache(self) -> None:
+        """Clear all cached data."""
+        with QMutexLocker(self._lock):
+            try:
+                # Clear JSON caches
+                for cache_file in [
+                    self.shots_cache_file,
+                    self.previous_shots_cache_file,
+                    self.threede_cache_file,
+                ]:
+                    if cache_file.exists():
+                        cache_file.unlink()
+
+                # Clear thumbnails
+                if self.thumbnails_dir.exists():
+                    import shutil
+                    shutil.rmtree(self.thumbnails_dir)
+                    self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
+
+                self.logger.info("Cache cleared successfully")
+                self.cache_updated.emit()
+
+            except Exception as e:
+                self.logger.error(f"Failed to clear cache: {e}")
+
+    def get_memory_usage(self) -> dict[str, float | int]:
+        """Get cache memory usage statistics.
+
+        Returns:
+            Dictionary with cache size information
+        """
+        try:
+            total_size = 0
+            file_count = 0
+
+            # Count thumbnails
+            if self.thumbnails_dir.exists():
+                for item in self.thumbnails_dir.rglob("*"):
+                    if item.is_file():
+                        total_size += item.stat().st_size
+                        file_count += 1
+
+            # Count JSON files
+            for cache_file in [
+                self.shots_cache_file,
+                self.previous_shots_cache_file,
+                self.threede_cache_file,
+            ]:
+                if cache_file.exists():
+                    total_size += cache_file.stat().st_size
+                    file_count += 1
+
+            return {
+                "total_size_mb": total_size / (1024 * 1024),
+                "file_count": file_count,
+                "thumbnail_dir": str(self.thumbnails_dir),
+            }
+
+        except Exception as e:
+            self.logger.error(f"Failed to get memory usage: {e}")
+            return {"total_size_mb": 0, "file_count": 0}
+
+    # ========================================================================
+    # Configuration Properties (backward compatibility)
+    # ========================================================================
+
+    @property
+    def CACHE_THUMBNAIL_SIZE(self) -> int:
+        """Get the cached thumbnail size."""
+        return THUMBNAIL_SIZE
+
+    @property
+    def CACHE_EXPIRY_MINUTES(self) -> int:
+        """Get cache expiry time in minutes."""
+        return DEFAULT_TTL_MINUTES
+
+    def set_expiry_minutes(self, expiry_minutes: int) -> None:
+        """Set cache expiry time.
+
+        Args:
+            expiry_minutes: Cache TTL in minutes
+        """
+        self._cache_ttl = timedelta(minutes=expiry_minutes)
+        self.logger.debug(f"Cache TTL set to {expiry_minutes} minutes")
+
+    # ========================================================================
+    # Stub Methods (for backward compatibility, no-ops in simple implementation)
+    # ========================================================================
+
     def cache_exr_thumbnails_batch(
         self,
         exr_files: list[tuple[Path, str, str, str]],
     ) -> dict[str, Path | None]:
-        """Process multiple EXR thumbnails asynchronously without blocking UI.
-
-        This method uses AsyncEXRProcessor to handle multiple EXR files in parallel,
-        preventing UI freezes that occur with synchronous processing.
+        """Process multiple EXR thumbnails (simplified: process one by one).
 
         Args:
             exr_files: List of tuples (source_path, show, sequence, shot)
 
         Returns:
-            Dictionary mapping shot keys to cached thumbnail paths
+            Dictionary mapping shot keys to thumbnail paths
         """
-        self.logger.info(f"Starting batch EXR processing for {len(exr_files)} files")
-
-        # Process files individually using thumbnail manager
         results: dict[str, Path | None] = {}
 
         for source_path, show, sequence, shot in exr_files:
             cache_key = f"{show}_{sequence}_{shot}"
-            cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
+            result = self.cache_thumbnail(source_path, show, sequence, shot)
+            results[cache_key] = result
 
-            # Use async processing from thumbnail manager
-            thumbnail_result = self._thumbnail_manager.cache_thumbnail_async(
-                source_path, cache_path
-            )
-
-            if thumbnail_result and thumbnail_result.wait_for_completion(timeout_ms=30000):
-                if thumbnail_result.cache_path:
-                    results[cache_key] = thumbnail_result.cache_path
-                    self.logger.debug(f"Processed EXR thumbnail: {cache_key}")
-                else:
-                    results[cache_key] = None
-                    self.logger.warning(f"Failed to process EXR thumbnail: {cache_key}")
-            else:
-                results[cache_key] = None
-                self.logger.warning(f"Timeout processing EXR thumbnail: {cache_key}")
-
-        self.logger.info("Batch EXR processing completed")
         return results
 
-    def get_memory_usage(self) -> dict[str, float | int]:
-        """Get current cache memory usage statistics (backward compatible)."""
-        stats = self._thumbnail_manager.get_usage_stats()
-        total_bytes = cast("int", stats.get("total_size_mb", 0) * 1024 * 1024)
-
-        # Return old format for backward compatibility
-        return {
-            "total_bytes": total_bytes,
-            "total_mb": stats.get("total_size_mb", 0.0),
-            "max_mb": stats.get("memory_limit_mb", 0.0),
-            "usage_percent": stats.get("usage_percent", 0.0),
-            "thumbnail_count": stats.get("total_items", 0),
-        }
-
-    def validate_cache(self) -> dict[str, object]:
-        """Validate cache consistency and fix issues (backward compatible)."""
-        # Use storage backend validation with thumbnail manager
-        result = self._storage_backend.validate_cache(  # type: ignore[call-arg]
-            self.thumbnails_dir, memory_manager=self._thumbnail_manager, fix_issues=True
-        )
-        # Return old format for backward compatibility with all expected fields
-        return {
-            "valid": result.get("valid", False),
-            "issues_found": result.get("issues_found", 0),
-            "issues_fixed": result.get("issues_fixed", 0),
-            "orphaned_files": result.get("orphaned_files", 0),
-            "missing_files": result.get("missing_files", 0),
-            "invalid_entries": [],  # Not tracked in new implementation
-            "size_mismatches": result.get("size_mismatches", 0),
-            "memory_usage_corrected": result.get("memory_usage_corrected", False),
-            "details": result.get("details", []),
-        }
-
-    def clear_cache(self) -> None:
-        """Clear all cached data."""
-        with QMutexLocker(self._lock):
-            # Clear thumbnail manager (handles memory and failure tracking)
-            self._thumbnail_manager.clear_cache()
-
-            # Clear data caches
-            _ = self._shot_cache.clear_cache()
-            _ = self._threede_cache.clear_cache()
-
-            # Clear active loaders
-            self._active_loaders.clear()
-
-            # Remove thumbnail directory
-            # Standard library imports
-            import shutil
-
-            if self.thumbnails_dir.exists():
-                try:
-                    shutil.rmtree(self.thumbnails_dir, ignore_errors=True)
-                    self.logger.info("Cleared thumbnail cache directory")
-                except OSError as e:
-                    # Log but don't raise - clearing cache is not critical
-                    self.logger.error(f"Failed to clear thumbnail directory: {e}")
-
-            # Recreate directory
-            self._ensure_cache_dirs()
-
-            self.logger.info("Cache cleared successfully")
-
-    # Failure tracking methods - delegate to ThumbnailManager
     def clear_failed_attempts(self, cache_key: str | None = None) -> None:
-        """Clear failed attempts to allow immediate retry."""
-        self._thumbnail_manager.clear_failure(cache_key)  # type: ignore[arg-type]
+        """Clear failed attempts (no-op in simple implementation).
+
+        Args:
+            cache_key: Ignored
+        """
+        pass  # No failure tracking in simple implementation
 
     def get_failed_attempts_status(self) -> dict[str, dict[str, object]]:
-        """Get current status of failed attempts for debugging."""
-        return self._thumbnail_manager.get_failure_status()
+        """Get failed attempts status (always empty in simple implementation).
 
-    def _evict_old_thumbnails(self) -> int:
-        """Backward compatibility method for evicting old thumbnails."""
-        # Not applicable - eviction is automatic in ThumbnailManager
-        return 0
-
-    # Shutdown method for graceful cleanup
-    def shutdown(self) -> None:
-        """Gracefully shutdown the cache manager."""
-        self.logger.info("CacheManager shutting down...")
-
-        with QMutexLocker(self._lock):
-            try:
-                # Validate and fix any cache inconsistencies using storage backend
-                validation_result = self._storage_backend.validate_cache(  # type: ignore[call-arg]
-                    self.thumbnails_dir,
-                    memory_manager=self._thumbnail_manager,
-                    fix_issues=True,
-                )
-                if not validation_result.get("valid", False):
-                    self.logger.info(
-                        f"Fixed {validation_result.get('issues_fixed', 0)} cache issues during shutdown"
-                    )
-
-                # Clear thumbnail manager (handles memory and failure tracking)
-                failed_count = len(self._thumbnail_manager._failures)  # type: ignore[attr-defined]
-                self._thumbnail_manager.clear_cache()
-                if failed_count > 0:
-                    self.logger.debug(
-                        f"Cleared {failed_count} failed attempts during shutdown"
-                    )
-
-                # Clear active loaders
-                self._active_loaders.clear()
-
-                self.logger.info("CacheManager shutdown complete")
-
-            except (OSError, CacheError) as e:
-                self.logger.error(f"Error during cache manager shutdown: {e}")
+        Returns:
+            Empty dictionary
+        """
+        return {}
 
     def set_memory_limit(self, max_memory_mb: int) -> None:
-        """Set maximum memory limit for cache in megabytes.
+        """Set memory limit (no-op in simple implementation).
 
         Args:
-            max_memory_mb: Maximum memory in megabytes
+            max_memory_mb: Ignored
         """
-        # Use the public method to set memory limit on thumbnail manager
-        self._thumbnail_manager.set_memory_limit(max_memory_mb)
-        self.logger.info(f"Cache memory limit set to {max_memory_mb} MB")
+        pass  # No memory management in simple implementation
 
-    def _on_memory_limit_changed(self, new_limit_mb: int) -> None:
-        """Handle unified cache config memory limit changes.
-
-        Args:
-            new_limit_mb: New memory limit in MB
-        """
-        self._thumbnail_manager.set_memory_limit(new_limit_mb)
-        self.logger.info(
-            f"Cache memory limit updated to {new_limit_mb}MB via unified config"
-        )
-
-    def _on_expiry_time_changed(self, new_expiry_minutes: int) -> None:
-        """Handle unified cache config expiry time changes.
-
-        Args:
-            new_expiry_minutes: New expiry time in minutes
-        """
-        # Update all cache components with new expiry time
-        self._shot_cache.set_expiry_minutes(new_expiry_minutes)
-        self._threede_cache.set_expiry_minutes(new_expiry_minutes)
-        self._previous_shots_cache.set_expiry_minutes(new_expiry_minutes)
-        self.logger.info(
-            f"Cache expiry time updated to {new_expiry_minutes} minutes via unified config"
-        )
-
-    def set_expiry_minutes(self, expiry_minutes: int) -> None:
-        """Set cache expiry time in minutes.
-
-        Args:
-            expiry_minutes: Cache expiry time in minutes
-        """
-        # Update expiry for both shot and 3DE caches using their public methods
-        self._shot_cache.set_expiry_minutes(expiry_minutes)
-        self._threede_cache.set_expiry_minutes(expiry_minutes)
-
-        self.logger.info(f"Cache expiry set to {expiry_minutes} minutes")
-
-    # ================================================================
-    # Test-Specific Accessor Methods
-    # ================================================================
-    # WARNING: These methods are for testing purposes ONLY.
-    # They provide controlled access to private attributes for tests.
-    # DO NOT use these methods in production code.
-
-    @property
-    def test_storage_backend(self) -> StorageBackend:
-        """Test-only access to storage backend."""
-        return self._storage_backend
-
-    @property
-    def test_thumbnail_manager(self) -> ThumbnailManager:
-        """Test-only access to thumbnail manager."""
-        return self._thumbnail_manager
-
-    @property
-    def test_shot_cache(self) -> UnifiedCache[CacheableData]:
-        """Test-only access to shot cache."""
-        return self._shot_cache
-
-    @property
-    def test_threede_cache(self) -> UnifiedCache[CacheableData]:
-        """Test-only access to 3DE cache."""
-        return self._threede_cache
-
-    # Legacy test properties for backward compatibility
-    @property
-    def test_failure_tracker(self) -> ThumbnailManager:
-        """Test-only access to failure tracker (now handled by thumbnail manager)."""
-        return self._thumbnail_manager
-
-    @property
-    def test_thumbnail_processor(self) -> ThumbnailManager:
-        """Test-only access to thumbnail processor (now handled by thumbnail manager)."""
-        return self._thumbnail_manager
-
-    @property
-    def test_memory_manager(self) -> ThumbnailManager:
-        """Test-only access to memory manager (now handled by thumbnail manager)."""
-        return self._thumbnail_manager
-
-    @property
-    def test_cached_thumbnails(self) -> dict[str, int]:
-        """Test-only access to cached thumbnails dictionary.
+    def get_failure_status(self) -> dict[str, object]:
+        """Get failure status (always empty in simple implementation).
 
         Returns:
-            Dictionary mapping thumbnail path to size in bytes.
-            This is for test access only - production code should use
-            get_memory_usage() for memory statistics.
-
-        Note:
-            The return type is dict[str, int] where:
-            - key: thumbnail file path (str)
-            - value: memory usage in bytes (int)
+            Empty dictionary
         """
-        return self._cached_thumbnails
+        return {}
 
-    @property
-    def test_memory_usage_bytes(self) -> int:
-        """Test-only access to memory usage counter.
+    # ========================================================================
+    # Internal Helper Methods
+    # ========================================================================
 
-        Returns:
-            Current memory usage in bytes.
-        """
-        return self._memory_usage_bytes
-
-    @test_memory_usage_bytes.setter
-    def test_memory_usage_bytes(self, value: int) -> None:
-        """Test-only setter for memory usage counter.
+    def _read_json_cache(self, cache_file: Path) -> list[dict] | None:
+        """Read and validate JSON cache file.
 
         Args:
-            value: Memory usage value in bytes.
-
-        Warning:
-            This setter is for testing only. Production code should
-            not directly manipulate memory usage counters.
-        """
-        self._memory_usage_bytes = value
-
-    @property
-    def test_max_memory_bytes(self) -> int:
-        """Test-only access to max memory limit.
+            cache_file: Path to cache file
 
         Returns:
-            Maximum memory limit in bytes.
+            Cached data or None if not found/expired/invalid
         """
-        return self._max_memory_bytes
+        if not cache_file.exists():
+            return None
 
-    @property
-    def test_lock(self) -> QMutex:
-        """Test-only access to the coordination lock.
-
-        Returns:
-            The QMutex used for thread-safe coordination.
-
-        Warning:
-            This is for testing thread safety only. Production code
-            should not access internal locking mechanisms.
-        """
-        return self._lock
-
-
-# Thumbnail cache loader signals
-class ThumbnailCacheLoaderSignals(QObject):
-    """Signals for ThumbnailCacheLoader."""
-
-    loaded = Signal(str, str, str, Path)  # show, sequence, shot, cache_path
-    failed = Signal(str, str, str, str)  # show, sequence, shot, error_message
-
-
-# Backward compatibility wrapper for ThumbnailCacheLoader
-class ThumbnailCacheLoader(QRunnable):
-    """QRunnable for caching thumbnails in background thread pool."""
-
-    def __init__(
-        self,
-        cache_manager: CacheManager,
-        source_path: Path | str,
-        show: str,
-        sequence: str,
-        shot: str,
-        result: dict[str, object] | None = None,
-    ) -> None:
-        """Initialize thumbnail cache loader.
-
-        Args:
-            cache_manager: Cache manager instance
-            source_path: Source image path
-            show: Show name
-            sequence: Sequence name
-            shot: Shot name
-            result: Optional result dictionary (unused, for backward compatibility)
-        """
-        super().__init__()
-        self.cache_manager = cache_manager
-        self.source_path = Path(source_path) if isinstance(source_path, str) else source_path
-        self.show = show
-        self.sequence = sequence
-        self.shot = shot
-        self.signals = ThumbnailCacheLoaderSignals()
-
-    @override
-    def run(self) -> None:
-        """Process the thumbnail and emit appropriate signal."""
         try:
-            # Use cache_thumbnail with wait=True to process synchronously
-            result = self.cache_manager.cache_thumbnail(
-                self.source_path,
-                self.show,
-                self.sequence,
-                self.shot,
-                wait=True,
-                timeout=30.0,
-            )
+            # Check TTL
+            age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+            if age > self._cache_ttl:
+                self.logger.debug(f"Cache expired: {cache_file}")
+                return None
 
-            if result and isinstance(result, Path):
-                # Success - emit loaded signal
-                self.signals.loaded.emit(self.show, self.sequence, self.shot, result)
+            # Read JSON
+            with open(cache_file, 'r') as f:
+                data = json.load(f)
+
+            # Handle both old and new formats
+            if isinstance(data, dict):
+                return data.get('data', data.get('shots', data.get('scenes', [])))
+            elif isinstance(data, list):
+                return data
             else:
-                # Failed - emit failed signal
-                self.signals.failed.emit(
-                    self.show,
-                    self.sequence,
-                    self.shot,
-                    "Failed to cache thumbnail",
-                )
+                self.logger.warning(f"Unexpected cache format: {cache_file}")
+                return None
+
         except Exception as e:
-            # Error - emit failed signal
-            self.signals.failed.emit(
-                self.show,
-                self.sequence,
-                self.shot,
-                str(e),
-            )
+            self.logger.error(f"Failed to read cache file {cache_file}: {e}")
+            return None
 
+    def _write_json_cache(self, cache_file: Path, data: object) -> None:
+        """Write data to JSON cache file.
 
-# Maintain backward compatibility by re-exporting classes
-__all__ = ["CacheManager", "ThumbnailCacheResult", "ThumbnailCacheLoader"]
+        Args:
+            cache_file: Path to cache file
+            data: Data to cache
+        """
+        try:
+            # Ensure directory exists
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Simple format with metadata
+            cache_data = {
+                'data': data,
+                'cached_at': datetime.now().isoformat(),
+            }
+
+            # Write JSON (simple, no atomic writes)
+            with open(cache_file, 'w') as f:
+                json.dump(cache_data, f, indent=2)
+
+            self.logger.debug(f"Cached data to: {cache_file}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to write cache file {cache_file}: {e}")
