@@ -132,6 +132,7 @@ class ThreeDESceneModel:
         self._excluded_users = ValidationUtils.get_excluded_users()
         # Show filtering
         self._filter_show: str | None = None
+        self._filter_text: str | None = None  # Text filter for real-time search
         # Only load cache if requested (allows tests to start clean)
         if load_cache:
             self._load_from_cache()
@@ -242,15 +243,45 @@ class ThreeDESceneModel:
         """Get the current show filter."""
         return self._filter_show
 
+    def set_text_filter(self, text: str | None) -> None:
+        """Set the text filter for real-time search.
+
+        Args:
+            text: Text to filter by (case-insensitive substring match) or None for no filter
+        """
+        self._filter_text = text
+        logger.info(f"Text filter set to: '{text if text else ''}'")
+
+    def get_text_filter(self) -> str | None:
+        """Get the current text filter."""
+        return self._filter_text
+
     def get_filtered_scenes(self) -> list[ThreeDEScene]:
-        """Get scenes filtered by the current show filter.
+        """Get scenes filtered by show and text filters.
+
+        Applies both show filter and text filter (AND logic).
 
         Returns:
-            List of scenes matching the current filter, or all scenes if no filter
+            List of scenes matching the filters, or all scenes if no filters
         """
-        if self._filter_show is None:
-            return self.scenes
-        return [scene for scene in self.scenes if scene.show == self._filter_show]
+        scenes = self.scenes
+
+        # Apply show filter
+        if self._filter_show is not None:
+            scenes = [scene for scene in scenes if scene.show == self._filter_show]
+
+        # Apply text filter (case-insensitive substring match on full_name)
+        if self._filter_text:
+            filter_lower = self._filter_text.lower()
+            scenes = [
+                scene for scene in scenes if filter_lower in scene.full_name.lower()
+            ]
+
+        logger.debug(
+            f"Filtered {len(self.scenes)} scenes to {len(scenes)} "
+            f"(show='{self._filter_show}', text='{self._filter_text}')"
+        )
+        return scenes
 
     def _deduplicate_scenes_by_shot(
         self,

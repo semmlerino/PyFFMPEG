@@ -135,6 +135,10 @@ class ThreeDEController(LoggingMixin):
         if hasattr(grid, "show_filter_requested"):
             grid.show_filter_requested.connect(self._on_show_filter_requested)
 
+        # Text filtering (if available)
+        if hasattr(grid, "text_filter_requested"):
+            grid.text_filter_requested.connect(self._on_text_filter_requested)
+
         self.logger.debug("ThreeDEController signals connected")
 
     # ============================================================================
@@ -463,6 +467,21 @@ class ThreeDEController(LoggingMixin):
             self.window.threede_scene_model,
             show,
             "3DE Scenes",
+        )
+
+    @Slot(str)  # type: ignore[reportUnknownVariableType]
+    def _on_text_filter_requested(self, text: str) -> None:
+        """Handle text filter requests from 3DE grid."""
+        # Set text filter on model
+        filter_text = text.strip() if text else None
+        self.window.threede_scene_model.set_text_filter(filter_text)
+
+        # Update item model with filtered scenes
+        filtered_scenes = self.window.threede_scene_model.get_filtered_scenes()
+        self.window.threede_item_model.set_items(filtered_scenes)
+
+        self.logger.debug(
+            f"3DE text filter applied: '{filter_text}' - {len(filtered_scenes)} scenes"
         )
 
     # ============================================================================

@@ -57,6 +57,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         self._is_scanning = False
         self._worker: PreviousShotsWorker | None = None
         self._filter_show: str | None = None  # Show filter
+        self._filter_text: str | None = None  # Text filter for real-time search
 
         # THREAD SAFETY: Lock for protecting _is_scanning flag
         self._scan_lock = QMutex()
@@ -315,24 +316,43 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """Get the current show filter."""
         return self._filter_show
 
+    def set_text_filter(self, text: str | None) -> None:
+        """Set the text filter for real-time search.
+
+        Args:
+            text: Text to filter by (case-insensitive substring match) or None for no filter
+        """
+        self._filter_text = text
+        self.logger.info(f"Text filter set to: '{text if text else ''}'")
+
+    def get_text_filter(self) -> str | None:
+        """Get the current text filter."""
+        return self._filter_text
+
     def get_filtered_shots(self) -> list[Shot]:
-        """Get shots filtered by the current show filter.
+        """Get shots filtered by show and text filters.
+
+        Applies both show filter and text filter (AND logic).
 
         Returns:
             Filtered list of shots
         """
-        if self._filter_show is None:
-            # No filter, return all shots
-            return self._previous_shots.copy()
+        shots = self._previous_shots
 
-        # Filter by show
-        filtered = [
-            shot for shot in self._previous_shots if shot.show == self._filter_show
-        ]
+        # Apply show filter
+        if self._filter_show is not None:
+            shots = [shot for shot in shots if shot.show == self._filter_show]
+
+        # Apply text filter (case-insensitive substring match on full_name)
+        if self._filter_text:
+            filter_lower = self._filter_text.lower()
+            shots = [shot for shot in shots if filter_lower in shot.full_name.lower()]
+
         self.logger.debug(
-            f"Filtered {len(self._previous_shots)} shots to {len(filtered)} for show '{self._filter_show}'"
+            f"Filtered {len(self._previous_shots)} shots to {len(shots)} "
+            f"(show='{self._filter_show}', text='{self._filter_text}')"
         )
-        return filtered
+        return shots
 
     def get_available_shows(self) -> set[str]:
         """Get all unique show names from current shots.

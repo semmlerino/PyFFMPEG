@@ -250,7 +250,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
         self.previous_shots_model = PreviousShotsModel(
-            self.shot_model, self.cache_manager  # type: ignore[arg-type]
+            self.shot_model,
+            self.cache_manager,  # type: ignore[arg-type]
         )
         # Create persistent terminal manager if enabled
         # Feature flag for simplified launcher
@@ -608,6 +609,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.shot_grid.show_filter_requested.connect(
             self._on_shot_show_filter_requested
         )
+        _ = self.shot_grid.text_filter_requested.connect(
+            self._on_shot_text_filter_requested
+        )
 
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
@@ -628,6 +632,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
         _ = self.previous_shots_grid.show_filter_requested.connect(
             self._on_previous_show_filter_requested
+        )
+        _ = self.previous_shots_grid.text_filter_requested.connect(
+            self._on_previous_text_filter_requested
         )
         _ = self.previous_shots_item_model.shots_updated.connect(
             self._on_previous_shots_updated
@@ -1138,6 +1145,19 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Handle show filter request from My Shots grid view."""
         self._apply_show_filter(self.shot_item_model, self.shot_model, show, "My Shots")
 
+    def _on_shot_text_filter_requested(self, text: str) -> None:
+        """Handle text filter request from My Shots grid view."""
+        filter_text = text.strip() if text else None
+        self.shot_model.set_text_filter(filter_text)
+
+        # Update item model with filtered shots
+        filtered_shots = self.shot_model.get_filtered_shots()
+        self.shot_item_model.set_items(filtered_shots)
+
+        self.logger.debug(
+            f"My Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
+        )
+
     def _on_previous_show_filter_requested(self, show: str) -> None:
         """Handle show filter request from Previous Shots grid view."""
         self._apply_show_filter(
@@ -1145,6 +1165,19 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.previous_shots_model,
             show,
             "Previous Shots",
+        )
+
+    def _on_previous_text_filter_requested(self, text: str) -> None:
+        """Handle text filter request from Previous Shots grid view."""
+        filter_text = text.strip() if text else None
+        self.previous_shots_model.set_text_filter(filter_text)
+
+        # Update item model with filtered shots
+        filtered_shots = self.previous_shots_model.get_filtered_shots()
+        self.previous_shots_item_model.set_items(filtered_shots)
+
+        self.logger.debug(
+            f"Previous Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
         )
 
     def _on_previous_shots_updated(self) -> None:

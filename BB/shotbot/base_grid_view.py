@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListView,
     QSlider,
     QVBoxLayout,
@@ -60,6 +61,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
     # Common signals that all views share
     app_launch_requested = Signal(str)  # app_name
     show_filter_requested = Signal(str)  # show name or empty string for all
+    text_filter_requested = Signal(str)  # filter text for real-time search
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the base grid view.
@@ -125,6 +127,19 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         filter_layout.addStretch()
         layout.addLayout(filter_layout)
+
+        # Text filter controls
+        text_filter_layout = QHBoxLayout()
+        text_filter_layout.addWidget(QLabel("Filter:"))
+
+        self.text_filter_input = QLineEdit()
+        self.text_filter_input.setPlaceholderText("Type to filter shots...")
+        self.text_filter_input.setClearButtonEnabled(True)  # Built-in clear button
+        self.text_filter_input.textChanged.connect(self._on_text_filter_changed)
+        text_filter_layout.addWidget(self.text_filter_input)
+
+        text_filter_layout.addStretch()
+        layout.addLayout(text_filter_layout)
 
         # Create QListView with grid mode
         self.list_view = QListView()
@@ -263,6 +278,16 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         show_filter = "" if show_text == "All Shows" else show_text
         self.show_filter_requested.emit(show_filter)
         self.logger.info(f"Show filter requested: {show_text}")
+
+    @Slot(str)
+    def _on_text_filter_changed(self, text: str) -> None:
+        """Handle text filter change for real-time search.
+
+        Args:
+            text: Filter text from QLineEdit
+        """
+        self.text_filter_requested.emit(text)
+        self.logger.debug(f"Text filter changed: '{text}'")
 
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""
