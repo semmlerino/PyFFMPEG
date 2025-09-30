@@ -615,9 +615,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
-        _ = self.threede_shot_grid.app_launch_requested.connect(
-            self.launcher_controller.launch_app
-        )
+        # Handle app launch with scene context (signal emits app_name, scene)
+        def handle_threede_launch(app_name: str, scene: ThreeDEScene) -> None:
+            self._launch_app_with_scene_context(app_name, scene)
+
+        _ = self.threede_shot_grid.app_launch_requested.connect(handle_threede_launch)
 
         # 3DE show filter - handled by controller
         # Controller handles show filter in its own signal setup
@@ -1113,6 +1115,23 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._current_scene = scene
         self.launcher_controller.set_current_scene(scene)
         self.launcher_controller.launch_app("3de")
+
+    def _launch_app_with_scene_context(self, app_name: str, scene: ThreeDEScene) -> None:
+        """Launch an application with scene context.
+
+        This method is used when app_launch_requested signal is emitted from
+        ThreeDEGridView with both app_name and scene parameters.
+
+        Args:
+            app_name: Name of the application to launch
+            scene: 3DE scene providing the launch context
+        """
+        # Set the scene context in launcher controller
+        self.launcher_controller.set_current_scene(scene)
+        self._current_scene = scene
+
+        # Launch the application
+        self.launcher_controller.launch_app(app_name)
 
     def _apply_show_filter(
         self, item_model: object, model: object, show: str, tab_name: str
