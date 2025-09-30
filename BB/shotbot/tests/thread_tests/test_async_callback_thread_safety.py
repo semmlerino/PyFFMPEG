@@ -20,7 +20,7 @@ from PySide6.QtGui import QImage
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
-from shot_item_model import ShotItemModel
+from unified_item_model import UnifiedItemModel
 
 from cache_manager import CacheManager
 from shot_info_panel import InfoPanelPixmapLoader, ShotInfoPanel
@@ -39,7 +39,7 @@ class TestShotItemModelThreadSafety:
     @pytest.fixture
     def thread_safe_model(self, qtbot) -> ShotItemModel:
         """Create model for thread safety testing."""
-        model = ShotItemModel(TestCacheManager())
+        model = UnifiedItemModel(TestCacheManager())
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
@@ -394,7 +394,7 @@ class TestCrossComponentThreadSafety:
         image.fill(0x00FF00)
         image.save(str(image_path), "JPEG")
 
-        model = ShotItemModel(TestCacheManager())
+        model = UnifiedItemModel(TestCacheManager())
         # Standard library imports
         import tempfile
         from pathlib import Path

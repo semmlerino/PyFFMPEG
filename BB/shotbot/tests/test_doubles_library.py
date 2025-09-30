@@ -43,9 +43,6 @@ if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable
 
-    # Local application imports
-    from cache.thumbnail_manager import ThumbnailManager
-
 # =============================================================================
 # SUBPROCESS TEST DOUBLES
 # =============================================================================
@@ -488,17 +485,6 @@ class TestCacheManager(QObject):
         self._memory_usage_bytes: int = 0
         self._cache_operations: list[dict[str, Any]] = []
         self.thumbnails_dir = self.cache_dir / "thumbnails"
-
-        # Initialize required dependencies with test doubles
-        # Local application imports
-        from cache.thumbnail_manager import ThumbnailManager
-
-        self._thumbnail_manager = ThumbnailManager()
-
-    @property
-    def test_thumbnail_manager(self) -> ThumbnailManager:
-        """Test-only access to thumbnail manager."""
-        return self._thumbnail_manager
 
     def cache_thumbnail(
         self,

@@ -20,7 +20,7 @@ from PySide6.QtTest import QSignalSpy
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
-from shot_item_model import ShotItemModel, ShotRole
+from unified_item_model import UnifiedItemModel, UnifiedRole
 
 from cache_manager import CacheManager
 from shot_info_panel import ShotInfoPanel
@@ -83,7 +83,7 @@ class TestAsyncWorkflowIntegration:
         # Return factory function to create components in test context
         def _create_components():
             # Create components - must be done in test method context
-            item_model = ShotItemModel(cache_manager)
+            item_model = UnifiedItemModel(cache_manager)
             info_panel = ShotInfoPanel(cache_manager)
             qtbot.addWidget(info_panel)
             return item_model, info_panel, cache_manager
@@ -100,14 +100,14 @@ class TestAsyncWorkflowIntegration:
         item_model, info_panel, cache_manager = integration_components()
 
         # Set shots in model
-        item_model.set_shots(test_shots)
+        item_model.set_items(test_shots)
 
         # Set up signal spies
         QSignalSpy(item_model.thumbnail_loaded)
 
         # Select first shot in model
         first_index = item_model.index(0, 0)
-        success = item_model.setData(first_index, True, ShotRole.IsSelectedRole)
+        success = item_model.setData(first_index, True, UnifiedRole.IsSelectedRole)
         assert success
 
         # Also set same shot in info panel
@@ -144,7 +144,7 @@ class TestAsyncWorkflowIntegration:
         item_model, info_panel, cache_manager = integration_components()
 
         # Start with first shot in both components
-        item_model.set_shots(test_shots[:1])
+        item_model.set_items(test_shots[:1])
         info_panel.set_shot(test_shots[0])
 
         # Trigger async loading in both
@@ -152,7 +152,7 @@ class TestAsyncWorkflowIntegration:
         qtbot.wait(100)  # Let loading start
 
         # Now update model with different shots while loading
-        item_model.set_shots(test_shots[1:])
+        item_model.set_items(test_shots[1:])
 
         # Update panel to different shot
         info_panel.set_shot(test_shots[2])
@@ -179,7 +179,7 @@ class TestAsyncWorkflowIntegration:
             current_shot = test_shots[shot_index]
 
             # Update both components
-            item_model.set_shots([current_shot])
+            item_model.set_items([current_shot])
             info_panel.set_shot(current_shot)
 
             # Brief wait to simulate realistic timing
@@ -200,7 +200,7 @@ class TestAsyncWorkflowIntegration:
 
         # Set same shot in both components
         target_shot = test_shots[0]
-        item_model.set_shots([target_shot])
+        item_model.set_items([target_shot])
         info_panel.set_shot(target_shot)
 
         # Track cache interactions
@@ -230,7 +230,7 @@ class TestAsyncWorkflowIntegration:
         item_model, info_panel, cache_manager = integration_components()
 
         # Load all shots
-        item_model.set_shots(test_shots)
+        item_model.set_items(test_shots)
         item_model.set_visible_range(0, len(test_shots))
 
         # Cycle through shots in info panel

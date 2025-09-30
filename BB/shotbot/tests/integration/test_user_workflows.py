@@ -845,11 +845,11 @@ class TestUserWorkflows:
 
         # Test that we can access shots from the model
         # Local application imports
-        from shot_item_model import ShotRole
+        from unified_item_model import UnifiedRole
 
         for i in range(main_window.shot_item_model.rowCount()):
             index = main_window.shot_item_model.index(i, 0)
-            shot_data = main_window.shot_item_model.data(index, ShotRole.ShotObjectRole)
+            shot_data = main_window.shot_item_model.data(index, UnifiedRole.ShotObjectRole)
             assert shot_data is not None
 
     @pytest.mark.integration
