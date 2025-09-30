@@ -289,8 +289,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             )
             self.launcher_manager = LauncherManager()
 
-        # 3DE scene management state
-        self._current_scene: ThreeDEScene | None = None
+        # NOTE: Current scene/shot context now managed by launcher_controller (single source of truth)
         self._closing = False  # Track shutdown state
         self._launcher_dialog: LauncherManagerDialog | None = None
 
@@ -849,9 +848,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             index: Index of the newly selected tab
         """
-        # Clear any existing 3DE scene context when switching tabs
-        if index != 1:  # Not the "Other 3DE scenes" tab
-            self._current_scene = None
+        # Scene/shot context is automatically cleared by launcher_controller when switching contexts
 
         if index == 0:  # My Shots tab
             # Get the current selection from My Shots
@@ -1025,8 +1022,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             shot: Shot object or None to clear selection
         """
-        # Clear any 3DE scene context when selecting a regular shot
-        self._current_scene = None
+        # Scene context is automatically cleared by launcher_controller.set_current_shot()
 
         if shot is None:
             # Handle deselection
@@ -1077,10 +1073,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _on_scene_selected(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene selection."""
-        self._current_scene = scene
-        # Use launcher controller to manage context
+        # Set scene context (automatically clears shot context)
         self.launcher_controller.set_current_scene(scene)
-        self.launcher_controller.set_current_shot(None)  # Clear regular shot
 
         # Create a Shot object from the scene for compatibility
         shot = Shot(
@@ -1112,7 +1106,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene double click - launch 3de with the scene."""
         # Set the current scene first, then launch
-        self._current_scene = scene
         self.launcher_controller.set_current_scene(scene)
         self.launcher_controller.launch_app("3de")
 
@@ -1128,7 +1121,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """
         # Set the scene context in launcher controller
         self.launcher_controller.set_current_scene(scene)
-        self._current_scene = scene
 
         # Launch the application
         self.launcher_controller.launch_app(app_name)

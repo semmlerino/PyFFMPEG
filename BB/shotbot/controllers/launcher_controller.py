@@ -135,23 +135,46 @@ class LauncherController(LoggingMixin):
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context for launching.
 
+        When a shot is selected, the scene context is automatically cleared
+        to maintain mutual exclusivity.
+
         Args:
             shot: Shot to set as current context, or None to clear
         """
         self._current_shot = shot
+        # Clear scene context to maintain mutual exclusivity
+        if shot:
+            self._current_scene = None
+            self.logger.info(f"🎯 Set current shot: {shot.full_name} (cleared scene context)")
+        else:
+            self.logger.info(f"🎯 Cleared current shot")
+
         # Update command launcher context
         self.window.command_launcher.set_current_shot(shot)
-        self.logger.debug(f"Current shot set to: {shot.full_name if shot else None}")
 
     def set_current_scene(self, scene: ThreeDEScene | None) -> None:
         """Set the current 3DE scene context for launching.
 
+        When a scene is selected, the shot context is automatically cleared
+        to maintain mutual exclusivity.
+
         Args:
             scene: ThreeDEScene to set as current context, or None to clear
         """
+        if scene:
+            self.logger.info(
+                f"🎬 LauncherController.set_current_scene() called with scene: {scene.full_name} "
+                f"(user: {scene.user}, path: {scene.scene_path})"
+            )
+            # Clear shot context to maintain mutual exclusivity
+            self._current_shot = None
+            self.window.command_launcher.set_current_shot(None)
+        else:
+            self.logger.info("🎬 LauncherController.set_current_scene() called with None (clearing scene)")
+
         self._current_scene = scene
-        self.logger.debug(
-            f"Current scene set to: {scene.scene_path if scene else None}"
+        self.logger.info(
+            f"✓ _current_scene is now: {self._current_scene.scene_path if self._current_scene else 'None'}"
         )
 
     def get_launch_options(self, app_name: str) -> dict[str, bool]:
@@ -190,8 +213,15 @@ class LauncherController(LoggingMixin):
         Args:
             app_name: Name of the application to launch
         """
+        # DIAGNOSTIC: Log current state when button is clicked
+        self.logger.info(f"🚀 launch_app() called for app: {app_name}")
+        self.logger.info(f"   Current state check:")
+        self.logger.info(f"   - _current_scene: {self._current_scene.full_name if self._current_scene else 'None'}")
+        self.logger.info(f"   - _current_shot: {self._current_shot.full_name if self._current_shot else 'None'}")
+
         # Check if we have a current 3DE scene selected
         if self._current_scene:
+            self.logger.info(f"✓ Using scene context: {self._current_scene.full_name}")
             # Launch with scene context
             if app_name == "3de":
                 # For 3DE, use the scene file directly
@@ -203,6 +233,7 @@ class LauncherController(LoggingMixin):
                     self._current_scene,
                 )
         else:
+            self.logger.warning(f"⚠️  No scene context - falling back to shot context")
             # Regular shot launch - get app-specific options
             options = self.get_launch_options(app_name)
 
@@ -544,3 +575,33 @@ class LauncherController(LoggingMixin):
             )
         else:
             NotificationManager.toast("Custom command failed", NotificationType.ERROR)
+
+    # ============================================================================
+    # Properties - Single Source of Truth for Context State
+    # ============================================================================
+
+    @property
+    def current_scene(self) -> ThreeDEScene | None:
+        """Get the currently selected 3DE scene.
+
+        This is the single source of truth for scene context.
+        Other code should query this property rather than maintaining
+        their own copies.
+
+        Returns:
+            Currently selected ThreeDEScene or None
+        """
+        return self._current_scene
+
+    @property
+    def current_shot(self) -> Shot | None:
+        """Get the currently selected shot.
+
+        This is the single source of truth for shot context.
+        Other code should query this property rather than maintaining
+        their own copies.
+
+        Returns:
+            Currently selected Shot or None
+        """
+        return self._current_shot

@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 # Third-party imports
-from PySide6.QtCore import (  # type: ignore[reportUnknownVariableType]
+from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
     Qt,
@@ -104,7 +104,9 @@ class ThreeDEController(LoggingMixin):
         logger: Logger instance for this controller
         _threede_worker: Current background worker thread (if any)
         _worker_mutex: Mutex for thread-safe worker access
-        _current_scene: Currently selected 3DE scene
+
+    Note:
+        Current scene context is managed by window.launcher_controller (single source of truth)
     """
 
     def __init__(self, window: ThreeDETarget) -> None:
@@ -119,7 +121,7 @@ class ThreeDEController(LoggingMixin):
         # Thread management - mirrors MainWindow's approach
         self._threede_worker: ThreeDESceneWorker | None = None
         self._worker_mutex = QMutex()
-        self._current_scene: ThreeDEScene | None = None
+        # NOTE: Current scene is managed by launcher_controller (single source of truth)
 
         # Connect UI signals to controller methods
         self._setup_signals()
@@ -279,7 +281,7 @@ class ThreeDEController(LoggingMixin):
     # Worker Signal Handlers (Phase 3.4)
     # ============================================================================
 
-    @Slot()  # type: ignore[reportUnknownVariableType]
+    @Slot()
     def on_discovery_started(self) -> None:
         """Handle 3DE discovery worker started signal."""
         # Check if we're closing to avoid accessing deleted widgets
@@ -289,7 +291,7 @@ class ThreeDEController(LoggingMixin):
         # Start progress for 3DE discovery
         _ = ProgressManager.start_operation("Scanning for 3DE scenes")
 
-    @Slot(int, int, float, str, str)  # type: ignore[reportUnknownVariableType]
+    @Slot(int, int, float, str, str)
     def on_discovery_progress(
         self,
         current: int,
@@ -317,7 +319,7 @@ class ThreeDEController(LoggingMixin):
             operation.set_total(total)
             operation.update(current, description)
 
-    @Slot(list)  # type: ignore[reportUnknownVariableType]
+    @Slot(list)
     def on_discovery_finished(self, scenes: list[ThreeDEScene]) -> None:
         """Handle 3DE discovery worker completion.
 
@@ -343,7 +345,7 @@ class ThreeDEController(LoggingMixin):
         else:
             self.update_scenes_no_changes()
 
-    @Slot(str)  # type: ignore[reportUnknownVariableType]
+    @Slot(str)
     def on_discovery_error(self, error_message: str) -> None:
         """Handle 3DE discovery worker error.
 
@@ -363,17 +365,17 @@ class ThreeDEController(LoggingMixin):
             "Check that you have read permissions for the scan directories.",
         )
 
-    @Slot()  # type: ignore[reportUnknownVariableType]
+    @Slot()
     def on_discovery_paused(self) -> None:
         """Handle worker pause signal."""
         self.window.update_status("3DE scene discovery paused")
 
-    @Slot()  # type: ignore[reportUnknownVariableType]
+    @Slot()
     def on_discovery_resumed(self) -> None:
         """Handle worker resume signal."""
         self.window.update_status("3DE scene discovery resumed")
 
-    @Slot(list)  # type: ignore[reportUnknownVariableType]
+    @Slot(list)
     def on_batch_ready(self, scene_batch: list[ThreeDEScene]) -> None:
         """Handle batch of scenes ready from progressive scanning.
 
@@ -388,7 +390,7 @@ class ThreeDEController(LoggingMixin):
             # Note: The scenes are accumulated in the worker itself
             # and will be deduplicated when discovery finishes
 
-    @Slot(int, int, str)  # type: ignore[reportUnknownVariableType]
+    @Slot(int, int, str)
     def on_scan_progress(
         self,
         current_shot: int,
@@ -416,14 +418,17 @@ class ThreeDEController(LoggingMixin):
     # Scene Selection Handlers (Phase 3.5)
     # ============================================================================
 
-    @Slot(object)  # type: ignore[reportUnknownVariableType]
+    @Slot(object)
     def on_scene_selected(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene selection."""
-        self._current_scene = scene
-        self.window.command_launcher.set_current_shot(None)  # Clear regular shot
+        # DIAGNOSTIC: Verify signal is firing
+        self.logger.info(f"📡 ThreeDEController.on_scene_selected() signal received")
+        self.logger.info(f"   Scene: {scene.full_name} (user: {scene.user})")
 
-        # Sync scene context with launcher controller so launcher panel buttons work
+        # Set scene context in launcher controller (automatically clears shot context)
+        self.logger.info(f"   Calling launcher_controller.set_current_scene()...")
         self.window.launcher_controller.set_current_scene(scene)
+        self.logger.info(f"   ✓ Done syncing with launcher_controller")
 
         # Create a Shot object from the scene for compatibility
         shot = Shot(
@@ -455,15 +460,15 @@ class ThreeDEController(LoggingMixin):
             f"Selected: {scene.full_name} - {scene.user} ({scene.plate})",
         )
 
-    @Slot(object)  # type: ignore[reportUnknownVariableType]
+    @Slot(object)
     def on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene double click - launch 3de with the scene."""
         # Set the current scene first, then launch
-        self._current_scene = scene
+        self.window.launcher_controller.set_current_scene(scene)
         self.logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
         self.window.launch_app("3de")
 
-    @Slot(str)  # type: ignore[reportUnknownVariableType]
+    @Slot(str)
     def _on_show_filter_requested(self, show: str) -> None:
         """Handle show filter requests from 3DE grid."""
         # Apply filter to 3DE scenes
@@ -474,7 +479,7 @@ class ThreeDEController(LoggingMixin):
             "3DE Scenes",
         )
 
-    @Slot(str)  # type: ignore[reportUnknownVariableType]
+    @Slot(str)
     def _on_text_filter_requested(self, text: str) -> None:
         """Handle text filter requests from 3DE grid."""
         # Set text filter on model
@@ -707,8 +712,11 @@ class ThreeDEController(LoggingMixin):
 
     @property
     def current_scene(self) -> ThreeDEScene | None:
-        """Get the currently selected 3DE scene."""
-        return self._current_scene
+        """Get the currently selected 3DE scene.
+
+        NOTE: Delegates to launcher_controller (single source of truth).
+        """
+        return self.window.launcher_controller.current_scene
 
     @property
     def has_active_worker(self) -> bool:
