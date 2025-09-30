@@ -99,14 +99,14 @@ class TestUnifiedItemModelShot:
         model.cleanup()
         model.deleteLater()
 
-    def test_model_initialization(self, unified_model):
+    def test_model_initialization(self, unified_model) -> None:
         """Test that the model initializes correctly."""
         assert unified_model.item_type == UnifiedItemType.SHOT
         assert unified_model.rowCount() == 0
         assert hasattr(unified_model, "shots_updated")
         assert hasattr(unified_model, "items_updated")
 
-    def test_factory_function(self, cache_manager):
+    def test_factory_function(self, cache_manager) -> None:
         """Test the factory function creates correct model."""
         model = create_shot_item_model(cache_manager)
         try:
@@ -116,7 +116,7 @@ class TestUnifiedItemModelShot:
             model.cleanup()
             model.deleteLater()
 
-    def test_set_shots_compatibility(self, unified_model, sample_shots):
+    def test_set_shots_compatibility(self, unified_model, sample_shots) -> None:
         """Test set_shots method works like original ShotItemModel."""
         unified_model.set_shots(sample_shots)
 
@@ -124,7 +124,7 @@ class TestUnifiedItemModelShot:
         assert len(unified_model.shots) == 3
         assert unified_model.shots[0].full_name == "seq01_shot01"
 
-    def test_data_role_compatibility(self, unified_model, sample_shots):
+    def test_data_role_compatibility(self, unified_model, sample_shots) -> None:
         """Test data() method returns correct values for all roles."""
         unified_model.set_shots(sample_shots)
         index = unified_model.index(0, 0)
@@ -149,7 +149,7 @@ class TestUnifiedItemModelShot:
         assert isinstance(shot_obj, Shot)
         assert shot_obj.show == "test_show"
 
-    def test_compatibility_methods(self, unified_model, sample_shots):
+    def test_compatibility_methods(self, unified_model, sample_shots) -> None:
         """Test compatibility methods work like original model."""
         unified_model.set_shots(sample_shots)
         index = unified_model.index(1, 0)
@@ -166,7 +166,7 @@ class TestUnifiedItemModelShot:
         assert shot.full_name == "seq02_shot03"
         assert row == 2
 
-    def test_refresh_shots_compatibility(self, unified_model, sample_shots):
+    def test_refresh_shots_compatibility(self, unified_model, sample_shots) -> None:
         """Test refresh_shots method maintains API compatibility."""
         # Set initial shots
         unified_model.set_shots(sample_shots[:2])
@@ -225,7 +225,7 @@ class TestUnifiedItemModelThreeDe:
         model.cleanup()
         model.deleteLater()
 
-    def test_threede_initialization(self, unified_model):
+    def test_threede_initialization(self, unified_model) -> None:
         """Test ThreeDe-specific initialization."""
         assert unified_model.item_type == UnifiedItemType.THREEDE
         assert hasattr(unified_model, "scenes_updated")
@@ -233,7 +233,7 @@ class TestUnifiedItemModelThreeDe:
         assert hasattr(unified_model, "loading_progress")
         assert hasattr(unified_model, "loading_finished")
 
-    def test_factory_function(self, cache_manager):
+    def test_factory_function(self, cache_manager) -> None:
         """Test the factory function creates correct model."""
         model = create_threede_item_model(cache_manager)
         try:
@@ -242,7 +242,7 @@ class TestUnifiedItemModelThreeDe:
             model.cleanup()
             model.deleteLater()
 
-    def test_threede_tooltip_format(self, unified_model, sample_scenes):
+    def test_threede_tooltip_format(self, unified_model, sample_scenes) -> None:
         """Test ThreeDe-specific tooltip format."""
         unified_model.set_scenes(sample_scenes)
         index = unified_model.index(0, 0)
@@ -252,7 +252,7 @@ class TestUnifiedItemModelThreeDe:
         assert "User: artist1" in tooltip
         assert "Path: /scenes/test.3de" in tooltip
 
-    def test_threede_custom_roles(self, unified_model, sample_scenes):
+    def test_threede_custom_roles(self, unified_model, sample_scenes) -> None:
         """Test ThreeDe-specific custom roles."""
         unified_model.set_scenes(sample_scenes)
         index = unified_model.index(0, 0)
@@ -267,7 +267,7 @@ class TestUnifiedItemModelThreeDe:
         scene_path = unified_model.data(index, UnifiedRole.ItemSpecificRole3)
         assert scene_path == Path("/scenes/test.3de")
 
-    def test_threede_loading_state(self, unified_model):
+    def test_threede_loading_state(self, unified_model) -> None:
         """Test ThreeDe-specific loading state management."""
         assert not unified_model.is_loading
 
@@ -283,13 +283,13 @@ class TestUnifiedItemModelThreeDe:
             mock_finished.emit.assert_called_once()
         assert not unified_model.is_loading
 
-    def test_threede_progress_updates(self, unified_model):
+    def test_threede_progress_updates(self, unified_model) -> None:
         """Test ThreeDe-specific progress updates."""
         with patch.object(unified_model, "loading_progress") as mock_progress:
             unified_model.update_loading_progress(5, 10)
             mock_progress.emit.assert_called_once_with(5, 10)
 
-    def test_set_scenes_compatibility(self, unified_model, sample_scenes):
+    def test_set_scenes_compatibility(self, unified_model, sample_scenes) -> None:
         """Test set_scenes method works like original ThreeDEItemModel."""
         unified_model.set_scenes(sample_scenes)
 
@@ -334,13 +334,13 @@ class TestUnifiedItemModelPrevious:
         model.cleanup()
         model.deleteLater()
 
-    def test_previous_initialization(self, unified_model, mock_previous_model):
+    def test_previous_initialization(self, unified_model, mock_previous_model) -> None:
         """Test Previous-specific initialization."""
         assert unified_model.item_type == UnifiedItemType.PREVIOUS
         assert unified_model._underlying_model == mock_previous_model
         assert hasattr(unified_model, "shots_updated")
 
-    def test_factory_function(self, cache_manager, mock_previous_model):
+    def test_factory_function(self, cache_manager, mock_previous_model) -> None:
         """Test the factory function creates correct model."""
         model = create_previous_shots_item_model(mock_previous_model, cache_manager)
         try:
@@ -352,7 +352,7 @@ class TestUnifiedItemModelPrevious:
 
     def test_underlying_model_integration(
         self, unified_model, mock_previous_model, sample_shots
-    ):
+    ) -> None:
         """Test integration with underlying previous shots model."""
         # Set up mock to return shots
         mock_previous_model.get_shots.return_value = sample_shots
@@ -363,12 +363,12 @@ class TestUnifiedItemModelPrevious:
         assert unified_model.rowCount() == 1
         assert unified_model.shots[0].show == "prev_show"
 
-    def test_refresh_method(self, unified_model, mock_previous_model):
+    def test_refresh_method(self, unified_model, mock_previous_model) -> None:
         """Test refresh method delegates to underlying model."""
         unified_model.refresh()
         mock_previous_model.refresh_shots.assert_called_once()
 
-    def test_get_underlying_model(self, unified_model, mock_previous_model):
+    def test_get_underlying_model(self, unified_model, mock_previous_model) -> None:
         """Test get_underlying_model returns correct model."""
         result = unified_model.get_underlying_model()
         assert result == mock_previous_model
@@ -382,7 +382,7 @@ class TestUnifiedItemModelCrossType:
         """Create a mock cache manager."""
         return MockCacheManager()
 
-    def test_item_type_isolation(self, cache_manager):
+    def test_item_type_isolation(self, cache_manager) -> None:
         """Test that different types don't interfere with each other."""
         shot_model = UnifiedItemModel(UnifiedItemType.SHOT, cache_manager)
         threede_model = UnifiedItemModel(UnifiedItemType.THREEDE, cache_manager)
@@ -403,7 +403,7 @@ class TestUnifiedItemModelCrossType:
             threede_model.cleanup()
             threede_model.deleteLater()
 
-    def test_signal_routing(self, cache_manager):
+    def test_signal_routing(self, cache_manager) -> None:
         """Test that signals are routed correctly based on type."""
         shot_model = UnifiedItemModel(UnifiedItemType.SHOT, cache_manager)
         threede_model = UnifiedItemModel(UnifiedItemType.THREEDE, cache_manager)
@@ -433,7 +433,7 @@ class TestUnifiedItemModelCrossType:
             threede_model.cleanup()
             threede_model.deleteLater()
 
-    def test_cleanup_consistency(self, cache_manager):
+    def test_cleanup_consistency(self, cache_manager) -> None:
         """Test that cleanup works consistently across all types."""
         models = [
             UnifiedItemModel(UnifiedItemType.SHOT, cache_manager),
@@ -467,7 +467,7 @@ class TestBackwardCompatibility:
         """Create a mock cache manager."""
         return MockCacheManager()
 
-    def test_all_original_methods_exist(self, cache_manager):
+    def test_all_original_methods_exist(self, cache_manager) -> None:
         """Test that all methods from original models exist in unified model."""
         # Test Shot model compatibility
         shot_model = create_shot_item_model(cache_manager)
@@ -495,7 +495,7 @@ class TestBackwardCompatibility:
             threede_model.cleanup()
             threede_model.deleteLater()
 
-    def test_signal_compatibility(self, cache_manager):
+    def test_signal_compatibility(self, cache_manager) -> None:
         """Test that all signals from original models exist."""
         shot_model = create_shot_item_model(cache_manager)
         threede_model = create_threede_item_model(cache_manager)
@@ -520,7 +520,7 @@ class TestBackwardCompatibility:
             threede_model.cleanup()
             threede_model.deleteLater()
 
-    def test_property_compatibility(self, cache_manager):
+    def test_property_compatibility(self, cache_manager) -> None:
         """Test that all properties from original models exist."""
         shot_model = create_shot_item_model(cache_manager)
         threede_model = create_threede_item_model(cache_manager)

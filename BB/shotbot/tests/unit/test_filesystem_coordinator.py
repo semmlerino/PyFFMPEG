@@ -70,7 +70,7 @@ def make_test_directory(tmp_path):
 class TestSingletonPattern:
     """Test the singleton pattern implementation."""
 
-    def test_single_instance_created(self):
+    def test_single_instance_created(self) -> None:
         """Test that only one instance is created."""
         coord1 = FilesystemCoordinator()
         coord2 = FilesystemCoordinator()
@@ -78,14 +78,14 @@ class TestSingletonPattern:
         assert coord1 is coord2
         assert id(coord1) == id(coord2)
 
-    def test_thread_safe_initialization(self):
+    def test_thread_safe_initialization(self) -> None:
         """Test thread-safe singleton creation.
 
         Following guide: Thread safety testing pattern.
         """
         instances = []
 
-        def create_instance():
+        def create_instance() -> None:
             """Create instance in thread."""
             instances.append(FilesystemCoordinator())
 
@@ -104,7 +104,7 @@ class TestSingletonPattern:
         for instance in instances[1:]:
             assert instance is first_instance
 
-    def test_singleton_persists_data(self, make_test_directory):
+    def test_singleton_persists_data(self, make_test_directory) -> None:
         """Test that singleton maintains state across calls."""
         test_dir = make_test_directory()
 
@@ -125,7 +125,7 @@ class TestSingletonPattern:
 class TestDirectoryCaching:
     """Test directory listing cache functionality."""
 
-    def test_get_directory_listing(self, coordinator, make_test_directory):
+    def test_get_directory_listing(self, coordinator, make_test_directory) -> None:
         """Test basic directory listing retrieval."""
         test_dir = make_test_directory(file_count=3, subdirs=1)
 
@@ -139,7 +139,7 @@ class TestDirectoryCaching:
         assert any(p.name == "file_0.txt" for p in listing)
         assert any(p.name == "subdir_0" for p in listing)
 
-    def test_cache_hit_performance(self, coordinator, make_test_directory):
+    def test_cache_hit_performance(self, coordinator, make_test_directory) -> None:
         """Test that cached access is faster than initial scan."""
         test_dir = make_test_directory(file_count=100, subdirs=10)
 
@@ -157,7 +157,7 @@ class TestDirectoryCaching:
         assert second_time < first_time / 10
         assert listing1 == listing2
 
-    def test_cache_invalidation_on_change(self, coordinator, make_test_directory):
+    def test_cache_invalidation_on_change(self, coordinator, make_test_directory) -> None:
         """Test that cache detects filesystem changes."""
         test_dir = make_test_directory(
             file_count=2, subdirs=0
@@ -178,7 +178,7 @@ class TestDirectoryCaching:
         assert len(listing2) == 3
         assert any(p.name == "new_file.txt" for p in listing2)
 
-    def test_cache_ttl_expiration(self, coordinator, make_test_directory):
+    def test_cache_ttl_expiration(self, coordinator, make_test_directory) -> None:
         """Test that cache expires after TTL."""
         test_dir = make_test_directory(
             file_count=2, subdirs=0
@@ -204,7 +204,7 @@ class TestDirectoryCaching:
             listing3 = coordinator.get_directory_listing(test_dir)
             assert len(listing3) == 3  # Rescanned
 
-    def test_nonexistent_directory(self, coordinator):
+    def test_nonexistent_directory(self, coordinator) -> None:
         """Test handling of nonexistent directories."""
         fake_dir = Path("/nonexistent/directory")
 
@@ -213,7 +213,7 @@ class TestDirectoryCaching:
         # Should return empty list
         assert listing == []
 
-    def test_empty_directory(self, coordinator, tmp_path):
+    def test_empty_directory(self, coordinator, tmp_path) -> None:
         """Test handling of empty directories."""
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
@@ -226,7 +226,7 @@ class TestDirectoryCaching:
 class TestSharedCaching:
     """Test that multiple components share the same cache."""
 
-    def test_multiple_models_share_cache(self, make_test_directory):
+    def test_multiple_models_share_cache(self, make_test_directory) -> None:
         """Test that different models access the same cached data.
 
         Simulates how different shot models would share filesystem cache.
@@ -253,7 +253,7 @@ class TestSharedCaching:
         # All should have same listing
         assert listing1 == listing2 == listing3
 
-    def test_concurrent_access_same_directory(self, coordinator, make_test_directory):
+    def test_concurrent_access_same_directory(self, coordinator, make_test_directory) -> None:
         """Test concurrent access to the same directory.
 
         Following guide: Thread safety pattern.
@@ -261,7 +261,7 @@ class TestSharedCaching:
         test_dir = make_test_directory(file_count=50)
         results = []
 
-        def access_directory():
+        def access_directory() -> None:
             """Access directory from thread."""
             listing = coordinator.get_directory_listing(test_dir)
             results.append(len(listing))
@@ -280,7 +280,7 @@ class TestSharedCaching:
 class TestCacheInvalidation:
     """Test cache invalidation mechanisms."""
 
-    def test_invalidate_single_path(self, coordinator, make_test_directory):
+    def test_invalidate_single_path(self, coordinator, make_test_directory) -> None:
         """Test invalidating a single cached path."""
         dir1 = make_test_directory(name="dir1", file_count=2)
         dir2 = make_test_directory(name="dir2", file_count=3)
@@ -311,7 +311,7 @@ class TestCacheInvalidation:
         assert stats["cache_hits"] >= 1  # dir2 was cached
         assert stats["cache_misses"] >= 3  # Initial scans + dir1 rescan
 
-    def test_invalidate_all_cache(self, coordinator, make_test_directory):
+    def test_invalidate_all_cache(self, coordinator, make_test_directory) -> None:
         """Test invalidating entire cache."""
         dir1 = make_test_directory(name="dir1")
         dir2 = make_test_directory(name="dir2")
@@ -340,7 +340,7 @@ class TestCacheInvalidation:
         final_stats = coordinator.get_cache_stats()
         assert final_stats["cache_misses"] == 2  # Both rescanned
 
-    def test_share_discovered_paths(self, coordinator, make_test_directory):
+    def test_share_discovered_paths(self, coordinator, make_test_directory) -> None:
         """Test sharing discovered paths between workers."""
         dir1 = make_test_directory(name="dir1", file_count=3, subdirs=0)  # Only files
         dir2 = make_test_directory(name="dir2", file_count=2, subdirs=0)  # Only files
@@ -374,7 +374,7 @@ class TestCacheInvalidation:
 class TestAdditionalMethods:
     """Test additional coordinator methods."""
 
-    def test_find_files_with_extension(self, coordinator, make_test_directory):
+    def test_find_files_with_extension(self, coordinator, make_test_directory) -> None:
         """Test finding files with specific extension."""
         test_dir = make_test_directory()
 
@@ -389,7 +389,7 @@ class TestAdditionalMethods:
         assert len(py_files) == 2
         assert all(f.suffix == ".py" for f in py_files)
 
-    def test_find_files_recursive(self, coordinator, tmp_path):
+    def test_find_files_recursive(self, coordinator, tmp_path) -> None:
         """Test recursive file finding."""
         # Create nested structure
         root = tmp_path / "root"
@@ -408,7 +408,7 @@ class TestAdditionalMethods:
         assert any("file1.3de" in str(f) for f in files)
         assert any("file2.3de" in str(f) for f in files)
 
-    def test_get_cache_stats(self, coordinator, make_test_directory):
+    def test_get_cache_stats(self, coordinator, make_test_directory) -> None:
         """Test cache statistics tracking."""
         dir1 = make_test_directory(name="dir1")
         dir2 = make_test_directory(name="dir2")
@@ -433,7 +433,7 @@ class TestAdditionalMethods:
         assert stats["cache_misses"] == 2
         assert stats["hit_rate"] == 0.6
 
-    def test_cleanup_expired(self, coordinator, make_test_directory):
+    def test_cleanup_expired(self, coordinator, make_test_directory) -> None:
         """Test cleanup of expired cache entries."""
         dir1 = make_test_directory(name="dir1")
         dir2 = make_test_directory(name="dir2")
@@ -452,7 +452,7 @@ class TestAdditionalMethods:
         assert removed == 2
         assert len(coordinator._directory_cache) == 0
 
-    def test_set_ttl(self, coordinator):
+    def test_set_ttl(self, coordinator) -> None:
         """Test changing TTL value."""
         # Default TTL
         stats = coordinator.get_cache_stats()
@@ -468,7 +468,7 @@ class TestAdditionalMethods:
 class TestErrorHandling:
     """Test error handling and edge cases."""
 
-    def test_permission_denied(self, coordinator, tmp_path):
+    def test_permission_denied(self, coordinator, tmp_path) -> None:
         """Test handling of permission denied errors."""
         restricted_dir = tmp_path / "restricted"
         restricted_dir.mkdir()
@@ -482,7 +482,7 @@ class TestErrorHandling:
         # Should return empty list on error
         assert listing == []
 
-    def test_directory_deleted_after_cache(self, coordinator, make_test_directory):
+    def test_directory_deleted_after_cache(self, coordinator, make_test_directory) -> None:
         """Test handling when cached directory is deleted."""
         test_dir = make_test_directory()
 
@@ -502,7 +502,7 @@ class TestErrorHandling:
         listing2 = coordinator.get_directory_listing(test_dir)
         assert listing2 == []  # Returns empty for missing dir
 
-    def test_symbolic_links(self, tmp_path):
+    def test_symbolic_links(self, tmp_path) -> None:
         """Test handling of symbolic links."""
         coordinator = FilesystemCoordinator()
 

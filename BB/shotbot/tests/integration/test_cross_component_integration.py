@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 # Module-level fixture to handle lazy imports after Qt initialization
 @pytest.fixture(scope="module", autouse=True)
-def setup_qt_imports():
+def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
     global MainWindow
     from main_window import MainWindow

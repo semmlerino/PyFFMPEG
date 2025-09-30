@@ -29,14 +29,14 @@ def nuke_handler():
 class TestNukeLaunchHandler:
     """Test the NukeLaunchHandler class."""
 
-    def test_initialization(self, nuke_handler):
+    def test_initialization(self, nuke_handler) -> None:
         """Test that handler initializes with required modules."""
         assert nuke_handler.workspace_manager is not None
         assert nuke_handler.script_generator is not None
         assert nuke_handler.raw_plate_finder is not None
         assert nuke_handler.undistortion_finder is not None
 
-    def test_prepare_nuke_command_basic(self, nuke_handler, mock_shot):
+    def test_prepare_nuke_command_basic(self, nuke_handler, mock_shot) -> None:
         """Test basic command preparation without any options."""
         command, messages = nuke_handler.prepare_nuke_command(mock_shot, "nuke", {})
 
@@ -44,14 +44,14 @@ class TestNukeLaunchHandler:
         assert isinstance(messages, list)
 
     @patch("nuke_launch_handler.Config.NUKE_FIX_OCIO_CRASH", True)
-    def test_prepare_nuke_command_with_ocio_fix(self, nuke_handler, mock_shot):
+    def test_prepare_nuke_command_with_ocio_fix(self, nuke_handler, mock_shot) -> None:
         """Test command preparation with OCIO crash fix enabled."""
         command, messages = nuke_handler.prepare_nuke_command(mock_shot, "nuke", {})
 
         assert command == "nuke"
         assert any("OCIO" in msg for msg in messages)
 
-    def test_handle_workspace_scripts_open_latest(self, nuke_handler, mock_shot):
+    def test_handle_workspace_scripts_open_latest(self, nuke_handler, mock_shot) -> None:
         """Test handling workspace scripts when opening latest."""
         with patch.object(
             nuke_handler.workspace_manager, "get_workspace_script_directory"
@@ -72,7 +72,7 @@ class TestNukeLaunchHandler:
                 assert "/TEST_0010_v001.nk" in command
                 assert any("Opening existing Nuke script" in msg for msg in messages)
 
-    def test_handle_workspace_scripts_create_new(self, nuke_handler, mock_shot):
+    def test_handle_workspace_scripts_create_new(self, nuke_handler, mock_shot) -> None:
         """Test handling workspace scripts when creating new."""
         with patch.object(
             nuke_handler.workspace_manager, "get_workspace_script_directory"
@@ -103,7 +103,7 @@ class TestNukeLaunchHandler:
                         for msg in messages
                     )
 
-    def test_handle_workspace_scripts_priority(self, nuke_handler, mock_shot):
+    def test_handle_workspace_scripts_priority(self, nuke_handler, mock_shot) -> None:
         """Test that open_latest_scene takes priority over create_new_file."""
         with patch.object(
             nuke_handler.workspace_manager, "get_workspace_script_directory"
@@ -126,7 +126,7 @@ class TestNukeLaunchHandler:
                 assert any("Opening existing Nuke script" in msg for msg in messages)
                 assert not any("Creating new" in msg for msg in messages)
 
-    def test_handle_media_loading_plate_only(self, nuke_handler, mock_shot):
+    def test_handle_media_loading_plate_only(self, nuke_handler, mock_shot) -> None:
         """Test media loading with plate only."""
         with patch.object(
             nuke_handler.raw_plate_finder, "find_latest_raw_plate"
@@ -156,7 +156,7 @@ class TestNukeLaunchHandler:
                             for msg in messages
                         )
 
-    def test_handle_media_loading_undistortion_only(self, nuke_handler, mock_shot):
+    def test_handle_media_loading_undistortion_only(self, nuke_handler, mock_shot) -> None:
         """Test media loading with undistortion only."""
         with patch.object(
             nuke_handler.undistortion_finder, "find_latest_undistortion"
@@ -183,7 +183,7 @@ class TestNukeLaunchHandler:
                         for msg in messages
                     )
 
-    def test_handle_media_loading_plate_and_undistortion(self, nuke_handler, mock_shot):
+    def test_handle_media_loading_plate_and_undistortion(self, nuke_handler, mock_shot) -> None:
         """Test media loading with both plate and undistortion."""
         with patch.object(
             nuke_handler.raw_plate_finder, "find_latest_raw_plate"
@@ -240,13 +240,13 @@ class TestNukeLaunchHandler:
                                         for msg in messages
                                     )
 
-    def test_get_environment_fixes_disabled(self, nuke_handler):
+    def test_get_environment_fixes_disabled(self, nuke_handler) -> None:
         """Test environment fixes when disabled."""
         with patch("nuke_launch_handler.Config.NUKE_FIX_OCIO_CRASH", False):
             fixes = nuke_handler.get_environment_fixes()
             assert fixes == ""
 
-    def test_get_environment_fixes_with_problematic_plugins(self, nuke_handler):
+    def test_get_environment_fixes_with_problematic_plugins(self, nuke_handler) -> None:
         """Test environment fixes with problematic plugin paths."""
         with patch("nuke_launch_handler.Config.NUKE_FIX_OCIO_CRASH", True):
             with patch(
@@ -262,7 +262,7 @@ class TestNukeLaunchHandler:
                     assert "grep -v" in fixes
                     assert "NUKE_DISABLE_CRASH_REPORTING=1" in fixes
 
-    def test_get_environment_fixes_with_ocio_fallback(self, nuke_handler):
+    def test_get_environment_fixes_with_ocio_fallback(self, nuke_handler) -> None:
         """Test environment fixes with OCIO fallback config."""
         with patch("nuke_launch_handler.Config.NUKE_FIX_OCIO_CRASH", True):
             with patch(
@@ -276,7 +276,7 @@ class TestNukeLaunchHandler:
                     assert 'export OCIO="/test/ocio/config.ocio"' in fixes
                     assert "NUKE_DISABLE_CRASH_REPORTING=1" in fixes
 
-    def test_create_new_workspace_script_with_plate(self, nuke_handler, mock_shot):
+    def test_create_new_workspace_script_with_plate(self, nuke_handler, mock_shot) -> None:
         """Test creating new workspace script with plate."""
         with patch.object(
             nuke_handler.raw_plate_finder, "find_latest_raw_plate"
@@ -306,7 +306,7 @@ class TestNukeLaunchHandler:
                         version=1,
                     )
 
-    def test_create_new_workspace_script_empty(self, nuke_handler, mock_shot):
+    def test_create_new_workspace_script_empty(self, nuke_handler, mock_shot) -> None:
         """Test creating new empty workspace script."""
         with patch.object(
             nuke_handler.script_generator, "create_plate_script"

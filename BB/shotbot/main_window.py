@@ -1325,6 +1325,21 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Public property to check if the window is closing."""
         return self._closing
 
+    @closing.setter
+    def closing(self, value: bool) -> None:
+        """Set the closing state."""
+        self._closing = value
+
+    @property
+    def session_warmer(self) -> SessionWarmer | None:
+        """Public property to access the session warmer thread."""
+        return self._session_warmer
+
+    @session_warmer.setter
+    def session_warmer(self, value: SessionWarmer | None) -> None:
+        """Set the session warmer thread."""
+        self._session_warmer = value
+
     def update_status(self, message: str) -> None:
         """Public method to update status bar."""
         self._update_status(message)

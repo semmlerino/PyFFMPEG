@@ -7,7 +7,6 @@ scene/shot context state, with proper mutual exclusivity and delegation.
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import Qt
 
 from controllers.launcher_controller import LauncherController
 from controllers.threede_controller import ThreeDEController

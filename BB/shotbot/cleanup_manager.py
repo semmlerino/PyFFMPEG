@@ -62,7 +62,7 @@ class CleanupManager(QObject, LoggingMixin):
 
     def _mark_closing(self) -> None:
         """Mark that the application is closing to prevent new operations."""
-        self.main_window._closing = True
+        self.main_window.closing = True
 
     def _cleanup_threede_controller(self) -> None:
         """Clean up the 3DE controller and its worker."""
@@ -76,12 +76,12 @@ class CleanupManager(QObject, LoggingMixin):
     def _cleanup_session_warmer(self) -> None:
         """Clean up the session warmer thread."""
         if not (
-            hasattr(self.main_window, "_session_warmer")
-            and self.main_window._session_warmer
+            hasattr(self.main_window, "session_warmer")
+            and self.main_window.session_warmer
         ):
             return
 
-        warmer = self.main_window._session_warmer
+        warmer = self.main_window.session_warmer
 
         if not warmer.isFinished():
             self.logger.debug("Requesting session warmer to stop")
@@ -114,7 +114,7 @@ class CleanupManager(QObject, LoggingMixin):
         else:
             warmer.deleteLater()
 
-        self.main_window._session_warmer = None
+        self.main_window.session_warmer = None
 
     def _cleanup_managers(self) -> None:
         """Clean up manager instances."""

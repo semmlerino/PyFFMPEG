@@ -12,14 +12,14 @@ from nuke_media_detector import NukeMediaDetector
 class TestNukeMediaDetector:
     """Test media property detection methods."""
 
-    def test_detect_frame_range_empty_path(self):
+    def test_detect_frame_range_empty_path(self) -> None:
         """Test frame range detection with empty path."""
         first, last = NukeMediaDetector.detect_frame_range("")
 
         assert first == 1001
         assert last == 1100
 
-    def test_detect_frame_range_nonexistent_directory(self):
+    def test_detect_frame_range_nonexistent_directory(self) -> None:
         """Test frame range detection with non-existent directory."""
         first, last = NukeMediaDetector.detect_frame_range(
             "/nonexistent/path/shot_####.exr"
@@ -30,7 +30,7 @@ class TestNukeMediaDetector:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.iterdir")
-    def test_detect_frame_range_with_hash_pattern(self, mock_iterdir, mock_exists):
+    def test_detect_frame_range_with_hash_pattern(self, mock_iterdir, mock_exists) -> None:
         """Test frame range detection with #### pattern."""
         # Setup mock directory that exists
         mock_exists.return_value = True
@@ -55,7 +55,7 @@ class TestNukeMediaDetector:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.iterdir")
-    def test_detect_frame_range_with_printf_pattern(self, mock_iterdir, mock_exists):
+    def test_detect_frame_range_with_printf_pattern(self, mock_iterdir, mock_exists) -> None:
         """Test frame range detection with %04d pattern."""
         mock_exists.return_value = True
 
@@ -74,7 +74,7 @@ class TestNukeMediaDetector:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.iterdir")
-    def test_detect_frame_range_no_matching_files(self, mock_iterdir, mock_exists):
+    def test_detect_frame_range_no_matching_files(self, mock_iterdir, mock_exists) -> None:
         """Test frame range detection when no files match pattern."""
         mock_exists.return_value = True
         mock_file = MagicMock()
@@ -88,7 +88,7 @@ class TestNukeMediaDetector:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.iterdir")
-    def test_detect_frame_range_exception_handling(self, mock_iterdir, mock_exists):
+    def test_detect_frame_range_exception_handling(self, mock_iterdir, mock_exists) -> None:
         """Test frame range detection handles exceptions gracefully."""
         mock_exists.return_value = True
         mock_iterdir.side_effect = OSError("Permission denied")
@@ -98,14 +98,14 @@ class TestNukeMediaDetector:
         assert first == 1001
         assert last == 1100
 
-    def test_detect_colorspace_empty_path(self):
+    def test_detect_colorspace_empty_path(self) -> None:
         """Test colorspace detection with empty path."""
         colorspace, raw_flag = NukeMediaDetector.detect_colorspace("")
 
         assert colorspace == "linear"
         assert raw_flag is True
 
-    def test_detect_colorspace_linear_plates(self):
+    def test_detect_colorspace_linear_plates(self) -> None:
         """Test colorspace detection for linear plates."""
         test_paths = [
             "/path/to/lin_plate_v001.exr",
@@ -119,7 +119,7 @@ class TestNukeMediaDetector:
             assert colorspace == "linear"
             assert raw_flag is True
 
-    def test_detect_colorspace_logc_plates(self):
+    def test_detect_colorspace_logc_plates(self) -> None:
         """Test colorspace detection for LogC plates."""
         test_paths = [
             "/path/to/logc_plate.exr",
@@ -133,7 +133,7 @@ class TestNukeMediaDetector:
             assert colorspace == "logc3ei800"
             assert raw_flag is False
 
-    def test_detect_colorspace_log_plates(self):
+    def test_detect_colorspace_log_plates(self) -> None:
         """Test colorspace detection for generic log plates."""
         colorspace, raw_flag = NukeMediaDetector.detect_colorspace(
             "/path/to/log_plate.exr"
@@ -142,7 +142,7 @@ class TestNukeMediaDetector:
         assert colorspace == "log"
         assert raw_flag is False
 
-    def test_detect_colorspace_rec709_plates(self):
+    def test_detect_colorspace_rec709_plates(self) -> None:
         """Test colorspace detection for Rec.709 plates."""
         colorspace, raw_flag = NukeMediaDetector.detect_colorspace(
             "/path/to/rec709_plate.exr"
@@ -151,7 +151,7 @@ class TestNukeMediaDetector:
         assert colorspace == "rec709"
         assert raw_flag is False
 
-    def test_detect_colorspace_srgb_plates(self):
+    def test_detect_colorspace_srgb_plates(self) -> None:
         """Test colorspace detection for sRGB plates."""
         colorspace, raw_flag = NukeMediaDetector.detect_colorspace(
             "/path/to/srgb_plate.exr"
@@ -160,7 +160,7 @@ class TestNukeMediaDetector:
         assert colorspace == "sRGB"
         assert raw_flag is False
 
-    def test_detect_colorspace_default_fallback(self):
+    def test_detect_colorspace_default_fallback(self) -> None:
         """Test colorspace detection defaults to linear for unknown formats."""
         colorspace, raw_flag = NukeMediaDetector.detect_colorspace(
             "/path/to/unknown_plate.exr"
@@ -169,14 +169,14 @@ class TestNukeMediaDetector:
         assert colorspace == "linear"
         assert raw_flag is True
 
-    def test_detect_resolution_empty_path(self):
+    def test_detect_resolution_empty_path(self) -> None:
         """Test resolution detection with empty path."""
         width, height = NukeMediaDetector.detect_resolution("")
 
         assert width == 4312
         assert height == 2304
 
-    def test_detect_resolution_common_formats(self):
+    def test_detect_resolution_common_formats(self) -> None:
         """Test resolution detection for common formats."""
         test_cases = [
             ("/path/to/1920x1080_plate.exr", 1920, 1080),
@@ -190,7 +190,7 @@ class TestNukeMediaDetector:
             assert width == expected_width
             assert height == expected_height
 
-    def test_detect_resolution_with_underscore_separator(self):
+    def test_detect_resolution_with_underscore_separator(self) -> None:
         """Test resolution detection with underscore separator."""
         width, height = NukeMediaDetector.detect_resolution(
             "/path/to/shot_2048_1556.exr"
@@ -199,7 +199,7 @@ class TestNukeMediaDetector:
         assert width == 2048
         assert height == 1556
 
-    def test_detect_resolution_no_match(self):
+    def test_detect_resolution_no_match(self) -> None:
         """Test resolution detection when no pattern matches."""
         width, height = NukeMediaDetector.detect_resolution(
             "/path/to/shot_no_resolution.exr"
@@ -208,7 +208,7 @@ class TestNukeMediaDetector:
         assert width == 4312
         assert height == 2304
 
-    def test_detect_resolution_invalid_values(self):
+    def test_detect_resolution_invalid_values(self) -> None:
         """Test resolution detection with invalid numeric values."""
         # Too small values should fall back to default
         width, height = NukeMediaDetector.detect_resolution("/path/to/shot_100x50.exr")
@@ -216,7 +216,7 @@ class TestNukeMediaDetector:
         assert width == 4312
         assert height == 2304
 
-    def test_detect_resolution_out_of_range(self):
+    def test_detect_resolution_out_of_range(self) -> None:
         """Test resolution detection with out-of-range values."""
         # Too large values should fall back to default
         width, height = NukeMediaDetector.detect_resolution(
@@ -226,7 +226,7 @@ class TestNukeMediaDetector:
         assert width == 4312
         assert height == 2304
 
-    def test_detect_resolution_sanity_check_bounds(self):
+    def test_detect_resolution_sanity_check_bounds(self) -> None:
         """Test resolution detection sanity check boundaries."""
         # Test edge cases for sanity check
         test_cases = [
@@ -243,7 +243,7 @@ class TestNukeMediaDetector:
             assert width == expected_width
             assert height == expected_height
 
-    def test_detect_media_properties_comprehensive(self):
+    def test_detect_media_properties_comprehensive(self) -> None:
         """Test comprehensive media properties detection."""
         properties = NukeMediaDetector.detect_media_properties(
             "/path/to/lin_1920x1080_shot.exr"
@@ -272,7 +272,7 @@ class TestNukeMediaDetector:
     @patch("pathlib.Path.iterdir")
     def test_detect_media_properties_with_frame_detection(
         self, mock_iterdir, mock_exists
-    ):
+    ) -> None:
         """Test media properties detection with actual frame detection."""
         # Setup mock for frame range detection
         mock_exists.return_value = True
@@ -298,13 +298,13 @@ class TestNukeMediaDetector:
         assert properties["colorspace"] == "logc3ei800"
         assert properties["raw_flag"] is False
 
-    def test_sanitize_shot_name_basic(self):
+    def test_sanitize_shot_name_basic(self) -> None:
         """Test basic shot name sanitization."""
         sanitized = NukeMediaDetector.sanitize_shot_name("shot_001")
 
         assert sanitized == "shot_001"
 
-    def test_sanitize_shot_name_with_special_chars(self):
+    def test_sanitize_shot_name_with_special_chars(self) -> None:
         """Test shot name sanitization with special characters."""
         # Implementation preserves hyphens but replaces other special chars
         test_cases = [
@@ -329,7 +329,7 @@ class TestNukeMediaDetector:
             sanitized = NukeMediaDetector.sanitize_shot_name(original)
             assert sanitized == expected
 
-    def test_sanitize_shot_name_preserves_valid_chars(self):
+    def test_sanitize_shot_name_preserves_valid_chars(self) -> None:
         """Test shot name sanitization preserves valid characters."""
         valid_name = "Shot_001_v02-final"
         sanitized = NukeMediaDetector.sanitize_shot_name(valid_name)
@@ -340,13 +340,13 @@ class TestNukeMediaDetector:
         assert "v02" in sanitized
         assert "_" in sanitized
 
-    def test_sanitize_shot_name_empty(self):
+    def test_sanitize_shot_name_empty(self) -> None:
         """Test shot name sanitization with empty string."""
         sanitized = NukeMediaDetector.sanitize_shot_name("")
 
         assert sanitized == ""
 
-    def test_sanitize_shot_name_unicode(self):
+    def test_sanitize_shot_name_unicode(self) -> None:
         """Test shot name sanitization with unicode characters."""
         unicode_name = "shot_001_ñ_ü_é"
         sanitized = NukeMediaDetector.sanitize_shot_name(unicode_name)
@@ -357,7 +357,7 @@ class TestNukeMediaDetector:
         assert "ü" in sanitized
         assert "é" in sanitized
 
-    def test_colorspace_detection_case_insensitive(self):
+    def test_colorspace_detection_case_insensitive(self) -> None:
         """Test that colorspace detection is case insensitive."""
         test_cases = [
             ("/path/LIN_plate.exr", "linear", True),
@@ -373,7 +373,7 @@ class TestNukeMediaDetector:
             assert colorspace == expected_colorspace
             assert raw_flag == expected_raw
 
-    def test_resolution_detection_regex_variations(self):
+    def test_resolution_detection_regex_variations(self) -> None:
         """Test resolution detection with various regex patterns."""
         test_cases = [
             # Standard format

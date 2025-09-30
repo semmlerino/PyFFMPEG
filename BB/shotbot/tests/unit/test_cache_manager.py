@@ -61,7 +61,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 # Module-level fixture to handle lazy imports
 @pytest.fixture(scope="module", autouse=True)
-def setup_qt_imports():
+def setup_qt_imports() -> None:
     """Import Qt and CacheManager components after test setup."""
     # This ensures Qt components are imported after QApplication setup
     global CacheManager, ThumbnailCacheLoader, ThumbnailCacheResult

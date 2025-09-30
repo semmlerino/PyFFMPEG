@@ -18,21 +18,21 @@ from finder_utils import FinderUtils
 class TestSanitizeUsername:
     """Test username sanitization functionality."""
 
-    def test_valid_usernames(self):
+    def test_valid_usernames(self) -> None:
         """Test that valid usernames pass through unchanged."""
         assert FinderUtils.sanitize_username("john_doe") == "john_doe"
         assert FinderUtils.sanitize_username("user123") == "user123"
         assert FinderUtils.sanitize_username("test-user") == "test-user"
         assert FinderUtils.sanitize_username("UPPERCASE") == "UPPERCASE"
 
-    def test_path_traversal_removal(self):
+    def test_path_traversal_removal(self) -> None:
         """Test that path traversal characters are removed."""
         assert FinderUtils.sanitize_username("user/../etc") == "useretc"
         assert FinderUtils.sanitize_username("./user") == "user"
         assert FinderUtils.sanitize_username("user\\system") == "usersystem"
         assert FinderUtils.sanitize_username("user/admin") == "useradmin"
 
-    def test_invalid_usernames_raise_error(self):
+    def test_invalid_usernames_raise_error(self) -> None:
         """Test that invalid usernames raise ValueError."""
         with pytest.raises(ValueError, match="Invalid username after sanitization"):
             FinderUtils.sanitize_username("...")
@@ -46,7 +46,7 @@ class TestSanitizeUsername:
         with pytest.raises(ValueError, match="Username contains invalid characters"):
             FinderUtils.sanitize_username("user!name")
 
-    def test_edge_cases(self):
+    def test_edge_cases(self) -> None:
         """Test edge cases for username sanitization."""
         # Single character usernames
         assert FinderUtils.sanitize_username("a") == "a"
@@ -60,32 +60,32 @@ class TestSanitizeUsername:
 class TestExtractVersion:
     """Test version extraction functionality."""
 
-    def test_default_pattern(self):
+    def test_default_pattern(self) -> None:
         """Test version extraction with default pattern."""
         assert FinderUtils.extract_version(Path("file_v001.ma")) == 1
         assert FinderUtils.extract_version(Path("scene_v042.3de")) == 42
         assert FinderUtils.extract_version(Path("render_v999.exr")) == 999
         assert FinderUtils.extract_version("string_path_v123.txt") == 123
 
-    def test_custom_pattern_string(self):
+    def test_custom_pattern_string(self) -> None:
         """Test version extraction with custom string pattern."""
         pattern = r"\.v(\d{4})\."
         assert FinderUtils.extract_version("file.v0001.exr", pattern) == 1
         assert FinderUtils.extract_version("plate.v1234.dpx", pattern) == 1234
 
-    def test_custom_pattern_compiled(self):
+    def test_custom_pattern_compiled(self) -> None:
         """Test version extraction with compiled pattern."""
         pattern = re.compile(r"_ver(\d{2})")
         assert FinderUtils.extract_version("file_ver01.txt", pattern) == 1
         assert FinderUtils.extract_version("scene_ver99.ma", pattern) == 99
 
-    def test_no_version_found(self):
+    def test_no_version_found(self) -> None:
         """Test that None is returned when no version found."""
         assert FinderUtils.extract_version(Path("file_without_version.txt")) is None
         assert FinderUtils.extract_version("no_version_here.ma") is None
         assert FinderUtils.extract_version("v_but_no_numbers.txt") is None
 
-    def test_multiple_versions(self):
+    def test_multiple_versions(self) -> None:
         """Test that first matching version is extracted."""
         assert FinderUtils.extract_version("file_v001_v002.ma") == 1
         assert (
@@ -96,19 +96,19 @@ class TestExtractVersion:
 class TestBuildUserPath:
     """Test VFX user path building."""
 
-    def test_maya_path(self):
+    def test_maya_path(self) -> None:
         """Test Maya application path building."""
         workspace = Path("/shows/test/shots/010/0010")
         path = FinderUtils.build_user_path(workspace, "john", "maya")
         assert path == Path("/shows/test/shots/010/0010/user/john/maya/scenes")
 
-    def test_nuke_path(self):
+    def test_nuke_path(self) -> None:
         """Test Nuke application path building."""
         workspace = Path("/shows/test/shots/020/0020")
         path = FinderUtils.build_user_path(workspace, "jane", "nuke")
         assert path == Path("/shows/test/shots/020/0020/user/jane/nuke/scenes")
 
-    def test_3de_special_path(self):
+    def test_3de_special_path(self) -> None:
         """Test 3DE special directory structure."""
         workspace = Path("/shows/test/shots/030/0030")
         path = FinderUtils.build_user_path(workspace, "bob", "3de")
@@ -117,13 +117,13 @@ class TestBuildUserPath:
         )
         assert path == expected
 
-    def test_custom_subdir(self):
+    def test_custom_subdir(self) -> None:
         """Test custom subdirectory specification."""
         workspace = Path("/shows/test/shots/040/0040")
         path = FinderUtils.build_user_path(workspace, "alice", "maya", "scripts")
         assert path == Path("/shows/test/shots/040/0040/user/alice/maya/scripts")
 
-    def test_3de_ignores_subdir(self):
+    def test_3de_ignores_subdir(self) -> None:
         """Test that 3DE ignores custom subdir parameter."""
         workspace = Path("/shows/test/shots/050/0050")
         path = FinderUtils.build_user_path(workspace, "charlie", "3de", "custom")
@@ -137,7 +137,7 @@ class TestBuildUserPath:
 class TestFindLatestByVersion:
     """Test finding latest file by version."""
 
-    def test_find_latest_from_versioned_files(self):
+    def test_find_latest_from_versioned_files(self) -> None:
         """Test finding latest version from list."""
         files = [
             Path("file_v001.ma"),
@@ -148,11 +148,11 @@ class TestFindLatestByVersion:
         latest = FinderUtils.find_latest_by_version(files)
         assert latest == Path("file_v005.ma")
 
-    def test_empty_list_returns_none(self):
+    def test_empty_list_returns_none(self) -> None:
         """Test that empty list returns None."""
         assert FinderUtils.find_latest_by_version([]) is None
 
-    def test_no_versioned_files_returns_none(self):
+    def test_no_versioned_files_returns_none(self) -> None:
         """Test that list with no versioned files returns None."""
         files = [
             Path("file_without_version.ma"),
@@ -160,7 +160,7 @@ class TestFindLatestByVersion:
         ]
         assert FinderUtils.find_latest_by_version(files) is None
 
-    def test_mixed_versioned_and_unversioned(self):
+    def test_mixed_versioned_and_unversioned(self) -> None:
         """Test handling mix of versioned and unversioned files."""
         files = [
             Path("file_v001.ma"),
@@ -171,7 +171,7 @@ class TestFindLatestByVersion:
         latest = FinderUtils.find_latest_by_version(files)
         assert latest == Path("file_v003.ma")
 
-    def test_custom_version_pattern(self):
+    def test_custom_version_pattern(self) -> None:
         """Test with custom version pattern."""
         files = [
             Path("file.v0001.exr"),
@@ -186,7 +186,7 @@ class TestFindLatestByVersion:
 class TestSortByVersion:
     """Test version-based sorting."""
 
-    def test_sort_ascending(self):
+    def test_sort_ascending(self) -> None:
         """Test sorting files in ascending version order."""
         files = [
             Path("file_v003.ma"),
@@ -200,7 +200,7 @@ class TestSortByVersion:
             Path("file_v003.ma"),
         ]
 
-    def test_sort_descending(self):
+    def test_sort_descending(self) -> None:
         """Test sorting files in descending version order."""
         files = [
             Path("file_v003.ma"),
@@ -214,7 +214,7 @@ class TestSortByVersion:
             Path("file_v001.ma"),
         ]
 
-    def test_unversioned_files_at_end(self):
+    def test_unversioned_files_at_end(self) -> None:
         """Test that unversioned files are placed at the end."""
         files = [
             Path("file_v002.ma"),
@@ -234,7 +234,7 @@ class TestSortByVersion:
 class TestSortByPriority:
     """Test priority-based sorting."""
 
-    def test_basic_priority_sorting(self):
+    def test_basic_priority_sorting(self) -> None:
         """Test sorting items by priority order."""
         items = [
             ("BG01", Path("bg_plate.exr")),
@@ -249,7 +249,7 @@ class TestSortByPriority:
             ("BG01", Path("bg_plate.exr")),
         ]
 
-    def test_unknown_items_go_last(self):
+    def test_unknown_items_go_last(self) -> None:
         """Test that unknown items are placed at the end."""
         items = [
             ("UNKNOWN", Path("unknown.exr")),
@@ -264,7 +264,7 @@ class TestSortByPriority:
             ("UNKNOWN", Path("unknown.exr")),
         ]
 
-    def test_empty_priority_list(self):
+    def test_empty_priority_list(self) -> None:
         """Test behavior with empty priority list."""
         items = [
             ("BG01", Path("bg.exr")),
@@ -279,21 +279,21 @@ class TestParseShotPath:
     """Test shot path parsing."""
 
     @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_valid_shot_path(self):
+    def test_valid_shot_path(self) -> None:
         """Test parsing valid VFX shot path."""
         path = "/tmp/mock_vfx/shows/test_show/shots/010/0010/user/john/maya/scenes"
         result = FinderUtils.parse_shot_path(path)
         assert result == ("test_show", "010", "0010")
 
     @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_partial_shot_path(self):
+    def test_partial_shot_path(self) -> None:
         """Test parsing path up to shot level."""
         path = "/tmp/mock_vfx/shows/myshow/shots/020/0020/"
         result = FinderUtils.parse_shot_path(path)
         assert result == ("myshow", "020", "0020")
 
     @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_invalid_path_returns_none(self):
+    def test_invalid_path_returns_none(self) -> None:
         """Test that invalid paths return None."""
         # Missing shots directory
         assert FinderUtils.parse_shot_path("/tmp/mock_vfx/shows/test/010/0010") is None
@@ -309,14 +309,14 @@ class TestGetWorkspaceFromPath:
     """Test workspace extraction from path."""
 
     @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_extract_workspace(self):
+    def test_extract_workspace(self) -> None:
         """Test extracting workspace from full path."""
         path = "/tmp/mock_vfx/shows/test/shots/010/0010/user/john/maya/scenes/file.ma"
         workspace = FinderUtils.get_workspace_from_path(path)
         assert workspace == "/tmp/mock_vfx/shows/test/shots/010/0010"
 
     @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_invalid_path_returns_none(self):
+    def test_invalid_path_returns_none(self) -> None:
         """Test that invalid paths return None."""
         assert FinderUtils.get_workspace_from_path("/invalid/path") is None
         assert FinderUtils.get_workspace_from_path("") is None
@@ -326,7 +326,7 @@ class TestIsValidVfxPath:
     """Test VFX path validation."""
 
     @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_valid_vfx_paths(self):
+    def test_valid_vfx_paths(self) -> None:
         """Test that valid VFX paths return True."""
         assert (
             FinderUtils.is_valid_vfx_path("/tmp/mock_vfx/shows/test/shots/010/0010/")
@@ -340,7 +340,7 @@ class TestIsValidVfxPath:
         )
 
     @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_invalid_vfx_paths(self):
+    def test_invalid_vfx_paths(self) -> None:
         """Test that invalid paths return False."""
         assert FinderUtils.is_valid_vfx_path("/random/path") is False
         assert FinderUtils.is_valid_vfx_path("") is False
@@ -352,7 +352,7 @@ class TestIsValidVfxPath:
 class TestFilterByExtensions:
     """Test file extension filtering."""
 
-    def test_filter_case_insensitive(self):
+    def test_filter_case_insensitive(self) -> None:
         """Test case-insensitive extension filtering."""
         files = [
             Path("file.MA"),
@@ -364,7 +364,7 @@ class TestFilterByExtensions:
         filtered = FinderUtils.filter_by_extensions(files, [".ma", ".mb"])
         assert set(filtered) == {Path("file.MA"), Path("scene.mb"), Path("MAYA.MB")}
 
-    def test_filter_case_sensitive(self):
+    def test_filter_case_sensitive(self) -> None:
         """Test case-sensitive extension filtering."""
         files = [
             Path("file.MA"),
@@ -376,11 +376,11 @@ class TestFilterByExtensions:
         )
         assert filtered == [Path("scene.mb")]
 
-    def test_empty_files_list(self):
+    def test_empty_files_list(self) -> None:
         """Test filtering empty file list."""
         assert FinderUtils.filter_by_extensions([], [".ma"]) == []
 
-    def test_no_matching_extensions(self):
+    def test_no_matching_extensions(self) -> None:
         """Test when no files match extensions."""
         files = [Path("file.txt"), Path("doc.pdf")]
         assert FinderUtils.filter_by_extensions(files, [".ma", ".mb"]) == []
@@ -389,21 +389,21 @@ class TestFilterByExtensions:
 class TestGetRelativePath:
     """Test relative path calculation."""
 
-    def test_valid_relative_path(self):
+    def test_valid_relative_path(self) -> None:
         """Test getting relative path with common base."""
         path = Path("/shows/test/shots/010/0010/user/file.ma")
         base = Path("/shows/test/shots")
         relative = FinderUtils.get_relative_path(path, base)
         assert relative == Path("010/0010/user/file.ma")
 
-    def test_no_common_base_returns_original(self):
+    def test_no_common_base_returns_original(self) -> None:
         """Test that paths without common base return original."""
         path = Path("/different/root/file.ma")
         base = Path("/shows/test")
         result = FinderUtils.get_relative_path(path, base)
         assert result == path
 
-    def test_same_path(self):
+    def test_same_path(self) -> None:
         """Test relative path when path equals base."""
         path = Path("/shows/test")
         base = Path("/shows/test")
@@ -414,7 +414,7 @@ class TestGetRelativePath:
 class TestFindFilesRecursive:
     """Test recursive file finding with depth limit."""
 
-    def test_find_files_no_depth_limit(self, tmp_path):
+    def test_find_files_no_depth_limit(self, tmp_path) -> None:
         """Test recursive search without depth limit."""
         # Create test structure
         (tmp_path / "level1").mkdir()
@@ -427,7 +427,7 @@ class TestFindFilesRecursive:
         files = FinderUtils.find_files_recursive(tmp_path, "*.ma")
         assert len(files) == 3
 
-    def test_find_files_with_depth_limit(self, tmp_path):
+    def test_find_files_with_depth_limit(self, tmp_path) -> None:
         """Test recursive search with depth limit."""
         # Create test structure
         (tmp_path / "level1").mkdir()
@@ -449,12 +449,12 @@ class TestFindFilesRecursive:
         files = FinderUtils.find_files_recursive(tmp_path, "*.ma", max_depth=2)
         assert len(files) == 3
 
-    def test_nonexistent_root_returns_empty(self):
+    def test_nonexistent_root_returns_empty(self) -> None:
         """Test that nonexistent root returns empty list."""
         files = FinderUtils.find_files_recursive(Path("/nonexistent"), "*.ma")
         assert files == []
 
-    def test_complex_pattern(self, tmp_path):
+    def test_complex_pattern(self, tmp_path) -> None:
         """Test with complex glob pattern."""
         # Create mixed file types
         (tmp_path / "file1.ma").touch()

@@ -26,13 +26,13 @@ def launcher():
 class TestSimplifiedLauncherNukeIntegration:
     """Test SimplifiedLauncher's Nuke functionality using NukeLaunchHandler."""
 
-    def test_launcher_has_nuke_handler(self, launcher):
+    def test_launcher_has_nuke_handler(self, launcher) -> None:
         """Test that SimplifiedLauncher initializes with NukeLaunchHandler."""
         assert hasattr(launcher, "nuke_handler")
         assert launcher.nuke_handler is not None
 
     @patch("simplified_launcher.subprocess.Popen")
-    def test_launch_nuke_basic(self, mock_popen, launcher, mock_shot):
+    def test_launch_nuke_basic(self, mock_popen, launcher, mock_shot) -> None:
         """Test basic Nuke launch using NukeLaunchHandler."""
         launcher.set_current_shot(mock_shot)
 
@@ -52,7 +52,7 @@ class TestSimplifiedLauncherNukeIntegration:
         assert any("nuke" in str(arg) for arg in call_args)
 
     @patch("simplified_launcher.subprocess.Popen")
-    def test_launch_nuke_with_options(self, mock_popen, launcher, mock_shot):
+    def test_launch_nuke_with_options(self, mock_popen, launcher, mock_shot) -> None:
         """Test Nuke launch with various options."""
         launcher.set_current_shot(mock_shot)
 
@@ -96,7 +96,7 @@ class TestSimplifiedLauncherNukeIntegration:
                 assert options["include_undistortion"] is True
 
     @patch("simplified_launcher.subprocess.Popen")
-    def test_launch_nuke_with_environment_fixes(self, mock_popen, launcher, mock_shot):
+    def test_launch_nuke_with_environment_fixes(self, mock_popen, launcher, mock_shot) -> None:
         """Test that environment fixes are properly applied."""
         launcher.set_current_shot(mock_shot)
 
@@ -120,7 +120,7 @@ class TestSimplifiedLauncherNukeIntegration:
             command_str = " ".join(str(arg) for arg in call_args)
             assert "NUKE_DISABLE_CRASH_REPORTING" in command_str or mock_env.called
 
-    def test_launch_nuke_without_shot_fails(self, launcher):
+    def test_launch_nuke_without_shot_fails(self, launcher) -> None:
         """Test that Nuke launch fails without shot context."""
         # Don't set current shot
         result = launcher.launch_vfx_app("nuke")
@@ -131,7 +131,7 @@ class TestSimplifiedLauncherNukeIntegration:
     @patch("simplified_launcher.subprocess.Popen")
     def test_nuke_handler_logs_are_captured(
         self, mock_popen, launcher, mock_shot, caplog
-    ):
+    ) -> None:
         """Test that log messages from NukeLaunchHandler are captured."""
         import logging
 
@@ -165,7 +165,7 @@ class TestSimplifiedLauncherNukeIntegration:
             assert "Opening existing Nuke script: v001" in messages
             assert "Script loaded successfully" in messages
 
-    def test_deprecated_find_latest_nuke_workspace_script(self, launcher, mock_shot):
+    def test_deprecated_find_latest_nuke_workspace_script(self, launcher, mock_shot) -> None:
         """Test that deprecated method delegates to NukeLaunchHandler."""
         launcher.set_current_shot(mock_shot)
 

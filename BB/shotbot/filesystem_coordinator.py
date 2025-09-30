@@ -106,7 +106,7 @@ class FilesystemCoordinator(LoggingMixin):
         Returns:
             List of matching file paths
         """
-        results = []
+        results: list[Path] = []
 
         # Get cached listing
         contents = self.get_directory_listing(path)

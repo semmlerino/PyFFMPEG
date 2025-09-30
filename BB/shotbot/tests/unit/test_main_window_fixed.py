@@ -37,7 +37,7 @@ pytestmark = [
 
 # Module-level fixture to handle lazy imports
 @pytest.fixture(scope="module", autouse=True)
-def setup_qt_imports():
+def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
     global MainWindow, CacheManager, Shot
     # Local application imports

@@ -24,7 +24,7 @@ import logging
 import traceback
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, TypeVar, cast
 
 # Third-party imports
 from typing_extensions import ParamSpec
@@ -79,9 +79,9 @@ class ErrorHandlingMixin(LoggingMixin):
             Result of operation or default value on error
         """
         # Extract wrapper parameters from kwargs
-        _default = kwargs.pop("_default", default)
-        _log_error = kwargs.pop("_log_error", log_error)
-        _reraise = kwargs.pop("_reraise", reraise)
+        _default = cast("T | None", kwargs.pop("_default", default))
+        _log_error = bool(kwargs.pop("_log_error", log_error))
+        _reraise = bool(kwargs.pop("_reraise", reraise))
 
         try:
             return operation(*args, **kwargs)
@@ -170,8 +170,8 @@ class ErrorHandlingMixin(LoggingMixin):
         operation_name: str,
         reraise: bool = False,
         log_level: int = logging.ERROR,
-        default_result: Any = None,  # noqa: ANN401
-    ) -> Generator[dict[str, Any], None, None]:
+        default_result: object = None,
+    ) -> Generator[dict[str, object], None, None]:
         """Context manager for error handling blocks.
 
         This replaces patterns like:
@@ -195,7 +195,7 @@ class ErrorHandlingMixin(LoggingMixin):
         Yields:
             Context dictionary for storing operation results
         """
-        context: dict[str, Any] = {"result": default_result, "error": None}
+        context: dict[str, object] = {"result": default_result, "error": None}
 
         try:
             self.logger.debug(f"Starting {operation_name}")
@@ -227,9 +227,9 @@ class ErrorHandlingMixin(LoggingMixin):
         self,
         operation: Callable[..., T],
         timeout_seconds: float,
-        *args: Any,  # noqa: ANN401
+        *args: object,
         default: T | None = None,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: object,
     ) -> T | None:
         """Execute operation with timeout handling.
 
@@ -248,16 +248,18 @@ class ErrorHandlingMixin(LoggingMixin):
         """
         # For now, just execute normally with error handling
         # Full timeout implementation would require threading
-        return self.safe_execute(operation, *args, default=default, **kwargs)
+        return self.safe_execute(
+            operation, *args, default=default, log_error=True, reraise=False, **kwargs
+        )
 
     def retry_on_error(
         self,
         operation: Callable[..., T],
-        *args: Any,  # noqa: ANN401
+        *args: object,
         max_retries: int = 3,
         delay_seconds: float = 1.0,
         backoff_factor: float = 2.0,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: object,
     ) -> T | None:
         """Retry an operation on failure with exponential backoff.
 
@@ -304,10 +306,10 @@ class ErrorHandlingMixin(LoggingMixin):
     def validate_and_execute(
         self,
         operation: Callable[..., T],
-        *args: Any,  # noqa: ANN401
+        *args: object,
         validators: list[Callable[[], bool]] | None = None,
         validation_error: str = "Validation failed",
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: object,
     ) -> T | None:
         """Execute operation only if all validators pass.
 
@@ -335,7 +337,9 @@ class ErrorHandlingMixin(LoggingMixin):
                     )
                     return None
 
-        return self.safe_execute(operation, *args, **kwargs)
+        return self.safe_execute(
+            operation, *args, default=None, log_error=True, reraise=False, **kwargs
+        )
 
 
 class ErrorAggregator:

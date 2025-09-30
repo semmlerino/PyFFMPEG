@@ -195,7 +195,7 @@ def test_targeted_finder_performance() -> dict[str, float]:
     )
 
 
-def main():
+def main() -> None:
     """Run all performance tests and display results."""
     print("=" * 70)
     print("PERFORMANCE BASELINE ESTABLISHMENT")

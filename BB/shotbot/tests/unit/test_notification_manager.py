@@ -62,7 +62,7 @@ def make_manager_with_ui(qtbot):
 class TestToastNotification:
     """Test suite for ToastNotification widget."""
 
-    def test_toast_initialization(self, qtbot):
+    def test_toast_initialization(self, qtbot) -> None:
         """Test toast notification initialization."""
         toast = ToastNotification("Test message", NotificationType.INFO, duration=2000)
         qtbot.addWidget(toast)
@@ -72,7 +72,7 @@ class TestToastNotification:
         assert toast.duration == 2000
         assert toast.dismiss_timer.isActive()
 
-    def test_toast_auto_dismiss(self, qtbot):
+    def test_toast_auto_dismiss(self, qtbot) -> None:
         """Test that toast auto-dismisses after duration."""
         toast = ToastNotification(
             "Auto dismiss test",
@@ -90,7 +90,7 @@ class TestToastNotification:
             lambda: len(dismissed) > 0 or not toast.isVisible(), timeout=300
         )
 
-    def test_toast_manual_dismiss(self, qtbot):
+    def test_toast_manual_dismiss(self, qtbot) -> None:
         """Test manual dismissal of toast."""
         toast = ToastNotification(
             "Manual dismiss test",
@@ -114,7 +114,7 @@ class TestToastNotification:
         # Check timer is no longer active
         assert not toast.dismiss_timer.isActive()
 
-    def test_toast_no_auto_dismiss(self, qtbot):
+    def test_toast_no_auto_dismiss(self, qtbot) -> None:
         """Test toast with no auto-dismiss (duration=0)."""
         toast = ToastNotification("No auto dismiss", NotificationType.ERROR, duration=0)
         qtbot.addWidget(toast)
@@ -136,7 +136,7 @@ class TestToastNotification:
             NotificationType.SUCCESS,
         ],
     )
-    def test_toast_types_styling(self, qtbot, make_toast, notif_type):
+    def test_toast_types_styling(self, qtbot, make_toast, notif_type) -> None:
         """Test different notification types have appropriate styling."""
         toast = make_toast(f"{notif_type.name} message", notif_type, duration=0)
         qtbot.addWidget(toast)
@@ -164,14 +164,14 @@ class TestNotificationManager:
         """Create notification manager with UI components."""
         return make_manager_with_ui()
 
-    def test_singleton_pattern(self):
+    def test_singleton_pattern(self) -> None:
         """Test that NotificationManager follows singleton pattern."""
         instance1 = NotificationManager()
         instance2 = NotificationManager()
 
         assert instance1 is instance2
 
-    def test_initialization(self, manager_with_ui):
+    def test_initialization(self, manager_with_ui) -> None:
         """Test proper initialization with UI references."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -179,7 +179,7 @@ class TestNotificationManager:
         assert NotificationManager._status_bar is status_bar
         assert isinstance(manager, NotificationManager)
 
-    def test_error_notification(self, manager_with_ui, qtbot):
+    def test_error_notification(self, manager_with_ui, qtbot) -> None:
         """Test error notification display."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -193,7 +193,7 @@ class TestNotificationManager:
             assert "Test Error" in args[1]
             assert "Error message" in args[2]
 
-    def test_warning_notification(self, manager_with_ui):
+    def test_warning_notification(self, manager_with_ui) -> None:
         """Test warning notification display."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -205,7 +205,7 @@ class TestNotificationManager:
             assert args[0] is main_window
             assert "Test Warning" in args[1]
 
-    def test_info_notification(self, manager_with_ui, qtbot):
+    def test_info_notification(self, manager_with_ui, qtbot) -> None:
         """Test info message in status bar."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -221,7 +221,7 @@ class TestNotificationManager:
             timeout=250,
         )
 
-    def test_success_notification(self, manager_with_ui):
+    def test_success_notification(self, manager_with_ui) -> None:
         """Test success notification in status bar."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -232,7 +232,7 @@ class TestNotificationManager:
         # Success messages include checkmark
         assert "✓" in status_bar.currentMessage()
 
-    def test_toast_notification(self, manager_with_ui, qtbot):
+    def test_toast_notification(self, manager_with_ui, qtbot) -> None:
         """Test toast notification display."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -252,7 +252,7 @@ class TestNotificationManager:
         )
 
     @patch.object(QProgressDialog, "__new__")
-    def test_progress_notification(self, mock_progress_new, manager_with_ui):
+    def test_progress_notification(self, mock_progress_new, manager_with_ui) -> None:
         """Test progress dialog creation."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -268,7 +268,7 @@ class TestNotificationManager:
         mock_progress.setModal.assert_called_with(True)
         mock_progress.show.assert_called()
 
-    def test_close_progress(self, manager_with_ui):
+    def test_close_progress(self, manager_with_ui) -> None:
         """Test closing progress dialog."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -282,7 +282,7 @@ class TestNotificationManager:
         mock_progress.close.assert_called_once()
         assert NotificationManager._current_progress is None
 
-    def test_multiple_toasts_stacking(self, manager_with_ui, qtbot):
+    def test_multiple_toasts_stacking(self, manager_with_ui, qtbot) -> None:
         """Test that multiple toasts stack properly."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -309,7 +309,7 @@ class TestNotificationManager:
         for toast in NotificationManager._active_toasts[:]:
             toast.close()
 
-    def test_notification_without_ui(self):
+    def test_notification_without_ui(self) -> None:
         """Test notifications work without UI initialization."""
         # Don't initialize with UI
         NotificationManager()
@@ -326,7 +326,7 @@ class TestNotificationManager:
         # Info without status bar should not crash
         NotificationManager.info("Info without status bar")
 
-    def test_cleanup(self, manager_with_ui):
+    def test_cleanup(self, manager_with_ui) -> None:
         """Test cleanup of notification resources."""
         manager, main_window, status_bar = manager_with_ui
 
@@ -345,7 +345,7 @@ class TestNotificationManager:
         assert NotificationManager._current_progress is None
         mock_progress.close.assert_called_once()
 
-    def test_notification_types_enum(self):
+    def test_notification_types_enum(self) -> None:
         """Test NotificationType enum values."""
         # Check all expected types exist
         expected_types = [

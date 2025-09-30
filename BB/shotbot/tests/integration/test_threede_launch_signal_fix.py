@@ -21,7 +21,7 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 # Third-party imports
 import pytest

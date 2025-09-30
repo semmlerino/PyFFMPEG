@@ -18,7 +18,7 @@ from cache.storage_backend import StorageBackend
 class MockMemoryManager:
     """Mock memory manager for testing validation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tracked_files: set[Path] = set()
         self.usage_stats = {
             "usage_percent": 50,
@@ -65,7 +65,7 @@ def mock_memory_manager():
 class TestStorageBackendValidation:
     """Test storage backend validation methods."""
 
-    def test_validate_cache_empty_directory(self, storage_backend, temp_cache_dir):
+    def test_validate_cache_empty_directory(self, storage_backend, temp_cache_dir) -> None:
         """Test validation with empty cache directory."""
         result = storage_backend.validate_cache(temp_cache_dir)
 
@@ -74,7 +74,7 @@ class TestStorageBackendValidation:
         assert result["issues_fixed"] == 0
         assert result["orphaned_files"] == 0
 
-    def test_validate_cache_missing_directory(self, storage_backend, temp_cache_dir):
+    def test_validate_cache_missing_directory(self, storage_backend, temp_cache_dir) -> None:
         """Test validation when cache directory doesn't exist."""
         missing_dir = temp_cache_dir / "missing_cache"
 
@@ -86,7 +86,7 @@ class TestStorageBackendValidation:
 
     def test_validate_cache_missing_directory_no_fix(
         self, storage_backend, temp_cache_dir
-    ):
+    ) -> None:
         """Test validation when cache directory doesn't exist and fix_issues=False."""
         missing_dir = temp_cache_dir / "missing_cache"
 
@@ -98,7 +98,7 @@ class TestStorageBackendValidation:
 
     def test_validate_cache_with_memory_manager(
         self, storage_backend, temp_cache_dir, mock_memory_manager
-    ):
+    ) -> None:
         """Test validation with memory manager tracking."""
         # Create some test files
         test_file1 = temp_cache_dir / "test1.jpg"
@@ -120,7 +120,7 @@ class TestStorageBackendValidation:
             result["issues_fixed"] >= 1
         )  # Memory tracking fix (orphan fix may not be counted in main issues_fixed)
 
-    def test_repair_cache(self, storage_backend, temp_cache_dir, mock_memory_manager):
+    def test_repair_cache(self, storage_backend, temp_cache_dir, mock_memory_manager) -> None:
         """Test comprehensive cache repair."""
         # Create orphaned file
         orphaned_file = temp_cache_dir / "orphaned.jpg"
@@ -133,7 +133,7 @@ class TestStorageBackendValidation:
         assert "issues_found" in result
         assert "issues_fixed" in result
 
-    def test_get_cache_stats_empty_directory(self, storage_backend, temp_cache_dir):
+    def test_get_cache_stats_empty_directory(self, storage_backend, temp_cache_dir) -> None:
         """Test cache statistics for empty directory."""
         stats = storage_backend.get_cache_stats(temp_cache_dir)
 
@@ -143,7 +143,7 @@ class TestStorageBackendValidation:
         assert stats["subdirectories"] == 0
         assert stats["file_types"] == {}
 
-    def test_get_cache_stats_with_files(self, storage_backend, temp_cache_dir):
+    def test_get_cache_stats_with_files(self, storage_backend, temp_cache_dir) -> None:
         """Test cache statistics with various file types."""
         # Create test files
         (temp_cache_dir / "image1.jpg").write_text("image data 1")
@@ -165,7 +165,7 @@ class TestStorageBackendValidation:
 
     def test_get_cache_stats_with_memory_manager(
         self, storage_backend, temp_cache_dir, mock_memory_manager
-    ):
+    ) -> None:
         """Test cache statistics with memory manager."""
         stats = storage_backend.get_cache_stats(temp_cache_dir, mock_memory_manager)
 
@@ -173,7 +173,7 @@ class TestStorageBackendValidation:
         assert stats["memory_stats"]["usage_percent"] == 50
         assert stats["memory_stats"]["average_item_kb"] == 75
 
-    def test_get_cache_stats_missing_directory(self, storage_backend, temp_cache_dir):
+    def test_get_cache_stats_missing_directory(self, storage_backend, temp_cache_dir) -> None:
         """Test cache statistics for non-existent directory."""
         missing_dir = temp_cache_dir / "missing"
 
@@ -184,7 +184,7 @@ class TestStorageBackendValidation:
         assert stats["actual_total_size_mb"] == 0
         assert stats["subdirectories"] == 0
 
-    def test_clean_empty_directories(self, storage_backend, temp_cache_dir):
+    def test_clean_empty_directories(self, storage_backend, temp_cache_dir) -> None:
         """Test cleaning empty directories."""
         # Create directory structure with empty directories
         (temp_cache_dir / "empty1").mkdir()
@@ -204,7 +204,7 @@ class TestStorageBackendValidation:
 
     def test_clean_empty_directories_missing_cache(
         self, storage_backend, temp_cache_dir
-    ):
+    ) -> None:
         """Test cleaning empty directories when cache doesn't exist."""
         missing_dir = temp_cache_dir / "missing"
 
@@ -212,7 +212,7 @@ class TestStorageBackendValidation:
 
         assert removed_count == 0
 
-    def test_validate_memory_tracking_without_method(self, storage_backend):
+    def test_validate_memory_tracking_without_method(self, storage_backend) -> None:
         """Test memory tracking validation when manager doesn't support it."""
         mock_manager = Mock()
         # Remove validate_tracking method
@@ -227,7 +227,7 @@ class TestStorageBackendValidation:
 
     def test_find_orphaned_files_without_tracking_methods(
         self, storage_backend, temp_cache_dir
-    ):
+    ) -> None:
         """Test orphaned file detection when memory manager doesn't support tracking methods."""
         # Create test file
         test_file = temp_cache_dir / "test.jpg"
@@ -247,7 +247,7 @@ class TestStorageBackendValidation:
         # Should gracefully handle missing methods
         assert result["orphaned_files"] == 0
 
-    def test_validate_cache_error_handling(self, storage_backend):
+    def test_validate_cache_error_handling(self, storage_backend) -> None:
         """Test validation error handling."""
         # Use a path that will cause permission errors but note that StorageBackend
         # has fallback directory creation, so this may not fail as expected
@@ -263,7 +263,7 @@ class TestStorageBackendValidation:
 
     def test_integration_full_validation_cycle(
         self, storage_backend, temp_cache_dir, mock_memory_manager
-    ):
+    ) -> None:
         """Test complete validation cycle with multiple issues."""
         # Create various files and issues
         (temp_cache_dir / "tracked.jpg").write_text("tracked image")
@@ -297,7 +297,7 @@ class TestStorageBackendValidationMethods:
 
     def test_validate_directory_structure_create_success(
         self, storage_backend, temp_cache_dir
-    ):
+    ) -> None:
         """Test successful directory structure validation and creation."""
         missing_dir = temp_cache_dir / "test_cache"
 
@@ -310,7 +310,7 @@ class TestStorageBackendValidationMethods:
         assert missing_dir.exists()
         assert "Created missing cache directory" in result["details"]
 
-    def test_validate_directory_structure_no_fix(self, storage_backend, temp_cache_dir):
+    def test_validate_directory_structure_no_fix(self, storage_backend, temp_cache_dir) -> None:
         """Test directory structure validation without fixing."""
         missing_dir = temp_cache_dir / "test_cache"
 
@@ -324,7 +324,7 @@ class TestStorageBackendValidationMethods:
 
     def test_memory_tracking_validation_success(
         self, storage_backend, mock_memory_manager
-    ):
+    ) -> None:
         """Test successful memory tracking validation."""
         result = storage_backend._validate_memory_tracking(mock_memory_manager, True)
 
@@ -335,7 +335,7 @@ class TestStorageBackendValidationMethods:
 
     def test_orphaned_files_detection_and_fix(
         self, storage_backend, temp_cache_dir, mock_memory_manager
-    ):
+    ) -> None:
         """Test orphaned file detection and fixing."""
         # Create orphaned files
         orphan1 = temp_cache_dir / "orphan1.jpg"
@@ -355,7 +355,7 @@ class TestStorageBackendValidationMethods:
 
     def test_orphaned_files_detection_no_fix(
         self, storage_backend, temp_cache_dir, mock_memory_manager
-    ):
+    ) -> None:
         """Test orphaned file detection without fixing."""
         orphan = temp_cache_dir / "orphan.jpg"
         orphan.write_text("orphan")

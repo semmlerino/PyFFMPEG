@@ -41,7 +41,7 @@ pytestmark = [
 
 # Module-level fixture to handle lazy imports
 @pytest.fixture(scope="module", autouse=True)
-def setup_qt_imports():
+def setup_qt_imports() -> None:
     """Import Qt and CacheManager components after test setup."""
     global CacheManager, QCoreApplication, process_qt_events
     # Third-party imports

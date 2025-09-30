@@ -277,7 +277,7 @@ class FileSystemScanner(LoggingMixin):
 
         try:
             # Build exclusion patterns for find command
-            exclusions = []
+            exclusions: list[str] = []
             if excluded_users:
                 for excluded_user in excluded_users:
                     exclusions.extend(["-not", "-path", f"*/{excluded_user}/*"])
@@ -557,7 +557,7 @@ class FileSystemScanner(LoggingMixin):
             return
 
         total_shots = len(shot_tuples)
-        current_batch = []
+        current_batch: list[tuple[str, Path]] = []
 
         for current_shot_idx, (workspace_path, show, sequence, shot) in enumerate(
             shot_tuples, 1
@@ -638,7 +638,7 @@ class FileSystemScanner(LoggingMixin):
         start_time = time.time()
         file_count = 0
         parsed_count = 0
-        unique_shots = set()
+        unique_shots: set[str] = set()
 
         try:
             self.logger.info("Using single-search strategy to find all .3de files")

@@ -13,9 +13,6 @@ Following best practices for exception design:
 
 from __future__ import annotations
 
-# Standard library imports
-from typing import Any
-
 
 class ShotBotError(Exception):
     """Base exception for all ShotBot errors.
@@ -32,7 +29,7 @@ class ShotBotError(Exception):
     def __init__(
         self,
         message: str,
-        details: dict[str, Any | None] | None = None,
+        details: dict[str, str | int | None] | None = None,
         error_code: str | None = None,
     ) -> None:
         """Initialize ShotBot error.
@@ -67,7 +64,7 @@ class WorkspaceError(ShotBotError):
         message: str,
         workspace_path: str | None = None,
         command: str | None = None,
-        details: dict[str, Any | None] | None = None,
+        details: dict[str, str | int | None] | None = None,
     ) -> None:
         """Initialize workspace error.
 
@@ -101,7 +98,7 @@ class ThumbnailError(ShotBotError):
         image_path: str | None = None,
         thumbnail_path: str | None = None,
         reason: str | None = None,
-        details: dict[str, Any | None] | None = None,
+        details: dict[str, str | int | None] | None = None,
     ) -> None:
         """Initialize thumbnail error.
 
@@ -140,7 +137,7 @@ class SecurityError(ShotBotError):
         message: str,
         violation_type: str | None = None,
         attempted_command: str | None = None,
-        details: dict[str, Any | None] | None = None,
+        details: dict[str, str | int | None] | None = None,
     ) -> None:
         """Initialize security error.
 
@@ -174,7 +171,7 @@ class LauncherError(ShotBotError):
         launcher_name: str | None = None,
         launcher_command: str | None = None,
         exit_code: int | None = None,
-        details: dict[str, Any | None] | None = None,
+        details: dict[str, str | int | None] | None = None,
     ) -> None:
         """Initialize launcher error.
 
@@ -211,7 +208,7 @@ class CacheError(ShotBotError):
         cache_key: str | None = None,
         cache_file: str | None = None,
         operation: str | None = None,
-        details: dict[str, Any | None] | None = None,
+        details: dict[str, str | int | None] | None = None,
     ) -> None:
         """Initialize cache error.
 

@@ -10,7 +10,7 @@ from nuke_script_templates import NukeScriptTemplates
 class TestNukeScriptTemplates:
     """Test template generation methods."""
 
-    def test_get_script_header(self):
+    def test_get_script_header(self) -> None:
         """Test script header generation."""
         header = NukeScriptTemplates.get_script_header()
 
@@ -18,7 +18,7 @@ class TestNukeScriptTemplates:
         assert "version 16.0 v4" in header
         assert header.count("\n") == 1  # Should have exactly one newline
 
-    def test_get_root_node_basic(self):
+    def test_get_root_node_basic(self) -> None:
         """Test basic Root node generation."""
         root = NukeScriptTemplates.get_root_node(
             shot_name="test_shot",
@@ -38,7 +38,7 @@ class TestNukeScriptTemplates:
         assert "colorManagement OCIO" in root
         assert "OCIO_config aces_1.2" in root
 
-    def test_get_root_node_custom_fps(self):
+    def test_get_root_node_custom_fps(self) -> None:
         """Test Root node with custom FPS."""
         root = NukeScriptTemplates.get_root_node(
             shot_name="test_shot",
@@ -51,7 +51,7 @@ class TestNukeScriptTemplates:
 
         assert "fps 30" in root
 
-    def test_get_root_node_aces_colorspace(self):
+    def test_get_root_node_aces_colorspace(self) -> None:
         """Test Root node includes ACES color management."""
         root = NukeScriptTemplates.get_root_node(
             shot_name="test_shot",
@@ -69,7 +69,7 @@ class TestNukeScriptTemplates:
         assert 'logLut "Log film emulation (ACES)"' in root
         assert 'floatLut "linear"' in root
 
-    def test_get_read_node_basic(self):
+    def test_get_read_node_basic(self) -> None:
         """Test basic Read node generation."""
         read_node = NukeScriptTemplates.get_read_node(
             file_path="/path/to/plates/shot_%04d.exr",
@@ -94,7 +94,7 @@ class TestNukeScriptTemplates:
         assert "xpos 0" in read_node
         assert "ypos -300" in read_node
 
-    def test_get_read_node_custom_params(self):
+    def test_get_read_node_custom_params(self) -> None:
         """Test Read node with custom parameters."""
         read_node = NukeScriptTemplates.get_read_node(
             file_path="/custom/path_%04d.exr",
@@ -119,7 +119,7 @@ class TestNukeScriptTemplates:
         assert "xpos 100" in read_node
         assert "ypos -500" in read_node
 
-    def test_get_read_node_format_and_proxy(self):
+    def test_get_read_node_format_and_proxy(self) -> None:
         """Test Read node format and proxy settings."""
         read_node = NukeScriptTemplates.get_read_node(
             file_path="/path/test_%04d.exr",
@@ -137,7 +137,7 @@ class TestNukeScriptTemplates:
         assert "auto_alpha true" in read_node
         assert "premultiplied true" in read_node
 
-    def test_get_grade_node_basic(self):
+    def test_get_grade_node_basic(self) -> None:
         """Test basic Grade node generation."""
         grade = NukeScriptTemplates.get_grade_node()
 
@@ -148,7 +148,7 @@ class TestNukeScriptTemplates:
         assert "xpos 0" in grade
         assert "ypos -50" in grade
 
-    def test_get_grade_node_custom(self):
+    def test_get_grade_node_custom(self) -> None:
         """Test Grade node with custom parameters."""
         grade = NukeScriptTemplates.get_grade_node(
             xpos=200,
@@ -162,7 +162,7 @@ class TestNukeScriptTemplates:
         assert "xpos 200" in grade
         assert "ypos -100" in grade
 
-    def test_get_viewer_node_basic(self):
+    def test_get_viewer_node_basic(self) -> None:
         """Test basic Viewer node generation."""
         viewer = NukeScriptTemplates.get_viewer_node(first_frame=1001, last_frame=1100)
 
@@ -176,7 +176,7 @@ class TestNukeScriptTemplates:
         assert "xpos 0" in viewer
         assert "ypos 100" in viewer
 
-    def test_get_viewer_node_custom(self):
+    def test_get_viewer_node_custom(self) -> None:
         """Test Viewer node with custom parameters."""
         viewer = NukeScriptTemplates.get_viewer_node(
             first_frame=2001,
@@ -194,7 +194,7 @@ class TestNukeScriptTemplates:
         assert "xpos 150" in viewer
         assert "ypos 200" in viewer
 
-    def test_get_sticky_note_basic(self):
+    def test_get_sticky_note_basic(self) -> None:
         """Test basic StickyNote generation."""
         note = NukeScriptTemplates.get_sticky_note(
             label="Test Note", xpos=100, ypos=200
@@ -209,7 +209,7 @@ class TestNukeScriptTemplates:
         assert "xpos 100" in note
         assert "ypos 200" in note
 
-    def test_get_sticky_note_custom(self):
+    def test_get_sticky_note_custom(self) -> None:
         """Test StickyNote with custom parameters."""
         note = NukeScriptTemplates.get_sticky_note(
             label="Custom Note",
@@ -227,7 +227,7 @@ class TestNukeScriptTemplates:
         assert "xpos 300" in note
         assert "ypos 400" in note
 
-    def test_get_noop_node_basic(self):
+    def test_get_noop_node_basic(self) -> None:
         """Test basic NoOp node generation."""
         noop = NukeScriptTemplates.get_noop_node(
             node_name="Test_NoOp", label="Test Label", xpos=50, ypos=75
@@ -243,7 +243,7 @@ class TestNukeScriptTemplates:
         # Should not have onCreate when no script provided
         assert "onCreate" not in noop
 
-    def test_get_noop_node_with_script(self):
+    def test_get_noop_node_with_script(self) -> None:
         """Test NoOp node with Python script."""
         noop = NukeScriptTemplates.get_noop_node(
             node_name="Script_NoOp",
@@ -258,54 +258,54 @@ class TestNukeScriptTemplates:
         assert "tile_color 0x00ff00ff" in noop
         assert "onCreate \"print('Hello from onCreate')\"" in noop
 
-    def test_escape_path_windows(self):
+    def test_escape_path_windows(self) -> None:
         """Test path escaping for Windows paths."""
         windows_path = "C:\\path\\to\\file.exr"
         escaped = NukeScriptTemplates.escape_path(windows_path)
 
         assert escaped == "C:/path/to/file.exr"
 
-    def test_escape_path_unix(self):
+    def test_escape_path_unix(self) -> None:
         """Test path escaping for Unix paths (no change)."""
         unix_path = "/path/to/file.exr"
         escaped = NukeScriptTemplates.escape_path(unix_path)
 
         assert escaped == "/path/to/file.exr"
 
-    def test_escape_path_empty(self):
+    def test_escape_path_empty(self) -> None:
         """Test path escaping with empty string."""
         escaped = NukeScriptTemplates.escape_path("")
 
         assert escaped == ""
 
-    def test_format_frame_sequence_hash(self):
+    def test_format_frame_sequence_hash(self) -> None:
         """Test frame sequence formatting with #### pattern."""
         path_with_hash = "/path/to/sequence_####.exr"
         formatted = NukeScriptTemplates.format_frame_sequence(path_with_hash)
 
         assert formatted == "/path/to/sequence_%04d.exr"
 
-    def test_format_frame_sequence_printf(self):
+    def test_format_frame_sequence_printf(self) -> None:
         """Test frame sequence formatting with %04d pattern (no change)."""
         path_with_printf = "/path/to/sequence_%04d.exr"
         formatted = NukeScriptTemplates.format_frame_sequence(path_with_printf)
 
         assert formatted == "/path/to/sequence_%04d.exr"
 
-    def test_format_frame_sequence_windows_and_hash(self):
+    def test_format_frame_sequence_windows_and_hash(self) -> None:
         """Test frame sequence formatting with Windows path and #### pattern."""
         path = "C:\\plates\\shot_####.exr"
         formatted = NukeScriptTemplates.format_frame_sequence(path)
 
         assert formatted == "C:/plates/shot_%04d.exr"
 
-    def test_format_frame_sequence_empty(self):
+    def test_format_frame_sequence_empty(self) -> None:
         """Test frame sequence formatting with empty string."""
         formatted = NukeScriptTemplates.format_frame_sequence("")
 
         assert formatted == ""
 
-    def test_window_layout_xml_constant(self):
+    def test_window_layout_xml_constant(self) -> None:
         """Test that WINDOW_LAYOUT_XML constant is properly formatted."""
         xml = NukeScriptTemplates.WINDOW_LAYOUT_XML
 
@@ -317,7 +317,7 @@ class TestNukeScriptTemplates:
         assert 'activePageId="DAG.1"' in xml
         assert 'activePageId="Properties.1"' in xml
 
-    def test_read_node_label_content(self):
+    def test_read_node_label_content(self) -> None:
         """Test Read node label contains colorspace and frame info."""
         read_node = NukeScriptTemplates.get_read_node(
             file_path="/test/path_%04d.exr",
@@ -333,7 +333,7 @@ class TestNukeScriptTemplates:
         # Check label contains colorspace reference and frame range
         assert 'label "\\[value colorspace]\\nframes: 1001-1100"' in read_node
 
-    def test_read_node_file_type_and_settings(self):
+    def test_read_node_file_type_and_settings(self) -> None:
         """Test Read node has correct file type and settings."""
         read_node = NukeScriptTemplates.get_read_node(
             file_path="/test/path_%04d.exr",

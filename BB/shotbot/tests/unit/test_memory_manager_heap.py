@@ -81,7 +81,7 @@ def populated_memory_manager(make_memory_manager, tmp_path):
 class TestCacheEntry:
     """Test the CacheEntry dataclass for heap operations."""
 
-    def test_cache_entry_comparison(self, make_cache_entry):
+    def test_cache_entry_comparison(self, make_cache_entry) -> None:
         """Test that CacheEntry compares by access_time for heap ordering."""
         entry1 = make_cache_entry(access_offset=-10)  # Older
         entry2 = make_cache_entry(access_offset=0)  # Newer
@@ -90,7 +90,7 @@ class TestCacheEntry:
         assert entry1 < entry2
         assert not entry2 < entry1
 
-    def test_cache_entry_heap_ordering(self, make_cache_entry):
+    def test_cache_entry_heap_ordering(self, make_cache_entry) -> None:
         """Test that heap operations maintain LRU order."""
         # Create entries with different access times
         entries = [
@@ -115,7 +115,7 @@ class TestCacheEntry:
 class TestThumbnailManagerHeap:
     """Test heap-based LRU eviction in ThumbnailManager."""
 
-    def test_eviction_order_is_lru(self, make_memory_manager, tmp_path):
+    def test_eviction_order_is_lru(self, make_memory_manager, tmp_path) -> None:
         """Test that eviction follows LRU order using heap."""
         manager = make_memory_manager(max_memory_mb=1)
 
@@ -147,7 +147,7 @@ class TestThumbnailManagerHeap:
         # Recently accessed file should still exist
         assert files[2].exists()
 
-    def test_heap_eviction_efficiency(self, make_memory_manager, tmp_path):
+    def test_heap_eviction_efficiency(self, make_memory_manager, tmp_path) -> None:
         """Test that heap-based eviction correctly identifies LRU items.
 
         Rather than timing-based performance testing (which is fragile),
@@ -203,7 +203,7 @@ class TestThumbnailManagerHeap:
         # Should be under memory limit now
         assert manager.memory_usage_bytes <= manager._max_memory_bytes
 
-    def test_concurrent_heap_access_thread_safety(self, make_memory_manager, tmp_path):
+    def test_concurrent_heap_access_thread_safety(self, make_memory_manager, tmp_path) -> None:
         """Test thread-safe concurrent access to eviction heap.
 
         Following guide: Thread safety testing.
@@ -211,7 +211,7 @@ class TestThumbnailManagerHeap:
         manager = make_memory_manager(max_memory_mb=10)
         errors = []
 
-        def add_entries():
+        def add_entries() -> None:
             """Add entries from thread."""
             try:
                 for i in range(100):
@@ -221,7 +221,7 @@ class TestThumbnailManagerHeap:
             except Exception as e:
                 errors.append(e)
 
-        def evict_entries():
+        def evict_entries() -> None:
             """Trigger eviction from thread."""
             try:
                 for _ in range(10):
@@ -245,7 +245,7 @@ class TestThumbnailManagerHeap:
         # Should complete without errors
         assert len(errors) == 0, f"Thread safety errors: {errors}"
 
-    def test_heap_invariant_maintained(self, populated_memory_manager):
+    def test_heap_invariant_maintained(self, populated_memory_manager) -> None:
         """Test that heap invariant is maintained after operations."""
         manager, files = populated_memory_manager
 
@@ -265,7 +265,7 @@ class TestThumbnailManagerHeap:
             if right_child < len(heap):
                 assert heap[i].access_time <= heap[right_child].access_time
 
-    def test_memory_calculation_accuracy(self, make_memory_manager, tmp_path):
+    def test_memory_calculation_accuracy(self, make_memory_manager, tmp_path) -> None:
         """Test accurate memory usage tracking during eviction."""
         manager = make_memory_manager(max_memory_mb=1)
 
@@ -294,7 +294,7 @@ class TestThumbnailManagerHeap:
         # Should have evicted enough to stay under limit
         assert manager.memory_usage_bytes <= 1024 * 1024
 
-    def test_eviction_with_empty_heap(self, make_memory_manager):
+    def test_eviction_with_empty_heap(self, make_memory_manager) -> None:
         """Test that eviction handles empty heap gracefully."""
         manager = make_memory_manager()
 
@@ -302,7 +302,7 @@ class TestThumbnailManagerHeap:
         evicted = manager._evict_lru_items(0.5)
         assert evicted == 0
 
-    def test_eviction_target_percentage(self, populated_memory_manager):
+    def test_eviction_target_percentage(self, populated_memory_manager) -> None:
         """Test that eviction targets correct percentage."""
         manager, files = populated_memory_manager
 
@@ -317,7 +317,7 @@ class TestThumbnailManagerHeap:
         assert evicted > 0
         assert manager.memory_usage_bytes <= manager._max_memory_bytes * 0.5
 
-    def test_access_time_updates_correctly(self, make_memory_manager, tmp_path):
+    def test_access_time_updates_correctly(self, make_memory_manager, tmp_path) -> None:
         """Test that accessing a file updates its position in heap."""
         manager = make_memory_manager()
 
@@ -353,7 +353,7 @@ class TestThumbnailManagerHeap:
     )
     def test_various_memory_scenarios(
         self, make_memory_manager, tmp_path, memory_limit_mb, file_count, file_size_kb
-    ):
+    ) -> None:
         """Test various memory limit scenarios.
 
         Following guide: Parametrization for comprehensive testing.

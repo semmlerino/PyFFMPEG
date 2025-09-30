@@ -65,7 +65,7 @@ class TestSignalManager:
         """Create a signal manager with test owner."""
         return make_signal_manager()
 
-    def test_initialization(self, signal_manager):
+    def test_initialization(self, signal_manager) -> None:
         """Test proper initialization of SignalManager."""
         manager, owner = signal_manager
 
@@ -77,7 +77,7 @@ class TestSignalManager:
         assert not manager.has_connections()
         assert manager.get_connection_count() == 0
 
-    def test_connect_safely(self, signal_manager, qtbot):
+    def test_connect_safely(self, signal_manager, qtbot) -> None:
         """Test safe connection with tracking."""
         manager, owner = signal_manager
         widget = MockWidget()
@@ -95,7 +95,7 @@ class TestSignalManager:
         widget.test_signal.emit()
         qtbot.waitUntil(lambda: len(received) == 1, timeout=100)
 
-    def test_connect_safely_with_connection_type(self, signal_manager, qtbot):
+    def test_connect_safely_with_connection_type(self, signal_manager, qtbot) -> None:
         """Test connection with specific connection type."""
         manager, owner = signal_manager
         widget = MockWidget()
@@ -115,7 +115,7 @@ class TestSignalManager:
         widget.data_signal.emit("test")
         qtbot.waitUntil(lambda: "test" in received, timeout=100)
 
-    def test_connect_safely_without_tracking(self, signal_manager):
+    def test_connect_safely_without_tracking(self, signal_manager) -> None:
         """Test connection without tracking."""
         manager, owner = signal_manager
         widget = MockWidget()
@@ -126,14 +126,14 @@ class TestSignalManager:
         assert result is True
         assert not manager.has_connections()  # Should not be tracked
 
-    def test_disconnect_safely(self, signal_manager, qtbot):
+    def test_disconnect_safely(self, signal_manager, qtbot) -> None:
         """Test safe disconnection."""
         manager, owner = signal_manager
         widget = MockWidget()
 
         received = []
 
-        def slot():
+        def slot() -> None:
             received.append(1)
 
         # Connect and then disconnect
@@ -149,7 +149,7 @@ class TestSignalManager:
         qtbot.wait(10)
         assert len(received) == 0
 
-    def test_disconnect_all(self, signal_manager):
+    def test_disconnect_all(self, signal_manager) -> None:
         """Test disconnecting all tracked connections."""
         manager, owner = signal_manager
         widget1 = MockWidget()
@@ -167,7 +167,7 @@ class TestSignalManager:
         assert count == 3
         assert not manager.has_connections()
 
-    def test_chain_signals(self, signal_manager, qtbot):
+    def test_chain_signals(self, signal_manager, qtbot) -> None:
         """Test signal chaining."""
         manager, owner = signal_manager
         source = MockWidget()
@@ -189,7 +189,7 @@ class TestSignalManager:
 
         assert len(received) == 1
 
-    def test_chain_signals_with_connection_type(self, signal_manager, qtbot):
+    def test_chain_signals_with_connection_type(self, signal_manager, qtbot) -> None:
         """Test signal chaining with specific connection type."""
         manager, owner = signal_manager
         source = MockWidget()
@@ -214,7 +214,7 @@ class TestSignalManager:
 
         assert "test" in received
 
-    def test_connect_group(self, signal_manager):
+    def test_connect_group(self, signal_manager) -> None:
         """Test connecting multiple signal-slot pairs at once."""
         manager, owner = signal_manager
         widget = MockWidget()
@@ -234,7 +234,7 @@ class TestSignalManager:
         assert count == 3
         assert manager.get_connection_count() == 3
 
-    def test_block_signals(self, signal_manager, qtbot):
+    def test_block_signals(self, signal_manager, qtbot) -> None:
         """Test blocking/unblocking signals for multiple objects."""
         manager, owner = signal_manager
         widget1 = MockWidget()
@@ -254,7 +254,7 @@ class TestSignalManager:
         assert not widget1.signalsBlocked()
         assert not widget2.signalsBlocked()
 
-    def test_with_blocked_signals_context_manager(self, signal_manager):
+    def test_with_blocked_signals_context_manager(self, signal_manager) -> None:
         """Test context manager for temporarily blocking signals."""
         manager, owner = signal_manager
         widget1 = MockWidget()
@@ -269,7 +269,7 @@ class TestSignalManager:
         assert not widget1.signalsBlocked()
         assert not widget2.signalsBlocked()
 
-    def test_connect_worker_signals(self, signal_manager):
+    def test_connect_worker_signals(self, signal_manager) -> None:
         """Test connecting signals from a worker thread."""
         manager, owner = signal_manager
 
@@ -296,7 +296,7 @@ class TestSignalManager:
     @pytest.mark.xfail(
         reason="QTimer.singleShot may not fire reliably in test environment"
     )
-    def test_create_delayed_connection(self, signal_manager, qtbot):
+    def test_create_delayed_connection(self, signal_manager, qtbot) -> None:
         """Test creating a connection with a delay."""
         manager, owner = signal_manager
         widget = MockWidget()
@@ -322,7 +322,7 @@ class TestSignalManager:
         QApplication.processEvents()
         assert len(received) == 1
 
-    def test_owner_weak_reference(self):
+    def test_owner_weak_reference(self) -> None:
         """Test that owner is held as weak reference."""
         owner = MockWidget()
         manager = SignalManager(owner)
@@ -338,14 +338,14 @@ class TestSignalManager:
 
     def test_signal_not_emitted_after_disconnect(
         self, qtbot, make_mock_widget, make_signal_manager
-    ):
+    ) -> None:
         """Test that signal is not emitted after disconnection."""
         widget = make_mock_widget()
         manager, _ = make_signal_manager()
 
         received = []
 
-        def slot():
+        def slot() -> None:
             received.append(1)
 
         # Connect and then disconnect
@@ -364,7 +364,7 @@ class TestSignalManager:
 class TestBlockedSignalsContext:
     """Test suite for BlockedSignalsContext."""
 
-    def test_context_manager_blocks_and_restores(self):
+    def test_context_manager_blocks_and_restores(self) -> None:
         """Test that context manager properly blocks and restores signals."""
         widget1 = MockWidget()
         widget2 = MockWidget()
@@ -382,7 +382,7 @@ class TestBlockedSignalsContext:
         assert not widget1.signalsBlocked()
         assert not widget2.signalsBlocked()
 
-    def test_context_manager_preserves_previous_state(self):
+    def test_context_manager_preserves_previous_state(self) -> None:
         """Test that context manager preserves previous blocked states."""
         widget1 = MockWidget()
         widget2 = MockWidget()
@@ -399,7 +399,7 @@ class TestBlockedSignalsContext:
         assert widget1.signalsBlocked()
         assert not widget2.signalsBlocked()
 
-    def test_context_manager_handles_none_objects(self):
+    def test_context_manager_handles_none_objects(self) -> None:
         """Test that context manager handles None objects gracefully."""
         widget = MockWidget()
 
@@ -412,7 +412,7 @@ class TestBlockedSignalsContext:
 class TestSignalThrottler:
     """Test suite for SignalThrottler."""
 
-    def test_throttle_rapid_emissions(self, qtbot):
+    def test_throttle_rapid_emissions(self, qtbot) -> None:
         """Test that throttler limits rapid signal emissions."""
         source = MockWidget()
         throttler = SignalThrottler(source.test_signal, interval_ms=100)
@@ -434,7 +434,7 @@ class TestSignalThrottler:
         assert len(received) == 1
 
     @pytest.mark.xfail(reason="QTimer may not fire reliably in test environment")
-    def test_throttler_preserves_last_args(self, qtbot):
+    def test_throttler_preserves_last_args(self, qtbot) -> None:
         """Test that throttler emits with last received arguments."""
         source = MockWidget()
         throttler = SignalThrottler(source.data_signal, interval_ms=50)
@@ -456,7 +456,7 @@ class TestSignalThrottler:
         assert len(received) == 1
         assert received[0] == ("last",)
 
-    def test_throttler_stop(self, qtbot):
+    def test_throttler_stop(self, qtbot) -> None:
         """Test stopping the throttler."""
         source = MockWidget()
         throttler = SignalThrottler(source.test_signal, interval_ms=50)
@@ -477,7 +477,7 @@ class TestSignalThrottler:
 class TestSignalDebugger:
     """Test suite for SignalDebugger."""
 
-    def test_trace_signal(self, qtbot):
+    def test_trace_signal(self, qtbot) -> None:
         """Test tracing signal emissions."""
         widget = MockWidget()
         debugger = SignalDebugger(enabled=True)
@@ -494,7 +494,7 @@ class TestSignalDebugger:
         stats = debugger.get_stats()
         assert stats["test_signal"] == 3
 
-    def test_trace_signal_with_args(self, qtbot):
+    def test_trace_signal_with_args(self, qtbot) -> None:
         """Test tracing signals with arguments."""
         widget = MockWidget()
         debugger = SignalDebugger(enabled=True)
@@ -508,7 +508,7 @@ class TestSignalDebugger:
         stats = debugger.get_stats()
         assert stats["data_signal"] == 1
 
-    def test_debugger_disabled(self, qtbot):
+    def test_debugger_disabled(self, qtbot) -> None:
         """Test that disabled debugger doesn't trace."""
         widget = MockWidget()
         debugger = SignalDebugger(enabled=False)
@@ -523,7 +523,7 @@ class TestSignalDebugger:
         stats = debugger.get_stats()
         assert len(stats) == 0
 
-    def test_reset_stats(self):
+    def test_reset_stats(self) -> None:
         """Test resetting statistics."""
         widget = MockWidget()
         debugger = SignalDebugger(enabled=True)
@@ -545,7 +545,7 @@ class TestSignalDebugger:
 class TestSignalManagerIntegration:
     """Integration tests for SignalManager with Qt widgets."""
 
-    def test_with_qt_button(self, qtbot):
+    def test_with_qt_button(self, qtbot) -> None:
         """Test SignalManager with actual Qt widget."""
         button = QPushButton("Test")
         manager = SignalManager(button)
@@ -570,7 +570,7 @@ class TestSignalManagerIntegration:
         # Should still be 2
         assert clicked_count[0] == 2
 
-    def test_memory_cleanup(self):
+    def test_memory_cleanup(self) -> None:
         """Test that connections are properly cleaned up."""
         # Create widgets
         widget1 = MockWidget()
@@ -595,13 +595,13 @@ class TestSignalManagerIntegration:
         # Count may be 0 or 2 depending on Qt cleanup order
         assert count >= 0
 
-    def test_thread_safety_with_worker(self, qtbot):
+    def test_thread_safety_with_worker(self, qtbot) -> None:
         """Test thread-safe connections with worker thread."""
 
         class Worker(QObject):
             result = Signal(str)
 
-            def process(self):
+            def process(self) -> None:
                 self.result.emit("processed")
 
         worker = Worker()

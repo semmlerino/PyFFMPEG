@@ -1647,8 +1647,9 @@ def threede_controller_target(qtbot, launcher_controller_target):
     This fixture provides the minimum interface required by ThreeDEController
     following the ThreeDETarget protocol, with LauncherController integration.
     """
-    from controllers.launcher_controller import LauncherController
     from unittest.mock import Mock
+
+    from controllers.launcher_controller import LauncherController
 
     class ThreeDEControllerTestTarget:
         """Minimal target implementing ThreeDETarget protocol."""

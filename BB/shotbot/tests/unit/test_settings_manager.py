@@ -68,7 +68,7 @@ class TestSettingsManager:
         """Create settings manager with temporary storage."""
         return make_settings_manager(tmp_path)
 
-    def test_initialization(self, settings_manager):
+    def test_initialization(self, settings_manager) -> None:
         """Test proper initialization with defaults."""
         # Check that settings object was created
         assert settings_manager.settings is not None
@@ -78,7 +78,7 @@ class TestSettingsManager:
         assert settings_manager.settings.contains("preferences/refresh_interval")
         assert settings_manager.settings.contains("performance/max_thumbnail_threads")
 
-    def test_get_default_settings(self, settings_manager):
+    def test_get_default_settings(self, settings_manager) -> None:
         """Test that default settings contain expected categories."""
         defaults = settings_manager._get_default_settings()
 
@@ -96,7 +96,7 @@ class TestSettingsManager:
             assert isinstance(defaults[category], dict)
             assert len(defaults[category]) > 0
 
-    def test_window_geometry(self, settings_manager):
+    def test_window_geometry(self, settings_manager) -> None:
         """Test getting and setting window geometry."""
         # Test default
         geometry = settings_manager.get_window_geometry()
@@ -111,7 +111,7 @@ class TestSettingsManager:
         retrieved = settings_manager.get_window_geometry()
         assert retrieved == test_geometry
 
-    def test_window_state(self, settings_manager):
+    def test_window_state(self, settings_manager) -> None:
         """Test getting and setting window state."""
         # Test default
         state = settings_manager.get_window_state()
@@ -125,7 +125,7 @@ class TestSettingsManager:
         retrieved = settings_manager.get_window_state()
         assert retrieved == test_state
 
-    def test_window_size(self, settings_manager):
+    def test_window_size(self, settings_manager) -> None:
         """Test getting and setting window size with validation."""
         # Test default
         default_size = settings_manager.get_window_size()
@@ -148,7 +148,7 @@ class TestSettingsManager:
         assert retrieved.width() >= Config.MIN_WINDOW_WIDTH
         assert retrieved.height() >= Config.MIN_WINDOW_HEIGHT
 
-    def test_splitter_positions(self, settings_manager):
+    def test_splitter_positions(self, settings_manager) -> None:
         """Test getting and setting splitter positions."""
         # Test main splitter
         test_splitter = QByteArray(b"splitter_data")
@@ -164,7 +164,7 @@ class TestSettingsManager:
         retrieved = settings_manager.get_splitter_state("right")
         assert retrieved == test_right
 
-    def test_current_tab(self, settings_manager):
+    def test_current_tab(self, settings_manager) -> None:
         """Test getting and setting current tab index."""
         # Test default
         assert settings_manager.get_current_tab() == 0
@@ -177,7 +177,7 @@ class TestSettingsManager:
         settings_manager.set_current_tab(-1)
         assert settings_manager.get_current_tab() == 0
 
-    def test_refresh_interval(self, settings_manager):
+    def test_refresh_interval(self, settings_manager) -> None:
         """Test refresh interval with validation."""
         # Test default - it might not match Config if the initialization overrides it
         default = settings_manager.get_refresh_interval()
@@ -193,7 +193,7 @@ class TestSettingsManager:
         retrieved = settings_manager.get_refresh_interval()
         assert retrieved >= 1  # Minimum should be 1
 
-    def test_thumbnail_size(self, settings_manager):
+    def test_thumbnail_size(self, settings_manager) -> None:
         """Test thumbnail size with validation."""
         # Test default - might be overridden during initialization
         default = settings_manager.get_thumbnail_size()
@@ -211,7 +211,7 @@ class TestSettingsManager:
         settings_manager.set_thumbnail_size(1000)
         assert settings_manager.get_thumbnail_size() <= Config.MAX_THUMBNAIL_SIZE
 
-    def test_last_directory(self, settings_manager, tmp_path):
+    def test_last_directory(self, settings_manager, tmp_path) -> None:
         """Test last directory path handling."""
         # Test default
         default_dir = settings_manager.get_last_directory()
@@ -232,7 +232,7 @@ class TestSettingsManager:
         # Should still be the previous valid path
         assert Path(settings_manager.get_last_directory()) == test_path
 
-    def test_background_refresh(self, settings_manager):
+    def test_background_refresh(self, settings_manager) -> None:
         """Test background refresh boolean setting."""
         # Test default
         default = settings_manager.get_background_refresh()
@@ -245,7 +245,7 @@ class TestSettingsManager:
         settings_manager.set_background_refresh(False)
         assert settings_manager.get_background_refresh() is False
 
-    def test_custom_launchers(self, settings_manager):
+    def test_custom_launchers(self, settings_manager) -> None:
         """Test custom launcher list management."""
         # Test default
         launchers = settings_manager.get_custom_launchers()
@@ -262,7 +262,7 @@ class TestSettingsManager:
         retrieved = settings_manager.get_custom_launchers()
         assert retrieved == test_launchers
 
-    def test_get_category(self, settings_manager):
+    def test_get_category(self, settings_manager) -> None:
         """Test getting all settings in a category."""
         window_settings = settings_manager.get_category("window")
 
@@ -272,7 +272,7 @@ class TestSettingsManager:
         assert "size" in window_settings
         assert "current_tab" in window_settings
 
-    def test_set_category(self, settings_manager):
+    def test_set_category(self, settings_manager) -> None:
         """Test setting multiple values in a category."""
         # Set multiple window settings at once
         new_settings = {"current_tab": 1, "maximized": True, "size": QSize(1600, 900)}
@@ -283,7 +283,7 @@ class TestSettingsManager:
         assert settings_manager.get_current_tab() == 1
         assert settings_manager.settings.value("window/maximized") is True
 
-    def test_get_all_categories(self, settings_manager):
+    def test_get_all_categories(self, settings_manager) -> None:
         """Test getting all settings categories."""
         # Get each category individually
         window = settings_manager.get_category("window")
@@ -299,7 +299,7 @@ class TestSettingsManager:
         assert "refresh_interval" in prefs
         assert "max_thumbnail_threads" in perf
 
-    def test_reset_to_defaults(self, settings_manager):
+    def test_reset_to_defaults(self, settings_manager) -> None:
         """Test resetting all settings to defaults."""
         # Change some settings
         settings_manager.set_current_tab(2)
@@ -312,7 +312,7 @@ class TestSettingsManager:
         assert settings_manager.get_current_tab() == 0
         assert settings_manager.get_thumbnail_size() == Config.DEFAULT_THUMBNAIL_SIZE
 
-    def test_export_settings(self, settings_manager, tmp_path):
+    def test_export_settings(self, settings_manager, tmp_path) -> None:
         """Test exporting settings to JSON file."""
         # Set some custom values
         settings_manager.set_current_tab(1)
@@ -333,7 +333,7 @@ class TestSettingsManager:
         assert exported["window"]["current_tab"] == 1
         assert exported["preferences"]["thumbnail_size"] == 256
 
-    def test_import_settings(self, settings_manager, tmp_path):
+    def test_import_settings(self, settings_manager, tmp_path) -> None:
         """Test importing settings from JSON file."""
         # Create import file
         import_data = {
@@ -352,7 +352,7 @@ class TestSettingsManager:
         assert settings_manager.get_current_tab() == 2
         assert settings_manager.get_thumbnail_size() == 300
 
-    def test_import_invalid_file(self, settings_manager, tmp_path):
+    def test_import_invalid_file(self, settings_manager, tmp_path) -> None:
         """Test importing from invalid file."""
         # Non-existent file
         result = settings_manager.import_settings("/nonexistent/file.json")
@@ -366,13 +366,13 @@ class TestSettingsManager:
         result = settings_manager.import_settings(str(bad_json_path))
         assert result is False
 
-    def test_settings_contains(self, settings_manager):
+    def test_settings_contains(self, settings_manager) -> None:
         """Test checking if a setting exists using QSettings.contains."""
         assert settings_manager.settings.contains("window/geometry")
         assert settings_manager.settings.contains("preferences/thumbnail_size")
         assert not settings_manager.settings.contains("nonexistent/setting")
 
-    def test_remove_setting(self, settings_manager):
+    def test_remove_setting(self, settings_manager) -> None:
         """Test removing a setting using QSettings.remove."""
         # Set a custom setting
         settings_manager.settings.setValue("test/custom", "value")
@@ -382,7 +382,7 @@ class TestSettingsManager:
         settings_manager.settings.remove("test/custom")
         assert not settings_manager.settings.contains("test/custom")
 
-    def test_signal_emission_on_change(self, settings_manager, qtbot):
+    def test_signal_emission_on_change(self, settings_manager, qtbot) -> None:
         """Test that signals are emitted when settings change."""
         # Track signal
         received = []
@@ -398,7 +398,7 @@ class TestSettingsManager:
         assert received[0][0] == "preferences/thumbnail_size"
         assert received[0][1] == new_size
 
-    def test_get_performance_settings(self, settings_manager):
+    def test_get_performance_settings(self, settings_manager) -> None:
         """Test getting performance-related settings."""
         max_threads = settings_manager.get_max_thumbnail_threads()
         assert max_threads == Config.MAX_THUMBNAIL_THREADS
@@ -409,7 +409,7 @@ class TestSettingsManager:
         cache_expiry = settings_manager.get_cache_expiry_minutes()
         assert cache_expiry == Config.CACHE_EXPIRY_MINUTES
 
-    def test_ui_settings(self, settings_manager):
+    def test_ui_settings(self, settings_manager) -> None:
         """Test UI-related settings."""
         # Grid columns
         grid_cols = settings_manager.get_grid_columns()
@@ -423,7 +423,7 @@ class TestSettingsManager:
         settings_manager.set_dark_theme(True)
         assert settings_manager.get_dark_theme() is True
 
-    def test_advanced_settings(self, settings_manager):
+    def test_advanced_settings(self, settings_manager) -> None:
         """Test advanced/debug settings."""
         # Debug mode
         assert settings_manager.get_debug_mode() is False
@@ -437,7 +437,7 @@ class TestSettingsManager:
         settings_manager.set_log_level("DEBUG")
         assert settings_manager.get_log_level() == "DEBUG"
 
-    def test_migration_from_old_format(self, tmp_path):
+    def test_migration_from_old_format(self, tmp_path) -> None:
         """Test migration from old settings format."""
         # Set up old-style settings
         QSettings.setPath(
@@ -462,7 +462,7 @@ class TestSettingsManager:
         # Migration might have happened, check if value exists
         assert isinstance(geometry, QByteArray)
 
-    def test_settings_persistence(self, tmp_path):
+    def test_settings_persistence(self, tmp_path) -> None:
         """Test that settings persist across instances."""
         QSettings.setPath(
             QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path)
@@ -479,7 +479,7 @@ class TestSettingsManager:
         assert manager2.get_current_tab() == 2
         assert manager2.get_thumbnail_size() == 250
 
-    def test_type_safety(self, settings_manager):
+    def test_type_safety(self, settings_manager) -> None:
         """Test type validation and conversion."""
         # Set wrong type for integer setting
         settings_manager.settings.setValue("preferences/refresh_interval", "not_an_int")
@@ -490,7 +490,7 @@ class TestSettingsManager:
         # Value might be 0 or default depending on implementation
         assert value >= 0
 
-    def test_reset_category(self, settings_manager):
+    def test_reset_category(self, settings_manager) -> None:
         """Test resetting a category to defaults."""
         # Set some values
         settings_manager.set_current_tab(2)

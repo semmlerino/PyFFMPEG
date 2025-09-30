@@ -54,7 +54,7 @@ def thumbnail_manager():
 class TestThumbnailManagerBasics:
     """Test basic ThumbnailManager functionality."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test ThumbnailManager initialization."""
         manager = ThumbnailManager(thumbnail_size=128, max_memory_mb=20)
 
@@ -63,7 +63,7 @@ class TestThumbnailManagerBasics:
         assert manager._memory_usage_bytes == 0
         assert len(manager._cached_items) == 0
 
-    def test_default_initialization(self):
+    def test_default_initialization(self) -> None:
         """Test ThumbnailManager with default values."""
         manager = ThumbnailManager()
 
@@ -71,7 +71,7 @@ class TestThumbnailManagerBasics:
         assert manager._thumbnail_size > 0
         assert manager._max_memory_bytes > 0
 
-    def test_usage_stats_empty(self, thumbnail_manager):
+    def test_usage_stats_empty(self, thumbnail_manager) -> None:
         """Test usage statistics with empty cache."""
         stats = thumbnail_manager.get_usage_stats()
 
@@ -81,7 +81,7 @@ class TestThumbnailManagerBasics:
         assert stats["average_item_kb"] == 0
         assert stats["memory_limit_mb"] > 0
 
-    def test_set_memory_limit(self, thumbnail_manager):
+    def test_set_memory_limit(self, thumbnail_manager) -> None:
         """Test setting memory limit."""
         new_limit = 50
         thumbnail_manager.set_memory_limit(new_limit)
@@ -95,7 +95,7 @@ class TestThumbnailManagerBasics:
 class TestThumbnailManagerMemoryTracking:
     """Test memory tracking functionality."""
 
-    def test_track_item(self, thumbnail_manager, temp_image_file):
+    def test_track_item(self, thumbnail_manager, temp_image_file) -> None:
         """Test tracking items in memory manager."""
         assert thumbnail_manager.track_item(temp_image_file) is True
         assert thumbnail_manager.is_item_tracked(temp_image_file) is True
@@ -104,13 +104,13 @@ class TestThumbnailManagerMemoryTracking:
         assert stats["total_items"] == 1
         assert stats["total_size_mb"] > 0
 
-    def test_track_nonexistent_item(self, thumbnail_manager):
+    def test_track_nonexistent_item(self, thumbnail_manager) -> None:
         """Test tracking non-existent file."""
         fake_path = Path("/nonexistent/file.jpg")
         assert thumbnail_manager.track_item(fake_path) is False
         assert thumbnail_manager.is_item_tracked(fake_path) is False
 
-    def test_evict_item(self, thumbnail_manager, temp_image_file):
+    def test_evict_item(self, thumbnail_manager, temp_image_file) -> None:
         """Test evicting items from memory tracking."""
         # Track item first
         thumbnail_manager.track_item(temp_image_file)
@@ -123,12 +123,12 @@ class TestThumbnailManagerMemoryTracking:
         stats = thumbnail_manager.get_usage_stats()
         assert stats["total_items"] == 0
 
-    def test_evict_nonexistent_item(self, thumbnail_manager):
+    def test_evict_nonexistent_item(self, thumbnail_manager) -> None:
         """Test evicting non-tracked item."""
         fake_path = Path("/nonexistent/file.jpg")
         assert thumbnail_manager.evict_item(fake_path) is False
 
-    def test_force_update_item(self, thumbnail_manager, temp_image_file):
+    def test_force_update_item(self, thumbnail_manager, temp_image_file) -> None:
         """Test force updating item size."""
         # Track item first
         thumbnail_manager.track_item(temp_image_file)
@@ -141,7 +141,7 @@ class TestThumbnailManagerMemoryTracking:
         updated_stats = thumbnail_manager.get_usage_stats()
         assert updated_stats["total_items"] == initial_stats["total_items"]
 
-    def test_clear_cache(self, thumbnail_manager, temp_image_file):
+    def test_clear_cache(self, thumbnail_manager, temp_image_file) -> None:
         """Test clearing entire cache."""
         # Track some items
         thumbnail_manager.track_item(temp_image_file)
@@ -159,7 +159,7 @@ class TestThumbnailManagerMemoryTracking:
 class TestThumbnailManagerFailureTracking:
     """Test failure tracking and retry logic."""
 
-    def test_record_and_check_failure(self, thumbnail_manager, temp_image_file):
+    def test_record_and_check_failure(self, thumbnail_manager, temp_image_file) -> None:
         """Test recording failures and retry logic."""
         # Should be able to retry initially
         assert thumbnail_manager._should_retry(temp_image_file) is True
@@ -174,7 +174,7 @@ class TestThumbnailManagerFailureTracking:
             Path(p).name for p in thumbnail_manager._failures.keys()
         ]
 
-    def test_clear_failure(self, thumbnail_manager, temp_image_file):
+    def test_clear_failure(self, thumbnail_manager, temp_image_file) -> None:
         """Test clearing failure records."""
         # Record failure
         thumbnail_manager.record_failure(temp_image_file, "Test error")
@@ -184,7 +184,7 @@ class TestThumbnailManagerFailureTracking:
         thumbnail_manager.clear_failure(temp_image_file)
         assert str(temp_image_file) not in thumbnail_manager._failures
 
-    def test_exponential_backoff(self, thumbnail_manager, temp_image_file):
+    def test_exponential_backoff(self, thumbnail_manager, temp_image_file) -> None:
         """Test exponential backoff for multiple failures."""
         # Record multiple failures
         for i in range(3):
@@ -199,7 +199,7 @@ class TestThumbnailManagerFailureTracking:
 class TestThumbnailManagerProcessing:
     """Test thumbnail processing functionality."""
 
-    def test_analyze_source_file(self, thumbnail_manager, temp_image_file):
+    def test_analyze_source_file(self, thumbnail_manager, temp_image_file) -> None:
         """Test source file analysis."""
         file_info = thumbnail_manager._analyze_source_file(temp_image_file)
 
@@ -210,7 +210,7 @@ class TestThumbnailManagerProcessing:
         assert file_info["suffix_lower"] == ".jpg"
         assert file_info["is_heavy_format"] is False
 
-    def test_analyze_heavy_format(self, thumbnail_manager, temp_cache_dir):
+    def test_analyze_heavy_format(self, thumbnail_manager, temp_cache_dir) -> None:
         """Test analysis of heavy format files."""
         # Create a real EXR file for testing
         fake_exr = temp_cache_dir / "test.exr"
@@ -224,7 +224,7 @@ class TestThumbnailManagerProcessing:
 
     def test_process_with_qt_success(
         self, thumbnail_manager, temp_image_file, temp_cache_dir
-    ):
+    ) -> None:
         """Test Qt processing success."""
         cache_path = temp_cache_dir / "thumb.jpg"
         file_info = {"file_size_mb": 0.1, "suffix_lower": ".jpg", "use_pil": False}
@@ -236,7 +236,7 @@ class TestThumbnailManagerProcessing:
         assert success is True
         assert cache_path.exists()
 
-    def test_process_with_qt_invalid_source(self, thumbnail_manager, temp_cache_dir):
+    def test_process_with_qt_invalid_source(self, thumbnail_manager, temp_cache_dir) -> None:
         """Test Qt processing with invalid source."""
         invalid_source = Path("/nonexistent/file.jpg")
         cache_path = temp_cache_dir / "thumb.jpg"
@@ -251,7 +251,7 @@ class TestThumbnailManagerProcessing:
 
     def test_process_with_pil_success(
         self, thumbnail_manager, temp_image_file, temp_cache_dir
-    ):
+    ) -> None:
         """Test PIL processing success."""
         # Mock PIL image
         mock_image = Mock()
@@ -273,7 +273,7 @@ class TestThumbnailManagerProcessing:
 
     def test_sync_thumbnail_processing(
         self, thumbnail_manager, temp_image_file, temp_cache_dir
-    ):
+    ) -> None:
         """Test synchronous thumbnail processing."""
         cache_path = temp_cache_dir / "thumb.jpg"
 
@@ -284,7 +284,7 @@ class TestThumbnailManagerProcessing:
         # Should be tracked in memory manager
         assert thumbnail_manager.is_item_tracked(cache_path) is True
 
-    def test_sync_thumbnail_processing_failure(self, thumbnail_manager, temp_cache_dir):
+    def test_sync_thumbnail_processing_failure(self, thumbnail_manager, temp_cache_dir) -> None:
         """Test synchronous processing with invalid source."""
         invalid_source = Path("/nonexistent/file.jpg")
         cache_path = temp_cache_dir / "thumb.jpg"
@@ -302,7 +302,7 @@ class TestThumbnailManagerAsync:
 
     def test_async_thumbnail_processing_success(
         self, thumbnail_manager, temp_image_file, temp_cache_dir
-    ):
+    ) -> None:
         """Test asynchronous thumbnail processing success."""
         cache_path = temp_cache_dir / "async_thumb.jpg"
 
@@ -319,7 +319,7 @@ class TestThumbnailManagerAsync:
 
     def test_async_thumbnail_processing_with_backoff(
         self, thumbnail_manager, temp_image_file, temp_cache_dir
-    ):
+    ) -> None:
         """Test async processing respects failure backoff."""
         cache_path = temp_cache_dir / "backoff_thumb.jpg"
 
@@ -338,7 +338,7 @@ class TestThumbnailManagerAsync:
         assert result.error is not None
         assert "backoff" in result.error.lower()
 
-    def test_thumbnail_cache_result_completion(self):
+    def test_thumbnail_cache_result_completion(self) -> None:
         """Test ThumbnailCacheResult completion handling."""
         result = ThumbnailCacheResult()
 
@@ -352,7 +352,7 @@ class TestThumbnailManagerAsync:
         assert result.cache_path == cache_path
         assert result.error is None
 
-    def test_thumbnail_cache_result_error(self):
+    def test_thumbnail_cache_result_error(self) -> None:
         """Test ThumbnailCacheResult error handling."""
         result = ThumbnailCacheResult()
 
@@ -363,7 +363,7 @@ class TestThumbnailManagerAsync:
         assert result.error == error_msg
         assert result.cache_path is None
 
-    def test_thumbnail_cache_result_double_completion(self):
+    def test_thumbnail_cache_result_double_completion(self) -> None:
         """Test that result can't be completed twice."""
         result = ThumbnailCacheResult()
 
@@ -380,7 +380,7 @@ class TestThumbnailManagerAsync:
 class TestThumbnailManagerMemoryEviction:
     """Test memory eviction and LRU behavior."""
 
-    def test_memory_eviction_on_limit(self, temp_cache_dir):
+    def test_memory_eviction_on_limit(self, temp_cache_dir) -> None:
         """Test LRU eviction when memory limit is exceeded."""
         # Create manager with very small memory limit
         manager = ThumbnailManager(max_memory_mb=0.001)  # 1KB limit
@@ -400,7 +400,7 @@ class TestThumbnailManagerMemoryEviction:
         stats = manager.get_usage_stats()
         assert stats["total_items"] < len(files)
 
-    def test_lru_eviction_order(self, temp_cache_dir):
+    def test_lru_eviction_order(self, temp_cache_dir) -> None:
         """Test that LRU eviction removes oldest accessed items first."""
         manager = ThumbnailManager(max_memory_mb=0.003)  # 3KB limit (~3145 bytes)
 
@@ -449,7 +449,7 @@ class TestThumbnailManagerValidation:
 
     def test_validate_tracking_with_valid_files(
         self, thumbnail_manager, temp_image_file
-    ):
+    ) -> None:
         """Test tracking validation with valid files."""
         thumbnail_manager.track_item(temp_image_file)
 
@@ -461,7 +461,7 @@ class TestThumbnailManagerValidation:
 
     def test_validate_tracking_with_missing_files(
         self, thumbnail_manager, temp_cache_dir
-    ):
+    ) -> None:
         """Test tracking validation with missing files."""
         # Create and track a file, then delete it
         temp_file = temp_cache_dir / "temp.txt"
@@ -482,7 +482,7 @@ class TestThumbnailManagerValidation:
 class TestThumbnailManagerSignals:
     """Test Qt signal emissions."""
 
-    def test_signal_connections(self, thumbnail_manager):
+    def test_signal_connections(self, thumbnail_manager) -> None:
         """Test that signals can be connected."""
         # Mock signal handlers
         ready_handler = Mock()
@@ -499,7 +499,7 @@ class TestThumbnailManagerSignals:
         assert thumbnail_manager.thumbnail_failed is not None
         assert thumbnail_manager.memory_pressure is not None
 
-    def test_cleanup_disconnects_signals(self, thumbnail_manager):
+    def test_cleanup_disconnects_signals(self, thumbnail_manager) -> None:
         """Test that cleanup disconnects signals."""
         # Connect a signal
         handler = Mock()
@@ -512,14 +512,14 @@ class TestThumbnailManagerSignals:
 class TestThumbnailManagerBackwardCompatibility:
     """Test backward compatibility factory functions."""
 
-    def test_create_thumbnail_processor(self):
+    def test_create_thumbnail_processor(self) -> None:
         """Test factory function for thumbnail processor compatibility."""
         processor = create_thumbnail_processor(thumbnail_size=256)
 
         assert isinstance(processor, ThumbnailManager)
         assert processor._thumbnail_size == 256
 
-    def test_create_memory_manager(self):
+    def test_create_memory_manager(self) -> None:
         """Test factory function for memory manager compatibility."""
         from cache.thumbnail_manager import create_memory_manager
 
@@ -528,7 +528,7 @@ class TestThumbnailManagerBackwardCompatibility:
         assert isinstance(manager, ThumbnailManager)
         assert manager._max_memory_bytes == 100 * 1024 * 1024
 
-    def test_create_thumbnail_loader(self):
+    def test_create_thumbnail_loader(self) -> None:
         """Test factory function for thumbnail loader compatibility."""
         from cache.thumbnail_manager import create_thumbnail_loader
 
@@ -542,7 +542,7 @@ class TestThumbnailManagerEdgeCases:
 
     def test_process_with_memory_error(
         self, thumbnail_manager, temp_image_file, temp_cache_dir
-    ):
+    ) -> None:
         """Test handling of memory errors during processing."""
         cache_path = temp_cache_dir / "memory_error_thumb.jpg"
 
@@ -559,7 +559,7 @@ class TestThumbnailManagerEdgeCases:
             # Should record failure
             assert str(temp_image_file) in thumbnail_manager._failures
 
-    def test_process_with_permission_error(self, thumbnail_manager, temp_image_file):
+    def test_process_with_permission_error(self, thumbnail_manager, temp_image_file) -> None:
         """Test handling of permission errors during cache directory creation."""
         # Use a path that will cause permission issues
         readonly_cache = Path("/readonly/cache/thumb.jpg")
@@ -572,7 +572,7 @@ class TestThumbnailManagerEdgeCases:
         # Should record failure
         assert str(temp_image_file) in thumbnail_manager._failures
 
-    def test_empty_source_path(self, thumbnail_manager, temp_cache_dir):
+    def test_empty_source_path(self, thumbnail_manager, temp_cache_dir) -> None:
         """Test handling of empty or None source path."""
         cache_path = temp_cache_dir / "thumb.jpg"
 
