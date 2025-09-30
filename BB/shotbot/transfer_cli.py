@@ -155,12 +155,17 @@ def main() -> None:
     parser.add_argument(
         "--metadata",
         action="store_true",
-        help="Include metadata JSON with output",
+        help="Generate metadata JSON (saved to separate file by default)",
     )
     parser.add_argument(
         "--metadata-file",
-        help="Save metadata to a separate file instead of embedding it",
+        help="Path for separate metadata file (auto-generated if --metadata used without this)",
         default=None,
+    )
+    parser.add_argument(
+        "--embed-metadata",
+        action="store_true",
+        help="Embed metadata in output file instead of separate file",
     )
     parser.add_argument(
         "--single-file",
@@ -217,9 +222,18 @@ def main() -> None:
         single_file = cast("bool", args.single_file)
         output_file = cast("str | None", args.output)
         metadata_file = cast("str | None", args.metadata_file)
+        embed_metadata = cast("bool", args.embed_metadata)
 
-        # Save metadata to separate file if requested
-        if metadata and metadata_file:
+        # Handle metadata output - default to separate file
+        if metadata and not embed_metadata:
+            # Auto-generate metadata filename if not provided
+            if not metadata_file:
+                if output_file:
+                    metadata_file = output_file.replace(".txt", "_metadata.json")
+                else:
+                    metadata_file = "metadata.json"
+
+            # Save to separate file
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f, indent=2)
             if verbose:
