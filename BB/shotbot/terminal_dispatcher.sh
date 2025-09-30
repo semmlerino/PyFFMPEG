@@ -34,7 +34,8 @@ is_gui_app() {
 }
 
 # Debug mode flag (set SHOTBOT_TERMINAL_DEBUG=1 to enable)
-DEBUG_MODE=${SHOTBOT_TERMINAL_DEBUG:-0}
+# Default to enabled for investigating corruption issues
+DEBUG_MODE=${SHOTBOT_TERMINAL_DEBUG:-1}
 
 # Main command loop
 while true; do
@@ -44,10 +45,15 @@ while true; do
         if [ -z "$cmd" ]; then
             continue
         fi
-        
-        # Debug logging
+
+        # Enhanced debug logging
         if [ "$DEBUG_MODE" = "1" ]; then
-            echo "[DEBUG] Received command: $cmd" >&2
+            echo "" >&2
+            echo "[DEBUG] ========================================" >&2
+            echo "[DEBUG] Received command from FIFO" >&2
+            echo "[DEBUG] Command: $cmd" >&2
+            echo "[DEBUG] Command length: ${#cmd} chars" >&2
+            echo "[DEBUG] First 50 chars: ${cmd:0:50}" >&2
             echo "[DEBUG] Shell: $SHELL" >&2
             echo "[DEBUG] PATH: $PATH" >&2
             # Check if ws function is available
@@ -56,6 +62,25 @@ while true; do
             else
                 echo "[DEBUG] WARNING: ws function not found!" >&2
             fi
+            echo "[DEBUG] ========================================" >&2
+            echo "" >&2
+        fi
+
+        # Command sanity checks
+        cmd_length=${#cmd}
+        if [ "$cmd_length" -lt 3 ]; then
+            echo "" >&2
+            echo "[ERROR] Command too short ($cmd_length chars): '$cmd'" >&2
+            echo "[ERROR] Skipping potentially corrupted command" >&2
+            continue
+        fi
+
+        # Check for obviously corrupted commands (no letters)
+        if ! echo "$cmd" | grep -q '[a-zA-Z]'; then
+            echo "" >&2
+            echo "[ERROR] Command contains no letters: '$cmd'" >&2
+            echo "[ERROR] Skipping corrupted command" >&2
+            continue
         fi
         
         # Check for special commands

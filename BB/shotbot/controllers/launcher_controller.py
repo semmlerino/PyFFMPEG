@@ -234,6 +234,40 @@ class LauncherController(LoggingMixin):
                 )
         else:
             self.logger.warning("⚠️  No scene context - falling back to shot context")
+
+            # Add visible UI feedback about fallback
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.window.log_viewer.add_command(
+                timestamp,
+                "Using shot context (no scene selected)"
+            )
+
+            # Verify command_launcher has shot context set
+            if not self.window.command_launcher.current_shot:
+                if self._current_shot:
+                    # Re-sync contexts
+                    self.logger.info(f"Re-syncing command_launcher context with {self._current_shot.full_name}")
+                    self.window.command_launcher.set_current_shot(self._current_shot)
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.window.log_viewer.add_command(
+                        timestamp,
+                        f"Re-synced shot context: {self._current_shot.full_name}"
+                    )
+                else:
+                    # No context at all - fail gracefully
+                    self.logger.error("No shot or scene context available for launch")
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.window.log_viewer.add_error(
+                        timestamp,
+                        "No shot selected - please select a shot before launching"
+                    )
+                    NotificationManager.warning(
+                        "No Shot Selected",
+                        "Please select a shot before launching applications."
+                    )
+                    return  # Exit early without setting success
+
             # Regular shot launch - get app-specific options
             options = self.get_launch_options(app_name)
 

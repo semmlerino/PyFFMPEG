@@ -256,6 +256,28 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             )
             # Don't return False here - we'll let the actual write attempt handle the error
 
+        # Validate command before sending
+        if not command or not command.strip():
+            self.logger.error("Attempted to send empty command to FIFO")
+            return False
+
+        # Check for printable ASCII characters (basic sanity check)
+        try:
+            command.encode('ascii')
+        except UnicodeEncodeError:
+            self.logger.warning(
+                f"Command contains non-ASCII characters: {command!r}"
+            )
+
+        # Debug logging: log command details before sending
+        self.logger.debug(
+            f"Preparing to send command to FIFO:\n"
+            f"  Command: {command!r}\n"
+            f"  Length: {len(command)} chars\n"
+            f"  FIFO: {self.fifo_path}\n"
+            f"  Terminal PID: {self.terminal_pid}"
+        )
+
         # Send command to FIFO using non-blocking I/O
         fifo_fd = None
         max_retries = 2
@@ -265,8 +287,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 # Open FIFO in non-blocking mode to prevent hanging
                 fifo_fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
 
-                # Convert file descriptor to file object for easier writing
-                with os.fdopen(fifo_fd, "w") as fifo:
+                # Convert file descriptor to file object with explicit UTF-8 encoding
+                # This ensures consistent encoding across different WSL/Linux environments
+                with os.fdopen(fifo_fd, "w", encoding="utf-8") as fifo:
                     fifo_fd = None  # File object now owns the descriptor
                     fifo.write(f"{command}\n")
                     fifo.flush()

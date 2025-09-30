@@ -380,9 +380,18 @@ class CommandLauncher(LoggingMixin, QObject):
         else:
             full_command = ws_command
 
-        # Log the command
+        # Log the command to UI
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.command_executed.emit(timestamp, full_command)
+
+        # Enhanced debug logging for command integrity verification
+        self.logger.debug(
+            f"Constructed command for {app_name}:\n"
+            f"  Command: {full_command!r}\n"
+            f"  Length: {len(full_command)} chars\n"
+            f"  Workspace: {self.current_shot.workspace_path if self.current_shot else 'None'}\n"
+            f"  Shot: {self.current_shot.full_name if self.current_shot else 'None'}"
+        )
 
         # Use persistent terminal if available and enabled
         if (
@@ -408,7 +417,11 @@ class CommandLauncher(LoggingMixin, QObject):
                 f"Sending command to persistent terminal: {command_to_send}"
             )
             self.logger.debug(
-                f"Is GUI app: {self._is_gui_app(app_name)}, Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
+                f"Command details:\n"
+                f"  Original: {full_command!r}\n"
+                f"  To send: {command_to_send!r}\n"
+                f"  Is GUI app: {self._is_gui_app(app_name)}\n"
+                f"  Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
             )
 
             success = self.persistent_terminal.send_command(command_to_send)
@@ -476,7 +489,14 @@ class CommandLauncher(LoggingMixin, QObject):
         # Validate and escape scene path to prevent injection
         try:
             safe_scene_path = self._validate_path_for_shell(str(scene.scene_path))
-            command = f"{command} {safe_scene_path}"
+            # Add app-specific command-line flags for scene file
+            if app_name == "3de":
+                command = f"{command} -open {safe_scene_path}"
+            elif app_name == "maya":
+                command = f"{command} -file {safe_scene_path}"
+            else:
+                # Nuke and others accept scene file without flag
+                command = f"{command} {safe_scene_path}"
         except ValueError as e:
             self._emit_error(f"Invalid scene path: {str(e)}")
             return False
