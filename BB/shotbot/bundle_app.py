@@ -403,6 +403,9 @@ class ApplicationBundler:
         if not os.path.exists(transfer_cli_path):
             raise FileNotFoundError(f"transfer_cli.py not found at {transfer_cli_path}")
 
+        # Determine metadata file path
+        metadata_file = output_file.replace(".txt", "_metadata.json")
+
         cmd = [
             sys.executable,
             transfer_cli_path,
@@ -413,6 +416,8 @@ class ApplicationBundler:
             str(self.config["chunk_size_kb"]),
             "--single-file",
             "--metadata",
+            "--metadata-file",
+            metadata_file,
         ]
 
         if self.verbose:

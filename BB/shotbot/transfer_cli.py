@@ -158,6 +158,11 @@ def main() -> None:
         help="Include metadata JSON with output",
     )
     parser.add_argument(
+        "--metadata-file",
+        help="Save metadata to a separate file instead of embedding it",
+        default=None,
+    )
+    parser.add_argument(
         "--single-file",
         action="store_true",
         help="When chunking, combine all chunks into a single file",
@@ -211,6 +216,16 @@ def main() -> None:
         chunk_dir = cast("str | None", args.chunk_dir)
         single_file = cast("bool", args.single_file)
         output_file = cast("str | None", args.output)
+        metadata_file = cast("str | None", args.metadata_file)
+
+        # Save metadata to separate file if requested
+        if metadata and metadata_file:
+            with open(metadata_file, "w") as f:
+                json.dump(metadata, f, indent=2)
+            if verbose:
+                print(f"Saved metadata to: {metadata_file}", file=sys.stderr)
+            # Don't embed metadata in output when using separate file
+            metadata = None
 
         if chunks and chunk_dir:
             # Save chunks to individual files
