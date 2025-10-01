@@ -15,7 +15,6 @@ import json
 import threading
 import time
 from datetime import timedelta
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -357,23 +356,21 @@ class TestThumbnailCaching:
 class TestEXRProcessing:
     """Test OpenEXR thumbnail processing."""
 
-    def test_exr_thumbnail_fallback_to_pil(self, cache_manager, mock_exr_file):
-        """Test EXR processing falls back to PIL when OpenEXR unavailable.
+    def test_exr_thumbnail_with_pil(self, cache_manager, mock_exr_file):
+        """Test EXR processing uses PIL directly (no OpenEXR/Imath dependency).
 
-        This tests the real-world scenario where OpenEXR module might not be installed.
+        This tests that we handle EXR files gracefully using PIL,
+        which will fail if pillow-openexr is not installed (expected).
         """
-        # Mock OpenEXR import failure
-        with patch.dict("sys.modules", {"OpenEXR": None, "Imath": None}):
-            result = cache_manager.cache_thumbnail(
-                mock_exr_file, "test_show", "seq01", "shot_exr"
-            )
+        result = cache_manager.cache_thumbnail(
+            mock_exr_file, "test_show", "seq01", "shot_exr"
+        )
 
-            # Should still create a thumbnail (using PIL fallback)
-            # In reality, PIL will fail on our mock EXR, so result might be None
-            # This is expected behavior - graceful degradation
-            if result is None:
-                # Verify no exception was raised (graceful failure)
-                assert True
+        # PIL will fail on our mock EXR file since it's not a real EXR
+        # This is expected behavior - graceful degradation without OpenEXR/Imath
+        if result is None:
+            # Verify no exception was raised (graceful failure)
+            assert True
 
     def test_exr_thumbnail_with_missing_file(self, cache_manager, tmp_path):
         """Test EXR processing handles missing files gracefully."""

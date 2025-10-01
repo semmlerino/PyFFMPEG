@@ -227,12 +227,9 @@ class CacheManager(LoggingMixin, QObject):
                 except Exception:
                     pass  # Regenerate if we can't check age
 
-            # Process based on format
+            # Process with PIL (handles all formats including EXR if pillow-openexr installed)
             try:
-                if source_path_obj.suffix.lower() == '.exr':
-                    return self._process_exr_thumbnail(source_path_obj, output_path)
-                else:
-                    return self._process_standard_thumbnail(source_path_obj, output_path)
+                return self._process_standard_thumbnail(source_path_obj, output_path)
             except Exception as e:
                 self.logger.error(f"Failed to process thumbnail: {e}")
                 return None
@@ -259,66 +256,6 @@ class CacheManager(LoggingMixin, QObject):
             self.logger.error(f"PIL thumbnail processing failed: {e}")
             raise ThumbnailError(f"Failed to process thumbnail: {e}")
 
-    def _process_exr_thumbnail(self, source: Path, output: Path) -> Path:
-        """Process OpenEXR file to thumbnail.
-
-        Args:
-            source: Source EXR path
-            output: Output thumbnail path
-
-        Returns:
-            Path to created thumbnail
-        """
-        try:
-            import Imath
-            import numpy as np
-            import OpenEXR
-            from PIL import Image
-
-            # Read EXR file
-            # OpenEXR library lacks complete type stubs
-            exr_file = OpenEXR.InputFile(str(source))  # type: ignore[reportUnknownMemberType]
-            header = exr_file.header()  # type: ignore[reportUnknownMemberType]
-
-            # Get dimensions
-            dw = header['dataWindow']  # type: ignore[reportUnknownVariableType]
-            width = dw.max.x - dw.min.x + 1  # type: ignore[reportUnknownMemberType]
-            height = dw.max.y - dw.min.y + 1  # type: ignore[reportUnknownMemberType]
-
-            # Read RGB channels
-            FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-            channels: list[np.ndarray] = []  # Simplified to avoid shape annotation issues
-            for chan in ['R', 'G', 'B']:
-                if chan in header['channels']:
-                    channel_str = exr_file.channel(chan, FLOAT)  # type: ignore[reportUnknownMemberType]
-                    channel_data = np.frombuffer(channel_str, dtype=np.float32)  # type: ignore[reportUnknownArgumentType]
-                    channel_data = channel_data.reshape((height, width))  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]
-                    channels.append(channel_data)
-
-            if len(channels) == 3:
-                # Stack channels and convert to 8-bit
-                img_data: np.ndarray = np.stack(channels, axis=2)
-                # Simple tone mapping: clamp and scale
-                img_data_clipped: np.ndarray = np.clip(img_data, 0, 1)
-                img_data_uint8: np.ndarray = (img_data_clipped * 255).astype(np.uint8)
-
-                # Create PIL image
-                img = Image.fromarray(img_data_uint8, mode='RGB')
-                img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
-                img.save(output, 'JPEG', quality=THUMBNAIL_QUALITY)
-
-                self.logger.debug(f"Created EXR thumbnail: {output}")
-                return output
-            else:
-                raise ThumbnailError("EXR file missing RGB channels")
-
-        except Exception as e:
-            self.logger.error(f"OpenEXR thumbnail processing failed: {e}")
-            # Fallback: try PIL
-            try:
-                return self._process_standard_thumbnail(source, output)
-            except Exception:
-                raise ThumbnailError(f"Failed to process EXR thumbnail: {e}")
 
     def cache_thumbnail_direct(
         self,
