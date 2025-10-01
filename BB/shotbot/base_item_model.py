@@ -306,6 +306,13 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         start = max(0, self._visible_start - buffer_size)
         end = min(len(self._items), self._visible_end + buffer_size)
 
+        # DEBUG: Log how many items we're checking
+        if self._items:
+            self.logger.debug(
+                f"_load_visible_thumbnails: checking {end - start} items "
+                f"(range {start}-{end}, total items: {len(self._items)})"
+            )
+
         for row in range(start, end):
             item = self._items[row]
 
@@ -320,6 +327,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
                     continue
 
             # Start loading
+            self.logger.debug(f"Starting thumbnail load for item {row}: {item.full_name}")
             self._load_thumbnail_async(row, item)
 
         # Stop timer if no more loading needed
