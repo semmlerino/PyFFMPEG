@@ -142,6 +142,7 @@ class ThreeDEGridView(BaseGridView):
         Args:
             model: UnifiedItemModel instance configured for 3DE scenes
         """
+        self._model = model  # Set base class attribute for visibility tracking
         self._threede_model = model
         self.list_view.setModel(model)
 
