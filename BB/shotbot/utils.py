@@ -762,13 +762,20 @@ class PathUtils:
     def discover_plate_directories(
         base_path: str | Path,
     ) -> list[tuple[str, float]]:
-        """Discover available plate directories and return them in priority order.
+        """Dynamically discover plate directories using pattern matching and priority system.
+
+        Supports: FG##, BG##, EL##, COMP##, PL##, and fallback to any directory.
+        Uses Config.TURNOVER_PLATE_PRIORITY for ranking plates by type.
+
+        This replaces the hardcoded PLATE_DISCOVERY_PATTERNS approach with dynamic
+        discovery, allowing any plate naming (EL01, EL02, EL99, etc.) to work
+        automatically without config updates.
 
         Args:
             base_path: Base path to search for plate directories
 
         Returns:
-            List of (plate_name, priority) tuples sorted by priority
+            List of (plate_name, priority) tuples sorted by priority (lower = higher priority)
         """
         if not PathUtils.validate_path_exists(base_path, "Plate base path"):
             return []
@@ -776,19 +783,46 @@ class PathUtils:
         path_obj = Path(base_path) if isinstance(base_path, str) else base_path
         found_plates: list[tuple[str, float]] = []
 
-        # Check for each possible plate pattern
-        for pattern in Config.PLATE_DISCOVERY_PATTERNS:
-            plate_path = path_obj / pattern
-            if plate_path.exists() and plate_path.is_dir():
-                # Get priority from config or use default
-                priority = Config.PLATE_PRIORITY_ORDER.get(pattern, 0)
-                found_plates.append((pattern, priority))
+        # Define plate patterns with capturing groups for type identification
+        plate_patterns = {
+            r'^(FG)\d+$': 'FG',      # FG01, FG02, etc.
+            r'^(BG)\d+$': 'BG',      # BG01, BG02, etc.
+            r'^(EL)\d+$': 'EL',      # EL01, EL02, etc. (element plates)
+            r'^(COMP)\d+$': 'COMP',  # COMP01, COMP02, etc.
+            r'^(PL)\d+$': 'PL',      # PL01, PL02, etc. (turnover plates)
+        }
+
+        try:
+            for item in path_obj.iterdir():
+                if not item.is_dir():
+                    continue
+
+                plate_name = item.name
+                matched_prefix = None
+
+                # Try to match against known patterns
+                for pattern, prefix in plate_patterns.items():
+                    if re.match(pattern, plate_name):
+                        matched_prefix = prefix
+                        break
+
+                # Get priority from config (lower number = higher priority)
+                if matched_prefix:
+                    priority = Config.TURNOVER_PLATE_PRIORITY.get(matched_prefix, 3)
+                else:
+                    # Unknown pattern - use wildcard priority
+                    priority = Config.TURNOVER_PLATE_PRIORITY.get('*', 3)
+
+                found_plates.append((plate_name, priority))
                 logger.debug(
-                    f"Found plate directory: {pattern} with priority {priority}",
+                    f"Found plate: {plate_name} (type: {matched_prefix or 'unknown'}, priority: {priority})"
                 )
 
-        # Sort by priority (higher numbers first)
-        found_plates.sort(key=lambda x: x[1], reverse=True)
+        except (OSError, PermissionError) as e:
+            logger.warning(f"Error scanning plate directories in {base_path}: {e}")
+
+        # Sort by priority (LOWER number = HIGHER priority as per config documentation)
+        found_plates.sort(key=lambda x: x[1])
 
         return found_plates
 
