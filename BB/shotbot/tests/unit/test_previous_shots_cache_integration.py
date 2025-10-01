@@ -15,7 +15,6 @@ from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
-import json
 import time
 from typing import TYPE_CHECKING
 
@@ -157,6 +156,9 @@ class TestPreviousShootsCacheIntegration:
 
     def test_cache_ttl_behavior(self, cache_manager, temp_cache_dir) -> None:
         """Test cache TTL (Time To Live) behavior."""
+        # Standard library imports
+        import os
+
         # Cache some data
         test_data = [
             {
@@ -171,15 +173,12 @@ class TestPreviousShootsCacheIntegration:
         # Verify data is cached
         assert cache_manager.get_cached_previous_shots() is not None
 
-        # Manually modify timestamp to simulate expiration
+        # Manually modify file modification time to simulate expiration
         cache_file = temp_cache_dir / "previous_shots.json"
-        cache_content = json.loads(cache_file.read_text())
 
-        # Set timestamp to 2 hours ago (beyond 30 minute TTL)
+        # Set file modification time to 2 hours ago (beyond 30 minute TTL)
         old_timestamp = time.time() - (2 * 60 * 60)  # 2 hours ago
-        cache_content["timestamp"] = old_timestamp
-
-        cache_file.write_text(json.dumps(cache_content))
+        os.utime(cache_file, (old_timestamp, old_timestamp))
 
         # Should return None for expired cache
         cached_data = cache_manager.get_cached_previous_shots()

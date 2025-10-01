@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
 
 # Local application imports
 from cache_manager import CacheManager
-from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 from runnable_tracker import get_tracker
 from utils import ImageUtils
@@ -29,7 +28,7 @@ if TYPE_CHECKING:
     from shot_model import Shot
 
 
-class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
+class ShotInfoPanel(QtWidgetMixin, QWidget):
     """Panel displaying current shot information."""
 
     def __init__(self, cache_manager: CacheManager | None = None) -> None:
@@ -245,7 +244,9 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
             # Third-party imports
             from PySide6.QtCore import QThread
 
-            if QThread.currentThread() == QCoreApplication.instance().thread():
+            app_instance = QCoreApplication.instance()
+            assert app_instance is not None  # Guaranteed by __init__ checks
+            if QThread.currentThread() == app_instance.thread():
                 pixmap = QPixmap.fromImage(scaled_image)
                 self.thumbnail_label.setPixmap(pixmap)
             self.logger.debug(f"Successfully loaded info panel thumbnail: {path}")
@@ -280,7 +281,9 @@ class ShotInfoPanel(QtWidgetMixin, LoggingMixin, QWidget):
         # Third-party imports
         from PySide6.QtCore import QThread
 
-        if QThread.currentThread() == QCoreApplication.instance().thread():
+        app_instance = QCoreApplication.instance()
+        assert app_instance is not None  # Guaranteed by __init__ checks
+        if QThread.currentThread() == app_instance.thread():
             placeholder = QPixmap.fromImage(placeholder_image)
             self.thumbnail_label.setPixmap(placeholder)
 

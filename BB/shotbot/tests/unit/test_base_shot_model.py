@@ -9,13 +9,10 @@ Following UNIFIED_TESTING_GUIDE best practices:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from PySide6.QtTest import QSignalSpy
 
 from base_shot_model import BaseShotModel
-from cache_manager import CacheManager
 from shot_model import Shot
 from type_definitions import RefreshResult
 

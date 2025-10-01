@@ -66,8 +66,8 @@ class TestThreeDEGridViewInitialization:
 
     def test_initialization(self, threede_grid) -> None:
         """Test grid initialization."""
-        # Note: threede_grid._model is an ItemModel wrapper
-        assert threede_grid._model is not None
+        # Note: threede_grid._threede_model is an ItemModel wrapper
+        assert threede_grid._threede_model is not None
         assert threede_grid.selected_scene is None
         assert threede_grid._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
         assert threede_grid.is_loading is False
@@ -133,7 +133,7 @@ class TestThreeDEGridViewAppLaunchSignals:
         threede_grid.app_launch_requested.connect(capture_launch)
 
         # Get first scene's index
-        index = threede_grid._model.index(0, 0)
+        index = threede_grid._threede_model.index(0, 0)
         test_scene = sample_scenes[0]
 
         # Simulate double-click (which triggers double-clicked signal internally)
@@ -187,7 +187,7 @@ class TestThreeDEGridViewAppLaunchSignals:
         threede_grid.app_launch_requested.connect(capture_scene)
 
         test_scene = sample_scenes[0]
-        index = threede_grid._model.index(0, 0)
+        index = threede_grid._threede_model.index(0, 0)
 
         # Trigger launch
         threede_grid._on_item_double_clicked(index)
@@ -216,7 +216,7 @@ class TestThreeDEGridViewAppLaunchSignals:
         threede_grid.app_launch_requested.connect(capture_launch)
 
         # Select first scene
-        index = threede_grid._model.index(0, 0)
+        index = threede_grid._threede_model.index(0, 0)
         threede_grid.list_view.setCurrentIndex(index)
 
         # Simulate Enter key press
@@ -253,7 +253,7 @@ class TestThreeDEGridViewAppLaunchSignals:
         threede_grid.app_launch_requested.connect(capture_launch)
 
         # Double-click first scene
-        index = threede_grid._model.index(0, 0)
+        index = threede_grid._threede_model.index(0, 0)
         threede_grid._on_item_double_clicked(index)
         qtbot.wait(50)
 

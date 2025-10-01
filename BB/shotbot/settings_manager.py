@@ -51,7 +51,7 @@ from __future__ import annotations
 # Standard library imports
 import json
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 # Third-party imports
 from PySide6.QtCore import QByteArray, QObject, QSettings, QSize, Signal
@@ -100,15 +100,15 @@ class SettingsManager(LoggingMixin, QObject):
         defaults = self._get_default_settings()
 
         for category, settings_dict in defaults.items():
-            for key, value in settings_dict.items():
+            for key, setting_value in settings_dict.items():
                 full_key = f"{category}/{key}"
                 if not self.settings.contains(full_key):
-                    self.settings.setValue(full_key, value)
+                    self.settings.setValue(full_key, setting_value)
                     self.logger.debug(
-                        f"Initialized default setting: {full_key} = {value}"
+                        f"Initialized default setting: {full_key} = {setting_value}"
                     )
 
-    def _get_default_settings(self) -> dict[str, dict[str, Any]]:
+    def _get_default_settings(self) -> dict[str, dict[str, object]]:
         """Get default settings organized by category."""
         return {
             "window": {
@@ -448,26 +448,37 @@ class SettingsManager(LoggingMixin, QObject):
     def get_file_associations(self) -> dict[str, str]:
         """Get file type associations."""
         default_associations = dict(Config.APPS)
-        stored_associations = self.settings.value(
+        stored_value = self.settings.value(
             "applications/file_associations", default_associations, type=dict
         )
-        return (
-            stored_associations
-            if isinstance(stored_associations, dict)
-            else default_associations
-        )
+        # Type guard: QSettings.value can return various types depending on stored data
+        if isinstance(stored_value, dict):
+            # Ensure all keys and values are strings
+            # Cast to help type checker understand the dict iteration
+            typed_dict = cast("dict[object, object]", stored_value)
+            return {str(k): str(v) for k, v in typed_dict.items()}
+        return default_associations
 
     def set_file_associations(self, associations: dict[str, str]) -> None:
         """Set file type associations."""
         self.settings.setValue("applications/file_associations", associations)
         self.settings_changed.emit("applications/file_associations", associations)
 
-    def get_custom_launchers(self) -> list[dict[str, Any]]:
+    def get_custom_launchers(self) -> list[dict[str, object]]:
         """Get custom launcher definitions."""
-        value = self.settings.value("applications/custom_launchers", [], type=list)
-        return value if isinstance(value, list) else []
+        stored_value = self.settings.value("applications/custom_launchers", [], type=list)
+        # Type guard: QSettings.value can return various types
+        if isinstance(stored_value, list):
+            # Ensure each item is a dict and cast for type safety
+            typed_list = cast("list[object]", stored_value)
+            return [
+                cast("dict[str, object]", item)
+                for item in typed_list
+                if isinstance(item, dict)
+            ]
+        return []
 
-    def set_custom_launchers(self, launchers: list[dict[str, Any]]) -> None:
+    def set_custom_launchers(self, launchers: list[dict[str, object]]) -> None:
         """Set custom launcher definitions."""
         self.settings.setValue("applications/custom_launchers", launchers)
         self.settings_changed.emit("applications/custom_launchers", launchers)
@@ -528,9 +539,9 @@ class SettingsManager(LoggingMixin, QObject):
             self.settings_changed.emit("advanced/log_level", level)
 
     # Category Access
-    def get_category(self, category: str) -> dict[str, Any]:
+    def get_category(self, category: str) -> dict[str, object]:
         """Get all settings for a category."""
-        category_settings: dict[str, Any] = {}
+        category_settings: dict[str, object] = {}
 
         # Start a group for the category
         self.settings.beginGroup(category)
@@ -538,20 +549,20 @@ class SettingsManager(LoggingMixin, QObject):
         try:
             # Get all keys in this category
             for key in self.settings.childKeys():
-                value = self.settings.value(key)
-                category_settings[key] = value
+                setting_value = self.settings.value(key)
+                category_settings[key] = setting_value
         finally:
             self.settings.endGroup()
 
         return category_settings
 
-    def set_category(self, category: str, settings_dict: dict[str, Any]) -> None:
+    def set_category(self, category: str, settings_dict: dict[str, object]) -> None:
         """Set all settings for a category."""
         self.settings.beginGroup(category)
 
         try:
-            for key, value in settings_dict.items():
-                self.settings.setValue(key, value)
+            for key, setting_value in settings_dict.items():
+                self.settings.setValue(key, setting_value)
         finally:
             self.settings.endGroup()
 
@@ -561,7 +572,7 @@ class SettingsManager(LoggingMixin, QObject):
     def export_settings(self, file_path: str) -> bool:
         """Export all settings to JSON file."""
         try:
-            all_settings: dict[str, Any] = {}
+            all_settings: dict[str, dict[str, object]] = {}
 
             # Get all categories
             categories = [
@@ -591,12 +602,26 @@ class SettingsManager(LoggingMixin, QObject):
         """Import settings from JSON file."""
         try:
             with open(file_path) as f:
-                imported_settings: dict[str, Any] = json.load(f)
+                # json.load returns Any because JSON structure is dynamic
+                loaded_data = json.load(f)  # type: ignore[misc]
+
+            # Type guard: ensure we have a dict at the top level
+            if not isinstance(loaded_data, dict):
+                self.logger.error("Invalid settings file: not a dictionary")
+                return False
+
+            # Cast after type guard to help type checker
+            settings_data = cast("dict[str, object]", loaded_data)
 
             # Import each category
-            for category, settings_dict in imported_settings.items():
-                if isinstance(settings_dict, dict):
-                    self.set_category(category, settings_dict)
+            for category_name, category_data in settings_data.items():
+                if isinstance(category_data, dict):
+                    # Type-safe conversion: ensure all values are valid
+                    category_dict = cast("dict[str, object]", category_data)
+                    settings_dict: dict[str, object] = {
+                        str(k): v for k, v in category_dict.items()
+                    }
+                    self.set_category(str(category_name), settings_dict)
 
             self.logger.info(f"Settings imported from: {file_path}")
             return True

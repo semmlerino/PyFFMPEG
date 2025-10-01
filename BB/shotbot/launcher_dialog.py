@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import QSize, Qt, Signal
@@ -310,7 +310,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[
             self.command_field.setStyleSheet("border: 1px solid #f44336;")
             return False
 
-        is_valid, error = self.launcher_manager.validate_command_syntax(command)
+        is_valid, _error = self.launcher_manager.validate_command_syntax(command)
         if not is_valid:
             self.command_field.setStyleSheet("border: 1px solid #f44336;")
             return False
@@ -668,7 +668,9 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: igno
 
         for i in range(self.launcher_list.count()):
             item = self.launcher_list.item(i)
-            launcher_id = item.data(Qt.ItemDataRole.UserRole)
+            if not item:
+                continue
+            launcher_id = cast("str", item.data(Qt.ItemDataRole.UserRole))
             launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
 
             if launcher:
@@ -683,7 +685,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: igno
         """Handle launcher selection change."""
         current_item = self.launcher_list.currentItem()
         if current_item:
-            launcher_id = current_item.data(Qt.ItemDataRole.UserRole)
+            launcher_id = cast("str", current_item.data(Qt.ItemDataRole.UserRole))
             launcher: CustomLauncher | None = self._launchers_cache.get(launcher_id)
             self.preview_panel.set_launcher(launcher)
         else:
@@ -691,7 +693,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: igno
 
     def _on_double_click(self, item: QListWidgetItem) -> None:
         """Handle double-click to launch."""
-        launcher_id = item.data(Qt.ItemDataRole.UserRole)
+        launcher_id = cast("str", item.data(Qt.ItemDataRole.UserRole))
         self._launch_launcher(launcher_id)
 
     def _add_launcher(self) -> None:
@@ -746,21 +748,21 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: igno
         """Launch the selected launcher."""
         current_item = self.launcher_list.currentItem()
         if current_item:
-            launcher_id = current_item.data(Qt.ItemDataRole.UserRole)
+            launcher_id = cast("str", current_item.data(Qt.ItemDataRole.UserRole))
             self._launch_launcher(launcher_id)
 
     def _edit_selected(self) -> None:
         """Edit the selected launcher."""
         current_item = self.launcher_list.currentItem()
         if current_item:
-            launcher_id = current_item.data(Qt.ItemDataRole.UserRole)
+            launcher_id = cast("str", current_item.data(Qt.ItemDataRole.UserRole))
             self._edit_launcher(launcher_id)
 
     def _delete_selected(self) -> None:
         """Delete the selected launcher."""
         current_item = self.launcher_list.currentItem()
         if current_item:
-            launcher_id = current_item.data(Qt.ItemDataRole.UserRole)
+            launcher_id = cast("str", current_item.data(Qt.ItemDataRole.UserRole))
             self._delete_launcher(launcher_id)
 
     def _on_execution_started(self, launcher_id: str) -> None:

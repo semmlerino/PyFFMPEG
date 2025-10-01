@@ -116,7 +116,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
                     worker.scan_finished.disconnect()
                     worker.error_occurred.disconnect()
                     if hasattr(worker, "progress"):
-                        getattr(worker, "progress").disconnect()
+                        # Use type ignore for dynamic getattr on unknown attribute
+                        getattr(worker, "progress").disconnect()  # type: ignore[reportAny]
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
 
@@ -300,8 +301,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
         Returns:
             Dictionary with shot details.
         """
-        # Type assertion since finder returns string values
-        return dict[str, str](self._finder.get_shot_details(shot))
+        # Finder returns ShotDetailsDict which contains only str values
+        # TypedDict to dict conversion requires type ignore due to variance
+        return dict(self._finder.get_shot_details(shot))  # type: ignore[reportReturnType]
 
     def set_show_filter(self, show: str | None) -> None:
         """Set the show filter.

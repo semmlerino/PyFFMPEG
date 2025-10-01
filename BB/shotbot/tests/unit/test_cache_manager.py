@@ -14,10 +14,8 @@ from __future__ import annotations
 import json
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from datetime import timedelta
+from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -25,7 +23,6 @@ from PySide6.QtGui import QColor, QImage
 
 # Local application imports
 from cache_manager import CacheManager
-from exceptions import ThumbnailError
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
@@ -485,7 +482,7 @@ class TestThreadSafety:
         def read_operation():
             """Concurrent read operations."""
             for _ in range(10):
-                cached = cache_manager.get_cached_shots()
+                _ = cache_manager.get_cached_shots()
                 # Result might be None if cleared, that's OK
                 read_queue.put(True)
                 time.sleep(0.001)
@@ -560,9 +557,9 @@ class TestCacheManagement:
 
         # Verify usage increased
         final_usage = cache_manager.get_memory_usage()
-        assert final_usage["total_size_mb"] > initial_usage["total_size_mb"]
+        assert final_usage["total_mb"] > initial_usage["total_mb"]
         assert final_usage["file_count"] > initial_usage["file_count"]
-        assert final_usage["total_size_mb"] > 0
+        assert final_usage["total_mb"] > 0
 
     def test_get_memory_usage_handles_empty_cache(self, tmp_path):
         """Test memory usage with empty cache."""
@@ -572,7 +569,7 @@ class TestCacheManagement:
         manager = CacheManager(cache_dir=cache_dir)
         usage = manager.get_memory_usage()
 
-        assert usage["total_size_mb"] == 0  # Empty cache should report 0 MB
+        assert usage["total_mb"] == 0  # Empty cache should report 0 MB
         assert usage["file_count"] == 0
 
 
@@ -708,7 +705,7 @@ class TestCacheIntegration:
         # Add shots
         cache_manager.cache_shots(sample_shots)
         after_shots = cache_manager.get_memory_usage()
-        assert after_shots["total_size_mb"] > initial["total_size_mb"]
+        assert after_shots["total_mb"] > initial["total_mb"]
 
         # Add thumbnails
         for i in range(5):
@@ -717,9 +714,9 @@ class TestCacheIntegration:
             )
 
         after_thumbs = cache_manager.get_memory_usage()
-        assert after_thumbs["total_size_mb"] > after_shots["total_size_mb"]
+        assert after_thumbs["total_mb"] > after_shots["total_mb"]
 
         # Clear cache
         cache_manager.clear_cache()
         after_clear = cache_manager.get_memory_usage()
-        assert after_clear["total_size_mb"] < after_thumbs["total_size_mb"]
+        assert after_clear["total_mb"] < after_thumbs["total_mb"]

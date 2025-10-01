@@ -7,7 +7,7 @@ and behavior for ShotGridView, ThreeDEGridView, and PreviousShotsView.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -223,6 +223,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         raise NotImplementedError
 
+    @Slot(QModelIndex)
     def _on_item_clicked(self, index: QModelIndex) -> None:
         """Handle item click.
 
@@ -233,6 +234,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         raise NotImplementedError
 
+    @Slot(QModelIndex)
     def _on_item_double_clicked(self, index: QModelIndex) -> None:
         """Handle item double-click.
 
@@ -352,12 +354,18 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         return self._thumbnail_size
 
-    def populate_show_filter(self, shows: list[str]) -> None:
+    def populate_show_filter(self, shows: list[str] | object) -> None:
         """Populate the show filter combo box.
 
         Args:
-            shows: List of show names to add
+            shows: List of show names to add (or model object in subclasses)
         """
+        # Handle case where subclass passes a model object
+        if not isinstance(shows, list):
+            return  # Subclass will extract shows and call super()
+
+        # Type narrowing: shows is list after isinstance check
+        shows_list = cast(list[str], shows)
         try:
             # Block signals to prevent triggering filter change
             self.show_combo.blockSignals(True)
@@ -367,10 +375,10 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
                 self.show_combo.removeItem(1)
 
             # Add shows to combo box
-            for show in sorted(shows):
+            for show in sorted(shows_list):
                 self.show_combo.addItem(show)
 
-            self.logger.debug(f"Populated show filter with {len(shows)} shows")
+            self.logger.debug(f"Populated show filter with {len(shows_list)} shows")
         finally:
             # Re-enable signals
             self.show_combo.blockSignals(False)

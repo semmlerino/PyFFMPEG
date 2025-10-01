@@ -206,7 +206,7 @@ class RawPlateFinder:
         return VersionUtils.extract_version_from_path(plate_path)
 
     # Pre-compiled regex for verify_plate_exists
-    _verify_pattern_cache = {}
+    _verify_pattern_cache: dict[str, Pattern[str]] = {}
 
     @staticmethod
     def verify_plate_exists(plate_path: str) -> bool:

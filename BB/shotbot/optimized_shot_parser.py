@@ -135,7 +135,7 @@ def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
     ]
 
     # Original implementation with same logic as before optimization
-    def parse_original(line: str) -> ParseResult | None:
+    def parse_original(line: str) -> ParseResult | None:  # pyright: ignore[reportUnusedFunction]
         """Original parser implementation for fair comparison."""
         pattern = re.compile(
             rf"workspace\s+({re.escape(Config.SHOWS_ROOT)}/([^/]+)/shots/([^/]+)/([^/]+))"

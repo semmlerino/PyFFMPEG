@@ -130,11 +130,8 @@ workspace /shows/show1/shots/seq02/seq02_0010
             },
         ]
 
-        # Store shots in cache
-        cache_manager.test_storage_backend.write_json(
-            cache_manager.test_shot_cache._cache_file,
-            {"timestamp": datetime.now().isoformat(), "shots": test_shots_data},
-        )
+        # Store shots in cache using public API
+        cache_manager.cache_shots(test_shots_data)
 
         # Create shot model and replace ProcessPoolManager with failing test double
         shot_model = ShotModel(cache_manager=cache_manager)
@@ -217,9 +214,9 @@ workspace /shows/show1/shots/seq02/seq02_0010
         with open(cache_file) as f:
             cache_data = json.load(f)
 
-        assert "shots" in cache_data
-        assert len(cache_data["shots"]) == 1
-        assert cache_data["shots"][0]["show"] == "show1"
+        assert "data" in cache_data
+        assert len(cache_data["data"]) == 1
+        assert cache_data["data"][0]["show"] == "show1"
 
         # Update shots and verify cache is updated
         test_process_pool.set_outputs("workspace /shows/show2/shots/seq01/seq01_0010")
@@ -230,7 +227,7 @@ workspace /shows/show1/shots/seq02/seq02_0010
         with open(cache_file) as f:
             updated_cache_data = json.load(f)
 
-        assert updated_cache_data["shots"][0]["show"] == "show2"
+        assert updated_cache_data["data"][0]["show"] == "show2"
 
     def test_shot_model_error_handling_with_cache_fallback(self) -> None:
         """Test shot model error handling with cache fallback."""

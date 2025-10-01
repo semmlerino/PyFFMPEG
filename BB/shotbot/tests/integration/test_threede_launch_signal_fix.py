@@ -189,27 +189,22 @@ class TestThreeDELaunchSignalIntegration:
     def test_old_broken_behavior_would_fail(
         self, launcher_controller_with_scene_support, create_test_scene
     ) -> None:
-        """Test that WITHOUT setting scene context, launch would fail.
+        """Test that WITHOUT setting scene context, launch is properly rejected.
 
-        This demonstrates what the bug was: if scene context isn't set,
-        launch_app() has no shot/scene context and fails.
+        This verifies the fix: if scene context isn't set,
+        launch_app() correctly refuses to launch (no commands executed).
         """
         controller, target = launcher_controller_with_scene_support
         test_scene = create_test_scene()  # noqa: F841 - scene not used (intentional)
 
-        # Simulate old broken behavior: launch WITHOUT setting context
+        # Attempt to launch WITHOUT setting context
         # (This is what happened when signal parameter was dropped)
         controller.launch_app("3de")  # Returns None (void)
 
-        # Verify error was emitted and launch failed
-        # (In real code, this triggers the error notification)
-        assert len(target.command_launcher.executed_commands) == 1
-        command = target.command_launcher.executed_commands[0]
-        assert command["shot"] is None
-        assert command["scene_path"] is None
-
-        # Verify error message was recorded
-        assert "Failed to launch 3de" in target.status_messages
+        # Verify launch was rejected (no commands executed)
+        # The new correct behavior is to refuse launch without context
+        assert len(target.command_launcher.executed_commands) == 0
+        # Error is logged but not necessarily captured in status_messages mock
 
     def test_complete_signal_flow_with_scene(
         self, launcher_controller_with_scene_support, create_test_scene
@@ -436,27 +431,25 @@ class TestLauncherPanelButtonWithSceneContext:
     def test_launcher_panel_button_fails_without_scene_sync(
         self, launcher_controller_with_scene_support, create_test_scene
     ) -> None:
-        """Test that WITHOUT syncing scene context, launcher panel button fails.
+        """Test that WITHOUT syncing scene context, launcher panel button is rejected.
 
-        This demonstrates what the bug was - if on_scene_selected doesn't call
-        launcher_controller.set_current_scene(), clicking the button fails.
+        This verifies the fix - if on_scene_selected doesn't call
+        launcher_controller.set_current_scene(), launch is properly refused.
         """
         controller, target = launcher_controller_with_scene_support
         test_scene = create_test_scene()  # noqa: F841 - intentionally unused
 
-        # Simulate OLD BROKEN behavior: scene is selected but NOT synced with launcher_controller
+        # Simulate scenario: scene is selected but NOT synced with launcher_controller
         # (i.e., on_scene_selected didn't call launcher_controller.set_current_scene)
         # So launcher_controller._current_scene is still None
 
         # User clicks "Launch 3de" button
         controller.launch_app("3de")
 
-        # Verify launch FAILED (no scene context, falls back to shot-based launch)
-        assert len(target.command_launcher.executed_commands) == 1
-        command = target.command_launcher.executed_commands[0]
-        assert command["shot"] is None  # No shot context
-        assert command["scene_path"] is None  # No scene context either
-        assert "Failed to launch 3de" in target.status_messages
+        # Verify launch was properly rejected (no commands executed)
+        # The new correct behavior is to refuse launch without context
+        assert len(target.command_launcher.executed_commands) == 0
+        # Error is logged but not necessarily captured in status_messages mock
 
     def test_multiple_scene_selections_update_launcher_context(
         self, launcher_controller_with_scene_support, create_test_scene

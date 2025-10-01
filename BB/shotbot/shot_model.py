@@ -27,7 +27,7 @@ from PySide6.QtCore import (
     QObject,
     Qt,
     Signal,
-    Slot,
+    Slot,  # type: ignore[reportUnknownVariableType]
 )
 from typing_extensions import override
 
@@ -102,12 +102,16 @@ class Shot:
             return cast("Path | None", self._cached_thumbnail_path)
 
         # Use the unified thumbnail discovery method
-        thumbnail = PathUtils.find_shot_thumbnail(  # type: ignore[attr-defined]
+        # Note: PathUtils.find_shot_thumbnail returns Path | None, but basedpyright
+        # cannot infer the return type from the dynamic PathUtils class
+        result = PathUtils.find_shot_thumbnail(  # type: ignore[attr-defined]
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,
             self.shot,
         )
+        # Explicit cast to help type checker understand the return type
+        thumbnail: Path | None = cast("Path | None", result)
 
         # Cache the result (even if None) to avoid repeated searches
         self._cached_thumbnail_path = thumbnail
@@ -327,8 +331,9 @@ class ShotModel(BaseShotModel):
                 self._process_pool,
                 parse_function=self._parse_ws_output,  # Use base class's correct parsing
             )
+            # Signal.connect() cannot infer list element type from Signal(list)
             self._async_loader.shots_loaded.connect(
-                self._on_shots_loaded, Qt.ConnectionType.QueuedConnection
+                self._on_shots_loaded, Qt.ConnectionType.QueuedConnection  # type: ignore[reportUnknownMemberType,reportUnknownArgumentType]
             )
             self._async_loader.load_failed.connect(
                 self._on_load_failed, Qt.ConnectionType.QueuedConnection
@@ -653,7 +658,7 @@ class ShotModel(BaseShotModel):
 
     def test_parse_ws_output(self, output: str) -> list[Shot]:
         """Test-only access to _parse_ws_output method."""
-        return self._parse_ws_output(output)  # type: ignore[return-value]
+        return self._parse_ws_output(output)
 
     def wait_for_async_load(self, timeout_ms: int = 5000) -> bool:
         """Wait for async loading to complete.

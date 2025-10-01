@@ -11,13 +11,11 @@ from __future__ import annotations
 from abc import abstractmethod
 from enum import IntEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import Generic, TypeVar
 
 # Third-party imports
 from PySide6.QtCore import (
-    Q_ARG,
     QAbstractListModel,
-    QMetaObject,
     QModelIndex,
     QMutex,
     QMutexLocker,
@@ -37,13 +35,6 @@ from cache_manager import CacheManager
 from config import Config
 from logging_mixin import LoggingMixin
 from protocols import SceneDataProtocol
-
-if TYPE_CHECKING:
-    # Standard library imports
-    from concurrent.futures import Future
-
-    # Local application imports
-    from cache.thumbnail_manager import ThumbnailCacheResult
 
 # Type variable for the data items (Shot or ThreeDEScene)
 T = TypeVar("T", bound=SceneDataProtocol)
@@ -355,34 +346,19 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         if thumbnail_path and thumbnail_path.exists():
             # Use cache manager for proper thumbnail handling
             if self._cache_manager:
-                # First, cache the thumbnail (handles EXR with PIL resizing)
-                # Local application imports
-                from cache.thumbnail_manager import ThumbnailCacheResult
-
+                # Cache the thumbnail (synchronous in simplified implementation)
                 cached_result = self._cache_manager.cache_thumbnail(
                     thumbnail_path,
                     item.show,
                     item.sequence,
                     item.shot,
-                    wait=False,  # Don't block UI - load asynchronously
-                    timeout=30.0,  # 30 second timeout for thumbnail generation
+                    wait=False,  # Ignored in simplified implementation
+                    timeout=30.0,  # Ignored in simplified implementation
                 )
 
-                # Handle both sync and async results
-                if isinstance(cached_result, ThumbnailCacheResult):
-                    # Async result - set up callback with immutable identifier
-                    item_full_name = item.full_name  # Capture immutable identifier
-                    cached_result.future.add_done_callback(
-                        lambda fut: self._on_thumbnail_cached_safe(fut, item_full_name)
-                    )
-
-                    # Set up a watchdog timer to handle timeout
-                    def check_timeout() -> None:
-                        self._check_thumbnail_timeout(item_full_name, cached_result)
-
-                    QTimer.singleShot(30000, check_timeout)  # type: ignore[misc]  # 30 seconds
-                elif isinstance(cached_result, Path) and cached_result.exists():
-                    # Sync result - cached thumbnail was already available
+                # Handle result (always synchronous Path | None)
+                if isinstance(cached_result, Path) and cached_result.exists():
+                    # Cached thumbnail available
                     self._load_cached_pixmap(cached_result, row, item, index)
                 else:
                     # Immediate failure
@@ -440,123 +416,6 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
                 self._loading_states[item.full_name] = "failed"
             self.dataChanged.emit(index, index, [BaseItemRole.LoadingStateRole])
 
-    def _on_thumbnail_cached_safe(
-        self, future: Future[Path | None], item_full_name: str
-    ) -> None:
-        """Handle thumbnail caching completion with race condition protection.
-
-        This method is called from background threads and uses QMetaObject.invokeMethod
-        to safely queue operations to the main thread with only immutable identifiers.
-        """
-        try:
-            cached_path = future.result()
-            if cached_path:
-                # Only pass immutable identifiers to main thread - no race conditions
-                QMetaObject.invokeMethod(
-                    self,
-                    "_handle_thumbnail_success_atomically",
-                    Qt.ConnectionType.QueuedConnection,
-                    Q_ARG(str, item_full_name),  # Immutable identifier
-                    Q_ARG(str, str(cached_path)),  # Convert Path to string for Qt
-                )
-            else:
-                # Caching failed - pass only immutable identifier
-                QMetaObject.invokeMethod(
-                    self,
-                    "_handle_thumbnail_failure_atomically",
-                    Qt.ConnectionType.QueuedConnection,
-                    Q_ARG(str, item_full_name),  # Immutable identifier only
-                )
-        except Exception as e:
-            self.logger.error(f"Thumbnail caching failed for {item_full_name}: {e}")
-            # Handle failure atomically in main thread
-            QMetaObject.invokeMethod(
-                self,
-                "_handle_thumbnail_failure_atomically",
-                Qt.ConnectionType.QueuedConnection,
-                Q_ARG(str, item_full_name),  # Immutable identifier only
-            )
-
-    def _find_item_by_full_name(self, full_name: str) -> tuple[T, int] | None:
-        """Find an item and its row index by full_name. Returns None if not found."""
-        for row, item in enumerate(self._items):
-            if item.full_name == full_name:
-                return item, row
-        return None
-
-    @Slot(str, str)  # item_full_name: str, cached_path: str
-    def _handle_thumbnail_success_atomically(
-        self, item_full_name: str, cached_path: str
-    ) -> None:
-        """Atomically handle thumbnail success in main thread - prevents race conditions.
-
-        This method does validation and processing atomically in the main thread,
-        preventing race conditions where item data could become stale between
-        validation and processing.
-
-        Args:
-            item_full_name: Immutable identifier for the item
-            cached_path: Path to the cached thumbnail (passed as string for Qt compatibility)
-        """
-        # Convert string back to Path for internal use
-        cached_path_obj = Path(cached_path)
-
-        # Validation and processing happen atomically in main thread
-        item_data = self._find_item_by_full_name(item_full_name)
-        if item_data is not None:
-            item, row = item_data
-            index = self.index(row, 0)
-            self._load_cached_pixmap(cached_path_obj, row, item, index)
-        else:
-            self.logger.debug(
-                f"Item {item_full_name} no longer exists in model, ignoring success callback"
-            )
-
-    def _check_thumbnail_timeout(
-        self, item_full_name: str, result: ThumbnailCacheResult
-    ) -> None:
-        """Check if thumbnail loading has timed out.
-
-        Args:
-            item_full_name: Immutable identifier for the item
-            result: The thumbnail cache result to check
-        """
-        # If the result is still not complete after timeout, mark as failed
-        if not result.is_complete:
-            self.logger.error(
-                f"Thumbnail loading timed out after 30 seconds for {item_full_name}"
-            )
-            # Mark as failed
-            item_data = self._find_item_by_full_name(item_full_name)
-            if item_data is not None:
-                item, row = item_data
-                with QMutexLocker(self._cache_mutex):
-                    self._loading_states[item.full_name] = "failed"
-                index = self.index(row, 0)
-                self.dataChanged.emit(index, index, [BaseItemRole.LoadingStateRole])
-
-    @Slot(str)  # item_full_name: str
-    def _handle_thumbnail_failure_atomically(self, item_full_name: str) -> None:
-        """Atomically handle thumbnail failure in main thread - prevents race conditions.
-
-        This method does validation and processing atomically in the main thread,
-        preventing race conditions where item data could become stale.
-
-        Args:
-            item_full_name: Immutable identifier for the item
-        """
-        # Validation and processing happen atomically in main thread
-        item_data = self._find_item_by_full_name(item_full_name)
-        if item_data is not None:
-            item, row = item_data
-            with QMutexLocker(self._cache_mutex):
-                self._loading_states[item.full_name] = "failed"
-            index = self.index(row, 0)
-            self.dataChanged.emit(index, index, [BaseItemRole.LoadingStateRole])
-        else:
-            self.logger.debug(
-                f"Item {item_full_name} no longer exists in model, ignoring failure callback"
-            )
 
     def _load_cached_pixmap(
         self, cached_path: Path, row: int, item: T, index: QModelIndex

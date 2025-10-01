@@ -211,12 +211,14 @@ class ProcessPoolFactory:
             if demo_shots_path.exists():
                 cls._get_logger().info(f"Loading demo shots from {demo_shots_path}")
                 with open(demo_shots_path) as f:
-                    demo_data: dict[str, list[dict[str, str]]] = json.load(f)
+                    # JSON structure is dynamic - use type: ignore for demo data
+                    demo_data = json.load(f)  # type: ignore[reportAny]
                     outputs: list[str] = []
-                    for shot in demo_data.get("shots", []):
-                        show: str = shot.get("show", "demo")
-                        seq: str = shot.get("seq", "seq01")
-                        shot_num: str = shot.get("shot", "0010")
+                    # Dynamic dict access from JSON - all marked as Any
+                    for shot in demo_data.get("shots", []):  # type: ignore[reportAny]
+                        show: str = shot.get("show", "demo")  # type: ignore[reportAny]
+                        seq: str = shot.get("seq", "seq01")  # type: ignore[reportAny]
+                        shot_num: str = shot.get("shot", "0010")  # type: ignore[reportAny]
                         outputs.append(
                             f"workspace /shows/{show}/shots/{seq}/{seq}_{shot_num}"
                         )

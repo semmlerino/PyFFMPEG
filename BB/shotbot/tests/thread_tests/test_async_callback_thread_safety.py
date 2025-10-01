@@ -20,8 +20,6 @@ from PySide6.QtGui import QImage
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
-from unified_item_model import UnifiedItemModel
-
 from cache_manager import CacheManager
 from shot_info_panel import InfoPanelPixmapLoader, ShotInfoPanel
 from shot_model import Shot
@@ -29,6 +27,7 @@ from tests.helpers.synchronization import (
     simulate_work_without_sleep,
 )
 from tests.test_doubles_library import TestCacheManager
+from unified_item_model import UnifiedItemModel
 
 pytestmark = [pytest.mark.thread_safety, pytest.mark.qt, pytest.mark.critical]
 
@@ -37,7 +36,7 @@ class TestShotItemModelThreadSafety:
     """Thread safety tests for ShotItemModel async callbacks."""
 
     @pytest.fixture
-    def thread_safe_model(self, qtbot) -> ShotItemModel:
+    def thread_safe_model(self, qtbot) -> UnifiedItemModel:
         """Create model for thread safety testing."""
         model = UnifiedItemModel(TestCacheManager())
         yield model

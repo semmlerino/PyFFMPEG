@@ -192,8 +192,9 @@ def log_execution(
         @functools.wraps(inner_func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Get logger - try to use instance logger if available, otherwise module logger
+            logger: ContextualLogger
             if args and hasattr(args[0], "logger") and hasattr(args[0].logger, "info"):  # type: ignore[attr-defined]
-                logger = args[0].logger  # type: ignore[attr-defined]
+                logger = cast("ContextualLogger", args[0].logger)  # type: ignore[attr-defined]
             else:
                 logger = ContextualLogger(logging.getLogger(inner_func.__module__))
 
@@ -204,7 +205,7 @@ def log_execution(
             # Log function start
             if log_level <= logging.DEBUG and include_args:
                 # Safely format args (avoid logging sensitive data)
-                safe_args = []
+                safe_args: list[str] = []
                 for arg in (args[1:] if args and hasattr(args[0], "logger") else args):
                     if isinstance(arg, str | int | float | bool):
                         safe_args.append(repr(arg))

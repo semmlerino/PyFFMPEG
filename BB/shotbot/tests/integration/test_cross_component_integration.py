@@ -22,6 +22,7 @@ from PySide6.QtWidgets import QApplication
 # Local application imports
 # Moved to lazy import to fix Qt initialization
 # from main_window import MainWindow
+from cache_manager import CacheManager
 from tests.test_doubles_library import TestProcessPool
 from threede_scene_model import ThreeDEScene
 
@@ -424,8 +425,11 @@ class TestCacheUICoordination:
         cache_dir = tmp_path / "test_cache"
         cache_dir.mkdir(exist_ok=True)
 
+        # Create test cache manager
+        test_cache_manager = CacheManager(cache_dir=cache_dir)
+
         # Create MainWindow with test cache
-        window = MainWindow()
+        window = MainWindow(cache_manager=test_cache_manager)
         qtbot.addWidget(window)
         self.test_windows.append(window)  # Track for cleanup
 
@@ -441,11 +445,13 @@ class TestCacheUICoordination:
         shot = shots[0]
 
         # Verify cache manager can check for cached thumbnail
+        # Note: Cache may exist from previous runs; clear it first
+        window.cache_manager.clear_cached_data("thumbnails")
         cache_path = window.cache_manager.get_cached_thumbnail(
             shot.show, shot.sequence, shot.shot
         )
-        # Cache path will be None if no thumbnail cached yet
-        assert cache_path is None  # No thumbnail cached initially
+        # Cache path should be None after clearing
+        assert cache_path is None  # No thumbnail cached after clear
 
         # Create a valid test image file to cache
         fake_thumb = tmp_path / "test_thumb.jpg"

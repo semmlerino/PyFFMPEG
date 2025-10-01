@@ -849,7 +849,7 @@ class TestUserWorkflows:
 
         for i in range(main_window.shot_item_model.rowCount()):
             index = main_window.shot_item_model.index(i, 0)
-            shot_data = main_window.shot_item_model.data(index, UnifiedRole.ShotObjectRole)
+            shot_data = main_window.shot_item_model.data(index, UnifiedRole.ObjectRole)
             assert shot_data is not None
 
     @pytest.mark.integration

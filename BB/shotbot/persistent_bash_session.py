@@ -14,7 +14,6 @@ import os
 import subprocess
 import threading
 import time
-from typing import Any
 
 # Local application imports
 from config import ThreadingConfig
@@ -23,10 +22,11 @@ from logging_mixin import LoggingMixin
 # Try to import fcntl for non-blocking I/O (Unix-only)
 try:
     # Standard library imports
-    import fcntl
+    import fcntl as _fcntl_module
 
     _has_fcntl = True
 except ImportError:
+    _fcntl_module = None
     _has_fcntl = False
     logging.warning("fcntl module not available - will use blocking I/O")
 
@@ -35,14 +35,15 @@ HAS_FCNTL = _has_fcntl
 # Import debug utilities
 try:
     # Local application imports
-    from debug_utils import (
-        CommandTracer,
-        deadlock_detector,
-        state_tracker,
-    )
+    from debug_utils import CommandTracer as _CommandTracer
+    from debug_utils import deadlock_detector as _deadlock_detector
+    from debug_utils import state_tracker as _state_tracker
 
     _has_debug_utils = True
 except ImportError:
+    _CommandTracer = None
+    _deadlock_detector = None
+    _state_tracker = None
     _has_debug_utils = False
 
 HAS_DEBUG_UTILS = _has_debug_utils
@@ -107,8 +108,8 @@ class PersistentBashSession(LoggingMixin):
             )
 
         # Track state transition
-        if HAS_DEBUG_UTILS:
-            state_tracker.transition(
+        if HAS_DEBUG_UTILS and _state_tracker is not None:
+            _state_tracker.transition(
                 self.session_id,
                 "STARTING",
                 "Session initialization",
@@ -205,9 +206,12 @@ class PersistentBashSession(LoggingMixin):
                         # Python 3.5+ way
                         os.set_blocking(stdout_fd, False)
                     else:
-                        # Fallback for older Python - fcntl already imported at module level
-                        flags = fcntl.fcntl(stdout_fd, fcntl.F_GETFL)
-                        fcntl.fcntl(stdout_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+                        # Fallback for older Python - use module-level fcntl import
+                        if _fcntl_module is not None:
+                            flags = _fcntl_module.fcntl(stdout_fd, _fcntl_module.F_GETFL)
+                            _fcntl_module.fcntl(
+                                stdout_fd, _fcntl_module.F_SETFL, flags | os.O_NONBLOCK
+                            )
                 else:
                     self.logger.debug(
                         "Skipping non-blocking I/O setup (fcntl not available)",
@@ -253,13 +257,13 @@ class PersistentBashSession(LoggingMixin):
                     )
 
                 # Track state
-                if HAS_DEBUG_UTILS:
-                    state_tracker.transition(
+                if HAS_DEBUG_UTILS and _state_tracker is not None and _deadlock_detector is not None:
+                    _state_tracker.transition(
                         self.session_id,
                         "WAITING_MARKER",
                         "Waiting for init marker",
                     )
-                    deadlock_detector.waiting(self.session_id, "initialization_marker")
+                    _deadlock_detector.waiting(self.session_id, "initialization_marker")
 
                 # Accumulate all output to search for marker
                 accumulated_output = ""
@@ -415,13 +419,13 @@ class PersistentBashSession(LoggingMixin):
                 )
 
             # Track successful initialization
-            if HAS_DEBUG_UTILS:
-                state_tracker.transition(
+            if HAS_DEBUG_UTILS and _state_tracker is not None and _deadlock_detector is not None:
+                _state_tracker.transition(
                     self.session_id,
                     "READY",
                     "Session initialized",
                 )
-                deadlock_detector.done_waiting(self.session_id)
+                _deadlock_detector.done_waiting(self.session_id)
 
         except Exception as e:
             self._process = None  # Ensure clean state
@@ -491,9 +495,10 @@ class PersistentBashSession(LoggingMixin):
 
         # Decide whether to use select or fcntl based on availability
         use_select = False
+        select_module = None
         try:
             # Standard library imports
-            import select
+            import select as select_module
 
             use_select = True
         except ImportError:
@@ -507,9 +512,9 @@ class PersistentBashSession(LoggingMixin):
             remaining_time = max(0.01, timeout - elapsed)
 
             try:
-                if use_select:
+                if use_select and select_module is not None:
                     # Use select with adaptive timeout
-                    ready, _, _ = select.select(
+                    ready, _, _ = select_module.select(
                         [self._process.stdout],
                         [],
                         [],
@@ -667,9 +672,9 @@ class PersistentBashSession(LoggingMixin):
             )
 
         # Trace command execution
-        if HAS_DEBUG_UTILS:
-            CommandTracer.trace(command, self.session_id)
-            state_tracker.transition(self.session_id, "EXECUTING", "Running command")
+        if HAS_DEBUG_UTILS and _CommandTracer is not None and _state_tracker is not None:
+            _CommandTracer.trace(command, self.session_id)
+            _state_tracker.transition(self.session_id, "EXECUTING", "Running command")
 
         with self._lock:
             # Try to restart session with exponential backoff if dead
@@ -828,11 +833,11 @@ class PersistentBashSession(LoggingMixin):
             finally:
                 self._process = None
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, str | bool | int | float]:
         """Get session statistics.
 
         Returns:
-            Dictionary with session stats
+            Dictionary with session stats (session_id, alive status, command count, uptime, idle time)
         """
         uptime = time.time() - self._start_time
         idle_time = time.time() - self._last_command_time

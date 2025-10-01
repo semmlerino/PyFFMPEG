@@ -8,7 +8,7 @@ with virtualization and proper Model/View architecture.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 # Local application imports
 from base_grid_view import BaseGridView
@@ -44,7 +45,6 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
-    from previous_shots_model import PreviousShotsModel
     from shot_model import Shot
 
 
@@ -78,8 +78,10 @@ class PreviousShotsView(BaseGridView):
         super().__init__(parent)
 
         # PreviousShotsView-specific attributes
-        self._selected_shot = None
-        self._model: UnifiedItemModel | None = model
+        self._selected_shot: Shot | None = None
+        # Note: Don't redefine _model - it's inherited from BaseGridView
+        # We store the typed reference separately for type safety
+        self._unified_model: UnifiedItemModel | None = model
 
         if model:
             self.set_model(model)
@@ -141,7 +143,7 @@ class PreviousShotsView(BaseGridView):
         Returns:
             The previous shots item model or None
         """
-        return self._model
+        return self._unified_model
 
     @property
     def selected_shot(self) -> Shot | None:
@@ -167,7 +169,8 @@ class PreviousShotsView(BaseGridView):
         Args:
             model: Previous shots item model
         """
-        self._model = model
+        self._unified_model = model
+        self._model = model  # Also store in base class attribute
         self.list_view.setModel(model)
 
         # Set up selection model
@@ -180,15 +183,16 @@ class PreviousShotsView(BaseGridView):
 
         # Connect to underlying model's scan signals using accessor method
         underlying_model = model.get_underlying_model()
-        underlying_model.scan_started.connect(
-            self._on_scan_started, Qt.ConnectionType.QueuedConnection
-        )
-        underlying_model.scan_finished.connect(
-            self._on_scan_finished, Qt.ConnectionType.QueuedConnection
-        )
-        underlying_model.scan_progress.connect(
-            self._on_scan_progress, Qt.ConnectionType.QueuedConnection
-        )
+        if underlying_model:  # Type guard to satisfy basedpyright
+            underlying_model.scan_started.connect(
+                self._on_scan_started, Qt.ConnectionType.QueuedConnection
+            )
+            underlying_model.scan_finished.connect(
+                self._on_scan_finished, Qt.ConnectionType.QueuedConnection
+            )
+            underlying_model.scan_progress.connect(
+                self._on_scan_progress, Qt.ConnectionType.QueuedConnection
+            )
 
         # Connect scroll events for debounced visibility updates
         self.list_view.verticalScrollBar().valueChanged.connect(
@@ -200,28 +204,36 @@ class PreviousShotsView(BaseGridView):
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
 
-    def populate_show_filter(self, previous_shots_model: PreviousShotsModel) -> None:
+    @override
+    def populate_show_filter(self, shows: list[str] | object) -> None:
         """Populate the show filter combo box with available shows.
 
         Args:
-            previous_shots_model: Model to get available shows from
+            shows: Either a list of show names or a PreviousShotsModel to extract shows from
         """
-        if not previous_shots_model:
+        # Handle model object (for compatibility with base signature)
+        if not isinstance(shows, list):
+            # Import needed for runtime check
+            from previous_shots_model import PreviousShotsModel
+
+            if isinstance(shows, PreviousShotsModel):
+                show_list = list(shows.get_available_shows())
+                super().populate_show_filter(show_list)
             return
 
-        # Use base class method
-        shows = previous_shots_model.get_available_shows()
-        super().populate_show_filter(list(shows))
+        # Handle list of strings directly (type narrowed by isinstance)
+        # Cast to satisfy type checker - shows is list[str] after isinstance check
+        super().populate_show_filter(cast("list[str]", shows))
 
     @Slot()
     def _on_refresh_clicked(self) -> None:
         """Handle refresh button click."""
         self.logger.debug("Refresh button clicked")
 
-        if self._model:
+        if self._unified_model:
             self._refresh_button.setEnabled(False)
             self._refresh_button.setText("Scanning...")
-            self._model.refresh()
+            self._unified_model.refresh()
 
     @Slot()
     def _on_scan_started(self) -> None:
@@ -259,8 +271,8 @@ class PreviousShotsView(BaseGridView):
 
     def _update_status(self) -> None:
         """Update the status label with shot count."""
-        if self._model:
-            shot_count = self._model.rowCount()
+        if self._unified_model:
+            shot_count = self._unified_model.rowCount()
             self._status_label.setText(f"Approved Shots ({shot_count})")
 
     @Slot()
@@ -282,15 +294,16 @@ class PreviousShotsView(BaseGridView):
         Args:
             index: Clicked model index
         """
-        if not index.isValid() or not self._model:
+        if not index.isValid() or not self._unified_model:
             return
 
-        shot = index.data(ShotRole.ObjectRole)
+        # Cast needed because QModelIndex.data() returns Any
+        shot = cast("Shot | None", index.data(ShotRole.ObjectRole))
         if shot:
             self._selected_shot = shot
 
             # Update selection in model
-            self._model.setData(index, True, ShotRole.IsSelectedRole)
+            self._unified_model.setData(index, True, ShotRole.IsSelectedRole)
 
             # Emit signal
             self.shot_selected.emit(shot)
@@ -304,10 +317,11 @@ class PreviousShotsView(BaseGridView):
         Args:
             index: Double-clicked model index
         """
-        if not index.isValid() or not self._model:
+        if not index.isValid() or not self._unified_model:
             return
 
-        shot = index.data(ShotRole.ObjectRole)
+        # Cast needed because QModelIndex.data() returns Any
+        shot = cast("Shot | None", index.data(ShotRole.ObjectRole))
         if shot:
             self.shot_double_clicked.emit(shot)
             self.logger.debug(f"Shot double-clicked: {shot.full_name}")
@@ -324,18 +338,19 @@ class PreviousShotsView(BaseGridView):
             current: Current selection index
             previous: Previous selection index
         """
-        if not self._model:
+        if not self._unified_model:
             return
 
         # Clear previous selection in model
         if previous.isValid():
-            self._model.setData(previous, False, ShotRole.IsSelectedRole)
+            self._unified_model.setData(previous, False, ShotRole.IsSelectedRole)
 
         # Set current selection in model
         if current.isValid():
-            self._model.setData(current, True, ShotRole.IsSelectedRole)
+            self._unified_model.setData(current, True, ShotRole.IsSelectedRole)
 
-            shot = current.data(ShotRole.ObjectRole)
+            # Cast needed because QModelIndex.data() returns Any
+            shot = cast("Shot | None", current.data(ShotRole.ObjectRole))
             if shot:
                 self._selected_shot = shot
                 self.shot_selected.emit(shot)
@@ -347,8 +362,8 @@ class PreviousShotsView(BaseGridView):
             start: Start row index
             end: End row index (exclusive)
         """
-        if self._model:
-            self._model.set_visible_range(start, end)
+        if self._unified_model:
+            self._unified_model.set_visible_range(start, end)
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu.
@@ -362,10 +377,11 @@ class PreviousShotsView(BaseGridView):
         # Get the index at the clicked position
         index = self.list_view.indexAt(list_view_pos)
 
-        if not index.isValid() or not self._model:
+        if not index.isValid() or not self._unified_model:
             return
 
-        shot = index.data(ShotRole.ObjectRole)
+        # Cast needed because QModelIndex.data() returns Any
+        shot = cast("Shot | None", index.data(ShotRole.ObjectRole))
         if not shot:
             return
 

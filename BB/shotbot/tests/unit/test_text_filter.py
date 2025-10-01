@@ -28,6 +28,7 @@ from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 # Local application imports
 from unified_item_model import (
+    UnifiedItemModel,
     create_previous_shots_item_model,
     create_shot_item_model,
     create_threede_item_model,
@@ -313,7 +314,7 @@ class TestBaseGridViewTextFilterUI:
     """Test Text filter UI in BaseGridView subclasses."""
 
     @pytest.fixture
-    def shot_item_model(self, qtbot) -> ShotItemModel:
+    def shot_item_model(self, qtbot) -> UnifiedItemModel:
         """Create ShotItemModel."""
         model = create_shot_item_model(cache_manager=TestCacheManager())
         yield model

@@ -48,7 +48,7 @@ class SecureCommandExecutor(LoggingMixin):
     ]
 
     # Dangerous patterns that should never appear in commands
-    DANGEROUS_PATTERNS: list[re.Pattern] = [
+    DANGEROUS_PATTERNS: list[re.Pattern[str]] = [
         re.compile(r"[;&|`$]"),  # Shell metacharacters
         re.compile(r"\$\(.*\)"),  # Command substitution
         re.compile(r">\s*/dev/"),  # Device file redirection
@@ -245,7 +245,10 @@ class SecureCommandExecutor(LoggingMixin):
                 self.logger.error(f"Command timed out after {timeout}s: {parts[0]}")
                 raise
             except subprocess.CalledProcessError as e:
-                self.logger.error(f"Command failed: {e.cmd}, stderr: {e.stderr}")
+                # CalledProcessError.cmd and .stderr have dynamic types (str | list | bytes | None)
+                cmd_str = str(e.cmd) if e.cmd else "unknown"  # type: ignore[reportAny]
+                stderr_str = str(e.stderr) if e.stderr else "no stderr"  # type: ignore[reportAny]
+                self.logger.error(f"Command failed: {cmd_str}, stderr: {stderr_str}")
                 raise
 
     def _execute_workspace_function(self, command: str, timeout: int) -> str:
@@ -290,7 +293,8 @@ class SecureCommandExecutor(LoggingMixin):
                 self.logger.error(f"Workspace command timed out after {timeout}s")
                 raise
             except subprocess.CalledProcessError as e:
-                self.logger.error(f"Workspace command failed: {e.stderr}")
+                stderr_str = str(e.stderr) if e.stderr else "no stderr"  # type: ignore[reportAny]
+                self.logger.error(f"Workspace command failed: {stderr_str}")
                 raise
 
     def _get_safe_environment(self) -> dict[str, str]:

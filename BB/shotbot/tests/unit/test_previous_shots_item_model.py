@@ -171,15 +171,15 @@ class TestPreviousShotsThreadSafety:
                 assert (
                     data == shot.full_name
                 )  # PreviousShotsItemModel returns full_name for DisplayRole
-            elif role == ShotRole.ShotObjectRole:
+            elif role == UnifiedRole.ObjectRole:
                 assert data == shot
-            elif role == ShotRole.FullNameRole:
+            elif role == UnifiedRole.FullNameRole:
                 assert data == shot.full_name
-            elif role == ShotRole.ShowRole:
+            elif role == UnifiedRole.ShowRole:
                 assert data == shot.show
-            elif role == ShotRole.SequenceRole:
+            elif role == UnifiedRole.SequenceRole:
                 assert data == shot.sequence
-            elif role == ShotRole.ShotNameRole:
+            elif role == UnifiedRole.ItemSpecificRole1:
                 assert data == shot.shot
 
     def test_rapid_scene_changes(self, model, test_shots, qtbot) -> None:

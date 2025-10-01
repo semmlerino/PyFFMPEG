@@ -63,7 +63,9 @@ class PreviousShotsWorker(ThreadSafeWorker):
             f"PreviousShotsWorker initialized for user: {self._finder.username}"
         )
 
-    def _on_finder_progress(self, current: int, total: int, message: str) -> None:
+    def _on_finder_progress(
+        self, current: int, total: int, message: str
+    ) -> None:
         """Handle progress updates from the parallel finder.
 
         Args:
@@ -121,7 +123,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
                 self.logger.info("Using fallback two-step approach")
 
                 # Use parallel finder with incremental loading
-                all_user_shots = []
+                all_user_shots: list[Shot] = []
 
                 # Collect shots incrementally from the generator
                 if hasattr(self._finder, "find_user_shots_parallel"):
@@ -152,7 +154,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
                 )
 
             # Convert to dictionaries for signal emission
-            shot_dicts = []
+            shot_dicts: list[dict[str, str]] = []
             total_shots = len(approved_shots)
 
             # Only emit shot_found signals if they haven't been emitted already
@@ -221,7 +223,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         Returns:
             List of Shot objects where user has work.
         """
-        shots = []
+        shots: list[Shot] = []
 
         try:
             # For progress tracking, we'll estimate based on shows
@@ -264,7 +266,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         Returns:
             List of Shot objects with user work.
         """
-        shots = []
+        shots: list[Shot] = []
 
         try:
             shots_dir = show_dir / "shots"

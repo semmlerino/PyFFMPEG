@@ -46,7 +46,7 @@ import threading
 import time
 import uuid
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # Local application imports
 from config import ThreadingConfig
@@ -198,7 +198,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
         with self._lock:
             return self._total_progress
 
-    def get_worker_stats(self) -> dict[str, Any]:
+    def get_worker_stats(self) -> dict[str, int | str | dict[str, int]]:
         """Get statistics about worker progress for debugging.
 
         Returns:
@@ -436,7 +436,7 @@ class CancellationEvent(LoggingMixin):
             f"{executed} succeeded, {failed} failed"
         )
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, str | bool | float | int | None]:
         """Get cancellation event statistics for debugging.
 
         Returns:
@@ -624,11 +624,14 @@ def create_cancellation_context(
 
 
 # Example usage and integration patterns
-def example_parallel_processing_with_cancellation():
+def example_parallel_processing_with_cancellation() -> list[str]:
     """Example showing how to replace problematic parallel processing.
 
     This example demonstrates how to replace the problematic pattern in
     find_all_3de_files_in_show_parallel() with proper cancellation and cleanup.
+
+    Returns:
+        List of processed results as strings
     """
     # Create cancellation context
     cancel_event, pool_manager = create_cancellation_context(max_workers=4)
@@ -638,13 +641,13 @@ def example_parallel_processing_with_cancellation():
         # This would be your existing cancel_flag() function
         return False  # Replace with actual cancellation logic
 
-    work_items = ["item1", "item2", "item3", "item4", "item5"]
-    results = []
+    work_items: list[str] = ["item1", "item2", "item3", "item4", "item5"]
+    results: list[str] = []
 
     try:
         with pool_manager as executor:
             # Submit all work
-            future_to_item = {}
+            future_to_item: dict[concurrent.futures.Future[str], str] = {}
 
             for item in work_items:
                 if cancel_event.is_cancelled() or external_cancel_check():
@@ -705,7 +708,7 @@ if __name__ == "__main__":
 
     # Test basic cancellation
     cancel_event = CancellationEvent()
-    cleanup_called = []
+    cleanup_called: list[str] = []
 
     cancel_event.add_cleanup_callback(lambda: cleanup_called.append("callback1"))
     cancel_event.add_cleanup_callback(lambda: cleanup_called.append("callback2"))
@@ -774,12 +777,16 @@ def integrate_with_existing_parallel_scan():
 
     # Example of the integration pattern
     def fixed_parallel_scan_pattern(
-        work_chunks: list[Any],
-        scan_function: Callable[[Any, Any], list[Any]],
-        cancel_flag: Any = None,
+        work_chunks: list[list[str]],
+        scan_function: Callable[[list[str], CancellationEvent | None], list[str]],
+        cancel_flag: Callable[[], bool] | None = None,
         max_workers: int = 4,
-    ) -> list[Any]:
-        """Fixed version of parallel scanning with proper cancellation."""
+    ) -> list[str]:
+        """Fixed version of parallel scanning with proper cancellation.
+
+        Returns:
+            List of processed string results from all chunks
+        """
 
         # Step 1: Create cancellation context
         cancel_event, pool_manager = create_cancellation_context(
@@ -791,12 +798,12 @@ def integrate_with_existing_parallel_scan():
             lambda: logger.info("Parallel scan cancelled, resources cleaned up")
         )
 
-        results = []
+        results: list[str] = []
 
         try:
             # Step 1: Use pool manager instead of raw ThreadPoolExecutor
             with pool_manager as executor:
-                future_to_chunk = {}
+                future_to_chunk: dict[concurrent.futures.Future[list[str]], list[str]] = {}
 
                 # Submit work with cancellation support
                 for chunk in work_chunks:
@@ -830,10 +837,18 @@ def integrate_with_existing_parallel_scan():
 
     # Example worker function that respects cancellation
     def cancellation_aware_scan_function(
-        chunk: list[Any], cancel_event: CancellationEvent | None = None
-    ) -> list[Any]:
-        """Example of worker function that checks for cancellation."""
-        results = []
+        chunk: list[str], cancel_event: CancellationEvent | None = None
+    ) -> list[str]:
+        """Example of worker function that checks for cancellation.
+
+        Args:
+            chunk: List of string items to process
+            cancel_event: Optional cancellation event
+
+        Returns:
+            List of processed string results
+        """
+        results: list[str] = []
 
         for item in chunk:
             # Step 4: Check cancellation in worker
@@ -853,7 +868,7 @@ def integrate_with_existing_parallel_scan():
         return results
 
     # Test the pattern
-    test_chunks = [["item1", "item2"], ["item3", "item4"], ["item5"]]
+    test_chunks: list[list[str]] = [["item1", "item2"], ["item3", "item4"], ["item5"]]
     results = fixed_parallel_scan_pattern(test_chunks, cancellation_aware_scan_function)
     logger.info(f"Fixed parallel scan results: {results}")
 

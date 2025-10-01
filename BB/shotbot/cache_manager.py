@@ -57,6 +57,7 @@ class ThumbnailCacheResult:
     def __init__(self) -> None:
         self.future = None
         self.path = None
+        self.is_complete = False
 
 
 class ThumbnailCacheLoader:
@@ -275,33 +276,34 @@ class CacheManager(LoggingMixin, QObject):
             from PIL import Image
 
             # Read EXR file
-            exr_file = OpenEXR.InputFile(str(source))
-            header = exr_file.header()
+            # OpenEXR library lacks complete type stubs
+            exr_file = OpenEXR.InputFile(str(source))  # type: ignore[reportUnknownMemberType]
+            header = exr_file.header()  # type: ignore[reportUnknownMemberType]
 
             # Get dimensions
-            dw = header['dataWindow']
-            width = dw.max.x - dw.min.x + 1
-            height = dw.max.y - dw.min.y + 1
+            dw = header['dataWindow']  # type: ignore[reportUnknownVariableType]
+            width = dw.max.x - dw.min.x + 1  # type: ignore[reportUnknownMemberType]
+            height = dw.max.y - dw.min.y + 1  # type: ignore[reportUnknownMemberType]
 
             # Read RGB channels
             FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-            channels = []
+            channels: list[np.ndarray] = []  # Simplified to avoid shape annotation issues
             for chan in ['R', 'G', 'B']:
                 if chan in header['channels']:
-                    channel_str = exr_file.channel(chan, FLOAT)
-                    channel_data = np.frombuffer(channel_str, dtype=np.float32)
-                    channel_data = channel_data.reshape((height, width))
+                    channel_str = exr_file.channel(chan, FLOAT)  # type: ignore[reportUnknownMemberType]
+                    channel_data = np.frombuffer(channel_str, dtype=np.float32)  # type: ignore[reportUnknownArgumentType]
+                    channel_data = channel_data.reshape((height, width))  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]
                     channels.append(channel_data)
 
             if len(channels) == 3:
                 # Stack channels and convert to 8-bit
-                img_data = np.stack(channels, axis=2)
+                img_data: np.ndarray = np.stack(channels, axis=2)
                 # Simple tone mapping: clamp and scale
-                img_data = np.clip(img_data, 0, 1)
-                img_data = (img_data * 255).astype(np.uint8)
+                img_data_clipped: np.ndarray = np.clip(img_data, 0, 1)
+                img_data_uint8: np.ndarray = (img_data_clipped * 255).astype(np.uint8)
 
                 # Create PIL image
-                img = Image.fromarray(img_data, mode='RGB')
+                img = Image.fromarray(img_data_uint8, mode='RGB')
                 img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
                 img.save(output, 'JPEG', quality=THUMBNAIL_QUALITY)
 
@@ -352,8 +354,8 @@ class CacheManager(LoggingMixin, QObject):
                         Qt.TransformationMode.SmoothTransformation
                     )
 
-                # Save
-                if image.save(str(output_path), "JPEG", THUMBNAIL_QUALITY):
+                # Save - QImage.save() accepts str or bytes for format parameter
+                if image.save(str(output_path), b"JPEG", THUMBNAIL_QUALITY):
                     self.logger.debug(f"Cached QImage thumbnail: {output_path}")
                     return output_path
                 else:
@@ -383,12 +385,12 @@ class CacheManager(LoggingMixin, QObject):
             shots: Sequence of Shot objects or shot dictionaries
         """
         # Convert Shot objects to dicts
-        shot_dicts = []
+        shot_dicts: list[ShotDict] = []
         for shot in shots:
             if isinstance(shot, dict):
                 shot_dicts.append(shot)
             else:
-                # Assume Shot object with to_dict method
+                # Assume Shot object with to_dict method - TYPE_CHECKING import prevents runtime check
                 shot_dicts.append(shot.to_dict())
 
         self._write_json_cache(self.shots_cache_file, shot_dicts)
@@ -408,11 +410,12 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             shots: Sequence of Shot objects or shot dictionaries
         """
-        shot_dicts = []
+        shot_dicts: list[ShotDict] = []
         for shot in shots:
             if isinstance(shot, dict):
                 shot_dicts.append(shot)
             else:
+                # Assume Shot object with to_dict method - TYPE_CHECKING import prevents runtime check
                 shot_dicts.append(shot.to_dict())
 
         self._write_json_cache(self.previous_shots_cache_file, shot_dicts)
@@ -424,7 +427,9 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             List of scene dictionaries or None if not cached/expired
         """
-        return self._read_json_cache(self.threede_cache_file)
+        result = self._read_json_cache(self.threede_cache_file)
+        # Type narrowing: the cache file contains ThreeDESceneDict when written by cache_threede_scenes
+        return result  # type: ignore[return-value]
 
     def has_valid_threede_cache(self) -> bool:
         """Check if we have a valid 3DE cache.
@@ -524,7 +529,7 @@ class CacheManager(LoggingMixin, QObject):
             except Exception as e:
                 self.logger.error(f"Failed to clear cache: {e}")
 
-    def get_memory_usage(self) -> dict[str, float | int]:
+    def get_memory_usage(self) -> dict[str, float | int | str]:
         """Get cache memory usage statistics.
 
         Returns:
@@ -533,6 +538,7 @@ class CacheManager(LoggingMixin, QObject):
         try:
             total_size = 0
             file_count = 0
+            thumbnail_count = 0
 
             # Count thumbnails
             if self.thumbnails_dir.exists():
@@ -540,6 +546,7 @@ class CacheManager(LoggingMixin, QObject):
                     if item.is_file():
                         total_size += item.stat().st_size
                         file_count += 1
+                        thumbnail_count += 1
 
             # Count JSON files
             for cache_file in [
@@ -552,14 +559,15 @@ class CacheManager(LoggingMixin, QObject):
                     file_count += 1
 
             return {
-                "total_size_mb": total_size / (1024 * 1024),
+                "total_mb": total_size / (1024 * 1024),
                 "file_count": file_count,
+                "thumbnail_count": thumbnail_count,
                 "thumbnail_dir": str(self.thumbnails_dir),
             }
 
         except Exception as e:
             self.logger.error(f"Failed to get memory usage: {e}")
-            return {"total_size_mb": 0, "file_count": 0}
+            return {"total_mb": 0.0, "file_count": 0, "thumbnail_count": 0}
 
     # ========================================================================
     # Configuration Properties (backward compatibility)
@@ -645,7 +653,7 @@ class CacheManager(LoggingMixin, QObject):
     # Internal Helper Methods
     # ========================================================================
 
-    def _read_json_cache(self, cache_file: Path) -> list[dict] | None:
+    def _read_json_cache(self, cache_file: Path) -> list[ShotDict | ThreeDESceneDict] | None:
         """Read and validate JSON cache file.
 
         Args:
@@ -664,15 +672,25 @@ class CacheManager(LoggingMixin, QObject):
                 self.logger.debug(f"Cache expired: {cache_file}")
                 return None
 
-            # Read JSON
+            # Read JSON - json.load() returns Any, need to handle runtime types
             with open(cache_file) as f:
-                data = json.load(f)
+                data: object = json.load(f)  # type: ignore[reportAny]
 
             # Handle both old and new formats
             if isinstance(data, dict):
-                return data.get('data', data.get('shots', data.get('scenes', [])))
+                # Try nested keys: data.data, data.shots, data.scenes
+                # Type narrowing through conditionals
+                result: object = data.get('data')  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]
+                if result is None:
+                    result = data.get('shots')  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]
+                if result is None:
+                    result = data.get('scenes', [])  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]
+
+                if isinstance(result, list):
+                    return result  # type: ignore[return-value]
+                return []
             elif isinstance(data, list):
-                return data
+                return data  # type: ignore[return-value]
             else:
                 self.logger.warning(f"Unexpected cache format: {cache_file}")
                 return None
@@ -682,12 +700,16 @@ class CacheManager(LoggingMixin, QObject):
             return None
 
     def _write_json_cache(self, cache_file: Path, data: object) -> None:
-        """Write data to JSON cache file.
+        """Write data to JSON cache file atomically.
 
         Args:
             cache_file: Path to cache file
             data: Data to cache
         """
+        # Standard library imports
+        import os
+        import tempfile
+
         try:
             # Ensure directory exists
             cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -698,11 +720,31 @@ class CacheManager(LoggingMixin, QObject):
                 'cached_at': datetime.now().isoformat(),
             }
 
-            # Write JSON (simple, no atomic writes)
-            with open(cache_file, 'w') as f:
-                json.dump(cache_data, f, indent=2)
+            # Atomic write pattern: write to temp file, then rename
+            # This prevents readers from seeing partial/corrupted files
+            fd, temp_path = tempfile.mkstemp(
+                dir=cache_file.parent,
+                prefix=f".{cache_file.name}.",
+                suffix=".tmp"
+            )
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(cache_data, f, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())  # Ensure data is on disk
 
-            self.logger.debug(f"Cached data to: {cache_file}")
+                # Atomic rename (POSIX guarantees atomicity)
+                os.replace(temp_path, cache_file)
+
+                self.logger.debug(f"Cached data to: {cache_file}")
+
+            except Exception:
+                # Clean up temp file on error
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+                raise
 
         except Exception as e:
             self.logger.error(f"Failed to write cache file {cache_file}: {e}")

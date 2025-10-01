@@ -82,7 +82,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         )
 
     # Template Method - defines the algorithm skeleton
-    @log_execution(include_args=False)
+    @log_execution(include_args=False)  # pyright: ignore[reportUntypedFunctionDecorator]
     def find_scenes_for_shot(
         self,
         shot_workspace_path: str,
@@ -156,7 +156,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             )
             return []
 
-    @log_execution(include_args=False)
+    @log_execution(include_args=False)  # pyright: ignore[reportUntypedFunctionDecorator]
     def find_all_scenes_in_shows(
         self,
         user_shots: list[Shot],
@@ -573,7 +573,7 @@ class RefactoredThreeDESceneFinder:
 
         def process_show(show: str) -> list[ThreeDEScene]:
             """Process a single show and return its scenes."""
-            show_scenes = []
+            show_scenes: list[ThreeDEScene] = []
 
             # Check cancellation
             if cancel_flag and cancel_flag():

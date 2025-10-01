@@ -9,11 +9,11 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 # Local application imports
 from config import Config, ThreadingConfig
-from shot_finder_base import ShotFinderBase
+from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
 from shot_model import Shot
 
 if TYPE_CHECKING:
@@ -234,7 +234,7 @@ class PreviousShotsFinder(ShotFinderBase):
         all_user_shots = self.find_user_shots(shows_root)
         return self.filter_approved_shots(all_user_shots, active_shots)
 
-    def get_shot_details(self, shot: Shot) -> dict[str, str]:
+    def get_shot_details(self, shot: Shot) -> ShotDetailsDict:
         """Get additional details about an approved shot.
 
         Args:
@@ -243,7 +243,7 @@ class PreviousShotsFinder(ShotFinderBase):
         Returns:
             Dictionary with shot details including paths and metadata.
         """
-        details = {
+        details: ShotDetailsDict = {
             "show": shot.show,
             "sequence": shot.sequence,
             "shot": shot.shot,
@@ -281,7 +281,7 @@ class PreviousShotsFinder(ShotFinderBase):
         # For previous shots, we consider them completed if they're not in active shots
         return "completed"
 
-    def find_shots(self, **kwargs: Any) -> list[Shot]:
+    def find_shots(self, **kwargs: FindShotsKwargs) -> list[Shot]:
         """Find previous/approved shots.
 
         This is the main entry point implementing the abstract method from ShotFinderBase.
@@ -294,9 +294,10 @@ class PreviousShotsFinder(ShotFinderBase):
         Returns:
             List of Shot objects found
         """
-        # Extract parameters
-        active_shots = kwargs.get("active_shots", [])
-        shows_root = kwargs.get("shows_root")
+        # Extract parameters with type casting for type safety
+        # TypedDict.get() returns union of all value types, so we need explicit casting
+        active_shots = cast("list[Shot]", kwargs.get("active_shots") or [])
+        shows_root = cast("Path | None", kwargs.get("shows_root"))
 
         # Use the main search method
         return self.find_approved_shots(active_shots, shows_root)

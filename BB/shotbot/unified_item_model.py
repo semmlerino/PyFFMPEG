@@ -387,8 +387,29 @@ class UnifiedItemModel(BaseItemModel[ItemType]):
 
         return cast("Shot | None", self.get_selected_item())
 
+    def _find_item_by_full_name(self, full_name: str) -> tuple[ItemType, int] | None:
+        """Find an item by its full name.
+
+        Args:
+            full_name: The full name to search for
+
+        Returns:
+            Tuple of (item, row_index) if found, None otherwise
+        """
+        for row, item in enumerate(self._items):
+            if item.full_name == full_name:
+                return (item, row)
+        return None
+
     def _find_shot_by_full_name(self, full_name: str) -> tuple[Shot, int] | None:
-        """Compatibility alias for _find_item_by_full_name."""
+        """Compatibility alias for _find_item_by_full_name (Shot types).
+
+        Args:
+            full_name: The full name to search for
+
+        Returns:
+            Tuple of (Shot, row_index) if found, None otherwise
+        """
         # Type casting is safe since this is only used for SHOT and PREVIOUS types
         from typing import cast
 

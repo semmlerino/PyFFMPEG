@@ -862,7 +862,7 @@ class VersionUtils:
         regex_pattern = pattern.replace(".", r"\.")  # Escape dots
         regex_pattern = regex_pattern.replace("*", ".*")  # Replace wildcards
         # Replace v* with v(\d{3}) to capture version numbers
-        regex_pattern = re.sub(r"v\.\*", r"v(\d{3})", regex_pattern)
+        regex_pattern = re.sub(r"v\.\*", r"v(\\d{3})", regex_pattern)
 
         try:
             version_regex = re.compile(regex_pattern)

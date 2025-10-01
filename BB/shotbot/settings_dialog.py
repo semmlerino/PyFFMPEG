@@ -48,7 +48,7 @@ from __future__ import annotations
 # Standard library imports
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # Third-party imports
 from PySide6.QtCore import Qt, Signal, Slot  # type: ignore[reportUnknownVariableType]
@@ -113,7 +113,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.settings_manager = settings_manager
 
         # Temporary settings copy for preview/cancel functionality
-        self.temp_settings: dict[str, Any] = {}
+        self.temp_settings: dict[str, object] = {}
 
         self.setWindowTitle("ShotBot Preferences")
         self.setWindowIcon(QIcon())  # TODO: Add proper icon
@@ -781,7 +781,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.settings_manager.set_default_app(self.default_app_combo.currentText())
 
         # File associations
-        associations: dict[str, Any] = {}
+        associations: dict[str, str] = {}
         for file_type, combo in self.association_combos.items():
             associations[file_type] = combo.currentText()
         self.settings_manager.set_file_associations(associations)
@@ -790,10 +790,21 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         try:
             text = self.launchers_edit.toPlainText().strip()
             if text:
-                parsed_data = json.loads(text)
+                # Type: json.loads returns Any, but we know it's object at runtime
+                parsed_data = json.loads(text)  # type: ignore[misc]
                 # Handle both dict and list formats
+                launchers: list[dict[str, object]]
                 if isinstance(parsed_data, list):
-                    launchers = parsed_data
+                    # Type guard: ensure list contains dicts
+                    launchers = []
+                    for item in parsed_data:  # type: ignore[misc]
+                        if isinstance(item, dict):
+                            # Type narrowing: item is now dict[Unknown, Unknown]
+                            # Cast to expected type for settings manager
+                            launchers.append(item)  # type: ignore[arg-type]
+                        else:
+                            # Skip invalid items with empty dict
+                            launchers.append({})
                 elif isinstance(parsed_data, dict):
                     # Convert dict to list format expected by settings manager
                     launchers = [parsed_data] if parsed_data else []

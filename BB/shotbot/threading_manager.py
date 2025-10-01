@@ -8,7 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -17,13 +17,13 @@ from PySide6.QtCore import (
     QObject,
     QThread,
     Signal,
-    Slot,
+    Slot,  # type: ignore[reportUnknownVariableType]
 )
 
 if TYPE_CHECKING:
     # Local application imports
     from base_shot_model import BaseShotModel
-    from threede_scene_model import ThreeDESceneModel
+    from threede_scene_model import ThreeDEScene, ThreeDESceneModel
     from threede_scene_worker import ThreeDESceneWorker
 
 logger = logging.getLogger(__name__)
@@ -105,8 +105,10 @@ class ThreadingManager(QObject):
             self._current_threede_worker.batch_ready.connect(
                 self.threede_discovery_batch_ready.emit
             )
+            # Signal is defined as Signal(list) without type parameter, causing Unknown inference
+            # Our slot is properly typed as list[ThreeDEScene], runtime behavior is correct
             self._current_threede_worker.finished.connect(
-                self._on_threede_discovery_finished
+                self._on_threede_discovery_finished  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
             )
             self._current_threede_worker.error.connect(self._on_threede_discovery_error)
             self._current_threede_worker.paused.connect(
@@ -125,7 +127,7 @@ class ThreadingManager(QObject):
             return True
 
     @Slot(list)
-    def _on_threede_discovery_finished(self, scenes: list[Any]) -> None:
+    def _on_threede_discovery_finished(self, scenes: list[ThreeDEScene]) -> None:
         """Handle 3DE discovery completion.
 
         Args:
@@ -251,7 +253,7 @@ class ThreadingManager(QObject):
             Dictionary mapping thread names to status strings
         """
         with QMutexLocker(self._mutex):
-            status = {}
+            status: dict[str, str] = {}
             for name, worker in self._workers.items():
                 if worker.isRunning():
                     status[name] = "running"

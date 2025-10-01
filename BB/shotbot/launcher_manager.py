@@ -9,10 +9,10 @@ from __future__ import annotations
 # Standard library imports
 import os
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypedDict
 
 # Third-party imports
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QRecursiveMutex, QTimer, Signal
 
 # Local application imports
 from config import ThreadingConfig
@@ -34,9 +34,24 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     # Local application imports
+    from launcher.models import ProcessInfo
+    from launcher.worker import LauncherWorker
     from shot_model import Shot
 
 # Set up logger for this module
+
+
+class ProcessInfoDict(TypedDict):
+    """Type definition for process information dictionary."""
+
+    type: str
+    key: str
+    launcher_id: str
+    launcher_name: str
+    command: str
+    pid: int
+    running: bool
+    start_time: float
 
 
 class LauncherManager(LoggingMixin, QObject):
@@ -114,7 +129,7 @@ class LauncherManager(LoggingMixin, QObject):
     # ==================== Backward Compatibility Properties ====================
 
     @property
-    def _active_processes(self) -> dict[str, Any]:
+    def _active_processes(self) -> dict[str, ProcessInfo]:
         """Backward compatibility property for accessing active processes.
 
         This exposes the _active_processes from the process manager to maintain
@@ -127,7 +142,7 @@ class LauncherManager(LoggingMixin, QObject):
         return self._process_manager.get_active_processes_dict()
 
     @property
-    def _active_workers(self) -> dict[str, Any]:
+    def _active_workers(self) -> dict[str, LauncherWorker]:
         """Backward compatibility property for accessing active workers.
 
         Returns:
@@ -136,32 +151,32 @@ class LauncherManager(LoggingMixin, QObject):
         return self._process_manager.get_active_workers_dict()
 
     @_active_workers.setter
-    def _active_workers(self, value: dict[str, Any]) -> None:
+    def _active_workers(self, value: dict[str, LauncherWorker]) -> None:
         """Setter for active workers (backward compatibility for tests).
 
         Args:
             value: Dictionary of active workers to set
         """
         # TODO: Add a public setter method in ProcessManager or refactor tests
-        self._process_manager._active_workers = value
+        self._process_manager._active_workers = value  # pyright: ignore[reportPrivateUsage]
 
     @property
-    def _process_lock(self) -> Any:
+    def _process_lock(self) -> QRecursiveMutex:
         """Backward compatibility property for accessing process lock.
 
         Returns:
             Process lock from the process manager
         """
-        return self._process_manager._process_lock
+        return self._process_manager._process_lock  # pyright: ignore[reportPrivateUsage]
 
     @property
-    def _cleanup_retry_timer(self) -> Any:
+    def _cleanup_retry_timer(self) -> QTimer:
         """Backward compatibility property for accessing cleanup retry timer.
 
         Returns:
             Cleanup retry timer from the process manager
         """
-        return self._process_manager._cleanup_retry_timer
+        return self._process_manager._cleanup_retry_timer  # pyright: ignore[reportPrivateUsage]
 
     @property
     def _cleanup_scheduled(self) -> bool:
@@ -170,14 +185,14 @@ class LauncherManager(LoggingMixin, QObject):
         Returns:
             Cleanup scheduled flag from the process manager
         """
-        return self._process_manager._cleanup_scheduled
+        return self._process_manager._cleanup_scheduled  # pyright: ignore[reportPrivateUsage]
 
     def _cleanup_finished_workers(self) -> None:
         """Backward compatibility method for cleaning up finished workers.
 
         Delegates to the process manager's cleanup method.
         """
-        return self._process_manager._cleanup_finished_workers()
+        return self._process_manager._cleanup_finished_workers()  # pyright: ignore[reportPrivateUsage]
 
     # ==================== CRUD Operations ====================
 
@@ -588,13 +603,13 @@ class LauncherManager(LoggingMixin, QObject):
         """
         return self._process_manager.get_active_process_count()
 
-    def get_active_process_info(self) -> list[dict[str, Any]]:
+    def get_active_process_info(self) -> list[ProcessInfoDict]:
         """Get information about all active processes.
 
         Returns:
             List of process information dictionaries
         """
-        return self._process_manager.get_active_process_info()
+        return self._process_manager.get_active_process_info()  # type: ignore[return-value]
 
     def terminate_process(self, process_key: str, force: bool = False) -> bool:
         """Terminate a specific process.

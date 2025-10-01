@@ -223,34 +223,39 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
         logger.info("Loading demo shots for user-assigned simulation")
         try:
             with open(demo_shots_path, encoding="utf-8") as f:
-                demo_data = json.load(f)
+                # json.load() returns Any - we validate below
+                demo_data = json.load(f)  # type: ignore[reportAny]
 
-            # Validate JSON structure
+            # Validate JSON structure and narrow types
             if not isinstance(demo_data, dict):
-                raise ValueError(f"Expected dict, got {type(demo_data).__name__}")
+                raise ValueError(f"Expected dict, got {type(demo_data).__name__}")  # type: ignore[reportAny]
 
             if "shots" not in demo_data:
                 raise ValueError("Missing 'shots' key in demo data")
 
-            if not isinstance(demo_data["shots"], list):
+            shots_data = demo_data["shots"]  # type: ignore[reportUnknownVariableType]
+            if not isinstance(shots_data, list):
                 raise ValueError(
-                    f"'shots' must be a list, got {type(demo_data['shots']).__name__}"
+                    f"'shots' must be a list, got {type(shots_data).__name__}"  # type: ignore[reportUnknownArgumentType]
                 )
 
-            # Validate each shot has required fields
-            for i, shot in enumerate(demo_data["shots"]):
-                if not isinstance(shot, dict):
+            # Validate each shot has required fields - builds typed list
+            validated_shots: list[dict[str, str]] = []
+            for i, shot_item in enumerate(shots_data):  # type: ignore[reportUnknownArgumentType]
+                if not isinstance(shot_item, dict):
                     raise ValueError(f"Shot {i} is not a dict")
                 required_fields = ["show", "seq", "shot"]
-                missing = [f for f in required_fields if f not in shot]
+                missing = [f for f in required_fields if f not in shot_item]
                 if missing:
                     raise ValueError(f"Shot {i} missing fields: {missing}")
+                # After validation, we know this is dict[str, str]
+                validated_shots.append(shot_item)  # type: ignore[reportUnknownArgumentType]
 
             # Assign only a subset of shots to gabriel-h to simulate realistic user workload
             # while still allowing "Other 3DE Scenes" to find many unassigned 3DE files
-            assigned_shots = demo_data["shots"][:4]  # Take first 4 shots for gabriel-h
+            assigned_shots: list[dict[str, str]] = validated_shots[:4]  # Take first 4 shots for gabriel-h
             logger.info(
-                f"Assigning {len(assigned_shots)} of {len(demo_data['shots'])} demo shots to gabriel-h"
+                f"Assigning {len(assigned_shots)} of {len(validated_shots)} demo shots to gabriel-h"
             )
 
             pool.set_shots_from_demo(assigned_shots)
@@ -259,7 +264,7 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
                 for shot_path in pool.shots:
                     logger.info(f"   📋 {shot_path}")
                 logger.info(
-                    f"🎯 This leaves {len(demo_data['shots']) - len(assigned_shots)} shots unassigned for 'Other 3DE Scenes'"
+                    f"🎯 This leaves {len(validated_shots) - len(assigned_shots)} shots unassigned for 'Other 3DE Scenes'"
                 )
                 return pool
             else:

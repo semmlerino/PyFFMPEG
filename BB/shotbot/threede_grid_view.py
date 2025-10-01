@@ -81,7 +81,7 @@ class ThreeDEGridView(BaseGridView):
         self._selected_scene = None
         self._is_loading = False
         self._updating_filter = False  # Recursion guard for filter updates
-        self._model: UnifiedItemModel | None = model
+        self._threede_model: UnifiedItemModel | None = model
 
         # Enable context menu
         self.list_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -142,7 +142,7 @@ class ThreeDEGridView(BaseGridView):
         Args:
             model: UnifiedItemModel instance configured for 3DE scenes
         """
-        self._model = model
+        self._threede_model = model
         self.list_view.setModel(model)
 
         # Connect model signals
@@ -158,19 +158,21 @@ class ThreeDEGridView(BaseGridView):
         # Update scene count
         self._update_scene_count()
 
-    def populate_show_filter(self, threede_scene_model: ThreeDESceneModel) -> None:
+    def populate_show_filter(  # type: ignore[override]
+        self, shows: list[str] | ThreeDESceneModel
+    ) -> None:
         """Populate the show filter combo box with available shows.
 
         Args:
-            threede_scene_model: The scene model to get shows from
+            shows: List of show names or ThreeDESceneModel to extract shows from
         """
-        if not threede_scene_model:
-            return
-
-        # Use base class method
-        shows = threede_scene_model.get_unique_shows()
-        super().populate_show_filter(shows)
-        self.logger.info(f"Populated show filter with {len(shows)} shows")
+        if not isinstance(shows, list):
+            # Extract shows from model
+            model_shows = shows.get_unique_shows()
+            super().populate_show_filter(model_shows)
+            self.logger.info(f"Populated show filter with {len(model_shows)} shows")
+        else:
+            super().populate_show_filter(shows)
 
     @Slot()
     def _on_scenes_updated(self) -> None:
@@ -186,8 +188,8 @@ class ThreeDEGridView(BaseGridView):
             row: Row index of loaded thumbnail
         """
         # Update the specific item
-        if self._model:
-            index = self._model.index(row, 0)
+        if self._threede_model:
+            index = self._threede_model.index(row, 0)
             self.list_view.update(index)
 
     @Slot()
@@ -222,8 +224,8 @@ class ThreeDEGridView(BaseGridView):
 
     def _update_scene_count(self) -> None:
         """Update the scene count label."""
-        if self._model:
-            count = self._model.rowCount()
+        if self._threede_model:
+            count = self._threede_model.rowCount()
             self.count_label.setText(f"{count} scene{'s' if count != 1 else ''}")
 
     @Slot(QModelIndex)
@@ -233,13 +235,13 @@ class ThreeDEGridView(BaseGridView):
         Args:
             index: Clicked model index
         """
-        if not self._model:
+        if not self._threede_model:
             return
 
-        scene = self._model.get_scene(index)
+        scene = self._threede_model.get_scene(index)
         if scene:
             self._selected_scene = scene
-            self._model.set_selected(index)
+            self._threede_model.set_selected(index)
             self.scene_selected.emit(scene)
 
     @Slot(QModelIndex)
@@ -249,10 +251,10 @@ class ThreeDEGridView(BaseGridView):
         Args:
             index: Double-clicked model index
         """
-        if not self._model:
+        if not self._threede_model:
             return
 
-        scene = self._model.get_scene(index)
+        scene = self._threede_model.get_scene(index)
         if scene:
             self.scene_double_clicked.emit(scene)
             # Launch 3DE by default
@@ -265,11 +267,11 @@ class ThreeDEGridView(BaseGridView):
             start: Start row index
             end: End row index (exclusive)
         """
-        if self._model:
+        if self._threede_model:
             # Add some buffer for smooth scrolling
             buffered_start = max(0, start - 5)
-            buffered_end = min(self._model.rowCount(), end + 5)
-            self._model.set_visible_range(buffered_start, buffered_end)
+            buffered_end = min(self._threede_model.rowCount(), end + 5)
+            self._threede_model.set_visible_range(buffered_start, buffered_end)
 
     def _show_context_menu(self, pos: QPoint) -> None:
         """Show context menu at position.
@@ -278,10 +280,10 @@ class ThreeDEGridView(BaseGridView):
             pos: Context menu position
         """
         index = self.list_view.indexAt(pos)
-        if not index.isValid() or not self._model:
+        if not index.isValid() or not self._threede_model:
             return
 
-        scene = self._model.get_scene(index)
+        scene = self._threede_model.get_scene(index)
         if not scene:
             return
 
@@ -346,8 +348,8 @@ class ThreeDEGridView(BaseGridView):
         if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
             # Launch selected scene
             current = self.list_view.currentIndex()
-            if current.isValid() and self._model:
-                scene = self._model.get_scene(current)
+            if current.isValid() and self._threede_model:
+                scene = self._threede_model.get_scene(current)
                 if scene:
                     self.scene_double_clicked.emit(scene)
                     self.app_launch_requested.emit("3de", scene)
@@ -360,16 +362,16 @@ class ThreeDEGridView(BaseGridView):
         Args:
             scene: Scene to select
         """
-        if not self._model:
+        if not self._threede_model:
             return
 
         # Find scene in model
-        for row in range(self._model.rowCount()):
-            index = self._model.index(row, 0)
-            model_scene = self._model.get_scene(index)
+        for row in range(self._threede_model.rowCount()):
+            index = self._threede_model.index(row, 0)
+            model_scene = self._threede_model.get_scene(index)
             if model_scene and model_scene.full_name == scene.full_name:
                 self.list_view.setCurrentIndex(index)
-                self._model.set_selected(index)
+                self._threede_model.set_selected(index)
                 self._selected_scene = scene
                 self.scene_selected.emit(scene)
                 break

@@ -4,15 +4,21 @@
 import threading
 from collections.abc import Sequence
 from pathlib import Path
-
-# Local application imports
-from cache.thumbnail_manager import ThumbnailCacheResult
+from typing import Any
 
 # Third-party imports
 from PySide6.QtCore import QObject, QRunnable, Signal
 
 from shot_model import Shot
 from type_definitions import ShotDict, ThreeDESceneDict
+
+# Backward compatibility stub
+class ThumbnailCacheResult:
+    """Stub for backward compatibility - no longer used in simplified implementation."""
+    future: Any | None
+    path: Path | None
+    is_complete: bool
+    def __init__(self) -> None: ...
 
 class CacheManager(QObject):
     """Manages caching of shot data and thumbnails with thread safety and memory monitoring."""

@@ -7,7 +7,8 @@ functionality from BaseThumbnailDelegate.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtGui import QColor
@@ -93,22 +94,28 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
             return {}
 
         # Get timestamp and format it if available
+        # ModifiedTimeRole returns float (Unix timestamp) or 0.0
         timestamp_str = ""
-        if timestamp := index.data(ThreeDERole.ModifiedTimeRole):
+        # Qt's index.data() returns Any - type checked at runtime
+        timestamp_data = index.data(ThreeDERole.ModifiedTimeRole)  # type: ignore[reportAny]
+        if timestamp_data and isinstance(timestamp_data, float | int):
             try:
+                # Convert Unix timestamp to datetime
+                timestamp = datetime.fromtimestamp(cast("float", timestamp_data))
                 # Format timestamp for display
                 timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M")
-            except (AttributeError, ValueError):
-                timestamp_str = str(timestamp)
+            except (ValueError, OSError):
+                # Handle invalid timestamps gracefully
+                timestamp_str = ""
 
         return {
             "name": index.data(ThreeDERole.DisplayRole) or "Unknown",
             "show": index.data(ThreeDERole.ShowRole),
             "sequence": index.data(ThreeDERole.SequenceRole),
-            "shot": index.data(ThreeDERole.ShotRole),
+            "shot": index.data(ThreeDERole.ItemSpecificRole1),  # Maps to shot
             "thumbnail": index.data(ThreeDERole.ThumbnailPixmapRole),
             "loading_state": index.data(ThreeDERole.LoadingStateRole),
             "is_selected": index.data(ThreeDERole.IsSelectedRole) or False,
-            "user": index.data(ThreeDERole.UserRole),
+            "user": index.data(ThreeDERole.ItemSpecificRole2),  # Maps to user for THREEDE
             "timestamp": timestamp_str,
         }

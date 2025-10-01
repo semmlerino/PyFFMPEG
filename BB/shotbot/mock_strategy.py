@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import cast
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -18,7 +19,7 @@ from logging_mixin import LoggingMixin, get_module_logger
 logger = get_module_logger(__name__)
 
 
-class MockDataStrategy(LoggingMixin, ABC):
+class MockDataStrategy(ABC, LoggingMixin):
     """Abstract strategy for loading mock shot data."""
 
     @abstractmethod
@@ -31,7 +32,7 @@ class MockDataStrategy(LoggingMixin, ABC):
         pass
 
 
-class FilesystemMockStrategy(LoggingMixin, MockDataStrategy):
+class FilesystemMockStrategy(MockDataStrategy):
     """Load mock data from filesystem structure."""
 
     def __init__(self, mock_root: Path | None = None) -> None:
@@ -48,7 +49,7 @@ class FilesystemMockStrategy(LoggingMixin, MockDataStrategy):
         Returns:
             List of workspace paths
         """
-        shots = []
+        shots: list[str] = []
         shows_dir = self.mock_root / "shows"
 
         if not shows_dir.exists():
@@ -103,7 +104,7 @@ class FilesystemMockStrategy(LoggingMixin, MockDataStrategy):
         return shot_name.startswith(f"{sequence}_")
 
 
-class JSONMockStrategy(LoggingMixin, MockDataStrategy):
+class JSONMockStrategy(MockDataStrategy):
     """Load mock data from JSON file."""
 
     def __init__(self, json_path: Path | str | None = None) -> None:
@@ -128,15 +129,28 @@ class JSONMockStrategy(LoggingMixin, MockDataStrategy):
 
         try:
             with open(self.json_path) as f:
-                data = json.load(f)
+                data = json.load(f)  # type: ignore[misc]  # JSON can return any structure
 
-            shots = []
-            for shot in data.get("shots", []):
-                show = shot.get("show", "demo")
-                seq = shot.get("seq", "seq01")
-                shot_num = shot.get("shot", "0010")
-                workspace_path = f"/shows/{show}/shots/{seq}/{seq}_{shot_num}"
-                shots.append(f"workspace {workspace_path}")
+            shots: list[str] = []
+            # Type narrow: data should be dict with "shots" key
+            if isinstance(data, dict):
+                # Cast after isinstance check for type checker
+                data_dict = cast("dict[str, object]", data)
+                shot_list = data_dict.get("shots", [])
+                if isinstance(shot_list, list):
+                    # Cast list to typed list after isinstance check
+                    shot_list_typed = cast("list[object]", shot_list)
+                    for shot_item in shot_list_typed:
+                        if isinstance(shot_item, dict):
+                            # Cast dict items after isinstance checks
+                            shot_dict = cast("dict[str, object]", shot_item)
+                            show = shot_dict.get("show", "demo")
+                            seq = shot_dict.get("seq", "seq01")
+                            shot_num = shot_dict.get("shot", "0010")
+                            # Type narrow: ensure string values
+                            if isinstance(show, str) and isinstance(seq, str) and isinstance(shot_num, str):
+                                workspace_path = f"/shows/{show}/shots/{seq}/{seq}_{shot_num}"
+                                shots.append(f"workspace {workspace_path}")
 
             self.logger.info(f"Loaded {len(shots)} shots from JSON")
             return shots
@@ -159,7 +173,7 @@ class JSONMockStrategy(LoggingMixin, MockDataStrategy):
         ]
 
 
-class ProductionDataStrategy(LoggingMixin, MockDataStrategy):
+class ProductionDataStrategy(MockDataStrategy):
     """Load real production data from captured JSON."""
 
     def __init__(self, capture_file: Path | str | None = None) -> None:
@@ -184,21 +198,39 @@ class ProductionDataStrategy(LoggingMixin, MockDataStrategy):
 
         try:
             with open(self.capture_file) as f:
-                data = json.load(f)
+                data = json.load(f)  # type: ignore[misc]  # JSON can return any structure
 
-            shots = []
+            shots: list[str] = []
 
-            # Parse the captured structure
-            for show_name, show_data in data.get("shows", {}).items():
-                shots_data = show_data.get("shots", {})
-
-                for seq_name, seq_data in shots_data.items():
-                    # Each sequence has a shots list
-                    for shot_name in seq_data.get("shots", []):
-                        workspace_path = (
-                            f"/shows/{show_name}/shots/{seq_name}/{shot_name}"
-                        )
-                        shots.append(f"workspace {workspace_path}")
+            # Type narrow: data should be dict with "shows" key
+            if isinstance(data, dict):
+                # Cast after isinstance check for type checker
+                data_dict = cast("dict[str, object]", data)
+                shows_dict = data_dict.get("shows", {})
+                if isinstance(shows_dict, dict):
+                    # Cast nested dict
+                    shows_typed = cast("dict[str, object]", shows_dict)
+                    # Parse the captured structure
+                    for show_name_key, show_data_val in shows_typed.items():
+                        if isinstance(show_data_val, dict):
+                            show_dict = cast("dict[str, object]", show_data_val)
+                            shots_data = show_dict.get("shots", {})
+                            if isinstance(shots_data, dict):
+                                shots_typed = cast("dict[str, object]", shots_data)
+                                for seq_name_key, seq_data_val in shots_typed.items():
+                                    if isinstance(seq_data_val, dict):
+                                        seq_dict = cast("dict[str, object]", seq_data_val)
+                                        # Each sequence has a shots list
+                                        shot_list = seq_dict.get("shots", [])
+                                        if isinstance(shot_list, list):
+                                            # Cast list to typed list after isinstance check
+                                            shot_list_typed = cast("list[object]", shot_list)
+                                            for shot_name_item in shot_list_typed:
+                                                if isinstance(shot_name_item, str):
+                                                    workspace_path = (
+                                                        f"/shows/{show_name_key}/shots/{seq_name_key}/{shot_name_item}"
+                                                    )
+                                                    shots.append(f"workspace {workspace_path}")
 
             self.logger.info(f"Loaded {len(shots)} production shots from capture")
             return shots
@@ -219,8 +251,8 @@ class UnifiedMockPool(LoggingMixin):
         """
         self.strategy = strategy or self._auto_detect_strategy()
         self.shots = self.strategy.load_shots()
-        self._cache = {}
-        self.commands_executed = []
+        self._cache: dict[str, str] = {}
+        self.commands_executed: list[str] = []
 
         self.logger.info(
             f"UnifiedMockPool initialized with {len(self.shots)} shots "
@@ -314,7 +346,7 @@ class UnifiedMockPool(LoggingMixin):
         Returns:
             Command outputs
         """
-        results = {}
+        results: dict[str, str | None] = {}
         for command in commands:
             try:
                 results[command] = self.execute_workspace_command(command, cache_ttl)

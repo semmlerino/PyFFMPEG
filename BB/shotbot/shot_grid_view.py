@@ -8,7 +8,7 @@ and proper Model/View integration.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -75,7 +75,6 @@ class ShotGridView(BaseGridView):
 
         # ShotGridView-specific attributes
         self._selected_shot: Shot | None = None
-        self._model: UnifiedItemModel | None = model
 
         if model:
             self.set_model(model)
@@ -97,7 +96,8 @@ class ShotGridView(BaseGridView):
         Returns:
             The shot item model or None
         """
-        return self._model
+        # Cast base class _model to more specific type
+        return cast(UnifiedItemModel | None, self._model)
 
     @property
     def selected_shot(self) -> Shot | None:
@@ -125,7 +125,8 @@ class ShotGridView(BaseGridView):
         """
         # Model/View updates automatically when model data changes
         # This method is kept for interface compatibility
-        if self._model:
+        model = cast(UnifiedItemModel | None, self._model)
+        if model:
             # Force a view update
             self.list_view.viewport().update()
             self.logger.debug(
@@ -138,6 +139,7 @@ class ShotGridView(BaseGridView):
         Args:
             model: Shot item model (UnifiedItemModel configured for shots)
         """
+        # Store in base class attribute (base type is QAbstractItemModel)
         self._model = model
         self.list_view.setModel(model)
 
@@ -151,18 +153,25 @@ class ShotGridView(BaseGridView):
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
 
-    def populate_show_filter(self, shot_model: BaseShotModel) -> None:
+    def populate_show_filter(self, shows: list[str] | BaseShotModel) -> None:  # type: ignore[override]
         """Populate the show filter combo box with available shows.
 
+        This override accepts either a list of show names or a BaseShotModel.
+        When passed a model, it extracts shows and delegates to base class.
+
         Args:
-            shot_model: Shot model to get available shows from
+            shows: Either a list of show names or a BaseShotModel to extract shows from
         """
-        if not shot_model:
+        # Handle BaseShotModel case (extract shows and call base)
+        if not isinstance(shows, list):
+            shot_model = shows
+            if shot_model:
+                show_list = list(shot_model.get_available_shows())
+                super().populate_show_filter(show_list)
             return
 
-        # Use base class method
-        shows = shot_model.get_available_shows()
-        super().populate_show_filter(list(shows))
+        # Handle list case (delegate to base)
+        super().populate_show_filter(shows)
 
     @Slot()
     def _on_model_updated(self) -> None:
@@ -180,15 +189,18 @@ class ShotGridView(BaseGridView):
         Args:
             index: Clicked model index
         """
-        if not index.isValid() or not self._model:
+        model = cast(UnifiedItemModel | None, self._model)
+        if not index.isValid() or not model:
             return
 
-        shot: Shot | None = index.data(ShotRole.ObjectRole)
+        # Get shot object - index.data() returns Any from Qt API
+        shot: Shot | None = cast(Shot | None, index.data(ShotRole.ObjectRole))
+
         if shot:
             self._selected_shot = shot
 
             # Update selection in model
-            self._model.setData(index, True, ShotRole.IsSelectedRole)
+            model.setData(index, True, ShotRole.IsSelectedRole)
 
             # Emit signal
             self.shot_selected.emit(shot)
@@ -202,10 +214,13 @@ class ShotGridView(BaseGridView):
         Args:
             index: Double-clicked model index
         """
-        if not index.isValid() or not self._model:
+        model = cast(UnifiedItemModel | None, self._model)
+        if not index.isValid() or not model:
             return
 
-        shot: Shot | None = index.data(ShotRole.ObjectRole)
+        # Get shot object - index.data() returns Any from Qt API
+        shot: Shot | None = cast(Shot | None, index.data(ShotRole.ObjectRole))
+
         if shot:
             self.shot_double_clicked.emit(shot)
             self.logger.debug(f"Shot double-clicked: {shot.full_name}")
@@ -222,18 +237,21 @@ class ShotGridView(BaseGridView):
             current: Current selection index
             previous: Previous selection index
         """
-        if not self._model:
+        model = cast(UnifiedItemModel | None, self._model)
+        if not model:
             return
 
         # Clear previous selection in model
         if previous.isValid():
-            self._model.setData(previous, False, ShotRole.IsSelectedRole)
+            model.setData(previous, False, ShotRole.IsSelectedRole)
 
         # Set current selection in model
         if current.isValid():
-            self._model.setData(current, True, ShotRole.IsSelectedRole)
+            model.setData(current, True, ShotRole.IsSelectedRole)
 
-            shot: Shot | None = current.data(ShotRole.ObjectRole)
+            # Get shot object - index.data() returns Any from Qt API
+            shot: Shot | None = cast(Shot | None, current.data(ShotRole.ObjectRole))
+
             if shot:
                 self._selected_shot = shot
                 self.shot_selected.emit(shot)
@@ -245,8 +263,9 @@ class ShotGridView(BaseGridView):
             start: Start row index
             end: End row index (exclusive)
         """
-        if self._model:
-            self._model.set_visible_range(start, end)
+        model = cast(UnifiedItemModel | None, self._model)
+        if model:
+            model.set_visible_range(start, end)
 
     def select_shot_by_name(self, shot_name: str) -> None:
         """Select a shot by its full name.
@@ -254,13 +273,16 @@ class ShotGridView(BaseGridView):
         Args:
             shot_name: Full shot name to select
         """
-        if not self._model:
+        model = cast(UnifiedItemModel | None, self._model)
+        if not model:
             return
 
         # Find the shot in the model
-        for row in range(self._model.rowCount()):
-            index = self._model.index(row, 0)
-            shot: Shot | None = index.data(ShotRole.ObjectRole)
+        for row in range(model.rowCount()):
+            index = model.index(row, 0)
+
+            # Get shot object - index.data() returns Any from Qt API
+            shot: Shot | None = cast(Shot | None, index.data(ShotRole.ObjectRole))
 
             if shot and shot.full_name == shot_name:
                 # Select in view
@@ -300,11 +322,14 @@ class ShotGridView(BaseGridView):
         # Get the index at the clicked position
         index = self.list_view.indexAt(list_view_pos)
 
-        if not index.isValid() or not self._model:
+        model = cast(UnifiedItemModel | None, self._model)
+        if not index.isValid() or not model:
             # No item clicked, show no menu
             return
 
-        shot: Shot | None = index.data(ShotRole.ObjectRole)
+        # Get shot object - index.data() returns Any from Qt API
+        shot: Shot | None = cast(Shot | None, index.data(ShotRole.ObjectRole))
+
         if not shot:
             return
 
@@ -388,10 +413,14 @@ if __name__ == "__main__":
     view.resize(800, 600)
     view.show()
 
-    # Connect signals
-    view.shot_selected.connect(lambda shot: print(f"Selected: {shot.full_name}"))
-    view.shot_double_clicked.connect(
-        lambda shot: print(f"Double-clicked: {shot.full_name}"),
-    )
+    # Connect signals with explicit type annotations
+    def on_shot_selected(shot: Shot) -> None:
+        print(f"Selected: {shot.full_name}")
+
+    def on_shot_double_clicked(shot: Shot) -> None:
+        print(f"Double-clicked: {shot.full_name}")
+
+    view.shot_selected.connect(on_shot_selected)
+    view.shot_double_clicked.connect(on_shot_double_clicked)
 
     sys.exit(app.exec())

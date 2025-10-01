@@ -1694,6 +1694,34 @@ def threede_controller_target(qtbot, launcher_controller_target):
 # =============================================================================
 
 
+# Note: qapp fixture scope is dynamically determined by pytest-qt
+# We enhance it here with xdist-specific cleanup only
+@pytest.fixture
+def qapp(qapp, request):
+    """Enhance qapp fixture with xdist worker-specific cleanup.
+
+    When running tests in parallel with pytest-xdist, we need extra cleanup
+    after each test to prevent Qt state leakage between tests in the same worker.
+
+    Reference: pytest-qt documentation on parallel execution
+    """
+    try:
+        # Import xdist utility - may not be available in all environments
+        from xdist import is_xdist_worker
+
+        in_worker = is_xdist_worker(request)
+    except (ImportError, TypeError):
+        in_worker = False
+
+    yield qapp
+
+    # Extra cleanup in xdist workers to prevent state leakage
+    if in_worker:
+        qapp.processEvents()
+        QTimer.singleShot(0, lambda: None)  # Flush pending events
+        qapp.processEvents()
+
+
 def pytest_collection_modifyitems(items) -> None:
     """Configure test execution for parallel runs with pytest-xdist.
 

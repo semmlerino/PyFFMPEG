@@ -138,8 +138,15 @@ class TestThreeDEWorkerWorkflow:
         worker.finished.connect(on_finished)
 
         try:
+            # Dynamic timeout for xdist workers (parallel execution needs more time)
+            try:
+                from xdist import is_xdist_worker
+                timeout = 60000 if is_xdist_worker(qtbot._request) else 30000
+            except (ImportError, TypeError, AttributeError):
+                timeout = 30000
+
             # Following Signal Testing Pattern (lines 375-387): waitSignal BEFORE action
-            with qtbot.waitSignal(worker.finished, timeout=30000) as blocker:
+            with qtbot.waitSignal(worker.finished, timeout=timeout) as blocker:
                 worker.start()
 
             # Verify workflow completed successfully
@@ -334,8 +341,15 @@ class TestThreeDEWorkerWorkflow:
                 worker.wait(5000)
 
         try:
+            # Dynamic timeout for xdist workers
+            try:
+                from xdist import is_xdist_worker
+                timeout = 30000 if is_xdist_worker(qtbot._request) else 15000
+            except (ImportError, TypeError, AttributeError):
+                timeout = 15000
+
             # Complete a scan
-            with qtbot.waitSignal(worker.finished, timeout=15000):
+            with qtbot.waitSignal(worker.finished, timeout=timeout):
                 worker.start()
 
             # Worker should not be running after completion

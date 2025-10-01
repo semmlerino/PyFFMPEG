@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
 
 # Local application imports
 from config import Config
@@ -18,6 +18,40 @@ from finder_utils import FinderUtils
 from optimized_shot_parser import OptimizedShotParser
 from progress_mixin import ProgressReportingMixin
 from shot_model import Shot
+
+
+class FindShotsKwargs(TypedDict, total=False):
+    """Type-safe kwargs for find_shots method.
+
+    All fields are optional (total=False) to support flexible calling patterns
+    across different shot finder implementations.
+    """
+
+    target_shows: set[str]
+    shows_root: Path | None
+    active_shots: list[Shot]
+
+
+class ShotDetailsDict(TypedDict, total=False):
+    """Type-safe return type for get_shot_details method.
+
+    Required fields are always present, optional fields depend on filesystem state.
+    """
+
+    # Required fields
+    show: str
+    sequence: str
+    shot: str
+    workspace_path: str
+    user_path: str
+    status: str
+    user_dir_exists: str
+
+    # Optional fields (depend on filesystem state)
+    has_3de: str
+    has_nuke: str
+    has_maya: str
+    thumbnail_path: str
 
 
 class ShotFinderBase(ProgressReportingMixin, ABC):
@@ -92,7 +126,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
             self.logger.debug(f"Could not create Shot from path {path}: {e}")
             return None
 
-    def get_shot_details(self, shot: Shot) -> dict[str, Any]:
+    def get_shot_details(self, shot: Shot) -> ShotDetailsDict:
         """Get additional details about a shot.
 
         Args:
@@ -101,7 +135,7 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         Returns:
             Dictionary with shot details including paths and metadata
         """
-        details = {
+        details: ShotDetailsDict = {
             "show": shot.show,
             "sequence": shot.sequence,
             "shot": shot.shot,
@@ -183,10 +217,16 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         pass
 
     @abstractmethod
-    def find_shots(self, **kwargs: Any) -> list[Shot]:
+    def find_shots(self, **kwargs: FindShotsKwargs) -> list[Shot]:
         """Find shots based on implementation-specific logic.
 
         To be implemented by concrete subclasses.
+
+        Args:
+            **kwargs: Optional keyword arguments for shot finding
+                - target_shows: Set of show names to search
+                - shows_root: Root directory for shows
+                - active_shots: List of currently active shots to filter
 
         Returns:
             List of found shots

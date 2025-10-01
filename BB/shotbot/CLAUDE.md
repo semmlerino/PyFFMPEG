@@ -122,41 +122,72 @@ The application uses Qt's signal-slot mechanism for loose coupling between compo
 - **`MockWorkspacePool`**: Sophisticated mock that simulates 432 real production shots
 - **Critical**: The `ws` command is a shell function, requires interactive bash: `["/bin/bash", "-i", "-c", "ws -sg"]`
 
-#### 2. Three Independent Model/View Stacks
+#### 2. Unified Model/View Architecture
 
-Each tab maintains its own architecture optimized for its data source:
+The application uses a layered Qt Model/View architecture with shared base classes to eliminate duplication while preserving tab-specific optimizations.
+
+**Architecture Layers:**
+```
+Data Layer (domain models)
+  ↓
+BaseItemModel[T] (generic Qt model infrastructure)
+  ↓
+UnifiedItemModel (configurable strategy pattern)
+  ↓
+View Layer (grid views with custom delegates)
+```
+
+**BaseItemModel[T]** - Generic base providing common Qt Model/View infrastructure:
+- Lazy thumbnail loading with visibility tracking
+- Thread-safe caching (QMutex-protected QImage storage)
+- Selection management and show filtering
+- Reduces code duplication by 70-80% across models
+
+**UnifiedItemModel** - Configurable model using strategy pattern:
+- Replaces three separate models (Shot, ThreeDe, PreviousShots) with one unified implementation
+- Configured via `UnifiedItemType` enum (SHOT, THREEDE, PREVIOUS)
+- Maintains backward-compatible signals for each type
+- Eliminates ~600 lines of duplicate model code
+
+**BaseShotModel** - Abstract base for shot data sources:
+- Common shot parsing, caching, and performance metrics
+- Shared signals and filtering infrastructure
+- Uses OptimizedShotParser for performance
+
+**Tab-Specific Stacks:**
 
 **My Shots (Workspace Integration)**
-- ShotModel: Executes `ws -sg` via ProcessPool with command-level caching (30s TTL)
-- ShotItemModel: QAbstractListModel for Qt view integration
-- ShotGridView: QListView with custom delegate for thumbnails
+- ShotModel (extends BaseShotModel): Executes `ws -sg` via ProcessPool (30s TTL)
+- UnifiedItemModel[SHOT]: Qt model integration with lazy thumbnails
+- ShotGridView: QListView with custom delegate
 - Refresh: Synchronous with progress indication
 
 **Other 3DE Scenes (Filesystem Discovery)**
 - ThreeDESceneModel: Manages discovered .3de files
-- ThreeDEItemModel: Provides filtered view of scenes
-- ThreeDEGridView: Similar to ShotGridView but scene-focused (NOTE: Not threede_shot_grid.py)
+- UnifiedItemModel[THREEDE]: Provides filtered view with progressive loading
+- ThreeDEGridView: Custom delegate for scene metadata
 - ThreeDESceneWorker: QThread for non-blocking filesystem scan
 - Refresh: Asynchronous with progressive batch updates
 
 **Previous Shots (Historical Data)**
-- PreviousShotsModel: Finds user's approved/completed shots
-- PreviousShotsItemModel: Filters out currently active shots
+- PreviousShotsModel (extends BaseShotModel): Finds user's approved/completed shots
+- UnifiedItemModel[PREVIOUS]: Filters out currently active shots
 - PreviousShotsView: Display with auto-refresh timer
 - PreviousShotsWorker: Background thread for filesystem traversal
 - Refresh: Asynchronous with 5-minute auto-refresh
 
-#### 3. Cache System (Modular Architecture)
-```
-cache_manager.py (Facade - maintains backward compatibility)
-├── StorageBackend - Atomic file operations
-├── FailureTracker - Exponential backoff (5min→15min→45min→2hr)
-├── MemoryManager - LRU eviction at 100MB limit
-├── ThumbnailProcessor - Multi-format (Qt/PIL/OpenEXR) with HDR
-├── ShotCache/ThreeDECache - TTL-based caching (30min default)
-└── ThumbnailLoader - Async QRunnable processing
-```
-- **Cache directories are mode-separated**: production, mock, test (see `cache_config.py`)
+#### 3. Cache System (Simplified Architecture)
+
+**CacheManager** - Streamlined cache for local VFX tool:
+- **API**: Maintains full backward compatibility with all public methods
+- **Implementation**: Simplified for secure network environment (no platform-specific locking, atomic writes, or complex failure tracking)
+- **Thumbnail Support**: Multi-format (Qt/PIL/OpenEXR) with HDR for VFX workflows
+- **Caching Strategy**:
+  - Shot/3DE/Previous data: Fixed 30-minute TTL
+  - Thumbnails: Persistent cache with on-demand generation
+  - Thread-safe: Basic QMutex protection
+- **Cache directories**: Mode-separated (production, mock, test via `SHOTBOT_MODE` env var)
+- **Storage**: Direct JSON I/O and PIL/OpenEXR processing
 
 #### 4. Thread-Safe Background Operations
 - **Workers**: `ThreeDESceneWorker`, `PreviousShotsWorker` use `QThread` for background scanning
@@ -211,21 +242,21 @@ The application's three tabs are NOT different views of the same data. They repr
 - **Performance**: Fast (cached subprocess call)
 - **Update Pattern**: On-demand with user-triggered refresh
 - **Caching**: 30-second TTL at command level
-- **Model Stack**: ShotModel → ShotItemModel → ShotGridView
+- **Model Stack**: ShotModel (BaseShotModel) → UnifiedItemModel[SHOT] → ShotGridView
 
 ### Other 3DE Scenes Tab
 - **Data Source**: Filesystem scanning for .3de files
 - **Performance**: Slow (I/O intensive, thousands of directories)
 - **Update Pattern**: Progressive updates during scan
 - **Caching**: Permanent until invalidated
-- **Model Stack**: ThreeDESceneModel → ThreeDEItemModel → ThreeDEGridView
+- **Model Stack**: ThreeDESceneModel → UnifiedItemModel[THREEDE] → ThreeDEGridView
 
 ### Previous Shots Tab
 - **Data Source**: Filesystem scanning for user work directories
 - **Performance**: Medium (targeted filesystem search)
 - **Update Pattern**: 5-minute auto-refresh
 - **Caching**: Session-based
-- **Model Stack**: PreviousShotsModel → PreviousShotsItemModel → PreviousShotsView
+- **Model Stack**: PreviousShotsModel (BaseShotModel) → UnifiedItemModel[PREVIOUS] → PreviousShotsView
 
 ## Why Three Separate Architectures?
 
@@ -241,11 +272,11 @@ The apparent "duplication" is actually proper separation of concerns for distinc
 
 ## Feature Implementation Map
 
-### Show Filtering (Recently Added to All Tabs)
-- **My Shots**: shot_grid_view.py → shot_item_model.py → base_shot_model.py
-- **Other 3DE**: threede_grid_view.py → threede_item_model.py → threede_scene_model.py
-- **Previous**: previous_shots_view.py → previous_shots_item_model.py → previous_shots_model.py
-- **Signal handlers**: main_window.py (lines 1260-1300)
+### Show Filtering
+- **My Shots**: shot_grid_view.py → unified_item_model.py → base_shot_model.py
+- **Other 3DE**: threede_grid_view.py → unified_item_model.py → threede_scene_model.py
+- **Previous**: previous_shots_view.py → unified_item_model.py → previous_shots_model.py
+- **Signal handlers**: main_window.py
 
 ### Data Refresh Paths
 - **My Shots**: shot_model.py:refresh_strategy() → ProcessPool.execute_workspace_command()

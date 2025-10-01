@@ -263,7 +263,12 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
         workspace_path: str,
     ) -> list[ThreeDEScene]:
         """Scan publish directory for additional scenes."""
-        scenes = []
+        # Local application imports
+        from threede_scene_model import (
+            ThreeDEScene,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+        )
+
+        scenes: list[ThreeDEScene] = []
 
         try:
             # Find .3de files in publish directory
@@ -436,13 +441,18 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
         """Find all scenes in show using progressive discovery."""
         # This implementation returns all scenes at once
         # For true progressive discovery, use find_scenes_progressive method
-        scenes = []
+        # Local application imports
+        from threede_scene_model import (
+            ThreeDEScene,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+        )
+
+        scenes: list[ThreeDEScene] = []
 
         for (
             scene_batch,
-            current_shot,
-            total_shots,
-            status,
+            _current_shot,
+            _total_shots,
+            _status,
         ) in self.find_scenes_progressive(show_root, show, excluded_users):
             scenes.extend(scene_batch)
 
@@ -484,8 +494,13 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
                 shot_tuples, excluded_users, batch_size
             ):
                 # Convert file pairs to ThreeDEScene objects
-                scenes = []
-                for username, threede_file in file_batch:
+                # Local application imports
+                from threede_scene_model import (
+                    ThreeDEScene,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+                )
+
+                scenes: list[ThreeDEScene] = []
+                for _username, threede_file in file_batch:
                     try:
                         # Extract shot info from the file path
                         # Standard library imports

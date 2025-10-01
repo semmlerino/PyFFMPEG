@@ -25,7 +25,11 @@ from shot_model import Shot, ShotModel
 from tests.test_doubles_library import TestCacheManager, TestProcessPool
 
 # Local application imports
-from unified_item_model import create_previous_shots_item_model, create_shot_item_model
+from unified_item_model import (
+    UnifiedItemModel,
+    create_previous_shots_item_model,
+    create_shot_item_model,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -131,7 +135,7 @@ class TestShotItemModelFiltering:
         return model
 
     @pytest.fixture
-    def shot_item_model(self, qtbot) -> ShotItemModel:
+    def shot_item_model(self, qtbot) -> UnifiedItemModel:
         """Create ShotItemModel for testing."""
         model = create_shot_item_model(cache_manager=TestCacheManager())
         yield model
@@ -264,7 +268,7 @@ class TestShotGridViewShowFilter:
         return model
 
     @pytest.fixture
-    def shot_item_model(self, qtbot) -> ShotItemModel:
+    def shot_item_model(self, qtbot) -> UnifiedItemModel:
         """Create ShotItemModel."""
         model = create_shot_item_model(cache_manager=TestCacheManager())
         yield model
@@ -343,7 +347,7 @@ class TestPreviousShotsViewShowFilter:
     @pytest.fixture
     def previous_shots_item_model(
         self, previous_shots_model, qtbot
-    ) -> PreviousShotsItemModel:
+    ) -> UnifiedItemModel:
         """Create PreviousShotsItemModel."""
         model = create_previous_shots_item_model(previous_shots_model, TestCacheManager())
         yield model

@@ -9,7 +9,7 @@ Part of Phase 2 refactoring to eliminate duplicate Qt patterns.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import QPoint, QSettings, QSize, Qt, QTimer
@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtGui import (
         QCloseEvent,
+        QDragEnterEvent,
+        QDropEvent,
+        QIcon,
         QKeyEvent,
     )
 
@@ -125,7 +128,7 @@ class QtWidgetMixin(LoggingMixin):
                     # Third-party imports
                     from PySide6.QtWidgets import QStyle
 
-                    icon_map = {
+                    icon_map: dict[str, QStyle.StandardPixmap] = {
                         "copy": QStyle.StandardPixmap.SP_FileDialogDetailedView,
                         "paste": QStyle.StandardPixmap.SP_DialogApplyButton,
                         "delete": QStyle.StandardPixmap.SP_TrashIcon,
@@ -133,7 +136,8 @@ class QtWidgetMixin(LoggingMixin):
                         "open": QStyle.StandardPixmap.SP_DirOpenIcon,
                     }
                     if icon_name in icon_map:
-                        icon = self.style().standardIcon(icon_map[icon_name])  # type: ignore[attr-defined]
+                        # Cast needed due to mixin pattern - self.style() return type not inferred
+                        icon: QIcon = cast("QIcon", self.style().standardIcon(icon_map[icon_name]))  # type: ignore[attr-defined]
                         action.setIcon(icon)
 
         return menu
@@ -158,7 +162,7 @@ class QtWidgetMixin(LoggingMixin):
 
         Subclasses can override to provide custom shortcuts.
         """
-        shortcuts = {}
+        shortcuts: dict[str, Callable[[], None]] = {}
 
         # Add standard shortcuts if methods exist
         if hasattr(self, "refresh"):
@@ -180,15 +184,21 @@ class QtWidgetMixin(LoggingMixin):
         """
         # Check if there are unsaved changes
         if hasattr(self, "has_unsaved_changes") and self.has_unsaved_changes():  # type: ignore[attr-defined]
-            reply = QMessageBox.question(
-                self,  # type: ignore[arg-type][arg-type]
-                "Unsaved Changes",
-                "You have unsaved changes. Do you want to save before closing?",
-                QMessageBox.StandardButton.Save
-                | QMessageBox.StandardButton.Discard
-                | QMessageBox.StandardButton.Cancel,
-                QMessageBox.StandardButton.Save,
+            # QMessageBox.question returns int (StandardButton enum value)
+            # Cast needed due to incomplete PySide6 type stubs
+            reply_int: int = cast(
+                "int",
+                QMessageBox.question(
+                    self,  # type: ignore[arg-type][arg-type]
+                    "Unsaved Changes",
+                    "You have unsaved changes. Do you want to save before closing?",
+                    QMessageBox.StandardButton.Save
+                    | QMessageBox.StandardButton.Discard
+                    | QMessageBox.StandardButton.Cancel,
+                    QMessageBox.StandardButton.Save,
+                ),
             )
+            reply = QMessageBox.StandardButton(reply_int)
 
             if reply == QMessageBox.StandardButton.Save:
                 if hasattr(self, "save"):
@@ -212,8 +222,8 @@ class QtWidgetMixin(LoggingMixin):
 
         for attr in timer_attrs:
             if hasattr(self, attr):
-                timer = getattr(self, attr)
-                if timer and hasattr(timer, "stop"):
+                timer: QTimer | None = getattr(self, attr, None)
+                if timer is not None and hasattr(timer, "stop"):
                     timer.stop()
                     self.logger.debug(f"Stopped timer: {attr}")
 
@@ -256,15 +266,21 @@ class QtWidgetMixin(LoggingMixin):
         Returns:
             True if user confirmed
         """
-        reply = QMessageBox.question(
-            self,  # type: ignore[arg-type]
-            title,
-            message,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
+        # QMessageBox.question returns int (StandardButton enum value)
+        # Cast needed due to incomplete PySide6 type stubs
+        reply_int: int = cast(
+            "int",
+            QMessageBox.question(
+                self,  # type: ignore[arg-type]
+                title,
+                message,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            ),
         )
+        reply = QMessageBox.StandardButton(reply_int)
 
-        confirmed = reply == QMessageBox.StandardButton.Yes
+        confirmed: bool = reply == QMessageBox.StandardButton.Yes
         self.logger.debug(f"Confirmation '{title}': {confirmed}")
         return confirmed
 
@@ -315,7 +331,7 @@ class QtDragDropMixin:
             'application/x-qt-windows-mime;value="FileName"',
         ]
 
-    def dragEnterEvent(self, event: Any) -> None:
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Handle drag enter event."""
         if event.mimeData().hasUrls() or any(
             event.mimeData().hasFormat(mime_type)
@@ -325,13 +341,13 @@ class QtDragDropMixin:
         else:
             event.ignore()
 
-    def dropEvent(self, event: Any) -> None:
+    def dropEvent(self, event: QDropEvent) -> None:
         """Handle drop event."""
         mime_data = event.mimeData()
 
         if mime_data.hasUrls():
             urls = mime_data.urls()
-            file_paths = [url.toLocalFile() for url in urls]
+            file_paths: list[str] = [url.toLocalFile() for url in urls]
 
             if hasattr(self, "handle_dropped_files"):
                 self.handle_dropped_files(file_paths)  # type: ignore[attr-defined]

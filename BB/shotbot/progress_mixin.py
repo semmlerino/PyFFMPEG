@@ -9,7 +9,7 @@ from __future__ import annotations
 
 # Standard library imports
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import TypeVar
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -35,7 +35,7 @@ class ProgressReportingMixin(LoggingMixin):
                     self._report_progress(i, len(items), f"Processing {item}")
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: object, **kwargs: object) -> None:
         """Initialize progress tracking attributes."""
         super().__init__(*args, **kwargs)
         self._stop_requested: bool = False
@@ -179,9 +179,9 @@ class ProgressReportingMixin(LoggingMixin):
     def _with_progress_tracking(
         self,
         items: list[T],
-        operation: Callable[[T], Any],
+        operation: Callable[[T], object],
         message_formatter: Callable[[int, T], str] | None = None,
-    ) -> list[Any]:
+    ) -> list[object]:
         """Process items with automatic progress tracking.
 
         Utility method to process a list of items with automatic
@@ -196,7 +196,7 @@ class ProgressReportingMixin(LoggingMixin):
         Returns:
             List of results from operation (None for stopped items)
         """
-        results = []
+        results: list[object] = []
         total = len(items)
 
         for i, item in enumerate(items):

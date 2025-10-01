@@ -13,11 +13,11 @@ import concurrent.futures
 import re
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # Local application imports
 from config import Config, ThreadingConfig
-from shot_finder_base import ShotFinderBase
+from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
 from shot_model import Shot
 
 if TYPE_CHECKING:
@@ -346,7 +346,7 @@ class TargetedShotsFinder(ShotFinderBase):
         self._report_progress(100, 100, "Targeted search complete")
         return approved_shots
 
-    def get_shot_details(self, shot: Shot) -> dict[str, str]:
+    def get_shot_details(self, shot: Shot) -> ShotDetailsDict:
         """Get additional details about a shot.
 
         Args:
@@ -355,7 +355,7 @@ class TargetedShotsFinder(ShotFinderBase):
         Returns:
             Dictionary with shot details including paths and metadata
         """
-        details = {
+        details: ShotDetailsDict = {
             "show": shot.show,
             "sequence": shot.sequence,
             "shot": shot.shot,
@@ -446,32 +446,43 @@ class TargetedShotsFinder(ShotFinderBase):
 
         return "unknown"
 
-    def find_shots(self, **kwargs: Any) -> list[Shot]:
+    def find_shots(self, **kwargs: FindShotsKwargs) -> list[Shot]:
         """Find shots using targeted search.
 
         This is the main entry point implementing the abstract method from ShotFinderBase.
 
         Args:
-            **kwargs: Optional keyword arguments
+            **kwargs: Typed keyword arguments (see FindShotsKwargs)
                 - target_shows: Set of show names to search in
-                - shows_root: Root directory for shows
+                - shows_root: Root directory for shows (uses Config.SHOWS_ROOT if None)
                 - active_shots: List of active shots to extract shows from
 
         Returns:
             List of Shot objects found
         """
-        # Extract parameters
-        target_shows = kwargs.get("target_shows", set())
-        shows_root = kwargs.get("shows_root")
-        active_shots = kwargs.get("active_shots", [])
+        # Extract parameters with proper type annotations for type checker
+        target_shows_raw = kwargs.get("target_shows")
+        shows_root_raw = kwargs.get("shows_root")
+        active_shots_raw = kwargs.get("active_shots")
+
+        # Narrow types explicitly for type checker
+        shows_to_search: set[str] = (
+            target_shows_raw if isinstance(target_shows_raw, set) else set()
+        )
+        root_dir: Path | None = (
+            shows_root_raw if isinstance(shows_root_raw, Path | type(None)) else None
+        )
+        shots_list: list[Shot] = (
+            active_shots_raw if isinstance(active_shots_raw, list) else []
+        )
 
         # If we have active shots but no target shows, extract them
-        if active_shots and not target_shows:
-            target_shows = self.extract_shows_from_active_shots(active_shots)
+        if shots_list and not shows_to_search:
+            shows_to_search = self.extract_shows_from_active_shots(shots_list)
 
         # Use the main search method
-        if target_shows:
-            return list(self.find_user_shots_in_shows(target_shows, shows_root))
+        if shows_to_search:
+            return list(self.find_user_shots_in_shows(shows_to_search, root_dir))
         else:
             self.logger.warning("No target shows provided for search")
             return []

@@ -73,6 +73,7 @@ from typing_extensions import override
 
 if TYPE_CHECKING:
     # Local application imports
+    from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
     from launcher_dialog import LauncherManagerDialog
@@ -244,16 +245,17 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.shot_model = ShotModel(self.cache_manager)
 
         # Initialize async loading for immediate UI display
-        init_result = self.shot_model.initialize_async()  # type: ignore[attr-defined]
-        if init_result.success:  # type: ignore[attr-defined]
+        init_result = self.shot_model.initialize_async()
+        if init_result.success:
             self.logger.debug(
                 f"Model initialized with {len(self.shot_model.shots)} cached shots"
             )
 
         self.threede_scene_model = ThreeDESceneModel(self.cache_manager)
+        # Cast to BaseShotModel for type safety (ShotModel inherits from BaseShotModel)
         self.previous_shots_model = PreviousShotsModel(
-            self.shot_model,
-            self.cache_manager,  # type: ignore[arg-type]
+            cast("BaseShotModel", self.shot_model),
+            self.cache_manager,
         )
         # Create persistent terminal manager if enabled
         # Feature flag for simplified launcher
@@ -374,8 +376,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
 
         # Tab 3: Previous Shots (approved/completed) - using Model/View architecture
+        # Cast to object to bypass strict protocol check (PreviousShotsModel has required methods)
         self.previous_shots_item_model = create_previous_shots_item_model(
-            self.previous_shots_model, self.cache_manager
+            cast("object", self.previous_shots_model), self.cache_manager  # type: ignore[arg-type]
         )
         self.previous_shots_grid = PreviousShotsView(
             model=self.previous_shots_item_model
@@ -593,13 +596,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _connect_signals(self) -> None:
         """Connect signals."""
         # Connect to shot model signals for reactive updates
-        _ = self.shot_model.shots_loaded.connect(self._on_shots_loaded)  # type: ignore[attr-defined]
-        _ = self.shot_model.shots_changed.connect(self._on_shots_changed)  # type: ignore[attr-defined]
-        _ = self.shot_model.refresh_started.connect(self._on_refresh_started)  # type: ignore[attr-defined]
-        _ = self.shot_model.refresh_finished.connect(self._on_refresh_finished)  # type: ignore[attr-defined]
-        _ = self.shot_model.error_occurred.connect(self._on_shot_error)  # type: ignore[attr-defined]
-        _ = self.shot_model.shot_selected.connect(self._on_model_shot_selected)  # type: ignore[attr-defined]
-        _ = self.shot_model.cache_updated.connect(self._on_cache_updated)  # type: ignore[attr-defined]
+        _ = self.shot_model.shots_loaded.connect(self._on_shots_loaded)
+        _ = self.shot_model.shots_changed.connect(self._on_shots_changed)
+        _ = self.shot_model.refresh_started.connect(self._on_refresh_started)
+        _ = self.shot_model.refresh_finished.connect(self._on_refresh_finished)
+        _ = self.shot_model.error_occurred.connect(self._on_shot_error)
+        _ = self.shot_model.shot_selected.connect(self._on_model_shot_selected)
+        _ = self.shot_model.cache_updated.connect(self._on_cache_updated)
 
         # Shot selection
         _ = self.shot_grid.shot_selected.connect(self._on_shot_selected)
@@ -685,7 +688,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.logger.info(
                 "No cached shots found on initial check, attempting explicit cache load"
             )
-            if self.shot_model._load_from_cache():
+            if self.shot_model.test_load_from_cache():
                 has_cached_shots = True
                 self._refresh_shot_display()
                 self.logger.info(
@@ -736,7 +739,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.previous_shots_model.start_auto_refresh()
         # Trigger initial refresh for previous shots ONLY after shots are loaded
         # This prevents the "No target shows found" warning when shots haven't loaded yet
-        _ = self.shot_model.shots_loaded.connect(self._trigger_previous_shots_refresh)  # type: ignore[attr-defined]
+        _ = self.shot_model.shots_loaded.connect(self._trigger_previous_shots_refresh)
 
         # If shots are already loaded from cache, trigger refresh immediately
         if self.shot_model.shots:
@@ -1161,11 +1164,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _on_shot_text_filter_requested(self, text: str) -> None:
         """Handle text filter request from My Shots grid view."""
         filter_text = text.strip() if text else None
-        self.shot_model.set_text_filter(filter_text)
+        # Cast to BaseShotModel to access inherited methods
+        base_model = cast("BaseShotModel", self.shot_model)
+        base_model.set_text_filter(filter_text)
 
         # Update item model with filtered shots
-        filtered_shots = self.shot_model.get_filtered_shots()
-        self.shot_item_model.set_items(filtered_shots)
+        filtered_shots = base_model.get_filtered_shots()
+        # get_filtered_shots returns list[Shot], set_items needs list[ItemType]
+        self.shot_item_model.set_items(filtered_shots)  # type: ignore[arg-type]
 
         self.logger.debug(
             f"My Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
@@ -1187,7 +1193,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Update item model with filtered shots
         filtered_shots = self.previous_shots_model.get_filtered_shots()
-        self.previous_shots_item_model.set_items(filtered_shots)
+        # get_filtered_shots returns list[Shot], set_items needs list[ItemType]
+        self.previous_shots_item_model.set_items(filtered_shots)  # type: ignore[arg-type]
 
         self.logger.debug(
             f"Previous Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"

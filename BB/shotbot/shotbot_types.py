@@ -8,7 +8,7 @@ from the primary type_definitions module.
 from __future__ import annotations
 
 # Standard library imports
-from typing import Any, TypedDict
+from typing import TypedDict
 
 # Import common types from primary definitions to avoid duplication
 
@@ -36,7 +36,7 @@ class ThreeDESceneData(TypedDict):
 class CacheEntry(TypedDict):
     """Type definition for cache entry data."""
 
-    value: Any
+    value: object  # Generic cached value (use object instead of Any)
     timestamp: float
     access_count: int
     size_bytes: int | None

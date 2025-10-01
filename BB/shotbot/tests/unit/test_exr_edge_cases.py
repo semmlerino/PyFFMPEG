@@ -358,11 +358,11 @@ class TestResourceExhaustion:
         # Verify files exist
         initial_usage = cache_manager.get_memory_usage()
         assert initial_usage["file_count"] > 0
-        assert initial_usage["total_size_mb"] > 0
+        assert initial_usage["total_mb"] > 0
 
         # Clear cache should remove files
         cache_manager.clear_cache()
 
         # Verify cleanup
         final_usage = cache_manager.get_memory_usage()
-        assert final_usage["file_count"] == 0 or final_usage["total_size_mb"] < initial_usage["total_size_mb"]
+        assert final_usage["file_count"] == 0 or final_usage["total_mb"] < initial_usage["total_mb"]
