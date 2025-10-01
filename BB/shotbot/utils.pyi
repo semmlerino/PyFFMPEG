@@ -54,6 +54,13 @@ class PathUtils:
         shot: str,
     ) -> Path | None: ...
     @staticmethod
+    def find_user_workspace_jpeg_thumbnail(
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
+    ) -> Path | None: ...
+    @staticmethod
     def find_any_publish_thumbnail(
         shows_root: str,
         show: str,
