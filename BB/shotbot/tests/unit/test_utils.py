@@ -1111,4 +1111,395 @@ class TestFindAnyPublishThumbnail:
         assert result is None
 
 
+class TestPlateDiscoveryCaseInsensitive:
+    """Test case-insensitive plate directory discovery (commit 78983a8 fix)."""
+
+    def test_discover_plate_directories_case_insensitive_lowercase(
+        self, tmp_path
+    ) -> None:
+        """Test that lowercase plate names (pl01, fg01, el01) are discovered."""
+        base_path = tmp_path / "plates"
+        base_path.mkdir()
+
+        # Create lowercase plate directories (common in user workspaces)
+        (base_path / "pl01").mkdir()
+        (base_path / "fg01").mkdir()
+        (base_path / "el01").mkdir()
+        (base_path / "bg02").mkdir()
+
+        result = PathUtils.discover_plate_directories(base_path)
+
+        # Should find all plates with case-insensitive matching
+        assert len(result) == 4
+        plate_names = [item[0] for item in result]
+        assert "pl01" in plate_names
+        assert "fg01" in plate_names
+        assert "el01" in plate_names
+        assert "bg02" in plate_names
+
+        # Verify priorities are assigned correctly despite case
+        plate_dict = dict(result)
+        assert plate_dict["fg01"] == 0  # FG priority
+        assert plate_dict["bg02"] == 1  # BG priority
+        assert plate_dict["el01"] == 2  # EL priority
+        assert plate_dict["pl01"] == 3  # PL priority (should be in Config.TURNOVER_PLATE_PRIORITY)
+
+    def test_discover_plate_directories_mixed_case(self, tmp_path) -> None:
+        """Test mixed case plate names (Pl01, FG01, eL02)."""
+        base_path = tmp_path / "plates"
+        base_path.mkdir()
+
+        # Create mixed-case directories
+        (base_path / "Pl01").mkdir()
+        (base_path / "FG01").mkdir()
+        (base_path / "eL02").mkdir()
+
+        result = PathUtils.discover_plate_directories(base_path)
+
+        assert len(result) == 3
+        plate_dict = dict(result)
+
+        # Should match patterns case-insensitively
+        assert "Pl01" in plate_dict
+        assert "FG01" in plate_dict
+        assert "eL02" in plate_dict
+
+        # Priorities should be correct
+        assert plate_dict["FG01"] == 0  # FG
+        assert plate_dict["eL02"] == 2  # EL
+        assert plate_dict["Pl01"] == 3  # PL (if not in config, should be 3 from wildcard)
+
+    def test_discover_plate_directories_priority_ordering_case_insensitive(
+        self, tmp_path
+    ) -> None:
+        """Test that priority ordering works with case-insensitive matches."""
+        base_path = tmp_path / "plates"
+        base_path.mkdir()
+
+        # Create plates in non-priority order
+        (base_path / "pl01").mkdir()
+        (base_path / "fg01").mkdir()
+        (base_path / "bg01").mkdir()
+        (base_path / "el01").mkdir()
+
+        result = PathUtils.discover_plate_directories(base_path)
+
+        # Should be sorted by priority (lower = higher priority)
+        # FG (0) < BG (1) < EL (2) < PL (3)
+        priorities = [item[1] for item in result]
+        assert priorities == sorted(priorities), "Plates should be sorted by priority"
+
+        # First should be fg01 (FG priority 0)
+        assert result[0][0] == "fg01"
+        assert result[0][1] == 0
+
+
+class TestUserWorkspaceJPEGDiscovery:
+    """Test user workspace JPEG discovery with undistort/ and scene/ structures (commit 78983a8)."""
+
+    def test_find_user_workspace_jpeg_undistort_structure(self, tmp_path) -> None:
+        """Test finding JPEGs in undistort/ directory structure (SF_000_0030 case)."""
+        # Create path: user/ryan-p/mm/nuke/outputs/mm-default/undistort/pl01/undistorted_plate/v001/4312x2304/jpeg/
+        shows_root = tmp_path / "shows"
+        shot_path = shows_root / "jack_ryan" / "shots" / "SF_000" / "SF_000_0030"
+        jpeg_dir = (
+            shot_path
+            / "user"
+            / "ryan-p"
+            / "mm"
+            / "nuke"
+            / "outputs"
+            / "mm-default"
+            / "undistort"
+            / "pl01"
+            / "undistorted_plate"
+            / "v001"
+            / "4312x2304"
+            / "jpeg"
+        )
+        jpeg_dir.mkdir(parents=True)
+
+        # Create JPEG file
+        jpeg_file = jpeg_dir / "SF_000_0030_mm-default_PL01_undistorted_v001.1001.jpeg"
+        jpeg_file.write_text("fake jpeg content")
+
+        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+            str(shows_root), "jack_ryan", "SF_000", "0030"
+        )
+
+        assert result is not None
+        assert result.name == jpeg_file.name
+        assert "undistort" in str(result)  # Verify it found the undistort path
+
+    def test_find_user_workspace_jpeg_scene_structure(self, tmp_path) -> None:
+        """Test finding JPEGs in scene/ directory structure (alternative path)."""
+        # Create path: user/sarah-b/mm/nuke/outputs/mm-default/scene/FG01/undistorted_plate/v001/4312x2304/jpeg/
+        shows_root = tmp_path / "shows"
+        shot_path = shows_root / "jack_ryan" / "shots" / "DA_000" / "DA_000_0005"
+        jpeg_dir = (
+            shot_path
+            / "user"
+            / "sarah-b"
+            / "mm"
+            / "nuke"
+            / "outputs"
+            / "mm-default"
+            / "scene"
+            / "FG01"
+            / "undistorted_plate"
+            / "v001"
+            / "4312x2304"
+            / "jpeg"
+        )
+        jpeg_dir.mkdir(parents=True)
+
+        # Create JPEG file
+        jpeg_file = jpeg_dir / "DA_000_0005_mm-default_FG01_undistorted_v001.1001.jpeg"
+        jpeg_file.write_text("fake jpeg content")
+
+        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+            str(shows_root), "jack_ryan", "DA_000", "0005"
+        )
+
+        assert result is not None
+        assert result.name == jpeg_file.name
+        assert "scene" in str(result)  # Verify it found the scene path
+
+    def test_find_user_workspace_jpeg_undistort_priority_over_scene(
+        self, tmp_path
+    ) -> None:
+        """Test that undistort/ is checked before scene/ (as per implementation)."""
+        shows_root = tmp_path / "shows"
+        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
+
+        # Create BOTH undistort and scene structures
+        undistort_jpeg = (
+            shot_path
+            / "user"
+            / "user1"
+            / "mm"
+            / "nuke"
+            / "outputs"
+            / "mm-default"
+            / "undistort"
+            / "fg01"
+            / "undistorted_plate"
+            / "v001"
+            / "4096x2160"
+            / "jpeg"
+            / "undistort_version.jpeg"
+        )
+        undistort_jpeg.parent.mkdir(parents=True)
+        undistort_jpeg.write_text("undistort jpeg")
+
+        scene_jpeg = (
+            shot_path
+            / "user"
+            / "user1"
+            / "mm"
+            / "nuke"
+            / "outputs"
+            / "mm-default"
+            / "scene"
+            / "fg01"
+            / "undistorted_plate"
+            / "v002"
+            / "4096x2160"
+            / "jpeg"
+            / "scene_version.jpeg"
+        )
+        scene_jpeg.parent.mkdir(parents=True)
+        scene_jpeg.write_text("scene jpeg")
+
+        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+            str(shows_root), "myshow", "seq01", "shot01"
+        )
+
+        # Should find undistort version first (checked first in loop)
+        assert result is not None
+        assert result.name == "undistort_version.jpeg"
+
+    def test_find_user_workspace_jpeg_case_insensitive_plates(self, tmp_path) -> None:
+        """Test that lowercase plate names (pl01) are found with case-insensitive matching."""
+        shows_root = tmp_path / "shows"
+        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
+
+        # Create lowercase plate directory (pl01, not PL01)
+        jpeg_dir = (
+            shot_path
+            / "user"
+            / "artist"
+            / "mm"
+            / "nuke"
+            / "outputs"
+            / "mm-default"
+            / "undistort"
+            / "pl01"
+            / "undistorted_plate"
+            / "v001"
+            / "4096x2160"
+            / "jpeg"
+        )
+        jpeg_dir.mkdir(parents=True)
+        jpeg_file = jpeg_dir / "lowercase_plate.jpeg"
+        jpeg_file.write_text("jpeg")
+
+        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+            str(shows_root), "myshow", "seq01", "shot01"
+        )
+
+        # Should find it via case-insensitive plate discovery
+        assert result is not None
+        assert result.name == "lowercase_plate.jpeg"
+
+    def test_find_user_workspace_jpeg_no_user_directory(self, tmp_path) -> None:
+        """Test graceful handling when no user/ directory exists."""
+        shows_root = tmp_path / "shows"
+        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
+        shot_path.mkdir(parents=True)
+        # No user/ directory created
+
+        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+            str(shows_root), "myshow", "seq01", "shot01"
+        )
+
+        assert result is None  # Should return None, not crash
+
+    def test_find_user_workspace_jpeg_multiple_users(self, tmp_path) -> None:
+        """Test that it discovers JPEGs from any user's workspace."""
+        shows_root = tmp_path / "shows"
+        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
+
+        # Create JPEG in second user's directory (first has none)
+        (shot_path / "user" / "user1" / "mm" / "nuke" / "outputs").mkdir(
+            parents=True
+        )  # Empty
+        user2_jpeg_dir = (
+            shot_path
+            / "user"
+            / "user2"
+            / "mm"
+            / "nuke"
+            / "outputs"
+            / "mm-default"
+            / "scene"
+            / "FG01"
+            / "undistorted_plate"
+            / "v001"
+            / "4096x2160"
+            / "jpeg"
+        )
+        user2_jpeg_dir.mkdir(parents=True)
+        jpeg_file = user2_jpeg_dir / "user2_work.jpeg"
+        jpeg_file.write_text("jpeg from user2")
+
+        result = PathUtils.find_user_workspace_jpeg_thumbnail(
+            str(shows_root), "myshow", "seq01", "shot01"
+        )
+
+        # Should find JPEG from user2
+        assert result is not None
+        assert "user2" in str(result)
+
+
+class TestThumbnailFallbackOrder:
+    """Test that JPEG sources are prioritized over EXR sources (commit 78983a8 fix)."""
+
+    def test_find_shot_thumbnail_jpeg_before_exr(self, tmp_path) -> None:
+        """Test that user workspace JPEGs are found before turnover EXRs."""
+        shows_root = tmp_path / "shows"
+        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
+
+        # Create turnover EXR (would fail with PIL)
+        turnover_dir = (
+            shot_path
+            / "publish"
+            / "turnover"
+            / "plate"
+            / "input_plate"
+            / "PL01"
+            / "v001"
+            / "exr"
+            / "4312x2304"
+        )
+        turnover_dir.mkdir(parents=True)
+        exr_file = turnover_dir / "shot01_turnover_PL01_v001.1001.exr"
+        exr_file.write_text("fake exr (would fail PIL)")
+
+        # Create user workspace JPEG (should be found first)
+        user_jpeg_dir = (
+            shot_path
+            / "user"
+            / "artist"
+            / "mm"
+            / "nuke"
+            / "outputs"
+            / "mm-default"
+            / "undistort"
+            / "fg01"
+            / "undistorted_plate"
+            / "v001"
+            / "4096x2160"
+            / "jpeg"
+        )
+        user_jpeg_dir.mkdir(parents=True)
+        jpeg_file = user_jpeg_dir / "user_jpeg.jpeg"
+        jpeg_file.write_text("jpeg content")
+
+        result = PathUtils.find_shot_thumbnail(
+            str(shows_root), "myshow", "seq01", "shot01"
+        )
+
+        # Should find JPEG, not EXR
+        assert result is not None
+        assert result.suffix.lower() in [".jpg", ".jpeg"]
+        assert "user_jpeg.jpeg" in result.name
+
+    def test_find_shot_thumbnail_publish_jpeg_before_exr(self, tmp_path) -> None:
+        """Test that publish undistorted JPEGs are found before turnover EXRs."""
+        shows_root = tmp_path / "shows"
+        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
+
+        # Create turnover EXR
+        turnover_dir = (
+            shot_path
+            / "publish"
+            / "turnover"
+            / "plate"
+            / "input_plate"
+            / "PL01"
+            / "v001"
+            / "exr"
+            / "4312x2304"
+        )
+        turnover_dir.mkdir(parents=True)
+        exr_file = turnover_dir / "shot01_turnover_PL01_v001.1001.exr"
+        exr_file.write_text("fake exr")
+
+        # Create publish JPEG (undistorted plate)
+        publish_jpeg_dir = (
+            shot_path
+            / "publish"
+            / "mm"
+            / "default"
+            / "FG01"
+            / "undistorted_plate"
+            / "v001"
+            / "jpeg"
+            / "4096x2160"
+        )
+        publish_jpeg_dir.mkdir(parents=True)
+        jpeg_file = publish_jpeg_dir / "publish_jpeg.jpeg"
+        jpeg_file.write_text("jpeg")
+
+        result = PathUtils.find_shot_thumbnail(
+            str(shows_root), "myshow", "seq01", "shot01"
+        )
+
+        # Should find publish JPEG before EXR
+        assert result is not None
+        assert result.suffix.lower() in [".jpg", ".jpeg"]
+        assert "publish_jpeg.jpeg" in result.name
+
+
 # Cache isolation is now handled by the global conftest.py fixture
