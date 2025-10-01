@@ -491,6 +491,87 @@ class PathUtils:
             return False
 
     @staticmethod
+    def find_undistorted_jpeg_thumbnail(
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
+    ) -> Path | None:
+        """Find JPEG thumbnail from undistorted plate in publish/mm structure.
+
+        Searches for JPEG files in:
+        /shows/{show}/shots/{sequence}/{shot}/publish/mm/default/{camera}/undistorted_plate/{version}/jpeg/{resolution}/
+
+        This provides high-quality thumbnails without requiring EXR processing,
+        using existing undistorted plates from the VFX pipeline.
+
+        Args:
+            shows_root: Root shows directory
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
+
+        Returns:
+            Path to first JPEG file found, or None if not found
+        """
+        # Build base path to mm/default directory
+        shot_dir = f"{sequence}_{shot}"
+        mm_default_path = PathUtils.build_path(
+            shows_root,
+            show,
+            "shots",
+            sequence,
+            shot_dir,
+            "publish",
+            "mm",
+            "default",
+        )
+
+        if not PathUtils.validate_path_exists(mm_default_path, "MM default path"):
+            return None
+
+        # Discover available camera/plate directories using priority order
+        plate_dirs = PathUtils.discover_plate_directories(mm_default_path)
+
+        # Try each plate directory in priority order
+        for plate_name, _priority in plate_dirs:
+            plate_path = mm_default_path / plate_name / "undistorted_plate"
+
+            if not PathUtils.validate_path_exists(plate_path, "Undistorted plate path"):
+                continue
+
+            # Find latest version directory
+            latest_version = VersionUtils.get_latest_version(plate_path)
+            if not latest_version:
+                logger.debug(f"No version found in {plate_path}")
+                continue
+
+            # Build path to jpeg subdirectory
+            jpeg_base_path = plate_path / latest_version / "jpeg"
+
+            if not PathUtils.validate_path_exists(jpeg_base_path, "JPEG base path"):
+                continue
+
+            # Find any resolution directory (4312x2304, etc.)
+            try:
+                for resolution_dir in jpeg_base_path.iterdir():
+                    if resolution_dir.is_dir():
+                        # Find first .jpeg file in this resolution
+                        jpeg_file = FileUtils.get_first_image_file(resolution_dir)
+                        if jpeg_file and jpeg_file.suffix.lower() in ['.jpg', '.jpeg']:
+                            logger.info(
+                                f"Found undistorted JPEG thumbnail: {jpeg_file.name} "
+                                f"(camera: {plate_name}, version: {latest_version})"
+                            )
+                            return jpeg_file
+            except (OSError, PermissionError) as e:
+                logger.debug(f"Error scanning JPEG directory {jpeg_base_path}: {e}")
+                continue
+
+        logger.debug(f"No undistorted JPEG thumbnails found for {show}/{sequence}/{shot}")
+        return None
+
+    @staticmethod
     def find_any_publish_thumbnail(
         shows_root: str,
         show: str,
@@ -617,10 +698,11 @@ class PathUtils:
         This is the single source of truth for shot thumbnail discovery,
         ensuring consistent thumbnails across "My Shots" and "Other 3DE scenes".
 
-        Tries three fallback options in order:
+        Tries four fallback options in order:
         1. Editorial directory thumbnails
         2. Turnover plate thumbnails
-        3. Any EXR file containing '1001' in publish folder
+        3. Undistorted JPEG plates from mm/default structure
+        4. Any image file containing '1001' in publish folder
 
         Args:
             shows_root: Root path for shows
@@ -656,7 +738,17 @@ class PathUtils:
         if thumbnail:
             return thumbnail
 
-        # Third fallback: any EXR with 1001 in publish folder
+        # Third fallback: undistorted JPEG plates (avoids EXR processing)
+        thumbnail = PathUtils.find_undistorted_jpeg_thumbnail(
+            shows_root,
+            show,
+            sequence,
+            shot,
+        )
+        if thumbnail:
+            return thumbnail
+
+        # Fourth fallback: any image with 1001 in publish folder
         thumbnail = PathUtils.find_any_publish_thumbnail(
             shows_root,
             show,

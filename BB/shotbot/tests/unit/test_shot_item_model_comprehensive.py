@@ -9,20 +9,18 @@ from __future__ import annotations
 
 # Standard library imports
 import sys
-from concurrent.futures import Future
 from pathlib import Path
 from unittest.mock import patch
 
 # Third-party imports
 import pytest
-from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
-from cache_manager import ThumbnailCacheResult
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
 from unified_item_model import UnifiedRole, create_shot_item_model

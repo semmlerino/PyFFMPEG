@@ -142,6 +142,13 @@ class LoggingMixin:
     module_name.ClassName
     """
 
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize LoggingMixin and continue MRO chain.
+
+        This ensures proper multiple inheritance with Qt classes.
+        """
+        super().__init__(*args, **kwargs)
+
     @property
     def logger(self) -> ContextualLogger:
         """Get the logger for this class with contextual support.

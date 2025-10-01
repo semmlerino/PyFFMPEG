@@ -365,7 +365,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             return  # Subclass will extract shows and call super()
 
         # Type narrowing: shows is list after isinstance check
-        shows_list = cast(list[str], shows)
+        shows_list = cast("list[str]", shows)
         try:
             # Block signals to prevent triggering filter change
             self.show_combo.blockSignals(True)

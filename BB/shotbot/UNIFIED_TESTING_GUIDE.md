@@ -1,5 +1,7 @@
 # UNIFIED_TESTING_GUIDE
 
+*Optimized for LLM consumption - comprehensive pytest patterns for ShotBot VFX application*
+
 This document establishes consistent testing patterns and principles for the ShotBot VFX application test suite.
 
 ## Core Testing Philosophy
@@ -27,6 +29,20 @@ This document establishes consistent testing patterns and principles for the Sho
 - Use proper Qt test fixtures for GUI components
 - Implement thread-safe cleanup patterns
 - Test concurrent operations where applicable
+
+## Quick Diagnostic Reference
+
+Fast lookup for common test failures and issues:
+
+| Issue | Likely Cause | Solution Section |
+|-------|--------------|------------------|
+| Test hangs indefinitely | Missing qtbot timeout | Qt GUI Components |
+| Coverage below 80% fails CI | Missing test cases or branches | pyproject.toml Setup |
+| Tests pass individually, fail in parallel | Shared state leakage between tests | Parallel Test Execution |
+| Memory leak in test suite | Fixture scope too broad (session/module) | Fixture Scopes |
+| Import errors in test discovery | Wrong file naming pattern | File Organization Standards |
+| Mock not working as expected | Mocking wrong component | Mock Usage Guidelines |
+| Thread safety test fails randomly | Race condition or missing synchronization | Thread Safety Testing |
 
 ## Testing Patterns by Component Type
 
@@ -183,6 +199,39 @@ pytest tests/unit/test_cache_manager.py
 
 # Run in parallel (requires pytest-xdist)
 pytest -n auto
+```
+
+## conftest.py Structure
+
+Shared fixtures belong in `tests/conftest.py` for automatic discovery across all test files:
+
+```python
+# tests/conftest.py - Shared fixtures for entire ShotBot test suite
+import pytest
+from pathlib import Path
+from PySide6.QtWidgets import QApplication
+from shotbot.cache import CacheManager
+from shotbot.models import ShotModel
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Session-wide QApplication instance for all Qt tests."""
+    app = QApplication.instance() or QApplication([])
+    yield app
+    app.quit()
+
+@pytest.fixture
+def cache_manager(tmp_path: Path) -> CacheManager:
+    """Function-scope cache with temporary directory - fresh for each test."""
+    return CacheManager(cache_dir=tmp_path / "cache")
+
+@pytest.fixture
+def sample_shots_data():
+    """Reusable test data - immutable so safe to share."""
+    return [
+        {"name": "shot_010", "status": "approved", "frames": 120},
+        {"name": "shot_020", "status": "in_progress", "frames": 240},
+    ]
 ```
 
 ## Fixture Scopes
@@ -358,7 +407,7 @@ def test_shot_validation(
 ### Behavior Verification
 ```python
 # GOOD: Test observable behavior
-def test_shot_refresh_updates_view(shot_model, shot_view):
+def test_shot_refresh_updates_view(shot_model: ShotModel, shot_view: ShotView) -> None:
     shot_model.add_shot("new_shot")
     shot_view.refresh()
 
@@ -367,7 +416,7 @@ def test_shot_refresh_updates_view(shot_model, shot_view):
     assert "new_shot" in shot_view.visible_shots
 
 # AVOID: Testing implementation details
-def test_shot_refresh_calls_internal_method(shot_model):
+def test_shot_refresh_calls_internal_method(shot_model: ShotModel) -> None:
     # Don't test private method calls
     with patch.object(shot_model, '_update_internal_cache'):
         shot_model.refresh()
@@ -376,7 +425,7 @@ def test_shot_refresh_calls_internal_method(shot_model):
 
 ### Error Condition Testing
 ```python
-def test_thumbnail_loading_handles_missing_file(thumbnail_manager):
+def test_thumbnail_loading_handles_missing_file(thumbnail_manager: ThumbnailManager) -> None:
     """Test graceful handling of missing thumbnail files."""
     missing_path = Path("/nonexistent/file.jpg")
 
@@ -390,33 +439,165 @@ def test_thumbnail_loading_handles_missing_file(thumbnail_manager):
 
 ### Thread Safety Testing
 ```python
-def test_concurrent_cache_access_thread_safe(cache_manager):
-    """Test thread safety of cache operations."""
+def test_concurrent_cache_access_thread_safe(cache_manager: CacheManager) -> None:
+    """Test thread safety with concurrent operations."""
     import concurrent.futures
-    import threading
 
-    results = []
-
-    def cache_operation(thread_id):
+    def cache_operation(thread_id: int) -> None:
         for i in range(100):
             key = f"thread_{thread_id}_item_{i}"
             cache_manager.set(key, f"value_{i}")
-            retrieved = cache_manager.get(key)
-            results.append(retrieved == f"value_{i}")
+            assert cache_manager.get(key) == f"value_{i}"
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(cache_operation, i) for i in range(5)
-        ]
+        futures = [executor.submit(cache_operation, i) for i in range(5)]
         for future in concurrent.futures.as_completed(futures):
-            future.result()
-
-    # All operations should succeed
-    assert all(results)
-    assert len(results) == 500  # 5 threads × 100 operations
+            future.result()  # Raises if any assertions failed
 ```
 
+## Test Smells - Warning Signs
+
+Patterns that indicate poorly designed tests:
+
+❌ **Test depends on execution order**
+```python
+# BAD: test_02 depends on test_01 running first
+class TestShotLoading:
+    shots = []  # Shared state!
+
+    def test_01_load_shots(self):
+        self.shots = load_shots()
+
+    def test_02_process_shots(self):  # Breaks if run alone!
+        process(self.shots)
+```
+
+❌ **Test modifies global/shared state**
+```python
+# BAD: Modifies module-level config
+def test_cache_with_custom_size():
+    config.CACHE_SIZE = 1000  # Leaks to other tests!
+    cache = CacheManager()
+    assert cache.max_size == 1000
+    # Forgot to restore config.CACHE_SIZE
+```
+
+❌ **Over-mocking - Testing mocks instead of real code**
+```python
+# BAD: Everything is mocked, testing nothing
+def test_shot_processing():
+    mock_shot = Mock()
+    mock_processor = Mock()
+    mock_processor.process.return_value = Mock()
+    result = mock_processor.process(mock_shot)
+    # We're only testing that mocks work!
+```
+
+❌ **No assertions - Test that doesn't verify anything**
+```python
+# BAD: No verification
+def test_shot_loading():
+    shot_model = ShotModel()
+    shot_model.load_shots()  # Did it work? No idea!
+```
+
+❌ **Multiple concepts - Should be separate tests**
+```python
+# BAD: Testing loading, filtering, and sorting together
+def test_shot_operations():
+    shots = load_shots()
+    filtered = filter_shots(shots)
+    sorted_shots = sort_shots(filtered)
+    # Which operation failed?
+```
+
+❌ **Unclear names - Doesn't describe expected behavior**
+```python
+# BAD: What does this test verify?
+def test_shot_1():
+    ...
+
+# GOOD: Clear expected behavior
+def test_shot_loading_handles_network_timeout_gracefully():
+    ...
+```
+
+✅ **Good test characteristics:**
+- Independent (can run in any order)
+- Isolated (no shared mutable state)
+- Repeatable (same result every time)
+- Self-validating (clear pass/fail)
+- Timely (fast execution)
+- Clear naming (describes expected behavior)
+
 ## Mock Usage Guidelines
+
+### Mocking Decision Function
+
+Use executable logic to decide when to mock:
+
+```python
+from typing import Literal
+
+def should_mock_component(
+    component_type: str,
+    context: Literal["unit", "integration"] = "unit"
+) -> tuple[bool, str]:
+    """Executable decision logic for mocking strategy.
+
+    Returns: (should_mock, reason)
+
+    Example:
+        should_mock, reason = should_mock_component("network")
+        # Returns: (True, "External dependency - mock at system boundary")
+    """
+    # External boundaries - always mock
+    external_systems = {
+        "file_system", "network", "database", "external_api",
+        "subprocess", "http_client", "smtp_server"
+    }
+    if component_type in external_systems:
+        return (True, "External dependency - mock at system boundary")
+
+    # Time/randomness - mock for determinism
+    non_deterministic = {"datetime", "random", "time", "uuid"}
+    if component_type in non_deterministic:
+        return (True, "Non-deterministic - mock for reproducibility")
+
+    # Hardware - mock unless integration testing
+    hardware = {"gpu", "cuda", "system_resources", "display"}
+    if component_type in hardware:
+        if context == "integration":
+            return (False, "Integration test - use real hardware")
+        return (True, "Hardware dependency - mock for portability")
+
+    # Qt widgets - use real components with qtbot
+    qt_components = {"qt_widget", "qt_dialog", "qt_model", "qt_view"}
+    if component_type in qt_components:
+        return (False, "Qt component - use real with qtbot fixtures")
+
+    # Business logic - never mock
+    if context == "business_logic" or component_type in {"algorithm", "calculation", "validation"}:
+        return (False, "Core logic - test real implementation")
+
+    # Data structures - use real
+    if component_type in {"list", "dict", "dataclass", "model"}:
+        return (False, "Simple data structure - use real")
+
+    # Default: prefer real components
+    return (False, "Default to real components for better integration confidence")
+
+
+# Usage examples:
+should_mock, reason = should_mock_component("network")
+# (True, "External dependency - mock at system boundary")
+
+should_mock, reason = should_mock_component("qt_widget")
+# (False, "Qt component - use real with qtbot fixtures")
+
+should_mock, reason = should_mock_component("gpu", context="integration")
+# (False, "Integration test - use real hardware")
+```
 
 ### When to Mock
 1. **External Systems**: File systems, networks, databases
@@ -433,7 +614,7 @@ def test_concurrent_cache_access_thread_safe(cache_manager):
 ### Mock Examples
 ```python
 # GOOD: Mock external system boundary
-def test_shot_loading_handles_network_failure():
+def test_shot_loading_handles_network_failure() -> None:
     with patch("requests.get") as mock_get:
         mock_get.side_effect = requests.ConnectionError("Network unreachable")
 
@@ -444,7 +625,7 @@ def test_shot_loading_handles_network_failure():
         assert "network" in result.error_message.lower()
 
 # GOOD: Mock time for deterministic testing
-def test_cache_expiration():
+def test_cache_expiration() -> None:
     with patch("time.time") as mock_time:
         mock_time.return_value = 1000
 
@@ -460,7 +641,7 @@ def test_cache_expiration():
 
 ### Memory Usage Testing
 ```python
-def test_thumbnail_cache_memory_limit_respected(thumbnail_manager):
+def test_thumbnail_cache_memory_limit_respected(thumbnail_manager: ThumbnailManager) -> None:
     """Verify memory limits are enforced."""
     initial_memory = thumbnail_manager.memory_usage_bytes
 
@@ -478,7 +659,7 @@ def test_thumbnail_cache_memory_limit_respected(thumbnail_manager):
 
 ### Timing and Performance
 ```python
-def test_shot_loading_performance_acceptable():
+def test_shot_loading_performance_acceptable() -> None:
     """Verify shot loading meets performance requirements."""
     shot_model = ShotModel()
 
@@ -491,6 +672,78 @@ def test_shot_loading_performance_acceptable():
     # Should load 1000 shots in under 5 seconds
     assert load_time < 5.0
     assert shot_model.shot_count == 1000
+```
+
+## Interpreting Test Failures
+
+Understanding pytest output helps debug failures quickly.
+
+### Common AssertionError Patterns
+
+```
+FAILED tests/test_cache.py::test_cache_set - AssertionError: assert None == 'value'
+```
+**Meaning:** `get()` returned `None` instead of expected `'value'`
+**Likely causes:**
+1. `set()` didn't actually store the value
+2. Key mismatch (typo: `"key"` vs `"Key"`)
+3. Cache was cleared between `set()` and `get()`
+
+```
+FAILED tests/test_shot.py::test_status - AssertionError: assert 'pending' == 'approved'
+```
+**Meaning:** Status is `'pending'` but test expected `'approved'`
+**Likely causes:**
+1. Status update method wasn't called
+2. Update method has a bug
+3. Test is checking wrong object
+
+```
+FAILED tests/test_list.py::test_count - AssertionError: assert 3 == 5
+```
+**Meaning:** Collection has 3 items but test expected 5
+**Likely causes:**
+1. Some items weren't added
+2. Items were filtered out
+3. Wrong collection being counted
+
+### Common pytest Errors
+
+```
+ERROR tests/test_ui.py - fixture 'qtbot' not found
+```
+**Solution:** `pip install pytest-qt`
+
+```
+ERROR collecting tests/test_shots.py - ModuleNotFoundError: No module named 'shotbot'
+```
+**Solution:** Install package in editable mode: `pip install -e .` or fix `PYTHONPATH`
+
+```
+warning: no tests collected
+```
+**Likely causes:**
+1. Wrong file naming (use `test_*.py` or `*_test.py`)
+2. Wrong function naming (use `test_*`)
+3. Tests are in wrong directory (check `testpaths` in `pyproject.toml`)
+
+### Debugging Workflow
+
+1. **Read the error message** - pytest shows the exact assertion that failed
+2. **Check the line number** - jump directly to failing assertion
+3. **Use `-vv` for more detail** - shows full diff for complex objects
+4. **Use `--pdb` to debug** - drops into debugger on failure
+5. **Use `-l` to show locals** - displays local variables at failure point
+
+```bash
+# Show full diff for failed assertions
+pytest -vv
+
+# Drop into debugger on first failure
+pytest --pdb -x
+
+# Show local variables on failure
+pytest -l
 ```
 
 ## Error Handling Testing
@@ -597,19 +850,22 @@ def create_test_shot(name=None, status="in_progress", frame_count=120):
 
 Leverage the pytest ecosystem to enhance testing capabilities.
 
+### Plugin Overview
+
+| Plugin | Purpose | Priority | Installation |
+|--------|---------|----------|--------------|
+| **pytest-cov** | Code coverage reporting | ⭐ Essential | `pip install pytest-cov` |
+| **pytest-mock** | Enhanced mocking syntax | ⭐ Essential | `pip install pytest-mock` |
+| **pytest-qt** | Qt application testing | ⭐ Required for Qt | `pip install pytest-qt` |
+| **pytest-xdist** | Parallel test execution | Recommended | `pip install pytest-xdist` |
+| **pytest-benchmark** | Performance testing | Optional | `pip install pytest-benchmark` |
+| **pytest-timeout** | Prevent hanging tests | Optional | `pip install pytest-timeout` |
+
 ### pytest-cov: Coverage Reporting
 
-Track code coverage to identify untested code paths:
-
 ```bash
-# Install
-pip install pytest-cov
-
 # Run with coverage
-pytest --cov=shotbot --cov-report=html
-
-# View report
-open htmlcov/index.html
+pytest --cov=shotbot --cov-report=html --cov-report=term-missing
 ```
 
 Configuration in `pyproject.toml`:
@@ -625,90 +881,21 @@ addopts = [
 
 ### pytest-mock: Enhanced Mocking
 
-Provides `mocker` fixture with cleaner syntax than `unittest.mock`:
+Cleaner syntax than `unittest.mock`:
 
 ```python
 from pytest_mock import MockerFixture
 
 def test_with_mocker(mocker: MockerFixture) -> None:
     """Use pytest-mock for cleaner mocking syntax."""
-    # Patch with mocker fixture
     mock_get = mocker.patch("requests.get")
     mock_get.return_value.status_code = 200
     mock_get.return_value.json.return_value = {"data": "value"}
 
-    # Automatic cleanup, no context managers needed
     result = fetch_data()
     assert result == {"data": "value"}
     mock_get.assert_called_once()
 ```
-
-### pytest-benchmark: Performance Testing
-
-Benchmark code performance with statistical analysis:
-
-```python
-from pytest_benchmark.fixture import BenchmarkFixture
-
-def test_cache_performance(benchmark: BenchmarkFixture) -> None:
-    """Benchmark cache operations."""
-    cache = CacheManager()
-
-    # Benchmark the operation
-    result = benchmark(cache.get_or_create, "key", lambda: "value")
-
-    assert result == "value"
-    # Benchmark fixture handles timing, statistics, comparisons
-```
-
-### pytest-qt: Qt Testing (Already Covered)
-
-Provides `qtbot` fixture for Qt application testing. See Qt Component Fixtures section for detailed examples.
-
-### pytest-xdist: Parallel Execution (Already Covered)
-
-Run tests in parallel for faster execution. See Parallel Test Execution section for comprehensive coverage.
-
-### pytest-timeout: Prevent Hanging Tests
-
-Automatically fail tests that run too long:
-
-```bash
-pip install pytest-timeout
-
-# Run with global timeout
-pytest --timeout=60  # 60 seconds per test
-```
-
-```python
-import pytest
-
-@pytest.mark.timeout(5)  # 5 second timeout for this test
-def test_fast_operation() -> None:
-    """Test that must complete within 5 seconds."""
-    result = perform_operation()
-    assert result.success
-```
-
-### pytest-order: Control Test Execution Order
-
-Control test execution order when needed (use sparingly):
-
-```python
-import pytest
-
-@pytest.mark.order(1)
-def test_database_setup() -> None:
-    """Run first to set up database."""
-    setup_database()
-
-@pytest.mark.order(2)
-def test_database_operations() -> None:
-    """Run after setup."""
-    perform_operations()
-```
-
-**Note:** Tests should be independent; only use ordering for true dependencies.
 
 ## Continuous Integration Considerations
 
@@ -736,14 +923,15 @@ def resource_manager():
 
 ## Parallel Test Execution with pytest-xdist
 
-### QApplication Isolation Pattern
+Run tests faster using parallel execution: `pytest -n auto`
 
-Enhance `qapp` fixture with worker cleanup to prevent Qt state leakage:
+### Critical Qt Patterns for Parallel Execution
 
+**QApplication Isolation:**
 ```python
 @pytest.fixture
 def qapp(qapp, request):
-    """Add xdist worker-specific cleanup."""
+    """Enhance qapp with worker-specific cleanup to prevent state leakage."""
     try:
         from xdist import is_xdist_worker
         in_worker = is_xdist_worker(request)
@@ -758,10 +946,7 @@ def qapp(qapp, request):
         qapp.processEvents()
 ```
 
-### Dynamic Timeouts
-
-Adapt timeouts for parallel execution resource contention:
-
+**Dynamic Timeouts for Resource Contention:**
 ```python
 def test_worker_operation(qtbot):
     try:
@@ -774,114 +959,33 @@ def test_worker_operation(qtbot):
         worker.start()
 ```
 
-### Grouping Qt Tests
+### Common Issues
 
-Use `xdist_group` markers to run related tests in the same worker:
-
-```python
-pytestmark = [
-    pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # Reduces context switches
-]
-```
-
-### Running in Parallel
-
-```bash
-pytest tests/ -n auto              # Auto-detect CPU cores
-pytest tests/ -n auto --dist=loadscope  # Group by test scope
-```
-
-### Common Issues and Solutions
-
-| Issue | Symptom | Solution |
-|-------|---------|----------|
-| QApplication conflicts | "Instance already exists" crash | Use enhanced `qapp` fixture above |
-| Timing failures | Timeouts only in parallel | Use dynamic timeouts |
-| Shared state | Pass individually, fail parallel | Use `tmp_path`, avoid shared state |
-
-### Shared Resources Pattern
-
-```python
-from filelock import FileLock
-
-@pytest.fixture(scope="session")
-def shared_resource(tmp_path_factory, request):
-    """Share expensive resource across workers with file locking."""
-    root_tmp_dir = tmp_path_factory.getbasetemp().parent
-    resource_file = root_tmp_dir / "resource.json"
-
-    with FileLock(str(resource_file) + ".lock"):
-        if resource_file.exists():
-            return load_resource(resource_file)
-        resource = create_resource()
-        save_resource(resource_file, resource)
-        return resource
-```
+| Issue | Solution |
+|-------|----------|
+| QApplication conflicts | Use enhanced `qapp` fixture above |
+| Timeout failures in parallel only | Use dynamic timeouts |
+| Shared state leaks | Use `tmp_path`, never share mutable fixtures |
 
 ### Best Practices
 
-**DO:**
-- Enhance `qapp` fixture with worker cleanup
-- Use dynamic timeouts for Qt operations
-- Group Qt-heavy tests with `xdist_group`
-- Use `tmp_path` for test isolation
+✅ **DO:** Use `tmp_path`, enhance `qapp` fixture, use dynamic timeouts
+❌ **DON'T:** Share mutable state, use session-scoped Qt fixtures, rely on execution order
 
-**DON'T:**
-- Share mutable state between tests
-- Use session-scoped fixtures for Qt widgets
-- Rely on test execution order
-- Assume sequential timing
+## Essential References
 
-This unified testing guide ensures consistency, reliability, and maintainability across the entire ShotBot test suite while following Qt, Python, and parallel execution best practices.
+**Core Documentation:**
+- **[Pytest Documentation](https://docs.pytest.org)** - Official pytest reference
+- **[pytest-qt Documentation](https://pytest-qt.readthedocs.io/)** - Qt testing guide
+- **[PySide6 Documentation](https://doc.qt.io/qtforpython-6/)** - Official PySide6 docs
+- **[Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)** - Python best practices
 
-## References and Further Reading
-
-### Official Documentation
-
-- **[Pytest Documentation](https://docs.pytest.org)** - Official pytest guide and reference
-- **[Pytest Best Practices](https://docs.pytest.org/en/stable/explanation/goodpractices.html)** - Official best practices guide
-- **[pytest-qt Documentation](https://pytest-qt.readthedocs.io/)** - Qt testing with pytest
-- **[pytest-xdist Documentation](https://pytest-xdist.readthedocs.io/)** - Parallel test execution
-- **[pytest-cov Documentation](https://pytest-cov.readthedocs.io/)** - Coverage reporting
-- **[pytest-mock Documentation](https://pytest-mock.readthedocs.io/)** - Enhanced mocking utilities
-
-### Python Enhancement Proposals (PEPs)
-
-Testing-related Python standards and improvements:
-
-- **[PEP 484](https://peps.python.org/pep-0484/)** - Type Hints for better code analysis
-- **[PEP 585](https://peps.python.org/pep-0585/)** - Type Hinting Generics (list[T] vs List[T])
-- **[PEP 604](https://peps.python.org/pep-0604/)** - Union Types (X | Y vs Union[X, Y])
-- **[PEP 678](https://peps.python.org/pep-0678/)** - Enriching Exceptions with Notes (Python 3.11+)
-- **[PEP 612](https://peps.python.org/pep-0612/)** - Parameter Specification Variables for typed decorators
-- **[PEP 3148](https://peps.python.org/pep-3148/)** - futures - concurrent.futures module
-
-### Testing Tools and Plugins
-
-- **[pytest-benchmark](https://pytest-benchmark.readthedocs.io/)** - Performance testing and benchmarking
-- **[pytest-timeout](https://pypi.org/project/pytest-timeout/)** - Test timeout management
-- **[pytest-order](https://pytest-order.readthedocs.io/)** - Control test execution order
-- **[Hypothesis](https://hypothesis.readthedocs.io/)** - Property-based testing framework
-- **[Coverage.py](https://coverage.readthedocs.io/)** - Code coverage measurement
-- **[tox](https://tox.wiki/)** - Testing across multiple Python environments
-
-### Qt Testing Resources
-
-- **[Qt Test Framework](https://doc.qt.io/qt-6/qttest-index.html)** - Official Qt testing documentation
-- **[Qt Threading Basics](https://doc.qt.io/qt-6/threads-technologies.html)** - Qt threading technologies
-- **[PySide6 Documentation](https://doc.qt.io/qtforpython-6/)** - Official PySide6 documentation
-
-### Best Practices and Patterns
-
-- **[Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)** - Comprehensive Python style guide
-- **[Testing Best Practices (RealPython)](https://realpython.com/pytest-python-testing/)** - Pytest tutorial and patterns
-- **[Effective Python Testing](https://testdriven.io/blog/testing-python/)** - Modern Python testing approaches
-
-### Books and In-Depth Resources
-
-- **"Python Testing with pytest" by Brian Okken** - Comprehensive pytest guide
-- **"Test-Driven Development with Python" by Harry Percival** - TDD methodology
-- **"Effective Python" by Brett Slatkin** - Modern Python best practices
+**Key PEPs:**
+- **[PEP 484](https://peps.python.org/pep-0484/)** - Type Hints
+- **[PEP 678](https://peps.python.org/pep-0678/)** - Exception Notes (Python 3.11+)
 
 This guide incorporates best practices from these authoritative sources to ensure your ShotBot test suite follows industry standards and modern Python conventions.
+
+---
+*Version 2025.01 - Last updated: January 2025*
+*Comprehensive testing guide for ShotBot VFX application pytest suite*

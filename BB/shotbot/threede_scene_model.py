@@ -75,7 +75,7 @@ class ThreeDEScene:
         # Return cached result if we've already searched
         if self._cached_thumbnail_path is not _NOT_SEARCHED:
             # Type narrowing: if it's not the sentinel, it must be Path | None
-            return cast(Path | None, self._cached_thumbnail_path)
+            return cast("Path | None", self._cached_thumbnail_path)
 
         # Use the unified thumbnail discovery method
         # PathUtils.find_shot_thumbnail type is unknown but returns Path | None
@@ -88,7 +88,7 @@ class ThreeDEScene:
 
         # Cache the result (even if None) to avoid repeated searches
         self._cached_thumbnail_path = thumbnail
-        return cast(Path | None, thumbnail)
+        return cast("Path | None", thumbnail)
 
     def to_dict(self) -> dict[str, str | Path]:
         """Convert scene to dictionary for caching."""

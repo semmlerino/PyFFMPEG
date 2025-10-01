@@ -97,7 +97,7 @@ class ShotGridView(BaseGridView):
             The shot item model or None
         """
         # Cast base class _model to more specific type
-        return cast(UnifiedItemModel | None, self._model)
+        return cast("UnifiedItemModel | None", self._model)
 
     @property
     def selected_shot(self) -> Shot | None:
@@ -125,7 +125,7 @@ class ShotGridView(BaseGridView):
         """
         # Model/View updates automatically when model data changes
         # This method is kept for interface compatibility
-        model = cast(UnifiedItemModel | None, self._model)
+        model = cast("UnifiedItemModel | None", self._model)
         if model:
             # Force a view update
             self.list_view.viewport().update()
@@ -189,12 +189,12 @@ class ShotGridView(BaseGridView):
         Args:
             index: Clicked model index
         """
-        model = cast(UnifiedItemModel | None, self._model)
+        model = cast("UnifiedItemModel | None", self._model)
         if not index.isValid() or not model:
             return
 
         # Get shot object - index.data() returns Any from Qt API
-        shot: Shot | None = cast(Shot | None, index.data(ShotRole.ObjectRole))
+        shot: Shot | None = cast("Shot | None", index.data(ShotRole.ObjectRole))
 
         if shot:
             self._selected_shot = shot
@@ -214,12 +214,12 @@ class ShotGridView(BaseGridView):
         Args:
             index: Double-clicked model index
         """
-        model = cast(UnifiedItemModel | None, self._model)
+        model = cast("UnifiedItemModel | None", self._model)
         if not index.isValid() or not model:
             return
 
         # Get shot object - index.data() returns Any from Qt API
-        shot: Shot | None = cast(Shot | None, index.data(ShotRole.ObjectRole))
+        shot: Shot | None = cast("Shot | None", index.data(ShotRole.ObjectRole))
 
         if shot:
             self.shot_double_clicked.emit(shot)
@@ -237,7 +237,7 @@ class ShotGridView(BaseGridView):
             current: Current selection index
             previous: Previous selection index
         """
-        model = cast(UnifiedItemModel | None, self._model)
+        model = cast("UnifiedItemModel | None", self._model)
         if not model:
             return
 
@@ -250,7 +250,7 @@ class ShotGridView(BaseGridView):
             model.setData(current, True, ShotRole.IsSelectedRole)
 
             # Get shot object - index.data() returns Any from Qt API
-            shot: Shot | None = cast(Shot | None, current.data(ShotRole.ObjectRole))
+            shot: Shot | None = cast("Shot | None", current.data(ShotRole.ObjectRole))
 
             if shot:
                 self._selected_shot = shot
@@ -263,7 +263,7 @@ class ShotGridView(BaseGridView):
             start: Start row index
             end: End row index (exclusive)
         """
-        model = cast(UnifiedItemModel | None, self._model)
+        model = cast("UnifiedItemModel | None", self._model)
         if model:
             model.set_visible_range(start, end)
 
@@ -273,7 +273,7 @@ class ShotGridView(BaseGridView):
         Args:
             shot_name: Full shot name to select
         """
-        model = cast(UnifiedItemModel | None, self._model)
+        model = cast("UnifiedItemModel | None", self._model)
         if not model:
             return
 
@@ -282,7 +282,7 @@ class ShotGridView(BaseGridView):
             index = model.index(row, 0)
 
             # Get shot object - index.data() returns Any from Qt API
-            shot: Shot | None = cast(Shot | None, index.data(ShotRole.ObjectRole))
+            shot: Shot | None = cast("Shot | None", index.data(ShotRole.ObjectRole))
 
             if shot and shot.full_name == shot_name:
                 # Select in view
@@ -322,13 +322,13 @@ class ShotGridView(BaseGridView):
         # Get the index at the clicked position
         index = self.list_view.indexAt(list_view_pos)
 
-        model = cast(UnifiedItemModel | None, self._model)
+        model = cast("UnifiedItemModel | None", self._model)
         if not index.isValid() or not model:
             # No item clicked, show no menu
             return
 
         # Get shot object - index.data() returns Any from Qt API
-        shot: Shot | None = cast(Shot | None, index.data(ShotRole.ObjectRole))
+        shot: Shot | None = cast("Shot | None", index.data(ShotRole.ObjectRole))
 
         if not shot:
             return

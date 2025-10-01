@@ -45,6 +45,13 @@ class QtWidgetMixin(LoggingMixin):
     - Common dialog helpers
     """
 
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize QtWidgetMixin and continue MRO chain.
+
+        This ensures proper multiple inheritance with Qt classes.
+        """
+        super().__init__(*args, **kwargs)
+
     def setup_window_geometry(
         self,
         settings_key: str,
@@ -316,6 +323,10 @@ class QtWidgetMixin(LoggingMixin):
 class QtDragDropMixin:
     """Mixin for drag and drop functionality."""
 
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize QtDragDropMixin and continue MRO chain."""
+        super().__init__(*args, **kwargs)
+
     def setup_drag_drop(self, mime_types: list[str] | None = None) -> None:
         """Setup drag and drop support.
 
@@ -360,6 +371,10 @@ class QtDragDropMixin:
 
 class QtProgressMixin:
     """Mixin for progress indication in widgets."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize QtProgressMixin and continue MRO chain."""
+        super().__init__(*args, **kwargs)
 
     def setup_progress_indicator(self, parent: QWidget | None = None) -> None:
         """Setup progress indication UI elements."""
