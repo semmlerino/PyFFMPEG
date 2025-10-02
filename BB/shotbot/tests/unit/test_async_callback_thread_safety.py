@@ -22,12 +22,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Local application imports
 from cache_manager import CacheManager
 from shot_info_panel import InfoPanelPixmapLoader, ShotInfoPanel
+from shot_item_model import ShotItemModel
 from shot_model import Shot
 from tests.helpers.synchronization import (
     simulate_work_without_sleep,
 )
 from tests.test_doubles_library import TestCacheManager
-from unified_item_model import UnifiedItemModel
 
 pytestmark = [pytest.mark.thread_safety, pytest.mark.qt, pytest.mark.critical]
 
@@ -36,9 +36,9 @@ class TestShotItemModelThreadSafety:
     """Thread safety tests for ShotItemModel async callbacks."""
 
     @pytest.fixture
-    def thread_safe_model(self, qtbot) -> UnifiedItemModel:
+    def thread_safe_model(self, qtbot) -> ShotItemModel:
         """Create model for thread safety testing."""
-        model = UnifiedItemModel(TestCacheManager())
+        model = ShotItemModel(TestCacheManager())
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
@@ -393,7 +393,7 @@ class TestCrossComponentThreadSafety:
         image.fill(0x00FF00)
         image.save(str(image_path), "JPEG")
 
-        model = UnifiedItemModel(TestCacheManager())
+        model = ShotItemModel(TestCacheManager())
         # Standard library imports
         import tempfile
         from pathlib import Path

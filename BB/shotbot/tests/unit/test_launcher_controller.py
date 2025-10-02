@@ -231,6 +231,86 @@ class TestLauncherControllerBasics:
 
         assert controller._current_scene is None
 
+    def test_context_switching_shot_to_scene(
+        self, make_launcher_controller, test_shot, test_scene
+    ) -> None:
+        """Test switching from shot to scene context clears shot.
+
+        Critical test identified in code review - verifies mutual exclusivity.
+        When switching from shot context to scene context, the shot should be
+        automatically cleared to prevent context confusion.
+        """
+        controller, _ = make_launcher_controller()
+
+        # First, set shot context
+        controller.set_current_shot(test_shot)
+        assert controller._current_shot == test_shot
+        assert controller._current_scene is None
+
+        # Switch to scene context - shot should be cleared
+        controller.set_current_scene(test_scene)
+        assert controller._current_scene == test_scene
+        assert controller._current_shot is None, (
+            "CRITICAL: Shot context was not cleared when switching to scene! "
+            "This violates mutual exclusivity and could cause incorrect app launches."
+        )
+
+    def test_context_switching_scene_to_shot(
+        self, make_launcher_controller, test_shot, test_scene
+    ) -> None:
+        """Test switching from scene to shot context clears scene.
+
+        Critical test identified in code review - verifies mutual exclusivity.
+        When switching from scene context to shot context, the scene should be
+        automatically cleared to prevent context confusion.
+        """
+        controller, _ = make_launcher_controller()
+
+        # First, set scene context
+        controller.set_current_scene(test_scene)
+        assert controller._current_scene == test_scene
+        assert controller._current_shot is None
+
+        # Switch to shot context - scene should be cleared
+        controller.set_current_shot(test_shot)
+        assert controller._current_shot == test_shot
+        assert controller._current_scene is None, (
+            "CRITICAL: Scene context was not cleared when switching to shot! "
+            "This violates mutual exclusivity and could cause incorrect app launches."
+        )
+
+    def test_context_switching_multiple_times(
+        self, make_launcher_controller, test_shot, test_scene
+    ) -> None:
+        """Test multiple context switches maintain mutual exclusivity.
+
+        Verifies that switching back and forth between shot and scene contexts
+        always maintains mutual exclusivity, even through multiple transitions.
+        """
+        controller, _ = make_launcher_controller()
+
+        # Shot → Scene → Shot → Scene → None
+        controller.set_current_shot(test_shot)
+        assert controller._current_shot == test_shot
+        assert controller._current_scene is None
+
+        controller.set_current_scene(test_scene)
+        assert controller._current_scene == test_scene
+        assert controller._current_shot is None
+
+        controller.set_current_shot(test_shot)
+        assert controller._current_shot == test_shot
+        assert controller._current_scene is None
+
+        controller.set_current_scene(test_scene)
+        assert controller._current_scene == test_scene
+        assert controller._current_shot is None
+
+        # Clear both by setting to None
+        controller.set_current_scene(None)
+        assert controller._current_scene is None
+        assert controller._current_shot is None
+
 
 # Application launch tests
 class TestApplicationLaunching:

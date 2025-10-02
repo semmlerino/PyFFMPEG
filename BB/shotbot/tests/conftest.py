@@ -148,7 +148,19 @@ QMessageBox.question = lambda *args, **kwargs: QMessageBox.StandardButton.Yes
 
 if TYPE_CHECKING:
     # Standard library imports
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
+
+    # Local application imports
+    from cache_manager import CacheManager
+    from launcher.models import CustomLauncher
+    from shot_model import Shot
+    from tests.test_doubles_extended import (
+        TestCache,
+        TestCommand,
+        TestFileSystem,
+        TestWorker,
+    )
+    from tests.test_doubles_library import TestProcessPool, ThreadSafeTestImage
 
 # Import protocols for type safety
 
@@ -165,7 +177,7 @@ from tests.test_doubles_library import TestProcessPool  # noqa: E402
 
 
 @pytest.fixture
-def make_shot():  # type: ignore[misc]
+def make_shot() -> Callable[[str, str, str, str | None], Shot]:
     """Factory fixture for creating Shot instances with customizable parameters.
 
     Following UNIFIED_TESTING_GUIDE pattern from lines 27-37.
@@ -188,7 +200,7 @@ def make_shot():  # type: ignore[misc]
 
 
 @pytest.fixture
-def make_launcher():  # type: ignore[misc]
+def make_launcher() -> Generator[Callable[[str | None, str, str, str, str], CustomLauncher], None, None]:
     """Factory fixture for creating CustomLauncher instances.
 
     Following UNIFIED_TESTING_GUIDE factory pattern.
@@ -197,7 +209,7 @@ def make_launcher():  # type: ignore[misc]
     # Local application imports
     from launcher.models import CustomLauncher
 
-    created_launchers = []
+    created_launchers: list[CustomLauncher] = []
 
     def _make_launcher(
         id: str | None = None,
@@ -224,7 +236,7 @@ def make_launcher():  # type: ignore[misc]
 
 
 @pytest.fixture
-def make_cache_manager():  # type: ignore[misc]
+def make_cache_manager() -> Generator[Callable[[Path, str], CacheManager], None, None]:
     """Factory fixture for creating CacheManager instances with tmp_path.
 
     Following UNIFIED_TESTING_GUIDE factory pattern.
@@ -256,7 +268,7 @@ def make_cache_manager():  # type: ignore[misc]
 
 
 @pytest.fixture
-def make_process_pool():  # type: ignore[misc]
+def make_process_pool() -> Generator[Callable[[str], TestProcessPool], None, None]:
     """Factory fixture for creating TestProcessPoolManager instances.
 
     Following UNIFIED_TESTING_GUIDE factory pattern.
@@ -285,16 +297,16 @@ def make_process_pool():  # type: ignore[misc]
 
 
 @pytest.fixture
-def make_test_widget(qtbot):
+def make_test_widget(qtbot: Any) -> Generator[Callable[..., QWidget], None, None]:
     """Factory for creating test Qt widgets with proper cleanup.
     Following UNIFIED_TESTING_GUIDE pattern for Qt testing.
     """
     # Third-party imports
     from PySide6.QtWidgets import QWidget
 
-    created_widgets = []
+    created_widgets: list[QWidget] = []
 
-    def _make_widget(widget_class=QWidget, **kwargs):
+    def _make_widget(widget_class: type[QWidget] = QWidget, **kwargs: Any) -> QWidget:
         widget = widget_class(**kwargs)
         qtbot.addWidget(widget)  # Critical for cleanup
         created_widgets.append(widget)
@@ -309,16 +321,16 @@ def make_test_widget(qtbot):
 
 
 @pytest.fixture
-def make_test_worker():
+def make_test_worker() -> Generator[Callable[[str], TestWorker], None, None]:
     """Factory for creating thread-safe test workers.
     CRITICAL: Uses ThreadSafeTestImage, not QPixmap!
     """
     # Local application imports
     from tests.test_doubles_extended import TestWorker
 
-    created_workers = []
+    created_workers: list[TestWorker] = []
 
-    def _make_worker(name="test_worker"):
+    def _make_worker(name: str = "test_worker") -> TestWorker:
         worker = TestWorker()
         worker.name = name
         created_workers.append(worker)
@@ -333,13 +345,13 @@ def make_test_worker():
 
 
 @pytest.fixture
-def make_test_cache(tmp_path):
+def make_test_cache(tmp_path: Path) -> Generator[Callable[[str], TestCache], None, None]:
     """Factory for creating test cache instances.
     Each cache gets its own temporary directory.
     """
-    created_caches = []
+    created_caches: list[TestCache] = []
 
-    def _make_cache(name="cache"):
+    def _make_cache(name: str = "cache") -> TestCache:
         # Local application imports
         from tests.test_doubles_extended import TestCache
 
@@ -358,12 +370,12 @@ def make_test_cache(tmp_path):
 
 
 @pytest.fixture
-def make_test_command():
+def make_test_command() -> Callable[[str], TestCommand]:
     """Factory for creating test command executors.
     Tracks executed commands and provides controlled outputs.
     """
 
-    def _make_command(default_output="success"):
+    def _make_command(default_output: str = "success") -> TestCommand:
         # Local application imports
         from tests.test_doubles_extended import TestCommand
 
@@ -375,12 +387,12 @@ def make_test_command():
 
 
 @pytest.fixture
-def make_test_filesystem(tmp_path):
+def make_test_filesystem(tmp_path: Path) -> Callable[[], TestFileSystem]:
     """Factory for creating VFX directory structures.
     Creates realistic /shows/{show}/shots/{seq}/{seq}_{shot} paths.
     """
 
-    def _make_filesystem():
+    def _make_filesystem() -> TestFileSystem:
         # Local application imports
         from tests.test_doubles_extended import TestFileSystem
 
@@ -391,7 +403,7 @@ def make_test_filesystem(tmp_path):
 
 
 @pytest.fixture
-def workspace_outputs():
+def workspace_outputs() -> dict[str, str]:
     """Common workspace command outputs for testing.
     Provides realistic ws -sg output patterns.
     """
@@ -542,7 +554,7 @@ def isolated_test_environment() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def cache_isolation():
+def cache_isolation() -> Any:
     """Provide cache isolation context manager for tests that need explicit control.
 
     Use this fixture when a test needs to explicitly control cache isolation,
@@ -559,7 +571,7 @@ def cache_isolation():
         from contextlib import contextmanager
 
         @contextmanager
-        def no_op():
+        def no_op() -> Generator[None, None, None]:
             yield
 
         return no_op
@@ -571,7 +583,7 @@ def cache_isolation():
 
 
 @pytest.fixture(scope="session")
-def ensure_qapp():
+def ensure_qapp() -> Generator[QApplication | None, None, None]:
     """Ensure QApplication instance exists for the entire test session.
 
     This ensures proper Qt event loop for signal processing.
@@ -586,13 +598,13 @@ def ensure_qapp():
 
 
 @pytest.fixture
-def qt_signal_blocker():
+def qt_signal_blocker() -> Callable[[int], bool]:
     """Helper fixture for blocking until Qt signals are processed.
 
     Use this when you need to ensure signals are delivered in tests.
     """
 
-    def _process_events(timeout_ms=1000) -> bool:
+    def _process_events(timeout_ms: int = 1000) -> bool:
         """Process Qt events for specified timeout."""
         timer = QTimer()
         timer.setSingleShot(True)
@@ -615,7 +627,7 @@ def qt_signal_blocker():
 
 
 @pytest.fixture
-def test_signal():
+def test_signal() -> Any:
     """Create a SignalDouble instance for non-Qt signal testing."""
     # Local application imports
     from tests.test_doubles_library import SignalDouble
@@ -624,7 +636,7 @@ def test_signal():
 
 
 @pytest.fixture
-def test_process_pool():
+def test_process_pool() -> Generator[TestProcessPool, None, None]:
     """Create a TestProcessPool for subprocess boundary mocking."""
     # Local application imports
     from tests.test_doubles_library import TestProcessPool
@@ -635,7 +647,7 @@ def test_process_pool():
 
 
 @pytest.fixture
-def test_filesystem():
+def test_filesystem() -> Generator[Any, None, None]:
     """Create a TestFileSystem for in-memory file operations."""
     # Local application imports
     from tests.unit.test_doubles import TestFileSystem
@@ -646,7 +658,7 @@ def test_filesystem():
 
 
 @pytest.fixture
-def test_cache():
+def test_cache() -> Generator[Any, None, None]:
     """Create a TestCache for in-memory caching."""
     # Local application imports
     from tests.unit.test_doubles import TestCache
@@ -662,7 +674,7 @@ def test_cache():
 
 
 @pytest.fixture
-def real_cache_manager(tmp_path):
+def real_cache_manager(tmp_path: Path) -> Generator[CacheManager, None, None]:
     """Create a real CacheManager with temporary storage.
 
     This follows UNIFIED_TESTING_GUIDE: use real components with test boundaries.
@@ -685,7 +697,7 @@ def real_cache_manager(tmp_path):
 
 
 @pytest.fixture
-def real_shot_model(real_cache_manager, test_process_pool):
+def real_shot_model(real_cache_manager: CacheManager, test_process_pool: TestProcessPool) -> Any:
     """Create a real ShotModel with test doubles only at boundaries.
 
     This follows UNIFIED_TESTING_GUIDE: real components with boundary mocks.
@@ -701,7 +713,7 @@ def real_shot_model(real_cache_manager, test_process_pool):
 
 
 @pytest.fixture
-def make_test_shot(tmp_path):
+def make_test_shot(tmp_path: Path) -> Callable[[str, str, str, bool], Shot]:
     """Factory for creating real Shot objects with actual files.
 
     This follows UNIFIED_TESTING_GUIDE: test with real files, not mocks.
@@ -709,7 +721,7 @@ def make_test_shot(tmp_path):
     # Local application imports
     from shot_model import Shot
 
-    def _make_shot(show="test", seq="seq01", shot="0010", with_thumbnail=True):
+    def _make_shot(show: str = "test", seq: str = "seq01", shot: str = "0010", with_thumbnail: bool = True) -> Shot:
         # Create real directory structure
         shot_name = f"{seq}_{shot}"
         shot_path = tmp_path / "shows" / show / "shots" / seq / shot_name
@@ -739,15 +751,15 @@ def make_test_shot(tmp_path):
 
 
 @pytest.fixture
-def make_real_3de_file(tmp_path):
+def make_real_3de_file(tmp_path: Path) -> Callable[[str, str, str, str, str], Path]:
     """Factory for creating real 3DE scene files.
 
     This follows UNIFIED_TESTING_GUIDE: test with real files.
     """
 
     def _make_3de_file(
-        show="test", seq="seq01", shot="0010", user="testuser", version="v001"
-    ):
+        show: str = "test", seq: str = "seq01", shot: str = "0010", user: str = "testuser", version: str = "v001"
+    ) -> Path:
         shot_name = f"{seq}_{shot}"
         scene_path = (
             tmp_path
@@ -773,20 +785,20 @@ def make_real_3de_file(tmp_path):
 
 
 @pytest.fixture
-def make_real_plate_files(tmp_path):
+def make_real_plate_files(tmp_path: Path) -> Callable[[str, str, str, str, str, int], list[Path]]:
     """Factory for creating real plate sequences.
 
     This follows UNIFIED_TESTING_GUIDE: test with real files.
     """
 
     def _make_plates(
-        show="test",
-        seq="seq01",
-        shot="0010",
-        plate_type="BG01",
-        colorspace="lin_sgamut3cine",
-        frame_count=10,
-    ):
+        show: str = "test",
+        seq: str = "seq01",
+        shot: str = "0010",
+        plate_type: str = "BG01",
+        colorspace: str = "lin_sgamut3cine",
+        frame_count: int = 10,
+    ) -> list[Path]:
         shot_name = f"{seq}_{shot}"
         plate_path = (
             tmp_path
@@ -821,17 +833,17 @@ def make_real_plate_files(tmp_path):
 
 
 @pytest.fixture
-def make_test_launcher():
+def make_test_launcher() -> Callable[[str | None, str, str, str], CustomLauncher]:
     """Factory for creating CustomLauncher instances."""
     # Local application imports
     from launcher.models import CustomLauncher
 
     def _make_launcher(
-        id=None,
-        name="Test Launcher",
-        command="echo {shot_name}",
-        description="Test launcher",
-    ):
+        id: str | None = None,
+        name: str = "Test Launcher",
+        command: str = "echo {shot_name}",
+        description: str = "Test launcher",
+    ) -> CustomLauncher:
         launcher_id = id or f"test_launcher_{hash(name)}"
         return CustomLauncher(
             id=launcher_id,
@@ -845,14 +857,14 @@ def make_test_launcher():
 
 
 @pytest.fixture
-def make_thread_safe_image():
+def make_thread_safe_image() -> Callable[[int, int, Any], ThreadSafeTestImage]:
     """Factory for creating thread-safe images.
     CRITICAL: Use this instead of QPixmap in worker threads!
     """
     # Local application imports
     from tests.test_doubles_library import ThreadSafeTestImage
 
-    def _make_image(width=100, height=100, color=None):
+    def _make_image(width: int = 100, height: int = 100, color: Any = None) -> ThreadSafeTestImage:
         image = ThreadSafeTestImage(width, height)
         if color:
             image.fill(color)
@@ -862,7 +874,7 @@ def make_thread_safe_image():
 
 
 @pytest.fixture
-def workspace_command_outputs():
+def workspace_command_outputs() -> dict[str, str]:
     """Common workspace command outputs for testing."""
     return {
         "single_shot": "workspace /shows/test/shots/seq01/seq01_0010",
@@ -882,7 +894,7 @@ def workspace_command_outputs():
 
 
 @pytest.fixture
-def common_test_paths():
+def common_test_paths() -> dict[str, str]:
     """Common test paths used across multiple tests."""
     return {
         "shot_path": "/shows/TEST/shots/seq01/seq01_0010",
@@ -906,7 +918,7 @@ def temp_cache_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def mock_filesystem(tmp_path):
+def mock_filesystem(tmp_path: Path) -> Path:
     """Create a mock filesystem structure for testing."""
     # Create show structure
     show_path = tmp_path / "testshow" / "shots" / "101_ABC" / "101_ABC_0010"
@@ -937,7 +949,7 @@ def mock_filesystem(tmp_path):
 
 
 @pytest.fixture
-def cache_manager(temp_cache_dir):
+def cache_manager(temp_cache_dir: Path) -> Generator[CacheManager, None, None]:
     """Create a CacheManager instance with temporary storage."""
     # Local application imports
     from cache_manager import CacheManager
@@ -956,7 +968,7 @@ def cache_manager(temp_cache_dir):
 
 
 @pytest.fixture
-def sample_shot():
+def sample_shot() -> Shot:
     """Create a sample Shot instance for testing."""
     # Local application imports
     from shot_model import Shot
@@ -970,7 +982,7 @@ def sample_shot():
 
 
 @pytest.fixture
-def shot_model(cache_manager):
+def shot_model(cache_manager: CacheManager) -> Any:
     """Create a ShotModel instance for testing."""
     # Local application imports
     from shot_model import ShotModel
@@ -979,7 +991,7 @@ def shot_model(cache_manager):
 
 
 @pytest.fixture
-def shot_model_with_shots(cache_manager):
+def shot_model_with_shots(cache_manager: CacheManager) -> Any:
     """Create a ShotModel with pre-populated shots."""
     # Local application imports
     from shot_model import Shot, ShotModel
@@ -999,7 +1011,7 @@ def shot_model_with_shots(cache_manager):
 
 
 @pytest.fixture
-def test_process_pool_with_data():
+def test_process_pool_with_data() -> Generator[TestProcessPool, None, None]:
     """TestProcessPool with common test data (UNIFIED_TESTING_GUIDE)."""
     pool = TestProcessPool()
     pool.set_outputs(
@@ -1012,7 +1024,7 @@ def test_process_pool_with_data():
 
 
 @pytest.fixture
-def test_image_file(tmp_path):
+def test_image_file(tmp_path: Path) -> Path:
     """Create a test image file for caching tests."""
     image_file = tmp_path / "test_image.jpg"
 
@@ -1042,7 +1054,7 @@ def test_image_file(tmp_path):
 
 
 @pytest.fixture
-def benchmark_timer():
+def benchmark_timer() -> type[Any]:
     """Simple timer for performance benchmarking."""
     # Standard library imports
     import time
@@ -1074,7 +1086,7 @@ def benchmark_timer():
 
 
 @pytest.fixture
-def memory_tracker():
+def memory_tracker() -> type[Any]:
     """Track memory usage for performance tests."""
     # Standard library imports
     import os
@@ -1118,12 +1130,12 @@ def memory_tracker():
 
 
 @pytest.fixture
-def concurrent_executor():
+def concurrent_executor() -> Callable[[Callable[..., Any], list[tuple[Any, ...]], int], list[Any]]:
     """Execute functions concurrently for thread safety testing."""
     # Standard library imports
     import concurrent.futures
 
-    def _execute_concurrent(func, args_list, max_workers=10):
+    def _execute_concurrent(func: Callable[..., Any], args_list: list[tuple[Any, ...]], max_workers: int = 10) -> list[Any]:
         """Execute function with different args concurrently.
 
         Args:
@@ -1143,7 +1155,7 @@ def concurrent_executor():
 
 
 @pytest.fixture
-def thread_safety_monitor():
+def thread_safety_monitor() -> Any:
     """Monitor for detecting thread safety violations."""
     # Standard library imports
     import threading
@@ -1151,10 +1163,10 @@ def thread_safety_monitor():
     class ThreadSafetyMonitor:
         def __init__(self) -> None:
             self.lock = threading.Lock()
-            self.violations = []
-            self.operations = []
+            self.violations: list[str] = []
+            self.operations: list[tuple[str, int | None, float]] = []
 
-        def record_operation(self, op_name, thread_id=None) -> None:
+        def record_operation(self, op_name: str, thread_id: int | None = None) -> None:
             """Record an operation for analysis."""
             if thread_id is None:
                 thread_id = threading.current_thread().ident
@@ -1162,7 +1174,7 @@ def thread_safety_monitor():
             with self.lock:
                 self.operations.append((op_name, thread_id, time.time()))
 
-        def record_violation(self, message) -> None:
+        def record_violation(self, message: str) -> None:
             """Record a thread safety violation."""
             with self.lock:
                 self.violations.append(message)
@@ -1173,9 +1185,9 @@ def thread_safety_monitor():
                 f"Thread safety violations detected: {self.violations}"
             )
 
-        def get_concurrent_operations(self):
+        def get_concurrent_operations(self) -> list[tuple[str, str]]:
             """Get operations that happened concurrently."""
-            concurrent = []
+            concurrent: list[tuple[str, str]] = []
             for i, (op1, tid1, time1) in enumerate(self.operations):
                 for op2, tid2, time2 in self.operations[i + 1 :]:
                     if tid1 != tid2 and abs(time1 - time2) < 0.001:  # Within 1ms
@@ -1191,7 +1203,7 @@ def thread_safety_monitor():
 
 
 @pytest.fixture(autouse=True)
-def ensure_clean_state_before_test():
+def ensure_clean_state_before_test() -> Generator[None, None, None]:
     """Ensure clean state BEFORE each test to prevent crashes.
 
     This fixture runs BEFORE each test to clean up any leftover state
@@ -1264,7 +1276,7 @@ def ensure_clean_state_before_test():
 
 
 @pytest.fixture(autouse=True)
-def cleanup_qt_resources():
+def cleanup_qt_resources() -> Generator[None, None, None]:
     """Clean up Qt resources after each test to prevent resource exhaustion.
 
     This fixture runs after each test to:
@@ -1404,7 +1416,7 @@ def cleanup_qt_resources():
 
 
 @pytest.fixture(autouse=True)
-def enhanced_mainwindow_cleanup():
+def enhanced_mainwindow_cleanup() -> Generator[None, None, None]:
     """Enhanced MainWindow and cache cleanup for test isolation.
 
     This fixture provides additional cleanup specifically for MainWindow
@@ -1483,7 +1495,7 @@ def enhanced_mainwindow_cleanup():
 
 
 @pytest.fixture(autouse=True)
-def mock_gui_blocking_components(monkeypatch):
+def mock_gui_blocking_components(monkeypatch: Any) -> TestProcessPool:
     """Automatically mock GUI components that can hang tests.
 
     This autouse fixture runs before every test to ensure:
@@ -1556,7 +1568,7 @@ def mock_gui_blocking_components(monkeypatch):
     class MockPersistentTerminalManager:
         """Mock PersistentTerminalManager that does nothing."""
 
-        def __init__(self, *args, **kwargs) -> None:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
 
         def send_command(self, command: str, ensure_terminal: bool = True) -> bool:
@@ -1593,7 +1605,7 @@ def mock_gui_blocking_components(monkeypatch):
 
 
 @pytest.fixture
-def launcher_controller_target(qtbot):
+def launcher_controller_target(qtbot: Any) -> Any:
     """Create a minimal target for LauncherController testing.
 
     This fixture provides the minimum interface required by LauncherController
@@ -1611,22 +1623,22 @@ def launcher_controller_target(qtbot):
         command_executed = Signal(str, str)
         command_error = Signal(str, str)
 
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__()
-            self.current_shot = None
+            self.current_shot: Any = None
 
-        def set_current_shot(self, shot):
+        def set_current_shot(self, shot: Any) -> None:
             self.current_shot = shot
 
-        def launch_app(self, *args, **kwargs):
+        def launch_app(self, *args: Any, **kwargs: Any) -> bool:
             return True
 
     class LauncherControllerTestTarget:
         """Minimal target implementing LauncherTarget protocol."""
 
-        def __init__(self):
+        def __init__(self) -> None:
             self.command_launcher = TestCommandLauncher()
-            self.launcher_manager = None
+            self.launcher_manager: Any = None
             self.launcher_panel = Mock()
             self.log_viewer = Mock()
             self.status_bar = Mock()
@@ -1641,7 +1653,7 @@ def launcher_controller_target(qtbot):
 
 
 @pytest.fixture
-def threede_controller_target(qtbot, launcher_controller_target):
+def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> Any:
     """Create a minimal target for ThreeDEController testing.
 
     This fixture provides the minimum interface required by ThreeDEController
@@ -1654,7 +1666,7 @@ def threede_controller_target(qtbot, launcher_controller_target):
     class ThreeDEControllerTestTarget:
         """Minimal target implementing ThreeDETarget protocol."""
 
-        def __init__(self, launcher_target):
+        def __init__(self, launcher_target: Any) -> None:
             # Create actual launcher controller for integration testing
             self.launcher_controller = LauncherController(launcher_target)
 
@@ -1697,7 +1709,7 @@ def threede_controller_target(qtbot, launcher_controller_target):
 # Note: qapp fixture scope is dynamically determined by pytest-qt
 # We enhance it here with xdist-specific cleanup only
 @pytest.fixture
-def qapp(qapp, request):
+def qapp(qapp: Any, request: Any) -> Generator[Any, None, None]:
     """Enhance qapp fixture with xdist worker-specific cleanup.
 
     When running tests in parallel with pytest-xdist, we need extra cleanup
@@ -1722,7 +1734,7 @@ def qapp(qapp, request):
         qapp.processEvents()
 
 
-def pytest_collection_modifyitems(items) -> None:
+def pytest_collection_modifyitems(items: list[Any]) -> None:
     """Configure test execution for parallel runs with pytest-xdist.
 
     This hook ensures that tests which create MainWindow instances run in a

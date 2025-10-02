@@ -16,8 +16,8 @@ from PySide6.QtCore import Qt
 # Local application imports
 from config import Config
 from threede_grid_view import ThreeDEGridView
+from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
-from unified_item_model import create_threede_item_model
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -52,7 +52,7 @@ def scene_model(sample_scenes):
 def threede_grid(qtbot, scene_model, sample_scenes):
     """Create a ThreeDEGridView instance for testing."""
     # Create the item model wrapper
-    item_model = create_threede_item_model()
+    item_model = ThreeDEItemModel()
     # Set the scenes in the model
     item_model.set_items(sample_scenes)
     # Create the view with the model

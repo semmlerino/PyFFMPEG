@@ -293,9 +293,6 @@ class TestSignalManager:
         count = manager.connect_worker_signals(worker, handlers)
         assert count == 3  # Only 3 should connect (nonexistent fails)
 
-    @pytest.mark.xfail(
-        reason="QTimer.singleShot may not fire reliably in test environment"
-    )
     def test_create_delayed_connection(self, signal_manager, qtbot) -> None:
         """Test creating a connection with a delay."""
         manager, owner = signal_manager
@@ -317,9 +314,8 @@ class TestSignalManager:
         qtbot.wait(20)
         assert len(received) == 0
 
-        # Should be received after delay - wait longer and process events
-        qtbot.wait(100)
-        QApplication.processEvents()
+        # Use waitUntil for more reliable Qt timer testing
+        qtbot.waitUntil(lambda: len(received) == 1, timeout=200)
         assert len(received) == 1
 
     def test_owner_weak_reference(self) -> None:
@@ -433,7 +429,6 @@ class TestSignalThrottler:
         # Should only have emitted once
         assert len(received) == 1
 
-    @pytest.mark.xfail(reason="QTimer may not fire reliably in test environment")
     def test_throttler_preserves_last_args(self, qtbot) -> None:
         """Test that throttler emits with last received arguments."""
         source = MockWidget()
@@ -448,9 +443,8 @@ class TestSignalThrottler:
         source.data_signal.emit("second")
         source.data_signal.emit("last")
 
-        # Wait for throttle interval
-        qtbot.wait(100)
-        QApplication.processEvents()
+        # Use waitUntil for more reliable Qt timer testing
+        qtbot.waitUntil(lambda: len(received) >= 1, timeout=200)
 
         # Should have emitted once with last value
         assert len(received) == 1

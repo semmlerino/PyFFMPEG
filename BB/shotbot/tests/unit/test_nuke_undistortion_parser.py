@@ -6,6 +6,8 @@ standard format, Python code handling, and node name sanitization.
 
 from unittest.mock import mock_open, patch
 
+import pytest
+
 from nuke_undistortion_parser import NukeUndistortionParser
 
 
@@ -238,51 +240,26 @@ Lens {
         assert "def test_function():" in result  # Should be dedented
         assert 'return "test"' in result  # Should preserve relative indentation
 
-    def test_adjust_ypos_in_line_basic(self) -> None:
-        """Test basic ypos adjustment."""
-        line = " ypos 100"
-        result = NukeUndistortionParser._adjust_ypos_in_line(line, -200)
+    @pytest.mark.parametrize(
+        "line,offset,expected",
+        [
+            (" ypos 100", -200, " ypos -100"),
+            (" ypos -50", -100, " ypos -150"),
+            (" xpos 100", -200, " xpos 100"),
+            (" ypos 100", 0, " ypos 100"),
+            (" ypos 100 ypos 200", -50, " ypos 50 ypos 150"),
+        ],
+        ids=["basic_positive", "negative_values", "no_ypos", "zero_offset", "multiple_ypos"],
+    )
+    def test_adjust_ypos_in_line(self, line: str, offset: int, expected: str) -> None:
+        """Test ypos adjustment in various scenarios."""
+        result = NukeUndistortionParser._adjust_ypos_in_line(line, offset)
+        assert result == expected
 
-        assert result == " ypos -100"
-
-    def test_adjust_ypos_in_line_negative(self) -> None:
-        """Test ypos adjustment with negative values."""
-        line = " ypos -50"
-        result = NukeUndistortionParser._adjust_ypos_in_line(line, -100)
-
-        assert result == " ypos -150"
-
-    def test_adjust_ypos_in_line_no_ypos(self) -> None:
-        """Test line without ypos (no change)."""
-        line = " xpos 100"
-        result = NukeUndistortionParser._adjust_ypos_in_line(line, -200)
-
-        assert result == " xpos 100"
-
-    def test_adjust_ypos_in_line_zero_offset(self) -> None:
-        """Test ypos adjustment with zero offset."""
-        line = " ypos 100"
-        result = NukeUndistortionParser._adjust_ypos_in_line(line, 0)
-
-        assert result == " ypos 100"
-
-    def test_adjust_ypos_in_line_multiple_ypos(self) -> None:
-        """Test line with multiple ypos values."""
-        line = " ypos 100 ypos 200"
-        result = NukeUndistortionParser._adjust_ypos_in_line(line, -50)
-
-        assert result == " ypos 50 ypos 150"
-
-    def test_sanitize_node_names_in_line_basic(self) -> None:
-        """Test basic node name sanitization."""
-        line = " name my-node-1"
-        result = NukeUndistortionParser._sanitize_node_names_in_line(line)
-
-        assert result == " name my_node_1"
-
-    def test_sanitize_node_names_in_line_special_chars(self) -> None:
-        """Test node name sanitization with various special characters."""
-        test_cases = [
+    @pytest.mark.parametrize(
+        "line,expected",
+        [
+            (" name my-node-1", " name my_node_1"),
             (" name node@123", " name node_123"),
             (" name node#456", " name node_456"),
             (" name node$789", " name node_789"),
@@ -292,53 +269,45 @@ Lens {
             (" name node(jkl)", " name node_jkl_"),
             (" name node[mno]", " name node_mno_"),
             (" name node{pqr}", " name node_pqr_"),
-        ]
-
-        for original, expected in test_cases:
-            result = NukeUndistortionParser._sanitize_node_names_in_line(original)
-            assert result == expected
-
-    def test_sanitize_node_names_in_line_no_name(self) -> None:
-        """Test line without name attribute (no change)."""
-        line = " xpos 100"
+            (" xpos 100", " xpos 100"),
+            (" name valid_node_123", " name valid_node_123"),
+        ],
+        ids=[
+            "basic_hyphen",
+            "at_symbol",
+            "hash",
+            "dollar",
+            "percent",
+            "ampersand",
+            "asterisk",
+            "parentheses",
+            "brackets",
+            "braces",
+            "no_name_attr",
+            "already_valid",
+        ],
+    )
+    def test_sanitize_node_names_in_line(self, line: str, expected: str) -> None:
+        """Test node name sanitization in various scenarios."""
         result = NukeUndistortionParser._sanitize_node_names_in_line(line)
+        assert result == expected
 
-        assert result == " xpos 100"
-
-    def test_sanitize_node_names_in_line_valid_name(self) -> None:
-        """Test node name that's already valid."""
-        line = " name valid_node_123"
-        result = NukeUndistortionParser._sanitize_node_names_in_line(line)
-
-        assert result == " name valid_node_123"
-
-    def test_should_skip_boilerplate_line_version(self) -> None:
-        """Test skipping version lines."""
-        assert NukeUndistortionParser._should_skip_boilerplate_line(
-            "version 12.0", "version 12.0"
-        )
-        assert NukeUndistortionParser._should_skip_boilerplate_line(
-            "  version 16.0 v4", "version 16.0 v4"
-        )
-
-    def test_should_skip_boilerplate_line_shebang(self) -> None:
-        """Test skipping shebang lines."""
-        assert NukeUndistortionParser._should_skip_boilerplate_line(
-            "#! /usr/local/Nuke", "#! /usr/local/Nuke"
-        )
-        assert NukeUndistortionParser._should_skip_boilerplate_line(
-            "#!/usr/bin/nuke", "#!/usr/bin/nuke"
-        )
-
-    def test_should_skip_boilerplate_line_cut_paste(self) -> None:
-        """Test skipping copy/paste specific lines."""
-        assert NukeUndistortionParser._should_skip_boilerplate_line(
-            "set cut_paste_input [stack 0]", "set cut_paste_input [stack 0]"
-        )
-        assert NukeUndistortionParser._should_skip_boilerplate_line(
-            "push $cut_paste_input", "push $cut_paste_input"
-        )
-        assert NukeUndistortionParser._should_skip_boilerplate_line("push 0", "push 0")
+    @pytest.mark.parametrize(
+        "line,original_line",
+        [
+            ("version 12.0", "version 12.0"),
+            ("  version 16.0 v4", "version 16.0 v4"),
+            ("#! /usr/local/Nuke", "#! /usr/local/Nuke"),
+            ("#!/usr/bin/nuke", "#!/usr/bin/nuke"),
+            ("set cut_paste_input [stack 0]", "set cut_paste_input [stack 0]"),
+            ("push $cut_paste_input", "push $cut_paste_input"),
+            ("push 0", "push 0"),
+        ],
+        ids=["version_basic", "version_with_spaces", "shebang_space", "shebang_no_space", "cut_paste_input", "push_cut_paste", "push_zero"],
+    )
+    def test_should_skip_boilerplate_line(self, line: str, original_line: str) -> None:
+        """Test skipping boilerplate lines."""
+        assert NukeUndistortionParser._should_skip_boilerplate_line(line, original_line)
 
     def test_should_skip_boilerplate_line_keep_normal(self) -> None:
         """Test not skipping normal lines."""

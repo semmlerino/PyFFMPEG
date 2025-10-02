@@ -6,7 +6,7 @@ from __future__ import annotations
 import subprocess
 from concurrent.futures import Future, TimeoutError
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 # Third-party imports
 import pytest
@@ -38,9 +38,10 @@ class TestTargetedShotsFinderInitialization:
         finder = TargetedShotsFinder(max_workers=4)
         assert finder.max_workers == 4
 
-    @patch("targeted_shot_finder.Config.SHOWS_ROOT", "/test/shows")
-    def test_shot_pattern_initialization(self) -> None:
+    def test_shot_pattern_initialization(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that shot pattern is initialized correctly."""
+        import targeted_shot_finder
+        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/test/shows")
         finder = TargetedShotsFinder()
         # Pattern should be based on SHOWS_ROOT
         assert finder._shot_pattern.pattern.startswith("/test/shows")
@@ -242,9 +243,10 @@ class TestScanShowForUser:
 class TestParseShotFromPath:
     """Test _parse_shot_from_path method."""
 
-    @patch("targeted_shot_finder.Config.SHOWS_ROOT", "/shows")
-    def test_parse_standard_path(self) -> None:
+    def test_parse_standard_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test parsing standard VFX shot path."""
+        import targeted_shot_finder
+        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
         path = "/shows/test_show/shots/010/010_0010/user/john"
@@ -256,9 +258,10 @@ class TestParseShotFromPath:
         assert shot.shot == "0010"  # Should extract shot number
         assert shot.workspace_path == "/shows/test_show/shots/010/010_0010"
 
-    @patch("targeted_shot_finder.Config.SHOWS_ROOT", "/shows")
-    def test_parse_path_without_underscore(self) -> None:
+    def test_parse_path_without_underscore(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test parsing path where shot dir has no underscore."""
+        import targeted_shot_finder
+        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
         path = "/shows/test_show/shots/010/0010/user/john"
@@ -267,9 +270,10 @@ class TestParseShotFromPath:
         assert shot is not None
         assert shot.shot == "0010"  # Should use whole name
 
-    @patch("targeted_shot_finder.Config.SHOWS_ROOT", "/shows")
-    def test_parse_path_with_complex_shot_name(self) -> None:
+    def test_parse_path_with_complex_shot_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test parsing path with complex shot name."""
+        import targeted_shot_finder
+        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
         path = "/shows/test_show/shots/010/010_0010_extra/user/john"
@@ -287,9 +291,12 @@ class TestParseShotFromPath:
 
         assert shot is None
 
-    @patch("targeted_shot_finder.Config.SHOWS_ROOT", "/shows")
-    def test_parse_path_with_empty_shot(self) -> None:
+    def test_parse_path_with_empty_shot(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test handling path that results in empty shot."""
+        import targeted_shot_finder
+        from unittest.mock import patch
+
+        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
         # Create a path that would result in empty shot after processing
@@ -302,9 +309,12 @@ class TestParseShotFromPath:
             mock_debug.assert_called()
             assert "Empty shot extracted" in mock_debug.call_args[0][0]
 
-    @patch("targeted_shot_finder.Config.SHOWS_ROOT", "/shows")
-    def test_parse_with_shot_creation_error(self) -> None:
+    def test_parse_with_shot_creation_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test handling Shot creation errors."""
+        import targeted_shot_finder
+        from unittest.mock import patch
+
+        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
         path = "/shows/test_show/shots/010/010_0010/user/john"
@@ -323,9 +333,11 @@ class TestParseShotFromPath:
 class TestFindUserShotsInShows:
     """Test find_user_shots_in_shows method."""
 
-    @patch("targeted_shot_finder.Config.SHOWS_ROOT", "/shows")
-    def test_find_in_target_shows(self, tmp_path: Path) -> None:
+    def test_find_in_target_shows(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Test finding shots in targeted shows."""
+        import targeted_shot_finder
+
+        monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder(username="john")
 
         target_shows = {"show1", "show2"}
@@ -697,9 +709,9 @@ class TestEdgeCases:
                     mock_error.assert_called()
                     assert "Error processing" in mock_error.call_args[0][0]
 
-    @patch("shot_finder_base.os.environ", {"SHOTBOT_MOCK": "1"})
-    def test_mock_mode_username(self) -> None:
+    def test_mock_mode_username(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test username handling in mock mode."""
+        monkeypatch.setenv("SHOTBOT_MOCK", "1")
         # In mock mode, should use gabriel-h
         finder = TargetedShotsFinder()
         assert finder.username == "gabriel-h"

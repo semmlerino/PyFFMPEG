@@ -99,7 +99,7 @@ class TestMainWindowLauncherIntegration:
         """Test that launcher panel is properly initialized in main window."""
         # We need to patch process pool creation to avoid real VFX dependencies
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -121,7 +121,7 @@ class TestMainWindowLauncherIntegration:
     def test_shot_selection_enables_launcher_panel(self, qtbot, make_shot) -> None:
         """Test that selecting a shot properly enables the launcher panel."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -151,7 +151,7 @@ class TestMainWindowLauncherIntegration:
     def test_app_launch_signal_flow_through_main_window(self, qtbot, make_shot) -> None:
         """Test complete signal flow from launcher panel through main window."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -193,7 +193,7 @@ class TestMainWindowLauncherIntegration:
     def test_multiple_app_launches_through_main_window(self, qtbot, make_shot) -> None:
         """Test launching multiple applications through the integrated workflow."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -233,7 +233,7 @@ class TestMainWindowLauncherIntegration:
     ) -> None:
         """Test that checkbox options are properly accessed through main window."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -263,7 +263,7 @@ class TestMainWindowLauncherIntegration:
     def test_custom_launcher_integration(self, qtbot, make_shot) -> None:
         """Test custom launcher functionality through main window."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -332,7 +332,7 @@ class TestEndToEndLauncherWorkflow:
     def test_complete_nuke_launch_workflow(self, qtbot, make_shot) -> None:
         """Test complete workflow: shot selection -> option configuration -> nuke launch."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -398,7 +398,7 @@ class TestEndToEndLauncherWorkflow:
     def test_3de_launch_with_scene_options(self, qtbot, make_shot) -> None:
         """Test 3DE launch workflow with scene opening option."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -445,7 +445,7 @@ class TestEndToEndLauncherWorkflow:
     def test_launcher_panel_state_persistence(self, qtbot, make_shot) -> None:
         """Test that launcher panel maintains state correctly during shot changes."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -478,7 +478,7 @@ class TestEndToEndLauncherWorkflow:
     def test_rapid_shot_switching_stability(self, qtbot, make_shot) -> None:
         """Test launcher panel stability during rapid shot switching."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -522,7 +522,7 @@ class TestLauncherIntegrationErrorHandling:
     def test_main_window_without_shot_model(self, qapp, qtbot) -> None:
         """Test launcher panel behavior when shot model is not available."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -537,7 +537,7 @@ class TestLauncherIntegrationErrorHandling:
     def test_launcher_panel_with_invalid_shot_data(self, qapp, qtbot) -> None:
         """Test launcher panel behavior with invalid shot data."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool
@@ -556,7 +556,7 @@ class TestLauncherIntegrationErrorHandling:
     def test_signal_disconnection_handling(self, qtbot, make_shot) -> None:
         """Test that launcher panel handles signal disconnection gracefully."""
         with patch(
-            "process_pool_factory.ProcessPoolFactory.get_instance"
+            "process_pool_manager.ProcessPoolManager.get_instance"
         ) as mock_factory:
             mock_pool = TestProcessPool()
             mock_factory.return_value = mock_pool

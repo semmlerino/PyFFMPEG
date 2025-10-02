@@ -106,6 +106,7 @@ def test_custom_injection() -> None:
 
     # Local application imports
     from process_pool_factory import ProcessPoolFactory, get_process_pool
+
     from tests.test_doubles_library import TestProcessPool
 
     # Reset to clean state
@@ -171,6 +172,7 @@ def test_backward_compatibility() -> None:
 
     # Local application imports
     from process_pool_factory import ProcessPoolFactory
+
     from process_pool_manager import ProcessPoolManager
 
     # Reset to clean state

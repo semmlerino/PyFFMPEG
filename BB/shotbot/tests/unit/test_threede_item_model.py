@@ -17,8 +17,8 @@ from PySide6.QtGui import QImage
 # Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import TestCacheManager
+from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene
-from unified_item_model import create_threede_item_model
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -28,7 +28,7 @@ def model(qtbot):
     """Create a ThreeDEItemModel instance for testing."""
     # Use test double instead of Mock(spec=)
     cache_manager = TestCacheManager()
-    model = create_threede_item_model(cache_manager=cache_manager)
+    model = ThreeDEItemModel(cache_manager=cache_manager)
     # Models are not widgets, don't add to qtbot
     return model
 
@@ -319,7 +319,7 @@ class TestDataIntegrity:
     def test_role_data_consistency(self, model, test_scenes) -> None:
         """Test that all data roles return consistent data."""
         # Local application imports
-        from unified_item_model import UnifiedRole as ThreeDERole
+        from base_item_model import BaseItemRole as ThreeDERole
 
         model.set_scenes(test_scenes)
 

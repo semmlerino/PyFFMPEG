@@ -30,6 +30,9 @@ from PySide6.QtTest import QSignalSpy, QTest
 
 # Local application imports
 from shot_grid_view import ShotGridView  # Modern Model/View
+
+# from shot_grid import ShotGrid  # Module deleted during Model/View migration
+from shot_item_model import ShotItemModel
 from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -37,9 +40,6 @@ from tests.test_doubles_library import (
     TestCacheManager,
     TestShot,
 )
-
-# from shot_grid import ShotGrid  # Module deleted during Model/View migration
-from unified_item_model import create_shot_item_model
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -63,7 +63,7 @@ class TestShotGridView:
     def shot_item_model(self, test_shots):
         """Create real ShotItemModel with TestCacheManager for testing."""
         test_cache_manager = TestCacheManager()
-        model = create_shot_item_model(cache_manager=test_cache_manager)
+        model = ShotItemModel(cache_manager=test_cache_manager)
         # Convert TestShot to Shot objects for ShotItemModel
         shot_objects = [
             Shot(shot.show, shot.sequence, shot.shot, shot.workspace_path)
@@ -241,7 +241,7 @@ class TestShotGridIntegration:
         """Create fully integrated ShotGridView for testing."""
         # Create model with test cache manager and shots
         test_cache_manager = TestCacheManager()
-        model = create_shot_item_model(cache_manager=test_cache_manager)
+        model = ShotItemModel(cache_manager=test_cache_manager)
         # integration_shots are already Shot objects from make_test_shot fixture
         model.set_shots(integration_shots)
 

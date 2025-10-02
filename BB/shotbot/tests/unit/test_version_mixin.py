@@ -7,6 +7,9 @@ import re
 from pathlib import Path
 from unittest.mock import patch
 
+# Third-party imports
+import pytest
+
 # Local application imports
 from version_mixin import VersionHandlingMixin
 
@@ -140,13 +143,21 @@ class TestFindLatestByVersion:
         latest = obj._find_latest_by_version(files)
         assert latest == Path("file_v005.ma")
 
-    def test_find_latest_empty_list(self) -> None:
-        """Test with empty file list."""
+    @pytest.mark.parametrize(
+        "files",
+        [
+            [],
+            [Path("file_without_version.ma"), Path("another_file.txt")],
+        ],
+        ids=["empty_list", "no_versioned_files"],
+    )
+    def test_find_latest_returns_none(self, files: list[Path]) -> None:
+        """Test that None is returned when no versioned files."""
         obj = ConcreteVersionClass()
-        assert obj._find_latest_by_version([]) is None
+        assert obj._find_latest_by_version(files) is None
 
-    def test_find_latest_no_versioned_files(self) -> None:
-        """Test with no versioned files."""
+    def test_find_latest_no_versioned_files_logging(self) -> None:
+        """Test logging when no versioned files found."""
         obj = ConcreteVersionClass()
         files = [
             Path("file_without_version.ma"),
@@ -214,15 +225,17 @@ class TestFindEarliestByVersion:
         earliest = obj._find_earliest_by_version(files)
         assert earliest == Path("file_v001.ma")
 
-    def test_find_earliest_empty_list(self) -> None:
-        """Test with empty file list."""
+    @pytest.mark.parametrize(
+        "files",
+        [
+            [],
+            [Path("no_version.ma")],
+        ],
+        ids=["empty_list", "no_versioned"],
+    )
+    def test_find_earliest_returns_none(self, files: list[Path]) -> None:
+        """Test that None is returned when no versioned files."""
         obj = ConcreteVersionClass()
-        assert obj._find_earliest_by_version([]) is None
-
-    def test_find_earliest_no_versioned(self) -> None:
-        """Test with no versioned files."""
-        obj = ConcreteVersionClass()
-        files = [Path("no_version.ma")]
         assert obj._find_earliest_by_version(files) is None
 
     def test_find_earliest_logging(self) -> None:

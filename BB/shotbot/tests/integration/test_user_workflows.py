@@ -707,21 +707,25 @@ class TestUserWorkflows:
         cache_manager = CacheManager(cache_dir=self.cache_dir)
 
         # Use a mock process pool to prevent workspace command execution
+        # Standard library imports
+        from unittest.mock import patch
+
         # Local application imports
         from tests.test_doubles_library import TestProcessPool
 
         test_pool = TestProcessPool()
         test_pool.set_outputs("")  # Empty output, no shots
 
-        # Local application imports
-        from process_pool_factory import ProcessPoolFactory
-
-        ProcessPoolFactory._test_instance = test_pool
-
         # Disable initial load to prevent cache interference
         os.environ["SHOTBOT_NO_INITIAL_LOAD"] = "1"
 
-        main_window = MainWindow(cache_manager=cache_manager)
+        # Patch ProcessPoolManager to return our test pool
+        # Only needs to be active during MainWindow.__init__
+        with patch(
+            "process_pool_manager.ProcessPoolManager.get_instance",
+            return_value=test_pool,
+        ):
+            main_window = MainWindow(cache_manager=cache_manager)
 
         # Clear the flag
         del os.environ["SHOTBOT_NO_INITIAL_LOAD"]
@@ -845,7 +849,7 @@ class TestUserWorkflows:
 
         # Test that we can access shots from the model
         # Local application imports
-        from unified_item_model import UnifiedRole
+        from base_item_model import BaseItemRole as UnifiedRole
 
         for i in range(main_window.shot_item_model.rowCount()):
             index = main_window.shot_item_model.index(i, 0)

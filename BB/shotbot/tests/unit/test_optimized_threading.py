@@ -29,6 +29,8 @@ from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
 from shot_model import AsyncShotLoader, ShotModel
 
+pytestmark = pytest.mark.thread_safety
+
 
 class TestAsyncShotLoaderThreadSafety:
     """Test thread safety of AsyncShotLoader."""

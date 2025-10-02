@@ -24,7 +24,6 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -255,10 +254,12 @@ class TestPathUtils:
         result = PathUtils.safe_mkdir(None, "None path")
         assert result is False
 
-    @patch("pathlib.Path.mkdir")
-    def test_safe_mkdir_permission_error(self, mock_mkdir) -> None:
+    def test_safe_mkdir_permission_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test mkdir with permission error."""
-        mock_mkdir.side_effect = PermissionError("Permission denied")
+        def raise_permission_error(*args, **kwargs):
+            raise PermissionError("Permission denied")
+
+        monkeypatch.setattr(Path, "mkdir", raise_permission_error)
 
         result = PathUtils.safe_mkdir("/some/path", "Permission test")
         assert result is False
@@ -1140,9 +1141,9 @@ class TestPlateDiscoveryCaseInsensitive:
         # Verify priorities are assigned correctly despite case
         plate_dict = dict(result)
         assert plate_dict["fg01"] == 0  # FG priority
+        assert plate_dict["pl01"] == 0.5  # PL priority (in Config.TURNOVER_PLATE_PRIORITY)
         assert plate_dict["bg02"] == 1  # BG priority
         assert plate_dict["el01"] == 2  # EL priority
-        assert plate_dict["pl01"] == 3  # PL priority (should be in Config.TURNOVER_PLATE_PRIORITY)
 
     def test_discover_plate_directories_mixed_case(self, tmp_path) -> None:
         """Test mixed case plate names (Pl01, FG01, eL02)."""
@@ -1166,8 +1167,8 @@ class TestPlateDiscoveryCaseInsensitive:
 
         # Priorities should be correct
         assert plate_dict["FG01"] == 0  # FG
+        assert plate_dict["Pl01"] == 0.5  # PL (now in Config.TURNOVER_PLATE_PRIORITY)
         assert plate_dict["eL02"] == 2  # EL
-        assert plate_dict["Pl01"] == 3  # PL (if not in config, should be 3 from wildcard)
 
     def test_discover_plate_directories_priority_ordering_case_insensitive(
         self, tmp_path

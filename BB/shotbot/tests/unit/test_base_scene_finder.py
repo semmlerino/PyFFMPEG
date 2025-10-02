@@ -215,16 +215,15 @@ class TestBaseSceneFinder:
         assert len(grouped["bob"]) == 1
         assert len(grouped["charlie"]) == 1
 
-    def test_validate_workspace_none(self) -> None:
-        """Test workspace validation with None."""
+    @pytest.mark.parametrize(
+        "workspace",
+        [None, ""],
+        ids=["none", "empty_string"],
+    )
+    def test_validate_workspace_returns_none(self, workspace: str | None) -> None:
+        """Test workspace validation returns None for invalid inputs."""
         finder = ConcreteSceneFinder()
-        result = finder._validate_workspace(None)
-        assert result is None
-
-    def test_validate_workspace_empty_string(self) -> None:
-        """Test workspace validation with empty string."""
-        finder = ConcreteSceneFinder()
-        result = finder._validate_workspace("")
+        result = finder._validate_workspace(workspace)
         assert result is None
 
     def test_validate_workspace_valid(self, tmp_path: Path) -> None:

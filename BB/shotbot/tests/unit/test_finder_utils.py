@@ -5,7 +5,6 @@ from __future__ import annotations
 # Standard library imports
 import re
 from pathlib import Path
-from unittest.mock import patch
 
 # Third-party imports
 import pytest
@@ -18,33 +17,50 @@ from finder_utils import FinderUtils
 class TestSanitizeUsername:
     """Test username sanitization functionality."""
 
-    def test_valid_usernames(self) -> None:
+    @pytest.mark.parametrize(
+        "username,expected",
+        [
+            ("john_doe", "john_doe"),
+            ("user123", "user123"),
+            ("test-user", "test-user"),
+            ("UPPERCASE", "UPPERCASE"),
+        ],
+        ids=["underscore", "alphanumeric", "hyphen", "uppercase"],
+    )
+    def test_valid_usernames(self, username: str, expected: str) -> None:
         """Test that valid usernames pass through unchanged."""
-        assert FinderUtils.sanitize_username("john_doe") == "john_doe"
-        assert FinderUtils.sanitize_username("user123") == "user123"
-        assert FinderUtils.sanitize_username("test-user") == "test-user"
-        assert FinderUtils.sanitize_username("UPPERCASE") == "UPPERCASE"
+        assert FinderUtils.sanitize_username(username) == expected
 
-    def test_path_traversal_removal(self) -> None:
+    @pytest.mark.parametrize(
+        "username,expected",
+        [
+            ("user/../etc", "useretc"),
+            ("./user", "user"),
+            ("user\\system", "usersystem"),
+            ("user/admin", "useradmin"),
+        ],
+        ids=["parent_dir", "current_dir", "backslash", "forward_slash"],
+    )
+    def test_path_traversal_removal(self, username: str, expected: str) -> None:
         """Test that path traversal characters are removed."""
-        assert FinderUtils.sanitize_username("user/../etc") == "useretc"
-        assert FinderUtils.sanitize_username("./user") == "user"
-        assert FinderUtils.sanitize_username("user\\system") == "usersystem"
-        assert FinderUtils.sanitize_username("user/admin") == "useradmin"
+        assert FinderUtils.sanitize_username(username) == expected
 
-    def test_invalid_usernames_raise_error(self) -> None:
+    @pytest.mark.parametrize(
+        "username,error_match",
+        [
+            ("...", "Invalid username after sanitization"),
+            ("", "Invalid username after sanitization"),
+            ("user@domain", "Username contains invalid characters"),
+            ("user!name", "Username contains invalid characters"),
+        ],
+        ids=["dots_only", "empty_string", "at_symbol", "exclamation"],
+    )
+    def test_invalid_usernames_raise_error(
+        self, username: str, error_match: str
+    ) -> None:
         """Test that invalid usernames raise ValueError."""
-        with pytest.raises(ValueError, match="Invalid username after sanitization"):
-            FinderUtils.sanitize_username("...")
-
-        with pytest.raises(ValueError, match="Invalid username after sanitization"):
-            FinderUtils.sanitize_username("")
-
-        with pytest.raises(ValueError, match="Username contains invalid characters"):
-            FinderUtils.sanitize_username("user@domain")
-
-        with pytest.raises(ValueError, match="Username contains invalid characters"):
-            FinderUtils.sanitize_username("user!name")
+        with pytest.raises(ValueError, match=error_match):
+            FinderUtils.sanitize_username(username)
 
     def test_edge_cases(self) -> None:
         """Test edge cases for username sanitization."""
@@ -60,12 +76,19 @@ class TestSanitizeUsername:
 class TestExtractVersion:
     """Test version extraction functionality."""
 
-    def test_default_pattern(self) -> None:
+    @pytest.mark.parametrize(
+        "path,expected",
+        [
+            (Path("file_v001.ma"), 1),
+            (Path("scene_v042.3de"), 42),
+            (Path("render_v999.exr"), 999),
+            ("string_path_v123.txt", 123),
+        ],
+        ids=["v001_maya", "v042_3de", "v999_exr", "string_path"],
+    )
+    def test_default_pattern(self, path, expected: int) -> None:
         """Test version extraction with default pattern."""
-        assert FinderUtils.extract_version(Path("file_v001.ma")) == 1
-        assert FinderUtils.extract_version(Path("scene_v042.3de")) == 42
-        assert FinderUtils.extract_version(Path("render_v999.exr")) == 999
-        assert FinderUtils.extract_version("string_path_v123.txt") == 123
+        assert FinderUtils.extract_version(path) == expected
 
     def test_custom_pattern_string(self) -> None:
         """Test version extraction with custom string pattern."""
@@ -79,11 +102,18 @@ class TestExtractVersion:
         assert FinderUtils.extract_version("file_ver01.txt", pattern) == 1
         assert FinderUtils.extract_version("scene_ver99.ma", pattern) == 99
 
-    def test_no_version_found(self) -> None:
+    @pytest.mark.parametrize(
+        "path",
+        [
+            Path("file_without_version.txt"),
+            "no_version_here.ma",
+            "v_but_no_numbers.txt",
+        ],
+        ids=["no_version_pattern", "missing_version", "v_without_numbers"],
+    )
+    def test_no_version_found(self, path) -> None:
         """Test that None is returned when no version found."""
-        assert FinderUtils.extract_version(Path("file_without_version.txt")) is None
-        assert FinderUtils.extract_version("no_version_here.ma") is None
-        assert FinderUtils.extract_version("v_but_no_numbers.txt") is None
+        assert FinderUtils.extract_version(path) is None
 
     def test_multiple_versions(self) -> None:
         """Test that first matching version is extracted."""
@@ -96,32 +126,49 @@ class TestExtractVersion:
 class TestBuildUserPath:
     """Test VFX user path building."""
 
-    def test_maya_path(self) -> None:
-        """Test Maya application path building."""
-        workspace = Path("/shows/test/shots/010/0010")
-        path = FinderUtils.build_user_path(workspace, "john", "maya")
-        assert path == Path("/shows/test/shots/010/0010/user/john/maya/scenes")
-
-    def test_nuke_path(self) -> None:
-        """Test Nuke application path building."""
-        workspace = Path("/shows/test/shots/020/0020")
-        path = FinderUtils.build_user_path(workspace, "jane", "nuke")
-        assert path == Path("/shows/test/shots/020/0020/user/jane/nuke/scenes")
-
-    def test_3de_special_path(self) -> None:
-        """Test 3DE special directory structure."""
-        workspace = Path("/shows/test/shots/030/0030")
-        path = FinderUtils.build_user_path(workspace, "bob", "3de")
-        expected = Path(
-            "/shows/test/shots/030/0030/user/bob/mm/3de/mm-default/scenes/scene"
-        )
+    @pytest.mark.parametrize(
+        "workspace,username,app,subdir,expected",
+        [
+            (
+                Path("/shows/test/shots/010/0010"),
+                "john",
+                "maya",
+                None,
+                Path("/shows/test/shots/010/0010/user/john/maya/scenes"),
+            ),
+            (
+                Path("/shows/test/shots/020/0020"),
+                "jane",
+                "nuke",
+                None,
+                Path("/shows/test/shots/020/0020/user/jane/nuke/scenes"),
+            ),
+            (
+                Path("/shows/test/shots/030/0030"),
+                "bob",
+                "3de",
+                None,
+                Path("/shows/test/shots/030/0030/user/bob/mm/3de/mm-default/scenes/scene"),
+            ),
+            (
+                Path("/shows/test/shots/040/0040"),
+                "alice",
+                "maya",
+                "scripts",
+                Path("/shows/test/shots/040/0040/user/alice/maya/scripts"),
+            ),
+        ],
+        ids=["maya_default", "nuke_default", "3de_special", "maya_custom_subdir"],
+    )
+    def test_build_paths(
+        self, workspace: Path, username: str, app: str, subdir: str | None, expected: Path
+    ) -> None:
+        """Test VFX user path building for different apps."""
+        if subdir:
+            path = FinderUtils.build_user_path(workspace, username, app, subdir)
+        else:
+            path = FinderUtils.build_user_path(workspace, username, app)
         assert path == expected
-
-    def test_custom_subdir(self) -> None:
-        """Test custom subdirectory specification."""
-        workspace = Path("/shows/test/shots/040/0040")
-        path = FinderUtils.build_user_path(workspace, "alice", "maya", "scripts")
-        assert path == Path("/shows/test/shots/040/0040/user/alice/maya/scripts")
 
     def test_3de_ignores_subdir(self) -> None:
         """Test that 3DE ignores custom subdir parameter."""
@@ -148,16 +195,16 @@ class TestFindLatestByVersion:
         latest = FinderUtils.find_latest_by_version(files)
         assert latest == Path("file_v005.ma")
 
-    def test_empty_list_returns_none(self) -> None:
-        """Test that empty list returns None."""
-        assert FinderUtils.find_latest_by_version([]) is None
-
-    def test_no_versioned_files_returns_none(self) -> None:
-        """Test that list with no versioned files returns None."""
-        files = [
-            Path("file_without_version.ma"),
-            Path("another_file.txt"),
-        ]
+    @pytest.mark.parametrize(
+        "files",
+        [
+            [],
+            [Path("file_without_version.ma"), Path("another_file.txt")],
+        ],
+        ids=["empty_list", "no_versioned_files"],
+    )
+    def test_returns_none_when_no_version(self, files: list[Path]) -> None:
+        """Test that None is returned when no versioned files."""
         assert FinderUtils.find_latest_by_version(files) is None
 
     def test_mixed_versioned_and_unversioned(self) -> None:
@@ -278,55 +325,55 @@ class TestSortByPriority:
 class TestParseShotPath:
     """Test shot path parsing."""
 
-    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_valid_shot_path(self) -> None:
+    def test_valid_shot_path(self, mock_shows_root: str) -> None:
         """Test parsing valid VFX shot path."""
         path = "/tmp/mock_vfx/shows/test_show/shots/010/0010/user/john/maya/scenes"
         result = FinderUtils.parse_shot_path(path)
         assert result == ("test_show", "010", "0010")
 
-    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_partial_shot_path(self) -> None:
+    def test_partial_shot_path(self, mock_shows_root: str) -> None:
         """Test parsing path up to shot level."""
         path = "/tmp/mock_vfx/shows/myshow/shots/020/0020/"
         result = FinderUtils.parse_shot_path(path)
         assert result == ("myshow", "020", "0020")
 
-    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_invalid_path_returns_none(self) -> None:
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/tmp/mock_vfx/shows/test/010/0010",  # Missing shots directory
+            "/different/root/test/shots/010/0010",  # Not under shows root
+            "",  # Empty path
+        ],
+        ids=["missing_shots_dir", "wrong_root", "empty_path"],
+    )
+    def test_invalid_path_returns_none(self, mock_shows_root: str, path: str) -> None:
         """Test that invalid paths return None."""
-        # Missing shots directory
-        assert FinderUtils.parse_shot_path("/tmp/mock_vfx/shows/test/010/0010") is None
-        # Not under shows root
-        assert (
-            FinderUtils.parse_shot_path("/different/root/test/shots/010/0010") is None
-        )
-        # Empty path
-        assert FinderUtils.parse_shot_path("") is None
+        assert FinderUtils.parse_shot_path(path) is None
 
 
 class TestGetWorkspaceFromPath:
     """Test workspace extraction from path."""
 
-    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_extract_workspace(self) -> None:
+    def test_extract_workspace(self, mock_shows_root: str) -> None:
         """Test extracting workspace from full path."""
         path = "/tmp/mock_vfx/shows/test/shots/010/0010/user/john/maya/scenes/file.ma"
         workspace = FinderUtils.get_workspace_from_path(path)
         assert workspace == "/tmp/mock_vfx/shows/test/shots/010/0010"
 
-    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_invalid_path_returns_none(self) -> None:
+    @pytest.mark.parametrize(
+        "path",
+        ["/invalid/path", ""],
+        ids=["invalid_path", "empty_path"],
+    )
+    def test_invalid_path_returns_none(self, mock_shows_root: str, path: str) -> None:
         """Test that invalid paths return None."""
-        assert FinderUtils.get_workspace_from_path("/invalid/path") is None
-        assert FinderUtils.get_workspace_from_path("") is None
+        assert FinderUtils.get_workspace_from_path(path) is None
 
 
 class TestIsValidVfxPath:
     """Test VFX path validation."""
 
-    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_valid_vfx_paths(self) -> None:
+    def test_valid_vfx_paths(self, mock_shows_root: str) -> None:
         """Test that valid VFX paths return True."""
         assert (
             FinderUtils.is_valid_vfx_path("/tmp/mock_vfx/shows/test/shots/010/0010/")
@@ -339,8 +386,7 @@ class TestIsValidVfxPath:
             is True
         )
 
-    @patch.object(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
-    def test_invalid_vfx_paths(self) -> None:
+    def test_invalid_vfx_paths(self, mock_shows_root: str) -> None:
         """Test that invalid paths return False."""
         assert FinderUtils.is_valid_vfx_path("/random/path") is False
         assert FinderUtils.is_valid_vfx_path("") is False

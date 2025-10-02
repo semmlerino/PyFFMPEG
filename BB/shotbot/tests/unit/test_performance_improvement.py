@@ -11,9 +11,14 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
 
+# Third-party imports
+import pytest
+
 # Set up minimal environment
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"
+
+pytestmark = pytest.mark.performance
 
 
 def test_original_startup() -> dict[str, Any]:

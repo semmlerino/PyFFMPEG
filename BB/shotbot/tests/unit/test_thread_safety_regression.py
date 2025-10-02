@@ -23,6 +23,8 @@ from process_pool_manager import ProcessPoolManager
 from shot_model import AsyncShotLoader, RefreshResult, ShotModel
 from tests.test_doubles_library import TestProcessPool
 
+pytestmark = pytest.mark.thread_safety
+
 
 class TestConditionVariableFix:
     """Test that the condition variable fix prevents race conditions."""

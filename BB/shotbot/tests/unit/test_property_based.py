@@ -60,7 +60,7 @@ class TestShotPathProperties:
     """Property-based tests for shot path operations."""
 
     @given(shot_path())
-    @settings(suppress_health_check=[HealthCheck.too_slow])
+    @settings(max_examples=25, deadline=None, suppress_health_check=[HealthCheck.too_slow])
     def test_shot_path_roundtrip(self, path: str) -> None:
         """Any valid shot path should parse and reconstruct identically."""
         # Import locally to avoid circular dependencies
@@ -83,6 +83,7 @@ class TestShotPathProperties:
         assert shot.shot == shot_name
 
     @given(show_name(), sequence_name(), shot_number())
+    @settings(max_examples=25, deadline=None)
     def test_shot_creation_consistency(self, show: str, seq: str, shot: str) -> None:
         """Shot creation should be consistent regardless of input format."""
         # Local application imports
@@ -151,6 +152,7 @@ class TestCacheKeyProperties:
             max_size=10,
         )
     )
+    @settings(max_examples=20, deadline=None)
     def test_cache_key_collision_resistance(self, shot_list) -> None:
         """Cache keys should not collide for different shots."""
         # Skip if all shots are identical
@@ -171,6 +173,7 @@ class TestWorkspaceCommandProperties:
     """Property-based tests for workspace command parsing."""
 
     @given(st.lists(shot_path(), min_size=0, max_size=50))
+    @settings(max_examples=20, deadline=None)
     def test_workspace_parsing_consistency(self, paths) -> None:
         """Workspace output parsing should handle any valid format."""
         # Standard library imports

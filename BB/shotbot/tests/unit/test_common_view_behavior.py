@@ -64,12 +64,12 @@ def make_model(qtbot, make_shot, cache_manager):
             shots = [make_shot()]
 
         if model_class_name == "ShotItemModel":
+            from shot_item_model import ShotItemModel
             from shot_model import ShotModel
-            from unified_item_model import create_shot_item_model
 
             shot_model = ShotModel(cache_manager=cache_manager)
             shot_model._shots = shots
-            item_model = create_shot_item_model(shot_model)
+            item_model = ShotItemModel(cache_manager=cache_manager)
             # Properly initialize the item model with shots
             item_model.set_items(shots)
             return item_model
@@ -92,22 +92,22 @@ def make_model(qtbot, make_shot, cache_manager):
                 for s in shots
             ]
             scene_model.scenes = scenes
-            from unified_item_model import create_threede_item_model
-            item_model = create_threede_item_model(scene_model)
+            from threede_item_model import ThreeDEItemModel
+            item_model = ThreeDEItemModel(cache_manager=cache_manager)
             # Properly initialize the item model with scenes
             item_model.set_items(scenes)
             return item_model
 
         elif model_class_name == "PreviousShotsItemModel":
+            from previous_shots_item_model import PreviousShotsItemModel
             from previous_shots_model import PreviousShotsModel
             from shot_model import ShotModel
-            from unified_item_model import create_previous_shots_item_model
 
             # PreviousShotsModel requires a shot_model
             shot_model = ShotModel(cache_manager=cache_manager)
             prev_model = PreviousShotsModel(shot_model)
             prev_model._shots = shots
-            item_model = create_previous_shots_item_model(prev_model)
+            item_model = PreviousShotsItemModel(prev_model, cache_manager=cache_manager)
             # Manually set items since UnifiedItemModel doesn't have _update_shots()
             item_model.set_items(shots)
             return item_model

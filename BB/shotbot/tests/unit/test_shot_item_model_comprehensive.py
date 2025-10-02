@@ -21,9 +21,10 @@ from PySide6.QtTest import QSignalSpy
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
+from base_item_model import BaseItemRole as UnifiedRole
+from shot_item_model import ShotItemModel
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
-from unified_item_model import UnifiedRole, create_shot_item_model
 
 # Backward compatibility alias
 ShotRole = UnifiedRole
@@ -47,7 +48,7 @@ class TestAsyncCallbackRaceConditions:
     @pytest.fixture
     def model(self, test_cache_manager, qtbot):
         """Create ShotItemModel with test cache manager."""
-        model = create_shot_item_model(test_cache_manager)
+        model = ShotItemModel(test_cache_manager)
         # Don't use qtbot.addWidget() for QAbstractItemModel (UNIFIED_TESTING_GUIDE)
         yield model
         model.clear_thumbnail_cache()
@@ -63,20 +64,20 @@ class TestAsyncCallbackRaceConditions:
         ]
 
     def test_find_shot_by_full_name_race_protection(self, model, test_shots) -> None:
-        """Test _find_item_by_full_name handles concurrent access safely."""
+        """Test _find_shot_by_full_name handles concurrent access safely."""
         model.set_shots(test_shots)
 
         target_shot = test_shots[1]
 
         # Should find existing shot
-        result = model._find_item_by_full_name(target_shot.full_name)
+        result = model._find_shot_by_full_name(target_shot.full_name)
         assert result is not None
         shot, row = result
         assert shot.full_name == target_shot.full_name
         assert row == 1
 
         # Should return None for non-existent shot
-        result = model._find_item_by_full_name("nonexistent_shot")
+        result = model._find_shot_by_full_name("nonexistent_shot")
         assert result is None
 
     def test_concurrent_thumbnail_loading(
@@ -157,7 +158,7 @@ class TestShotItemModelCore:
     @pytest.fixture
     def model(self, qtbot):
         """Create basic ShotItemModel."""
-        model = create_shot_item_model()
+        model = ShotItemModel()
         yield model
         model.deleteLater()
 

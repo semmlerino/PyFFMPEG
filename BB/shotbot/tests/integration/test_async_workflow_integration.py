@@ -20,11 +20,12 @@ from PySide6.QtTest import QSignalSpy
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
+from base_item_model import BaseItemRole as UnifiedRole
 from cache_manager import CacheManager
 from shot_info_panel import ShotInfoPanel
+from shot_item_model import ShotItemModel
 from shot_model import Shot
 from tests.helpers.synchronization import simulate_work_without_sleep
-from unified_item_model import UnifiedItemModel, UnifiedRole
 
 pytestmark = [
     pytest.mark.integration,
@@ -81,11 +82,8 @@ class TestAsyncWorkflowIntegration:
 
         # Return factory function to create components in test context
         def _create_components():
-            # Local application imports
-            from unified_item_model import UnifiedItemType
-
             # Create components - must be done in test method context
-            item_model = UnifiedItemModel(UnifiedItemType.SHOT, cache_manager)
+            item_model = ShotItemModel(cache_manager)
             info_panel = ShotInfoPanel(cache_manager)
             qtbot.addWidget(info_panel)
             return item_model, info_panel, cache_manager
@@ -345,7 +343,7 @@ class TestAsyncCallbackIntegration:
     ) -> None:
         """Test model reset while async callbacks are in progress."""
         # Local application imports
-        from unified_item_model import create_shot_item_model
+        from shot_item_model import ShotItemModel
 
         # Create test setup
         image_path = tmp_path / "test.jpg"
@@ -354,7 +352,7 @@ class TestAsyncCallbackIntegration:
         image.save(str(image_path), "JPEG")
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        model = create_shot_item_model(cache_manager)
+        model = ShotItemModel(cache_manager)
 
         # Mock get_thumbnail_path to return the test image
         monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)

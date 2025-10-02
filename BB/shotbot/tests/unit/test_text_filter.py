@@ -18,21 +18,18 @@ import pytest
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QLineEdit
 
+from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
 from shot_grid_view import ShotGridView
+
+# Local application imports
+from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
 from tests.test_doubles_library import TestCacheManager, TestProcessPool
 from threede_grid_view import ThreeDEGridView
+from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
-
-# Local application imports
-from unified_item_model import (
-    UnifiedItemModel,
-    create_previous_shots_item_model,
-    create_shot_item_model,
-    create_threede_item_model,
-)
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -314,9 +311,9 @@ class TestBaseGridViewTextFilterUI:
     """Test Text filter UI in BaseGridView subclasses."""
 
     @pytest.fixture
-    def shot_item_model(self, qtbot) -> UnifiedItemModel:
+    def shot_item_model(self, qtbot) -> ShotItemModel:
         """Create ShotItemModel."""
-        model = create_shot_item_model(cache_manager=TestCacheManager())
+        model = ShotItemModel(cache_manager=TestCacheManager())
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
@@ -357,7 +354,7 @@ class TestBaseGridViewTextFilterUI:
 
     def test_text_filter_in_threede_view(self, qtbot) -> None:
         """Test that text filter also exists in ThreeDEGridView."""
-        threede_item_model = create_threede_item_model(cache_manager=TestCacheManager())
+        threede_item_model = ThreeDEItemModel(cache_manager=TestCacheManager())
         view = ThreeDEGridView(model=threede_item_model)
         qtbot.addWidget(view)
 
@@ -373,7 +370,7 @@ class TestBaseGridViewTextFilterUI:
         shot_model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
         shot_model._process_pool = TestProcessPool()
         previous_model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager())
-        previous_item_model = create_previous_shots_item_model(previous_model, TestCacheManager())
+        previous_item_model = PreviousShotsItemModel(previous_model, TestCacheManager())
 
         view = PreviousShotsView(model=previous_item_model)
         qtbot.addWidget(view)
@@ -407,12 +404,12 @@ class TestMainWindowTextFilterHandlers:
         )
         window.shot_model._process_pool = TestProcessPool()
 
-        window.shot_item_model = create_shot_item_model(cache_manager=TestCacheManager())
+        window.shot_item_model = ShotItemModel(cache_manager=TestCacheManager())
 
         window.previous_shots_model = PreviousShotsModel(
             window.shot_model, cache_manager=TestCacheManager()
         )
-        window.previous_shots_item_model = create_previous_shots_item_model(
+        window.previous_shots_item_model = PreviousShotsItemModel(
             window.previous_shots_model, TestCacheManager()
         )
 

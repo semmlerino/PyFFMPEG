@@ -40,7 +40,7 @@ from threede_scene_finder_optimized import DirectoryCache, OptimizedThreeDEScene
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Performance test markers
-pytestmark = [pytest.mark.performance]
+pytestmark = pytest.mark.performance
 
 
 class TestDirectoryCache:
