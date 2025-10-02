@@ -13,6 +13,9 @@ if TYPE_CHECKING:
     # Standard library imports
     from pathlib import Path
 
+    # Local application imports
+    from type_definitions import PerformanceMetricsDict
+
 
 @runtime_checkable
 class SceneDataProtocol(Protocol):
@@ -52,4 +55,42 @@ class WorkerProtocol(Protocol):
     @property
     def is_running(self) -> bool:
         """Check if worker is currently running."""
+        ...
+
+
+@runtime_checkable
+class ProcessPoolInterface(Protocol):
+    """Protocol for process pool implementations.
+
+    Both ProcessPoolManager and MockWorkspacePool must implement this interface.
+    """
+
+    def execute_workspace_command(
+        self,
+        command: str,
+        cache_ttl: int = 30,
+        timeout: int | None = None,
+    ) -> str:
+        """Execute workspace command."""
+        ...
+
+    def batch_execute(
+        self,
+        commands: list[str],
+        cache_ttl: int = 30,
+        session_type: str = "workspace",
+    ) -> dict[str, str | None]:
+        """Execute multiple commands in parallel."""
+        ...
+
+    def invalidate_cache(self, pattern: str | None = None) -> None:
+        """Invalidate command cache."""
+        ...
+
+    def shutdown(self) -> None:
+        """Shutdown the process pool."""
+        ...
+
+    def get_metrics(self) -> PerformanceMetricsDict:
+        """Get performance metrics."""
         ...

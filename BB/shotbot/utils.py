@@ -878,7 +878,8 @@ class PathUtils:
     ) -> list[tuple[str, float]]:
         """Dynamically discover plate directories using pattern matching and priority system.
 
-        Supports: FG##, BG##, EL##, COMP##, PL##, and fallback to any directory.
+        Supports: FG##, BG##, PL##, EL##, COMP## (where ## is any digit sequence).
+        Only directories matching these patterns are returned.
         Uses Config.TURNOVER_PLATE_PRIORITY for ranking plates by type.
 
         This replaces the hardcoded PLATE_DISCOVERY_PATTERNS approach with dynamic
@@ -920,17 +921,16 @@ class PathUtils:
                         matched_prefix = prefix
                         break
 
-                # Get priority from config (lower number = higher priority)
+                # Only include directories that match known plate patterns
                 if matched_prefix:
                     priority = Config.TURNOVER_PLATE_PRIORITY.get(matched_prefix, 3)
+                    found_plates.append((plate_name, priority))
+                    logger.debug(
+                        f"Found plate: {plate_name} (type: {matched_prefix}, priority: {priority})"
+                    )
                 else:
-                    # Unknown pattern - use wildcard priority
-                    priority = Config.TURNOVER_PLATE_PRIORITY.get('*', 3)
-
-                found_plates.append((plate_name, priority))
-                logger.debug(
-                    f"Found plate: {plate_name} (type: {matched_prefix or 'unknown'}, priority: {priority})"
-                )
+                    # Skip non-plate directories (e.g., 'reference', 'backup', etc.)
+                    logger.debug(f"Skipping non-plate directory: {plate_name}")
 
         except (OSError, PermissionError) as e:
             logger.warning(f"Error scanning plate directories in {base_path}: {e}")

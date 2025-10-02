@@ -8,7 +8,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 
-def capture_screenshot():
+def capture_screenshot() -> Path | None:
     """Capture screenshot of the primary screen."""
     # Get existing QApplication instance or create one
     app = QApplication.instance()

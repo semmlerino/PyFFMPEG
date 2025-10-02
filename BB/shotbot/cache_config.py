@@ -100,20 +100,7 @@ class CacheConfig(LoggingMixin):
             True if mock mode is enabled
         """
         # Check environment variable
-        if os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes"):
-            return True
-
-        # Check if ProcessPoolFactory is in mock mode
-        try:
-            # Local application imports
-            from process_pool_factory import ProcessPoolFactory
-
-            if ProcessPoolFactory.get_factory_mode() == "mock":
-                return True
-        except ImportError:
-            pass
-
-        return False
+        return os.environ.get("SHOTBOT_MOCK", "").lower() in ("1", "true", "yes")
 
     @staticmethod
     def is_headless_mode() -> bool:

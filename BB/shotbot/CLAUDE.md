@@ -132,7 +132,10 @@ Data Layer (domain models)
   ↓
 BaseItemModel[T] (generic Qt model infrastructure)
   ↓
-UnifiedItemModel (configurable strategy pattern)
+Specific Item Models (explicit, focused implementations)
+  - ShotItemModel
+  - ThreeDEItemModel
+  - PreviousShotsItemModel
   ↓
 View Layer (grid views with custom delegates)
 ```
@@ -143,11 +146,13 @@ View Layer (grid views with custom delegates)
 - Selection management and show filtering
 - Reduces code duplication by 70-80% across models
 
-**UnifiedItemModel** - Configurable model using strategy pattern:
-- Replaces three separate models (Shot, ThreeDe, PreviousShots) with one unified implementation
-- Configured via `UnifiedItemType` enum (SHOT, THREEDE, PREVIOUS)
-- Maintains backward-compatible signals for each type
-- Eliminates ~600 lines of duplicate model code
+**Specific Item Models** - Three explicit, focused implementations:
+- **ShotItemModel**: Shot-specific model with shots_updated signal
+- **ThreeDEItemModel**: 3DE scene model with loading progress tracking
+- **PreviousShotsItemModel**: Previous shots with underlying model integration
+- Each model is ~200 lines of clear, single-purpose code
+- Zero conditional logic based on item type
+- Type-safe with explicit interfaces
 
 **BaseShotModel** - Abstract base for shot data sources:
 - Common shot parsing, caching, and performance metrics
@@ -158,20 +163,20 @@ View Layer (grid views with custom delegates)
 
 **My Shots (Workspace Integration)**
 - ShotModel (extends BaseShotModel): Executes `ws -sg` via ProcessPool (30s TTL)
-- UnifiedItemModel[SHOT]: Qt model integration with lazy thumbnails
+- ShotItemModel: Qt model integration with lazy thumbnails
 - ShotGridView: QListView with custom delegate
 - Refresh: Synchronous with progress indication
 
 **Other 3DE Scenes (Filesystem Discovery)**
 - ThreeDESceneModel: Manages discovered .3de files
-- UnifiedItemModel[THREEDE]: Provides filtered view with progressive loading
+- ThreeDEItemModel: Provides filtered view with progressive loading
 - ThreeDEGridView: Custom delegate for scene metadata
 - ThreeDESceneWorker: QThread for non-blocking filesystem scan
 - Refresh: Asynchronous with progressive batch updates
 
 **Previous Shots (Historical Data)**
 - PreviousShotsModel (extends BaseShotModel): Finds user's approved/completed shots
-- UnifiedItemModel[PREVIOUS]: Filters out currently active shots
+- PreviousShotsItemModel: Filters out currently active shots
 - PreviousShotsView: Display with auto-refresh timer
 - PreviousShotsWorker: Background thread for filesystem traversal
 - Refresh: Asynchronous with 5-minute auto-refresh
@@ -242,21 +247,21 @@ The application's three tabs are NOT different views of the same data. They repr
 - **Performance**: Fast (cached subprocess call)
 - **Update Pattern**: On-demand with user-triggered refresh
 - **Caching**: 30-second TTL at command level
-- **Model Stack**: ShotModel (BaseShotModel) → UnifiedItemModel[SHOT] → ShotGridView
+- **Model Stack**: ShotModel (BaseShotModel) → ShotItemModel → ShotGridView
 
 ### Other 3DE Scenes Tab
 - **Data Source**: Filesystem scanning for .3de files
 - **Performance**: Slow (I/O intensive, thousands of directories)
 - **Update Pattern**: Progressive updates during scan
 - **Caching**: Permanent until invalidated
-- **Model Stack**: ThreeDESceneModel → UnifiedItemModel[THREEDE] → ThreeDEGridView
+- **Model Stack**: ThreeDESceneModel → ThreeDEItemModel → ThreeDEGridView
 
 ### Previous Shots Tab
 - **Data Source**: Filesystem scanning for user work directories
 - **Performance**: Medium (targeted filesystem search)
 - **Update Pattern**: 5-minute auto-refresh
 - **Caching**: Session-based
-- **Model Stack**: PreviousShotsModel (BaseShotModel) → UnifiedItemModel[PREVIOUS] → PreviousShotsView
+- **Model Stack**: PreviousShotsModel (BaseShotModel) → PreviousShotsItemModel → PreviousShotsView
 
 ## Why Three Separate Architectures?
 
@@ -273,9 +278,9 @@ The apparent "duplication" is actually proper separation of concerns for distinc
 ## Feature Implementation Map
 
 ### Show Filtering
-- **My Shots**: shot_grid_view.py → unified_item_model.py → base_shot_model.py
-- **Other 3DE**: threede_grid_view.py → unified_item_model.py → threede_scene_model.py
-- **Previous**: previous_shots_view.py → unified_item_model.py → previous_shots_model.py
+- **My Shots**: shot_grid_view.py → shot_item_model.py → base_shot_model.py
+- **Other 3DE**: threede_grid_view.py → threede_item_model.py → threede_scene_model.py
+- **Previous**: previous_shots_view.py → previous_shots_item_model.py → previous_shots_model.py
 - **Signal handlers**: main_window.py
 
 ### Data Refresh Paths

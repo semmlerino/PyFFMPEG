@@ -9,7 +9,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 
-def capture_shotbot_window():
+def capture_shotbot_window() -> None:
     """Find and capture the ShotBot window."""
     app = QApplication.instance()
     if not app:

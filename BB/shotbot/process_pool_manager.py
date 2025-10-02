@@ -202,7 +202,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
     # Singleton instance
     _instance = None
-    _initialized = False  # Class-level initialization flag
     _lock = QMutex()  # Qt mutex for thread-safe singleton access
 
     # Qt signals
@@ -232,13 +231,16 @@ class ProcessPoolManager(LoggingMixin, QObject):
             max_workers: Maximum concurrent workers
             sessions_per_type: Number of sessions to maintain per type for parallelism
         """
-        # Only initialize once, using the same lock as __new__
-        with QMutexLocker(ProcessPoolManager._lock):
-            if ProcessPoolManager._initialized:
-                return
+        # Use instance-level flag to prevent re-initialization
+        # This is set AFTER initialization completes
+        if hasattr(self, '_init_done') and self._init_done:
+            return
 
-            # Mark as initialized FIRST to prevent race conditions
-            ProcessPoolManager._initialized = True
+        # Lock to ensure only one thread initializes
+        with QMutexLocker(ProcessPoolManager._lock):
+            # Double-check inside lock
+            if hasattr(self, '_init_done') and self._init_done:
+                return
 
             super().__init__()
 
@@ -263,6 +265,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
             self._mutex = QMutex()
             self._shutdown_requested = False
 
+            # Mark initialization as complete (must be last)
+            self._init_done = True
+
         self.logger.info(f"ProcessPoolManager initialized with {max_workers} workers")
 
     @classmethod
@@ -270,29 +275,10 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """Get singleton instance.
 
         Thread safety is handled by __new__ method.
-        This method now supports dependency injection through ProcessPoolFactory.
 
         Returns:
             ProcessPoolManager singleton
         """
-        # Check if factory has an override first
-        try:
-            # Local application imports
-            from process_pool_factory import ProcessPoolFactory
-
-            # If factory has a custom instance, and it's not us, return it
-            factory_instance = ProcessPoolFactory._override  # type: ignore[reportPrivateUsage]
-            if factory_instance is not None and factory_instance is not cls._instance:
-                # This allows mock injection
-                if hasattr(factory_instance, "__class__"):
-                    logger.debug(
-                        f"Using injected instance: {factory_instance.__class__.__name__}"
-                    )
-                return factory_instance  # type: ignore[return-value]
-        except ImportError:
-            # Factory not available, proceed normally
-            pass
-
         # Standard singleton pattern
         if cls._instance is None:
             cls._instance = cls()

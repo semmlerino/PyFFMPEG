@@ -11,11 +11,6 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    # Local application imports
-    from shot_model import Shot
 
 # Set up environment
 os.environ["SHOTBOT_MOCK"] = "1"
@@ -74,19 +69,19 @@ def test_shot_model() -> int:
     """Test that ShotModel properly loads all shots."""
     # Local application imports
     from cache_manager import CacheManager
-    from process_pool_factory import ProcessPoolFactory
+    from mock_workspace_pool import create_mock_pool_from_filesystem
     from shot_model import ShotModel
 
     logger.info("\n" + "=" * 70)
     logger.info("TESTING SHOT MODEL")
     logger.info("=" * 70)
 
-    # Enable mock mode
-    ProcessPoolFactory.set_mock_mode(True)
+    # Create mock pool
+    mock_pool = create_mock_pool_from_filesystem()
 
-    # Create shot model
+    # Create shot model with mock pool
     cache_manager = CacheManager()
-    shot_model = ShotModel(cache_manager)
+    shot_model = ShotModel(cache_manager, process_pool=mock_pool)
 
     # Refresh shots
     success, _ = shot_model.refresh_shots()  # has_changes not used
@@ -136,7 +131,7 @@ def test_headless_app() -> int:
 
     # Refresh shots
     if window.refresh_shots():
-        shots: list[Shot] = window.get_shots()
+        shots = window.get_shots()
         logger.info(f"✅ Headless app loaded {len(shots)} shots")
         return len(shots)
     else:

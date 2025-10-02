@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 from PySide6.QtGui import QColor
 from typing_extensions import override
 
+from base_item_model import BaseItemRole
+
 # Local application imports
 from base_thumbnail_delegate import (
     BaseThumbnailDelegate,
@@ -20,10 +22,9 @@ from base_thumbnail_delegate import (
     ThumbnailItemData,
 )
 from logging_mixin import get_module_logger
-from unified_item_model import UnifiedRole
 
 # Backward compatibility alias
-ShotRole = UnifiedRole
+ShotRole = BaseItemRole
 
 if TYPE_CHECKING:
     # Third-party imports

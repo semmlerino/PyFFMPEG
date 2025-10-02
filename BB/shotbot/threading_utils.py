@@ -727,7 +727,7 @@ if __name__ == "__main__":
 
 
 # Integration Example for fixing find_all_3de_files_in_show_parallel()
-def integrate_with_existing_parallel_scan():
+def integrate_with_existing_parallel_scan() -> list[str]:
     """
     Example showing how to integrate CancellationEvent with existing parallel scanning.
 

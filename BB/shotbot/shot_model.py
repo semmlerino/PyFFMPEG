@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from cache_manager import CacheManager
-    from process_pool_factory import ProcessPoolInterface
+    from protocols import ProcessPoolInterface
     from type_definitions import PerformanceMetricsDict, ShotDict
 
 # Local application imports
@@ -248,9 +248,12 @@ class ShotModel(BaseShotModel):
     background_load_finished: Signal = Signal()
 
     def __init__(
-        self, cache_manager: CacheManager | None = None, load_cache: bool = True
+        self,
+        cache_manager: CacheManager | None = None,
+        load_cache: bool = True,
+        process_pool: ProcessPoolInterface | None = None,
     ) -> None:
-        super().__init__(cache_manager, load_cache)
+        super().__init__(cache_manager, load_cache, process_pool)
 
         # Background loader with thread safety
         self._async_loader: AsyncShotLoader | None = None

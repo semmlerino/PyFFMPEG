@@ -9,7 +9,7 @@ from __future__ import annotations
 # Standard library imports
 import os
 from datetime import datetime
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING
 
 # Third-party imports
 from PySide6.QtCore import QObject, QRecursiveMutex, QTimer, Signal
@@ -22,6 +22,7 @@ from launcher.models import (
     LauncherEnvironment,
     LauncherTerminal,
     LauncherValidation,
+    ProcessInfoDict,
 )
 from launcher.process_manager import LauncherProcessManager
 from launcher.repository import LauncherRepository
@@ -36,22 +37,10 @@ if TYPE_CHECKING:
     # Local application imports
     from launcher.models import ProcessInfo
     from launcher.worker import LauncherWorker
+    from protocols import ProcessPoolInterface
     from shot_model import Shot
 
 # Set up logger for this module
-
-
-class ProcessInfoDict(TypedDict):
-    """Type definition for process information dictionary."""
-
-    type: str
-    key: str
-    launcher_id: str
-    launcher_name: str
-    command: str
-    pid: int
-    running: bool
-    start_time: float
 
 
 class LauncherManager(LoggingMixin, QObject):
@@ -82,11 +71,16 @@ class LauncherManager(LoggingMixin, QObject):
     # Process limits
     MAX_CONCURRENT_PROCESSES = ThreadingConfig.MAX_WORKER_THREADS * 25
 
-    def __init__(self, config_dir: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        config_dir: str | Path | None = None,
+        process_pool: ProcessPoolInterface | None = None,
+    ) -> None:
         """Initialize the launcher manager with all components.
 
         Args:
             config_dir: Optional configuration directory path
+            process_pool: Optional process pool instance (defaults to singleton)
         """
         super().__init__()
 
@@ -97,15 +91,8 @@ class LauncherManager(LoggingMixin, QObject):
         self._process_manager = LauncherProcessManager()
         self._signals_connected = False  # Track signal connection state
 
-        # ProcessPoolManager for optimized command execution (via factory for DI)
-        try:
-            # Local application imports
-            from process_pool_factory import get_process_pool
-
-            self._process_pool = get_process_pool()
-        except ImportError:
-            # Fallback to direct access if factory not available
-            self._process_pool = ProcessPoolManager.get_instance()
+        # Initialize process pool - use provided instance or default singleton
+        self._process_pool = process_pool or ProcessPoolManager.get_instance()
 
         self._use_process_pool = (
             os.environ.get("SHOTBOT_USE_PROCESS_POOL", "true").lower() == "true"
@@ -609,7 +596,7 @@ class LauncherManager(LoggingMixin, QObject):
         Returns:
             List of process information dictionaries
         """
-        return self._process_manager.get_active_process_info()  # type: ignore[return-value]
+        return self._process_manager.get_active_process_info()
 
     def terminate_process(self, process_key: str, force: bool = False) -> bool:
         """Terminate a specific process.

@@ -12,6 +12,7 @@ from PySide6.QtCore import QObject, Signal
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
+    from protocols import ProcessPoolInterface
     from shot_model import Shot
     from type_definitions import PerformanceMetricsDict, RefreshResult
 
@@ -57,12 +58,14 @@ class BaseShotModel(LoggingMixin, QObject):
         self,
         cache_manager: CacheManager | None = None,
         load_cache: bool = True,
+        process_pool: ProcessPoolInterface | None = None,
     ) -> None:
         """Initialize base shot model.
 
         Args:
             cache_manager: cache manager instance
             load_cache: Whether to load from cache on init
+            process_pool: Optional process pool instance (defaults to singleton)
         """
         super().__init__()
         # Local application imports
@@ -76,25 +79,8 @@ class BaseShotModel(LoggingMixin, QObject):
         self._filter_show: str | None = None  # Show filter
         self._filter_text: str | None = None  # Text filter for real-time search
 
-        # Initialize ProcessPoolManager via factory for dependency injection support
-        if DEBUG_VERBOSE:
-            self.logger.debug("Getting ProcessPoolManager instance via factory")
-
-        # Use the factory for clean dependency injection support
-        try:
-            # Local application imports
-            from process_pool_factory import get_process_pool
-
-            self._process_pool = get_process_pool()
-            if DEBUG_VERBOSE:
-                self.logger.debug("Using factory-provided process pool instance")
-        except ImportError:
-            # Fallback to direct access if factory not available
-            if DEBUG_VERBOSE:
-                self.logger.debug(
-                    "Factory not available, using direct singleton access"
-                )
-            self._process_pool = ProcessPoolManager.get_instance()
+        # Initialize process pool - use provided instance or default singleton
+        self._process_pool = process_pool or ProcessPoolManager.get_instance()
 
         # Performance metrics
         self._last_refresh_time = 0.0

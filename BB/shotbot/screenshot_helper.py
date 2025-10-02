@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import ImageGrab
 
 
-def take_screenshot():
+def take_screenshot() -> Path:
     """Capture screenshot and save it."""
     output_path = Path("/tmp/shotbot_screenshot.png")
 

@@ -240,16 +240,7 @@ Environment Variables:
         logger.info("Starting ShotBot in MOCK MODE - using test data")
         # Set environment variable so all code knows we're in mock mode
         os.environ["SHOTBOT_MOCK"] = "1"
-
-        # Use the new ProcessPoolFactory for clean dependency injection
-        # Local application imports
-        from process_pool_factory import ProcessPoolFactory
-
-        # Enable mock mode in the factory
-        ProcessPoolFactory.set_mock_mode(True)
-        logger.info("Mock mode enabled via ProcessPoolFactory")
-
-        # The factory will automatically load demo_shots.json when needed
+        # MainWindow will detect SHOTBOT_MOCK and create MockWorkspacePool
 
     # Now import Qt and main window AFTER logging is configured
     # This ensures PIL logging is suppressed before PIL is imported

@@ -10,11 +10,24 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     # Standard library imports
     import subprocess
+
+
+class ProcessInfoDict(TypedDict):
+    """Type definition for process information dictionary."""
+
+    type: str
+    key: str
+    launcher_id: str
+    launcher_name: str
+    command: str
+    pid: int
+    running: bool
+    start_time: float
 
 
 class ParameterType(Enum):

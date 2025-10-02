@@ -78,6 +78,7 @@ if TYPE_CHECKING:
     from command_launcher import CommandLauncher
     from launcher_dialog import LauncherManagerDialog
     from launcher_manager import LauncherManager
+    from protocols import ProcessPoolInterface
     from settings_dialog import SettingsDialog
 
 # Runtime imports (needed at runtime)
@@ -101,6 +102,7 @@ from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger
 from notification_manager import NotificationManager
 from persistent_terminal_manager import PersistentTerminalManager
+from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
 from process_pool_manager import ProcessPoolManager
@@ -110,15 +112,12 @@ from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_info_panel import ShotInfoPanel
+from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
 from thread_safe_worker import ThreadSafeWorker
 from threede_grid_view import ThreeDEGridView
+from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
-from unified_item_model import (
-    create_previous_shots_item_model,
-    create_shot_item_model,
-    create_threede_item_model,
-)
 
 # Set up logger for this module
 # Module-level logger for non-class code (SessionWarmer, etc.)
@@ -134,6 +133,15 @@ class SessionWarmer(ThreadSafeWorker):
     on the main thread during the first actual command execution.
     """
 
+    def __init__(self, process_pool: ProcessPoolInterface) -> None:
+        """Initialize session warmer with process pool.
+
+        Args:
+            process_pool: ProcessPoolInterface instance to warm up
+        """
+        super().__init__()
+        self._process_pool: ProcessPoolInterface = process_pool
+
     @Slot()
     @override
     def run(self) -> None:
@@ -144,21 +152,12 @@ class SessionWarmer(ThreadSafeWorker):
                 return
 
             logger.debug("Starting background session pre-warming")
-            # Get the process pool instance and warm it up (via factory for DI)
-            try:
-                # Local application imports
-                from process_pool_factory import get_process_pool
-
-                pool = get_process_pool()
-            except ImportError:
-                # Fallback to direct access if factory not available
-                pool = ProcessPoolManager.get_instance()
 
             # Check if we should stop before executing
             if self.should_stop():
                 return
 
-            _ = pool.execute_workspace_command(
+            _ = self._process_pool.execute_workspace_command(
                 "echo warming",
                 cache_ttl=1,  # Short TTL since this is just for warming
                 timeout=15,  # Give enough time for first initialization
@@ -210,16 +209,24 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Initialize shot_model attribute (will be set later based on feature flag)
 
-        # Initialize ProcessPoolManager on main thread first via factory
-        # This prevents race conditions if SessionWarmer tries to create it from a thread
-        try:
+        # Create process pool based on mock mode
+        # Check for mock mode from environment variable
+        is_mock_mode = os.environ.get("SHOTBOT_MOCK", "").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        self._process_pool: ProcessPoolInterface
+        if is_mock_mode:
             # Local application imports
-            from process_pool_factory import get_process_pool
+            from mock_workspace_pool import create_mock_pool_from_filesystem
 
-            get_process_pool()  # Initialize early
-        except ImportError:
-            # Fallback to direct access if factory not available
-            ProcessPoolManager.get_instance()
+            self._process_pool = create_mock_pool_from_filesystem()
+            self.logger.info("Using MockWorkspacePool for process execution")
+        else:
+            # Use production pool
+            self._process_pool = ProcessPoolManager.get_instance()
+            self.logger.info("Using ProcessPoolManager for process execution")
 
         # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager()
@@ -237,12 +244,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Initialize settings controller (refactored from MainWindow methods)
         self.settings_controller = SettingsController(self)  # type: ignore[arg-type] # Protocol works functionally
 
-        # Create 3DE item model for Model/View architecture using factory function
-        self.threede_item_model = create_threede_item_model(cache_manager=self.cache_manager)
+        # Create 3DE item model for Model/View architecture
+        self.threede_item_model = ThreeDEItemModel(cache_manager=self.cache_manager)
 
         # Create the shot model with async loading and instant UI display
         self.logger.info("Creating ShotModel with 366x faster startup")
-        self.shot_model = ShotModel(self.cache_manager)
+        self.shot_model = ShotModel(self.cache_manager, process_pool=self._process_pool)
 
         # Initialize async loading for immediate UI display
         init_result = self.shot_model.initialize_async()
@@ -266,7 +273,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if USE_SIMPLIFIED_LAUNCHER:
             # Use new simplified launcher (500 lines vs 2,872 lines)
             # Local application imports
-            from process_pool_factory import ProcessPoolFactory
             from simplified_launcher import SimplifiedLauncher
 
             self.logger.info(
@@ -274,9 +280,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             )
             self.command_launcher = SimplifiedLauncher()
 
-            # Inject SimplifiedLauncher as the ProcessPool implementation
-            # This allows ShotModel to use SimplifiedLauncher's execute_ws_command
-            ProcessPoolFactory.set_implementation(self.command_launcher)  # type: ignore[arg-type]
+            # NOTE: SimplifiedLauncher implements ProcessPoolInterface
+            # We could pass it to ShotModel, but currently ShotModel
+            # was already created with self._process_pool above.
+            # This is a known limitation of the SimplifiedLauncher approach.
 
             self.launcher_manager = None  # Not needed with simplified approach
             self.persistent_terminal = None
@@ -291,7 +298,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.command_launcher = CommandLauncher(
                 persistent_terminal=self.persistent_terminal
             )
-            self.launcher_manager = LauncherManager()
+            self.launcher_manager = LauncherManager(process_pool=self._process_pool)
 
         # NOTE: Current scene/shot context now managed by launcher_controller (single source of truth)
         self._closing = False  # Track shutdown state
@@ -366,7 +373,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Tab 1: My Shots
         # Always use Model/View architecture for maximum efficiency
-        self.shot_item_model = create_shot_item_model(cache_manager=self.cache_manager)
+        self.shot_item_model = ShotItemModel(cache_manager=self.cache_manager)
         self.shot_item_model.set_shots(self.shot_model.shots)
         self.shot_grid = ShotGridView(model=self.shot_item_model)
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
@@ -376,9 +383,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.tab_widget.addTab(self.threede_shot_grid, "Other 3DE scenes")
 
         # Tab 3: Previous Shots (approved/completed) - using Model/View architecture
-        # Cast to object to bypass strict protocol check (PreviousShotsModel has required methods)
-        self.previous_shots_item_model = create_previous_shots_item_model(
-            cast("object", self.previous_shots_model), self.cache_manager  # type: ignore[arg-type]
+        self.previous_shots_item_model = PreviousShotsItemModel(
+            self.previous_shots_model, self.cache_manager
         )
         self.previous_shots_grid = PreviousShotsView(
             model=self.previous_shots_item_model
@@ -667,7 +673,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Pre-warm sessions in background thread to avoid UI freeze
         # Skip in test environment to avoid threading issues
         if not os.environ.get("PYTEST_CURRENT_TEST"):
-            self._session_warmer = SessionWarmer()
+            self._session_warmer = SessionWarmer(self._process_pool)
             self._session_warmer.start()
             self.logger.debug("Session warmer thread started in background")
         else:
@@ -1171,7 +1177,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Update item model with filtered shots
         filtered_shots = base_model.get_filtered_shots()
         # get_filtered_shots returns list[Shot], set_items needs list[ItemType]
-        self.shot_item_model.set_items(filtered_shots)  # type: ignore[arg-type]
+        self.shot_item_model.set_items(filtered_shots)
 
         self.logger.debug(
             f"My Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
@@ -1194,7 +1200,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Update item model with filtered shots
         filtered_shots = self.previous_shots_model.get_filtered_shots()
         # get_filtered_shots returns list[Shot], set_items needs list[ItemType]
-        self.previous_shots_item_model.set_items(filtered_shots)  # type: ignore[arg-type]
+        self.previous_shots_item_model.set_items(filtered_shots)
 
         self.logger.debug(
             f"Previous Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"

@@ -63,18 +63,8 @@ if not mock_filesystem_found:
     logger.info("   The app will work but paths won't exist.")
     logger.info(f"   SHOWS_ROOT is: {os.environ.get('SHOWS_ROOT', 'NOT SET')}")
 
-# Local application imports
-# CRITICAL: Use the new dependency injection system BEFORE any app imports
-from process_pool_factory import ProcessPoolFactory  # noqa: E402
-
-# Enable mock mode in the factory
-ProcessPoolFactory.set_mock_mode(True)
-logger.info("✅ Mock mode enabled in ProcessPoolFactory")
-
-# The factory will automatically load demo_shots.json and create the mock instance
-# when get_instance() is called for the first time
-
 # NOW we can import the rest of the app
+# No need for factory - SHOTBOT_MOCK env var already set above
 logger.info("Loading ShotBot application...")
 
 # Local application imports

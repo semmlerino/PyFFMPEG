@@ -9,6 +9,10 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from type_definitions import PerformanceMetricsDict
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -187,17 +191,29 @@ class MockWorkspacePool(LoggingMixin):
         """Shutdown the pool (no-op for mock)."""
         pass
 
-    def get_metrics(self) -> dict[str, int]:
-        """Get mock metrics.
+    def get_metrics(self) -> PerformanceMetricsDict:
+        """Get mock metrics compatible with ProcessPoolInterface.
 
         Returns:
-            Metrics dictionary
+            Metrics dictionary conforming to PerformanceMetricsDict
         """
-        return {
-            "total_shots": len(self.shots),
-            "commands_executed": len(self.commands_executed),
-            "cache_size": len(self._cache),
-        }
+        from type_definitions import PerformanceMetricsDict
+
+        cache_hits = len(self._cache)
+        cache_misses = len(self.commands_executed) - cache_hits
+
+        return PerformanceMetricsDict(
+            total_shots=len(self.shots),
+            total_refreshes=len(self.commands_executed),
+            last_refresh_time=0.0,
+            cache_hits=cache_hits,
+            cache_misses=cache_misses,
+            cache_hit_rate=cache_hits / max(1, len(self.commands_executed)),
+            cache_hit_count=cache_hits,
+            cache_miss_count=cache_misses,
+            loading_in_progress=False,
+            session_warmed=len(self.shots) > 0,
+        )
 
 
 def create_mock_pool_from_filesystem() -> MockWorkspacePool:

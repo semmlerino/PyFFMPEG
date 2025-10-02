@@ -26,6 +26,9 @@ if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtWidgets import QApplication
 
+    # Local application imports
+    from shot_model import Shot
+
 # Module-level logger for static methods
 logger = get_module_logger(__name__)
 
@@ -258,15 +261,15 @@ class HeadlessMainWindow:
         """Initialize headless main window."""
         # Local application imports
         from cache_manager import CacheManager
-        from process_pool_factory import ProcessPoolFactory
+        from mock_workspace_pool import create_mock_pool_from_filesystem
         from shot_model import ShotModel
 
-        # Enable mock mode for headless testing
-        ProcessPoolFactory.set_mock_mode(True)
+        # Create mock pool for headless testing
+        mock_pool = create_mock_pool_from_filesystem()
 
         # Create core components
         self.cache_manager = CacheManager()
-        self.shot_model = ShotModel(self.cache_manager)
+        self.shot_model = ShotModel(self.cache_manager, process_pool=mock_pool)
 
         # Mock UI methods
         self.show = lambda: None
@@ -285,12 +288,14 @@ class HeadlessMainWindow:
         success, _ = self.shot_model.refresh_shots()
         return success
 
-    def get_shots(self) -> list:
+    def get_shots(self) -> list[Shot]:
         """Get current shots.
 
         Returns:
             List of shots
         """
+        # Local application imports
+
         return self.shot_model.shots
 
 

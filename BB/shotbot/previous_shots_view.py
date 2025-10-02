@@ -31,13 +31,13 @@ from typing_extensions import override
 
 # Local application imports
 from base_grid_view import BaseGridView
+from base_item_model import BaseItemRole
 from progress_manager import ProgressManager
 from shot_grid_delegate import ShotGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
-from unified_item_model import UnifiedItemModel, UnifiedRole
 
 # Backward compatibility alias
-ShotRole = UnifiedRole
+ShotRole = BaseItemRole
 
 if TYPE_CHECKING:
     # Third-party imports
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
+    from previous_shots_item_model import PreviousShotsItemModel
     from shot_model import Shot
 
 
@@ -65,7 +66,7 @@ class PreviousShotsView(BaseGridView):
 
     def __init__(
         self,
-        model: UnifiedItemModel | None = None,
+        model: PreviousShotsItemModel | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize the previous shots view.
@@ -81,7 +82,7 @@ class PreviousShotsView(BaseGridView):
         self._selected_shot: Shot | None = None
         # Note: Don't redefine _model - it's inherited from BaseGridView
         # We store the typed reference separately for type safety
-        self._unified_model: UnifiedItemModel | None = model
+        self._unified_model: PreviousShotsItemModel | None = model
 
         if model:
             self.set_model(model)
@@ -137,7 +138,7 @@ class PreviousShotsView(BaseGridView):
         return widget
 
     @property
-    def model(self) -> UnifiedItemModel | None:
+    def model(self) -> PreviousShotsItemModel | None:
         """Get the current data model.
 
         Returns:
@@ -163,7 +164,7 @@ class PreviousShotsView(BaseGridView):
         """
         return self._thumbnail_size
 
-    def set_model(self, model: UnifiedItemModel) -> None:
+    def set_model(self, model: PreviousShotsItemModel) -> None:
         """Set the data model for the view.
 
         Args:

@@ -17,8 +17,9 @@ os.environ["SHOTBOT_DEBUG"] = "1"
 
 # Local application imports
 # Import ShotBot modules
-from main_window import MainWindow
 from process_pool_factory import ProcessPoolFactory
+
+from main_window import MainWindow
 
 
 def capture_screenshot() -> None:

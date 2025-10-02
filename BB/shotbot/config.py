@@ -254,6 +254,7 @@ class Config:
     # Turnover plate preferences (lower value = higher priority)
     TURNOVER_PLATE_PRIORITY: dict[str, float] = {
         "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
+        "PL": 0.5,  # PL/turnover plates (PL01, PL02, etc.) - between FG and BG
         "BG": 1,  # BG plates second priority (BG01, BG02, etc.)
         "COMP": 1.5,  # Composite plates - between BG and EL
         "EL": 2,  # Element plates third

@@ -148,7 +148,7 @@ class ProcessStateTracker(LoggingMixin):
     def __init__(self) -> None:
         """Initialize state tracker."""
         self.states: dict[str, str] = {}
-        self.state_history: dict[str, list[tuple]] = {}
+        self.state_history: dict[str, list[tuple[float, str, str, str]]] = {}
         self.state_timings: dict[str, dict[str, float]] = {}
         self.enabled = DEBUG_STATE or DEBUG_ALL
 
@@ -207,7 +207,7 @@ class ProcessStateTracker(LoggingMixin):
         """
         return self.states.get(session_id, "UNKNOWN")
 
-    def get_history(self, session_id: str) -> list[tuple]:
+    def get_history(self, session_id: str) -> list[tuple[float, str, str, str]]:
         """Get state history for session.
 
         Args:
@@ -367,7 +367,7 @@ class DeadlockDetector(LoggingMixin):
 
     def __init__(self) -> None:
         """Initialize deadlock detector."""
-        self.waiting_on: dict[str, tuple] = {}
+        self.waiting_on: dict[str, tuple[str, float]] = {}
         self.enabled = DEBUG_ALL
 
     def waiting(self, session_id: str, resource: str) -> None:

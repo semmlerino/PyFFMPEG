@@ -26,13 +26,14 @@ from PySide6.QtWidgets import (
 
 # Local application imports
 from base_grid_view import BaseGridView
+from base_item_model import BaseItemRole
 from shot_grid_delegate import ShotGridDelegate
+from shot_item_model import ShotItemModel
 from shot_model import Shot
 from thumbnail_widget_base import FolderOpenerWorker
-from unified_item_model import UnifiedItemModel, UnifiedRole
 
 # Backward compatibility alias
-ShotRole = UnifiedRole
+ShotRole = BaseItemRole
 
 if TYPE_CHECKING:
     # Third-party imports
@@ -61,7 +62,7 @@ class ShotGridView(BaseGridView):
 
     def __init__(
         self,
-        model: UnifiedItemModel | None = None,
+        model: ShotItemModel | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize the grid view.
@@ -90,14 +91,14 @@ class ShotGridView(BaseGridView):
         return ShotGridDelegate(self)
 
     @property
-    def model(self) -> UnifiedItemModel | None:
+    def model(self) -> ShotItemModel | None:
         """Get the current data model.
 
         Returns:
             The shot item model or None
         """
         # Cast base class _model to more specific type
-        return cast("UnifiedItemModel | None", self._model)
+        return cast("ShotItemModel | None", self._model)
 
     @property
     def selected_shot(self) -> Shot | None:
@@ -125,7 +126,7 @@ class ShotGridView(BaseGridView):
         """
         # Model/View updates automatically when model data changes
         # This method is kept for interface compatibility
-        model = cast("UnifiedItemModel | None", self._model)
+        model = cast("ShotItemModel | None", self._model)
         if model:
             # Force a view update
             self.list_view.viewport().update()
@@ -133,11 +134,11 @@ class ShotGridView(BaseGridView):
                 "View refresh requested (Model/View updates automatically)"
             )
 
-    def set_model(self, model: UnifiedItemModel) -> None:
+    def set_model(self, model: ShotItemModel) -> None:
         """Set the data model for the view.
 
         Args:
-            model: Shot item model (UnifiedItemModel configured for shots)
+            model: Shot item model
         """
         # Store in base class attribute (base type is QAbstractItemModel)
         self._model = model
@@ -189,7 +190,7 @@ class ShotGridView(BaseGridView):
         Args:
             index: Clicked model index
         """
-        model = cast("UnifiedItemModel | None", self._model)
+        model = cast("ShotItemModel | None", self._model)
         if not index.isValid() or not model:
             return
 
@@ -214,7 +215,7 @@ class ShotGridView(BaseGridView):
         Args:
             index: Double-clicked model index
         """
-        model = cast("UnifiedItemModel | None", self._model)
+        model = cast("ShotItemModel | None", self._model)
         if not index.isValid() or not model:
             return
 
@@ -237,7 +238,7 @@ class ShotGridView(BaseGridView):
             current: Current selection index
             previous: Previous selection index
         """
-        model = cast("UnifiedItemModel | None", self._model)
+        model = cast("ShotItemModel | None", self._model)
         if not model:
             return
 
@@ -263,7 +264,7 @@ class ShotGridView(BaseGridView):
             start: Start row index
             end: End row index (exclusive)
         """
-        model = cast("UnifiedItemModel | None", self._model)
+        model = cast("ShotItemModel | None", self._model)
         if model:
             model.set_visible_range(start, end)
 
@@ -273,7 +274,7 @@ class ShotGridView(BaseGridView):
         Args:
             shot_name: Full shot name to select
         """
-        model = cast("UnifiedItemModel | None", self._model)
+        model = cast("ShotItemModel | None", self._model)
         if not model:
             return
 
@@ -322,7 +323,7 @@ class ShotGridView(BaseGridView):
         # Get the index at the clicked position
         index = self.list_view.indexAt(list_view_pos)
 
-        model = cast("UnifiedItemModel | None", self._model)
+        model = cast("ShotItemModel | None", self._model)
         if not index.isValid() or not model:
             # No item clicked, show no menu
             return
@@ -405,8 +406,8 @@ if __name__ == "__main__":
     ]
 
     # Create model and view
-    from unified_item_model import create_shot_item_model
-    model = create_shot_item_model()
+    from shot_item_model import ShotItemModel
+    model = ShotItemModel()
     model.set_shots(shots)
 
     view = ShotGridView(model)

@@ -28,7 +28,18 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias, cast
+
+# Type alias for JSON data (used for runtime validation) - Python 3.11 compatible
+JSONValue: TypeAlias = (
+    dict[str, "JSONValue"]
+    | list["JSONValue"]
+    | str
+    | int
+    | float
+    | bool
+    | None
+)
 
 # Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
@@ -43,7 +54,10 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QImage
 
     from shot_model import Shot
-    from type_definitions import ShotDict, ThreeDESceneDict
+
+# These are used at runtime in cast() with string literals, but also needed for type annotations
+# ruff: noqa: TC001
+from type_definitions import ShotDict, ThreeDESceneDict
 
 # Constants
 DEFAULT_TTL_MINUTES = 30
@@ -366,7 +380,8 @@ class CacheManager(LoggingMixin, QObject):
         """
         result = self._read_json_cache(self.threede_cache_file)
         # Type narrowing: the cache file contains ThreeDESceneDict when written by cache_threede_scenes
-        return result  # type: ignore[return-value]
+        # Runtime validation ensures this is safe
+        return cast("list[ThreeDESceneDict] | None", result)
 
     def has_valid_threede_cache(self) -> bool:
         """Check if we have a valid 3DE cache.
@@ -403,7 +418,11 @@ class CacheManager(LoggingMixin, QObject):
             data: Data to cache
         """
         if key == "previous_shots":
-            self.cache_previous_shots(data)  # type: ignore[arg-type]
+            # Runtime validation: data must be a sequence of shots or dicts
+            if isinstance(data, list | tuple):
+                self.cache_previous_shots(cast("Sequence[Shot] | Sequence[ShotDict]", data))
+            else:
+                self.logger.error(f"Invalid data type for previous_shots: {type(data)}")
         else:
             cache_file = self.cache_dir / f"{key}.json"
             self._write_json_cache(cache_file, data)
@@ -609,28 +628,30 @@ class CacheManager(LoggingMixin, QObject):
                 self.logger.debug(f"Cache expired: {cache_file}")
                 return None
 
-            # Read JSON - json.load() returns Any, need to handle runtime types
+            # Read JSON - returns JSONValue which we validate at runtime
             with open(cache_file) as f:
-                data: object = json.load(f)  # type: ignore[reportAny]
+                raw_data: JSONValue = cast("JSONValue", json.load(f))
 
-            # Handle both old and new formats
-            if isinstance(data, dict):
+            # Validate structure through runtime checks and type narrowing
+            if isinstance(raw_data, list):
+                # Direct list format
+                return cast("list[ShotDict | ThreeDESceneDict]", raw_data)
+
+            if isinstance(raw_data, dict):
+                # Handle wrapped format: {"data": [...], "cached_at": "..."}
                 # Try nested keys: data.data, data.shots, data.scenes
-                # Type narrowing through conditionals
-                result: object = data.get('data')  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]
+                result: JSONValue = raw_data.get('data')
                 if result is None:
-                    result = data.get('shots')  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]
+                    result = raw_data.get('shots')
                 if result is None:
-                    result = data.get('scenes', [])  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]
+                    result = raw_data.get('scenes', [])
 
                 if isinstance(result, list):
-                    return result  # type: ignore[return-value]
+                    return cast("list[ShotDict | ThreeDESceneDict]", result)
                 return []
-            elif isinstance(data, list):
-                return data  # type: ignore[return-value]
-            else:
-                self.logger.warning(f"Unexpected cache format: {cache_file}")
-                return None
+
+            self.logger.warning(f"Unexpected cache format: {cache_file}, type: {type(raw_data)}")
+            return None
 
         except Exception as e:
             self.logger.error(f"Failed to read cache file {cache_file}: {e}")

@@ -294,11 +294,15 @@ class LauncherWorker(ThreadSafeWorker):
                 self._process = None
 
     def request_stop(self) -> bool:
-        """Override to handle process termination."""
-        # Call parent implementation first
-        if super().request_stop():
-            # Also terminate the subprocess if running
-            if self._process and self._process.poll() is None:
-                self._terminate_process()
-            return True
-        return False
+        """Override to handle process termination.
+
+        Always terminates the subprocess if running, regardless of parent's stop state.
+        This prevents zombie processes if the worker is already in stopping state.
+        """
+        # CRITICAL: Always terminate subprocess first, before calling parent
+        # This prevents resource leaks even if parent is already stopping
+        if self._process and self._process.poll() is None:
+            self._terminate_process()
+
+        # Then call parent implementation for state management
+        return super().request_stop()

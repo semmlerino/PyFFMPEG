@@ -12,8 +12,9 @@ os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx/shows"
 
 # Local application imports
 # Import modules
-from maya_latest_finder import MayaLatestFinder
 from process_pool_factory import get_process_pool
+
+from maya_latest_finder import MayaLatestFinder
 from shot_model import Shot, ShotModel
 from targeted_shot_finder import TargetedShotsFinder
 from threede_latest_finder import ThreeDELatestFinder

@@ -10,7 +10,6 @@ from __future__ import annotations
 import subprocess
 import time
 import uuid
-from typing import Any
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -25,7 +24,7 @@ from PySide6.QtCore import (
 
 # Local application imports
 from config import ThreadingConfig
-from launcher.models import ProcessInfo
+from launcher.models import ProcessInfo, ProcessInfoDict
 from launcher.worker import LauncherWorker
 from logging_mixin import LoggingMixin
 
@@ -222,7 +221,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
         unique_suffix = str(uuid.uuid4())[:8]  # Short UUID suffix
         return f"{launcher_id}_{process_pid}_{timestamp}_{unique_suffix}"
 
-    def get_active_processes_dict(self) -> dict[str, Any]:
+    def get_active_processes_dict(self) -> dict[str, ProcessInfo]:
         """Get dictionary of active processes.
 
         Returns:
@@ -231,7 +230,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
         with QMutexLocker(self._process_lock):
             return dict(self._active_processes)
 
-    def get_active_workers_dict(self) -> dict[str, Any]:
+    def get_active_workers_dict(self) -> dict[str, LauncherWorker]:
         """Get dictionary of active workers.
 
         Returns:
@@ -251,13 +250,13 @@ class LauncherProcessManager(LoggingMixin, QObject):
             # Include both subprocess and worker counts
             return len(self._active_processes) + len(self._active_workers)
 
-    def get_active_process_info(self) -> list[dict[str, Any]]:
+    def get_active_process_info(self) -> list[ProcessInfoDict]:
         """Get information about all active processes.
 
         Returns:
             List of process information dictionaries
         """
-        info_list = []
+        info_list: list[ProcessInfoDict] = []
 
         # Get snapshot of processes
         with QMutexLocker(self._process_lock):
@@ -282,7 +281,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
             except Exception as e:
                 self.logger.debug(f"Error getting process info for {process_key}: {e}")
 
-        # Add worker info
+        # Add worker info (normalize to match ProcessInfoDict structure)
         for worker_key, worker in workers_snapshot:
             try:
                 info_list.append(
@@ -292,8 +291,9 @@ class LauncherProcessManager(LoggingMixin, QObject):
                         "launcher_id": worker.launcher_id,
                         "launcher_name": getattr(worker, "launcher_name", "Unknown"),
                         "command": worker.command,
+                        "pid": 0,  # Workers don't have PIDs, use 0 as placeholder
                         "running": worker.isRunning(),
-                        "timestamp": getattr(worker, "timestamp", None),
+                        "start_time": getattr(worker, "timestamp", 0.0),
                     }
                 )
             except Exception as e:

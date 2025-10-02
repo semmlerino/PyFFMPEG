@@ -60,6 +60,11 @@ class BaseItemRole(IntEnum):
     LoadingStateRole = Qt.ItemDataRole.UserRole + 9
     IsSelectedRole = Qt.ItemDataRole.UserRole + 10
 
+    # Item-specific roles (for backward compatibility with old tests)
+    ItemSpecificRole1 = Qt.ItemDataRole.UserRole + 20  # shot.shot for Shot items, scene.shot for ThreeDEScene
+    ItemSpecificRole2 = Qt.ItemDataRole.UserRole + 21  # scene.user for ThreeDEScene
+    ItemSpecificRole3 = Qt.ItemDataRole.UserRole + 22  # scene.scene_path for ThreeDEScene
+
 
 class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
     """Base Qt Model implementation for item data.

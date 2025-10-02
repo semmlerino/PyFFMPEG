@@ -28,7 +28,6 @@ from PySide6.QtCore import (
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtWidgets import QStatusBar
-    from threede_item_model import ThreeDEItemModel
 
     # Local application imports
     from cache_manager import CacheManager
@@ -40,6 +39,7 @@ if TYPE_CHECKING:
     from shot_info_panel import ShotInfoPanel
     from shot_model import ShotModel
     from threede_grid_view import ThreeDEGridView
+    from threede_item_model import ThreeDEItemModel
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
     from threede_scene_worker import ThreeDESceneWorker
 
