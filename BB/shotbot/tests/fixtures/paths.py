@@ -5,8 +5,8 @@ Example fixtures for working with paths, directories, and VFX workspace structur
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import pytest
 

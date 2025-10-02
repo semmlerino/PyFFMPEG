@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 # Local application imports
-from config import Config
 from finder_utils import FinderUtils
 
 

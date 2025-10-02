@@ -293,8 +293,9 @@ class TestParseShotFromPath:
 
     def test_parse_path_with_empty_shot(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test handling path that results in empty shot."""
-        import targeted_shot_finder
         from unittest.mock import patch
+
+        import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
@@ -311,8 +312,9 @@ class TestParseShotFromPath:
 
     def test_parse_with_shot_creation_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test handling Shot creation errors."""
-        import targeted_shot_finder
         from unittest.mock import patch
+
+        import targeted_shot_finder
 
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
