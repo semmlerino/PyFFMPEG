@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # Third-party imports
 from typing_extensions import ParamSpec, TypeVar
@@ -149,7 +149,7 @@ class HeadlessMode:
         return app
 
     @staticmethod
-    def patch_for_headless(obj: Any) -> None:
+    def patch_for_headless(obj: object) -> None:
         """Patch an object to work in headless mode.
 
         This disables or mocks UI operations that would fail without a display.
@@ -274,8 +274,8 @@ class HeadlessMainWindow:
         # Mock UI methods
         self.show = lambda: None
         self.close = lambda: None
-        self.resize = lambda w, h: None
-        self.setWindowTitle = lambda title: None
+        self.resize: object = lambda w, h: None  # type: ignore[assignment]
+        self.setWindowTitle: object = lambda title: None  # type: ignore[assignment]
 
         logger.info("HeadlessMainWindow initialized")
 
@@ -324,7 +324,7 @@ def run_headless_app() -> bool:
             logger.info(f"  - {shot}")
 
     # Exit after a short delay
-    QTimer.singleShot(100, app.quit)  # type: ignore[reportUnknownMemberType]
+    QTimer.singleShot(100, app.quit)
 
     # Run event loop briefly
     return app.exec() == 0

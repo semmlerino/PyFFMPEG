@@ -17,7 +17,7 @@ import sys
 import time
 from contextlib import contextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -257,8 +257,10 @@ class SystemDiagnostics(LoggingMixin):
             import psutil
 
             process = psutil.Process()
+            mem_info = process.memory_info()
+            rss_bytes = cast("int", mem_info.rss)  # psutil returns int, cast for type checker
             info["memory"] = {  # type: ignore[assignment]
-                "rss_mb": process.memory_info().rss / 1024 / 1024,
+                "rss_mb": rss_bytes / 1024 / 1024,
                 "percent": process.memory_percent(),
             }
         except ImportError:

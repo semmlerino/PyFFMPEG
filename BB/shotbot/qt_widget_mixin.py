@@ -72,7 +72,7 @@ class QtWidgetMixin(LoggingMixin):
         # Restore geometry from settings
         settings = QSettings()
         if settings.contains(f"{self._geometry_key}/geometry"):
-            geometry_bytes = settings.value(f"{self._geometry_key}/geometry")
+            geometry_bytes = settings.value(f"{self._geometry_key}/geometry")  # type: ignore[misc]  # QSettings.value() returns Any
             if hasattr(self, "restoreGeometry"):
                 self.restoreGeometry(geometry_bytes)  # type: ignore[attr-defined]
         else:

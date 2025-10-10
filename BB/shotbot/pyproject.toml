@@ -1,3 +1,38 @@
+[project]
+name = "shotbot"
+version = "0.1.0"
+description = "VFX shot browser and application launcher"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6>=6.0.0",
+    "psutil>=5.9.0",
+    "pillow>=10.0.0",
+    "Jinja2>=3.0.0",
+    "OpenEXR>=1.3.0",
+    "olefile>=0.46",
+    "typing_extensions>=4.0.0",  # Python 3.11 compatibility (@override)
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-qt>=4.0.0",
+    "pytest-timeout>=2.0.0",
+    "hypothesis>=6.0.0",
+    "ruff>=0.1.0",
+    "basedpyright>=1.31.0",
+    "pytest-xdist>=3.8.0",
+]
+
+[tool.uv]
+package = false  # Application, not a library
+
+[build-system]
+requires = ["uv_build>=0.8.22,<0.9.0"]
+build-backend = "uv_build"
+
 [tool.ruff]
 # Same as Black
 line-length = 88
@@ -52,6 +87,115 @@ skip-magic-trailing-comma = false
 
 # Format docstrings
 docstring-code-format = true
+
+[tool.pytest.ini_options]
+# Test discovery paths
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Default command-line options
+addopts = [
+    # Reporting and output
+    "--strict-markers",
+    "--tb=short",
+    "-ra",
+
+    # Performance settings
+    "--maxfail=5",
+    "--durations=20",
+
+    # Disable unnecessary plugins
+    "-p", "no:xvfb",
+]
+
+# Test markers with clear categories
+markers = [
+    # Speed categories (mutually exclusive)
+    "fast: Fast tests that complete in <100ms",
+    "slow: Slow tests that take >1s",
+
+    # Test types
+    "unit: Unit tests (should generally be fast)",
+    "integration: Integration tests (may interact with filesystem)",
+    "performance: Performance benchmarks",
+    "benchmark: Performance benchmark tests (using pytest-benchmark)",
+
+    # Environment requirements
+    "qt: Tests requiring Qt event loop",
+    "gui: GUI tests requiring display",
+    "gui_mainwindow: Tests that create MainWindow (must run in single worker)",
+    "xdist_group(name): Tests that must run in the same worker (for xdist)",
+
+    # Safety categories for parallel execution
+    "integration_safe: Integration tests safe to parallelize",
+    "integration_unsafe: Integration tests that must run serially",
+    "qt_heavy: Tests creating complex Qt widgets (MainWindow)",
+
+    # Quality categories
+    "critical: Critical path tests that must pass",
+    "stress: Stress tests with high resource usage",
+    "quality: Code quality tests",
+    "contract: Contract/API validation",
+    "mutation: Mutation testing",
+    "snapshot: Snapshot testing",
+    "thread_safety: Thread safety and concurrency tests",
+
+    # Skip conditions
+    "skip_in_ci: Skip in CI environments",
+    "skip_in_wsl: Skip in WSL environments",
+]
+
+# Console output style
+console_output_style = "progress"
+
+# Logging configuration
+log_cli = false
+log_cli_level = "WARNING"
+log_file_level = "DEBUG"
+
+# JUnit XML configuration (for CI)
+junit_suite_name = "shotbot"
+junit_duration_report = "call"
+
+# Warning filters
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# Temporary path retention
+tmp_path_retention_count = 3
+tmp_path_retention_policy = "failed"
+
+# Assertion truncation limits
+truncation_limit_lines = 20
+truncation_limit_chars = 1000
+
+# Empty parameter set behavior
+empty_parameter_set_mark = "skip"
+
+# Strict xfail behavior (XPASS fails the suite)
+xfail_strict = false
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/tests/*",
+    "*/venv/*",
+    "*/.pytest_cache/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
 
 [tool.basedpyright]
 # Use recommended mode for better type safety with basedpyright improvements

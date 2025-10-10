@@ -53,7 +53,7 @@ import os
 from typing import TYPE_CHECKING, cast
 
 # Third-party imports
-from PySide6.QtCore import Qt, QTimer, Slot  # type: ignore[reportUnknownVariableType]
+from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -142,7 +142,7 @@ class SessionWarmer(ThreadSafeWorker):
         super().__init__()
         self._process_pool: ProcessPoolInterface = process_pool
 
-    @Slot()
+    @Slot()  # type: ignore[misc]  # PySide6 Slot decorator lacks type stubs
     @override
     def run(self) -> None:
         """Pre-warm bash sessions in background thread."""
@@ -723,11 +723,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 + f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache",
             )
             # Schedule background refresh for fresh data (non-blocking)
-            QTimer.singleShot(500, self._refresh_shots)  # type: ignore[reportUnknownMemberType]
+            QTimer.singleShot(500, self._refresh_shots)
         elif has_cached_shots:
             self._update_status(f"Loaded {len(self.shot_model.shots)} shots from cache")
             # Schedule background refresh for fresh data (non-blocking)
-            QTimer.singleShot(500, self._refresh_shots)  # type: ignore[reportUnknownMemberType]
+            QTimer.singleShot(500, self._refresh_shots)
         elif has_cached_scenes:
             self._update_status(
                 f"Loaded {len(self.threede_scene_model.scenes)} 3DE scenes from cache",
@@ -739,7 +739,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 "No cached data found - fetching fresh data in background",
             )
             # Schedule immediate background refresh
-            QTimer.singleShot(0, self._refresh_shots)  # type: ignore[reportUnknownMemberType]
+            QTimer.singleShot(0, self._refresh_shots)
 
         # Start auto-refresh for previous shots
         self.previous_shots_model.start_auto_refresh()
@@ -752,7 +752,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.logger.info(
                 "Shots already loaded from cache, triggering previous shots refresh immediately"
             )
-            QTimer.singleShot(100, self.previous_shots_model.refresh_shots)  # type: ignore[reportUnknownMemberType]
+            QTimer.singleShot(100, self.previous_shots_model.refresh_shots)
 
         # Only start 3DE discovery if we have shots AND cache is invalid/expired
         # This avoids unnecessary scans when we already know there are no scenes
@@ -761,7 +761,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             if not self.cache_manager.has_valid_threede_cache():  # type: ignore[attr-defined]
                 self.logger.info("3DE cache invalid/expired - starting discovery")
                 if self.threede_controller:
-                    QTimer.singleShot(  # type: ignore[reportUnknownMemberType]
+                    QTimer.singleShot(
                         100, self.threede_controller.refresh_threede_scenes
                     )
             else:
@@ -877,7 +877,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             if selected_scene:
                 # Re-apply the scene selection to update context
                 if self.threede_controller:
-                    self.threede_controller.on_scene_selected(selected_scene)
+                    self.threede_controller.on_scene_selected(selected_scene)  # type: ignore[misc]  # PySide6 @Slot decorator
             else:
                 # Clear selection
                 self.launcher_controller.set_current_shot(None)
@@ -1354,6 +1354,16 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def session_warmer(self, value: SessionWarmer | None) -> None:
         """Set the session warmer thread."""
         self._session_warmer = value
+
+    @property
+    def last_selected_shot_name(self) -> str | None:
+        """Public property to access the last selected shot name."""
+        return getattr(self, "_last_selected_shot_name", None)
+
+    @last_selected_shot_name.setter
+    def last_selected_shot_name(self, value: str | None) -> None:
+        """Set the last selected shot name."""
+        self._last_selected_shot_name = value
 
     def update_status(self, message: str) -> None:
         """Public method to update status bar."""

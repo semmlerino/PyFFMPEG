@@ -8,6 +8,21 @@ This script demonstrates that ShotBot can run without VFX infrastructure.
 import json
 import sys
 from pathlib import Path
+from typing import TypedDict, cast
+
+
+class ShotData(TypedDict):
+    """Type definition for shot data from JSON."""
+
+    show: str
+    seq: str
+    shot: str
+
+
+class DemoData(TypedDict):
+    """Type definition for demo_shots.json structure."""
+
+    shots: list[ShotData]
 
 
 def test_mock_environment() -> bool:
@@ -20,17 +35,17 @@ def test_mock_environment() -> bool:
     # 1. Show that mock data is loaded
     demo_shots_path = Path("demo_shots.json")
     with open(demo_shots_path) as f:
-        data = json.load(f)
-        shots = data["shots"]
+        data: DemoData = cast("DemoData", json.load(f))
+        shots: list[ShotData] = data["shots"]
 
     print("✅ Mock Environment Ready!")
     print()
     print(f"📁 Loaded {len(shots)} demo shots from {demo_shots_path.name}:")
 
     # Group shots by show
-    by_show = {}
+    by_show: dict[str, list[str]] = {}
     for shot in shots:
-        show = shot["show"]
+        show: str = shot["show"]
         if show not in by_show:
             by_show[show] = []
         by_show[show].append(f"{shot['seq']}_{shot['shot']}")
@@ -50,10 +65,10 @@ def test_mock_environment() -> bool:
     print("   ✓ Works offline")
     print()
     print("📝 To run ShotBot with GUI:")
-    print("   ./venv/bin/python shotbot.py --mock")
+    print("   uv run python shotbot.py --mock")
     print()
     print("   or set environment variable:")
-    print("   SHOTBOT_MOCK=1 ./venv/bin/python shotbot.py")
+    print("   SHOTBOT_MOCK=1 uv run python shotbot.py")
     print()
 
     # 2. Test that the ProcessPoolManager can be mocked
@@ -66,7 +81,7 @@ def test_mock_environment() -> bool:
     mock_pool = TestProcessPool()
 
     # Set up with our demo shots
-    outputs = []
+    outputs: list[str] = []
     for shot in shots:
         outputs.append(
             f"workspace /shows/{shot['show']}/shots/{shot['seq']}/{shot['seq']}_{shot['shot']}"
@@ -96,7 +111,7 @@ if __name__ == "__main__":
             # Third-party imports
             import PySide6
 
-            print(f"✅ PySide6 {PySide6.__version__} is installed")  # type: ignore[attr-defined]
+            print(f"✅ PySide6 {PySide6.__version__} is installed")
         except ImportError:
             print("⚠️  PySide6 not found - GUI won't work, but mock mode is configured")
             print("   Install with: pip install PySide6")
@@ -105,7 +120,7 @@ if __name__ == "__main__":
         success = test_mock_environment()
 
         if success:
-            print("\n👉 Ready to run: ./venv/bin/python shotbot.py --mock")
+            print("\n👉 Ready to run: uv run python shotbot.py --mock")
 
         sys.exit(0 if success else 1)
 

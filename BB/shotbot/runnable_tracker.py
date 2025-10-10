@@ -9,7 +9,7 @@ proper cleanup and prevent memory leaks from untracked thread pool tasks.
 import logging
 import threading
 import weakref
-from typing import Any
+from collections.abc import Mapping
 
 # Third-party imports
 from PySide6.QtCore import QRunnable, QThreadPool
@@ -48,7 +48,7 @@ class QRunnableTracker:
 
         self._active_runnables: weakref.WeakSet[QRunnable] = weakref.WeakSet()
         self._runnable_metadata: weakref.WeakKeyDictionary[
-            QRunnable, dict[str, Any]
+            QRunnable, dict[str, object]
         ] = weakref.WeakKeyDictionary()
         self._stats = {
             "total_registered": 0,
@@ -58,7 +58,7 @@ class QRunnableTracker:
         logger.debug("QRunnableTracker initialized")
 
     def register(
-        self, runnable: QRunnable, metadata: dict[str, Any] | None = None
+        self, runnable: QRunnable, metadata: Mapping[str, object] | None = None
     ) -> None:
         """
         Register a QRunnable for tracking.
@@ -69,7 +69,7 @@ class QRunnableTracker:
         """
         self._active_runnables.add(runnable)
         if metadata:
-            self._runnable_metadata[runnable] = metadata
+            self._runnable_metadata[runnable] = dict(metadata)
 
         self._stats["total_registered"] += 1
         current_active = len(self._active_runnables)
@@ -231,7 +231,7 @@ def get_tracker() -> QRunnableTracker:
 
 
 def register_runnable(
-    runnable: QRunnable, metadata: dict[str, Any] | None = None
+    runnable: QRunnable, metadata: Mapping[str, object] | None = None
 ) -> None:
     """Convenience function to register a runnable with the global tracker."""
     _tracker_instance.register(runnable, metadata)

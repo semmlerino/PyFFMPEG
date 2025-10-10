@@ -17,7 +17,7 @@ from PySide6.QtCore import (
     QObject,
     QThread,
     Signal,
-    Slot,  # type: ignore[reportUnknownVariableType]
+    Slot,
 )
 
 if TYPE_CHECKING:
@@ -108,9 +108,9 @@ class ThreadingManager(QObject):
             # Signal is defined as Signal(list) without type parameter, causing Unknown inference
             # Our slot is properly typed as list[ThreeDEScene], runtime behavior is correct
             self._current_threede_worker.finished.connect(
-                self._on_threede_discovery_finished  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+                self._on_threede_discovery_finished  # type: ignore[misc]  # PySide6 @Slot decorator
             )
-            self._current_threede_worker.error.connect(self._on_threede_discovery_error)
+            self._current_threede_worker.error.connect(self._on_threede_discovery_error)  # type: ignore[misc]  # PySide6 @Slot decorator
             self._current_threede_worker.paused.connect(
                 self.threede_discovery_paused.emit
             )
@@ -126,7 +126,7 @@ class ThreadingManager(QObject):
             logger.info("Started 3DE scene discovery thread")
             return True
 
-    @Slot(list)
+    @Slot(list)  # type: ignore[misc]  # PySide6 Slot decorator lacks type stubs
     def _on_threede_discovery_finished(self, scenes: list[ThreeDEScene]) -> None:
         """Handle 3DE discovery completion.
 
@@ -142,7 +142,7 @@ class ThreadingManager(QObject):
         # Schedule cleanup
         self._schedule_worker_cleanup("threede_discovery")
 
-    @Slot(str)
+    @Slot(str)  # type: ignore[misc]  # PySide6 Slot decorator lacks type stubs
     def _on_threede_discovery_error(self, error_message: str) -> None:
         """Handle 3DE discovery error.
 

@@ -18,7 +18,7 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict, cast
 
 
 class BundleConfig(TypedDict):
@@ -30,6 +30,10 @@ class BundleConfig(TypedDict):
     max_file_size_mb: int
     chunk_size_kb: int
     output_dir: str
+
+
+# Type alias for config values (avoids explicit Any)
+ConfigValue = list[str] | int | str
 
 
 class GitIgnoreParser:
@@ -200,7 +204,7 @@ class ApplicationBundler:
         if config_path and os.path.exists(config_path):
             try:
                 with open(config_path) as f:
-                    user_config: dict[str, Any] = json.load(f)
+                    user_config = cast("dict[str, ConfigValue]", json.load(f))
                     default_config.update(user_config)  # type: ignore[typeddict-item]
                     if self.verbose:
                         print(f"Loaded config from {config_path}", file=sys.stderr)
@@ -477,15 +481,15 @@ def main() -> None:
 
     try:
         # Create bundler
-        config_str: str = args.config
-        verbose_bool: bool = args.verbose
+        config_str = cast("str", args.config)
+        verbose_bool = cast("bool", args.verbose)
         bundler = ApplicationBundler(
             config_path=config_str if os.path.exists(config_str) else None,
             verbose=verbose_bool,
         )
 
         # List files mode
-        list_files_bool: bool = args.list_files
+        list_files_bool = cast("bool", args.list_files)
         if list_files_bool:
             files = bundler.collect_files()
             print(f"Found {len(files)} files to bundle:")
@@ -498,7 +502,7 @@ def main() -> None:
         if verbose_bool:
             print("Creating application bundle...", file=sys.stderr)
 
-        bundle_dir_arg: str | None = args.bundle_dir
+        bundle_dir_arg = cast("str | None", args.bundle_dir)
         bundle_dir = bundler.create_bundle(bundle_dir_arg)
 
         if verbose_bool:
@@ -508,13 +512,13 @@ def main() -> None:
         if verbose_bool:
             print("Encoding bundle...", file=sys.stderr)
 
-        output_arg: str | None = args.output
+        output_arg = cast("str | None", args.output)
         output_file = bundler.encode_bundle(bundle_dir, output_arg)
 
         print(f"Encoded bundle saved to: {output_file}")
 
         # Clean up bundle directory if not keeping it
-        keep_bundle_bool: bool = args.keep_bundle
+        keep_bundle_bool = cast("bool", args.keep_bundle)
         if not keep_bundle_bool and not bundle_dir_arg:
             shutil.rmtree(bundle_dir)
             if verbose_bool:

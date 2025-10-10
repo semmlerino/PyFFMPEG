@@ -26,20 +26,24 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, cast
+from typing import TypeAlias
 
 # Third-party imports
 from typing_extensions import TypedDict
+
+# Type alias for directory/file node structures
+# Using object for the recursive structure to avoid overly complex union types
+DirectoryNode: TypeAlias = dict[str, object]
 
 
 class ShowStructure(TypedDict):
     """Type definition for show structure."""
 
     root: str
-    structure: dict[str, Any]  # Complex nested structure from scan_directory
+    structure: DirectoryNode  # Complex nested structure from scan_directory
 
 
-class StructureDict(TypedDict, total=False):
+class StructureDict(TypedDict):
     """Type definition for the structure dictionary."""
 
     capture_time: float
@@ -83,7 +87,7 @@ def get_workspace_shots() -> tuple[list[str], list[str]]:
 
 def scan_directory(
     path: Path, base_path: Path, max_depth: int = 10, current_depth: int = 0
-) -> dict[str, Any] | None:
+) -> DirectoryNode | None:
     """Recursively scan directory structure.
 
     Returns dict with:
@@ -106,7 +110,7 @@ def scan_directory(
         return {"type": "file", "name": path.name, "path": str(rel_path), "size": size}
 
     elif path.is_dir():
-        children: list[dict[str, Any]] = []
+        children: list[DirectoryNode] = []
 
         # Key directories we care about
         important_dirs = {
@@ -220,6 +224,7 @@ def capture_structure(shows: list[str] | None = None) -> StructureDict:
         "workspace_shots": workspace_shots,
         "shows": {},
         "show_roots": [],
+        "patterns": {},
     }
 
     # Common show root directories
@@ -279,26 +284,29 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Extract typed arguments from argparse Namespace
+    shows: list[str] | None = args.shows  # type: ignore[assignment]
+    stdout_flag: bool = args.stdout  # type: ignore[assignment]
+    output_file_arg: str | None = args.output  # type: ignore[assignment]
+
     # Capture structure
-    structure = capture_structure(args.shows)
-    # Cast to dict for proper access
-    structure_dict = cast("dict[str, Any]", structure)
+    structure = capture_structure(shows)
 
     # Output as JSON
-    output = json.dumps(structure_dict, indent=2, sort_keys=True)
+    output = json.dumps(structure, indent=2, sort_keys=True)
 
     # Determine output destination
-    if args.stdout:
+    if stdout_flag:
         # Explicitly requested stdout
         print(output)
         print(
-            f"\nCapture complete! Found {len(structure_dict['shows'])} shows",
+            f"\nCapture complete! Found {len(structure['shows'])} shows",
             file=sys.stderr,
         )
     else:
         # Default: auto-generate filename or use provided one
-        if args.output:
-            output_file = args.output
+        if output_file_arg:
+            output_file = output_file_arg
         else:
             # Auto-generate filename with timestamp and hostname
             # Standard library imports
@@ -313,22 +321,24 @@ def main() -> None:
             f.write(output)
 
         print(f"✅ Structure saved to: {output_file}")
-        print(f"\nCapture complete! Found {len(structure_dict['shows'])} shows")
+        print(f"\nCapture complete! Found {len(structure['shows'])} shows")
 
     # Summary statistics
     total_dirs = 0
     total_files = 0
 
-    def count_items(node: dict[str, Any]) -> None:
+    def count_items(node: DirectoryNode) -> None:
         nonlocal total_dirs, total_files
         if node["type"] == "dir":
             total_dirs += 1
-            for child in node.get("children", []):
-                count_items(child)
+            children = node.get("children", [])
+            # children is list[DirectoryNode] but typed as object due to DirectoryNode definition
+            for child in children:  # type: ignore[attr-defined]
+                count_items(child)  # type: ignore[arg-type]
         elif node["type"] == "file":
             total_files += 1
 
-    for _, show_data in structure_dict["shows"].items():
+    for show_data in structure["shows"].values():
         for root_data in show_data:
             count_items(root_data["structure"])
 

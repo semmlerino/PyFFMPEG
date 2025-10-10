@@ -65,6 +65,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import cast
 
 
 def setup_logging() -> None:
@@ -205,20 +206,25 @@ Environment Variables:
     )
     args = parser.parse_args()
 
+    # Cast argparse attributes to explicit types for type checker
+    headless_flag = cast(bool, args.headless)
+    mock_flag = cast(bool, args.mock)
+    screenshot_seconds = cast(int | None, args.screenshot)
+
     # Initialize logging first - BEFORE any imports that might trigger PIL
     setup_logging()
 
     logger = logging.getLogger(__name__)
 
     # Check for headless mode
-    headless_mode = args.headless or os.environ.get("SHOTBOT_HEADLESS", "").lower() in (
+    headless_mode = headless_flag or os.environ.get("SHOTBOT_HEADLESS", "").lower() in (
         "1",
         "true",
         "yes",
     )
 
     # Check for mock mode from either command line or environment
-    mock_mode = args.mock or os.environ.get("SHOTBOT_MOCK", "").lower() in (
+    mock_mode = mock_flag or os.environ.get("SHOTBOT_MOCK", "").lower() in (
         "1",
         "true",
         "yes",
@@ -327,7 +333,7 @@ Environment Variables:
     window.show()
 
     # Auto-screenshot functionality
-    if args.screenshot and not headless_mode:
+    if screenshot_seconds is not None and not headless_mode:
         from pathlib import Path
 
         from PySide6.QtCore import QTimer
@@ -352,8 +358,8 @@ Environment Variables:
                 logger.error(f"Auto-screenshot failed: {e}")
 
         # Schedule screenshot after specified delay
-        delay_ms = args.screenshot * 1000
-        logger.info(f"Auto-screenshot scheduled in {args.screenshot} seconds...")
+        delay_ms = screenshot_seconds * 1000
+        logger.info(f"Auto-screenshot scheduled in {screenshot_seconds} seconds...")
         QTimer.singleShot(delay_ms, take_auto_screenshot)
 
     # Run application

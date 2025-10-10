@@ -10,6 +10,12 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import TypedDict, cast
+
+
+class VFXStructureData(TypedDict):
+    """Type definition for VFX structure JSON data."""
+    shows: dict[str, object]  # Show name -> show data mapping
 
 
 def main() -> None:
@@ -42,25 +48,31 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    print(f"📁 Joining {len(args.files)} files...")
+    # Extract typed variables from argparse namespace (argparse returns Any types)
+    files: list[str] = cast("list[str]", args.files)
+    output: str = cast("str", args.output)
+    recreate: bool = cast("bool", args.recreate)
+    root: str = cast("str", args.root)
+
+    print(f"📁 Joining {len(files)} files...")
 
     # Concatenate files
-    with open(args.output, "wb") as outfile:
-        for i, fname in enumerate(args.files, 1):
+    with open(output, "wb") as outfile:
+        for i, fname in enumerate(files, 1):
             print(
                 f"   {i}. {fname} ({Path(fname).stat().st_size / 1024 / 1024:.1f} MB)"
             )
             with open(fname, "rb") as infile:
                 outfile.write(infile.read())
 
-    output_size = Path(args.output).stat().st_size / 1024 / 1024
-    print(f"✅ Created {args.output} ({output_size:.1f} MB)")
+    output_size = Path(output).stat().st_size / 1024 / 1024
+    print(f"✅ Created {output} ({output_size:.1f} MB)")
 
     # Validate JSON
     print("\n🔍 Validating JSON...")
     try:
-        with open(args.output) as f:
-            data = json.load(f)
+        with open(output) as f:
+            data = cast("VFXStructureData", json.load(f))
         shows = list(data.get("shows", {}).keys())
         print(f"✅ Valid JSON with {len(shows)} shows: {', '.join(shows)}")
     except json.JSONDecodeError as e:
@@ -72,14 +84,14 @@ def main() -> None:
         sys.exit(1)
 
     # Recreate structure if requested
-    if args.recreate:
-        print(f"\n🏗️  Recreating VFX structure at {args.root}...")
+    if recreate:
+        print(f"\n🏗️  Recreating VFX structure at {root}...")
         cmd = [
             sys.executable,
             "recreate_vfx_structure.py",
-            args.output,
+            output,
             "--root",
-            args.root,
+            root,
             "--clean",
         ]
 
@@ -87,16 +99,16 @@ def main() -> None:
 
         if result.returncode == 0:
             print(result.stdout)
-            print(f"\n✨ Success! Mock VFX environment ready at {args.root}")
+            print(f"\n✨ Success! Mock VFX environment ready at {root}")
             print("\nYou can now run:")
-            print("  ./venv/bin/python shotbot_mock.py")
+            print("  uv run python shotbot_mock.py")
         else:
             print("❌ Recreation failed:")
             print(result.stderr)
             sys.exit(1)
     else:
         print("\nTo recreate the structure later, run:")
-        print(f"  python recreate_vfx_structure.py {args.output}")
+        print(f"  python recreate_vfx_structure.py {output}")
 
 
 if __name__ == "__main__":
