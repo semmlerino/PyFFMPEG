@@ -8,7 +8,7 @@ code duplication by ~70-80%.
 from __future__ import annotations
 
 # Standard library imports
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from enum import IntEnum
 from pathlib import Path
 from typing import Generic, TypeVar
@@ -16,6 +16,7 @@ from typing import Generic, TypeVar
 # Third-party imports
 from PySide6.QtCore import (
     QAbstractListModel,
+    QCoreApplication,
     QModelIndex,
     QMutex,
     QMutexLocker,
@@ -23,11 +24,12 @@ from PySide6.QtCore import (
     QPersistentModelIndex,
     QSize,
     Qt,
+    QThread,
     QTimer,
     Signal,
-    Slot,  # type: ignore[attr-defined]
+    Slot,
 )
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtGui import QIcon, QImage, QPixmap
 from typing_extensions import override
 
 # Local application imports
@@ -66,7 +68,7 @@ class BaseItemRole(IntEnum):
     ItemSpecificRole3 = Qt.ItemDataRole.UserRole + 22  # scene.scene_path for ThreeDEScene
 
 
-class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
+class BaseItemModel(ABC, LoggingMixin, QAbstractListModel, Generic[T]):
     """Base Qt Model implementation for item data.
 
     This base class provides:
@@ -100,9 +102,6 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
             parent: Optional parent QObject
         """
         # Ensure we're in the main thread for Qt model creation
-        # Third-party imports
-        from PySide6.QtCore import QCoreApplication, QThread
-
         app = QCoreApplication.instance()
         if app and not QThread.currentThread() == app.thread():
             raise RuntimeError(
@@ -218,9 +217,6 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         if role == Qt.ItemDataRole.DecorationRole:
             # Return thumbnail icon for decoration
             pixmap = self._get_thumbnail_pixmap(item)
-            # Third-party imports
-            from PySide6.QtGui import QIcon
-
             return QIcon(pixmap) if pixmap else None
 
         # Let subclass handle model-specific roles
@@ -289,7 +285,7 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         # Let subclass handle model-specific data setting
         return self.set_custom_data(item, value, role)
 
-    @Slot(int, int)
+    @Slot(int, int)  # type: ignore[reportAny]  # PySide6 Slot decorator type limitation
     def set_visible_range(self, start: int, end: int) -> None:
         """Set the visible range for lazy loading.
 
@@ -305,7 +301,12 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
             self._thumbnail_timer.start()
 
     def _load_visible_thumbnails(self) -> None:
-        """Load thumbnails for visible items only."""
+        """Load thumbnails for visible items with atomic check-and-mark.
+
+        This implementation eliminates race conditions by marking all items
+        as "loading" atomically in a single lock acquisition before starting
+        any actual loading operations.
+        """
         # Buffer zone for smoother scrolling
         buffer_size = 5
         start = max(0, self._visible_start - buffer_size)
@@ -318,11 +319,14 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
                 f"(range {start}-{end}, total items: {len(self._items)})"
             )
 
-        for row in range(start, end):
-            item = self._items[row]
+        # Collect items to load - atomic check-and-mark in single lock
+        items_to_load: list[tuple[int, T]] = []
 
-            # Skip if already loaded
-            with QMutexLocker(self._cache_mutex):
+        with QMutexLocker(self._cache_mutex):
+            for row in range(start, end):
+                item = self._items[row]
+
+                # Skip if already cached
                 if item.full_name in self._thumbnail_cache:
                     continue
 
@@ -331,27 +335,35 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
                 if state in ("loading", "failed"):
                     continue
 
-            # Start loading
+                # Mark as loading atomically (same lock acquisition)
+                self._loading_states[item.full_name] = "loading"
+                items_to_load.append((row, item))
+
+        # Load thumbnails outside lock (already marked as loading)
+        for row, item in items_to_load:
             self.logger.debug(f"Starting thumbnail load for item {row}: {item.full_name}")
             self._load_thumbnail_async(row, item)
 
         # Stop timer if no more loading needed
-        all_loaded = all(
-            self._items[i].full_name in self._thumbnail_cache for i in range(start, end)
-        )
+        with QMutexLocker(self._cache_mutex):
+            all_loaded = all(
+                self._items[i].full_name in self._thumbnail_cache
+                for i in range(start, end)
+            )
         if all_loaded:
             self._thumbnail_timer.stop()
 
     def _load_thumbnail_async(self, row: int, item: T) -> None:
         """Start async thumbnail loading for an item.
 
+        Note: The item MUST already be marked as "loading" in _loading_states
+        by the caller (usually _load_visible_thumbnails) to prevent race conditions.
+
         Args:
             row: Row index
-            item: Item object
+            item: Item object (must be pre-marked as "loading")
         """
-        # Mark as loading
-        with QMutexLocker(self._cache_mutex):
-            self._loading_states[item.full_name] = "loading"
+        # Item is already marked as "loading" by caller - emit notification
         index = self.index(row, 0)
         self.dataChanged.emit(index, index, [BaseItemRole.LoadingStateRole])
 
@@ -501,12 +513,17 @@ class BaseItemModel(LoggingMixin, QAbstractListModel, Generic[T]):
         return None
 
     def get_selected_item(self) -> T | None:
-        """Get currently selected item.
+        """Get currently selected item (thread-safe).
+
+        Note: Selection changes only occur on main thread (user clicks),
+        but this getter may be called from background threads for analytics,
+        logging, or future features.
 
         Returns:
             Selected item or None
         """
-        return self._selected_item
+        with QMutexLocker(self._cache_mutex):
+            return self._selected_item
 
     def clear_selection(self) -> None:
         """Clear the current selection."""

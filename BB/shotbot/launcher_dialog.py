@@ -781,7 +781,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: igno
                 self.logger.error(f"Failed to launch: {launcher.name}")
 
     @override
-    def closeEvent(self, event: QCloseEvent) -> None:  # type: ignore[override]
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Clean up signal connections and save window state on close."""
         # Disconnect launcher manager signals
         try:

@@ -17,8 +17,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -33,19 +32,19 @@ from typing_extensions import override
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
     from cache_manager import CacheManager
     from protocols import ProcessPoolInterface
-    from type_definitions import PerformanceMetricsDict, ShotDict
+    from type_definitions import PerformanceMetricsDict
 
 # Local application imports
 from base_shot_model import BaseShotModel
-from config import Config
 from exceptions import WorkspaceError
 from thread_safe_worker import ThreadSafeWorker
-from type_definitions import RefreshResult
-from utils import PathUtils
+from type_definitions import RefreshResult, Shot
+
+# Re-export Shot for backward compatibility with existing imports
+__all__ = ["Shot", "ShotModel", "AsyncShotLoader", "create_optimized_shot_model"]
 
 # Enable verbose debug logging if environment variable is set
 DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
@@ -53,91 +52,6 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
     "true",
     "yes",
 )
-
-# Sentinel value to distinguish between "not searched" and "searched but found nothing"
-_NOT_SEARCHED = object()
-
-
-@dataclass(slots=True)
-class Shot:
-    """Represents a single shot."""
-
-    show: str
-    sequence: str
-    shot: str
-    workspace_path: str
-    _cached_thumbnail_path: Path | None | object = field(
-        default=_NOT_SEARCHED,
-        init=False,
-        repr=False,
-        compare=False,
-    )
-
-    @property
-    def full_name(self) -> str:
-        """Get full shot name."""
-        return f"{self.sequence}_{self.shot}"
-
-    @property
-    def thumbnail_dir(self) -> Path:
-        """Get thumbnail directory path."""
-        return PathUtils.build_thumbnail_path(
-            Config.SHOWS_ROOT,
-            self.show,
-            self.sequence,
-            self.shot,
-        )
-
-    def get_thumbnail_path(self) -> Path | None:
-        """Get first available thumbnail or None.
-
-        Uses the unified thumbnail discovery logic from PathUtils.find_shot_thumbnail()
-        to ensure consistent thumbnails across all views.
-
-        Results are cached after the first search to avoid repeated
-        expensive filesystem operations.
-        """
-        # Return cached result if we've already searched
-        if self._cached_thumbnail_path is not _NOT_SEARCHED:
-            return cast("Path | None", self._cached_thumbnail_path)
-
-        # Use the unified thumbnail discovery method
-        # Note: PathUtils.find_shot_thumbnail returns Path | None, but basedpyright
-        # cannot infer the return type from the dynamic PathUtils class
-        result = PathUtils.find_shot_thumbnail(  # type: ignore[attr-defined]
-            Config.SHOWS_ROOT,
-            self.show,
-            self.sequence,
-            self.shot,
-        )
-        # Explicit cast to help type checker understand the return type
-        thumbnail: Path | None = cast("Path | None", result)
-
-        # Cache the result (even if None) to avoid repeated searches
-        self._cached_thumbnail_path = thumbnail
-        return thumbnail
-
-    def to_dict(self) -> ShotDict:
-        """Convert shot to dictionary for serialization."""
-        return {
-            "show": self.show,
-            "sequence": self.sequence,
-            "shot": self.shot,
-            "workspace_path": self.workspace_path,
-        }
-
-    @classmethod
-    def from_dict(cls, data: ShotDict) -> Shot:
-        """Create shot from dictionary data."""
-        shot = cls(
-            show=data["show"],
-            sequence=data["sequence"],
-            shot=data["shot"],
-            workspace_path=data["workspace_path"],
-        )
-        # Don't restore cached thumbnail path from dict - let it be re-discovered if needed
-        # This ensures we don't cache stale paths across sessions
-        return shot
 
 
 class AsyncShotLoader(ThreadSafeWorker):

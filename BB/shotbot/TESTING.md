@@ -6,16 +6,16 @@
 
 ```bash
 # Run all tests
-./venv/bin/python run_tests.py
+uv run python run_tests.py
 
 # Run specific test file
-./venv/bin/python run_tests.py tests/unit/test_shot_model.py
+uv run python run_tests.py tests/unit/test_shot_model.py
 
 # Run with coverage
-./venv/bin/python run_tests.py --cov
+uv run python run_tests.py --cov
 
 # Run specific test
-./venv/bin/python run_tests.py tests/unit/test_shot_model.py::TestShot::test_shot_creation
+uv run python run_tests.py tests/unit/test_shot_model.py::TestShot::test_shot_creation
 ```
 
 ### Test Organization

@@ -82,9 +82,9 @@ if success:
     print("\n" + "=" * 70)
     print("🚀 TO RUN SHOTBOT WITH GUI:")
     print("-" * 70)
-    print("  ./venv/bin/python shotbot_mock.py")
+    print("  uv run python shotbot_mock.py")
     print("  OR")
-    print("  ./venv/bin/python run_mock_vfx_env.py")
+    print("  uv run python run_mock_vfx_env.py")
 
     print("\n" + "=" * 70)
     print("✅ MOCK ENVIRONMENT STATUS: FULLY OPERATIONAL")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 # Third-party imports
@@ -13,13 +13,13 @@ from PySide6.QtCore import QObject, Signal
 if TYPE_CHECKING:
     from cache_manager import CacheManager
     from protocols import ProcessPoolInterface
-    from shot_model import Shot
-    from type_definitions import PerformanceMetricsDict, RefreshResult
+    from type_definitions import PerformanceMetricsDict, RefreshResult, Shot
 
 # Local application imports
 from logging_mixin import LoggingMixin
 from optimized_shot_parser import OptimizedShotParser
 from process_pool_manager import ProcessPoolManager
+from shot_filter import compose_filters, get_available_shows
 from utils import ValidationUtils
 
 # Enable verbose debug logging if environment variable is set
@@ -33,7 +33,7 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
 # Import RefreshResult from type_definitions to avoid circular imports
 
 
-class BaseShotModel(LoggingMixin, QObject):
+class BaseShotModel(ABC, LoggingMixin, QObject):
     """Abstract base class for shot models with shared functionality.
 
     This base class provides common signals, shot parsing logic, caching,
@@ -99,7 +99,7 @@ class BaseShotModel(LoggingMixin, QObject):
             True if cache was loaded, False otherwise
         """
         # Local application imports
-        from shot_model import Shot  # Import here to avoid circular import
+        from type_definitions import Shot  # Import here to avoid circular import
 
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
@@ -174,7 +174,7 @@ class BaseShotModel(LoggingMixin, QObject):
                         continue
 
                     # Local application imports
-                    from shot_model import Shot  # Import here to avoid circular import
+                    from type_definitions import Shot  # Import here to avoid circular import
 
                     shots.append(
                         Shot(
@@ -314,22 +314,15 @@ class BaseShotModel(LoggingMixin, QObject):
         Returns:
             Filtered list of shots
         """
-        shots = self.shots
-
-        # Apply show filter
-        if self._filter_show is not None:
-            shots = [shot for shot in shots if shot.show == self._filter_show]
-
-        # Apply text filter (case-insensitive substring match on full_name)
-        if self._filter_text:
-            filter_lower = self._filter_text.lower()
-            shots = [shot for shot in shots if filter_lower in shot.full_name.lower()]
+        filtered = compose_filters(
+            self.shots, show=self._filter_show, text=self._filter_text
+        )
 
         self.logger.debug(
-            f"Filtered {len(self.shots)} shots to {len(shots)} "
+            f"Filtered {len(self.shots)} shots to {len(filtered)} "
             f"(show='{self._filter_show}', text='{self._filter_text}')"
         )
-        return shots
+        return filtered
 
     def get_available_shows(self) -> set[str]:
         """Get all unique show names from current shots.
@@ -337,8 +330,7 @@ class BaseShotModel(LoggingMixin, QObject):
         Returns:
             Set of unique show names
         """
-        shows = set(shot.show for shot in self.shots)
-        return shows
+        return get_available_shows(self.shots)
 
     @abstractmethod
     def load_shots(self) -> RefreshResult:

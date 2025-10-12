@@ -7,18 +7,18 @@
 # Ensure you're in the ShotBot directory
 cd /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot
 
-# Activate virtual environment (if using one)
-source venv/bin/activate
+# Dependencies are managed by uv
+uv sync
 ```
 
 ### Run All New Integration Tests
 ```bash
 # Run the new comprehensive integration tests
-python run_tests.py tests/integration/test_raw_plate_finder_integration.py
-python run_tests.py tests/integration/test_folder_opener_integration.py  
-python run_tests.py tests/integration/test_threede_cache_persistence_integration.py
-python run_tests.py tests/integration/test_performance_benchmarks_integration.py
-python run_tests.py tests/integration/test_concurrent_stress_integration.py
+uv run python run_tests.py tests/integration/test_raw_plate_finder_integration.py
+uv run python run_tests.py tests/integration/test_folder_opener_integration.py
+uv run python run_tests.py tests/integration/test_threede_cache_persistence_integration.py
+uv run python run_tests.py tests/integration/test_performance_benchmarks_integration.py
+uv run python run_tests.py tests/integration/test_concurrent_stress_integration.py
 ```
 
 ### Run by Test Category
@@ -26,37 +26,37 @@ python run_tests.py tests/integration/test_concurrent_stress_integration.py
 #### Critical Workflow Tests (Fast)
 ```bash
 # Raw plate finder - comprehensive workflow tests
-python run_tests.py tests/integration/test_raw_plate_finder_integration.py::TestRawPlateFinderIntegration
+uv run python run_tests.py tests/integration/test_raw_plate_finder_integration.py::TestRawPlateFinderIntegration
 
-# Folder opener - filesystem operations  
-python run_tests.py tests/integration/test_folder_opener_integration.py::TestFolderOpenerWorkerIntegration
+# Folder opener - filesystem operations
+uv run python run_tests.py tests/integration/test_folder_opener_integration.py::TestFolderOpenerWorkerIntegration
 
 # 3DE cache persistence - app restart simulation
-python run_tests.py tests/integration/test_threede_cache_persistence_integration.py::TestThreeDECachePersistenceIntegration
+uv run python run_tests.py tests/integration/test_threede_cache_persistence_integration.py::TestThreeDECachePersistenceIntegration
 ```
 
 #### Performance Benchmarks (Medium Speed)
 ```bash
 # Performance benchmarks for critical paths
-python run_tests.py -m performance tests/integration/test_performance_benchmarks_integration.py
+uv run python run_tests.py -m performance tests/integration/test_performance_benchmarks_integration.py
 
 # Or run specific benchmark classes
-python run_tests.py tests/integration/test_performance_benchmarks_integration.py::TestPerformanceBenchmarks::test_shot_model_refresh_performance
+uv run python run_tests.py tests/integration/test_performance_benchmarks_integration.py::TestPerformanceBenchmarks::test_shot_model_refresh_performance
 ```
 
 #### Stress Tests (Slow - Use Sparingly)
-```bash  
+```bash
 # Concurrent operations stress tests
-python run_tests.py -m stress tests/integration/test_concurrent_stress_integration.py
+uv run python run_tests.py -m stress tests/integration/test_concurrent_stress_integration.py
 
 # Or run specific stress test
-python run_tests.py tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_concurrent_cache_operations_stress
+uv run python run_tests.py tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_concurrent_cache_operations_stress
 ```
 
 ### Run with Coverage
 ```bash
 # Generate coverage report for new integration tests
-python run_tests.py --cov=raw_plate_finder --cov=thumbnail_widget_base --cov=threede_scene_model --cov=cache_manager tests/integration/test_raw_plate_finder_integration.py tests/integration/test_folder_opener_integration.py tests/integration/test_threede_cache_persistence_integration.py
+uv run python run_tests.py --cov=raw_plate_finder --cov=thumbnail_widget_base --cov=threede_scene_model --cov=cache_manager tests/integration/test_raw_plate_finder_integration.py tests/integration/test_folder_opener_integration.py tests/integration/test_threede_cache_persistence_integration.py
 ```
 
 ### Selective Test Execution
@@ -64,20 +64,20 @@ python run_tests.py --cov=raw_plate_finder --cov=thumbnail_widget_base --cov=thr
 #### Run Only Non-Stress Tests
 ```bash
 # Run integration tests excluding performance and stress tests
-python run_tests.py tests/integration/ -m "not performance and not stress"
+uv run python run_tests.py tests/integration/ -m "not performance and not stress"
 ```
 
 #### Run Only Quick Tests
 ```bash
 # Run specific quick test methods
-python run_tests.py tests/integration/test_raw_plate_finder_integration.py::TestRawPlateFinderIntegration::test_full_workflow_complex_structure
-python run_tests.py tests/integration/test_folder_opener_integration.py::TestFolderOpenerWorkerIntegration::test_open_normal_directory
+uv run python run_tests.py tests/integration/test_raw_plate_finder_integration.py::TestRawPlateFinderIntegration::test_full_workflow_complex_structure
+uv run python run_tests.py tests/integration/test_folder_opener_integration.py::TestFolderOpenerWorkerIntegration::test_open_normal_directory
 ```
 
 #### Run Performance Tests Only
 ```bash
 # Run only performance-marked tests
-python run_tests.py tests/integration/ -m performance
+uv run python run_tests.py tests/integration/ -m performance
 ```
 
 ## Test Categories Overview
@@ -158,11 +158,8 @@ python run_tests.py tests/integration/ -m performance
 
 #### Import Errors
 ```bash
-# Ensure virtual environment is activated
-source venv/bin/activate
-
-# Install missing dependencies
-pip install -r requirements-dev.txt
+# Ensure dependencies are installed
+uv sync
 ```
 
 #### Permission Errors (Linux/macOS)

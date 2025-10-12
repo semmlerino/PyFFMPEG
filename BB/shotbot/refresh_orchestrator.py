@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Signal
 
@@ -11,7 +11,6 @@ from notification_manager import NotificationManager
 from progress_manager import ProgressManager
 
 if TYPE_CHECKING:
-    from main_window import MainWindow
     from shot_model import Shot
 
 
@@ -27,11 +26,11 @@ class RefreshOrchestrator(QObject, LoggingMixin):
     refresh_started = Signal(int)  # tab_index
     refresh_finished = Signal(int, bool)  # tab_index, success
 
-    def __init__(self, main_window: MainWindow) -> None:
+    def __init__(self, main_window: Any) -> None:
         """Initialize refresh orchestrator.
 
         Args:
-            main_window: The MainWindow instance to coordinate refreshes for
+            main_window: The MainWindow instance to coordinate refreshes for (typed as Any to avoid circular import)
         """
         super().__init__()
         LoggingMixin.__init__(self)
@@ -140,12 +139,9 @@ class RefreshOrchestrator(QObject, LoggingMixin):
                 self.logger.debug("Refresh completed without changes")
 
             # Restore last selected shot if available
-            if hasattr(self.main_window, "_last_selected_shot_name") and isinstance(
-                self.main_window._last_selected_shot_name, str
-            ):
-                shot = self.main_window.shot_model.find_shot_by_name(
-                    self.main_window._last_selected_shot_name
-                )
+            last_shot_name = self.main_window.last_selected_shot_name
+            if last_shot_name is not None:
+                shot = self.main_window.shot_model.find_shot_by_name(last_shot_name)
                 if shot:
                     self.main_window.shot_grid.select_shot_by_name(shot.full_name)
 
@@ -203,5 +199,5 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         Args:
             message: The status message to display
         """
-        if hasattr(self.main_window, "_update_status"):
-            self.main_window._update_status(message)
+        if hasattr(self.main_window, "update_status"):
+            self.main_window.update_status(message)

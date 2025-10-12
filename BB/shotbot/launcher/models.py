@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
     # Standard library imports
@@ -82,29 +82,18 @@ class LauncherParameter:
         # Validate numeric ranges
         if self.param_type in (ParameterType.INTEGER, ParameterType.FLOAT):
             if self.min_value is not None and self.max_value is not None:
-                if isinstance(self.min_value, int | float) and isinstance(
-                    self.max_value, int | float
-                ):
-                    if self.min_value > self.max_value:
-                        raise ValueError("min_value cannot be greater than max_value")
+                if self.min_value > self.max_value:
+                    raise ValueError("min_value cannot be greater than max_value")
 
-            if self.default_value is not None:
-                if (
-                    self.min_value is not None
-                    and isinstance(self.default_value, int | float)
-                    and isinstance(self.min_value, int | float)
-                ):
-                    if self.default_value < self.min_value:
-                        raise ValueError("Default value is below minimum")
-                if (
-                    self.max_value is not None
-                    and isinstance(self.default_value, int | float)
-                    and isinstance(self.max_value, int | float)
-                ):
-                    if self.default_value > self.max_value:
-                        raise ValueError("Default value is above maximum")
+            if self.default_value is not None and isinstance(
+                self.default_value, (int, float)
+            ):
+                if self.min_value is not None and self.default_value < self.min_value:
+                    raise ValueError("Default value is below minimum")
+                if self.max_value is not None and self.default_value > self.max_value:
+                    raise ValueError("Default value is above maximum")
 
-    def validate_value(self, value: Any) -> bool:
+    def validate_value(self, value: str | int | float | bool | None) -> bool:
         """Validate a value against this parameter's constraints.
 
         Args:
@@ -159,7 +148,7 @@ class LauncherParameter:
         except Exception:
             return False
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, str | int | float | bool | list[str] | None]:
         """Convert parameter to dictionary for serialization."""
         data = asdict(self)
         # Convert enum to string
@@ -167,7 +156,9 @@ class LauncherParameter:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> LauncherParameter:
+    def from_dict(
+        cls, data: dict[str, str | int | float | bool | list[str] | None]
+    ) -> LauncherParameter:
         """Create parameter from dictionary.
 
         Args:
@@ -180,11 +171,18 @@ class LauncherParameter:
             ValueError: If data is invalid
         """
         try:
-            # Convert param_type string back to enum
-            if "param_type" in data:
-                data["param_type"] = ParameterType(data["param_type"])
+            # Create a mutable copy for modification
+            data_copy: dict[str, str | int | float | bool | list[str] | None | ParameterType] = dict(
+                data
+            )
 
-            return cls(**data)
+            # Convert param_type string back to enum
+            if "param_type" in data_copy:
+                param_type_value = data_copy["param_type"]
+                if isinstance(param_type_value, str):
+                    data_copy["param_type"] = ParameterType(param_type_value)
+
+            return cls(**data_copy)  # pyright: ignore[reportArgumentType]
 
         except (TypeError, ValueError) as e:
             raise ValueError(f"Invalid parameter data: {e}")
@@ -246,35 +244,121 @@ class CustomLauncher:
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(
+        self,
+    ) -> dict[str, str | dict[str, str | bool | list[str] | None] | list[str]]:
         """Convert launcher to dictionary for serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> CustomLauncher:
+    def from_dict(
+        cls,
+        data: dict[str, str | dict[str, str | bool | list[str] | None] | list[str]],
+    ) -> CustomLauncher:
         """Create launcher from dictionary data."""
-        # Handle nested objects
-        if "environment" in data and isinstance(data["environment"], dict):
-            data["environment"] = LauncherEnvironment(**data["environment"])
-        if "terminal" in data and isinstance(data["terminal"], dict):
-            data["terminal"] = LauncherTerminal(**data["terminal"])
-        if "validation" in data and isinstance(data["validation"], dict):
-            data["validation"] = LauncherValidation(**data["validation"])
+        # Create a mutable copy for modification
+        data_copy: dict[
+            str,
+            str
+            | dict[str, str | bool | list[str] | None]
+            | list[str]
+            | LauncherEnvironment
+            | LauncherTerminal
+            | LauncherValidation,
+        ] = dict(data)
 
-        return cls(**data)
+        # Handle nested objects
+        if "environment" in data_copy:
+            env_data = data_copy["environment"]
+            if isinstance(env_data, dict):
+                # Extract and validate packages list
+                packages_value = env_data.get("packages", [])
+                packages: list[str] = []
+                if isinstance(packages_value, list):
+                    packages = [str(item) for item in packages_value]
+
+                # Extract and validate source_files list
+                source_files_value = env_data.get("source_files", [])
+                source_files: list[str] = []
+                if isinstance(source_files_value, list):
+                    source_files = [str(item) for item in source_files_value]
+
+                data_copy["environment"] = LauncherEnvironment(
+                    type=str(env_data.get("type", "bash")),
+                    packages=packages,
+                    source_files=source_files,
+                    command_prefix=str(env_data["command_prefix"])
+                    if env_data.get("command_prefix") is not None
+                    else None,
+                )
+
+        if "terminal" in data_copy:
+            term_data = data_copy["terminal"]
+            if isinstance(term_data, dict):
+                data_copy["terminal"] = LauncherTerminal(
+                    required=bool(term_data.get("required", False)),
+                    persist=bool(term_data.get("persist", False)),
+                    title=str(term_data["title"])
+                    if term_data.get("title") is not None
+                    else None,
+                )
+
+        if "validation" in data_copy:
+            val_data = data_copy["validation"]
+            if isinstance(val_data, dict):
+                # Extract and validate required_files list
+                required_files_value = val_data.get("required_files", [])
+                required_files: list[str] = []
+                if isinstance(required_files_value, list):
+                    required_files = [str(item) for item in required_files_value]
+
+                # Extract and validate forbidden_patterns list
+                forbidden_patterns_value = val_data.get("forbidden_patterns", [])
+                forbidden_patterns: list[str] = []
+                if isinstance(forbidden_patterns_value, list):
+                    forbidden_patterns = [str(item) for item in forbidden_patterns_value]
+
+                data_copy["validation"] = LauncherValidation(
+                    check_executable=bool(val_data.get("check_executable", True)),
+                    required_files=required_files,
+                    forbidden_patterns=forbidden_patterns,
+                    working_directory=str(val_data["working_directory"])
+                    if val_data.get("working_directory") is not None
+                    else None,
+                    resolve_paths=bool(val_data.get("resolve_paths", False)),
+                )
+
+        return cls(**data_copy)  # pyright: ignore[reportArgumentType]
 
 
 class ProcessInfo:
     """Information about an active process."""
 
-    def __init__(
+    # Type annotations for instance attributes
+    process: subprocess.Popen[bytes]
+    launcher_id: str
+    launcher_name: str
+    command: str
+    timestamp: float
+    validated: bool
+
+    def __init__(  # pyright: ignore[reportMissingSuperCall]
         self,
-        process: subprocess.Popen[Any],
+        process: subprocess.Popen[bytes],
         launcher_id: str,
         launcher_name: str,
         command: str,
         timestamp: float,
     ) -> None:
+        """Initialize ProcessInfo.
+
+        Args:
+            process: The subprocess.Popen object
+            launcher_id: Unique identifier for the launcher
+            launcher_name: Human-readable launcher name
+            command: The command that was executed
+            timestamp: Start timestamp
+        """
         self.process = process
         self.launcher_id = launcher_id
         self.launcher_name = launcher_name

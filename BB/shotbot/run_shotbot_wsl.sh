@@ -1,4 +1,7 @@
 #!/bin/bash
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 # Script to run ShotBot with proper WSL/X11 settings
 
 echo "Starting ShotBot with mock mode in WSL..."
@@ -43,4 +46,4 @@ echo "================================================"
 echo ""
 
 # Run in foreground so we can see any errors
-./venv/bin/python shotbot.py --mock
+uv run python shotbot.py --mock

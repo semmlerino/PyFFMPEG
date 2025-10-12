@@ -179,7 +179,7 @@ def test_headless_shotbot_command() -> None:
     env["SHOTBOT_HEADLESS"] = "1"
     env["SHOTBOT_MOCK"] = "1"  # Use mock data
 
-    cmd = ["./venv/bin/python", "shotbot.py", "--headless", "--mock"]
+    cmd = ["uv", "run", "python", "shotbot.py", "--headless", "--mock"]
 
     logger.info(f"Running: {' '.join(cmd)}")
 

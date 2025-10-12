@@ -29,38 +29,31 @@ A PySide6 GUI application for browsing VFX shots and launching applications in s
 ## Installation
 
 1. Clone or download the shotbot directory
-2. Create a virtual environment:
+2. Install [uv](https://github.com/astral-sh/uv) (fast Python package manager):
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   # or
-   venv\Scripts\activate     # Windows
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 3. Install dependencies:
    ```bash
-   pip install -r requirements.txt
+   uv sync
    ```
-4. For development, also install dev dependencies:
-   ```bash
-   pip install -r requirements-dev.txt
-   ```
+
+That's it! uv automatically creates a virtual environment in `.venv` and installs all dependencies.
 
 ## Usage
 
 ### Normal Mode (Requires VFX Environment)
 Run the application in a VFX environment with access to `ws -sg`:
 ```bash
-python shotbot.py
-# or
-./shotbot.py
+uv run python shotbot.py
 ```
 
 ### Mock Mode (No VFX Environment Needed)
 Run with mock data for development/testing without `ws` command:
 ```bash
-python shotbot.py --mock
+uv run python shotbot.py --mock
 # or
-SHOTBOT_MOCK=1 python shotbot.py
+SHOTBOT_MOCK=1 uv run python shotbot.py
 ```
 
 Mock mode uses demo shot data from `demo_shots.json` and doesn't require:

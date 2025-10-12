@@ -1,4 +1,7 @@
 #!/bin/bash
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 # Diagnostic script to run tests in smaller groups to identify crash sources
 # This helps isolate which test combinations cause crashes
 
@@ -24,7 +27,7 @@ run_test_group() {
     echo "Pattern: $test_pattern"
     echo "Timeout: ${timeout_seconds}s"
 
-    if timeout "$timeout_seconds" python3 -m pytest "$test_pattern" -v --tb=short; then
+    if timeout "$timeout_seconds" uv run pytest "$test_pattern" -v --tb=short; then
         echo -e "${GREEN}✓ Group '$group_name' PASSED${NC}"
         return 0
     else

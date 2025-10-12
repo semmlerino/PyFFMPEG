@@ -15,7 +15,7 @@ def check_test_file(test_path: str, timeout: int = 5) -> str | None:
     """Check if a test file runs successfully."""
     try:
         result = subprocess.run(
-            ["./venv/bin/python", "run_tests.py", test_path, "-x", "--tb=no"],
+            ["uv", "run", "python", "run_tests.py", test_path, "-x", "--tb=no"],
             capture_output=True,
             text=True,
             timeout=timeout,

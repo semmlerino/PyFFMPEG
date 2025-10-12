@@ -1,4 +1,7 @@
 #!/bin/bash
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 # Run full test suite - suitable for main branch and releases
 # Includes all tests except performance benchmarks
 # Expected runtime: ~2-3 minutes
@@ -6,14 +9,9 @@
 echo "🔬 Running full test suite..."
 echo "================================"
 
-# Activate virtual environment if it exists
-if [ -d "venv" ]; then
-    source venv/bin/activate
-fi
-
 # Run unit tests first (most likely to fail fast)
 echo "📦 Running unit tests..."
-python -m pytest tests/unit/ \
+uv run pytest tests/unit/ \
     -m "not performance" \
     --tb=short \
     --maxfail=10 \
@@ -29,7 +27,7 @@ fi
 
 # Run integration tests
 echo "🔗 Running integration tests..."
-python -m pytest tests/integration/ \
+uv run pytest tests/integration/ \
     --tb=short \
     --maxfail=10 \
     --timeout=30 \
@@ -44,7 +42,7 @@ fi
 
 # Run slow tests
 echo "🐢 Running slow tests..."
-python -m pytest tests/ \
+uv run pytest tests/ \
     -m "slow" \
     --tb=short \
     --maxfail=5 \

@@ -16,10 +16,37 @@ import argparse
 import json
 import random
 from pathlib import Path
-from typing import Any
+from typing import NotRequired, TypedDict, cast
 
 # Third-party imports
 from PIL import Image, ImageDraw, ImageFont
+
+
+# Type definitions for JSON structure
+class NodeDict(TypedDict):
+    """Type for directory/file node in captured structure."""
+
+    type: str  # "dir", "file", or "truncated"
+    name: str
+    children: NotRequired[list["NodeDict"]]
+
+
+class ShowDataDict(TypedDict):
+    """Type for show data structure."""
+
+    root: str
+    structure: NodeDict
+
+
+class StructureDataDict(TypedDict):
+    """Type for main JSON structure from capture."""
+
+    capture_time: NotRequired[str | None]
+    capture_host: NotRequired[str]
+    workspace_shots: list[str]
+    shows: dict[str, list[ShowDataDict]]
+    show_roots: NotRequired[list[str]]
+    patterns: NotRequired[dict[str, list[str]]]
 
 
 class VFXStructureRecreator:
@@ -168,7 +195,7 @@ class VFXStructureRecreator:
             slate_path, f"{shot_name}\nFrames {start}-{end}", 512, 288
         )
 
-    def recreate_node(self, node: dict[str, Any], parent_path: Path) -> None:
+    def recreate_node(self, node: NodeDict, parent_path: Path) -> None:
         """Recursively recreate a node from the captured structure.
 
         Args:
@@ -178,7 +205,7 @@ class VFXStructureRecreator:
         if node["type"] == "truncated":
             return
 
-        name = node["name"]
+        name: str = node["name"]
 
         if node["type"] == "dir":
             # Create directory
@@ -187,14 +214,15 @@ class VFXStructureRecreator:
             self.stats["dirs_created"] += 1
 
             # Process children
-            for child in node.get("children", []):
+            children: list[NodeDict] = node.get("children", [])
+            for child in children:
                 self.recreate_node(child, dir_path)
 
         elif node["type"] == "file":
-            file_path = parent_path / name
+            file_path: Path = parent_path / name
 
             # Determine file type and create appropriate placeholder
-            lower_name = name.lower()
+            lower_name: str = name.lower()
 
             if any(
                 pattern in lower_name
@@ -244,7 +272,7 @@ class VFXStructureRecreator:
 
             self.stats["files_created"] += 1
 
-    def create_additional_3de_files(self, structure_data: dict[str, Any]) -> None:
+    def create_additional_3de_files(self, structure_data: StructureDataDict) -> None:
         """Create additional 3DE files from other users for 'Other 3DE Scenes' tab.
 
         Args:
@@ -256,7 +284,7 @@ class VFXStructureRecreator:
         other_users = ["henry-b", "david-s", "jeanette-m", "dave-c", "richard-f"]
 
         # Get workspace shots from the structure data
-        workspace_shots = structure_data.get("workspace_shots", [])
+        workspace_shots: list[str] = structure_data.get("workspace_shots", [])
         if not workspace_shots:
             print("No workspace shots found, skipping additional 3DE files")
             return
@@ -321,18 +349,19 @@ class VFXStructureRecreator:
 
         print(f"Created additional 3DE files from {len(other_users)} other users")
 
-    def create_gabrielh_3de_files(self, structure_data: dict[str, Any]) -> None:
+    def create_gabrielh_3de_files(self, structure_data: StructureDataDict) -> None:
         """Create 3DE files for gabriel-h to populate 'My Shots' tab."""
         gabrielh_3de_count = 0
 
         # Find all gabriel-h 3DE scene directories
-        for show, show_data_list in structure_data.get("shows", {}).items():
+        for _, show_data_list in structure_data.get("shows", {}).items():
             for show_data in show_data_list:
-                structure = show_data.get("structure", {})
-                gabrielh_3de_paths = []
+                # Empty dict doesn't match NodeDict structure but is used as fallback
+                structure: NodeDict = show_data.get("structure") or {"type": "", "name": ""}
+                gabrielh_3de_paths: list[list[str]] = []
 
                 def find_gabrielh_3de_scenes(
-                    node: dict[str, Any], path_parts: list[str] | None = None
+                    node: NodeDict, path_parts: list[str] | None = None
                 ) -> None:
                     """Recursively find gabriel-h 3DE scenes directories."""
                     if path_parts is None:
@@ -351,7 +380,8 @@ class VFXStructureRecreator:
                             gabrielh_3de_paths.append(current_path)
 
                         # Recurse through children
-                        for child in node.get("children", []):
+                        children: list[NodeDict] = node.get("children", [])
+                        for child in children:
                             find_gabrielh_3de_scenes(child, current_path)
 
                 find_gabrielh_3de_scenes(structure)
@@ -393,7 +423,7 @@ class VFXStructureRecreator:
 
         print(f"Created {gabrielh_3de_count} 3DE files for gabriel-h")
 
-    def recreate_structure(self, structure_data: dict[str, Any]) -> None:
+    def recreate_structure(self, structure_data: StructureDataDict) -> None:
         """Recreate the entire VFX structure.
 
         Args:
@@ -407,15 +437,9 @@ class VFXStructureRecreator:
             print(f"Recreating show: {show}")
 
             for show_data in show_data_list:
-                # Determine local root (map /shows to our root)
-                show_data["root"]
-
                 # Create show structure
                 if "structure" in show_data:
-                    show_structure = show_data["structure"]
-
-                    # Create under our mock root
-                    self.root / "shows" / show
+                    show_structure: NodeDict = show_data["structure"]
                     self.recreate_node(show_structure, self.root / "shows")
 
         # Create additional 3DE files from other users for "Other 3DE Scenes" tab
@@ -441,7 +465,7 @@ class VFXStructureRecreator:
         print(f"  3DE files created: {self.stats['3de_files_created']}")
 
 
-def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[type-arg]
+def merge_structures(json_files: list[str]) -> StructureDataDict:
     """Merge multiple VFX structure JSON files.
 
     Args:
@@ -450,7 +474,7 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
     Returns:
         Merged structure dictionary
     """
-    merged = {
+    merged: StructureDataDict = {
         "capture_time": None,
         "capture_host": "merged",
         "workspace_shots": [],
@@ -459,21 +483,20 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
         "patterns": {},
     }
 
-    workspace_shots_set = set()
-    show_roots_set = set()
+    workspace_shots_set: set[str] = set()
+    show_roots_set: set[str] = set()
 
     for json_file in json_files:
         print(f"Loading {json_file}...")
         with open(json_file, encoding="utf-8") as f:
-            data = json.load(f)
+            data = cast("StructureDataDict", json.load(f))
 
         # Use the latest capture time
-        if data.get("capture_time"):
-            if (
-                merged["capture_time"] is None
-                or data["capture_time"] > merged["capture_time"]
-            ):
-                merged["capture_time"] = data["capture_time"]
+        data_capture_time = data.get("capture_time")
+        if data_capture_time:
+            merged_capture_time = merged.get("capture_time")
+            if merged_capture_time is None or data_capture_time > merged_capture_time:
+                merged["capture_time"] = data_capture_time
 
         # Merge workspace shots (unique)
         for shot in data.get("workspace_shots", []):
@@ -486,7 +509,7 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
         # Merge shows
         for show, show_data_list in data.get("shows", {}).items():
             if show not in merged["shows"]:
-                merged["shows"][show] = []  # type: ignore[index]
+                merged["shows"][show] = []
 
             # Add show data, avoiding duplicates
             for show_data in show_data_list:
@@ -494,30 +517,32 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
                     continue
                 # Check if this root/structure combo already exists
                 exists = False
-                show_list = merged["shows"].get(show, [])
+                show_list: list[ShowDataDict] = merged["shows"].get(show, [])
                 for existing in show_list:
-                    if existing and existing.get("root") == show_data.get("root"):  # type: ignore[attr-defined]
+                    if existing and existing.get("root") == show_data.get("root"):
                         # Merge or replace - use the one with more data
-                        existing_size = count_nodes(existing.get("structure", {}))  # type: ignore[attr-defined]
-                        new_size = count_nodes(show_data.get("structure", {}))  # type: ignore[attr-defined]
+                        existing_structure: NodeDict = existing.get("structure") or {"type": "", "name": ""}
+                        new_structure: NodeDict = show_data.get("structure") or {"type": "", "name": ""}
+                        existing_size = count_nodes(existing_structure)
+                        new_size = count_nodes(new_structure)
                         if new_size > existing_size:
-                            existing["structure"] = show_data["structure"]  # type: ignore[index,attr-defined]
+                            existing["structure"] = show_data["structure"]
                         exists = True
                         break
 
                 if not exists:
-                    merged["shows"][show].append(show_data)  # type: ignore[attr-defined]
+                    merged["shows"][show].append(show_data)
 
         # Merge patterns
-        for key, value in data.get("patterns", {}).items():
+        patterns_dict: dict[str, list[str]] = data.get("patterns", {})
+        for key, value in patterns_dict.items():
             if key not in merged["patterns"]:
-                merged["patterns"][key] = []  # type: ignore[index]
-            if isinstance(value, list):
-                pattern_list = merged["patterns"].get(key, [])
-                if pattern_list is not None:  # Ensure list exists
-                    for item in value:
-                        if item not in pattern_list:
-                            pattern_list.append(item)  # type: ignore[attr-defined]
+                merged["patterns"][key] = []
+            # value is always list[str] from TypedDict, no need to check isinstance
+            pattern_list: list[str] = merged["patterns"].get(key, [])
+            for item in value:
+                if item not in pattern_list:
+                    pattern_list.append(item)
 
     # Convert sets back to lists
     merged["workspace_shots"] = sorted(list(workspace_shots_set))
@@ -526,13 +551,15 @@ def merge_structures(json_files: list[str]) -> dict[str, Any]:  # type: ignore[t
     return merged
 
 
-def count_nodes(structure: dict[str, Any]) -> int:
+def count_nodes(structure: NodeDict) -> int:
     """Count total nodes in a structure tree."""
-    if not structure or not isinstance(structure, dict):
+    # NodeDict is already dict type, but check for empty/invalid structure
+    if not structure:
         return 0
 
     count = 1  # Count this node
-    for child in structure.get("children", []):
+    children: list[NodeDict] = structure.get("children", [])
+    for child in children:
         count += count_nodes(child)
     return count
 
@@ -559,25 +586,31 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Cast argparse namespace attributes to proper types
+    input_files = cast("list[str]", args.input)
+    root_path = cast("str", args.root)
+    clean = cast("bool", args.clean)
+
     # Handle single or multiple input files
-    if len(args.input) == 1:
+    structure_data: StructureDataDict
+    if len(input_files) == 1:
         # Single file - load directly
-        with open(args.input[0], encoding="utf-8") as f:
-            structure_data = json.load(f)
-        print(f"Loaded structure from {args.input[0]}")
+        with open(input_files[0], encoding="utf-8") as f:
+            structure_data = cast("StructureDataDict", json.load(f))
+        print(f"Loaded structure from {input_files[0]}")
     else:
         # Multiple files - merge them
-        print(f"Merging {len(args.input)} structure files...")
-        structure_data = merge_structures(args.input)
-        print(f"Merged {len(args.input)} files successfully")
+        print(f"Merging {len(input_files)} structure files...")
+        structure_data = merge_structures(input_files)
+        print(f"Merged {len(input_files)} files successfully")
 
     print(f"Capture time: {structure_data.get('capture_time', 'unknown')}")
     print(f"Capture host: {structure_data.get('capture_host', 'unknown')}")
     print(f"Shows found: {', '.join(structure_data.get('shows', {}).keys())}")
 
     # If multiple files were merged, optionally save the merged result
-    if len(args.input) > 1:
-        merged_output = Path(args.root) / "merged_structure.json"
+    if len(input_files) > 1:
+        merged_output = Path(root_path) / "merged_structure.json"
         print(f"\nSaving merged structure to: {merged_output}")
         merged_output.parent.mkdir(parents=True, exist_ok=True)
         with open(merged_output, "w", encoding="utf-8") as f:
@@ -585,8 +618,8 @@ def main() -> None:
         print("Merged structure saved for future use")
 
     # Clean if requested
-    if args.clean:
-        root = Path(args.root)
+    if clean:
+        root = Path(root_path)
         if root.exists():
             # Standard library imports
             import shutil
@@ -595,29 +628,29 @@ def main() -> None:
             shutil.rmtree(root)
 
     # Recreate structure
-    recreator = VFXStructureRecreator(args.root)
+    recreator = VFXStructureRecreator(root_path)
     recreator.recreate_structure(structure_data)
 
     # Create a marker file to indicate this is mock
-    marker = Path(args.root) / "MOCK_VFX_ENVIRONMENT.txt"
+    marker = Path(root_path) / "MOCK_VFX_ENVIRONMENT.txt"
     marker.write_text(
         """This is a mock VFX environment created for development/testing.
-    
+
 Generated from: {}
 Capture time: {}
 Capture host: {}
 
 DO NOT use for production!
 """.format(
-            args.input,
+            input_files,
             structure_data.get("capture_time", "unknown"),
             structure_data.get("capture_host", "unknown"),
         ),
         encoding="utf-8",
     )
 
-    print(f"\n✅ Mock VFX environment ready at: {args.root}")
-    print(f"You can now set SHOWS_ROOT={args.root}/shows when running ShotBot")
+    print(f"\n✅ Mock VFX environment ready at: {root_path}")
+    print(f"You can now set SHOWS_ROOT={root_path}/shows when running ShotBot")
 
 
 if __name__ == "__main__":

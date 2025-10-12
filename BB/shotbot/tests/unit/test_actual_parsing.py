@@ -96,22 +96,17 @@ def test_parsing():
         for line in failed_lines:
             print(f"  - {line}")
 
-    return len(successful_shots) == len(lines)
+    # Assert instead of return
+    assert len(successful_shots) == len(lines), f"Only {len(successful_shots)}/{len(lines)} lines parsed successfully"
 
 
 def test_shot_item_model():
     """Test ShotItemModel with parsed shots."""
     # Third-party imports
-    from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QCoreApplication, Qt
 
     # Local application imports
     from shot_item_model import ShotItemModel
-
-    # Create QApplication if not exists (required for Qt operations)
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication(sys.argv)
 
     print("\nTesting ShotItemModel...")
     print("=" * 40)
@@ -132,19 +127,29 @@ def test_shot_item_model():
             )
             shots.append(shot)
 
-    # Test model
+    # Test model - QAbstractItemModel doesn't need qtbot (no widget cleanup needed)
     model = ShotItemModel()
-    model.set_shots(shots)
+    try:
+        model.set_shots(shots)
 
-    print(f"Model row count: {model.rowCount()}")
-    print("\nDisplayRole data from model:")
+        print(f"Model row count: {model.rowCount()}")
+        print("\nDisplayRole data from model:")
 
-    for i in range(model.rowCount()):
-        index = model.index(i, 0)
-        display_text = model.data(index, Qt.ItemDataRole.DisplayRole)
-        print(f"  Row {i}: {display_text}")
+        for i in range(model.rowCount()):
+            index = model.index(i, 0)
+            display_text = model.data(index, Qt.ItemDataRole.DisplayRole)
+            print(f"  Row {i}: {display_text}")
 
-    return model.rowCount() > 0
+        # Assert instead of return
+        assert model.rowCount() > 0
+    finally:
+        # Explicit cleanup for QAbstractItemModel
+        model.deleteLater()
+        # Force event processing to ensure cleanup happens
+        app = QCoreApplication.instance()
+        if app:
+            app.processEvents()
+            app.sendPostedEvents()
 
 
 if __name__ == "__main__":

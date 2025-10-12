@@ -17,7 +17,7 @@ from PySide6.QtCore import (
     QThreadPool,
     QTimer,
     Signal,
-    Slot,  # type: ignore[reportUnknownVariableType]
+    Slot,
 )
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -132,7 +132,7 @@ class PreviousShotsView(BaseGridView):
 
         # Refresh button
         self._refresh_button = QPushButton("Refresh")
-        self._refresh_button.clicked.connect(self._on_refresh_clicked)
+        self._refresh_button.clicked.connect(self._on_refresh_clicked)  # pyright: ignore[reportAny]
         header_layout.addWidget(self._refresh_button)
 
         return widget
@@ -177,27 +177,30 @@ class PreviousShotsView(BaseGridView):
         # Set up selection model
         selection_model = self.list_view.selectionModel()
         if selection_model:
-            selection_model.currentChanged.connect(self._on_selection_changed)
+            selection_model.currentChanged.connect(self._on_selection_changed)  # pyright: ignore[reportAny]
 
         # Connect to model signals
-        model.shots_updated.connect(self._on_model_updated)
+        model.shots_updated.connect(self._on_model_updated)  # pyright: ignore[reportAny]
 
         # Connect to underlying model's scan signals using accessor method
         underlying_model = model.get_underlying_model()
         if underlying_model:  # Type guard to satisfy basedpyright
             underlying_model.scan_started.connect(
-                self._on_scan_started, Qt.ConnectionType.QueuedConnection
+                self._on_scan_started,  # pyright: ignore[reportAny]
+                Qt.ConnectionType.QueuedConnection
             )
             underlying_model.scan_finished.connect(
-                self._on_scan_finished, Qt.ConnectionType.QueuedConnection
+                self._on_scan_finished,  # pyright: ignore[reportAny]
+                Qt.ConnectionType.QueuedConnection
             )
             underlying_model.scan_progress.connect(
-                self._on_scan_progress, Qt.ConnectionType.QueuedConnection
+                self._on_scan_progress,  # pyright: ignore[reportAny]
+                Qt.ConnectionType.QueuedConnection
             )
 
         # Connect scroll events for debounced visibility updates
         self.list_view.verticalScrollBar().valueChanged.connect(
-            self._schedule_visible_range_update
+            self._schedule_visible_range_update  # pyright: ignore[reportAny]
         )
 
         # Update status with shot count
@@ -226,7 +229,7 @@ class PreviousShotsView(BaseGridView):
         # Cast to satisfy type checker - shows is list[str] after isinstance check
         super().populate_show_filter(cast("list[str]", shows))
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_refresh_clicked(self) -> None:
         """Handle refresh button click."""
         self.logger.debug("Refresh button clicked")
@@ -236,7 +239,7 @@ class PreviousShotsView(BaseGridView):
             self._refresh_button.setText("Scanning...")
             self._unified_model.refresh()
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_scan_started(self) -> None:
         """Handle scan start."""
         self._refresh_button.setEnabled(False)
@@ -246,7 +249,7 @@ class PreviousShotsView(BaseGridView):
         # Start progress operation
         ProgressManager.start_operation("Scanning for previous shots")
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_scan_finished(self) -> None:
         """Handle scan completion."""
         # Finish progress operation
@@ -258,7 +261,7 @@ class PreviousShotsView(BaseGridView):
 
         self._update_status()
 
-    @Slot(int, int)
+    @Slot(int, int)  # pyright: ignore[reportAny]
     def _on_scan_progress(self, current: int, total: int) -> None:
         """Handle scan progress updates.
 
@@ -276,7 +279,7 @@ class PreviousShotsView(BaseGridView):
             shot_count = self._unified_model.rowCount()
             self._status_label.setText(f"Approved Shots ({shot_count})")
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_model_updated(self) -> None:
         """Handle model updates."""
         # Update grid layout based on new item count
@@ -288,7 +291,7 @@ class PreviousShotsView(BaseGridView):
         # Reset visible range tracking
         self._update_visible_range()
 
-    @Slot(QModelIndex)
+    @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def _on_item_clicked(self, index: QModelIndex) -> None:
         """Handle item click.
 
@@ -311,7 +314,7 @@ class PreviousShotsView(BaseGridView):
 
             self.logger.debug(f"Shot selected: {shot.full_name}")
 
-    @Slot(QModelIndex)
+    @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def _on_item_double_clicked(self, index: QModelIndex) -> None:
         """Handle item double-click.
 
@@ -327,7 +330,7 @@ class PreviousShotsView(BaseGridView):
             self.shot_double_clicked.emit(shot)
             self.logger.debug(f"Shot double-clicked: {shot.full_name}")
 
-    @Slot(QModelIndex, QModelIndex)
+    @Slot(QModelIndex, QModelIndex)  # pyright: ignore[reportAny]
     def _on_selection_changed(
         self,
         current: QModelIndex,
@@ -364,7 +367,7 @@ class PreviousShotsView(BaseGridView):
             end: End row index (exclusive)
         """
         if self._unified_model:
-            self._unified_model.set_visible_range(start, end)
+            self._unified_model.set_visible_range(start, end)  # pyright: ignore[reportAny]
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu.
@@ -423,18 +426,20 @@ class PreviousShotsView(BaseGridView):
 
         # Connect signals
         worker.signals.error.connect(
-            self._on_folder_open_error, Qt.ConnectionType.QueuedConnection
+            self._on_folder_open_error,  # pyright: ignore[reportAny]
+            Qt.ConnectionType.QueuedConnection
         )
         worker.signals.success.connect(
-            self._on_folder_open_success, Qt.ConnectionType.QueuedConnection
+            self._on_folder_open_success,  # pyright: ignore[reportAny]
+            Qt.ConnectionType.QueuedConnection
         )
 
         # Start the worker
-        QThreadPool.globalInstance().start(worker)  # type: ignore[reportUnknownMemberType]
+        QThreadPool.globalInstance().start(worker)
 
         self.logger.info(f"Opening folder: {folder_path}")
 
-    @Slot(str)
+    @Slot(str)  # pyright: ignore[reportAny]
     def _on_folder_open_error(self, error_msg: str) -> None:
         """Handle folder open error.
 
@@ -443,7 +448,7 @@ class PreviousShotsView(BaseGridView):
         """
         self.logger.error(f"Failed to open folder: {error_msg}")
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
         self.logger.debug("Folder opened successfully")
@@ -458,9 +463,9 @@ class PreviousShotsView(BaseGridView):
 
     def refresh(self) -> None:
         """Trigger a refresh of the grid."""
-        self._on_refresh_clicked()
+        self._on_refresh_clicked()  # pyright: ignore[reportAny]
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _schedule_visible_range_update(self) -> None:
         """Schedule a debounced visible range update.
 

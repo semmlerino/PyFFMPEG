@@ -271,36 +271,36 @@ mock_widget = MockBuilder.create_mock_widget(
 ### Install Dependencies
 
 ```bash
-pip install hypothesis psutil
+uv add --dev hypothesis psutil
 ```
 
 ### Run Specific Test Categories
 
 ```bash
 # Property-based tests
-pytest tests/advanced/test_property_based.py -v --hypothesis-show-statistics
+uv run pytest tests/advanced/test_property_based.py -v --hypothesis-show-statistics
 
 # Mutation tests
-pytest tests/advanced/test_mutation_strategies.py -v -m mutation
+uv run pytest tests/advanced/test_mutation_strategies.py -v -m mutation
 
 # Contract tests
-pytest tests/advanced/test_contract_validation.py -v -m contract
+uv run pytest tests/advanced/test_contract_validation.py -v -m contract
 
 # Snapshot tests
-pytest tests/advanced/test_snapshot.py -v -m snapshot
+uv run pytest tests/advanced/test_snapshot.py -v -m snapshot
 
 # Performance tests
-pytest tests/advanced/test_performance_regression.py -v -m performance
+uv run pytest tests/advanced/test_performance_regression.py -v -m performance
 
 # Test quality examples
-pytest tests/advanced/test_quality_patterns.py -v -m quality
+uv run pytest tests/advanced/test_quality_patterns.py -v -m quality
 ```
 
 ### Update Snapshots
 
 ```bash
 # Update all snapshots
-pytest tests/advanced/test_snapshot.py --snapshot-update
+uv run pytest tests/advanced/test_snapshot.py --snapshot-update
 
 # Or programmatically
 snapshot_tester.assert_matches_snapshot(data, "snapshot_id", update=True)
@@ -339,19 +339,19 @@ jobs:
     
     - name: Install dependencies
       run: |
-        pip install -r requirements.txt
-        pip install hypothesis psutil
-    
+        uv sync
+        uv add --dev hypothesis psutil
+
     - name: Run property-based tests
-      run: pytest tests/advanced/test_property_based.py --hypothesis-profile=ci
-    
+      run: uv run pytest tests/advanced/test_property_based.py --hypothesis-profile=ci
+
     - name: Check performance regression
       run: |
-        pytest tests/advanced/test_performance_regression.py -v
-        python -m tests.advanced.check_regression
-    
+        uv run pytest tests/advanced/test_performance_regression.py -v
+        uv run python -m tests.advanced.check_regression
+
     - name: Validate contracts
-      run: pytest tests/advanced/test_contract_validation.py -v
+      run: uv run pytest tests/advanced/test_contract_validation.py -v
     
     - name: Upload performance results
       uses: actions/upload-artifact@v2

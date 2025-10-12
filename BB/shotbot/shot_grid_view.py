@@ -16,7 +16,7 @@ from PySide6.QtCore import (
     Qt,
     QThreadPool,
     Signal,
-    Slot,  # type: ignore[reportUnknownVariableType]
+    Slot,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -147,10 +147,10 @@ class ShotGridView(BaseGridView):
         # Set up selection model
         selection_model = self.list_view.selectionModel()
         if selection_model:
-            selection_model.currentChanged.connect(self._on_selection_changed)
+            selection_model.currentChanged.connect(self._on_selection_changed)  # pyright: ignore[reportAny]
 
         # Connect to model signals
-        model.shots_updated.connect(self._on_model_updated)
+        model.shots_updated.connect(self._on_model_updated)  # pyright: ignore[reportAny]
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
 
@@ -174,7 +174,7 @@ class ShotGridView(BaseGridView):
         # Handle list case (delegate to base)
         super().populate_show_filter(shows)
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_model_updated(self) -> None:
         """Handle model updates."""
         # Update grid layout based on new item count
@@ -183,7 +183,7 @@ class ShotGridView(BaseGridView):
         # Reset visible range tracking
         self._update_visible_range()
 
-    @Slot(QModelIndex)
+    @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def _on_item_clicked(self, index: QModelIndex) -> None:
         """Handle item click.
 
@@ -208,7 +208,7 @@ class ShotGridView(BaseGridView):
 
             self.logger.debug(f"Shot selected: {shot.full_name}")
 
-    @Slot(QModelIndex)
+    @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def _on_item_double_clicked(self, index: QModelIndex) -> None:
         """Handle item double-click.
 
@@ -226,7 +226,7 @@ class ShotGridView(BaseGridView):
             self.shot_double_clicked.emit(shot)
             self.logger.debug(f"Shot double-clicked: {shot.full_name}")
 
-    @Slot(QModelIndex, QModelIndex)
+    @Slot(QModelIndex, QModelIndex)  # pyright: ignore[reportAny]
     def _on_selection_changed(
         self,
         current: QModelIndex,
@@ -266,7 +266,7 @@ class ShotGridView(BaseGridView):
         """
         model = cast("ShotItemModel | None", self._model)
         if model:
-            model.set_visible_range(start, end)
+            model.set_visible_range(start, end)  # pyright: ignore[reportAny]
 
     def select_shot_by_name(self, shot_name: str) -> None:
         """Select a shot by its full name.
@@ -296,7 +296,7 @@ class ShotGridView(BaseGridView):
                 )
 
                 # Trigger selection
-                self._on_item_clicked(index)
+                self._on_item_clicked(index)  # pyright: ignore[reportAny]
                 break
 
     def clear_selection(self) -> None:
@@ -358,19 +358,22 @@ class ShotGridView(BaseGridView):
         worker = FolderOpenerWorker(folder_path)
 
         # Connect signals with QueuedConnection for thread safety
+        # Note: Slot decorators cause type checker to see methods as Any
         worker.signals.error.connect(
-            self._on_folder_open_error, Qt.ConnectionType.QueuedConnection
+            self._on_folder_open_error,  # pyright: ignore[reportAny]
+            Qt.ConnectionType.QueuedConnection
         )
         worker.signals.success.connect(
-            self._on_folder_open_success, Qt.ConnectionType.QueuedConnection
+            self._on_folder_open_success,  # pyright: ignore[reportAny]
+            Qt.ConnectionType.QueuedConnection
         )
 
         # Start the worker
-        QThreadPool.globalInstance().start(worker)  # type: ignore[reportUnknownMemberType]
+        QThreadPool.globalInstance().start(worker)
 
         self.logger.info(f"Opening folder: {folder_path}")
 
-    @Slot(str)
+    @Slot(str)  # pyright: ignore[reportAny]
     def _on_folder_open_error(self, error_msg: str) -> None:
         """Handle folder open error.
 
@@ -380,7 +383,7 @@ class ShotGridView(BaseGridView):
         self.logger.error(f"Failed to open folder: {error_msg}")
         # Could show a QMessageBox here if desired
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
         self.logger.debug("Folder opened successfully")

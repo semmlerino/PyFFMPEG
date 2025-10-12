@@ -20,29 +20,27 @@ python3 tests/utilities/quick_test.py
 
 ### Serial Execution (slower but reliable)
 ```bash
-source venv/bin/activate
-python -m pytest tests/ -p no:xdist
+uv run pytest tests/ -p no:xdist
 ```
 
 ### Parallel Execution (faster but requires proper markers)
 ```bash
-source venv/bin/activate
-python -m pytest tests/  # Uses -n auto from pytest.ini
+uv run pytest tests/  # Uses -n auto from pytest.ini
 ```
 
 ### Specific Test Categories
 ```bash
 # Unit tests only
-python -m pytest tests/unit/
+uv run pytest tests/unit/
 
 # Integration tests
-python -m pytest tests/integration/
+uv run pytest tests/integration/
 
 # Fast tests (<100ms)
-python -m pytest tests/ -m fast
+uv run pytest tests/ -m fast
 
 # Qt tests (run serially for stability)
-python -m pytest tests/ -m qt -p no:xdist
+uv run pytest tests/ -m qt -p no:xdist
 ```
 
 ## Anti-Pattern Replacements
@@ -257,7 +255,7 @@ addopts =
 To disable parallel execution temporarily:
 ```bash
 # Command line override
-pytest -p no:xdist
+uv run pytest -p no:xdist
 
 # Or edit pytest.ini and comment out:
 # -n auto

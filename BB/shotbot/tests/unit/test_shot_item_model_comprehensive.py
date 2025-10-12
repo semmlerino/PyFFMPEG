@@ -9,7 +9,9 @@ from __future__ import annotations
 
 # Standard library imports
 import sys
+from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 # Third-party imports
@@ -17,6 +19,10 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
+
+if TYPE_CHECKING:
+    from _pytest.monkeypatch import MonkeyPatch
+    from pytestqt.qtbot import QtBot
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -46,7 +52,9 @@ class TestAsyncCallbackRaceConditions:
         return TestCacheManager()
 
     @pytest.fixture
-    def model(self, test_cache_manager, qtbot):
+    def model(
+        self, test_cache_manager: TestCacheManager, qtbot: QtBot
+    ) -> Generator[ShotItemModel, None, None]:
         """Create ShotItemModel with test cache manager."""
         model = ShotItemModel(test_cache_manager)
         # Don't use qtbot.addWidget() for QAbstractItemModel (UNIFIED_TESTING_GUIDE)
@@ -63,7 +71,9 @@ class TestAsyncCallbackRaceConditions:
             Shot("show2", "seq2", "shot3", "/workspace/shot3"),
         ]
 
-    def test_find_shot_by_full_name_race_protection(self, model, test_shots) -> None:
+    def test_find_shot_by_full_name_race_protection(
+        self, model: ShotItemModel, test_shots: list[Shot]
+    ) -> None:
         """Test _find_shot_by_full_name handles concurrent access safely."""
         model.set_shots(test_shots)
 
@@ -81,18 +91,23 @@ class TestAsyncCallbackRaceConditions:
         assert result is None
 
     def test_concurrent_thumbnail_loading(
-        self, model, test_shots, qtbot, tmp_path, monkeypatch
+        self,
+        model: ShotItemModel,
+        test_shots: list[Shot],
+        qtbot: QtBot,
+        tmp_path: Path,
+        monkeypatch: MonkeyPatch,
     ) -> None:
         """Test multiple simultaneous thumbnail load operations for thread safety."""
         # Create fake thumbnail files for each shot
-        thumbnail_paths = {}
+        thumbnail_paths: dict[str, Path] = {}
         for i, shot in enumerate(test_shots):
             thumbnail_path = tmp_path / f"thumbnail_{i}.jpg"
             thumbnail_path.touch()
             thumbnail_paths[shot.full_name] = thumbnail_path
 
         # Mock get_thumbnail_path to return correct path for each shot
-        def mock_get_thumbnail(self):
+        def mock_get_thumbnail(self: Shot) -> Path | None:
             return thumbnail_paths.get(self.full_name)
 
         monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
@@ -100,9 +115,9 @@ class TestAsyncCallbackRaceConditions:
         model.set_shots(test_shots)
 
         # Mock cache manager to simulate concurrent operations
-        cache_calls = []
+        cache_calls: list[tuple[Any, ...]] = []
 
-        def mock_cache_thumbnail(*args, **kwargs):
+        def mock_cache_thumbnail(*args: Any, **kwargs: Any) -> Path:
             cache_calls.append(args)
             # Return immediate success for simplicity
             return Path("/cache/mock_thumbnail.jpg")
@@ -125,7 +140,7 @@ class TestAsyncCallbackRaceConditions:
                 assert state in ["loading", "loaded", "failed"]  # Valid states
 
     def test_thumbnail_cache_consistency_during_model_reset(
-        self, model, test_shots, qtbot
+        self, model: ShotItemModel, test_shots: list[Shot], qtbot: QtBot
     ) -> None:
         """Test that thumbnail cache remains consistent during model reset operations."""
         model.set_shots(test_shots)
@@ -156,20 +171,20 @@ class TestShotItemModelCore:
     """Test core ShotItemModel functionality."""
 
     @pytest.fixture
-    def model(self, qtbot):
+    def model(self, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
         """Create basic ShotItemModel."""
         model = ShotItemModel()
         yield model
         model.deleteLater()
 
-    def test_model_initialization(self, model) -> None:
+    def test_model_initialization(self, model: ShotItemModel) -> None:
         """Test model initializes correctly."""
         assert model.rowCount() == 0
         assert isinstance(model._thumbnail_cache, dict)
         assert isinstance(model._loading_states, dict)
         assert model._cache_manager is not None
 
-    def test_shot_data_access(self, model) -> None:
+    def test_shot_data_access(self, model: ShotItemModel) -> None:
         """Test data access through Qt model interface."""
         test_shots = [Shot("show", "seq", "shot", "/path")]
         model.set_shots(test_shots)
@@ -183,7 +198,7 @@ class TestShotItemModelCore:
         assert model.data(index, ShotRole.SequenceRole) == "seq"
         # Note: ShotNameRole doesn't exist in UnifiedRole - use ItemSpecificRole1 for shot name
 
-    def test_selection_handling(self, model) -> None:
+    def test_selection_handling(self, model: ShotItemModel) -> None:
         """Test selection state management."""
         test_shots = [Shot("show", "seq", "shot1", "/path1")]
         model.set_shots(test_shots)
@@ -202,7 +217,7 @@ class TestShotItemModelCore:
         assert success
         assert model.data(index, ShotRole.IsSelectedRole) is False
 
-    def test_refresh_shots_change_detection(self, model) -> None:
+    def test_refresh_shots_change_detection(self, model: ShotItemModel) -> None:
         """Test intelligent change detection during refresh."""
         original_shots = [Shot("show", "seq", "shot1", "/path1")]
         model.set_shots(original_shots)

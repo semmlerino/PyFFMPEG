@@ -33,6 +33,8 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
     def __init__(self, shot: Shot, size: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
         # Store shot reference for backward compatibility
         self.shot = shot
+        # Initialize instance variable (set in _setup_custom_ui)
+        self.name_label: QLabel | None = None
         super().__init__(shot, size)
 
     def _setup_custom_ui(self) -> None:

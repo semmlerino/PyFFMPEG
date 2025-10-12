@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
@@ -10,13 +12,16 @@ from PySide6.QtWidgets import QApplication
 
 from refresh_orchestrator import RefreshOrchestrator
 
+if TYPE_CHECKING:
+    from pytest_qt.qtbot import QtBot
+
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
 @pytest.fixture
-def qapp():
+def qapp() -> QApplication:
     """Ensure QApplication exists for Qt components."""
     app = QApplication.instance()
     if app is None:
@@ -25,7 +30,7 @@ def qapp():
 
 
 @pytest.fixture
-def mock_main_window():
+def mock_main_window() -> Mock:
     """Create mock MainWindow with necessary attributes."""
     main_window = Mock()
 
@@ -66,7 +71,7 @@ def mock_main_window():
 
 
 @pytest.fixture
-def mock_progress_manager():
+def mock_progress_manager() -> Generator[Mock, None, None]:
     """Mock ProgressManager at system boundary."""
     with patch("refresh_orchestrator.ProgressManager") as mock:
         progress_op = Mock()
@@ -79,7 +84,7 @@ def mock_progress_manager():
 
 
 @pytest.fixture
-def mock_notification_manager():
+def mock_notification_manager() -> Generator[Mock, None, None]:
     """Mock NotificationManager at system boundary."""
     with patch("refresh_orchestrator.NotificationManager") as mock:
         mock.info = Mock()
@@ -89,7 +94,7 @@ def mock_notification_manager():
 
 
 @pytest.fixture
-def orchestrator(qapp, mock_main_window):
+def orchestrator(qapp: QApplication, mock_main_window: Mock) -> RefreshOrchestrator:
     """Create RefreshOrchestrator instance."""
     return RefreshOrchestrator(mock_main_window)
 
@@ -99,7 +104,7 @@ def orchestrator(qapp, mock_main_window):
 # ============================================================================
 
 
-def test_initialization(qapp, mock_main_window):
+def test_initialization(qapp: QApplication, mock_main_window: Mock) -> None:
     """Test RefreshOrchestrator initialization."""
     orchestrator = RefreshOrchestrator(mock_main_window)
 
@@ -112,7 +117,7 @@ def test_initialization(qapp, mock_main_window):
 # ============================================================================
 
 
-def test_refresh_current_tab_gets_current_index(orchestrator, mock_main_window):
+def test_refresh_current_tab_gets_current_index(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test refresh_current_tab gets tab index from widget."""
     mock_main_window.tab_widget.currentIndex.return_value = 1
 
@@ -123,7 +128,7 @@ def test_refresh_current_tab_gets_current_index(orchestrator, mock_main_window):
         mock_refresh.assert_called_once_with(1)
 
 
-def test_refresh_tab_emits_refresh_started(orchestrator, qtbot):
+def test_refresh_tab_emits_refresh_started(orchestrator: RefreshOrchestrator, qtbot: QtBot) -> None:
     """Test refresh_tab emits refresh_started signal."""
     with qtbot.waitSignal(orchestrator.refresh_started) as blocker:
         with patch.object(orchestrator, "_refresh_shots"):
@@ -132,7 +137,7 @@ def test_refresh_tab_emits_refresh_started(orchestrator, qtbot):
     assert blocker.args == [0]
 
 
-def test_refresh_tab_routes_to_shots_for_index_0(orchestrator):
+def test_refresh_tab_routes_to_shots_for_index_0(orchestrator: RefreshOrchestrator) -> None:
     """Test refresh_tab routes index 0 to _refresh_shots."""
     with patch.object(orchestrator, "_refresh_shots") as mock_refresh:
         orchestrator.refresh_tab(0)
@@ -140,7 +145,7 @@ def test_refresh_tab_routes_to_shots_for_index_0(orchestrator):
         mock_refresh.assert_called_once()
 
 
-def test_refresh_tab_routes_to_threede_for_index_1(orchestrator):
+def test_refresh_tab_routes_to_threede_for_index_1(orchestrator: RefreshOrchestrator) -> None:
     """Test refresh_tab routes index 1 to _refresh_threede."""
     with patch.object(orchestrator, "_refresh_threede") as mock_refresh:
         orchestrator.refresh_tab(1)
@@ -148,7 +153,7 @@ def test_refresh_tab_routes_to_threede_for_index_1(orchestrator):
         mock_refresh.assert_called_once()
 
 
-def test_refresh_tab_routes_to_previous_for_index_2(orchestrator):
+def test_refresh_tab_routes_to_previous_for_index_2(orchestrator: RefreshOrchestrator) -> None:
     """Test refresh_tab routes index 2 to _refresh_previous."""
     with patch.object(orchestrator, "_refresh_previous") as mock_refresh:
         orchestrator.refresh_tab(2)
@@ -162,8 +167,8 @@ def test_refresh_tab_routes_to_previous_for_index_2(orchestrator):
 
 
 def test_refresh_shots_uses_progress_manager(
-    orchestrator, mock_main_window, mock_progress_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_progress_manager: Mock
+) -> None:
     """Test _refresh_shots uses ProgressManager context."""
     orchestrator._refresh_shots()
 
@@ -173,8 +178,8 @@ def test_refresh_shots_uses_progress_manager(
 
 
 def test_refresh_shots_sets_indeterminate_progress(
-    orchestrator, mock_main_window, mock_progress_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_progress_manager: Mock
+) -> None:
     """Test _refresh_shots sets indeterminate progress."""
     orchestrator._refresh_shots()
 
@@ -183,8 +188,8 @@ def test_refresh_shots_sets_indeterminate_progress(
 
 
 def test_refresh_shots_calls_model_refresh(
-    orchestrator, mock_main_window, mock_progress_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_progress_manager: Mock
+) -> None:
     """Test _refresh_shots calls shot_model.refresh_shots."""
     orchestrator._refresh_shots()
 
@@ -192,8 +197,8 @@ def test_refresh_shots_calls_model_refresh(
 
 
 def test_refresh_shots_emits_finished_signal_on_success(
-    orchestrator, mock_main_window, mock_progress_manager, qtbot
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_progress_manager: Mock, qtbot: QtBot
+) -> None:
     """Test _refresh_shots emits refresh_finished with success=True."""
     mock_main_window.shot_model.refresh_shots.return_value = (True, True)
 
@@ -204,8 +209,8 @@ def test_refresh_shots_emits_finished_signal_on_success(
 
 
 def test_refresh_shots_emits_finished_signal_on_failure(
-    orchestrator, mock_main_window, mock_progress_manager, qtbot
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_progress_manager: Mock, qtbot: QtBot
+) -> None:
     """Test _refresh_shots emits refresh_finished with success=False."""
     mock_main_window.shot_model.refresh_shots.return_value = (False, False)
 
@@ -220,7 +225,7 @@ def test_refresh_shots_emits_finished_signal_on_failure(
 # ============================================================================
 
 
-def test_refresh_threede_calls_controller_when_available(orchestrator, mock_main_window):
+def test_refresh_threede_calls_controller_when_available(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test _refresh_threede calls controller when available."""
     orchestrator._refresh_threede()
 
@@ -228,8 +233,8 @@ def test_refresh_threede_calls_controller_when_available(orchestrator, mock_main
 
 
 def test_refresh_threede_emits_success_when_controller_available(
-    orchestrator, mock_main_window, qtbot
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
+) -> None:
     """Test _refresh_threede emits success when controller available."""
     with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
         orchestrator._refresh_threede()
@@ -237,7 +242,7 @@ def test_refresh_threede_emits_success_when_controller_available(
     assert blocker.args == [1, True]
 
 
-def test_refresh_threede_handles_missing_controller(orchestrator, mock_main_window):
+def test_refresh_threede_handles_missing_controller(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test _refresh_threede handles missing controller gracefully."""
     del mock_main_window.threede_controller
 
@@ -245,8 +250,8 @@ def test_refresh_threede_handles_missing_controller(orchestrator, mock_main_wind
 
 
 def test_refresh_threede_emits_failure_when_controller_missing(
-    orchestrator, mock_main_window, qtbot
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
+) -> None:
     """Test _refresh_threede emits failure when controller missing."""
     del mock_main_window.threede_controller
 
@@ -256,7 +261,7 @@ def test_refresh_threede_emits_failure_when_controller_missing(
     assert blocker.args == [1, False]
 
 
-def test_refresh_threede_handles_none_controller(orchestrator, mock_main_window, qtbot):
+def test_refresh_threede_handles_none_controller(orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot) -> None:
     """Test _refresh_threede handles None controller."""
     mock_main_window.threede_controller = None
 
@@ -271,7 +276,7 @@ def test_refresh_threede_handles_none_controller(orchestrator, mock_main_window,
 # ============================================================================
 
 
-def test_refresh_previous_calls_model_when_available(orchestrator, mock_main_window):
+def test_refresh_previous_calls_model_when_available(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test _refresh_previous calls model when available."""
     orchestrator._refresh_previous()
 
@@ -279,8 +284,8 @@ def test_refresh_previous_calls_model_when_available(orchestrator, mock_main_win
 
 
 def test_refresh_previous_emits_success_when_model_available(
-    orchestrator, mock_main_window, qtbot
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
+) -> None:
     """Test _refresh_previous emits success when model available."""
     with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
         orchestrator._refresh_previous()
@@ -288,7 +293,7 @@ def test_refresh_previous_emits_success_when_model_available(
     assert blocker.args == [2, True]
 
 
-def test_refresh_previous_handles_missing_model(orchestrator, mock_main_window):
+def test_refresh_previous_handles_missing_model(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test _refresh_previous handles missing model gracefully."""
     del mock_main_window.previous_shots_model
 
@@ -296,8 +301,8 @@ def test_refresh_previous_handles_missing_model(orchestrator, mock_main_window):
 
 
 def test_refresh_previous_emits_failure_when_model_missing(
-    orchestrator, mock_main_window, qtbot
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot
+) -> None:
     """Test _refresh_previous emits failure when model missing."""
     del mock_main_window.previous_shots_model
 
@@ -307,7 +312,7 @@ def test_refresh_previous_emits_failure_when_model_missing(
     assert blocker.args == [2, False]
 
 
-def test_refresh_previous_handles_none_model(orchestrator, mock_main_window, qtbot):
+def test_refresh_previous_handles_none_model(orchestrator: RefreshOrchestrator, mock_main_window: Mock, qtbot: QtBot) -> None:
     """Test _refresh_previous handles None model."""
     mock_main_window.previous_shots_model = None
 
@@ -323,8 +328,8 @@ def test_refresh_previous_handles_none_model(orchestrator, mock_main_window, qtb
 
 
 def test_handle_shots_loaded_refreshes_display(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_shots_loaded refreshes shot display."""
     shots = [Mock(), Mock(), Mock()]
 
@@ -335,8 +340,8 @@ def test_handle_shots_loaded_refreshes_display(
 
 
 def test_handle_shots_loaded_updates_status(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_shots_loaded updates status bar."""
     shots = [Mock(), Mock()]
 
@@ -347,8 +352,8 @@ def test_handle_shots_loaded_updates_status(
 
 
 def test_handle_shots_loaded_shows_notification(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_shots_loaded shows info notification."""
     shots = [Mock(), Mock(), Mock()]
 
@@ -363,8 +368,8 @@ def test_handle_shots_loaded_shows_notification(
 
 
 def test_handle_shots_changed_refreshes_display(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_shots_changed refreshes shot display."""
     shots = [Mock(), Mock()]
 
@@ -375,8 +380,8 @@ def test_handle_shots_changed_refreshes_display(
 
 
 def test_handle_shots_changed_updates_status(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_shots_changed updates status bar."""
     shots = [Mock(), Mock(), Mock()]
 
@@ -387,8 +392,8 @@ def test_handle_shots_changed_updates_status(
 
 
 def test_handle_shots_changed_shows_success_notification(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_shots_changed shows success notification."""
     shots = [Mock(), Mock()]
 
@@ -402,7 +407,7 @@ def test_handle_shots_changed_shows_success_notification(
 # ============================================================================
 
 
-def test_handle_refresh_started_updates_status(orchestrator, mock_main_window):
+def test_handle_refresh_started_updates_status(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test handle_refresh_started updates status bar."""
     with patch.object(orchestrator, "_update_status") as mock_update:
         orchestrator.handle_refresh_started()
@@ -416,8 +421,8 @@ def test_handle_refresh_started_updates_status(orchestrator, mock_main_window):
 
 
 def test_handle_refresh_finished_with_success_and_changes(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_refresh_finished with success and changes."""
     orchestrator.handle_refresh_finished(success=True, has_changes=True)
 
@@ -428,8 +433,8 @@ def test_handle_refresh_finished_with_success_and_changes(
 
 
 def test_handle_refresh_finished_with_success_no_changes(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_refresh_finished with success but no changes."""
     mock_main_window.shot_model.shots = [Mock(), Mock()]
 
@@ -441,8 +446,8 @@ def test_handle_refresh_finished_with_success_no_changes(
 
 
 def test_handle_refresh_finished_restores_last_selected_shot(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_refresh_finished restores last selected shot."""
     mock_main_window._last_selected_shot_name = "test_shot_001"
 
@@ -459,8 +464,8 @@ def test_handle_refresh_finished_restores_last_selected_shot(
 
 
 def test_handle_refresh_finished_skips_restore_if_shot_not_found(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_refresh_finished skips restore if shot not found."""
     mock_main_window._last_selected_shot_name = "missing_shot"
     mock_main_window.shot_model.find_shot_by_name.return_value = None
@@ -471,8 +476,8 @@ def test_handle_refresh_finished_skips_restore_if_shot_not_found(
 
 
 def test_handle_refresh_finished_refreshes_threede_on_success(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_refresh_finished refreshes 3DE scenes on success."""
     mock_main_window.shot_model.shots = [Mock()]
 
@@ -482,8 +487,8 @@ def test_handle_refresh_finished_refreshes_threede_on_success(
 
 
 def test_handle_refresh_finished_skips_threede_if_no_shots(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_refresh_finished skips 3DE refresh if no shots."""
     mock_main_window.shot_model.shots = []
 
@@ -493,8 +498,8 @@ def test_handle_refresh_finished_skips_threede_if_no_shots(
 
 
 def test_handle_refresh_finished_skips_threede_if_controller_missing(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_refresh_finished skips 3DE refresh if controller missing."""
     mock_main_window.shot_model.shots = [Mock()]
     del mock_main_window.threede_controller
@@ -504,8 +509,8 @@ def test_handle_refresh_finished_skips_threede_if_controller_missing(
 
 
 def test_handle_refresh_finished_shows_error_on_failure(
-    orchestrator, mock_main_window, mock_notification_manager
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock, mock_notification_manager: Mock
+) -> None:
     """Test handle_refresh_finished shows error notification on failure."""
     with patch.object(orchestrator, "_update_status") as mock_update:
         orchestrator.handle_refresh_finished(success=False, has_changes=False)
@@ -524,8 +529,8 @@ def test_handle_refresh_finished_shows_error_on_failure(
 
 
 def test_trigger_previous_shots_refresh_when_shots_exist(
-    orchestrator, mock_main_window
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+) -> None:
     """Test trigger_previous_shots_refresh triggers refresh when shots exist."""
     shots = [Mock(), Mock()]
 
@@ -535,8 +540,8 @@ def test_trigger_previous_shots_refresh_when_shots_exist(
 
 
 def test_trigger_previous_shots_refresh_skips_when_no_shots(
-    orchestrator, mock_main_window
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+) -> None:
     """Test trigger_previous_shots_refresh skips when no shots."""
     orchestrator.trigger_previous_shots_refresh([])
 
@@ -544,8 +549,8 @@ def test_trigger_previous_shots_refresh_skips_when_no_shots(
 
 
 def test_trigger_previous_shots_refresh_handles_missing_model(
-    orchestrator, mock_main_window
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+) -> None:
     """Test trigger_previous_shots_refresh handles missing model."""
     del mock_main_window.previous_shots_model
 
@@ -554,8 +559,8 @@ def test_trigger_previous_shots_refresh_handles_missing_model(
 
 
 def test_trigger_previous_shots_refresh_handles_none_model(
-    orchestrator, mock_main_window
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+) -> None:
     """Test trigger_previous_shots_refresh handles None model."""
     mock_main_window.previous_shots_model = None
 
@@ -568,7 +573,7 @@ def test_trigger_previous_shots_refresh_handles_none_model(
 # ============================================================================
 
 
-def test_refresh_shot_display_updates_item_model(orchestrator, mock_main_window):
+def test_refresh_shot_display_updates_item_model(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test _refresh_shot_display updates shot item model."""
     mock_shots = [Mock(), Mock()]
     mock_main_window.shot_model.shots = mock_shots
@@ -578,7 +583,7 @@ def test_refresh_shot_display_updates_item_model(orchestrator, mock_main_window)
     mock_main_window.shot_item_model.set_shots.assert_called_once_with(mock_shots)
 
 
-def test_refresh_shot_display_populates_show_filter(orchestrator, mock_main_window):
+def test_refresh_shot_display_populates_show_filter(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test _refresh_shot_display populates show filter."""
     orchestrator._refresh_shot_display()
 
@@ -588,8 +593,8 @@ def test_refresh_shot_display_populates_show_filter(orchestrator, mock_main_wind
 
 
 def test_refresh_shot_display_handles_missing_attributes(
-    orchestrator, mock_main_window
-):
+    orchestrator: RefreshOrchestrator, mock_main_window: Mock
+) -> None:
     """Test _refresh_shot_display handles missing attributes gracefully."""
     del mock_main_window.shot_item_model
 
@@ -601,14 +606,14 @@ def test_refresh_shot_display_handles_missing_attributes(
 # ============================================================================
 
 
-def test_update_status_calls_main_window_method(orchestrator, mock_main_window):
+def test_update_status_calls_main_window_method(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test _update_status calls main_window._update_status."""
     orchestrator._update_status("Test message")
 
     mock_main_window._update_status.assert_called_once_with("Test message")
 
 
-def test_update_status_handles_missing_method(orchestrator, mock_main_window):
+def test_update_status_handles_missing_method(orchestrator: RefreshOrchestrator, mock_main_window: Mock) -> None:
     """Test _update_status handles missing method gracefully."""
     del mock_main_window._update_status
 

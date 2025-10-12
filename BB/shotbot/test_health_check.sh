@@ -1,4 +1,7 @@
 #!/bin/bash
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 # Quick health check for the test suite
 
 echo "🏥 ShotBot Test Suite Health Check"
@@ -7,9 +10,8 @@ echo ""
 
 # Check Python and pytest
 echo "📦 Environment:"
-source venv/bin/activate 2>/dev/null || echo "❌ Virtual environment not activated"
 python3 --version
-python3 -m pytest --version 2>/dev/null || echo "❌ pytest not installed"
+uv run pytest --version 2>/dev/null || echo "❌ pytest not installed"
 echo ""
 
 # Count test files
@@ -52,7 +54,7 @@ echo ""
 
 # Try a minimal import test
 echo "🔍 Quick Import Test:"
-timeout 5 python3 -c "
+timeout 5 uv run python -c "
 import sys
 sys.path.insert(0, '.')
 try:

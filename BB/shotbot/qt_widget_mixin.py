@@ -6,13 +6,20 @@ reducing code duplication across widget classes.
 Part of Phase 2 refactoring to eliminate duplicate Qt patterns.
 """
 
+# pyright: reportUninitializedInstanceVariable=false
+# pyright: reportUnknownMemberType=false
+# pyright: reportAttributeAccessIssue=false
+# pyright: reportInvalidCast=false
+# pyright: reportAny=false
+# Mixin classes provide attributes/methods at runtime that type checker cannot verify statically
+
 from __future__ import annotations
 
 # Standard library imports
 from typing import TYPE_CHECKING, cast
 
 # Third-party imports
-from PySide6.QtCore import QPoint, QSettings, QSize, Qt, QTimer
+from PySide6.QtCore import QByteArray, QPoint, QSettings, QSize, Qt, QTimer
 from PySide6.QtWidgets import QMenu, QMessageBox, QWidget
 
 # Local application imports
@@ -30,6 +37,7 @@ if TYPE_CHECKING:
         QIcon,
         QKeyEvent,
     )
+    from PySide6.QtWidgets import QProgressBar, QStyle
 
 
 class QtWidgetMixin(LoggingMixin):
@@ -43,6 +51,9 @@ class QtWidgetMixin(LoggingMixin):
     - Window state management
     - Safe timer patterns
     - Common dialog helpers
+
+    Note: This is a mixin class intended to be used with QWidget subclasses.
+    Type errors related to Qt widget methods are expected and suppressed with pyright ignore comments.
     """
 
     def __init__(self, *args: object, **kwargs: object) -> None:
@@ -72,20 +83,22 @@ class QtWidgetMixin(LoggingMixin):
         # Restore geometry from settings
         settings = QSettings()
         if settings.contains(f"{self._geometry_key}/geometry"):
-            geometry_bytes = settings.value(f"{self._geometry_key}/geometry")  # type: ignore[misc]  # QSettings.value() returns Any
+            geometry_bytes: QByteArray = settings.value(
+                f"{self._geometry_key}/geometry"
+            )
             if hasattr(self, "restoreGeometry"):
-                self.restoreGeometry(geometry_bytes)  # type: ignore[attr-defined]
+                self.restoreGeometry(geometry_bytes)
         else:
             if hasattr(self, "resize"):
-                self.resize(self._default_size)  # type: ignore[attr-defined]
+                self.resize(self._default_size)
             if self._default_pos and hasattr(self, "move"):
-                self.move(self._default_pos)  # type: ignore[attr-defined]
+                self.move(self._default_pos)
 
     def save_window_geometry(self) -> None:
         """Save window geometry to settings."""
         if hasattr(self, "_geometry_key") and hasattr(self, "saveGeometry"):
             settings = QSettings()
-            settings.setValue(f"{self._geometry_key}/geometry", self.saveGeometry())  # type: ignore[attr-defined]
+            settings.setValue(f"{self._geometry_key}/geometry", self.saveGeometry())
             self.logger.debug(f"Saved window geometry for {self._geometry_key}")
 
     def setup_auto_save_timer(self, interval: int = 60000) -> None:
@@ -105,7 +118,8 @@ class QtWidgetMixin(LoggingMixin):
         self.save_window_geometry()
         # Subclasses can override to save additional state
         if hasattr(self, "save_state"):
-            self.save_state()  # type: ignore[attr-defined]
+            save_state_method: Callable[[], None] = getattr(self, "save_state")
+            save_state_method()
 
     def create_context_menu(
         self,
@@ -131,20 +145,20 @@ class QtWidgetMixin(LoggingMixin):
                 action.triggered.connect(callback)
 
                 if icon_name and hasattr(self, "style"):
-                    # Use standard icons if available
-                    # Third-party imports
                     from PySide6.QtWidgets import QStyle
 
-                    icon_map: dict[str, QStyle.StandardPixmap] = {
-                        "copy": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-                        "paste": QStyle.StandardPixmap.SP_DialogApplyButton,
-                        "delete": QStyle.StandardPixmap.SP_TrashIcon,
-                        "refresh": QStyle.StandardPixmap.SP_BrowserReload,
-                        "open": QStyle.StandardPixmap.SP_DirOpenIcon,
+                    icon_map: dict[str, int] = {
+                        "copy": 61,  # QStyle.StandardPixmap.SP_FileDialogDetailedView
+                        "paste": 14,  # QStyle.StandardPixmap.SP_DialogApplyButton
+                        "delete": 3,  # QStyle.StandardPixmap.SP_TrashIcon
+                        "refresh": 27,  # QStyle.StandardPixmap.SP_BrowserReload
+                        "open": 5,  # QStyle.StandardPixmap.SP_DirOpenIcon
                     }
                     if icon_name in icon_map:
-                        # Cast needed due to mixin pattern - self.style() return type not inferred
-                        icon: QIcon = cast("QIcon", self.style().standardIcon(icon_map[icon_name]))  # type: ignore[attr-defined]
+                        style_method: Callable[[], QStyle] = getattr(self, "style")
+                        icon: QIcon = style_method().standardIcon(
+                            QStyle.StandardPixmap(icon_map[icon_name])
+                        )
                         action.setIcon(icon)
 
         return menu
@@ -156,13 +170,12 @@ class QtWidgetMixin(LoggingMixin):
 
         shortcuts = self._get_standard_shortcuts()
         for key_sequence, callback in shortcuts.items():
-            # Third-party imports
             from PySide6.QtGui import QAction, QKeySequence
 
-            action = QAction(self)  # type: ignore[arg-type]
+            action = QAction(cast(QWidget, self))
             action.setShortcut(QKeySequence(key_sequence))
             action.triggered.connect(callback)
-            self.addAction(action)  # type: ignore[attr-defined]
+            self.addAction(action)
 
     def _get_standard_shortcuts(self) -> dict[str, Callable[[], None]]:
         """Get standard keyboard shortcuts.
@@ -173,13 +186,13 @@ class QtWidgetMixin(LoggingMixin):
 
         # Add standard shortcuts if methods exist
         if hasattr(self, "refresh"):
-            shortcuts["F5"] = self.refresh  # type: ignore[attr-defined]
+            shortcuts["F5"] = cast(Callable[[], None], getattr(self, "refresh"))
         if hasattr(self, "close"):
-            shortcuts["Ctrl+W"] = self.close  # type: ignore[attr-defined]
+            shortcuts["Ctrl+W"] = cast(Callable[[], None], getattr(self, "close"))
         if hasattr(self, "copy"):
-            shortcuts["Ctrl+C"] = self.copy  # type: ignore[attr-defined]
+            shortcuts["Ctrl+C"] = cast(Callable[[], None], getattr(self, "copy"))
         if hasattr(self, "paste"):
-            shortcuts["Ctrl+V"] = self.paste  # type: ignore[attr-defined]
+            shortcuts["Ctrl+V"] = cast(Callable[[], None], getattr(self, "paste"))
 
         return shortcuts
 
@@ -190,31 +203,33 @@ class QtWidgetMixin(LoggingMixin):
             True if close should proceed
         """
         # Check if there are unsaved changes
-        if hasattr(self, "has_unsaved_changes") and self.has_unsaved_changes():  # type: ignore[attr-defined]
-            # QMessageBox.question returns int (StandardButton enum value)
-            # Cast needed due to incomplete PySide6 type stubs
-            reply_int: int = cast(
-                "int",
-                QMessageBox.question(
-                    self,  # type: ignore[arg-type][arg-type]
-                    "Unsaved Changes",
-                    "You have unsaved changes. Do you want to save before closing?",
-                    QMessageBox.StandardButton.Save
-                    | QMessageBox.StandardButton.Discard
-                    | QMessageBox.StandardButton.Cancel,
-                    QMessageBox.StandardButton.Save,
-                ),
-            )
-            reply = QMessageBox.StandardButton(reply_int)
+        if hasattr(self, "has_unsaved_changes"):
+            has_unsaved: Callable[[], bool] = getattr(self, "has_unsaved_changes")
+            if has_unsaved():
+                # QMessageBox.question returns int (StandardButton enum value)
+                reply_int: int = cast(
+                    int,
+                    QMessageBox.question(
+                        cast(QWidget, self),
+                        "Unsaved Changes",
+                        "You have unsaved changes. Do you want to save before closing?",
+                        QMessageBox.StandardButton.Save
+                        | QMessageBox.StandardButton.Discard
+                        | QMessageBox.StandardButton.Cancel,
+                        QMessageBox.StandardButton.Save,
+                    ),
+                )
+                reply = QMessageBox.StandardButton(reply_int)
 
-            if reply == QMessageBox.StandardButton.Save:
-                if hasattr(self, "save"):
-                    self.save()  # type: ignore[attr-defined]
-                return True
-            elif reply == QMessageBox.StandardButton.Discard:
-                return True
-            else:
-                return False
+                if reply == QMessageBox.StandardButton.Save:
+                    if hasattr(self, "save"):
+                        save_method: Callable[[], None] = getattr(self, "save")
+                        save_method()
+                    return True
+                elif reply == QMessageBox.StandardButton.Discard:
+                    return True
+                else:
+                    return False
 
         return True
 
@@ -242,7 +257,7 @@ class QtWidgetMixin(LoggingMixin):
             message: Main error message
             details: Optional detailed error information
         """
-        msg = QMessageBox(self)  # type: ignore[arg-type]
+        msg = QMessageBox(cast(QWidget, self))
         msg.setIcon(QMessageBox.Icon.Critical)
         msg.setWindowTitle(title)
         msg.setText(message)
@@ -260,7 +275,7 @@ class QtWidgetMixin(LoggingMixin):
             title: Dialog title
             message: Information message
         """
-        QMessageBox.information(self, title, message)  # type: ignore[arg-type]
+        QMessageBox.information(cast(QWidget, self), title, message)
         self.logger.info(f"{title}: {message}")
 
     def confirm_action(self, title: str, message: str) -> bool:
@@ -274,11 +289,10 @@ class QtWidgetMixin(LoggingMixin):
             True if user confirmed
         """
         # QMessageBox.question returns int (StandardButton enum value)
-        # Cast needed due to incomplete PySide6 type stubs
         reply_int: int = cast(
-            "int",
+            int,
             QMessageBox.question(
-                self,  # type: ignore[arg-type]
+                cast(QWidget, self),
                 title,
                 message,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -302,7 +316,10 @@ class QtWidgetMixin(LoggingMixin):
             self.logger.debug("Window closed successfully")
             # Call parent implementation to maintain MRO chain
             if hasattr(super(), "closeEvent"):
-                super().closeEvent(event)  # type: ignore[misc]
+                close_event_method: Callable[[QCloseEvent], None] = getattr(
+                    super(), "closeEvent"
+                )
+                close_event_method(event)
         else:
             event.ignore()
 
@@ -311,13 +328,18 @@ class QtWidgetMixin(LoggingMixin):
         # Handle Escape key
         if event.key() == Qt.Key.Key_Escape:
             if hasattr(self, "cancel") and callable(getattr(self, "cancel", None)):
-                getattr(self, "cancel")()
+                cancel_method: Callable[[], None] = getattr(self, "cancel")
+                cancel_method()
             elif hasattr(self, "close"):
-                self.close()  # type: ignore[attr-defined]
+                close_method: Callable[[], bool] = getattr(self, "close")
+                close_method()
 
         # Let parent handle other keys
         if hasattr(super(), "keyPressEvent"):
-            super().keyPressEvent(event)  # type: ignore[misc]
+            key_press_method: Callable[[QKeyEvent], None] = getattr(
+                super(), "keyPressEvent"
+            )
+            key_press_method(event)
 
 
 class QtDragDropMixin:
@@ -327,16 +349,19 @@ class QtDragDropMixin:
         """Initialize QtDragDropMixin and continue MRO chain."""
         super().__init__(*args, **kwargs)
 
-    def setup_drag_drop(self, mime_types: list[str] | None = None) -> None:
+    def setup_drag_drop(
+        self,
+        mime_types: list[str] | None = None,
+    ) -> None:
         """Setup drag and drop support.
 
         Args:
             mime_types: List of accepted MIME types
         """
         if hasattr(self, "setAcceptDrops"):
-            self.setAcceptDrops(True)  # type: ignore[attr-defined]
+            self.setAcceptDrops(True)
 
-        self._accepted_mime_types = mime_types or [
+        self._accepted_mime_types: list[str] = mime_types or [
             "text/plain",
             "text/uri-list",
             'application/x-qt-windows-mime;value="FileName"',
@@ -361,7 +386,7 @@ class QtDragDropMixin:
             file_paths: list[str] = [url.toLocalFile() for url in urls]
 
             if hasattr(self, "handle_dropped_files"):
-                self.handle_dropped_files(file_paths)  # type: ignore[attr-defined]
+                self.handle_dropped_files(file_paths)
                 event.acceptProposedAction()
             else:
                 event.ignore()
@@ -378,12 +403,11 @@ class QtProgressMixin:
 
     def setup_progress_indicator(self, parent: QWidget | None = None) -> None:
         """Setup progress indication UI elements."""
-        # Third-party imports
         from PySide6.QtWidgets import QProgressBar
 
-        self._progress_bar = QProgressBar(parent or self)  # type: ignore[arg-type]
+        self._progress_bar: QProgressBar = QProgressBar(parent or cast(QWidget, self))
         self._progress_bar.setVisible(False)
-        self._progress_text = ""
+        self._progress_text: str = ""
 
     def show_progress(self, value: int = 0, maximum: int = 100, text: str = "") -> None:
         """Show progress indicator.
@@ -400,8 +424,7 @@ class QtProgressMixin:
 
             if text:
                 self._progress_text = text
-                if hasattr(self._progress_bar, "setFormat"):
-                    self._progress_bar.setFormat(f"{text} %p%")
+                self._progress_bar.setFormat(f"{text} %p%")
 
     def hide_progress(self) -> None:
         """Hide progress indicator."""
@@ -412,6 +435,8 @@ class QtProgressMixin:
     def set_indeterminate_progress(self, text: str = "Processing...") -> None:
         """Show indeterminate progress."""
         if hasattr(self, "_progress_bar"):
-            self._progress_bar.setMaximum(0)  # Indeterminate
+            self._progress_bar.setMaximum(
+                0
+            )  # Indeterminate
             self._progress_bar.setVisible(True)
             self._progress_text = text

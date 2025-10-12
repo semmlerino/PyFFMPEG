@@ -27,6 +27,10 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
     ) -> None:
         # Store scene reference for backward compatibility
         self.scene = scene
+        # Initialize instance variables (set in _setup_custom_ui)
+        self.shot_label: QLabel | None = None
+        self.user_label: QLabel | None = None
+        self.plate_label: QLabel | None = None
         super().__init__(scene, size)
 
     def _setup_custom_ui(self) -> None:

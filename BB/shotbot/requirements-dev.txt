@@ -1,3 +1,8 @@
+# ⚠️  DEPRECATED: This file is kept for backwards compatibility only.
+# The project now uses uv with pyproject.toml for dependency management.
+# To install dependencies, run: uv sync
+# See pyproject.toml [dependency-groups].dev for the authoritative list.
+
 # Development dependencies
 
 # Testing

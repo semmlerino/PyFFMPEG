@@ -1,0 +1,653 @@
+"""Unit tests for BaseItemModel - base Qt Model/View implementation.
+
+Following UNIFIED_TESTING_GUIDE best practices:
+- Test behavior, not implementation
+- Use real components (CacheManager with tmp_path)
+- Use QSignalSpy for signal testing
+- Test doubles for system boundaries
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import pytest
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QSize, Qt
+from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtTest import QSignalSpy
+
+from base_item_model import BaseItemModel, BaseItemRole
+from shot_model import Shot
+
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QApplication
+    from pytestqt.qtbot import QtBot
+
+    from cache_manager import CacheManager
+
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.fast,
+    pytest.mark.xdist_group("qt_state"),
+]
+
+
+# Concrete implementation for testing abstract base class
+class ConcreteTestModel(BaseItemModel[Shot]):
+    """Minimal concrete implementation for testing BaseItemModel."""
+
+    def get_display_role_data(self, item: Shot) -> str:
+        """Get display text for an item."""
+        return item.full_name
+
+    def get_tooltip_data(self, item: Shot) -> str:
+        """Get tooltip text for an item."""
+        return f"{item.show}/{item.sequence}/{item.shot}"
+
+
+class TestBaseItemModelInitialization:
+    """Test BaseItemModel initialization behavior."""
+
+    def test_initialization_default(self, qapp: QApplication) -> None:
+        """Test default initialization creates cache manager."""
+        model = ConcreteTestModel()
+
+        assert model.rowCount() == 0
+        assert model._cache_manager is not None
+        assert model.get_selected_item() is None
+
+    def test_initialization_with_cache_manager(
+        self, qapp: QApplication, cache_manager: CacheManager
+    ) -> None:
+        """Test initialization with provided cache manager."""
+        model = ConcreteTestModel(cache_manager=cache_manager)
+
+        assert model._cache_manager is cache_manager
+        assert model.rowCount() == 0
+
+    def test_initialization_requires_main_thread(self, qapp: QApplication) -> None:
+        """Test that model creation fails outside main thread."""
+        from threading import Thread
+
+        error_occurred = False
+
+        def create_model() -> None:
+            nonlocal error_occurred
+            try:
+                ConcreteTestModel()
+            except RuntimeError as e:
+                if "main thread" in str(e):
+                    error_occurred = True
+
+        thread = Thread(target=create_model)
+        thread.start()
+        thread.join()
+
+        assert error_occurred
+
+
+class TestRowCount:
+    """Test rowCount() method."""
+
+    def test_empty_model(self, qapp: QApplication) -> None:
+        """Test row count for empty model."""
+        model = ConcreteTestModel()
+        assert model.rowCount() == 0
+
+    def test_with_items(self, qapp: QApplication) -> None:
+        """Test row count with items."""
+        model = ConcreteTestModel()
+        shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+        ]
+        model.set_items(shots)
+
+        assert model.rowCount() == 2
+
+    def test_invalid_parent(self, qapp: QApplication) -> None:
+        """Test row count returns 0 for valid parent (list models have no children)."""
+        model = ConcreteTestModel()
+        shots = [Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")]
+        model.set_items(shots)
+
+        # List models return 0 for any valid parent
+        parent = model.index(0, 0)
+        assert model.rowCount(parent) == 0
+
+
+class TestDataMethod:
+    """Test data() method for various roles."""
+
+    def test_display_role(self, qapp: QApplication) -> None:
+        """Test DisplayRole returns correct data."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, Qt.ItemDataRole.DisplayRole)
+
+        assert data == "seq01_0010"
+
+    def test_tooltip_role(self, qapp: QApplication) -> None:
+        """Test ToolTipRole returns correct data."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, Qt.ItemDataRole.ToolTipRole)
+
+        assert data == "TEST/seq01/0010"
+
+    def test_size_hint_role(self, qapp: QApplication) -> None:
+        """Test SizeHintRole returns QSize."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, Qt.ItemDataRole.SizeHintRole)
+
+        assert isinstance(data, QSize)
+        assert data.width() > 0
+        assert data.height() > 0
+
+    def test_object_role(self, qapp: QApplication) -> None:
+        """Test ObjectRole returns the item object."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, BaseItemRole.ObjectRole)
+
+        assert data is shot
+
+    def test_show_role(self, qapp: QApplication) -> None:
+        """Test ShowRole returns show name."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, BaseItemRole.ShowRole)
+
+        assert data == "TEST"
+
+    def test_sequence_role(self, qapp: QApplication) -> None:
+        """Test SequenceRole returns sequence name."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, BaseItemRole.SequenceRole)
+
+        assert data == "seq01"
+
+    def test_full_name_role(self, qapp: QApplication) -> None:
+        """Test FullNameRole returns full name."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, BaseItemRole.FullNameRole)
+
+        assert data == "seq01_0010"
+
+    def test_workspace_path_role(self, qapp: QApplication) -> None:
+        """Test WorkspacePathRole returns workspace path."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, BaseItemRole.WorkspacePathRole)
+
+        assert data == "/shows/TEST/shots/seq01/seq01_0010"
+
+    def test_loading_state_role(self, qapp: QApplication) -> None:
+        """Test LoadingStateRole returns loading state."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, BaseItemRole.LoadingStateRole)
+
+        assert data == "idle"
+
+    def test_is_selected_role_false(self, qapp: QApplication) -> None:
+        """Test IsSelectedRole returns False when not selected."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        data = model.data(index, BaseItemRole.IsSelectedRole)
+
+        assert data is False
+
+    def test_invalid_index(self, qapp: QApplication) -> None:
+        """Test data() returns None for invalid index."""
+        model = ConcreteTestModel()
+        data = model.data(QModelIndex(), Qt.ItemDataRole.DisplayRole)
+
+        assert data is None
+
+    def test_out_of_range_index(self, qapp: QApplication) -> None:
+        """Test data() returns None for out of range index."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(10, 0)  # Out of range
+        data = model.data(index, Qt.ItemDataRole.DisplayRole)
+
+        assert data is None
+
+
+class TestFlags:
+    """Test flags() method."""
+
+    def test_valid_index(self, qapp: QApplication) -> None:
+        """Test flags for valid index."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        flags = model.flags(index)
+
+        assert flags & Qt.ItemFlag.ItemIsEnabled
+        assert flags & Qt.ItemFlag.ItemIsSelectable
+
+    def test_invalid_index(self, qapp: QApplication) -> None:
+        """Test flags for invalid index."""
+        model = ConcreteTestModel()
+        flags = model.flags(QModelIndex())
+
+        assert flags == Qt.ItemFlag.NoItemFlags
+
+
+class TestSetData:
+    """Test setData() method."""
+
+    def test_set_selection(self, qapp: QApplication, qtbot: QtBot) -> None:
+        """Test setting selection state."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        spy = QSignalSpy(model.selection_changed)
+        index = model.index(0, 0)
+
+        result = model.setData(index, True, BaseItemRole.IsSelectedRole)
+
+        assert result is True
+        assert spy.count() == 1
+        assert model.get_selected_item() is shot
+
+    def test_clear_selection(self, qapp: QApplication) -> None:
+        """Test clearing selection state."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        # First select
+        index = model.index(0, 0)
+        model.setData(index, True, BaseItemRole.IsSelectedRole)
+
+        # Then clear
+        result = model.setData(index, False, BaseItemRole.IsSelectedRole)
+
+        assert result is True
+        assert model.get_selected_item() is None
+
+    def test_set_loading_state(self, qapp: QApplication) -> None:
+        """Test setting loading state."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        result = model.setData(index, "loading", BaseItemRole.LoadingStateRole)
+
+        assert result is True
+        assert model.data(index, BaseItemRole.LoadingStateRole) == "loading"
+
+    def test_invalid_index(self, qapp: QApplication) -> None:
+        """Test setData() returns False for invalid index."""
+        model = ConcreteTestModel()
+        result = model.setData(QModelIndex(), True, BaseItemRole.IsSelectedRole)
+
+        assert result is False
+
+
+class TestVisibleRange:
+    """Test visible range and lazy loading."""
+
+    def test_set_visible_range(self, qapp: QApplication) -> None:
+        """Test setting visible range."""
+        model = ConcreteTestModel()
+        shots = [
+            Shot("TEST", "seq01", f"{i:04d}", f"/shows/TEST/shots/seq01/seq01_{i:04d}")
+            for i in range(10, 60, 10)
+        ]
+        model.set_items(shots)
+
+        model.set_visible_range(1, 3)
+
+        assert model._visible_start == 1
+        assert model._visible_end == 3
+
+    def test_visible_range_clamps_to_bounds(self, qapp: QApplication) -> None:
+        """Test visible range clamps to item bounds."""
+        model = ConcreteTestModel()
+        shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+        ]
+        model.set_items(shots)
+
+        model.set_visible_range(-5, 100)
+
+        assert model._visible_start == 0
+        assert model._visible_end == 1
+
+    def test_visible_range_empty_items(self, qapp: QApplication) -> None:
+        """Test visible range with empty items."""
+        model = ConcreteTestModel()
+
+        model.set_visible_range(0, 10)
+
+        assert model._visible_start == 0
+        assert model._visible_end == 0
+
+
+class TestThumbnailCache:
+    """Test thumbnail caching functionality."""
+
+    def test_clear_thumbnail_cache(self, qapp: QApplication) -> None:
+        """Test clearing thumbnail cache."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        # Add to cache
+        model._thumbnail_cache[shot.full_name] = QImage()
+        model._loading_states[shot.full_name] = "loaded"
+
+        model.clear_thumbnail_cache()
+
+        assert len(model._thumbnail_cache) == 0
+        assert len(model._loading_states) == 0
+
+    def test_get_thumbnail_pixmap_cached(self, qapp: QApplication) -> None:
+        """Test getting cached thumbnail pixmap."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        # Create and cache a QImage
+        image = QImage(100, 100, QImage.Format.Format_RGB32)
+        image.fill(Qt.GlobalColor.red)
+        model._thumbnail_cache[shot.full_name] = image
+
+        pixmap = model._get_thumbnail_pixmap(shot)
+
+        assert isinstance(pixmap, QPixmap)
+        assert not pixmap.isNull()
+
+    def test_get_thumbnail_pixmap_not_cached(self, qapp: QApplication) -> None:
+        """Test getting thumbnail pixmap when not cached."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        pixmap = model._get_thumbnail_pixmap(shot)
+
+        assert pixmap is None
+
+
+class TestSetItems:
+    """Test set_items() method."""
+
+    def test_set_items(self, qapp: QApplication, qtbot: QtBot) -> None:
+        """Test setting items emits signal."""
+        model = ConcreteTestModel()
+        spy = QSignalSpy(model.items_updated)
+
+        shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+        ]
+        model.set_items(shots)
+
+        assert model.rowCount() == 2
+        assert spy.count() == 1
+
+    def test_set_items_clears_cache(self, qapp: QApplication) -> None:
+        """Test setting items clears thumbnail cache."""
+        model = ConcreteTestModel()
+        shot1 = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot1])
+
+        # Add to cache
+        model._thumbnail_cache[shot1.full_name] = QImage()
+
+        # Set new items
+        shot2 = Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020")
+        model.set_items([shot2])
+
+        assert len(model._thumbnail_cache) == 0
+
+    def test_set_items_clears_selection(self, qapp: QApplication) -> None:
+        """Test setting items clears selection."""
+        model = ConcreteTestModel()
+        shot1 = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot1])
+
+        # Select item
+        index = model.index(0, 0)
+        model.setData(index, True, BaseItemRole.IsSelectedRole)
+
+        # Set new items
+        shot2 = Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020")
+        model.set_items([shot2])
+
+        assert model.get_selected_item() is None
+
+
+class TestGetItemAtIndex:
+    """Test get_item_at_index() method."""
+
+    def test_valid_index(self, qapp: QApplication) -> None:
+        """Test getting item at valid index."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        item = model.get_item_at_index(index)
+
+        assert item is shot
+
+    def test_invalid_index(self, qapp: QApplication) -> None:
+        """Test getting item at invalid index returns None."""
+        model = ConcreteTestModel()
+        item = model.get_item_at_index(QModelIndex())
+
+        assert item is None
+
+    def test_out_of_range(self, qapp: QApplication) -> None:
+        """Test getting item at out of range index returns None."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(10, 0)
+        item = model.get_item_at_index(index)
+
+        assert item is None
+
+
+class TestSelection:
+    """Test selection management."""
+
+    def test_get_selected_item_none(self, qapp: QApplication) -> None:
+        """Test getting selected item when none selected."""
+        model = ConcreteTestModel()
+        assert model.get_selected_item() is None
+
+    def test_clear_selection(self, qapp: QApplication) -> None:
+        """Test clear_selection() method."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        # Select item
+        index = model.index(0, 0)
+        model.setData(index, True, BaseItemRole.IsSelectedRole)
+
+        # Clear selection
+        model.clear_selection()
+
+        assert model.get_selected_item() is None
+        assert model.data(index, BaseItemRole.IsSelectedRole) is False
+
+
+class TestSignals:
+    """Test signal emissions."""
+
+    def test_items_updated_signal(self, qapp: QApplication, qtbot: QtBot) -> None:
+        """Test items_updated signal is emitted."""
+        model = ConcreteTestModel()
+        spy = QSignalSpy(model.items_updated)
+
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        assert spy.count() == 1
+
+    def test_selection_changed_signal(self, qapp: QApplication, qtbot: QtBot) -> None:
+        """Test selection_changed signal is emitted."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        spy = QSignalSpy(model.selection_changed)
+        index = model.index(0, 0)
+        model.setData(index, True, BaseItemRole.IsSelectedRole)
+
+        assert spy.count() == 1
+
+
+class TestThreadSafety:
+    """Test thread safety of cache operations."""
+
+    def test_cache_mutex_protects_thumbnail_cache(self, qapp: QApplication) -> None:
+        """Test that cache operations are mutex-protected."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        # This should not raise even with concurrent access
+        # (actual concurrent testing would require threading)
+        from PySide6.QtCore import QMutexLocker
+
+        with QMutexLocker(model._cache_mutex):
+            model._thumbnail_cache[shot.full_name] = QImage()
+            model._loading_states[shot.full_name] = "loaded"
+
+        assert shot.full_name in model._thumbnail_cache
+        assert shot.full_name in model._loading_states
+
+
+class TestAbstractMethods:
+    """Test abstract method implementations."""
+
+    def test_get_display_role_data_implemented(self, qapp: QApplication) -> None:
+        """Test get_display_role_data is implemented."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+
+        result = model.get_display_role_data(shot)
+
+        assert result == "seq01_0010"
+
+    def test_get_tooltip_data_implemented(self, qapp: QApplication) -> None:
+        """Test get_tooltip_data is implemented."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+
+        result = model.get_tooltip_data(shot)
+
+        assert result == "TEST/seq01/0010"
+
+    def test_get_size_hint_default(self, qapp: QApplication) -> None:
+        """Test get_size_hint returns default size."""
+        model = ConcreteTestModel()
+
+        result = model.get_size_hint()
+
+        assert isinstance(result, QSize)
+        assert result.width() > 0
+        assert result.height() > 0
+
+    def test_get_custom_role_data_default(self, qapp: QApplication) -> None:
+        """Test get_custom_role_data returns None by default."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+
+        result = model.get_custom_role_data(shot, 9999)
+
+        assert result is None
+
+    def test_set_custom_data_default(self, qapp: QApplication) -> None:
+        """Test set_custom_data returns False by default."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+
+        result = model.set_custom_data(shot, "value", 9999)
+
+        assert result is False
+
+
+class TestPersistentModelIndex:
+    """Test QPersistentModelIndex handling."""
+
+    def test_selection_uses_persistent_index(self, qapp: QApplication) -> None:
+        """Test that selection uses QPersistentModelIndex."""
+        model = ConcreteTestModel()
+        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        model.set_items([shot])
+
+        index = model.index(0, 0)
+        model.setData(index, True, BaseItemRole.IsSelectedRole)
+
+        assert isinstance(model._selected_index, QPersistentModelIndex)
+        assert model._selected_index.isValid()
+
+    def test_persistent_index_survives_model_changes(self, qapp: QApplication) -> None:
+        """Test QPersistentModelIndex behavior with model changes."""
+        model = ConcreteTestModel()
+        shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+        ]
+        model.set_items(shots)
+
+        # Select first item
+        index = model.index(0, 0)
+        model.setData(index, True, BaseItemRole.IsSelectedRole)
+
+        # Model reset clears selection
+        model.set_items(shots)
+
+        assert not model._selected_index.isValid()
+        assert model.get_selected_item() is None

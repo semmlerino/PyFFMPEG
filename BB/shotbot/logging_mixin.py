@@ -42,6 +42,39 @@ T = TypeVar("T")
 _context_storage = threading.local()
 
 
+def _manage_log_context(**kwargs: str) -> Generator[None, None, None]:
+    """Shared implementation for context managers.
+
+    Handles thread-local context stack manipulation with guaranteed cleanup.
+
+    Args:
+        **kwargs: Context key-value pairs
+
+    Yields:
+        None (context manager protocol)
+    """
+    # Get current context or create empty dict
+    current_context = getattr(_context_storage, "context", {})
+
+    # Create new context by merging
+    new_context = {**current_context, **kwargs}
+
+    # Store old for restoration
+    old_context = getattr(_context_storage, "context", None)
+
+    try:
+        _context_storage.context = new_context
+        yield
+    finally:
+        # Restore previous context
+        if old_context is not None:
+            _context_storage.context = old_context
+        else:
+            # Remove context if there was none before
+            if hasattr(_context_storage, "context"):
+                delattr(_context_storage, "context")
+
+
 class ContextualLogger:
     """Enhanced logger wrapper that supports structured context."""
 
@@ -103,27 +136,7 @@ class ContextualLogger:
             with self.logger.context(shot="shot_001", operation="scan"):
                 self.logger.info("Processing shot")  # Will include context
         """
-        # Get current context or create empty dict
-        current_context = getattr(_context_storage, "context", {})
-
-        # Create new context by merging current with new
-        new_context = {**current_context, **kwargs}
-
-        # Store old context for restoration
-        old_context = getattr(_context_storage, "context", None)
-
-        try:
-            # Set new context
-            _context_storage.context = new_context
-            yield
-        finally:
-            # Restore previous context
-            if old_context is not None:
-                _context_storage.context = old_context
-            else:
-                # Remove context if there was none before
-                if hasattr(_context_storage, "context"):
-                    delattr(_context_storage, "context")
+        yield from _manage_log_context(**kwargs)
 
 
 class LoggingMixin:
@@ -319,24 +332,4 @@ def log_context(**kwargs: str) -> Generator[None, None, None]:
         with log_context(shot="shot_001", operation="scan"):
             logger.info("Processing")  # Will include context
     """
-    # Get current context or create empty dict
-    current_context = getattr(_context_storage, "context", {})
-
-    # Create new context by merging current with new
-    new_context = {**current_context, **kwargs}
-
-    # Store old context for restoration
-    old_context = getattr(_context_storage, "context", None)
-
-    try:
-        # Set new context
-        _context_storage.context = new_context
-        yield
-    finally:
-        # Restore previous context
-        if old_context is not None:
-            _context_storage.context = old_context
-        else:
-            # Remove context if there was none before
-            if hasattr(_context_storage, "context"):
-                delattr(_context_storage, "context")
+    yield from _manage_log_context(**kwargs)

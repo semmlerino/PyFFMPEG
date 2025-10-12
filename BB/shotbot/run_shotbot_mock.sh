@@ -1,4 +1,7 @@
 #!/bin/bash
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 # Final working launcher for ShotBot mock mode
 
 echo "🚀 ShotBot Mock Mode Launcher"
@@ -17,7 +20,7 @@ sleep 1
 
 # Run the mock version with early injection
 echo "Launching window..."
-./venv/bin/python shotbot_mock.py
+uv run python shotbot_mock.py
 
 echo ""
 echo "ShotBot closed."

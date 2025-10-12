@@ -186,19 +186,19 @@ minversion = "7.0"
 
 ```bash
 # Run all tests with coverage
-pytest
+uv run pytest
 
 # Run only unit tests
-pytest -m unit
+uv run pytest -m unit
 
 # Run excluding slow tests
-pytest -m "not slow"
+uv run pytest -m "not slow"
 
 # Run specific test file
-pytest tests/unit/test_cache_manager.py
+uv run pytest tests/unit/test_cache_manager.py
 
 # Run in parallel (requires pytest-xdist)
-pytest -n auto
+uv run pytest -n auto
 ```
 
 ## conftest.py Structure
@@ -712,12 +712,12 @@ FAILED tests/test_list.py::test_count - AssertionError: assert 3 == 5
 ```
 ERROR tests/test_ui.py - fixture 'qtbot' not found
 ```
-**Solution:** `pip install pytest-qt`
+**Solution:** `uv add --dev pytest-qt`
 
 ```
 ERROR collecting tests/test_shots.py - ModuleNotFoundError: No module named 'shotbot'
 ```
-**Solution:** Install package in editable mode: `pip install -e .` or fix `PYTHONPATH`
+**Solution:** Ensure dependencies are installed: `uv sync` or fix `PYTHONPATH`
 
 ```
 warning: no tests collected
@@ -737,13 +737,13 @@ warning: no tests collected
 
 ```bash
 # Show full diff for failed assertions
-pytest -vv
+uv run pytest -vv
 
 # Drop into debugger on first failure
-pytest --pdb -x
+uv run pytest --pdb -x
 
 # Show local variables on failure
-pytest -l
+uv run pytest -l
 ```
 
 ## Error Handling Testing
@@ -854,18 +854,18 @@ Leverage the pytest ecosystem to enhance testing capabilities.
 
 | Plugin | Purpose | Priority | Installation |
 |--------|---------|----------|--------------|
-| **pytest-cov** | Code coverage reporting | ⭐ Essential | `pip install pytest-cov` |
-| **pytest-mock** | Enhanced mocking syntax | ⭐ Essential | `pip install pytest-mock` |
-| **pytest-qt** | Qt application testing | ⭐ Required for Qt | `pip install pytest-qt` |
-| **pytest-xdist** | Parallel test execution | Recommended | `pip install pytest-xdist` |
-| **pytest-benchmark** | Performance testing | Optional | `pip install pytest-benchmark` |
-| **pytest-timeout** | Prevent hanging tests | Optional | `pip install pytest-timeout` |
+| **pytest-cov** | Code coverage reporting | ⭐ Essential | `uv add --dev pytest-cov` |
+| **pytest-mock** | Enhanced mocking syntax | ⭐ Essential | `uv add --dev pytest-mock` |
+| **pytest-qt** | Qt application testing | ⭐ Required for Qt | `uv add --dev pytest-qt` |
+| **pytest-xdist** | Parallel test execution | Recommended | `uv add --dev pytest-xdist` |
+| **pytest-benchmark** | Performance testing | Optional | `uv add --dev pytest-benchmark` |
+| **pytest-timeout** | Prevent hanging tests | Optional | `uv add --dev pytest-timeout` |
 
 ### pytest-cov: Coverage Reporting
 
 ```bash
 # Run with coverage
-pytest --cov=shotbot --cov-report=html --cov-report=term-missing
+uv run pytest --cov=shotbot --cov-report=html --cov-report=term-missing
 ```
 
 Configuration in `pyproject.toml`:
@@ -923,7 +923,7 @@ def resource_manager():
 
 ## Parallel Test Execution with pytest-xdist
 
-Run tests faster using parallel execution: `pytest -n auto`
+Run tests faster using parallel execution: `uv run pytest -n auto`
 
 ### Critical Qt Patterns for Parallel Execution
 

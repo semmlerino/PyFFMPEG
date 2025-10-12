@@ -287,17 +287,16 @@ The utilities include comprehensive error handling:
 
 ```bash
 # Run all threading tests
-python run_tests.py tests/threading/
+uv run python run_tests.py tests/threading/
 
 # Run specific test file
-python run_tests.py tests/threading/test_threading_utilities_example.py
+uv run python run_tests.py tests/threading/test_threading_utilities_example.py
 
 # Run with coverage
-python run_tests.py tests/threading/ --cov
+uv run python run_tests.py tests/threading/ --cov
 
 # Type check the utilities
-source venv/bin/activate
-basedpyright tests/threading/
+uv run basedpyright tests/threading/
 ```
 
 ## Contributing

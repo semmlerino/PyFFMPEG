@@ -1,4 +1,7 @@
 #!/bin/bash
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 # Run Shotbot with verbose debug logging enabled
 # This helps diagnose crashes, hangs, and other issues
 
@@ -11,4 +14,4 @@ export SHOTBOT_DEBUG_VERBOSE=1
 export SHOTBOT_DEBUG=1
 
 # Run with logging to both console and file
-python3 shotbot.py 2>&1 | tee "shotbot_debug_$(date +%Y%m%d_%H%M%S).log"
+uv run python shotbot.py 2>&1 | tee "shotbot_debug_$(date +%Y%m%d_%H%M%S).log"

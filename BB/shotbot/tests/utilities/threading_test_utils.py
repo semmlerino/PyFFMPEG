@@ -1223,7 +1223,7 @@ def temporary_worker(worker_class: type, *args, **kwargs) -> Iterator[WorkerT]:
 @contextmanager
 def thread_safety_monitor(
     resources: list[str],
-    violation_handler: Callable[[ThreadSafetyViolation | None, None]] = None,
+    violation_handler: Callable[[ThreadSafetyViolation], None] | None = None,
 ) -> Iterator[list[ThreadSafetyViolation]]:
     """Context manager for monitoring thread safety violations.
 

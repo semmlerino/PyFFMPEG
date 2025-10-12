@@ -29,6 +29,12 @@ class FilesystemCoordinator(LoggingMixin):
                     cls._instance._initialize()
         return cls._instance
 
+    def __init__(self) -> None:
+        """Singleton __init__ (no-op since initialization happens in _initialize)."""
+        # No-op: actual initialization happens in _initialize()
+        # This is called every time the singleton is accessed but does nothing
+        pass
+
     def _initialize(self) -> None:
         """Initialize the coordinator (called once)."""
         super().__init__()

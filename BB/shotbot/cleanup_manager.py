@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
@@ -11,7 +11,7 @@ from config import Config
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from main_window import MainWindow
+    from PySide6.QtWidgets import QMainWindow
 
 
 class CleanupManager(QObject, LoggingMixin):
@@ -27,11 +27,11 @@ class CleanupManager(QObject, LoggingMixin):
     cleanup_started = Signal()
     cleanup_finished = Signal()
 
-    def __init__(self, main_window: MainWindow) -> None:
+    def __init__(self, main_window: Any) -> None:
         """Initialize cleanup manager.
 
         Args:
-            main_window: The MainWindow instance to manage cleanup for
+            main_window: The MainWindow instance to manage cleanup for (typed as Any to avoid circular import)
         """
         super().__init__()
         LoggingMixin.__init__(self)

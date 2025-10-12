@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 # Standard library imports
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -14,6 +16,7 @@ from cache_manager import CacheManager
 from logging_mixin import LoggingMixin
 from previous_shots_finder import ParallelShotsFinder
 from previous_shots_worker import PreviousShotsWorker
+from shot_filter import compose_filters, get_available_shows
 from shot_model import Shot
 from type_definitions import ShotDict
 
@@ -71,6 +74,50 @@ class PreviousShotsModel(LoggingMixin, QObject):
         self._load_from_cache()
 
         self.logger.info("PreviousShotsModel initialized")
+
+    @contextmanager
+    def _scanning_lock(self) -> Generator[bool, None, None]:
+        """Context manager for scanning lock with guaranteed cleanup.
+
+        Yields:
+            True if lock acquired, False if already scanning
+
+        Usage:
+            with self._scanning_lock() as acquired:
+                if not acquired:
+                    return False
+                # ... do work ...
+            # Lock automatically released here
+
+        Note: For async operations (like refresh_shots), use manual lock management
+        with _reset_scanning_flag() for cleanup instead.
+        """
+        # Try to acquire
+        with QMutexLocker(self._scan_lock):
+            if self._is_scanning:
+                self.logger.debug("Scan lock already held")
+                yield False
+                return
+            self._is_scanning = True
+            self.logger.debug("Acquired scan lock")
+
+        try:
+            yield True
+        finally:
+            # Guaranteed cleanup even on exceptions
+            with QMutexLocker(self._scan_lock):
+                self._is_scanning = False
+                self.logger.debug("Released scan lock")
+
+    def _reset_scanning_flag(self) -> None:
+        """Reset the scanning flag with proper locking.
+
+        This is a convenience method for callbacks and error handlers
+        that need to reset the flag after async operations complete.
+        """
+        with QMutexLocker(self._scan_lock):
+            self._is_scanning = False
+            self.logger.debug("Reset scanning flag")
 
     def start_auto_refresh(self) -> None:
         """Start automatic refresh of previous shots."""
@@ -131,7 +178,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         Returns:
             True if refresh was started, False if already scanning.
         """
-        # THREAD SAFETY: Use lock to protect _is_scanning flag
+        # Check and acquire lock atomically
         with QMutexLocker(self._scan_lock):
             if self._is_scanning:
                 self.logger.debug("Already scanning for previous shots")
@@ -179,9 +226,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         except Exception as e:
             self.logger.error(f"Error starting previous shots scan: {e}")
-            # Reset scanning flag on error
-            with QMutexLocker(self._scan_lock):
-                self._is_scanning = False
+            # Reset flag on error (worker not started)
+            self._reset_scanning_flag()
             self.scan_finished.emit()
             return False
 
@@ -223,9 +269,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
         except Exception as e:
             self.logger.error(f"Error processing scan results: {e}")
         finally:
-            # Reset scanning flag
-            with QMutexLocker(self._scan_lock):
-                self._is_scanning = False
+            # Reset scanning flag using helper method
+            self._reset_scanning_flag()
             # Use centralized cleanup
             self._cleanup_worker_safely()
             self.scan_finished.emit()
@@ -237,9 +282,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
             error_msg: Error message from worker.
         """
         self.logger.error(f"Previous shots scan error: {error_msg}")
-        # Reset scanning flag
-        with QMutexLocker(self._scan_lock):
-            self._is_scanning = False
+        # Reset scanning flag using helper method
+        self._reset_scanning_flag()
         # Use centralized cleanup
         self._cleanup_worker_safely()
         self.scan_finished.emit()
@@ -339,22 +383,15 @@ class PreviousShotsModel(LoggingMixin, QObject):
         Returns:
             Filtered list of shots
         """
-        shots = self._previous_shots
-
-        # Apply show filter
-        if self._filter_show is not None:
-            shots = [shot for shot in shots if shot.show == self._filter_show]
-
-        # Apply text filter (case-insensitive substring match on full_name)
-        if self._filter_text:
-            filter_lower = self._filter_text.lower()
-            shots = [shot for shot in shots if filter_lower in shot.full_name.lower()]
+        filtered = compose_filters(
+            self._previous_shots, show=self._filter_show, text=self._filter_text
+        )
 
         self.logger.debug(
-            f"Filtered {len(self._previous_shots)} shots to {len(shots)} "
+            f"Filtered {len(self._previous_shots)} shots to {len(filtered)} "
             f"(show='{self._filter_show}', text='{self._filter_text}')"
         )
-        return shots
+        return filtered
 
     def get_available_shows(self) -> set[str]:
         """Get all unique show names from current shots.
@@ -362,8 +399,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         Returns:
             Set of unique show names
         """
-        shows = set(shot.show for shot in self._previous_shots)
-        return shows
+        return get_available_shows(self._previous_shots)
 
     def _load_from_cache(self) -> None:
         """Load previous shots from cache."""

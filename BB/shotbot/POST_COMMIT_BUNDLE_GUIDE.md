@@ -736,7 +736,7 @@ jobs:
 
       - name: Create bundle
         run: |
-          python bundle_app.py -c transfer_config.json -o release.txt
+          uv run python bundle_app.py -c transfer_config.json -o release.txt
 
       - name: Upload to encoded-releases branch
         run: |
@@ -755,7 +755,7 @@ Create releases on a schedule instead of every commit:
 **Cron job** (daily at midnight):
 ```bash
 # Add to crontab
-0 0 * * * cd /path/to/project && python3 bundle_app.py -c transfer_config.json
+0 0 * * * cd /path/to/project && uv run python bundle_app.py -c transfer_config.json
 ```
 
 **Modified hook** (weekly):
@@ -868,7 +868,7 @@ COMMIT_HASH=$(git rev-parse --short HEAD)
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 OUTPUT_FILE="release_${COMMIT_HASH}_${TIMESTAMP}.txt"
 
-python3 bundle_app.py -c transfer_config.json -o "$OUTPUT_FILE" >> "$HOOK_OUTPUT_DIR/bundle.txt" 2>&1
+uv run python bundle_app.py -c transfer_config.json -o "$OUTPUT_FILE" >> "$HOOK_OUTPUT_DIR/bundle.txt" 2>&1
 
 if [ $? -eq 0 ]; then
     echo "✓ Bundle created: $OUTPUT_FILE" >> "$HOOK_OUTPUT_DIR/bundle.txt"

@@ -187,7 +187,7 @@ class LauncherController(LoggingMixin):
             Dictionary of option names to boolean values
         """
         # Configuration mapping app names to their available options
-        app_options = {
+        app_options: dict[str, list[str]] = {
             "nuke": [
                 "include_undistortion",
                 "include_raw_plate",
@@ -199,7 +199,7 @@ class LauncherController(LoggingMixin):
         }
 
         # Get options for this app and check their states
-        options = {}
+        options: dict[str, bool] = {}
         for option in app_options.get(app_name, []):
             options[option] = self.window.launcher_panel.get_checkbox_state(
                 app_name, option
@@ -455,7 +455,7 @@ class LauncherController(LoggingMixin):
         """Show the launcher manager dialog."""
         if not self.window.launcher_manager:
             QMessageBox.information(
-                cast("QWidget", self.window),  # Cast to QWidget for dialog parent
+                cast(QWidget, cast(object, self.window)),  # Cast through object for Protocol
                 "Custom Launchers",
                 "Custom launchers are not available when using simplified launcher mode.\n"
                 "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers.",
@@ -466,7 +466,7 @@ class LauncherController(LoggingMixin):
             from launcher_dialog import LauncherManagerDialog
 
             self._launcher_dialog = LauncherManagerDialog(
-                self.window.launcher_manager, cast("QWidget", self.window)
+                self.window.launcher_manager, cast(QWidget, cast(object, self.window))
             )
 
         # At this point, _launcher_dialog is guaranteed to be not None
@@ -489,7 +489,7 @@ class LauncherController(LoggingMixin):
         if not launchers:
             # Add disabled placeholder
             no_launchers_action = QAction(
-                "No custom launchers", cast("QWidget", self.window)
+                "No custom launchers", cast(QWidget, cast(object, self.window))
             )
             no_launchers_action.setEnabled(False)
             self.window.custom_launcher_menu.addAction(no_launchers_action)
@@ -513,7 +513,7 @@ class LauncherController(LoggingMixin):
                     category.title()
                 )
                 for launcher in category_launchers:
-                    action = QAction(launcher.name, cast("QWidget", self.window))
+                    action = QAction(launcher.name, cast(QWidget, cast(object, self.window)))
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
                     _ = action.triggered.connect(
@@ -524,7 +524,7 @@ class LauncherController(LoggingMixin):
             else:
                 # Add directly to main menu if only one category
                 for launcher in category_launchers:
-                    action = QAction(launcher.name, cast("QWidget", self.window))
+                    action = QAction(launcher.name, cast(QWidget, cast(object, self.window)))
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
                     _ = action.triggered.connect(
@@ -540,10 +540,12 @@ class LauncherController(LoggingMixin):
             has_context: Whether there is a current shot or scene context
         """
         for action in self.window.custom_launcher_menu.actions():
-            menu = action.menu()
-            if menu:
+            submenu = action.menu()
+            if submenu is not None:
+                # Type checker doesn't know menu() returns QMenu, use assertion
+                assert isinstance(submenu, QMenu)
                 # Submenu - enable/disable all actions in submenu
-                for sub_action in menu.actions():
+                for sub_action in submenu.actions():
                     sub_action.setEnabled(has_context)
             else:
                 # Regular action

@@ -6,7 +6,7 @@ from __future__ import annotations
 import subprocess
 from concurrent.futures import Future, TimeoutError
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 # Third-party imports
 import pytest

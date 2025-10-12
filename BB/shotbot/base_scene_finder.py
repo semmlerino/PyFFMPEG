@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 import re
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from pathlib import Path
 from re import Pattern
 
@@ -12,7 +12,7 @@ from re import Pattern
 from version_mixin import VersionHandlingMixin
 
 
-class BaseSceneFinder(VersionHandlingMixin):
+class BaseSceneFinder(ABC, VersionHandlingMixin):
     """Abstract base class for scene file finders.
 
     Provides common functionality for finding the latest scene files

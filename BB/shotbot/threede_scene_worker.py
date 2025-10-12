@@ -17,7 +17,6 @@ from PySide6.QtCore import (
     QThread,
     QWaitCondition,
     Signal,
-    Slot,  # type: ignore[reportUnknownVariableType]
 )
 
 # Local application imports
@@ -305,7 +304,6 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         finally:
             self._pause_mutex.unlock()
 
-    @Slot()
     def run(self) -> None:
         """Override run to ensure finished signal is always emitted.
 
@@ -318,7 +316,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         try:
             # Call parent's run() which manages state and calls do_work()
-            super().run()
+            super().run()  # type: ignore[reportAny]
         finally:
             # Ensure finished signal is emitted exactly once
             self._emit_finished_signal_once()

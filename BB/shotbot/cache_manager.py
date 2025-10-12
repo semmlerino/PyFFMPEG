@@ -4,13 +4,12 @@ This is a streamlined replacement for the complex cache architecture,
 designed for a local VFX tool on a secure network.
 
 Simplifications:
-- No platform-specific file locking
-- No atomic writes with temp files
+- No platform-specific file locking (basic QMutex only)
 - No memory manager/LRU eviction
 - No failure tracker with exponential backoff
 - No storage backend abstraction
 - Direct PIL/OpenEXR processing
-- Simple JSON I/O
+- Simple atomic writes (temp file + os.replace)
 - Fixed 30-minute TTL
 
 Maintained features:
@@ -26,23 +25,16 @@ from __future__ import annotations
 
 # Standard library imports
 import json
+import os
+import shutil
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeAlias, cast
 
-# Type alias for JSON data (used for runtime validation) - Python 3.11 compatible
-JSONValue: TypeAlias = (
-    dict[str, "JSONValue"]
-    | list["JSONValue"]
-    | str
-    | int
-    | float
-    | bool
-    | None
-)
-
 # Third-party imports
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
+from PIL import Image
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
 
 # Local application imports
 from exceptions import ThumbnailError
@@ -59,6 +51,11 @@ if TYPE_CHECKING:
 # ruff: noqa: TC001
 from type_definitions import ShotDict, ThreeDESceneDict
 
+# Type alias for JSON data (used for runtime validation) - Python 3.11 compatible
+JSONValue: TypeAlias = (
+    dict[str, "JSONValue"] | list["JSONValue"] | str | int | float | bool | None
+)
+
 # Constants
 DEFAULT_TTL_MINUTES = 30
 THUMBNAIL_SIZE = 256
@@ -68,6 +65,7 @@ THUMBNAIL_QUALITY = 85
 # Backward compatibility exports from old cache system
 class ThumbnailCacheResult:
     """Stub for backward compatibility - no longer used in simplified implementation."""
+
     def __init__(self) -> None:
         self.future = None
         self.path = None
@@ -76,6 +74,7 @@ class ThumbnailCacheResult:
 
 class ThumbnailCacheLoader:
     """Stub for backward compatibility - no longer used in simplified implementation."""
+
     pass
 
 
@@ -107,13 +106,12 @@ class CacheManager(LoggingMixin, QObject):
         # Setup cache directory
         if cache_dir is None:
             # Use default cache location based on mode
-            import os
-            if os.getenv('SHOTBOT_MODE') == 'mock':
-                cache_dir = Path.home() / '.shotbot' / 'cache' / 'mock'
-            elif os.getenv('SHOTBOT_MODE') == 'test':
-                cache_dir = Path.home() / '.shotbot' / 'cache' / 'test'
+            if os.getenv("SHOTBOT_MODE") == "mock":
+                cache_dir = Path.home() / ".shotbot" / "cache" / "mock"
+            elif os.getenv("SHOTBOT_MODE") == "test":
+                cache_dir = Path.home() / ".shotbot" / "cache" / "test"
             else:
-                cache_dir = Path.home() / '.shotbot' / 'cache' / 'production'
+                cache_dir = Path.home() / ".shotbot" / "cache" / "production"
         self.cache_dir = Path(cache_dir)
         self.thumbnails_dir = self.cache_dir / "thumbnails"
         self.shots_cache_file = self.cache_dir / "shots.json"
@@ -172,7 +170,9 @@ class CacheManager(LoggingMixin, QObject):
 
             # Check TTL
             try:
-                age = datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime)
+                age = datetime.now() - datetime.fromtimestamp(
+                    cache_path.stat().st_mtime
+                )
                 if age > self._cache_ttl:
                     self.logger.debug(f"Thumbnail expired: {cache_path}")
                     return None
@@ -204,18 +204,23 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             Path to cached thumbnail or None on error
         """
-        source_path_obj = Path(source_path) if isinstance(source_path, str) else source_path
+        source_path_obj = (
+            Path(source_path) if isinstance(source_path, str) else source_path
+        )
 
         # Validate parameters
         if not all([show, sequence, shot]):
             error_msg = "Missing required parameters for thumbnail caching"
             self.logger.error(error_msg)
-            raise ThumbnailError(error_msg, details={
-                "source_path": str(source_path),
-                "show": show,
-                "sequence": sequence,
-                "shot": shot,
-            })
+            raise ThumbnailError(
+                error_msg,
+                details={
+                    "source_path": str(source_path),
+                    "show": show,
+                    "sequence": sequence,
+                    "shot": shot,
+                },
+            )
 
         if not source_path_obj.exists():
             self.logger.warning(f"Source path does not exist: {source_path_obj}")
@@ -234,7 +239,9 @@ class CacheManager(LoggingMixin, QObject):
             # Already cached and valid?
             if output_path.exists():
                 try:
-                    age = datetime.now() - datetime.fromtimestamp(output_path.stat().st_mtime)
+                    age = datetime.now() - datetime.fromtimestamp(
+                        output_path.stat().st_mtime
+                    )
                     if age < self._cache_ttl:
                         self.logger.debug(f"Using existing thumbnail: {output_path}")
                         return output_path
@@ -258,18 +265,15 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             Path to created thumbnail
         """
-        from PIL import Image
-
         try:
             img = Image.open(source)
             img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
-            img.convert('RGB').save(output, 'JPEG', quality=THUMBNAIL_QUALITY)
+            img.convert("RGB").save(output, "JPEG", quality=THUMBNAIL_QUALITY)
             self.logger.debug(f"Created thumbnail: {output}")
             return output
         except Exception as e:
             self.logger.error(f"PIL thumbnail processing failed: {e}")
             raise ThumbnailError(f"Failed to process thumbnail: {e}")
-
 
     def cache_thumbnail_direct(
         self,
@@ -297,12 +301,11 @@ class CacheManager(LoggingMixin, QObject):
             try:
                 # Scale if needed
                 if image.width() > THUMBNAIL_SIZE or image.height() > THUMBNAIL_SIZE:
-                    from PySide6.QtCore import Qt
                     image = image.scaled(
                         THUMBNAIL_SIZE,
                         THUMBNAIL_SIZE,
                         Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation
+                        Qt.TransformationMode.SmoothTransformation,
                     )
 
                 # Save - QImage.save() accepts str or bytes for format parameter
@@ -420,7 +423,9 @@ class CacheManager(LoggingMixin, QObject):
         if key == "previous_shots":
             # Runtime validation: data must be a sequence of shots or dicts
             if isinstance(data, list | tuple):
-                self.cache_previous_shots(cast("Sequence[Shot] | Sequence[ShotDict]", data))
+                self.cache_previous_shots(
+                    cast("Sequence[Shot] | Sequence[ShotDict]", data)
+                )
             else:
                 self.logger.error(f"Invalid data type for previous_shots: {type(data)}")
         else:
@@ -475,7 +480,6 @@ class CacheManager(LoggingMixin, QObject):
 
                 # Clear thumbnails
                 if self.thumbnails_dir.exists():
-                    import shutil
                     shutil.rmtree(self.thumbnails_dir)
                     self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
 
@@ -609,7 +613,9 @@ class CacheManager(LoggingMixin, QObject):
     # Internal Helper Methods
     # ========================================================================
 
-    def _read_json_cache(self, cache_file: Path) -> list[ShotDict | ThreeDESceneDict] | None:
+    def _read_json_cache(
+        self, cache_file: Path
+    ) -> list[ShotDict | ThreeDESceneDict] | None:
         """Read and validate JSON cache file.
 
         Args:
@@ -634,23 +640,36 @@ class CacheManager(LoggingMixin, QObject):
 
             # Validate structure through runtime checks and type narrowing
             if isinstance(raw_data, list):
-                # Direct list format
+                # Direct list format - validate it's a list of dicts
+                if raw_data and not isinstance(raw_data[0], dict):
+                    self.logger.warning(
+                        f"Invalid cache format: expected list of dicts, got list of {type(raw_data[0])}"
+                    )
+                    return None
                 return cast("list[ShotDict | ThreeDESceneDict]", raw_data)
 
             if isinstance(raw_data, dict):
                 # Handle wrapped format: {"data": [...], "cached_at": "..."}
                 # Try nested keys: data.data, data.shots, data.scenes
-                result: JSONValue = raw_data.get('data')
+                result: JSONValue = raw_data.get("data")
                 if result is None:
-                    result = raw_data.get('shots')
+                    result = raw_data.get("shots")
                 if result is None:
-                    result = raw_data.get('scenes', [])
+                    result = raw_data.get("scenes", [])
 
                 if isinstance(result, list):
+                    # Validate it's a list of dicts
+                    if result and not isinstance(result[0], dict):
+                        self.logger.warning(
+                            f"Invalid cache format: expected list of dicts, got list of {type(result[0])}"
+                        )
+                        return None
                     return cast("list[ShotDict | ThreeDESceneDict]", result)
                 return []
 
-            self.logger.warning(f"Unexpected cache format: {cache_file}, type: {type(raw_data)}")
+            self.logger.warning(
+                f"Unexpected cache format: {cache_file}, type: {type(raw_data)}"
+            )
             return None
 
         except Exception as e:
@@ -664,34 +683,28 @@ class CacheManager(LoggingMixin, QObject):
             cache_file: Path to cache file
             data: Data to cache
         """
-        # Standard library imports
-        import os
-        import tempfile
-
         try:
             # Ensure directory exists
             cache_file.parent.mkdir(parents=True, exist_ok=True)
 
             # Simple format with metadata
             cache_data = {
-                'data': data,
-                'cached_at': datetime.now().isoformat(),
+                "data": data,
+                "cached_at": datetime.now().isoformat(),
             }
 
-            # Atomic write pattern: write to temp file, then rename
-            # This prevents readers from seeing partial/corrupted files
+            # Atomic write: write to temp file, then rename
+            # os.replace() is atomic on POSIX, ensuring readers see either old or new file, never partial
             fd, temp_path = tempfile.mkstemp(
-                dir=cache_file.parent,
-                prefix=f".{cache_file.name}.",
-                suffix=".tmp"
+                dir=cache_file.parent, prefix=f".{cache_file.name}.", suffix=".tmp"
             )
             try:
-                with os.fdopen(fd, 'w') as f:
+                with os.fdopen(fd, "w") as f:
                     json.dump(cache_data, f, indent=2)
                     f.flush()
-                    os.fsync(f.fileno())  # Ensure data is on disk
+                    os.fsync(f.fileno())  # Ensure data is written to disk
 
-                # Atomic rename (POSIX guarantees atomicity)
+                # Atomic rename (POSIX guarantees atomicity on same filesystem)
                 os.replace(temp_path, cache_file)
 
                 self.logger.debug(f"Cached data to: {cache_file}")

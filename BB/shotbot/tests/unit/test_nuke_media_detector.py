@@ -30,7 +30,7 @@ class TestNukeMediaDetector:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.iterdir")
-    def test_detect_frame_range_with_hash_pattern(self, mock_iterdir, mock_exists) -> None:
+    def test_detect_frame_range_with_hash_pattern(self, mock_iterdir: MagicMock, mock_exists: MagicMock) -> None:
         """Test frame range detection with #### pattern."""
         # Setup mock directory that exists
         mock_exists.return_value = True
@@ -55,7 +55,7 @@ class TestNukeMediaDetector:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.iterdir")
-    def test_detect_frame_range_with_printf_pattern(self, mock_iterdir, mock_exists) -> None:
+    def test_detect_frame_range_with_printf_pattern(self, mock_iterdir: MagicMock, mock_exists: MagicMock) -> None:
         """Test frame range detection with %04d pattern."""
         mock_exists.return_value = True
 
@@ -74,7 +74,7 @@ class TestNukeMediaDetector:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.iterdir")
-    def test_detect_frame_range_no_matching_files(self, mock_iterdir, mock_exists) -> None:
+    def test_detect_frame_range_no_matching_files(self, mock_iterdir: MagicMock, mock_exists: MagicMock) -> None:
         """Test frame range detection when no files match pattern."""
         mock_exists.return_value = True
         mock_file = MagicMock()
@@ -88,7 +88,7 @@ class TestNukeMediaDetector:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.iterdir")
-    def test_detect_frame_range_exception_handling(self, mock_iterdir, mock_exists) -> None:
+    def test_detect_frame_range_exception_handling(self, mock_iterdir: MagicMock, mock_exists: MagicMock) -> None:
         """Test frame range detection handles exceptions gracefully."""
         mock_exists.return_value = True
         mock_iterdir.side_effect = OSError("Permission denied")
@@ -271,7 +271,7 @@ class TestNukeMediaDetector:
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.iterdir")
     def test_detect_media_properties_with_frame_detection(
-        self, mock_iterdir, mock_exists
+        self, mock_iterdir: MagicMock, mock_exists: MagicMock
     ) -> None:
         """Test media properties detection with actual frame detection."""
         # Setup mock for frame range detection

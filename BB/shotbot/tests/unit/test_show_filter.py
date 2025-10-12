@@ -13,6 +13,9 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+from collections.abc import Generator
+from typing import TYPE_CHECKING, Any
+
 # Third-party imports
 import pytest
 from PySide6.QtTest import QSignalSpy
@@ -27,6 +30,10 @@ from shot_grid_view import ShotGridView
 from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
 from tests.test_doubles_library import TestCacheManager, TestProcessPool
+
+if TYPE_CHECKING:
+    from _pytest.monkeypatch import MonkeyPatch
+    from pytestqt.qtbot import QtBot
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -53,7 +60,7 @@ class TestBaseShotModelFiltering:
             Shot("show3", "seq4", "shot5", "/workspace/show3/seq4/shot5"),
         ]
 
-    def test_set_show_filter(self, mock_shot_model) -> None:
+    def test_set_show_filter(self, mock_shot_model: ShotModel) -> None:
         """Test setting the show filter."""
         # Initially no filter
         assert mock_shot_model.get_show_filter() is None
@@ -66,7 +73,9 @@ class TestBaseShotModelFiltering:
         mock_shot_model.set_show_filter(None)
         assert mock_shot_model.get_show_filter() is None
 
-    def test_get_filtered_shots_no_filter(self, mock_shot_model, test_shots) -> None:
+    def test_get_filtered_shots_no_filter(
+        self, mock_shot_model: ShotModel, test_shots: list[Shot]
+    ) -> None:
         """Test getting filtered shots with no filter returns all shots."""
         mock_shot_model.shots = test_shots
 
@@ -74,7 +83,9 @@ class TestBaseShotModelFiltering:
         assert len(filtered) == 5
         assert filtered == test_shots
 
-    def test_get_filtered_shots_with_filter(self, mock_shot_model, test_shots) -> None:
+    def test_get_filtered_shots_with_filter(
+        self, mock_shot_model: ShotModel, test_shots: list[Shot]
+    ) -> None:
         """Test getting filtered shots with show filter."""
         mock_shot_model.shots = test_shots
 
@@ -97,7 +108,7 @@ class TestBaseShotModelFiltering:
         assert filtered[0].show == "show3"
 
     def test_get_filtered_shots_nonexistent_show(
-        self, mock_shot_model, test_shots
+        self, mock_shot_model: ShotModel, test_shots: list[Shot]
     ) -> None:
         """Test filtering for a show that doesn't exist returns empty list."""
         mock_shot_model.shots = test_shots
@@ -106,14 +117,16 @@ class TestBaseShotModelFiltering:
         filtered = mock_shot_model.get_filtered_shots()
         assert len(filtered) == 0
 
-    def test_get_available_shows(self, mock_shot_model, test_shots) -> None:
+    def test_get_available_shows(
+        self, mock_shot_model: ShotModel, test_shots: list[Shot]
+    ) -> None:
         """Test getting available shows from current shots."""
         mock_shot_model.shots = test_shots
 
         shows = mock_shot_model.get_available_shows()
         assert shows == {"show1", "show2", "show3"}
 
-    def test_get_available_shows_empty(self, mock_shot_model) -> None:
+    def test_get_available_shows_empty(self, mock_shot_model: ShotModel) -> None:
         """Test getting available shows with no shots."""
         mock_shot_model.shots = []
 
@@ -132,7 +145,7 @@ class TestShotItemModelFiltering:
         return model
 
     @pytest.fixture
-    def shot_item_model(self, qtbot) -> ShotItemModel:
+    def shot_item_model(self, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
         """Create ShotItemModel for testing."""
         model = ShotItemModel(cache_manager=TestCacheManager())
         yield model
@@ -149,7 +162,11 @@ class TestShotItemModelFiltering:
         ]
 
     def test_set_show_filter_updates_display(
-        self, shot_item_model, shot_model, test_shots, qtbot
+        self,
+        shot_item_model: ShotItemModel,
+        shot_model: ShotModel,
+        test_shots: list[Shot],
+        qtbot: QtBot,
     ) -> None:
         """Test that set_show_filter updates the displayed shots."""
         shot_model.shots = test_shots
@@ -175,7 +192,11 @@ class TestShotItemModelFiltering:
         assert shot_item_model.rowCount() == 1
 
     def test_set_show_filter_none_shows_all(
-        self, shot_item_model, shot_model, test_shots, qtbot
+        self,
+        shot_item_model: ShotItemModel,
+        shot_model: ShotModel,
+        test_shots: list[Shot],
+        qtbot: QtBot,
     ) -> None:
         """Test that setting filter to None shows all shots."""
         shot_model.shots = test_shots
@@ -205,7 +226,9 @@ class TestPreviousShotsModelFiltering:
         return model
 
     @pytest.fixture
-    def previous_shots_model(self, shot_model, qtbot) -> PreviousShotsModel:
+    def previous_shots_model(
+        self, shot_model: ShotModel, qtbot: QtBot
+    ) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel."""
         model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager())
         yield model
@@ -222,7 +245,7 @@ class TestPreviousShotsModelFiltering:
         ]
 
     def test_previous_shots_filtering(
-        self, previous_shots_model, test_previous_shots
+        self, previous_shots_model: PreviousShotsModel, test_previous_shots: list[Shot]
     ) -> None:
         """Test filtering previous shots by show."""
         # Set up previous shots
@@ -245,7 +268,7 @@ class TestPreviousShotsModelFiltering:
         assert filtered[0].show == "show2"
 
     def test_previous_shots_available_shows(
-        self, previous_shots_model, test_previous_shots
+        self, previous_shots_model: PreviousShotsModel, test_previous_shots: list[Shot]
     ) -> None:
         """Test getting available shows from previous shots."""
         previous_shots_model._previous_shots = test_previous_shots
@@ -265,7 +288,7 @@ class TestShotGridViewShowFilter:
         return model
 
     @pytest.fixture
-    def shot_item_model(self, qtbot) -> ShotItemModel:
+    def shot_item_model(self, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
         """Create ShotItemModel."""
         model = ShotItemModel(cache_manager=TestCacheManager())
         yield model
@@ -273,20 +296,22 @@ class TestShotGridViewShowFilter:
         model.deleteLater()
 
     @pytest.fixture
-    def shot_grid_view(self, shot_item_model, qtbot) -> ShotGridView:
+    def shot_grid_view(self, shot_item_model: ShotItemModel, qtbot: QtBot) -> ShotGridView:
         """Create ShotGridView with model."""
         view = ShotGridView(model=shot_item_model)
         qtbot.addWidget(view)
         return view
 
-    def test_show_filter_combo_exists(self, shot_grid_view) -> None:
+    def test_show_filter_combo_exists(self, shot_grid_view: ShotGridView) -> None:
         """Test that Show filter combo box exists."""
         assert hasattr(shot_grid_view, "show_combo")
         assert isinstance(shot_grid_view.show_combo, QComboBox)
         assert shot_grid_view.show_combo.count() == 1  # "All Shows" initially
         assert shot_grid_view.show_combo.itemText(0) == "All Shows"
 
-    def test_populate_show_filter(self, shot_grid_view, shot_model) -> None:
+    def test_populate_show_filter(
+        self, shot_grid_view: ShotGridView, shot_model: ShotModel
+    ) -> None:
         """Test populating show filter combo box."""
         # Set up test shots
         test_shots = [
@@ -307,7 +332,9 @@ class TestShotGridViewShowFilter:
         ]
         assert items == ["All Shows", "show1", "show2", "show3"]
 
-    def test_show_filter_signal_emission(self, shot_grid_view, qtbot) -> None:
+    def test_show_filter_signal_emission(
+        self, shot_grid_view: ShotGridView, qtbot: QtBot
+    ) -> None:
         """Test that changing filter emits signal."""
         # Spy on signal
         signal_spy = QSignalSpy(shot_grid_view.show_filter_requested)
@@ -332,7 +359,7 @@ class TestPreviousShotsViewShowFilter:
     """Test Show filter UI in PreviousShotsView."""
 
     @pytest.fixture
-    def previous_shots_model(self, qtbot) -> PreviousShotsModel:
+    def previous_shots_model(self, qtbot: QtBot) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel."""
         shot_model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
         shot_model._process_pool = TestProcessPool()
@@ -343,8 +370,8 @@ class TestPreviousShotsViewShowFilter:
 
     @pytest.fixture
     def previous_shots_item_model(
-        self, previous_shots_model, qtbot
-    ) -> PreviousShotsItemModel:
+        self, previous_shots_model: PreviousShotsModel, qtbot: QtBot
+    ) -> Generator[PreviousShotsItemModel, None, None]:
         """Create PreviousShotsItemModel."""
         model = PreviousShotsItemModel(previous_shots_model, TestCacheManager())
         yield model
@@ -352,14 +379,14 @@ class TestPreviousShotsViewShowFilter:
 
     @pytest.fixture
     def previous_shots_view(
-        self, previous_shots_item_model, qtbot
+        self, previous_shots_item_model: PreviousShotsItemModel, qtbot: QtBot
     ) -> PreviousShotsView:
         """Create PreviousShotsView with model."""
         view = PreviousShotsView(model=previous_shots_item_model)
         qtbot.addWidget(view)
         return view
 
-    def test_show_filter_combo_exists(self, previous_shots_view) -> None:
+    def test_show_filter_combo_exists(self, previous_shots_view: PreviousShotsView) -> None:
         """Test that Show filter combo box exists in previous shots view."""
         assert hasattr(previous_shots_view, "show_combo")
         assert isinstance(previous_shots_view.show_combo, QComboBox)
@@ -367,7 +394,7 @@ class TestPreviousShotsViewShowFilter:
         assert previous_shots_view.show_combo.itemText(0) == "All Shows"
 
     def test_populate_show_filter_previous_shots(
-        self, previous_shots_view, previous_shots_model
+        self, previous_shots_view: PreviousShotsView, previous_shots_model: PreviousShotsModel
     ) -> None:
         """Test populating show filter for previous shots."""
         # Set up test previous shots
@@ -388,7 +415,9 @@ class TestPreviousShotsViewShowFilter:
         ]
         assert items == ["All Shows", "showA", "showB"]
 
-    def test_previous_shots_filter_signal(self, previous_shots_view, qtbot) -> None:
+    def test_previous_shots_filter_signal(
+        self, previous_shots_view: PreviousShotsView, qtbot: QtBot
+    ) -> None:
         """Test that filter change emits signal in previous shots view."""
         signal_spy = QSignalSpy(previous_shots_view.show_filter_requested)
 
@@ -406,7 +435,9 @@ class TestMainWindowFilterHandlers:
     """Test Show filter signal handlers in MainWindow."""
 
     @pytest.fixture
-    def mock_main_window(self, qtbot, monkeypatch):
+    def mock_main_window(
+        self, qtbot: QtBot, monkeypatch: MonkeyPatch
+    ) -> Generator[Any, None, None]:
         """Create a mock MainWindow setup for testing filter handlers.
 
         We don't create the full MainWindow as it has too many dependencies.
@@ -460,7 +491,7 @@ class TestMainWindowFilterHandlers:
         # Cleanup
         window.previous_shots_model.stop_auto_refresh()
 
-    def test_on_shot_show_filter_requested(self, mock_main_window) -> None:
+    def test_on_shot_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for My Shots show filter request."""
         # Local application imports
         from main_window import MainWindow
@@ -486,7 +517,7 @@ class TestMainWindowFilterHandlers:
         assert mock_main_window.shot_model.get_show_filter() is None
         assert mock_main_window.shot_item_model.rowCount() == 3
 
-    def test_on_previous_show_filter_requested(self, mock_main_window) -> None:
+    def test_on_previous_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for Previous Shots show filter request."""
         # Local application imports
         from main_window import MainWindow
@@ -513,7 +544,7 @@ class TestMainWindowFilterHandlers:
         ]
         assert len(filtered_shots) == 2
 
-    def test_refresh_populates_show_filter(self, mock_main_window) -> None:
+    def test_refresh_populates_show_filter(self, mock_main_window: Any) -> None:
         """Test that refreshing shots populates the show filter combo."""
         # Local application imports
         from main_window import MainWindow
@@ -538,7 +569,7 @@ class TestMainWindowFilterHandlers:
         assert "show1" in items
         assert "show2" in items
 
-    def test_on_previous_shots_updated(self, mock_main_window) -> None:
+    def test_on_previous_shots_updated(self, mock_main_window: Any) -> None:
         """Test the handler for previous shots updated signal."""
         # Local application imports
         from main_window import MainWindow

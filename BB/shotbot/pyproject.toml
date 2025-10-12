@@ -198,59 +198,71 @@ exclude_lines = [
 ]
 
 [tool.basedpyright]
-# Use recommended mode for better type safety with basedpyright improvements
+# Type checking mode - "recommended" balances safety with pragmatism
 typeCheckingMode = "recommended"
 
 # Python version (matches minimum requirement: Python 3.11+)
 pythonVersion = "3.11"
 
-# Virtual environment
+# Virtual environment (uv-managed)
 venvPath = "."
-venv = "venv"
+venv = ".venv"
 
-# Files to include
-include = [
-    "shot_model.py",
-    "cache_manager.py", 
-    "utils.py",
-    "raw_plate_finder.py",
-    "threede_scene_finder.py",
-    "threede_scene_model.py",
-    "main_window.py",
-    "config.py"
-]
+# By default, checks all Python files in the project
+# Use exclude to skip specific directories
 
-# Files to exclude
+# Exclude virtual environments, caches, and test directories
 exclude = [
-    "venv",
+    "venv/**",
+    ".venv/**",
+    "venv_py311/**",
+    "test_venv/**",
     "**/__pycache__",
-    "build",
-    "dist"
+    "**/.pytest_cache",
+    ".git/**",
+    "build/**",
+    "dist/**",
+    "tests/**",
+    "archived/**",
 ]
 
-# Stub path
+# Stub path for type stubs
 stubPath = "."
 
-# Error reporting levels
+# Error reporting levels - balanced for production code
 reportMissingImports = "warning"
-reportMissingTypeStubs = "warning"
+reportMissingTypeStubs = "none"  # Third-party libraries often lack stubs
 reportUnnecessaryTypeIgnoreComment = "error"
 reportIgnoreCommentWithoutRule = "error"
 reportPrivateUsage = "warning"
-# Stricter Unknown type reporting for better type safety
+
+# Stricter type checking for better code quality
 reportUnknownMemberType = "error"
 reportUnknownArgumentType = "error"
-reportUnknownLambdaType = "warning"
 reportUnknownVariableType = "error"
+reportUnknownLambdaType = "warning"
+
+# Decorator and class type safety
 reportUntypedFunctionDecorator = "warning"
 reportUntypedClassDecorator = "warning"
 reportUntypedBaseClass = "error"
 reportUntypedNamedTuple = "error"
+
+# Code quality checks
 reportCallInDefaultInitializer = "warning"
-reportImplicitStringConcatenation = "warning"
+reportImplicitStringConcatenation = "none"  # Allow implicit concatenation
 reportMissingSuperCall = "warning"
 reportPropertyTypeMismatch = "error"
 reportFunctionMemberAccess = "error"
+
+# Type compatibility
 reportIncompatibleMethodOverride = "error"
 reportIncompatibleVariableOverride = "error"
 reportOverlappingOverload = "error"
+
+# Qt/PySide6 specific suppressions
+reportUnsafeMultipleInheritance = "none"  # Qt mixins use proper super() MRO chain
+reportUnusedCallResult = "none"  # Qt signal connections return values are often unused
+reportUnannotatedClassAttribute = "none"  # Qt Signal() class attributes
+reportImplicitOverride = "none"  # Qt event handlers implicitly override
+reportUnusedParameter = "none"  # Qt slots/callbacks often have unused parameters

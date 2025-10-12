@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 import subprocess
 import sys
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
 from typing import Protocol
@@ -20,7 +20,6 @@ from PySide6.QtCore import (
     QThreadPool,
     QUrl,
     Signal,
-    Slot,  # type: ignore[reportUnknownVariableType]
 )
 from PySide6.QtGui import (
     QColor,
@@ -64,7 +63,6 @@ class FolderOpenerWorker(QRunnable):
         self.folder_path = folder_path
         self.signals = FolderOpenerSignals()
 
-    @Slot()
     def run(self) -> None:
         """Open the folder using the appropriate method for the platform."""
         tracker = get_tracker()
@@ -308,7 +306,7 @@ class BaseThumbnailLoader(QRunnable):
             tracker.unregister(self)
 
 
-class ThumbnailWidgetBase(QFrame):
+class ThumbnailWidgetBase(ABC, QFrame):
     """Base class for thumbnail widgets with common functionality."""
 
     # Signals - derived classes can override signal types if needed
@@ -444,7 +442,7 @@ class ThumbnailWidgetBase(QFrame):
             loader = BaseThumbnailLoader(self, cache_path)
             loader.signals.loaded.connect(self._on_thumbnail_loaded)
             loader.signals.failed.connect(self._on_thumbnail_failed)
-            QThreadPool.globalInstance().start(loader)  # type: ignore[reportUnknownMemberType]
+            QThreadPool.globalInstance().start(loader)
         else:
             # Try to load from source
             thumb_path = self.data.get_thumbnail_path()
@@ -453,7 +451,7 @@ class ThumbnailWidgetBase(QFrame):
                 loader = BaseThumbnailLoader(self, thumb_path)
                 loader.signals.loaded.connect(self._on_thumbnail_loaded)
                 loader.signals.failed.connect(self._on_thumbnail_failed)
-                QThreadPool.globalInstance().start(loader)  # type: ignore[reportUnknownMemberType]
+                QThreadPool.globalInstance().start(loader)
 
                 # Also cache it for next time
                 cache_loader = ThumbnailCacheLoader(
@@ -463,7 +461,7 @@ class ThumbnailWidgetBase(QFrame):
                     self.data.sequence,
                     self.data.shot,
                 )
-                QThreadPool.globalInstance().start(cache_loader)  # type: ignore[reportUnknownMemberType]
+                QThreadPool.globalInstance().start(cache_loader)
             else:
                 # No thumbnail available
                 self._on_thumbnail_failed(self)
@@ -558,9 +556,8 @@ class ThumbnailWidgetBase(QFrame):
         )
 
         # Start the worker
-        QThreadPool.globalInstance().start(worker)  # type: ignore[reportUnknownMemberType]
+        QThreadPool.globalInstance().start(worker)
 
-    @Slot(str)
     def _on_folder_open_error(self, error_msg: str) -> None:
         """Handle folder opening errors.
 
@@ -570,7 +567,6 @@ class ThumbnailWidgetBase(QFrame):
         logger.error(f"Failed to open folder: {error_msg}")
         # Could emit a signal here to show error in UI if needed
 
-    @Slot()
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
         logger.debug("Folder opened successfully")

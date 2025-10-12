@@ -3,13 +3,15 @@
 # Standard library imports
 import os
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 # Third-party imports
 import pytest
 
 
-def pytest_configure(config) -> None:
+def pytest_configure(config: pytest.Config) -> None:
     """Configure custom pytest markers."""
     config.addinivalue_line(
         "markers",
@@ -19,7 +21,7 @@ def pytest_configure(config) -> None:
     config.addinivalue_line("markers", "integration: mark test as an integration test")
 
 
-def pytest_collection_modifyitems(config, items) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Modify test collection to handle custom markers."""
     # Add integration marker to all tests in this directory
     for item in items:
@@ -28,14 +30,14 @@ def pytest_collection_modifyitems(config, items) -> None:
 
 
 @pytest.fixture(scope="session")
-def integration_temp_dir():
+def integration_temp_dir() -> Iterator[Path]:
     """Session-scoped temporary directory for integration tests."""
     with tempfile.TemporaryDirectory(prefix="shotbot_integration_") as temp_dir:
         yield Path(temp_dir)
 
 
 @pytest.fixture
-def mock_shows_structure(integration_temp_dir):
+def mock_shows_structure(integration_temp_dir: Path) -> dict[str, Any]:
     """Create a realistic shows directory structure for integration tests."""
     shows_root = integration_temp_dir / "shows"
 
@@ -111,7 +113,7 @@ def mock_shows_structure(integration_temp_dir):
 
 
 @pytest.fixture
-def performance_dataset(integration_temp_dir):
+def performance_dataset(integration_temp_dir: Path) -> dict[str, Any]:
     """Create a large dataset for performance testing."""
     perf_root = integration_temp_dir / "performance"
     shots = []
@@ -150,14 +152,14 @@ def performance_dataset(integration_temp_dir):
 
 
 @pytest.fixture
-def isolated_cache_dir():
+def isolated_cache_dir() -> Iterator[Path]:
     """Create an isolated cache directory for each test."""
     with tempfile.TemporaryDirectory(prefix="shotbot_cache_") as cache_dir:
         yield Path(cache_dir)
 
 
 @pytest.fixture
-def vfx_production_environment(integration_temp_dir):
+def vfx_production_environment(integration_temp_dir: Path) -> dict[str, Any]:
     """Create realistic VFX production environment for comprehensive testing."""
     shows_root = integration_temp_dir / "vfx_production"
 

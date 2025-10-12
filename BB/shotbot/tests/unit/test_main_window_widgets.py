@@ -18,6 +18,9 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
@@ -33,6 +36,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+    from cache_manager import CacheManager
+    from main_window import MainWindow
+
 # Lazy import to avoid Qt initialization at module level
 # MainWindow imported inside each test/fixture to avoid module-level issues
 
@@ -43,7 +52,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_stat
 
 
 @pytest.fixture
-def real_cache_manager(tmp_path):
+def real_cache_manager(tmp_path: Path) -> CacheManager:
     """Create real CacheManager for testing."""
     # Local application imports
     from cache_manager import CacheManager
@@ -55,7 +64,9 @@ class TestMainWindowInitialization:
     """Test MainWindow initialization and basic properties."""
 
     @pytest.fixture
-    def main_window(self, qtbot, real_cache_manager):
+    def main_window(
+        self, qtbot: QtBot, real_cache_manager: CacheManager
+    ) -> MainWindow:
         """Create MainWindow for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -64,7 +75,7 @@ class TestMainWindowInitialization:
         qtbot.addWidget(window)
         return window
 
-    def test_window_creation(self, main_window) -> None:
+    def test_window_creation(self, main_window: MainWindow) -> None:
         """Test MainWindow creates successfully."""
         window = main_window
 
@@ -74,7 +85,7 @@ class TestMainWindowInitialization:
         assert hasattr(window, "cache_manager")
         assert window.cache_manager is not None
 
-    def test_window_properties(self, main_window) -> None:
+    def test_window_properties(self, main_window: MainWindow) -> None:
         """Test window has correct basic properties."""
         window = main_window
 
@@ -88,7 +99,7 @@ class TestMainWindowInitialization:
         assert size.width() > 0
         assert size.height() > 0
 
-    def test_window_central_widget(self, main_window) -> None:
+    def test_window_central_widget(self, main_window: MainWindow) -> None:
         """Test window has central widget setup."""
         window = main_window
 
@@ -97,7 +108,9 @@ class TestMainWindowInitialization:
         assert central_widget is not None
         assert isinstance(central_widget, QWidget)
 
-    def test_cache_manager_assignment(self, main_window, real_cache_manager) -> None:
+    def test_cache_manager_assignment(
+        self, main_window: MainWindow, real_cache_manager: CacheManager
+    ) -> None:
         """Test cache manager is properly assigned."""
         window = main_window
 
@@ -110,7 +123,9 @@ class TestMainWindowUIComponents:
     """Test MainWindow UI components exist and are properly configured."""
 
     @pytest.fixture
-    def main_window_ui(self, qtbot, real_cache_manager):
+    def main_window_ui(
+        self, qtbot: QtBot, real_cache_manager: CacheManager
+    ) -> MainWindow:
         """Create MainWindow with UI setup for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -121,7 +136,7 @@ class TestMainWindowUIComponents:
         qtbot.wait(100)
         return window
 
-    def test_tab_widget_exists(self, main_window_ui) -> None:
+    def test_tab_widget_exists(self, main_window_ui: MainWindow) -> None:
         """Test main tab widget exists and is configured."""
         window = main_window_ui
 
@@ -134,7 +149,7 @@ class TestMainWindowUIComponents:
             tab_count = tab_widget.count()
             assert tab_count >= 3  # My Shots, Other 3DE scenes, Previous Shots
 
-    def test_status_bar_exists(self, main_window_ui) -> None:
+    def test_status_bar_exists(self, main_window_ui: MainWindow) -> None:
         """Test status bar exists and is functional."""
         window = main_window_ui
 
@@ -143,7 +158,7 @@ class TestMainWindowUIComponents:
         assert status_bar is not None
         assert isinstance(status_bar, QStatusBar)
 
-    def test_menu_bar_exists(self, main_window_ui) -> None:
+    def test_menu_bar_exists(self, main_window_ui: MainWindow) -> None:
         """Test menu bar exists."""
         window = main_window_ui
 
@@ -151,7 +166,7 @@ class TestMainWindowUIComponents:
         menu_bar = window.menuBar()
         assert menu_bar is not None
 
-    def test_splitter_configuration(self, main_window_ui) -> None:
+    def test_splitter_configuration(self, main_window_ui: MainWindow) -> None:
         """Test splitter widgets are properly configured."""
         window = main_window_ui
 
@@ -161,7 +176,7 @@ class TestMainWindowUIComponents:
         # Should have at least one splitter for layout
         assert len(splitters) >= 0  # May be 0 if layout doesn't use splitters
 
-    def test_essential_components_exist(self, main_window_ui) -> None:
+    def test_essential_components_exist(self, main_window_ui: MainWindow) -> None:
         """Test essential UI components exist."""
         window = main_window_ui
 
@@ -178,7 +193,9 @@ class TestMainWindowTabFunctionality:
     """Test tab widget functionality and navigation."""
 
     @pytest.fixture
-    def tabbed_window(self, qtbot, real_cache_manager):
+    def tabbed_window(
+        self, qtbot: QtBot, real_cache_manager: CacheManager
+    ) -> MainWindow:
         """Create MainWindow with tabs for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -188,7 +205,7 @@ class TestMainWindowTabFunctionality:
         qtbot.wait(100)  # Allow tabs to initialize
         return window
 
-    def test_tab_navigation(self, qtbot, tabbed_window) -> None:
+    def test_tab_navigation(self, qtbot: QtBot, tabbed_window: MainWindow) -> None:
         """Test tab navigation works correctly."""
         window = tabbed_window
         tab_widget = window.findChild(QTabWidget)
@@ -206,7 +223,7 @@ class TestMainWindowTabFunctionality:
             current_tab = tab_widget.currentIndex()
             assert current_tab == next_tab
 
-    def test_tab_content_exists(self, tabbed_window) -> None:
+    def test_tab_content_exists(self, tabbed_window: MainWindow) -> None:
         """Test tabs have content widgets."""
         window = tabbed_window
         tab_widget = window.findChild(QTabWidget)
@@ -219,7 +236,7 @@ class TestMainWindowTabFunctionality:
                 assert current_widget is not None
                 assert isinstance(current_widget, QWidget)
 
-    def test_tab_labels(self, tabbed_window) -> None:
+    def test_tab_labels(self, tabbed_window: MainWindow) -> None:
         """Test tabs have appropriate labels."""
         window = tabbed_window
         tab_widget = window.findChild(QTabWidget)
@@ -231,7 +248,9 @@ class TestMainWindowTabFunctionality:
                 assert isinstance(tab_text, str)
                 assert len(tab_text) > 0
 
-    def test_tab_switching_signals(self, qtbot, tabbed_window) -> None:
+    def test_tab_switching_signals(
+        self, qtbot: QtBot, tabbed_window: MainWindow
+    ) -> None:
         """Test tab switching emits proper signals."""
         window = tabbed_window
         tab_widget = window.findChild(QTabWidget)
@@ -242,7 +261,7 @@ class TestMainWindowTabFunctionality:
             new_index = (original_index + 1) % tab_widget.count()
 
             # Set up signal expectation with parameter checking
-            def check_tab_change(index):
+            def check_tab_change(index: int) -> bool:
                 return index == new_index
 
             with qtbot.waitSignal(
@@ -257,7 +276,9 @@ class TestMainWindowSignalConnections:
     """Test signal connections between MainWindow components."""
 
     @pytest.fixture
-    def connected_window(self, qtbot, real_cache_manager):
+    def connected_window(
+        self, qtbot: QtBot, real_cache_manager: CacheManager
+    ) -> MainWindow:
         """Create MainWindow with signal connections for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -267,7 +288,7 @@ class TestMainWindowSignalConnections:
         qtbot.wait(100)  # Allow connections to establish
         return window
 
-    def test_shot_model_connections(self, connected_window) -> None:
+    def test_shot_model_connections(self, connected_window: MainWindow) -> None:
         """Test shot model exists and has basic functionality."""
         window = connected_window
 
@@ -279,7 +300,7 @@ class TestMainWindowSignalConnections:
             assert hasattr(shot_model, "refresh_shots")
             assert hasattr(shot_model, "get_shots")
 
-    def test_launcher_manager_connections(self, connected_window) -> None:
+    def test_launcher_manager_connections(self, connected_window: MainWindow) -> None:
         """Test launcher manager exists and has basic functionality."""
         window = connected_window
 
@@ -293,7 +314,9 @@ class TestMainWindowSignalConnections:
             # Check that it's a QObject (signals are dynamic attributes)
             assert hasattr(launcher_manager, "deleteLater")  # QObject method
 
-    def test_threede_scene_worker_connections(self, connected_window) -> None:
+    def test_threede_scene_worker_connections(
+        self, connected_window: MainWindow
+    ) -> None:
         """Test 3DE scene worker signal connections."""
         window = connected_window
 
@@ -309,7 +332,9 @@ class TestMainWindowKeyboardShortcuts:
     """Test keyboard shortcuts and accessibility."""
 
     @pytest.fixture
-    def shortcut_window(self, qtbot, real_cache_manager):
+    def shortcut_window(
+        self, qtbot: QtBot, real_cache_manager: CacheManager
+    ) -> MainWindow:
         """Create MainWindow for shortcut testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -320,7 +345,7 @@ class TestMainWindowKeyboardShortcuts:
         qtbot.waitExposed(window)
         return window
 
-    def test_refresh_shortcut(self, qtbot, shortcut_window) -> None:
+    def test_refresh_shortcut(self, qtbot: QtBot, shortcut_window: MainWindow) -> None:
         """Test keyboard shortcut handling infrastructure."""
         window = shortcut_window
 
@@ -342,7 +367,9 @@ class TestMainWindowKeyboardShortcuts:
         # Verify keyboard handling infrastructure exists
         assert hasattr(window, "keyPressEvent")
 
-    def test_tab_navigation_shortcuts(self, qtbot, shortcut_window) -> None:
+    def test_tab_navigation_shortcuts(
+        self, qtbot: QtBot, shortcut_window: MainWindow
+    ) -> None:
         """Test tab navigation shortcuts."""
         window = shortcut_window
         tab_widget = window.findChild(QTabWidget)
@@ -361,7 +388,9 @@ class TestMainWindowKeyboardShortcuts:
             assert window.isVisible()
             assert not window.isMinimized()
 
-    def test_escape_key_handling(self, qtbot, shortcut_window) -> None:
+    def test_escape_key_handling(
+        self, qtbot: QtBot, shortcut_window: MainWindow
+    ) -> None:
         """Test escape key handling."""
         window = shortcut_window
 
@@ -384,7 +413,9 @@ class TestMainWindowStateManagement:
     """Test window state management and persistence."""
 
     @pytest.fixture
-    def stateful_window(self, qtbot, real_cache_manager):
+    def stateful_window(
+        self, qtbot: QtBot, real_cache_manager: CacheManager
+    ) -> MainWindow:
         """Create MainWindow for state testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -395,7 +426,9 @@ class TestMainWindowStateManagement:
         qtbot.waitExposed(window)
         return window
 
-    def test_window_geometry_management(self, qtbot, stateful_window) -> None:
+    def test_window_geometry_management(
+        self, qtbot: QtBot, stateful_window: MainWindow
+    ) -> None:
         """Test window geometry can be managed."""
         window = stateful_window
 
@@ -413,7 +446,7 @@ class TestMainWindowStateManagement:
         assert new_geometry.width() >= new_width - 50  # Allow some tolerance
         assert new_geometry.height() >= new_height - 50
 
-    def test_window_show_hide(self, qtbot, stateful_window) -> None:
+    def test_window_show_hide(self, qtbot: QtBot, stateful_window: MainWindow) -> None:
         """Test window show/hide functionality."""
         window = stateful_window
 
@@ -430,7 +463,9 @@ class TestMainWindowStateManagement:
         qtbot.wait(10)
         assert window.isVisible()
 
-    def test_window_minimize_restore(self, qtbot, stateful_window) -> None:
+    def test_window_minimize_restore(
+        self, qtbot: QtBot, stateful_window: MainWindow
+    ) -> None:
         """Test window minimize/restore functionality."""
         window = stateful_window
 
@@ -452,7 +487,7 @@ class TestMainWindowStateManagement:
 class TestMainWindowErrorHandling:
     """Test MainWindow error handling and edge cases."""
 
-    def test_window_creation_with_no_cache_manager(self, qtbot) -> None:
+    def test_window_creation_with_no_cache_manager(self, qtbot: QtBot) -> None:
         """Test window creates with default cache manager."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -464,7 +499,9 @@ class TestMainWindowErrorHandling:
         assert window is not None
         assert window.cache_manager is not None
 
-    def test_window_close_event_handling(self, qtbot, real_cache_manager) -> None:
+    def test_window_close_event_handling(
+        self, qtbot: QtBot, real_cache_manager: CacheManager
+    ) -> None:
         """Test window handles close events properly."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -485,7 +522,9 @@ class TestMainWindowErrorHandling:
         # Event handling shouldn't crash the process
         assert window is not None
 
-    def test_window_with_missing_components(self, qtbot, real_cache_manager) -> None:
+    def test_window_with_missing_components(
+        self, qtbot: QtBot, real_cache_manager: CacheManager
+    ) -> None:
         """Test window handles missing components gracefully."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -502,7 +541,9 @@ class TestMainWindowIntegration:
     """Test integration between MainWindow components."""
 
     @pytest.fixture
-    def integrated_window(self, qtbot, real_cache_manager):
+    def integrated_window(
+        self, qtbot: QtBot, real_cache_manager: CacheManager
+    ) -> MainWindow:
         """Create fully integrated MainWindow for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -514,7 +555,9 @@ class TestMainWindowIntegration:
         qtbot.wait(200)  # Allow full initialization
         return window
 
-    def test_component_communication(self, qtbot, integrated_window) -> None:
+    def test_component_communication(
+        self, qtbot: QtBot, integrated_window: MainWindow
+    ) -> None:
         """Test components communicate through signals."""
         window = integrated_window
 
@@ -529,7 +572,7 @@ class TestMainWindowIntegration:
         assert window.isVisible()
 
     def test_cache_manager_integration(
-        self, qtbot, integrated_window, real_cache_manager
+        self, qtbot: QtBot, integrated_window: MainWindow, real_cache_manager: CacheManager
     ) -> None:
         """Test cache manager integrates with all components."""
         window = integrated_window
@@ -542,7 +585,9 @@ class TestMainWindowIntegration:
             # Shot model should use the cache manager
             assert hasattr(window.shot_model, "cache_manager")
 
-    def test_status_updates(self, qtbot, integrated_window) -> None:
+    def test_status_updates(
+        self, qtbot: QtBot, integrated_window: MainWindow
+    ) -> None:
         """Test status bar receives updates from components."""
         window = integrated_window
         status_bar = window.statusBar()
@@ -555,7 +600,9 @@ class TestMainWindowIntegration:
         current_message = status_bar.currentMessage()
         assert current_message == "Test message"
 
-    def test_ui_responsiveness_under_load(self, qtbot, integrated_window) -> None:
+    def test_ui_responsiveness_under_load(
+        self, qtbot: QtBot, integrated_window: MainWindow
+    ) -> None:
         """Test UI remains responsive under component load."""
         window = integrated_window
 
@@ -568,7 +615,9 @@ class TestMainWindowIntegration:
         assert window.isVisible()
         assert window.isEnabled()
 
-    def test_component_cleanup(self, qtbot, integrated_window) -> None:
+    def test_component_cleanup(
+        self, qtbot: QtBot, integrated_window: MainWindow
+    ) -> None:
         """Test components clean up properly."""
         window = integrated_window
 

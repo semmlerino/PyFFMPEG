@@ -3,17 +3,15 @@
 # Excludes slow, performance, and stress tests
 # Expected runtime: ~30-40 seconds
 
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 echo "🚀 Running fast test suite..."
 echo "================================"
 
-# Activate virtual environment if it exists
-if [ -d "venv" ]; then
-    source venv/bin/activate
-fi
-
 # Run tests excluding slow categories
 # Use --dist=loadgroup to respect xdist_group markers
-python -m pytest tests/ \
+uv run pytest tests/ \
     -m "not slow and not performance and not stress" \
     --tb=short \
     --maxfail=10 \

@@ -112,49 +112,46 @@ def setup_large_plate_structure(base_path, num_plates, num_versions, num_frames)
 ### Prerequisites
 ```bash
 # Install test dependencies
-pip install pytest pytest-qt pytest-cov hypothesis
-
-# For performance tests
-pip install memory_profiler
+uv sync
 ```
 
 ### Run Integration Tests
 ```bash
 # All integration tests
-pytest tests/integration/ -v
+uv run pytest tests/integration/ -v
 
 # Specific test file
-pytest tests/integration/test_raw_plate_integration.py -v
+uv run pytest tests/integration/test_raw_plate_integration.py -v
 
 # Performance tests only
-pytest tests/integration/ -m performance -v
+uv run pytest tests/integration/ -m performance -v
 ```
 
 ### Run Property-Based Tests
 ```bash
 # With statistics
-pytest tests/advanced/test_property_based.py --hypothesis-show-statistics
+uv run pytest tests/advanced/test_property_based.py --hypothesis-show-statistics
 
 # More examples
-pytest tests/advanced/test_property_based.py --hypothesis-seed=42
+uv run pytest tests/advanced/test_property_based.py --hypothesis-seed=42
 ```
 
 ### Run Performance Benchmarks
 ```bash
 # Run benchmarks
-python tests/integration/test_performance_benchmarks.py
+uv run python tests/integration/test_performance_benchmarks.py
 
 # With coverage
-pytest tests/integration/test_performance_benchmarks.py --cov=. --cov-report=html
+uv run pytest tests/integration/test_performance_benchmarks.py --cov=. --cov-report=html
 ```
 
 ### Continuous Integration
 ```bash
 # Full test suite with coverage
-pytest tests/ --cov=. --cov-report=xml --cov-report=term
+uv run pytest tests/ --cov=. --cov-report=xml --cov-report=term
 
 # Quick smoke tests
-pytest tests/integration/ -k "not performance and not stress" --maxfail=3
+uv run pytest tests/integration/ -k "not performance and not stress" --maxfail=3
 ```
 
 ## Test Metrics

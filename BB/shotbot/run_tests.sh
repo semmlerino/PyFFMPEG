@@ -1,8 +1,8 @@
 #!/bin/bash
 # Run tests properly in WSL environment
 
-# Activate virtual environment
-source venv/bin/activate
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
 
-# Run pytest with correct settings
-python -m pytest tests/ "$@"
+# Run pytest with uv
+uv run pytest tests/ "$@"

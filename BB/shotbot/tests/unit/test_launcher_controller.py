@@ -7,6 +7,7 @@ Following UNIFIED_TESTING_GUIDE patterns.
 from __future__ import annotations
 
 # Standard library imports
+from collections.abc import Callable, Generator
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -143,10 +144,10 @@ class MockLauncherTarget(QObject):
 
 # Fixtures
 @pytest.fixture
-def make_launcher_controller():
+def make_launcher_controller() -> Generator[Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], None, None]:
     """Factory fixture for LauncherController."""
 
-    def _make(launcher_manager=Mock(), launch_success=True):
+    def _make(launcher_manager: Any = Mock(), launch_success: bool = True) -> tuple[LauncherController, MockLauncherTarget]:  # noqa: ANN401
         target = MockLauncherTarget()
         # Always set launcher_manager - could be None, Mock, or custom value
         target.launcher_manager = launcher_manager
@@ -154,11 +155,11 @@ def make_launcher_controller():
         controller = LauncherController(target)
         return controller, target
 
-    return _make
+    yield _make
 
 
 @pytest.fixture
-def test_shot():
+def test_shot() -> Shot:
     """Create a test shot."""
     return Shot(
         show="TEST",
@@ -169,7 +170,7 @@ def test_shot():
 
 
 @pytest.fixture
-def test_scene():
+def test_scene() -> ThreeDEScene:
     """Create a test 3DE scene."""
     from pathlib import Path
 
@@ -188,7 +189,7 @@ def test_scene():
 class TestLauncherControllerBasics:
     """Test basic launcher controller functionality."""
 
-    def test_initialization(self, make_launcher_controller) -> None:
+    def test_initialization(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test controller initializes correctly."""
         controller, target = make_launcher_controller()
 
@@ -197,7 +198,7 @@ class TestLauncherControllerBasics:
         assert controller._current_scene is None
         assert controller._launcher_dialog is None
 
-    def test_set_current_shot(self, make_launcher_controller, test_shot) -> None:
+    def test_set_current_shot(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot) -> None:
         """Test setting current shot context."""
         controller, target = make_launcher_controller()
 
@@ -206,7 +207,7 @@ class TestLauncherControllerBasics:
         assert controller._current_shot == test_shot
         assert target.command_launcher.current_shot == test_shot
 
-    def test_set_current_shot_none(self, make_launcher_controller) -> None:
+    def test_set_current_shot_none(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test clearing current shot context."""
         controller, target = make_launcher_controller()
 
@@ -215,7 +216,7 @@ class TestLauncherControllerBasics:
         assert controller._current_shot is None
         assert target.command_launcher.current_shot is None
 
-    def test_set_current_scene(self, make_launcher_controller, test_scene) -> None:
+    def test_set_current_scene(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_scene: ThreeDEScene) -> None:
         """Test setting current scene context."""
         controller, _ = make_launcher_controller()
 
@@ -223,7 +224,7 @@ class TestLauncherControllerBasics:
 
         assert controller._current_scene == test_scene
 
-    def test_set_current_scene_none(self, make_launcher_controller) -> None:
+    def test_set_current_scene_none(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test clearing current scene context."""
         controller, _ = make_launcher_controller()
 
@@ -232,7 +233,7 @@ class TestLauncherControllerBasics:
         assert controller._current_scene is None
 
     def test_context_switching_shot_to_scene(
-        self, make_launcher_controller, test_shot, test_scene
+        self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot, test_scene: ThreeDEScene
     ) -> None:
         """Test switching from shot to scene context clears shot.
 
@@ -256,7 +257,7 @@ class TestLauncherControllerBasics:
         )
 
     def test_context_switching_scene_to_shot(
-        self, make_launcher_controller, test_shot, test_scene
+        self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot, test_scene: ThreeDEScene
     ) -> None:
         """Test switching from scene to shot context clears scene.
 
@@ -280,7 +281,7 @@ class TestLauncherControllerBasics:
         )
 
     def test_context_switching_multiple_times(
-        self, make_launcher_controller, test_shot, test_scene
+        self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot, test_scene: ThreeDEScene
     ) -> None:
         """Test multiple context switches maintain mutual exclusivity.
 
@@ -316,7 +317,7 @@ class TestLauncherControllerBasics:
 class TestApplicationLaunching:
     """Test application launching with different contexts."""
 
-    def test_get_launch_options_nuke(self, make_launcher_controller) -> None:
+    def test_get_launch_options_nuke(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test getting Nuke launch options."""
         controller, target = make_launcher_controller()
 
@@ -337,7 +338,7 @@ class TestApplicationLaunching:
         assert options["open_latest_scene"] is True
         assert options["create_new_file"] is False
 
-    def test_get_launch_options_3de(self, make_launcher_controller) -> None:
+    def test_get_launch_options_3de(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test getting 3DE launch options."""
         controller, target = make_launcher_controller()
 
@@ -351,7 +352,7 @@ class TestApplicationLaunching:
 
         assert options["open_latest_threede"] is True
 
-    def test_launch_app_with_shot_context(self, make_launcher_controller, test_shot) -> None:
+    def test_launch_app_with_shot_context(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot) -> None:
         """Test launching app with shot context."""
         controller, target = make_launcher_controller()
         controller.set_current_shot(test_shot)
@@ -369,7 +370,7 @@ class TestApplicationLaunching:
         assert "Launched nuke" in target.status_messages
 
     def test_launch_app_with_scene_context_3de(
-        self, make_launcher_controller, test_scene
+        self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_scene: ThreeDEScene
     ) -> None:
         """Test launching 3DE with scene context."""
         controller, target = make_launcher_controller()
@@ -385,7 +386,7 @@ class TestApplicationLaunching:
         assert "Launched 3de with testuser's scene" in target.status_messages
 
     def test_launch_app_with_scene_context_nuke(
-        self, make_launcher_controller, test_scene
+        self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_scene: ThreeDEScene
     ) -> None:
         """Test launching Nuke with scene context (not the scene file itself)."""
         controller, target = make_launcher_controller()
@@ -412,7 +413,7 @@ class TestApplicationLaunching:
             True,  # include_raw_plate
         )
 
-    def test_launch_app_failure(self, make_launcher_controller, test_shot) -> None:
+    def test_launch_app_failure(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot) -> None:
         """Test handling of launch failure."""
         controller, target = make_launcher_controller(launch_success=False)
         controller.set_current_shot(test_shot)
@@ -425,7 +426,7 @@ class TestApplicationLaunching:
         assert "Failed to launch nuke" in target.status_messages
 
     def test_launch_app_priority_open_latest_over_create_new(
-        self, make_launcher_controller, test_shot
+        self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot
     ) -> None:
         """Test that open_latest_scene takes priority over create_new_file."""
         controller, target = make_launcher_controller()
@@ -453,7 +454,7 @@ class TestCustomLaunchers:
     """Test custom launcher functionality."""
 
     def test_execute_custom_launcher_with_shot(
-        self, make_launcher_controller, test_shot
+        self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot
     ) -> None:
         """Test executing a custom launcher with shot context."""
         controller, target = make_launcher_controller()
@@ -476,7 +477,7 @@ class TestCustomLaunchers:
         assert "Launched 'Test Launcher'" in target.status_messages
 
     def test_execute_custom_launcher_with_scene(
-        self, make_launcher_controller, test_scene
+        self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_scene: ThreeDEScene
     ) -> None:
         """Test executing a custom launcher with scene context."""
         controller, target = make_launcher_controller()
@@ -499,7 +500,7 @@ class TestCustomLaunchers:
         assert created_shot.sequence == test_scene.sequence
         assert created_shot.shot == test_scene.shot
 
-    def test_execute_custom_launcher_no_context(self, make_launcher_controller) -> None:
+    def test_execute_custom_launcher_no_context(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test executing custom launcher without any context."""
         controller, target = make_launcher_controller()
 
@@ -514,7 +515,7 @@ class TestCustomLaunchers:
         target.launcher_manager.execute_in_shot_context.assert_not_called()
 
     def test_execute_custom_launcher_not_found(
-        self, make_launcher_controller, test_shot
+        self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot
     ) -> None:
         """Test executing a custom launcher that doesn't exist."""
         controller, target = make_launcher_controller()
@@ -527,7 +528,7 @@ class TestCustomLaunchers:
         assert "Launcher not found: nonexistent" in target.status_messages
         target.launcher_manager.execute_in_shot_context.assert_not_called()
 
-    def test_execute_custom_launcher_failure(self, make_launcher_controller, test_shot) -> None:
+    def test_execute_custom_launcher_failure(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]], test_shot: Shot) -> None:
         """Test handling custom launcher execution failure."""
         controller, target = make_launcher_controller()
         controller.set_current_shot(test_shot)
@@ -542,7 +543,7 @@ class TestCustomLaunchers:
 
         assert "Failed to launch 'Test Launcher'" in target.status_messages
 
-    def test_update_launcher_menu_no_manager(self, make_launcher_controller) -> None:
+    def test_update_launcher_menu_no_manager(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test updating launcher menu when no manager available."""
         controller, target = make_launcher_controller(launcher_manager=None)
 
@@ -553,7 +554,7 @@ class TestCustomLaunchers:
         # Should not try to list launchers since manager is None
         # The method should return early after clearing
 
-    def test_update_launcher_menu_with_launchers(self, make_launcher_controller) -> None:
+    def test_update_launcher_menu_with_launchers(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test updating launcher menu with available launchers."""
         controller, target = make_launcher_controller()
 
@@ -586,7 +587,7 @@ class TestCustomLaunchers:
             # Should create submenus for multiple categories
             assert target.custom_launcher_menu.addMenu.call_count == 2
 
-    def test_update_launcher_menu_single_category(self, make_launcher_controller) -> None:
+    def test_update_launcher_menu_single_category(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test menu update with single category (no submenus)."""
         controller, target = make_launcher_controller()
 
@@ -609,7 +610,7 @@ class TestCustomLaunchers:
             target.custom_launcher_menu.clear.assert_called_once()
             target.custom_launcher_menu.addAction.assert_called()
 
-    def test_update_launcher_menu_no_launchers(self, make_launcher_controller) -> None:
+    def test_update_launcher_menu_no_launchers(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test menu update when no launchers available."""
         controller, target = make_launcher_controller()
 
@@ -626,7 +627,7 @@ class TestCustomLaunchers:
             target.custom_launcher_menu.clear.assert_called_once()
             target.custom_launcher_menu.addAction.assert_called_once()
 
-    def test_update_custom_launcher_buttons(self, make_launcher_controller) -> None:
+    def test_update_custom_launcher_buttons(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test updating custom launcher buttons in panel."""
         controller, target = make_launcher_controller()
 
@@ -648,7 +649,7 @@ class TestCustomLaunchers:
             [("1", "Launcher 1"), ("2", "Launcher 2")]
         )
 
-    def test_show_launcher_manager_dialog(self, make_launcher_controller) -> None:
+    def test_show_launcher_manager_dialog(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test showing launcher manager dialog."""
         controller, target = make_launcher_controller()
 
@@ -664,7 +665,7 @@ class TestCustomLaunchers:
             mock_dialog.raise_.assert_called_once()
             mock_dialog.activateWindow.assert_called_once()
 
-    def test_show_launcher_manager_no_manager(self, make_launcher_controller) -> None:
+    def test_show_launcher_manager_no_manager(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test showing launcher manager when using simplified launcher."""
         controller, target = make_launcher_controller(launcher_manager=None)
 
@@ -680,7 +681,7 @@ class TestCustomLaunchers:
 class TestErrorHandling:
     """Test error handling and edge cases."""
 
-    def test_command_error_notification_not_found(self, make_launcher_controller) -> None:
+    def test_command_error_notification_not_found(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test error notification for application not found."""
         controller, target = make_launcher_controller()
 
@@ -691,7 +692,7 @@ class TestErrorHandling:
             call_args = MockNotif.error.call_args[0]
             assert "Application Not Found" in call_args[0]
 
-    def test_command_error_notification_permission(self, make_launcher_controller) -> None:
+    def test_command_error_notification_permission(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test error notification for permission denied."""
         controller, target = make_launcher_controller()
 
@@ -702,7 +703,7 @@ class TestErrorHandling:
             call_args = MockNotif.error.call_args[0]
             assert "Permission Denied" in call_args[0]
 
-    def test_command_error_notification_no_shot(self, make_launcher_controller) -> None:
+    def test_command_error_notification_no_shot(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test error notification for no shot selected."""
         controller, target = make_launcher_controller()
 
@@ -713,7 +714,7 @@ class TestErrorHandling:
             call_args = MockNotif.warning.call_args[0]
             assert "No Shot Selected" in call_args[0]
 
-    def test_command_error_notification_generic(self, make_launcher_controller) -> None:
+    def test_command_error_notification_generic(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test error notification for generic errors."""
         controller, target = make_launcher_controller()
 
@@ -724,7 +725,7 @@ class TestErrorHandling:
             call_args = MockNotif.error.call_args[0]
             assert "Launch Failed" in call_args[0]
 
-    def test_launcher_started_progress(self, make_launcher_controller) -> None:
+    def test_launcher_started_progress(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test progress indication when launcher starts."""
         controller, target = make_launcher_controller()
 
@@ -739,7 +740,7 @@ class TestErrorHandling:
                 "Launching Test Launcher"
             )
 
-    def test_launcher_finished_success(self, make_launcher_controller) -> None:
+    def test_launcher_finished_success(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test handling successful launcher completion."""
         controller, target = make_launcher_controller()
 
@@ -754,7 +755,7 @@ class TestErrorHandling:
                 call_args = MockNotif.toast.call_args[0]
                 assert "successfully" in call_args[0]
 
-    def test_launcher_finished_failure(self, make_launcher_controller) -> None:
+    def test_launcher_finished_failure(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test handling failed launcher completion."""
         controller, target = make_launcher_controller()
 
@@ -769,7 +770,7 @@ class TestErrorHandling:
                 call_args = MockNotif.toast.call_args[0]
                 assert "failed" in call_args[0]
 
-    def test_update_launcher_menu_availability(self, make_launcher_controller) -> None:
+    def test_update_launcher_menu_availability(self, make_launcher_controller: Callable[[Any, bool], tuple[LauncherController, MockLauncherTarget]]) -> None:
         """Test updating launcher menu availability based on context."""
         controller, target = make_launcher_controller()
 

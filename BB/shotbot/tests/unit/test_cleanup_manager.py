@@ -6,11 +6,15 @@ UNIFIED_TESTING_GUIDE patterns.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
 
 from cleanup_manager import CleanupManager
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
 
 # =============================================================================
 # Fixtures
@@ -18,7 +22,7 @@ from cleanup_manager import CleanupManager
 
 
 @pytest.fixture
-def mock_main_window():
+def mock_main_window() -> Mock:
     """Create mock MainWindow with all expected attributes."""
     window = Mock()
     window.closing = False
@@ -59,7 +63,7 @@ def mock_main_window():
 
 
 @pytest.fixture
-def cleanup_manager(mock_main_window):
+def cleanup_manager(mock_main_window: Mock) -> CleanupManager:
     """Create CleanupManager instance."""
     manager = CleanupManager(mock_main_window)
     return manager
@@ -73,11 +77,11 @@ def cleanup_manager(mock_main_window):
 class TestCleanupManagerInitialization:
     """Test CleanupManager initialization."""
 
-    def test_initialization(self, cleanup_manager, mock_main_window):
+    def test_initialization(self, cleanup_manager: CleanupManager, mock_main_window: Mock) -> None:
         """Test manager initializes with correct reference."""
         assert cleanup_manager.main_window is mock_main_window
 
-    def test_initialization_sets_up_logging(self, cleanup_manager):
+    def test_initialization_sets_up_logging(self, cleanup_manager: CleanupManager) -> None:
         """Test initialization sets up logging."""
         assert hasattr(cleanup_manager, "logger")
 
@@ -90,15 +94,15 @@ class TestCleanupManagerInitialization:
 class TestCleanupOrchestration:
     """Test cleanup orchestration and signal emission."""
 
-    def test_perform_cleanup_emits_signals(self, cleanup_manager, qtbot):
+    def test_perform_cleanup_emits_signals(self, cleanup_manager: CleanupManager, qtbot: QtBot) -> None:
         """Test perform_cleanup emits started and finished signals."""
         with qtbot.waitSignal(cleanup_manager.cleanup_started):
             with qtbot.waitSignal(cleanup_manager.cleanup_finished):
                 cleanup_manager.perform_cleanup()
 
     def test_perform_cleanup_calls_all_steps_in_order(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test perform_cleanup calls cleanup steps in correct order."""
         with patch.object(cleanup_manager, "_mark_closing") as mock_mark:
             with patch.object(cleanup_manager, "_cleanup_threede_controller") as mock_3de:
@@ -119,8 +123,8 @@ class TestCleanupOrchestration:
         mock_final.assert_called_once()
 
     def test_perform_cleanup_emits_finished_even_on_exception(
-        self, cleanup_manager, qtbot
-    ):
+        self, cleanup_manager: CleanupManager, qtbot: QtBot
+    ) -> None:
         """Test cleanup_finished signal emitted even if exception occurs."""
         with patch.object(cleanup_manager, "_mark_closing", side_effect=RuntimeError("Test error")):
             with pytest.raises(RuntimeError):
@@ -136,7 +140,7 @@ class TestCleanupOrchestration:
 class TestMarkClosing:
     """Test marking application as closing."""
 
-    def test_mark_closing_sets_flag(self, cleanup_manager, mock_main_window):
+    def test_mark_closing_sets_flag(self, cleanup_manager: CleanupManager, mock_main_window: Mock) -> None:
         """Test _mark_closing sets closing flag to True."""
         assert mock_main_window.closing is False
 
@@ -154,16 +158,16 @@ class TestThreeDEControllerCleanup:
     """Test 3DE controller cleanup."""
 
     def test_cleanup_threede_controller_calls_cleanup_worker(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup calls controller's cleanup_worker."""
         cleanup_manager._cleanup_threede_controller()
 
         mock_main_window.threede_controller.cleanup_worker.assert_called_once()
 
     def test_cleanup_threede_controller_handles_missing_controller(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles missing controller gracefully."""
         del mock_main_window.threede_controller
 
@@ -171,8 +175,8 @@ class TestThreeDEControllerCleanup:
         cleanup_manager._cleanup_threede_controller()
 
     def test_cleanup_threede_controller_handles_none_controller(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles None controller gracefully."""
         mock_main_window.threede_controller = None
 
@@ -189,8 +193,8 @@ class TestSessionWarmerCleanup:
     """Test session warmer thread cleanup."""
 
     def test_cleanup_session_warmer_requests_stop_and_waits(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test session warmer cleanup requests stop and waits."""
         # Save reference before it's set to None
         session_warmer = mock_main_window.session_warmer
@@ -203,8 +207,8 @@ class TestSessionWarmerCleanup:
         assert mock_main_window.session_warmer is None
 
     def test_cleanup_session_warmer_uses_test_timeout_in_tests(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test session warmer uses shorter timeout in test environment."""
         # pytest is in sys.modules during test
         session_warmer = mock_main_window.session_warmer
@@ -215,8 +219,8 @@ class TestSessionWarmerCleanup:
         session_warmer.wait.assert_called_with(200)
 
     def test_cleanup_session_warmer_handles_timeout(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test session warmer cleanup handles wait timeout."""
         session_warmer = mock_main_window.session_warmer
         session_warmer.wait.return_value = False
@@ -226,8 +230,8 @@ class TestSessionWarmerCleanup:
         session_warmer.safe_terminate.assert_called_once()
 
     def test_cleanup_session_warmer_handles_zombie_thread(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup doesn't delete zombie threads."""
         session_warmer = mock_main_window.session_warmer
         session_warmer.is_zombie.return_value = True
@@ -239,8 +243,8 @@ class TestSessionWarmerCleanup:
         assert mock_main_window.session_warmer is None
 
     def test_cleanup_session_warmer_handles_missing_warmer(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles missing session warmer gracefully."""
         del mock_main_window.session_warmer
 
@@ -248,8 +252,8 @@ class TestSessionWarmerCleanup:
         cleanup_manager._cleanup_session_warmer()
 
     def test_cleanup_session_warmer_handles_already_finished(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles already-finished warmer."""
         session_warmer = mock_main_window.session_warmer
         session_warmer.isFinished.return_value = True
@@ -270,24 +274,24 @@ class TestManagersCleanup:
     """Test managers cleanup."""
 
     def test_cleanup_managers_shuts_down_launcher_manager(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup shuts down launcher manager."""
         cleanup_manager._cleanup_managers()
 
         mock_main_window.launcher_manager.shutdown.assert_called_once()
 
     def test_cleanup_managers_shuts_down_cache_manager(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup shuts down cache manager."""
         cleanup_manager._cleanup_managers()
 
         mock_main_window.cache_manager.shutdown.assert_called_once()
 
     def test_cleanup_managers_handles_missing_launcher_manager(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles missing launcher manager."""
         del mock_main_window.launcher_manager
 
@@ -295,8 +299,8 @@ class TestManagersCleanup:
         cleanup_manager._cleanup_managers()
 
     def test_cleanup_managers_handles_launcher_manager_without_shutdown(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles launcher manager without shutdown method."""
         del mock_main_window.launcher_manager.shutdown
 
@@ -304,8 +308,8 @@ class TestManagersCleanup:
         cleanup_manager._cleanup_managers()
 
     def test_cleanup_managers_handles_missing_cache_manager(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles missing cache manager."""
         del mock_main_window.cache_manager
 
@@ -322,32 +326,32 @@ class TestModelsCleanup:
     """Test models cleanup."""
 
     def test_cleanup_models_cleans_shot_model(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup cleans shot model."""
         cleanup_manager._cleanup_models()
 
         mock_main_window.shot_model.cleanup.assert_called_once()
 
     def test_cleanup_models_cleans_previous_shots_model(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup cleans previous shots model."""
         cleanup_manager._cleanup_models()
 
         mock_main_window.previous_shots_model.cleanup.assert_called_once()
 
     def test_cleanup_models_cleans_previous_shots_item_model(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup cleans previous shots item model."""
         cleanup_manager._cleanup_models()
 
         mock_main_window.previous_shots_item_model.cleanup.assert_called_once()
 
     def test_cleanup_models_handles_shot_model_exception(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup continues after shot model exception."""
         mock_main_window.shot_model.cleanup.side_effect = RuntimeError("Test error")
 
@@ -356,8 +360,8 @@ class TestModelsCleanup:
             cleanup_manager._cleanup_models()
 
     def test_cleanup_models_handles_previous_shots_model_exception(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles previous shots model exception gracefully."""
         mock_main_window.previous_shots_model.cleanup.side_effect = RuntimeError("Test error")
 
@@ -368,8 +372,8 @@ class TestModelsCleanup:
         mock_main_window.previous_shots_item_model.cleanup.assert_called_once()
 
     def test_cleanup_models_handles_missing_models(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles missing models gracefully."""
         del mock_main_window.shot_model
         del mock_main_window.previous_shots_model
@@ -388,8 +392,8 @@ class TestTerminalCleanup:
     """Test persistent terminal cleanup."""
 
     def test_cleanup_terminal_calls_cleanup(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test terminal cleanup calls cleanup method."""
         with patch("cleanup_manager.Config") as mock_config:
             mock_config.KEEP_TERMINAL_ON_EXIT = False
@@ -398,8 +402,8 @@ class TestTerminalCleanup:
         mock_main_window.persistent_terminal.cleanup.assert_called_once()
 
     def test_cleanup_terminal_keeps_terminal_open_if_configured(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test terminal cleanup respects KEEP_TERMINAL_ON_EXIT config."""
         with patch("cleanup_manager.Config") as mock_config:
             mock_config.KEEP_TERMINAL_ON_EXIT = True
@@ -412,8 +416,8 @@ class TestTerminalCleanup:
         mock_main_window.persistent_terminal.cleanup_fifo_only.assert_called_once()
 
     def test_cleanup_terminal_handles_missing_terminal(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles missing terminal gracefully."""
         del mock_main_window.persistent_terminal
 
@@ -421,8 +425,8 @@ class TestTerminalCleanup:
         cleanup_manager._cleanup_terminal()
 
     def test_cleanup_terminal_handles_missing_cleanup_fifo_only(
-        self, cleanup_manager, mock_main_window
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock
+    ) -> None:
         """Test cleanup handles terminal without cleanup_fifo_only method."""
         del mock_main_window.persistent_terminal.cleanup_fifo_only
 
@@ -441,7 +445,7 @@ class TestTerminalCleanup:
 class TestFinalCleanup:
     """Test final cleanup operations."""
 
-    def test_final_cleanup_calls_cleanup_all_runnables(self, cleanup_manager):
+    def test_final_cleanup_calls_cleanup_all_runnables(self, cleanup_manager: CleanupManager) -> None:
         """Test final cleanup calls cleanup_all_runnables."""
         with patch("runnable_tracker.cleanup_all_runnables") as mock_cleanup:
             with patch("cleanup_manager.QApplication.instance", return_value=Mock()):
@@ -450,7 +454,7 @@ class TestFinalCleanup:
 
         mock_cleanup.assert_called_once()
 
-    def test_final_cleanup_processes_qt_events(self, cleanup_manager):
+    def test_final_cleanup_processes_qt_events(self, cleanup_manager: CleanupManager) -> None:
         """Test final cleanup processes pending Qt events."""
         mock_app = Mock()
         with patch("runnable_tracker.cleanup_all_runnables"):
@@ -460,7 +464,7 @@ class TestFinalCleanup:
 
         mock_app.processEvents.assert_called_once()
 
-    def test_final_cleanup_runs_garbage_collection(self, cleanup_manager):
+    def test_final_cleanup_runs_garbage_collection(self, cleanup_manager: CleanupManager) -> None:
         """Test final cleanup runs garbage collection."""
         with patch("runnable_tracker.cleanup_all_runnables"):
             with patch("cleanup_manager.QApplication.instance", return_value=Mock()):
@@ -469,7 +473,7 @@ class TestFinalCleanup:
 
         mock_gc.assert_called_once()
 
-    def test_final_cleanup_handles_no_qapplication(self, cleanup_manager):
+    def test_final_cleanup_handles_no_qapplication(self, cleanup_manager: CleanupManager) -> None:
         """Test final cleanup handles missing QApplication gracefully."""
         with patch("runnable_tracker.cleanup_all_runnables"):
             with patch("cleanup_manager.QApplication.instance", return_value=None):
@@ -486,7 +490,7 @@ class TestFinalCleanup:
 class TestCleanupIntegration:
     """Test complete cleanup workflows."""
 
-    def test_full_cleanup_workflow(self, cleanup_manager, mock_main_window, qtbot):
+    def test_full_cleanup_workflow(self, cleanup_manager: CleanupManager, mock_main_window: Mock, qtbot: QtBot) -> None:
         """Test complete cleanup workflow with all components."""
         # Save references before they're set to None
         session_warmer = mock_main_window.session_warmer
@@ -507,7 +511,7 @@ class TestCleanupIntegration:
         mock_main_window.shot_model.cleanup.assert_called_once()
         mock_main_window.persistent_terminal.cleanup.assert_called_once()
 
-    def test_cleanup_with_partial_components(self):
+    def test_cleanup_with_partial_components(self) -> None:
         """Test cleanup works with only some components present."""
         # Create window with minimal components
         window = Mock()
@@ -527,8 +531,8 @@ class TestCleanupIntegration:
         window.shot_model.cleanup.assert_called_once()
 
     def test_cleanup_resilient_to_multiple_exceptions(
-        self, cleanup_manager, mock_main_window, qtbot
-    ):
+        self, cleanup_manager: CleanupManager, mock_main_window: Mock, qtbot: QtBot
+    ) -> None:
         """Test cleanup continues despite multiple exceptions."""
         # Make multiple components raise exceptions
         mock_main_window.threede_controller.cleanup_worker.side_effect = RuntimeError("3DE error")

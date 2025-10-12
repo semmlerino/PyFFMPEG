@@ -12,7 +12,6 @@ import hashlib
 import logging
 import os
 import sys
-import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -79,7 +78,7 @@ class CommandCache:
             str,
             tuple[str, float, int, str],
         ] = {}  # key -> (result, timestamp, ttl, original_command)
-        self._lock = threading.RLock()
+        self._lock = QMutex()  # Use Qt mutex for consistency
         self._default_ttl = default_ttl
         self._hits = 0
         self._misses = 0
@@ -95,7 +94,7 @@ class CommandCache:
         """
         key = self._make_key(command)
 
-        with self._lock:
+        with QMutexLocker(self._lock):
             if key in self._cache:
                 result, timestamp, ttl, _ = self._cache[key]
                 if time.time() - timestamp < ttl:
@@ -120,7 +119,7 @@ class CommandCache:
 
         key = self._make_key(command)
 
-        with self._lock:
+        with QMutexLocker(self._lock):
             self._cache[key] = (result, time.time(), ttl, command)
             self._cleanup_expired()
 
@@ -130,7 +129,7 @@ class CommandCache:
         Args:
             pattern: pattern to match (invalidates all if None)
         """
-        with self._lock:
+        with QMutexLocker(self._lock):
             if pattern is None:
                 self._cache.clear()
                 logger.info("Cleared entire command cache")
@@ -152,7 +151,7 @@ class CommandCache:
         Returns:
             Dictionary with cache stats
         """
-        with self._lock:
+        with QMutexLocker(self._lock):
             total = self._hits + self._misses
             hit_rate = (self._hits / total * 100) if total > 0 else 0
 
@@ -257,9 +256,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             ] = {}  # Prevent double creation
             self._sessions_per_type = sessions_per_type
             self._cache = CommandCache(default_ttl=30)
-            self._session_lock = threading.RLock()
-            # Add condition variable for proper thread synchronization
-            self._session_condition = threading.Condition(self._session_lock)
+            self._session_lock = QMutex()  # Use Qt mutex for consistency
             self._metrics = ProcessMetrics()
             # Instance-level mutex and shutdown flag for thread-safe shutdown
             self._mutex = QMutex()
@@ -527,7 +524,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         # Stage 1: Clear session tracking with error handling
         try:
-            with self._session_lock:
+            with QMutexLocker(self._session_lock):
                 session_count = len(self._session_round_robin)
                 self._session_round_robin.clear()
                 if session_count > 0:

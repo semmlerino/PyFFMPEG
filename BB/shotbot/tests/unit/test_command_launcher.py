@@ -9,6 +9,7 @@ This test suite validates CommandLauncher behavior using:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,6 +18,9 @@ from PySide6.QtCore import QObject, Signal
 from command_launcher import CommandLauncher
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
 
 
 class TestRawPlateFinder:
@@ -198,7 +202,14 @@ class TestCommandLauncher:
 
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
-    def test_launch_nuke(self, mock_popen, mock_rez, launcher, test_shot, qtbot) -> None:
+    def test_launch_nuke(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
         """Test launching Nuke application."""
         launcher.set_current_shot(test_shot)
 
@@ -225,7 +236,12 @@ class TestCommandLauncher:
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_nuke_with_raw_plate(
-        self, mock_popen, mock_rez, launcher, test_shot, qtbot
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
     ) -> None:
         """Test launching Nuke with raw plate."""
         launcher.set_current_shot(test_shot)
@@ -247,7 +263,12 @@ class TestCommandLauncher:
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_nuke_with_undistortion(
-        self, mock_popen, mock_rez, launcher, test_shot, qtbot
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
     ) -> None:
         """Test launching Nuke with undistortion."""
         launcher.set_current_shot(test_shot)
@@ -268,7 +289,14 @@ class TestCommandLauncher:
 
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
-    def test_launch_3de(self, mock_popen, mock_rez, launcher, test_shot, qtbot) -> None:
+    def test_launch_3de(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
         """Test launching 3DE application."""
         launcher.set_current_shot(test_shot)
 
@@ -289,7 +317,12 @@ class TestCommandLauncher:
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_3de_with_scene(
-        self, mock_popen, mock_rez, launcher, test_scene, qtbot
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        launcher: CommandLauncher,
+        test_scene: ThreeDEScene,
+        qtbot: QtBot,
     ) -> None:
         """Test launching 3DE with specific scene."""
         # Setup mock
@@ -309,7 +342,14 @@ class TestCommandLauncher:
 
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
-    def test_launch_maya(self, mock_popen, mock_rez, launcher, test_shot, qtbot) -> None:
+    def test_launch_maya(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
         """Test launching Maya application."""
         launcher.set_current_shot(test_shot)
 
@@ -329,7 +369,14 @@ class TestCommandLauncher:
 
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
-    def test_launch_rv(self, mock_popen, mock_rez, launcher, test_shot, qtbot) -> None:
+    def test_launch_rv(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
         """Test launching RV application."""
         launcher.set_current_shot(test_shot)
 
@@ -347,7 +394,7 @@ class TestCommandLauncher:
         call_args = mock_popen.call_args[0][0]
         assert "rv" in " ".join(call_args)
 
-    def test_no_shot_context_error(self, launcher: CommandLauncher, qtbot) -> None:
+    def test_no_shot_context_error(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
         """Test error when no shot context is set."""
         # Try to launch without shot (no shot set)
         result = launcher.launch_app("nuke")
@@ -357,7 +404,14 @@ class TestCommandLauncher:
 
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
-    def test_subprocess_failure(self, mock_popen, mock_rez, launcher, test_shot, qtbot) -> None:
+    def test_subprocess_failure(
+        self,
+        mock_popen: MagicMock,
+        mock_rez: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
         """Test handling subprocess failure."""
         launcher.set_current_shot(test_shot)
 
@@ -376,7 +430,7 @@ class TestCommandLauncher:
     @patch("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", True)
     @patch("command_launcher.Config.USE_PERSISTENT_TERMINAL", True)
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
-    def test_persistent_terminal_usage(self, mock_rez, qtbot) -> None:
+    def test_persistent_terminal_usage(self, mock_rez: MagicMock, qtbot: QtBot) -> None:
         """Test using persistent terminal manager."""
         terminal = TestPersistentTerminalManager()
         launcher = CommandLauncher(
@@ -405,7 +459,7 @@ class TestCommandLauncher:
 
     @patch("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", True)
     @patch("command_launcher.Config.USE_PERSISTENT_TERMINAL", True)
-    def test_persistent_terminal_unavailable(self, qtbot) -> None:
+    def test_persistent_terminal_unavailable(self, qtbot: QtBot) -> None:
         """Test fallback when persistent terminal is unavailable."""
         terminal = TestPersistentTerminalManager()
         terminal.send_command = lambda cmd: False  # Make send_command fail
@@ -453,7 +507,7 @@ class TestCommandLauncherSignals:
             persistent_terminal=None,
         )
 
-    def test_signal_data_format(self, launcher, qtbot) -> None:
+    def test_signal_data_format(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
         """Test basic launcher functionality."""
         shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
         launcher.set_current_shot(shot)

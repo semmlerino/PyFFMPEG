@@ -303,7 +303,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         loader = InfoPanelPixmapLoader(self, path)
         loader.signals.loaded.connect(self._on_pixmap_loaded)
         loader.signals.failed.connect(self._on_pixmap_failed)
-        QThreadPool.globalInstance().start(loader)  # type: ignore[reportUnknownMemberType]
+        QThreadPool.globalInstance().start(loader)
 
     def _on_pixmap_loaded(self, image: QImage) -> None:
         """Handle successful image loading - convert to pixmap in main thread."""

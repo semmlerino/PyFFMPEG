@@ -11,6 +11,7 @@ from __future__ import annotations
 # Standard library imports
 # Note: Can't use ABC with Qt classes due to metaclass conflict
 from dataclasses import dataclass, field
+from typing import cast
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -191,6 +192,10 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         if not index.isValid():
             return
 
+        # Extract attributes from option (PySide6 type stubs incomplete)
+        rect = cast("QRect", getattr(option, "rect"))
+        state = cast("QStyle.StateFlag", getattr(option, "state"))
+
         painter.save()
 
         try:
@@ -201,16 +206,16 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             data = self.get_item_data(index)
 
             # Determine state
-            is_hover = bool(option.state & QStyle.StateFlag.State_MouseOver)
+            is_hover = bool(state & QStyle.StateFlag.State_MouseOver)
             is_selected = data.get("is_selected", False) or bool(
-                option.state & QStyle.StateFlag.State_Selected
+                state & QStyle.StateFlag.State_Selected
             )
 
             # Draw background
-            self._draw_background(painter, option.rect, is_hover, is_selected)
+            self._draw_background(painter, rect, is_hover, is_selected)
 
             # Draw thumbnail or loading indicator
-            thumbnail_rect = self._get_thumbnail_rect(option.rect)
+            thumbnail_rect = self._get_thumbnail_rect(rect)
 
             loading_state = data.get("loading_state", "idle")
 
@@ -224,10 +229,10 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
                 self._draw_placeholder(painter, thumbnail_rect)
 
             # Draw text
-            self._draw_text(painter, option.rect, data, is_selected)
+            self._draw_text(painter, rect, data, is_selected)
 
             # Draw border
-            self._draw_border(painter, option.rect, is_hover, is_selected)
+            self._draw_border(painter, rect, is_hover, is_selected)
 
         finally:
             painter.restore()

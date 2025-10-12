@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Launch ShotBot and automatically capture a screenshot after it loads."""
 
+import os
 import subprocess
 import sys
 import time
@@ -9,15 +10,19 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 
-def capture_shotbot_window() -> None:
-    """Find and capture the ShotBot window."""
-    app = QApplication.instance()
-    if not app:
+def capture_shotbot_window() -> Path | None:
+    """Find and capture the ShotBot window.
+
+    Returns:
+        Path to the saved screenshot, or None if capture failed.
+    """
+    app_instance = QApplication.instance()
+    if not app_instance or not isinstance(app_instance, QApplication):
         print("Error: No QApplication instance found")
         return None
 
     # Find all top-level windows
-    windows = app.topLevelWidgets()
+    windows = app_instance.topLevelWidgets()
     shotbot_window = None
 
     for window in windows:
@@ -52,7 +57,7 @@ def main() -> None:
         [sys.executable, "shotbot.py", "--mock"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env={**subprocess.os.environ, "PYTHONUNBUFFERED": "1"}
+        env={**os.environ, "PYTHONUNBUFFERED": "1"}
     )
 
     # Give it time to start

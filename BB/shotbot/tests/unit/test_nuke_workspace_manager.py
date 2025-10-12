@@ -20,19 +20,19 @@ from nuke_workspace_manager import NukeWorkspaceManager
 
 
 @pytest.fixture
-def workspace_path(tmp_path):
+def workspace_path(tmp_path: Path) -> str:
     """Create temporary workspace path."""
     return str(tmp_path / "workspace")
 
 
 @pytest.fixture
-def shot_name():
+def shot_name() -> str:
     """Standard shot name for testing."""
     return "BRX_166_0010"
 
 
 @pytest.fixture
-def script_dir_with_scripts(tmp_path, shot_name):
+def script_dir_with_scripts(tmp_path: Path, shot_name: str) -> Path:
     """Create directory with multiple versioned scripts."""
     script_dir = tmp_path / "scripts"
     script_dir.mkdir()
@@ -56,7 +56,7 @@ def script_dir_with_scripts(tmp_path, shot_name):
 class TestWorkspaceScriptDirectory:
     """Test workspace script directory creation and management."""
 
-    def test_get_workspace_script_directory_default_user(self, workspace_path):
+    def test_get_workspace_script_directory_default_user(self, workspace_path: str) -> None:
         """Test getting script directory with default user from environment."""
         with patch.dict(os.environ, {"USER": "testuser"}):
             script_dir = NukeWorkspaceManager.get_workspace_script_directory(
@@ -67,7 +67,7 @@ class TestWorkspaceScriptDirectory:
         assert script_dir == expected
         assert script_dir.exists()
 
-    def test_get_workspace_script_directory_explicit_user(self, workspace_path):
+    def test_get_workspace_script_directory_explicit_user(self, workspace_path: str) -> None:
         """Test getting script directory with explicit user."""
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
             workspace_path, user="customuser"
@@ -77,7 +77,7 @@ class TestWorkspaceScriptDirectory:
         assert script_dir == expected
         assert script_dir.exists()
 
-    def test_get_workspace_script_directory_custom_params(self, workspace_path):
+    def test_get_workspace_script_directory_custom_params(self, workspace_path: str) -> None:
         """Test getting script directory with custom plate and pass names."""
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
             workspace_path,
@@ -90,7 +90,7 @@ class TestWorkspaceScriptDirectory:
         assert script_dir == expected
         assert script_dir.exists()
 
-    def test_get_workspace_script_directory_creates_parents(self, workspace_path):
+    def test_get_workspace_script_directory_creates_parents(self, workspace_path: str) -> None:
         """Test directory creation with multiple parent levels."""
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
             workspace_path, user="testuser"
@@ -103,7 +103,7 @@ class TestWorkspaceScriptDirectory:
         assert script_dir.parent.parent.parent.exists()  # scripts/
         assert script_dir.parent.parent.parent.parent.exists()  # nuke/
 
-    def test_get_workspace_script_directory_idempotent(self, workspace_path):
+    def test_get_workspace_script_directory_idempotent(self, workspace_path: str) -> None:
         """Test calling get_workspace_script_directory multiple times is safe."""
         script_dir1 = NukeWorkspaceManager.get_workspace_script_directory(
             workspace_path, user="testuser"
@@ -115,7 +115,7 @@ class TestWorkspaceScriptDirectory:
         assert script_dir1 == script_dir2
         assert script_dir1.exists()
 
-    def test_get_workspace_script_directory_permission_error(self, tmp_path):
+    def test_get_workspace_script_directory_permission_error(self, tmp_path: Path) -> None:
         """Test handling of permission errors during directory creation."""
         workspace_path = str(tmp_path / "readonly_workspace")
         readonly_dir = tmp_path / "readonly_workspace"
@@ -140,7 +140,7 @@ class TestWorkspaceScriptDirectory:
 class TestFindLatestNukeScript:
     """Test finding latest versioned Nuke scripts."""
 
-    def test_find_latest_script_single_version(self, tmp_path, shot_name):
+    def test_find_latest_script_single_version(self, tmp_path: Path, shot_name: str) -> None:
         """Test finding latest script with single version."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -156,8 +156,8 @@ class TestFindLatestNukeScript:
         assert latest == script
 
     def test_find_latest_script_multiple_versions(
-        self, script_dir_with_scripts, shot_name
-    ):
+        self, script_dir_with_scripts: Path, shot_name: str
+    ) -> None:
         """Test finding latest script among multiple versions."""
         latest = NukeWorkspaceManager.find_latest_nuke_script(
             script_dir_with_scripts, shot_name
@@ -166,7 +166,7 @@ class TestFindLatestNukeScript:
         assert latest is not None
         assert latest.name == f"{shot_name}_mm-default_PL01_scene_v015.nk"
 
-    def test_find_latest_script_non_sequential_versions(self, tmp_path, shot_name):
+    def test_find_latest_script_non_sequential_versions(self, tmp_path: Path, shot_name: str) -> None:
         """Test finding latest with non-sequential version numbers."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -183,7 +183,7 @@ class TestFindLatestNukeScript:
         assert latest is not None
         assert latest.name.endswith("v012.nk")
 
-    def test_find_latest_script_no_scripts(self, tmp_path, shot_name):
+    def test_find_latest_script_no_scripts(self, tmp_path: Path, shot_name: str) -> None:
         """Test finding latest script when none exist."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -194,7 +194,7 @@ class TestFindLatestNukeScript:
 
         assert latest is None
 
-    def test_find_latest_script_nonexistent_directory(self, tmp_path, shot_name):
+    def test_find_latest_script_nonexistent_directory(self, tmp_path: Path, shot_name: str) -> None:
         """Test finding latest script in nonexistent directory."""
         nonexistent_dir = tmp_path / "nonexistent"
 
@@ -204,7 +204,7 @@ class TestFindLatestNukeScript:
 
         assert latest is None
 
-    def test_find_latest_script_custom_plate_and_pass(self, tmp_path, shot_name):
+    def test_find_latest_script_custom_plate_and_pass(self, tmp_path: Path, shot_name: str) -> None:
         """Test finding latest with custom plate and pass names."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -221,7 +221,7 @@ class TestFindLatestNukeScript:
         assert latest is not None
         assert latest.name == f"{shot_name}_custom-plate_PL02_scene_v003.nk"
 
-    def test_find_latest_script_ignores_other_files(self, tmp_path, shot_name):
+    def test_find_latest_script_ignores_other_files(self, tmp_path: Path, shot_name: str) -> None:
         """Test that search ignores non-matching files."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -241,7 +241,7 @@ class TestFindLatestNukeScript:
         assert latest is not None
         assert latest.name.endswith("v003.nk")
 
-    def test_find_latest_script_handles_invalid_version_format(self, tmp_path, shot_name):
+    def test_find_latest_script_handles_invalid_version_format(self, tmp_path: Path, shot_name: str) -> None:
         """Test finding latest handles files with invalid version formats."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -270,7 +270,7 @@ class TestFindLatestNukeScript:
 class TestGetNextScriptPath:
     """Test next version path generation."""
 
-    def test_get_next_script_path_first_version(self, tmp_path, shot_name):
+    def test_get_next_script_path_first_version(self, tmp_path: Path, shot_name: str) -> None:
         """Test getting next path when no scripts exist."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -284,8 +284,8 @@ class TestGetNextScriptPath:
         assert next_path.parent == script_dir
 
     def test_get_next_script_path_after_existing(
-        self, script_dir_with_scripts, shot_name
-    ):
+        self, script_dir_with_scripts: Path, shot_name: str
+    ) -> None:
         """Test getting next path after existing versions."""
         next_path, version = NukeWorkspaceManager.get_next_script_path(
             script_dir_with_scripts, shot_name
@@ -295,7 +295,7 @@ class TestGetNextScriptPath:
         assert version == 16
         assert next_path.name == f"{shot_name}_mm-default_PL01_scene_v016.nk"
 
-    def test_get_next_script_path_custom_plate_and_pass(self, tmp_path, shot_name):
+    def test_get_next_script_path_custom_plate_and_pass(self, tmp_path: Path, shot_name: str) -> None:
         """Test getting next path with custom plate and pass names."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -310,7 +310,7 @@ class TestGetNextScriptPath:
         assert version == 4
         assert next_path.name == f"{shot_name}_custom-plate_PL02_scene_v004.nk"
 
-    def test_get_next_script_path_formatting(self, tmp_path, shot_name):
+    def test_get_next_script_path_formatting(self, tmp_path: Path, shot_name: str) -> None:
         """Test version number formatting with padding."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -331,7 +331,7 @@ class TestGetNextScriptPath:
 class TestListAllNukeScripts:
     """Test listing all Nuke script versions."""
 
-    def test_list_all_scripts_multiple_versions(self, workspace_path, shot_name):
+    def test_list_all_scripts_multiple_versions(self, workspace_path: str, shot_name: str) -> None:
         """Test listing all scripts returns sorted list."""
         # Create workspace with scripts
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
@@ -352,7 +352,7 @@ class TestListAllNukeScripts:
         versions = [version for _, version in scripts]
         assert versions == [1, 3, 5, 7, 10]
 
-    def test_list_all_scripts_empty_directory(self, workspace_path):
+    def test_list_all_scripts_empty_directory(self, workspace_path: str) -> None:
         """Test listing scripts in empty directory."""
         scripts = NukeWorkspaceManager.list_all_nuke_scripts(
             workspace_path, user="testuser"
@@ -360,7 +360,7 @@ class TestListAllNukeScripts:
 
         assert scripts == []
 
-    def test_list_all_scripts_nonexistent_directory(self, tmp_path):
+    def test_list_all_scripts_nonexistent_directory(self, tmp_path: Path) -> None:
         """Test listing scripts when workspace doesn't exist."""
         workspace_path = str(tmp_path / "nonexistent")
 
@@ -370,7 +370,7 @@ class TestListAllNukeScripts:
 
         assert scripts == []
 
-    def test_list_all_scripts_returns_paths_and_versions(self, workspace_path, shot_name):
+    def test_list_all_scripts_returns_paths_and_versions(self, workspace_path: str, shot_name: str) -> None:
         """Test that list returns tuples of (path, version)."""
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
             workspace_path, user="testuser"
@@ -392,7 +392,7 @@ class TestListAllNukeScripts:
             assert path.exists()
             assert path.suffix == ".nk"
 
-    def test_list_all_scripts_ignores_non_nuke_files(self, workspace_path, shot_name):
+    def test_list_all_scripts_ignores_non_nuke_files(self, workspace_path: str, shot_name: str) -> None:
         """Test listing ignores non-Nuke files."""
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
             workspace_path, user="testuser"
@@ -413,7 +413,7 @@ class TestListAllNukeScripts:
         # Should only include .nk files
         assert len(scripts) == 2
 
-    def test_list_all_scripts_ignores_invalid_version_format(self, workspace_path, shot_name):
+    def test_list_all_scripts_ignores_invalid_version_format(self, workspace_path: str, shot_name: str) -> None:
         """Test listing ignores files without valid version numbers."""
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
             workspace_path, user="testuser"
@@ -434,7 +434,7 @@ class TestListAllNukeScripts:
         assert len(scripts) == 1
         assert scripts[0][1] == 1
 
-    def test_list_all_scripts_custom_plate_and_pass(self, workspace_path, shot_name):
+    def test_list_all_scripts_custom_plate_and_pass(self, workspace_path: str, shot_name: str) -> None:
         """Test listing scripts with custom plate and pass names."""
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
             workspace_path,
@@ -466,7 +466,7 @@ class TestListAllNukeScripts:
 class TestEdgeCasesAndIntegration:
     """Test edge cases and integration scenarios."""
 
-    def test_full_workflow_first_script(self, workspace_path, shot_name):
+    def test_full_workflow_first_script(self, workspace_path: str, shot_name: str) -> None:
         """Test complete workflow for creating first script."""
         # Get directory (should create it)
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
@@ -495,7 +495,7 @@ class TestEdgeCasesAndIntegration:
         )
         assert latest == next_path
 
-    def test_full_workflow_next_version(self, workspace_path, shot_name):
+    def test_full_workflow_next_version(self, workspace_path: str, shot_name: str) -> None:
         """Test complete workflow for creating next version."""
         # Setup: create workspace with existing script
         script_dir = NukeWorkspaceManager.get_workspace_script_directory(
@@ -532,7 +532,7 @@ class TestEdgeCasesAndIntegration:
         assert len(scripts) == 2
         assert [v for _, v in scripts] == [5, 6]
 
-    def test_empty_shot_name_handling(self, tmp_path):
+    def test_empty_shot_name_handling(self, tmp_path: Path) -> None:
         """Test behavior with empty shot name."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -543,7 +543,7 @@ class TestEdgeCasesAndIntegration:
         )
         assert latest is None
 
-    def test_shot_name_with_special_characters(self, tmp_path):
+    def test_shot_name_with_special_characters(self, tmp_path: Path) -> None:
         """Test shot names with special regex characters."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()
@@ -558,7 +558,7 @@ class TestEdgeCasesAndIntegration:
 
         assert latest == script
 
-    def test_very_high_version_numbers(self, tmp_path, shot_name):
+    def test_very_high_version_numbers(self, tmp_path: Path, shot_name: str) -> None:
         """Test handling of high version numbers."""
         script_dir = tmp_path / "scripts"
         script_dir.mkdir()

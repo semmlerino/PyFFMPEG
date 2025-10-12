@@ -17,7 +17,6 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     Signal,
-    Slot,  # type: ignore[reportUnknownVariableType]
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -44,7 +43,7 @@ if TYPE_CHECKING:
     from base_thumbnail_delegate import BaseThumbnailDelegate
 
 
-class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
+class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):  # type: ignore[reportUnsafeMultipleInheritance]
     """Base class for grid views with common functionality.
 
     This base class provides:
@@ -59,9 +58,9 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
     """
 
     # Common signals that all views share
-    app_launch_requested = Signal(str)  # app_name
-    show_filter_requested = Signal(str)  # show name or empty string for all
-    text_filter_requested = Signal(str)  # filter text for real-time search
+    app_launch_requested: Signal = Signal(str)  # app_name
+    show_filter_requested: Signal = Signal(str)  # show name or empty string for all
+    text_filter_requested: Signal = Signal(str)  # filter text for real-time search
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the base grid view.
@@ -223,7 +222,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         raise NotImplementedError
 
-    @Slot(QModelIndex)
     def _on_item_clicked(self, index: QModelIndex) -> None:
         """Handle item click.
 
@@ -234,7 +232,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         """
         raise NotImplementedError
 
-    @Slot(QModelIndex)
     def _on_item_double_clicked(self, index: QModelIndex) -> None:
         """Handle item double-click.
 
@@ -247,7 +244,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
     # Common slot implementations
 
-    @Slot(int)
     def _on_size_changed(self, size: int) -> None:
         """Handle thumbnail size change.
 
@@ -269,7 +265,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
 
         self.logger.debug(f"Thumbnail size changed to {size}px")
 
-    @Slot(str)
     def _on_show_filter_changed(self, show_text: str) -> None:
         """Handle show filter change.
 
@@ -281,7 +276,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         self.show_filter_requested.emit(show_filter)
         self.logger.info(f"Show filter requested: {show_text}")
 
-    @Slot(str)
     def _on_text_filter_changed(self, text: str) -> None:
         """Handle text filter change for real-time search.
 
@@ -303,7 +297,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         # Ensure uniform item sizes
         self.list_view.setUniformItemSizes(True)
 
-    @Slot()
     def _update_visible_range(self) -> None:
         """Update the visible item range for lazy loading.
 

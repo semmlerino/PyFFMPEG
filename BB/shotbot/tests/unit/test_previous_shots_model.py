@@ -14,7 +14,9 @@ from __future__ import annotations
 import concurrent.futures
 import sys
 import threading
+from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 # Third-party imports
@@ -30,6 +32,9 @@ from tests.test_doubles_previous_shots import (
     FakeShotModel,
     create_test_shot,
 )
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -72,7 +77,7 @@ class TestPreviousShotsModel:
         return TestCacheManager()
 
     @pytest.fixture
-    def test_shot_model(self, qtbot) -> FakeShotModel:
+    def test_shot_model(self, qtbot: QtBot) -> Generator[FakeShotModel, None, None]:
         """Create test double ShotModel with real Qt signals."""
         model = FakeShotModel()
         model.set_shots(
@@ -97,7 +102,12 @@ class TestPreviousShotsModel:
         return finder
 
     @pytest.fixture
-    def model(self, test_shot_model, test_cache_manager, qtbot) -> PreviousShotsModel:
+    def model(
+        self,
+        test_shot_model: FakeShotModel,
+        test_cache_manager: TestCacheManager,
+        qtbot: QtBot,
+    ) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel instance with test doubles.
 
         Following UNIFIED_TESTING_GUIDE:
@@ -114,8 +124,11 @@ class TestPreviousShotsModel:
 
     @pytest.fixture
     def model_with_real_cache(
-        self, test_shot_model, real_cache_manager, qtbot
-    ) -> PreviousShotsModel:
+        self,
+        test_shot_model: FakeShotModel,
+        real_cache_manager: CacheManager,
+        qtbot: QtBot,
+    ) -> Generator[PreviousShotsModel, None, None]:
         """Create model with real cache for integration tests."""
         model = PreviousShotsModel(
             shot_model=test_shot_model, cache_manager=real_cache_manager
@@ -125,7 +138,10 @@ class TestPreviousShotsModel:
         model.deleteLater()
 
     def test_model_initialization(
-        self, model, test_shot_model, test_cache_manager
+        self,
+        model: PreviousShotsModel,
+        test_shot_model: FakeShotModel,
+        test_cache_manager: TestCacheManager,
     ) -> None:
         """Test model initialization with dependencies."""
         assert model._shot_model is test_shot_model
@@ -136,7 +152,7 @@ class TestPreviousShotsModel:
         assert isinstance(model._refresh_timer, QTimer)
         assert model._scan_lock is not None  # Thread safety lock
 
-    def test_auto_refresh_timer_behavior(self, model) -> None:
+    def test_auto_refresh_timer_behavior(self, model: PreviousShotsModel) -> None:
         """Test auto-refresh timer start/stop behavior."""
         # Initially timer should be stopped
         assert not model._refresh_timer.isActive()
@@ -152,7 +168,7 @@ class TestPreviousShotsModel:
         # Timer should be stopped (or never started in test environment)
 
     def test_refresh_shots_signal_emission_no_race(
-        self, model, test_finder, qtbot
+        self, model: PreviousShotsModel, test_finder: FakePreviousShotsFinder, qtbot: QtBot
     ) -> None:
         """Test signal emission during shot refresh without race conditions.
 
@@ -205,7 +221,9 @@ class TestPreviousShotsModel:
         assert len(model._previous_shots) == 2
         assert model.get_shot_count() == 2
 
-    def test_refresh_shots_no_changes(self, model, test_finder) -> None:
+    def test_refresh_shots_no_changes(
+        self, model: PreviousShotsModel, test_finder: FakePreviousShotsFinder
+    ) -> None:
         """Test refresh when no changes detected."""
         model._finder = test_finder
 
@@ -222,7 +240,9 @@ class TestPreviousShotsModel:
         # Should not emit shots_updated since no changes
         assert shots_updated_spy.count() == 0
 
-    def test_thread_safety_concurrent_refresh(self, model, test_finder) -> None:
+    def test_thread_safety_concurrent_refresh(
+        self, model: PreviousShotsModel, test_finder: FakePreviousShotsFinder
+    ) -> None:
         """Test thread safety with concurrent refresh calls.
 
         Following UNIFIED_TESTING_GUIDE:
@@ -259,7 +279,7 @@ class TestPreviousShotsModel:
         # Some should be blocked
         assert false_count >= 0
 
-    def test_concurrent_is_scanning_access(self, model) -> None:
+    def test_concurrent_is_scanning_access(self, model: PreviousShotsModel) -> None:
         """Test thread-safe access to is_scanning flag."""
         results = []
 
@@ -278,7 +298,9 @@ class TestPreviousShotsModel:
         # Should not crash or raise exceptions
         assert len(results) == 300  # 3 threads * 100 checks
 
-    def test_refresh_shots_error_handling(self, model, qtbot) -> None:
+    def test_refresh_shots_error_handling(
+        self, model: PreviousShotsModel, qtbot: QtBot
+    ) -> None:
         """Test error handling during refresh."""
         # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
@@ -302,7 +324,7 @@ class TestPreviousShotsModel:
         assert not model.is_scanning()  # Should reset scanning state after error
         assert scan_finished_spy.count() == 1  # Should still emit finished signal
 
-    def test_has_changes_detection(self, model) -> None:
+    def test_has_changes_detection(self, model: PreviousShotsModel) -> None:
         """Test change detection logic."""
         # Set up existing shots
         model._previous_shots = [
@@ -330,7 +352,7 @@ class TestPreviousShotsModel:
         ]
         assert model._has_changes(different_shots)
 
-    def test_get_shots_returns_copy(self, model) -> None:
+    def test_get_shots_returns_copy(self, model: PreviousShotsModel) -> None:
         """Test that get_shots returns a copy, not reference."""
         original_shots = [
             create_test_shot("show1", "seq1", "shot1"),
@@ -343,7 +365,7 @@ class TestPreviousShotsModel:
         assert returned_shots == original_shots
         assert returned_shots is not original_shots
 
-    def test_get_shot_by_name(self, model) -> None:
+    def test_get_shot_by_name(self, model: PreviousShotsModel) -> None:
         """Test getting shot by name."""
         test_shots = [
             create_test_shot("show1", "seq1", "shot1"),
@@ -361,7 +383,9 @@ class TestPreviousShotsModel:
         shot = model.get_shot_by_name("nonexistent")
         assert shot is None
 
-    def test_get_shot_details_delegation(self, model, test_finder) -> None:
+    def test_get_shot_details_delegation(
+        self, model: PreviousShotsModel, test_finder: FakePreviousShotsFinder
+    ) -> None:
         """Test that get_shot_details delegates to finder."""
         model._finder = test_finder
         shot = create_test_shot("show1", "seq1", "shot1")
@@ -375,7 +399,7 @@ class TestPreviousShotsModel:
         assert details["status"] == "approved"
 
     def test_cache_integration_with_real_cache(
-        self, model_with_real_cache, temp_cache_dir
+        self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path
     ) -> None:
         """Test cache saving and loading with real CacheManager."""
         # Local application imports
@@ -425,7 +449,7 @@ class TestPreviousShotsModel:
         assert shots[0].show == "show1"
 
     def test_cache_loading_error_recovery(
-        self, temp_cache_dir, test_shot_model
+        self, temp_cache_dir: Path, test_shot_model: FakeShotModel
     ) -> None:
         """Test handling of corrupted cache data."""
         # Create invalid cache file
@@ -440,7 +464,7 @@ class TestPreviousShotsModel:
         model.deleteLater()
 
     def test_clear_cache_functionality(
-        self, model_with_real_cache, temp_cache_dir
+        self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path
     ) -> None:
         """Test cache clearing functionality."""
         # Local application imports
@@ -481,7 +505,10 @@ class TestPreviousShotsModel:
         assert not cache_file.exists()
 
     def test_timer_triggered_refresh(
-        self, test_shot_model, test_cache_manager, qtbot
+        self,
+        test_shot_model: FakeShotModel,
+        test_cache_manager: TestCacheManager,
+        qtbot: QtBot,
     ) -> None:
         """Test refresh triggered by timer with proper signal handling."""
         # Local application imports
@@ -533,7 +560,9 @@ class TestPreviousShotsModelIntegration:
     """Integration tests with multiple real components."""
 
     @pytest.fixture
-    def integration_setup(self, tmp_path):
+    def integration_setup(
+        self, tmp_path: Path
+    ) -> Generator[tuple[PreviousShotsModel, FakeShotModel, CacheManager], None, None]:
         """Set up integration test with real components."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         shot_model = FakeShotModel()
@@ -550,7 +579,11 @@ class TestPreviousShotsModelIntegration:
         model.stop_auto_refresh()
         model.deleteLater()
 
-    def test_full_workflow(self, integration_setup, qtbot) -> None:
+    def test_full_workflow(
+        self,
+        integration_setup: tuple[PreviousShotsModel, FakeShotModel, CacheManager],
+        qtbot: QtBot,
+    ) -> None:
         """Test complete workflow with real components."""
         # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker

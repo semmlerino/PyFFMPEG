@@ -1,4 +1,7 @@
 #!/bin/bash
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 # Run ShotBot with software rendering (no OpenGL) for WSL
 
 echo "Starting ShotBot with SOFTWARE RENDERING (for WSL)"
@@ -11,7 +14,7 @@ sleep 1
 
 # Use software rendering to avoid OpenGL issues
 export QT_QPA_PLATFORM=offscreen
-export QT_QPA_PLATFORM_PLUGIN_PATH=$(./venv/bin/python -c "import PySide6; import os; print(os.path.dirname(PySide6.__file__) + '/Qt/plugins')")
+export QT_QPA_PLATFORM_PLUGIN_PATH=$(uv run python -c "import PySide6; import os; print(os.path.dirname(PySide6.__file__) + '/Qt/plugins')")
 
 # Or try with minimal platform
 # export QT_QPA_PLATFORM=minimal
@@ -38,7 +41,7 @@ echo "but will test if the app can start properly."
 echo ""
 
 # Run with timeout to see if it starts
-timeout 5 ./venv/bin/python shotbot.py --mock 2>&1 | grep -E "(Mock|demo|loaded|ERROR|CRITICAL)" || true
+timeout 5 uv run python shotbot.py --mock 2>&1 | grep -E "(Mock|demo|loaded|ERROR|CRITICAL)" || true
 
 echo ""
 echo "=================================================="

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
+from pathlib import Path
+
 # Third-party imports
 import pytest
 
@@ -31,7 +34,9 @@ def mock_username() -> str:
 
 
 @pytest.fixture
-def undistortion_structure(make_test_filesystem, mock_shot_name, mock_username):
+def undistortion_structure(
+    make_test_filesystem: Generator, mock_shot_name: str, mock_username: str
+) -> Path:
     """Create undistortion directory structure using TestFileSystem."""
     fs = make_test_filesystem()
 
@@ -72,9 +77,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_success(
         self,
-        undistortion_structure,
-        mock_shot_name,
-        mock_username,
+        undistortion_structure: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test successfully finding the latest undistortion file."""
         workspace_path = str(undistortion_structure)
@@ -93,9 +98,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_with_explicit_username(
         self,
-        undistortion_structure,
-        mock_shot_name,
-        mock_username,
+        undistortion_structure: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test finding undistortion with explicitly provided username."""
         workspace_path = str(undistortion_structure)
@@ -112,9 +117,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_no_exports_path(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test when exports path doesn't exist."""
         workspace_path = str(tmp_path / "nonexistent")
@@ -129,9 +134,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_no_scene_dirs(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test when no scene directories are found."""
         # Create exports path but no scene directories
@@ -150,9 +155,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_fallback_scene_dir(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test fallback to direct 'scene' directory."""
         # Create exports path with direct scene directory
@@ -177,9 +182,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_no_plate_dirs(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test when scene directory exists but has no plate directories."""
         base_path = (
@@ -202,9 +207,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_no_nuke_lens_dir(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test when plate directory exists but no nuke_lens_distortion directory."""
         base_path = (
@@ -224,9 +229,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_no_version_dirs(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test when nuke_lens_distortion exists but has no version directories."""
         base_path = (
@@ -250,9 +255,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_general_pattern(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test fallback to general pattern when no LD files found."""
         base_path = (
@@ -277,9 +282,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_any_nk_file(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test fallback to any .nk file when shot name not in filename."""
         base_path = (
@@ -304,9 +309,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_plate_priority(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test that FG plates are prioritized over BG and BC plates."""
         base_path = (
@@ -345,9 +350,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_case_insensitive_scene(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test that scene directory search is case-insensitive."""
         base_path = (
@@ -373,9 +378,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_case_insensitive_plate(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test that plate directory matching is case-insensitive."""
         base_path = (
@@ -401,9 +406,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_case_insensitive_version(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test that version directory matching is case-insensitive."""
         base_path = (
@@ -427,7 +432,7 @@ class TestUndistortionFinder:
         assert result is not None
         assert "V001" in str(result)
 
-    def test_get_version_from_path(self, tmp_path) -> None:
+    def test_get_version_from_path(self, tmp_path: Path) -> None:
         """Test extracting version from path with real file structure."""
         # Create real version directory structure
         version_dir = tmp_path / "v002"
@@ -438,7 +443,7 @@ class TestUndistortionFinder:
         result = UndistortionFinder.get_version_from_path(test_path)
         assert result == "v002"
 
-    def test_get_version_from_path_none(self, tmp_path) -> None:
+    def test_get_version_from_path_none(self, tmp_path: Path) -> None:
         """Test extracting version returns None when not found."""
         # Create path without version pattern
         test_path = tmp_path / "no_version_here" / "undistortion.nk"
@@ -448,7 +453,9 @@ class TestUndistortionFinder:
         result = UndistortionFinder.get_version_from_path(test_path)
         assert result is None
 
-    def test_sort_key_function(self, tmp_path, mock_shot_name, mock_username) -> None:
+    def test_sort_key_function(
+        self, tmp_path: Path, mock_shot_name: str, mock_username: str
+    ) -> None:
         """Test the sort_key function for proper ordering."""
         base_path = (
             tmp_path / "user" / mock_username / "mm" / "3de" / "mm-default" / "exports"
@@ -482,9 +489,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_subdirectory_search(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test that .nk files are found in subdirectories."""
         base_path = (
@@ -513,8 +520,8 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_plate_subdirectory(
         self,
-        tmp_path,
-        mock_username,
+        tmp_path: Path,
+        mock_username: str,
     ) -> None:
         """Test finding undistortion in plate-named subdirectory (real-world pattern).
 
@@ -561,7 +568,7 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_exact_vfx_structure(
         self,
-        tmp_path,
+        tmp_path: Path,
     ) -> None:
         """Test finding undistortion with exact VFX production structure.
 
@@ -615,9 +622,9 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_nonexistent_directory(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test handling of non-existent directories gracefully."""
         # Use non-existent workspace path
@@ -634,7 +641,7 @@ class TestUndistortionFinder:
 
     def test_find_latest_undistortion_pl01_plate(
         self,
-        tmp_path,
+        tmp_path: Path,
     ) -> None:
         """Test finding PL01 undistortion files with production structure.
 
@@ -689,9 +696,9 @@ class TestUndistortionFinder:
 
     def test_pl01_priority_over_bg01(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test that PL01 plates have higher priority than BG01 but lower than FG01."""
         base_path = (
@@ -729,9 +736,9 @@ class TestUndistortionFinder:
 
     def test_fg01_priority_over_pl01(
         self,
-        tmp_path,
-        mock_shot_name,
-        mock_username,
+        tmp_path: Path,
+        mock_shot_name: str,
+        mock_username: str,
     ) -> None:
         """Test that FG01 plates have higher priority than PL01."""
         base_path = (

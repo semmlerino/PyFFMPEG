@@ -17,6 +17,8 @@ from threading_manager import ThreadingManager
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+    from pytestqt.qtbot import QtBot
+
 
 # =============================================================================
 # Fixtures and Test Doubles
@@ -57,7 +59,7 @@ class MockWorker(QThread):
 
 
 @pytest.fixture
-def mock_threede_worker():
+def mock_threede_worker() -> Mock:
     """Create mock ThreeDESceneWorker."""
     worker = Mock(spec=QThread)
 
@@ -91,7 +93,7 @@ def mock_threede_worker():
 
 
 @pytest.fixture
-def mock_shot_model():
+def mock_shot_model() -> Mock:
     """Create mock BaseShotModel."""
     model = Mock()
     model.get_shots.return_value = [
@@ -102,7 +104,7 @@ def mock_shot_model():
 
 
 @pytest.fixture
-def mock_threede_model():
+def mock_threede_model() -> Mock:
     """Create mock ThreeDESceneModel."""
     return Mock()
 
@@ -127,18 +129,18 @@ def threading_manager() -> Generator[ThreadingManager, None, None]:
 class TestThreadingManagerInitialization:
     """Test ThreadingManager initialization."""
 
-    def test_initialization(self, threading_manager):
+    def test_initialization(self, threading_manager: ThreadingManager) -> None:
         """Test manager initializes with correct default state."""
         assert threading_manager._workers == {}
         assert threading_manager._current_threede_worker is None
         assert threading_manager._threede_discovery_active is False
         assert threading_manager._mutex is not None
 
-    def test_initial_thread_count_zero(self, threading_manager):
+    def test_initial_thread_count_zero(self, threading_manager: ThreadingManager) -> None:
         """Test initial active thread count is zero."""
         assert threading_manager.get_active_thread_count() == 0
 
-    def test_initial_thread_status_empty(self, threading_manager):
+    def test_initial_thread_status_empty(self, threading_manager: ThreadingManager) -> None:
         """Test initial thread status is empty dict."""
         status = threading_manager.get_thread_status()
         assert status == {}
@@ -154,11 +156,11 @@ class TestThreeDEDiscoveryLifecycle:
 
     def test_start_discovery_creates_worker(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test starting discovery creates and configures worker."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -174,11 +176,11 @@ class TestThreeDEDiscoveryLifecycle:
 
     def test_start_discovery_rejects_concurrent_start(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test starting discovery while already running returns False."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -197,11 +199,11 @@ class TestThreeDEDiscoveryLifecycle:
 
     def test_start_discovery_connects_signals(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test discovery worker signals are connected to manager signals."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -221,11 +223,11 @@ class TestThreeDEDiscoveryLifecycle:
 
     def test_is_discovery_active_reflects_state(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test is_threede_discovery_active reflects current state."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -240,12 +242,12 @@ class TestThreeDEDiscoveryLifecycle:
 
     def test_discovery_finished_updates_state(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-        qtbot,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+        qtbot: QtBot,
+    ) -> None:
         """Test discovery finished callback updates active state."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -265,12 +267,12 @@ class TestThreeDEDiscoveryLifecycle:
 
     def test_discovery_error_updates_state(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-        qtbot,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+        qtbot: QtBot,
+    ) -> None:
         """Test discovery error callback updates active state."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -298,11 +300,11 @@ class TestThreeDEDiscoveryControl:
 
     def test_pause_discovery_when_active(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test pausing active discovery succeeds."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -316,7 +318,7 @@ class TestThreeDEDiscoveryControl:
             assert result is True
             mock_threede_worker.pause.assert_called_once()
 
-    def test_pause_discovery_when_not_active(self, threading_manager):
+    def test_pause_discovery_when_not_active(self, threading_manager: ThreadingManager) -> None:
         """Test pausing when not active returns False."""
         result = threading_manager.pause_threede_discovery()
 
@@ -324,11 +326,11 @@ class TestThreeDEDiscoveryControl:
 
     def test_resume_discovery_when_paused(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test resuming paused discovery succeeds."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -343,7 +345,7 @@ class TestThreeDEDiscoveryControl:
             assert result is True
             mock_threede_worker.resume.assert_called_once()
 
-    def test_resume_discovery_when_not_active(self, threading_manager):
+    def test_resume_discovery_when_not_active(self, threading_manager: ThreadingManager) -> None:
         """Test resuming when not active returns False."""
         result = threading_manager.resume_threede_discovery()
 
@@ -351,11 +353,11 @@ class TestThreeDEDiscoveryControl:
 
     def test_stop_discovery_when_active(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test stopping active discovery succeeds."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -370,7 +372,7 @@ class TestThreeDEDiscoveryControl:
             mock_threede_worker.stop.assert_called_once()
             assert threading_manager._threede_discovery_active is False
 
-    def test_stop_discovery_when_not_active(self, threading_manager):
+    def test_stop_discovery_when_not_active(self, threading_manager: ThreadingManager) -> None:
         """Test stopping when not active returns False."""
         result = threading_manager.stop_threede_discovery()
 
@@ -385,7 +387,7 @@ class TestThreeDEDiscoveryControl:
 class TestCustomWorkerManagement:
     """Test adding and removing custom workers."""
 
-    def test_add_custom_worker_succeeds(self, threading_manager):
+    def test_add_custom_worker_succeeds(self, threading_manager: ThreadingManager) -> None:
         """Test adding custom worker starts it and tracks it."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -397,7 +399,7 @@ class TestCustomWorkerManagement:
         assert "custom_worker" in threading_manager._workers
         worker.start.assert_called_once()
 
-    def test_add_duplicate_worker_fails(self, threading_manager):
+    def test_add_duplicate_worker_fails(self, threading_manager: ThreadingManager) -> None:
         """Test adding worker with duplicate name fails."""
         worker1 = Mock(spec=QThread)
         worker1.start = Mock()
@@ -410,7 +412,7 @@ class TestCustomWorkerManagement:
         assert result is False
         worker2.start.assert_not_called()
 
-    def test_remove_worker_stops_and_cleans_up(self, threading_manager):
+    def test_remove_worker_stops_and_cleans_up(self, threading_manager: ThreadingManager) -> None:
         """Test removing worker stops it and cleans up."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -429,13 +431,13 @@ class TestCustomWorkerManagement:
         worker.deleteLater.assert_called_once()
         assert "worker" not in threading_manager._workers
 
-    def test_remove_nonexistent_worker_returns_false(self, threading_manager):
+    def test_remove_nonexistent_worker_returns_false(self, threading_manager: ThreadingManager) -> None:
         """Test removing non-existent worker returns False."""
         result = threading_manager.remove_worker("nonexistent")
 
         assert result is False
 
-    def test_remove_worker_with_request_stop_method(self, threading_manager):
+    def test_remove_worker_with_request_stop_method(self, threading_manager: ThreadingManager) -> None:
         """Test removing worker uses request_stop if available."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -450,7 +452,7 @@ class TestCustomWorkerManagement:
 
         worker.request_stop.assert_called_once()
 
-    def test_remove_worker_handles_timeout(self, threading_manager):
+    def test_remove_worker_handles_timeout(self, threading_manager: ThreadingManager) -> None:
         """Test removing worker handles wait timeout gracefully."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -476,7 +478,7 @@ class TestCustomWorkerManagement:
 class TestThreadStatusMonitoring:
     """Test thread status reporting and monitoring."""
 
-    def test_get_active_thread_count_with_running_threads(self, threading_manager):
+    def test_get_active_thread_count_with_running_threads(self, threading_manager: ThreadingManager) -> None:
         """Test counting active threads."""
         worker1 = Mock(spec=QThread)
         worker1.start = Mock()
@@ -493,7 +495,7 @@ class TestThreadStatusMonitoring:
 
         assert count == 1  # Only worker1 is running
 
-    def test_get_thread_status_running(self, threading_manager):
+    def test_get_thread_status_running(self, threading_manager: ThreadingManager) -> None:
         """Test thread status reporting for running thread."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -506,7 +508,7 @@ class TestThreadStatusMonitoring:
 
         assert status == {"worker": "running"}
 
-    def test_get_thread_status_finished(self, threading_manager):
+    def test_get_thread_status_finished(self, threading_manager: ThreadingManager) -> None:
         """Test thread status reporting for finished thread."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -519,7 +521,7 @@ class TestThreadStatusMonitoring:
 
         assert status == {"worker": "finished"}
 
-    def test_get_thread_status_ready(self, threading_manager):
+    def test_get_thread_status_ready(self, threading_manager: ThreadingManager) -> None:
         """Test thread status reporting for ready thread."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -532,7 +534,7 @@ class TestThreadStatusMonitoring:
 
         assert status == {"worker": "ready"}
 
-    def test_get_thread_status_multiple_workers(self, threading_manager):
+    def test_get_thread_status_multiple_workers(self, threading_manager: ThreadingManager) -> None:
         """Test thread status with multiple workers."""
         worker1 = Mock(spec=QThread)
         worker1.start = Mock()
@@ -562,11 +564,11 @@ class TestCleanupAndShutdown:
 
     def test_cleanup_threede_worker_stops_running_worker(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test cleanup stops running 3DE worker."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -583,11 +585,11 @@ class TestCleanupAndShutdown:
 
     def test_cleanup_threede_worker_handles_timeout(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test cleanup handles worker timeout gracefully."""
         mock_threede_worker.wait.return_value = False  # Timeout
 
@@ -603,7 +605,7 @@ class TestCleanupAndShutdown:
 
             mock_threede_worker.deleteLater.assert_called_once()
 
-    def test_shutdown_all_threads_stops_all_workers(self, threading_manager):
+    def test_shutdown_all_threads_stops_all_workers(self, threading_manager: ThreadingManager) -> None:
         """Test shutdown stops all managed workers."""
         worker1 = Mock(spec=QThread)
         worker1.start = Mock()
@@ -628,7 +630,7 @@ class TestCleanupAndShutdown:
         worker2.deleteLater.assert_called_once()
         assert len(threading_manager._workers) == 0
 
-    def test_shutdown_handles_timeouts(self, threading_manager):
+    def test_shutdown_handles_timeouts(self, threading_manager: ThreadingManager) -> None:
         """Test shutdown handles worker timeouts gracefully."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -645,11 +647,11 @@ class TestCleanupAndShutdown:
 
     def test_shutdown_clears_threede_worker_state(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test shutdown clears 3DE worker state."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -663,7 +665,7 @@ class TestCleanupAndShutdown:
             assert threading_manager._current_threede_worker is None
             assert threading_manager._threede_discovery_active is False
 
-    def test_schedule_worker_cleanup_removes_from_dict(self, threading_manager):
+    def test_schedule_worker_cleanup_removes_from_dict(self, threading_manager: ThreadingManager) -> None:
         """Test scheduled cleanup removes worker from tracking."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -687,11 +689,11 @@ class TestThreadSafety:
 
     def test_start_discovery_uses_mutex(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test start_discovery protects state with mutex."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -708,7 +710,7 @@ class TestThreadSafety:
             # Second call should be rejected due to mutex protection
             assert result is False
 
-    def test_get_active_thread_count_thread_safe(self, threading_manager):
+    def test_get_active_thread_count_thread_safe(self, threading_manager: ThreadingManager) -> None:
         """Test get_active_thread_count uses mutex protection."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -721,7 +723,7 @@ class TestThreadSafety:
 
         assert count == 1
 
-    def test_get_thread_status_thread_safe(self, threading_manager):
+    def test_get_thread_status_thread_safe(self, threading_manager: ThreadingManager) -> None:
         """Test get_thread_status uses mutex protection."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -746,11 +748,11 @@ class TestEdgeCasesAndErrorHandling:
 
     def test_remove_threede_discovery_worker_clears_state(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test removing 3DE discovery worker clears special state."""
         with patch(
             "threede_scene_worker.ThreeDESceneWorker", return_value=mock_threede_worker
@@ -766,11 +768,11 @@ class TestEdgeCasesAndErrorHandling:
 
     def test_start_discovery_cleans_up_previous_worker(
         self,
-        threading_manager,
-        mock_threede_model,
-        mock_shot_model,
-        mock_threede_worker,
-    ):
+        threading_manager: ThreadingManager,
+        mock_threede_model: Mock,
+        mock_shot_model: Mock,
+        mock_threede_worker: Mock,
+    ) -> None:
         """Test starting discovery cleans up any existing worker."""
         old_worker = Mock(spec=QThread)
         old_worker.isRunning = Mock(return_value=True)
@@ -792,19 +794,19 @@ class TestEdgeCasesAndErrorHandling:
             old_worker.stop.assert_called_once()
             old_worker.deleteLater.assert_called_once()
 
-    def test_shutdown_with_no_workers(self, threading_manager):
+    def test_shutdown_with_no_workers(self, threading_manager: ThreadingManager) -> None:
         """Test shutdown with no active workers completes gracefully."""
         # Should not raise exception
         threading_manager.shutdown_all_threads()
 
         assert len(threading_manager._workers) == 0
 
-    def test_schedule_cleanup_nonexistent_worker(self, threading_manager):
+    def test_schedule_cleanup_nonexistent_worker(self, threading_manager: ThreadingManager) -> None:
         """Test scheduling cleanup for nonexistent worker is safe."""
         # Should not raise exception
         threading_manager._schedule_worker_cleanup("nonexistent")
 
-    def test_control_operations_without_worker_attribute(self, threading_manager):
+    def test_control_operations_without_worker_attribute(self, threading_manager: ThreadingManager) -> None:
         """Test control operations handle missing worker methods gracefully."""
         # Create worker without stop method
         worker = Mock(spec=QThread)

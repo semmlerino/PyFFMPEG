@@ -24,19 +24,18 @@ ShotBot is a PySide6-based GUI application for VFX shot browsing and application
 
 ```bash
 # Production mode (requires VFX environment)
-source venv/bin/activate
-python shotbot.py
+uv run python shotbot.py
 
 # Mock mode (no VFX infrastructure needed - 432 production shots)
-python shotbot.py --mock
+uv run python shotbot.py --mock
 # Or better, with recreated VFX filesystem:
-python shotbot_mock.py
+uv run python shotbot_mock.py
 
 # Headless mode (for CI/CD)
-python shotbot.py --headless --mock
+uv run python shotbot.py --headless --mock
 
 # Debug mode
-SHOTBOT_DEBUG=1 python shotbot.py
+SHOTBOT_DEBUG=1 uv run python shotbot.py
 ```
 
 ### Mock VFX Environment
@@ -45,33 +44,31 @@ The project includes a sophisticated mock environment system:
 
 ```bash
 # Recreate VFX filesystem structure (11,386 dirs, 29,335 files)
-python recreate_vfx_structure.py vfx_structure_complete.json
+uv run python recreate_vfx_structure.py vfx_structure_complete.json
 
 # Verify mock environment (shows 432 real production shots)
-python verify_mock_environment.py
+uv run python verify_mock_environment.py
 
 # Run with full mock environment
-python run_mock_vfx_env.py
+uv run python run_mock_vfx_env.py
 ```
 
 ### Testing
 
 ```bash
-source venv/bin/activate
-
 # Recommended: Full test suite with parallel execution (~67 seconds)
-python3 -m pytest tests/unit/ -n auto --timeout=5
+uv run pytest tests/unit/ -n auto --timeout=5
 
 # Quick validation
-python3 tests/utilities/quick_test.py
+uv run python tests/utilities/quick_test.py
 
 # Specific test files (sequential)
-python3 -m pytest tests/unit/test_shot_model.py -v
+uv run pytest tests/unit/test_shot_model.py -v
 
 # Categories
-python3 -m pytest tests/ -m fast       # Tests under 100ms
-python3 -m pytest tests/ -m unit       # Unit tests only
-python3 -m pytest tests/ -m integration # Integration tests
+uv run pytest tests/ -m fast       # Tests under 100ms
+uv run pytest tests/ -m unit       # Unit tests only
+uv run pytest tests/ -m integration # Integration tests
 ```
 
 **Known Issues:**
@@ -82,16 +79,41 @@ python3 -m pytest tests/ -m integration # Integration tests
 ### Code Quality
 
 ```bash
-source venv/bin/activate
-
 # Format code
-ruff format .
+uv run ruff format .
 
 # Lint and auto-fix
-ruff check --fix .
+uv run ruff check --fix .
 
 # Type checking
-basedpyright
+uv run basedpyright
+```
+
+**Configuration**: All tool settings are centralized in `pyproject.toml`:
+- `[tool.ruff]` - Linting and formatting rules
+- `[tool.basedpyright]` - Type checking configuration (includes Qt-specific suppressions)
+- `[tool.pytest.ini_options]` - Test runner settings
+- `[tool.coverage.*]` - Coverage configuration
+
+**Do not create** separate config files (`pyrightconfig.json`, `.ruff.toml`, `pytest.ini`) - use `pyproject.toml` instead.
+
+### Development Environment Setup
+
+```bash
+# Initial setup (creates .venv, installs dependencies, generates uv.lock)
+uv sync
+
+# Add a new dependency
+uv add package-name
+
+# Add a development dependency
+uv add --dev package-name
+
+# Update all dependencies
+uv lock --upgrade
+
+# Update specific package
+uv lock --upgrade-package package-name
 ```
 
 ## Python Compatibility
@@ -141,6 +163,7 @@ View Layer (grid views with custom delegates)
 ```
 
 **BaseItemModel[T]** - Generic base providing common Qt Model/View infrastructure:
+- Atomic thumbnail loading (eliminates race conditions with check-and-mark in single lock)
 - Lazy thumbnail loading with visibility tracking
 - Thread-safe caching (QMutex-protected QImage storage)
 - Selection management and show filtering
@@ -196,9 +219,10 @@ View Layer (grid views with custom delegates)
 
 #### 4. Thread-Safe Background Operations
 - **Workers**: `ThreeDESceneWorker`, `PreviousShotsWorker` use `QThread` for background scanning
-- **Thread safety**: All shared data protected with `threading.RLock()`
+- **Thread safety**: Qt components use `QMutex`/`QMutexLocker` (see `THREADING_MODEL.md` for guidelines)
 - **Signal connections**: Use `Qt.ConnectionType.QueuedConnection` for cross-thread
 - **Resource cleanup**: Workers properly disconnect signals and delete on completion
+- **Threading guidelines**: See `THREADING_MODEL.md` for mutex ordering and deadlock prevention
 
 #### 5. Launcher System
 - **`LauncherManager`**: Manages custom launchers with thread-safe process tracking
@@ -278,9 +302,10 @@ The apparent "duplication" is actually proper separation of concerns for distinc
 ## Feature Implementation Map
 
 ### Show Filtering
-- **My Shots**: shot_grid_view.py → shot_item_model.py → base_shot_model.py
+- **Implementation**: Pure functional filters in `shot_filter.py` (Protocol-based, composable)
+- **My Shots**: shot_grid_view.py → shot_item_model.py → base_shot_model.py → shot_filter.py
 - **Other 3DE**: threede_grid_view.py → threede_item_model.py → threede_scene_model.py
-- **Previous**: previous_shots_view.py → previous_shots_item_model.py → previous_shots_model.py
+- **Previous**: previous_shots_view.py → previous_shots_item_model.py → previous_shots_model.py → shot_filter.py
 - **Signal handlers**: main_window.py
 
 ### Data Refresh Paths
@@ -311,6 +336,7 @@ The mock environment includes:
 
 ## Performance Optimizations
 
+- **Atomic thumbnail loading**: Eliminates duplicate loads with bulk check-and-mark in single lock
 - **Parallel filesystem scanning** with `ThreadPoolExecutor`
 - **Adaptive UI timers** adjust update frequency based on activity
 - **Tab-specific caching strategies**:
@@ -356,7 +382,7 @@ APPS = {
 - Uses `RefreshResult` NamedTuple for clear return types
 - `Union[str, Path]` for flexible path APIs
 - Comprehensive `Optional[QWidget]` handling
-- Type checking: `basedpyright` (config in `tests/pyrightconfig.json`)
+- Type checking: `basedpyright` (config in `pyproject.toml` under `[tool.basedpyright]`)
 
 ## Bundling and Distribution System
 

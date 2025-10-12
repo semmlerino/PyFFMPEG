@@ -15,7 +15,7 @@ from PySide6.QtCore import (
     QThread,
     QWaitCondition,
     Signal,
-    Slot,  # type: ignore[reportUnknownVariableType]
+    Slot,
 )
 
 # Local application imports
@@ -92,7 +92,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         self._zombie = False  # Track abandoned threads
 
         # Set up cleanup on thread finished
-        self.finished.connect(self._on_finished)
+        self.finished.connect(self._on_finished)  # pyright: ignore[reportAny]
 
     def get_state(self) -> WorkerState:
         """Thread-safe state getter.
@@ -121,13 +121,13 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             # Check if transition is valid
             if not force and new_state not in self.VALID_TRANSITIONS.get(current, []):
                 self.logger.warning(
-                    f"Worker {id(self)}: Invalid transition {current.value} -> {new_state.value}",
+                    f"Worker {id(self)}: Invalid transition {current.name} -> {new_state.name}",
                 )
                 return False
 
             # Perform transition
             self.logger.debug(
-                f"Worker {id(self)}: {current.value} -> {new_state.value}"
+                f"Worker {id(self)}: {current.name} -> {new_state.name}"
                 + (" (forced)" if force else ""),
             )
             self._state = new_state
@@ -172,7 +172,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 WorkerState.STOPPING,
             ]:
                 self.logger.debug(
-                    f"Worker {id(self)}: Already stopping/stopped ({current.value})",
+                    f"Worker {id(self)}: Already stopping/stopped ({current.name})",
                 )
                 return False
 
@@ -182,13 +182,13 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 self._state = WorkerState.STOPPED
                 self._stop_requested = True
                 signal_to_emit = self.worker_stopped
-                self.logger.debug(f"Worker {id(self)}: {current.value} -> STOPPED")
+                self.logger.debug(f"Worker {id(self)}: {current.name} -> STOPPED")
             elif current == WorkerState.RUNNING:
                 # Normal stop sequence
                 self._state = WorkerState.STOPPING
                 self._stop_requested = True
                 signal_to_emit = self.worker_stopping
-                self.logger.debug(f"Worker {id(self)}: {current.value} -> STOPPING")
+                self.logger.debug(f"Worker {id(self)}: {current.name} -> STOPPING")
             else:
                 return False
 
@@ -269,7 +269,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         self._connections.clear()
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def run(self) -> None:
         """Main thread execution with proper state management.
 
@@ -345,7 +345,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         """
         raise NotImplementedError("Subclasses must implement do_work()")
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def _on_finished(self) -> None:
         """Handle thread finished signal for cleanup.
 
@@ -369,7 +369,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             elif current in [WorkerState.RUNNING, WorkerState.STOPPING]:
                 # Need to transition through STOPPED first
                 self.logger.debug(
-                    f"Worker {id(self)}: {current.value} -> STOPPED -> DELETED (on finished)"
+                    f"Worker {id(self)}: {current.name} -> STOPPED -> DELETED (on finished)"
                 )
                 self._state = WorkerState.STOPPED
                 # Don't go to DELETED yet - let normal cleanup handle it
@@ -380,7 +380,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             elif current in [WorkerState.CREATED, WorkerState.STARTING]:
                 # Thread finished before it really started - go to STOPPED
                 self.logger.debug(
-                    f"Worker {id(self)}: {current.value} -> STOPPED (on finished)"
+                    f"Worker {id(self)}: {current.name} -> STOPPED (on finished)"
                 )
                 self._state = WorkerState.STOPPED
             elif current == WorkerState.DELETED:
@@ -388,7 +388,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 self.logger.debug(f"Worker {id(self)}: Already DELETED")
             else:
                 self.logger.warning(
-                    f"Worker {id(self)}: Unexpected state {current.value} in _on_finished"
+                    f"Worker {id(self)}: Unexpected state {current.name} in _on_finished"
                 )
 
     def safe_wait(
@@ -472,7 +472,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             return
 
         self.logger.warning(
-            f"Worker {id(self)}: Requesting stop from state {state.value}"
+            f"Worker {id(self)}: Requesting stop from state {state.name}"
         )
 
         # Disconnect signals before any termination attempt

@@ -1,12 +1,12 @@
 #!/bin/bash
-# Type checking script for shotbot
+# Add uv to PATH
+export PATH="$HOME/.local/bin:$PATH"
 
-# Activate virtual environment
-source venv/bin/activate
+# Type checking script for shotbot
 
 # Run basedpyright with stats
 echo "Running basedpyright type checking..."
-python -m basedpyright --stats
+uv run basedpyright --stats
 
 # Exit with the same code as basedpyright
 exit $?

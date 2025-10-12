@@ -21,6 +21,8 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
@@ -33,6 +35,11 @@ from config import Config
 from shot_model import Shot
 from thumbnail_widget import ThumbnailWidget
 from thumbnail_widget_base import ThumbnailWidgetBase
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+    from cache_manager import CacheManager
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -50,20 +57,20 @@ class TestThumbnailWidgetBase:
     """Test real Qt widget behavior of ThumbnailWidgetBase."""
 
     @pytest.fixture
-    def test_shot(self):
+    def test_shot(self) -> Shot:
         """Create test shot for widget testing."""
         return Shot(
             "test_show", "seq01", "0010", "/shows/test_show/shots/seq01/seq01_0010"
         )
 
     @pytest.fixture
-    def thumbnail_widget_base(self, qtbot, test_shot):
+    def thumbnail_widget_base(self, qtbot: QtBot, test_shot: Shot) -> ThumbnailWidgetBase:
         """Create ThumbnailWidgetBase widget for testing."""
         widget = ThumbnailWidgetBase(test_shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)
         return widget
 
-    def test_widget_initialization(self, thumbnail_widget_base, test_shot) -> None:
+    def test_widget_initialization(self, thumbnail_widget_base: ThumbnailWidgetBase, test_shot: Shot) -> None:
         """Test widget initializes with correct properties."""
         widget = thumbnail_widget_base
 
@@ -72,7 +79,7 @@ class TestThumbnailWidgetBase:
         assert widget._thumbnail_size == Config.DEFAULT_THUMBNAIL_SIZE
         assert widget._selected is False
 
-    def test_widget_ui_components(self, thumbnail_widget_base) -> None:
+    def test_widget_ui_components(self, thumbnail_widget_base: ThumbnailWidgetBase) -> None:
         """Test widget has expected UI components."""
         widget = thumbnail_widget_base
 
@@ -82,7 +89,7 @@ class TestThumbnailWidgetBase:
         assert hasattr(widget, "thumbnail_container")
         assert isinstance(widget.thumbnail_container, QWidget)
 
-    def test_signals_exist(self, thumbnail_widget_base) -> None:
+    def test_signals_exist(self, thumbnail_widget_base: ThumbnailWidgetBase) -> None:
         """Test widget has all expected signals."""
         widget = thumbnail_widget_base
 
@@ -90,7 +97,7 @@ class TestThumbnailWidgetBase:
         assert hasattr(widget, "clicked")
         assert hasattr(widget, "double_clicked")
 
-    def test_selection_state_change(self, qtbot, thumbnail_widget_base) -> None:
+    def test_selection_state_change(self, qtbot: QtBot, thumbnail_widget_base: ThumbnailWidgetBase) -> None:
         """Test selection state changes correctly."""
         widget = thumbnail_widget_base
 
@@ -104,12 +111,12 @@ class TestThumbnailWidgetBase:
         # Verify state change
         assert widget._selected is True
 
-    def test_mouse_click_signal_emission(self, qtbot, thumbnail_widget_base) -> None:
+    def test_mouse_click_signal_emission(self, qtbot: QtBot, thumbnail_widget_base: ThumbnailWidgetBase) -> None:
         """Test mouse clicks emit correct signals."""
         widget = thumbnail_widget_base
 
         # Set up signal expectation with parameter checking
-        def check_click_data(data):
+        def check_click_data(data: Shot) -> bool:
             return data == widget.data
 
         with qtbot.waitSignal(widget.clicked, check_params_cb=check_click_data):
@@ -119,13 +126,13 @@ class TestThumbnailWidgetBase:
         qtbot.wait(10)  # Allow UI processing after signal
 
     def test_mouse_double_click_signal_emission(
-        self, qtbot, thumbnail_widget_base
+        self, qtbot: QtBot, thumbnail_widget_base: ThumbnailWidgetBase
     ) -> None:
         """Test mouse double clicks emit correct signals."""
         widget = thumbnail_widget_base
 
         # Set up signal expectation with parameter checking
-        def check_double_click_data(data):
+        def check_double_click_data(data: Shot) -> bool:
             return data == widget.data
 
         with qtbot.waitSignal(
@@ -136,7 +143,7 @@ class TestThumbnailWidgetBase:
 
         qtbot.wait(10)  # Allow UI processing after signal
 
-    def test_thumbnail_size_property(self, thumbnail_widget_base) -> None:
+    def test_thumbnail_size_property(self, thumbnail_widget_base: ThumbnailWidgetBase) -> None:
         """Test thumbnail size property works correctly."""
         widget = thumbnail_widget_base
 
@@ -146,7 +153,7 @@ class TestThumbnailWidgetBase:
         # Size should be positive
         assert widget._thumbnail_size > 0
 
-    def test_widget_styling_methods(self, thumbnail_widget_base) -> None:
+    def test_widget_styling_methods(self, thumbnail_widget_base: ThumbnailWidgetBase) -> None:
         """Test widget has necessary methods."""
         widget = thumbnail_widget_base
 
@@ -154,7 +161,7 @@ class TestThumbnailWidgetBase:
         assert hasattr(widget, "_setup_base_ui")
         assert callable(widget._setup_base_ui)
 
-    def test_thumbnail_label_configuration(self, thumbnail_widget_base) -> None:
+    def test_thumbnail_label_configuration(self, thumbnail_widget_base: ThumbnailWidgetBase) -> None:
         """Test thumbnail label is properly configured."""
         widget = thumbnail_widget_base
         label = widget.thumbnail_label
@@ -169,20 +176,20 @@ class TestThumbnailWidget:
     """Test real Qt widget behavior of ThumbnailWidget (Shot-specific)."""
 
     @pytest.fixture
-    def test_shot(self):
+    def test_shot(self) -> Shot:
         """Create test shot for widget testing."""
         return Shot(
             "test_show", "seq01", "0010", "/shows/test_show/shots/seq01/seq01_0010"
         )
 
     @pytest.fixture
-    def thumbnail_widget(self, qtbot, test_shot):
+    def thumbnail_widget(self, qtbot: QtBot, test_shot: Shot) -> ThumbnailWidget:
         """Create ThumbnailWidget for testing."""
         widget = ThumbnailWidget(test_shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)
         return widget
 
-    def test_shot_widget_initialization(self, thumbnail_widget, test_shot) -> None:
+    def test_shot_widget_initialization(self, thumbnail_widget: ThumbnailWidget, test_shot: Shot) -> None:
         """Test shot-specific widget initialization."""
         widget = thumbnail_widget
 
@@ -191,7 +198,7 @@ class TestThumbnailWidget:
         assert hasattr(widget, "name_label")
         assert isinstance(widget.name_label, QLabel)
 
-    def test_shot_name_display(self, thumbnail_widget, test_shot) -> None:
+    def test_shot_name_display(self, thumbnail_widget: ThumbnailWidget, test_shot: Shot) -> None:
         """Test shot name is displayed correctly."""
         widget = thumbnail_widget
         name_label = widget.name_label
@@ -200,7 +207,7 @@ class TestThumbnailWidget:
         assert name_label.text() == test_shot.full_name
         assert name_label.alignment() & Qt.AlignmentFlag.AlignCenter
 
-    def test_shot_specific_signals(self, thumbnail_widget) -> None:
+    def test_shot_specific_signals(self, thumbnail_widget: ThumbnailWidget) -> None:
         """Test shot-specific signals exist."""
         widget = thumbnail_widget
 
@@ -208,7 +215,7 @@ class TestThumbnailWidget:
         assert hasattr(widget, "clicked")
         assert hasattr(widget, "double_clicked")
 
-    def test_shot_widget_styling(self, qtbot, thumbnail_widget) -> None:
+    def test_shot_widget_styling(self, qtbot: QtBot, thumbnail_widget: ThumbnailWidget) -> None:
         """Test shot widget applies correct styling."""
         widget = thumbnail_widget
 
@@ -223,7 +230,7 @@ class TestThumbnailWidget:
         assert isinstance(selected_style, str)
         assert isinstance(unselected_style, str)
 
-    def test_shot_widget_layout(self, thumbnail_widget) -> None:
+    def test_shot_widget_layout(self, thumbnail_widget: ThumbnailWidget) -> None:
         """Test shot widget layout includes all components."""
         widget = thumbnail_widget
 
@@ -236,7 +243,7 @@ class TestThumbnailWidget:
         widget_children = widget.findChildren(QLabel)
         assert len(widget_children) >= 1  # At least name_label
 
-    def test_shot_widget_font_configuration(self, thumbnail_widget) -> None:
+    def test_shot_widget_font_configuration(self, thumbnail_widget: ThumbnailWidget) -> None:
         """Test shot widget configures fonts correctly."""
         widget = thumbnail_widget
         name_label = widget.name_label
@@ -253,7 +260,7 @@ class TestThumbnailWidgetInteractions:
     """Test real user interactions with thumbnail widgets."""
 
     @pytest.fixture
-    def interactive_widget(self, qtbot):
+    def interactive_widget(self, qtbot: QtBot) -> ThumbnailWidget:
         """Create thumbnail widget for interaction testing."""
         shot = Shot("interactive", "test", "0001", "/test/path")
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
@@ -262,7 +269,7 @@ class TestThumbnailWidgetInteractions:
         qtbot.wait(10)
         return widget
 
-    def test_click_selection_workflow(self, qtbot, interactive_widget) -> None:
+    def test_click_selection_workflow(self, qtbot: QtBot, interactive_widget: ThumbnailWidget) -> None:
         """Test complete click-to-select workflow."""
         widget = interactive_widget
 
@@ -279,7 +286,7 @@ class TestThumbnailWidgetInteractions:
         # Verify click signal
         assert clicked_spy.count() == 1
 
-    def test_double_click_workflow(self, qtbot, interactive_widget) -> None:
+    def test_double_click_workflow(self, qtbot: QtBot, interactive_widget: ThumbnailWidget) -> None:
         """Test double-click workflow for launching."""
         widget = interactive_widget
 
@@ -293,7 +300,7 @@ class TestThumbnailWidgetInteractions:
         # Verify double-click signal
         assert double_clicked_spy.count() == 1
 
-    def test_widget_size_constraints(self, interactive_widget) -> None:
+    def test_widget_size_constraints(self, interactive_widget: ThumbnailWidget) -> None:
         """Test widget respects size constraints."""
         widget = interactive_widget
 
@@ -306,7 +313,7 @@ class TestThumbnailWidgetInteractions:
         max_size = widget.maximumSize()
         assert max_size.isValid()
 
-    def test_widget_visibility_state(self, qtbot, interactive_widget) -> None:
+    def test_widget_visibility_state(self, qtbot: QtBot, interactive_widget: ThumbnailWidget) -> None:
         """Test widget visibility state management."""
         widget = interactive_widget
 
@@ -326,7 +333,7 @@ class TestThumbnailWidgetInteractions:
 class TestThumbnailWidgetMemoryManagement:
     """Test memory management and resource cleanup."""
 
-    def test_widget_cleanup(self, qtbot) -> None:
+    def test_widget_cleanup(self, qtbot: QtBot) -> None:
         """Test widget cleans up resources properly."""
         shot = Shot("cleanup", "test", "0001", "/test/path")
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
@@ -339,7 +346,7 @@ class TestThumbnailWidgetMemoryManagement:
         # qtbot will handle cleanup automatically
         # This tests that cleanup doesn't cause crashes
 
-    def test_pixmap_handling(self, qtbot) -> None:
+    def test_pixmap_handling(self, qtbot: QtBot) -> None:
         """Test proper QPixmap handling (no threading violations)."""
         shot = Shot("pixmap", "test", "0001", "/test/path")
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
@@ -355,7 +362,7 @@ class TestThumbnailWidgetMemoryManagement:
         # Pixmap may be None initially, but method should exist
         assert pixmap is None or isinstance(pixmap, QPixmap)
 
-    def test_signal_cleanup(self, qtbot) -> None:
+    def test_signal_cleanup(self, qtbot: QtBot) -> None:
         """Test signal connections are properly cleaned up."""
         shot = Shot("signals", "test", "0001", "/test/path")
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
@@ -371,7 +378,7 @@ class TestThumbnailWidgetMemoryManagement:
 
         # qtbot cleanup will test that signals disconnect properly
 
-    def test_layout_cleanup(self, qtbot) -> None:
+    def test_layout_cleanup(self, qtbot: QtBot) -> None:
         """Test layout and child widgets cleanup properly."""
         shot = Shot("layout", "test", "0001", "/test/path")
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
@@ -390,7 +397,7 @@ class TestThumbnailWidgetMemoryManagement:
 class TestThumbnailWidgetEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_widget_with_empty_shot_name(self, qtbot) -> None:
+    def test_widget_with_empty_shot_name(self, qtbot: QtBot) -> None:
         """Test widget handles empty shot names gracefully."""
         shot = Shot("", "", "", "")  # Empty shot data
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
@@ -400,7 +407,7 @@ class TestThumbnailWidgetEdgeCases:
         assert widget.shot == shot
         assert widget.name_label.text() == shot.full_name
 
-    def test_widget_with_zero_size(self, qtbot) -> None:
+    def test_widget_with_zero_size(self, qtbot: QtBot) -> None:
         """Test widget handles zero or negative sizes gracefully."""
         shot = Shot("test", "seq", "0001", "/test")
 
@@ -411,7 +418,7 @@ class TestThumbnailWidgetEdgeCases:
         assert widget._thumbnail_size == 0
         assert widget is not None
 
-    def test_widget_with_very_large_size(self, qtbot) -> None:
+    def test_widget_with_very_large_size(self, qtbot: QtBot) -> None:
         """Test widget handles very large sizes."""
         shot = Shot("test", "seq", "0001", "/test")
 
@@ -423,7 +430,7 @@ class TestThumbnailWidgetEdgeCases:
         assert widget._thumbnail_size == large_size
         assert widget is not None
 
-    def test_multiple_selection_changes(self, qtbot) -> None:
+    def test_multiple_selection_changes(self, qtbot: QtBot) -> None:
         """Test widget handles rapid selection changes."""
         shot = Shot("rapid", "test", "0001", "/test")
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
@@ -438,7 +445,7 @@ class TestThumbnailWidgetEdgeCases:
         assert widget is not None
         assert isinstance(widget._selected, bool)
 
-    def test_signal_emission_with_no_connections(self, qtbot) -> None:
+    def test_signal_emission_with_no_connections(self, qtbot: QtBot) -> None:
         """Test signals work even with no connections."""
         shot = Shot("no_conn", "test", "0001", "/test")
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
@@ -458,28 +465,28 @@ class TestThumbnailWidgetLoadingStates:
     """Test thumbnail loading states and indicators."""
 
     @pytest.fixture
-    def loading_widget(self, qtbot):
+    def loading_widget(self, qtbot: QtBot) -> ThumbnailWidget:
         """Create widget for loading state testing."""
         shot = Shot("loading", "test", "0001", "/test/path")
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)
         return widget
 
-    def test_loading_state_initialization(self, loading_widget) -> None:
+    def test_loading_state_initialization(self, loading_widget: ThumbnailWidget) -> None:
         """Test widget initializes with correct loading state."""
         widget = loading_widget
 
         # Widget should have loading state tracking
         assert hasattr(widget, "_loading_state")
 
-    def test_loading_indicator_exists(self, loading_widget) -> None:
+    def test_loading_indicator_exists(self, loading_widget: ThumbnailWidget) -> None:
         """Test loading indicator component exists."""
         widget = loading_widget
 
         # Widget should have loading indicator
         assert hasattr(widget, "loading_indicator")
 
-    def test_thumbnail_container_setup(self, loading_widget) -> None:
+    def test_thumbnail_container_setup(self, loading_widget: ThumbnailWidget) -> None:
         """Test thumbnail container is properly configured."""
         widget = loading_widget
         container = widget.thumbnail_container
@@ -493,7 +500,7 @@ class TestThumbnailWidgetIntegration:
     """Integration tests for thumbnail widget with cache manager."""
 
     @pytest.fixture
-    def integrated_widget(self, qtbot, real_cache_manager):
+    def integrated_widget(self, qtbot: QtBot, real_cache_manager: CacheManager) -> ThumbnailWidget:
         """Create widget with real cache manager."""
         shot = Shot("integrated", "test", "0001", "/test/path")
 
@@ -505,7 +512,7 @@ class TestThumbnailWidgetIntegration:
         return widget
 
     def test_cache_manager_integration(
-        self, integrated_widget, real_cache_manager
+        self, integrated_widget: ThumbnailWidget, real_cache_manager: CacheManager
     ) -> None:
         """Test widget integrates with cache manager."""
         widget = integrated_widget
@@ -513,7 +520,7 @@ class TestThumbnailWidgetIntegration:
         # Widget should use the cache manager
         assert widget._cache_manager == real_cache_manager
 
-    def test_widget_with_real_cache(self, qtbot, real_cache_manager) -> None:
+    def test_widget_with_real_cache(self, qtbot: QtBot, real_cache_manager: CacheManager) -> None:
         """Test widget behavior with real cache manager."""
         shot = Shot("cached", "test", "0001", "/test/path")
         ThumbnailWidget.set_cache_manager(real_cache_manager)

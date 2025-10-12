@@ -48,12 +48,13 @@ from __future__ import annotations
 # Standard library imports
 import json
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 # Third-party imports
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QCloseEvent, QIcon, QKeyEvent
 from PySide6.QtWidgets import (
+    QAbstractButton,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -115,6 +116,58 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         # Temporary settings copy for preview/cancel functionality
         self.temp_settings: dict[str, object] = {}
 
+        # Initialize all widget attributes that will be set in setup_ui()
+        # General tab widgets
+        self.thumbnail_size_slider: QSlider
+        self.thumbnail_size_label: QLabel
+        self.grid_columns_spin: QSpinBox
+        self.dark_theme_check: QCheckBox
+        self.animations_check: QCheckBox
+        self.tooltips_check: QCheckBox
+        self.refresh_interval_spin: QSpinBox
+        self.background_refresh_check: QCheckBox
+        self.double_click_combo: QComboBox
+        self.terminal_edit: QLineEdit
+        self.remember_directory_check: QCheckBox
+        self.show_hidden_check: QCheckBox
+        self.confirm_delete_check: QCheckBox
+
+        # Performance tab widgets
+        self.max_threads_spin: QSpinBox
+        self.max_operations_spin: QSpinBox
+        self.cache_memory_spin: QSpinBox
+        self.cache_expiry_spin: QSpinBox
+        self.lazy_loading_check: QCheckBox
+        self.preload_thumbnails_check: QCheckBox
+        self.progressive_loading_check: QCheckBox
+        self.cache_compression_check: QCheckBox
+
+        # Applications tab widgets
+        self.default_app_combo: QComboBox
+        self.launch_terminal_check: QCheckBox
+        self.association_combos: dict[str, QComboBox] = {}  # Initialized then populated in create_associations_widget
+        self.associations_widget: QWidget
+        self.launchers_edit: QTextEdit
+        self.edit_launchers_btn: QPushButton
+        self.validate_launchers_btn: QPushButton
+
+        # Advanced tab widgets
+        self.debug_mode_check: QCheckBox
+        self.log_level_combo: QComboBox
+        self.profiling_check: QCheckBox
+        self.memory_monitoring_check: QCheckBox
+        self.beta_features_check: QCheckBox
+        self.experimental_caching_check: QCheckBox
+        self.performance_overlay_check: QCheckBox
+
+        # Dialog widgets
+        self.tab_widget: QTabWidget
+        self.button_box: QDialogButtonBox
+        self.import_btn: QPushButton
+        self.export_btn: QPushButton
+        self.reset_btn: QPushButton
+        self.reset_category_btn: QPushButton
+
         self.setWindowTitle("ShotBot Preferences")
         self.setWindowIcon(QIcon())  # TODO: Add proper icon
         self.setModal(True)
@@ -123,7 +176,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         # Third-party imports
         from PySide6.QtCore import QSize
 
-        self.setup_window_geometry("settings_dialog", QSize(700, 600))
+        self.setup_window_geometry("settings_dialog", QSize(700, 600))  # type: ignore[misc]
 
         # Setup UI
         self.setup_ui()
@@ -529,12 +582,12 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.button_box.clicked.connect(self.handle_button_click)
 
         # Setting change signals for live preview
-        self.thumbnail_size_slider.valueChanged.connect(self.update_thumbnail_preview)  # type: ignore[misc]
-        self.dark_theme_check.toggled.connect(self.preview_theme_change)  # type: ignore[misc]
+        self.thumbnail_size_slider.valueChanged.connect(self.update_thumbnail_preview)
+        self.dark_theme_check.toggled.connect(self.preview_theme_change)
 
         # Validation signals
-        self.validate_launchers_btn.clicked.connect(self.validate_custom_launchers)  # type: ignore[misc]
-        self.edit_launchers_btn.clicked.connect(self.edit_custom_launchers)  # type: ignore[misc]
+        self.validate_launchers_btn.clicked.connect(self.validate_custom_launchers)
+        self.edit_launchers_btn.clicked.connect(self.edit_custom_launchers)
 
     def set_initial_tab(self, tab_name: str) -> None:
         """Set the initial tab to display."""
@@ -547,7 +600,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         """Load current settings into the dialog controls."""
         # General tab
         self.thumbnail_size_slider.setValue(self.settings_manager.get_thumbnail_size())
-        self.update_thumbnail_preview()  # type: ignore[misc]
+        self.update_thumbnail_preview()
 
         self.grid_columns_spin.setValue(self.settings_manager.get_grid_columns())
         self.dark_theme_check.setChecked(self.settings_manager.get_dark_theme())
@@ -594,7 +647,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.debug_mode_check.setChecked(self.settings_manager.get_debug_mode())
         self.log_level_combo.setCurrentText(self.settings_manager.get_log_level())
 
-    @Slot()  # type: ignore[misc]
+    @Slot()
     def update_thumbnail_preview(self) -> None:
         """Update thumbnail size preview label."""
         size = self.thumbnail_size_slider.value()
@@ -603,13 +656,13 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         # Emit preview signal
         self.settings_changed.emit("thumbnail_size_preview", size)
 
-    @Slot()  # type: ignore[misc]
+    @Slot()
     def preview_theme_change(self) -> None:
         """Preview theme change."""
         dark_enabled = self.dark_theme_check.isChecked()
         self.settings_changed.emit("dark_theme_preview", dark_enabled)
 
-    @Slot()  # type: ignore[misc]
+    @Slot()
     def validate_custom_launchers(self) -> None:
         """Validate custom launchers JSON."""
         try:
@@ -623,7 +676,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         except json.JSONDecodeError as e:
             QMessageBox.warning(self, "Validation Error", f"Invalid JSON format:\n{e}")
 
-    @Slot()  # type: ignore[misc]
+    @Slot()
     def edit_custom_launchers(self) -> None:
         """Open custom launchers editor."""
         # TODO: Implement launcher editor dialog
@@ -633,7 +686,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
             "Launcher editor will be implemented in future version.",
         )
 
-    def handle_button_click(self, button: QPushButton) -> None:
+    def handle_button_click(self, button: QAbstractButton) -> None:
         """Handle custom button clicks."""
         if button == self.import_btn:
             self.import_settings()
@@ -790,26 +843,27 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         try:
             text = self.launchers_edit.toPlainText().strip()
             if text:
-                # Type: json.loads returns Any, but we know it's object at runtime
-                parsed_data = json.loads(text)  # type: ignore[misc]
+                # Parse JSON - returns Any but we validate types below
+                parsed_data: Any = json.loads(text)  # pyright: ignore[reportExplicitAny]
                 # Handle both dict and list formats
-                launchers: list[dict[str, object]]
+                launchers: list[dict[str, object]] = []
                 if isinstance(parsed_data, list):
                     # Type guard: ensure list contains dicts
-                    launchers = []
-                    for item in parsed_data:  # type: ignore[misc]
+                    item: Any  # pyright: ignore[reportExplicitAny]
+                    for item in parsed_data:  # pyright: ignore[reportUnknownVariableType]
                         if isinstance(item, dict):
-                            # Type narrowing: item is now dict[Unknown, Unknown]
-                            # Cast to expected type for settings manager
-                            launchers.append(item)  # type: ignore[arg-type]
+                            # Type narrowing: item is now dict
+                            # Cast to dict[str, Any] to resolve unknown types
+                            item_dict = cast(dict[str, Any], item)  # pyright: ignore[reportExplicitAny]
+                            launchers.append({str(k): v for k, v in item_dict.items()})  # pyright: ignore[reportAny]
                         else:
                             # Skip invalid items with empty dict
                             launchers.append({})
                 elif isinstance(parsed_data, dict):
                     # Convert dict to list format expected by settings manager
-                    launchers = [parsed_data] if parsed_data else []
-                else:
-                    launchers = []
+                    # Cast to dict[str, Any] to resolve unknown types
+                    parsed_dict = cast(dict[str, Any], parsed_data)  # pyright: ignore[reportExplicitAny]
+                    launchers = [{str(k): v for k, v in parsed_dict.items()}] if parsed_dict else []  # pyright: ignore[reportAny]
                 self.settings_manager.set_custom_launchers(launchers)
         except json.JSONDecodeError:
             self.logger.warning(
@@ -824,3 +878,14 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.settings_manager.sync()
 
         self.logger.info("Settings saved successfully")
+
+    # Override mixin event handlers with proper keyword parameter signatures
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Handle close event with cleanup."""
+        # Call parent implementation from QtWidgetMixin
+        super().closeEvent(event)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle key press events with standard shortcuts."""
+        # Call parent implementation from QtWidgetMixin
+        super().keyPressEvent(event)

@@ -20,10 +20,10 @@ separation of concerns and easier testing.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol, cast
 
 # Third-party imports
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QMessageBox, QWidget
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -31,7 +31,7 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QByteArray, QSize
-    from PySide6.QtWidgets import QSplitter, QTabWidget
+    from PySide6.QtWidgets import QSlider, QSplitter, QTabWidget
 
     # Local application imports
     from cache_manager import CacheManager
@@ -40,9 +40,14 @@ if TYPE_CHECKING:
 
 
 class GridWidget(Protocol):
-    """Protocol for grid widgets that have size sliders."""
+    """Protocol for grid widgets that have size sliders.
 
-    pass  # Empty protocol - accept anything, use hasattr() checks at runtime
+    This protocol defines the minimal interface required from grid view widgets
+    for settings management. All grid views inherit from BaseGridView which
+    provides the size_slider attribute.
+    """
+
+    size_slider: QSlider  # QSlider for thumbnail size control
 
 
 class SettingsTarget(Protocol):
@@ -60,11 +65,9 @@ class SettingsTarget(Protocol):
     def saveState(self) -> QByteArray: ...
     def isMaximized(self) -> bool: ...
     def showMaximized(self) -> None: ...
-    def resize(
-        self,
-        *args: Any,  # noqa: ANN401
-        **kwargs: Any,  # noqa: ANN401
-    ) -> None: ...  # Accept QMainWindow's flexible resize signature
+
+    # Overloaded resize signatures from QMainWindow
+    def resize(self, w: int, h: int) -> None: ...
     def get_window_size(
         self,
     ) -> QSize | tuple[int, int]: ...  # Flexible return type for QSize or tuple
@@ -152,17 +155,29 @@ class SettingsController(LoggingMixin):
         except Exception as e:
             self.logger.error(f"Error loading settings: {e}")
             # Fallback to default window size
-            default_size = self.window.settings_manager.get_window_size()
-            if isinstance(default_size, tuple) and len(default_size) == 2:
-                self.window.resize(default_size[0], default_size[1])
-            else:
-                # Fallback to config defaults
-                # Local application imports
-                from config import Config
+            # Local application imports
+            from config import Config
 
-                self.window.resize(
-                    Config.DEFAULT_WINDOW_WIDTH, Config.DEFAULT_WINDOW_HEIGHT
-                )
+            default_size = self.window.settings_manager.get_window_size()
+            # get_window_size() returns QSize or tuple[int, int] per protocol
+            # In practice, SettingsManager returns QSize, but handle both for robustness
+            try:
+                # Try QSize first (most likely)
+                width = default_size.width()  # type: ignore[union-attr]
+                height = default_size.height()  # type: ignore[union-attr]
+                self.window.resize(width, height)
+            except AttributeError:
+                # Fallback to tuple handling or config defaults
+                if isinstance(default_size, tuple) and len(default_size) == 2:
+                    # Type checker can't narrow union type properly here
+                    width = int(default_size[0])  # pyright: ignore[reportUnknownArgumentType]
+                    height = int(default_size[1])  # pyright: ignore[reportUnknownArgumentType]
+                    self.window.resize(width, height)
+                else:
+                    # Final fallback to config defaults
+                    width = int(Config.DEFAULT_WINDOW_WIDTH)
+                    height = int(Config.DEFAULT_WINDOW_HEIGHT)
+                    self.window.resize(width, height)
 
     def save_settings(self) -> None:
         """Save settings to settings manager."""
@@ -246,20 +261,23 @@ class SettingsController(LoggingMixin):
         # Local application imports
         from settings_dialog import SettingsDialog
 
-        if self.window._settings_dialog is None:
-            self.window._settings_dialog = SettingsDialog(
+        if self.window._settings_dialog is None:  # pyright: ignore[reportPrivateUsage]
+            # MainWindow implements both SettingsTarget and QWidget protocols
+            # Cast through object first to satisfy type checker
+            parent_widget = cast(QWidget, cast(object, self.window))
+            self.window._settings_dialog = SettingsDialog(  # pyright: ignore[reportPrivateUsage]
                 self.window.settings_manager,
-                self.window,  # type: ignore[arg-type]
+                parent_widget,
             )
-            _ = self.window._settings_dialog.settings_applied.connect(
+            _ = self.window._settings_dialog.settings_applied.connect(  # pyright: ignore[reportPrivateUsage]
                 self.on_settings_applied
             )
 
-        if self.window._settings_dialog is not None:
-            self.window._settings_dialog.load_current_settings()
-            self.window._settings_dialog.show()
-            self.window._settings_dialog.raise_()
-            self.window._settings_dialog.activateWindow()
+        if self.window._settings_dialog is not None:  # pyright: ignore[reportPrivateUsage,reportUnnecessaryComparison]
+            self.window._settings_dialog.load_current_settings()  # pyright: ignore[reportPrivateUsage]
+            self.window._settings_dialog.show()  # pyright: ignore[reportPrivateUsage]
+            self.window._settings_dialog.raise_()  # pyright: ignore[reportPrivateUsage]
+            self.window._settings_dialog.activateWindow()  # pyright: ignore[reportPrivateUsage]
 
     def on_settings_applied(self) -> None:
         """Handle settings being applied from preferences dialog."""
@@ -269,20 +287,12 @@ class SettingsController(LoggingMixin):
 
         # Update thumbnail sizes in grids
         thumbnail_size = self.window.settings_manager.get_thumbnail_size()
-        if (
-            hasattr(self.window.shot_grid, "size_slider")
-            and self.window.shot_grid.size_slider is not None
-        ):
+        # GridWidget protocol guarantees size_slider exists
+        if hasattr(self.window.shot_grid, "size_slider"):
             self.window.shot_grid.size_slider.setValue(thumbnail_size)
-        if (
-            hasattr(self.window.threede_shot_grid, "size_slider")
-            and self.window.threede_shot_grid.size_slider is not None
-        ):
+        if hasattr(self.window.threede_shot_grid, "size_slider"):
             self.window.threede_shot_grid.size_slider.setValue(thumbnail_size)
-        if (
-            hasattr(self.window.previous_shots_grid, "size_slider")
-            and self.window.previous_shots_grid.size_slider is not None
-        ):
+        if hasattr(self.window.previous_shots_grid, "size_slider"):
             self.window.previous_shots_grid.size_slider.setValue(thumbnail_size)
 
         self.logger.info("Settings applied successfully")
@@ -292,14 +302,15 @@ class SettingsController(LoggingMixin):
         # Third-party imports
         from PySide6.QtWidgets import QFileDialog
 
-        # Cast to QMainWindow for dialog parent - safe since MainWindow implements both protocols
-        main_window = self.window  # type: ignore[arg-type]
+        # Cast to QWidget for dialog parent - MainWindow implements both protocols
+        # Cast through object first to satisfy type checker
+        parent_widget = cast(QWidget, cast(object, self.window))
 
         file_path, _ = QFileDialog.getOpenFileName(
-            main_window,
+            parent_widget,
             "Import Settings",
             "",
-            "JSON Files (*.json);;All Files (*)",  # type: ignore[arg-type]
+            "JSON Files (*.json);;All Files (*)",
         )
 
         if file_path:
@@ -308,13 +319,13 @@ class SettingsController(LoggingMixin):
                 self.apply_ui_settings()
                 self.apply_cache_settings()
                 _ = QMessageBox.information(
-                    main_window,
+                    parent_widget,
                     "Import Success",
-                    "Settings imported successfully.",  # type: ignore[arg-type]
+                    "Settings imported successfully.",
                 )
             else:
                 _ = QMessageBox.warning(
-                    main_window,  # type: ignore[arg-type]
+                    parent_widget,
                     "Import Error",
                     "Failed to import settings. Check the file format.",
                 )
@@ -324,11 +335,12 @@ class SettingsController(LoggingMixin):
         # Third-party imports
         from PySide6.QtWidgets import QFileDialog
 
-        # Cast to QMainWindow for dialog parent - safe since MainWindow implements both protocols
-        main_window = self.window  # type: ignore[arg-type]
+        # Cast to QWidget for dialog parent - MainWindow implements both protocols
+        # Cast through object first to satisfy type checker
+        parent_widget = cast(QWidget, cast(object, self.window))
 
         file_path, _ = QFileDialog.getSaveFileName(
-            main_window,  # type: ignore[arg-type]
+            parent_widget,
             "Export Settings",
             "shotbot_settings.json",
             "JSON Files (*.json);;All Files (*)",
@@ -337,15 +349,15 @@ class SettingsController(LoggingMixin):
         if file_path:
             if self.window.settings_manager.export_settings(file_path):
                 _ = QMessageBox.information(
-                    main_window,
+                    parent_widget,
                     "Export Success",
-                    f"Settings exported to:\n{file_path}",  # type: ignore[arg-type]
+                    f"Settings exported to:\n{file_path}",
                 )
             else:
                 _ = QMessageBox.warning(
-                    main_window,
+                    parent_widget,
                     "Export Error",
-                    "Failed to export settings.",  # type: ignore[arg-type]
+                    "Failed to export settings.",
                 )
 
     def reset_layout(self) -> None:
@@ -353,11 +365,12 @@ class SettingsController(LoggingMixin):
         # Local application imports
         from config import Config
 
-        # Cast to QMainWindow for dialog parent - safe since MainWindow implements both protocols
-        main_window = self.window  # type: ignore[arg-type]
+        # Cast to QWidget for dialog parent - MainWindow implements both protocols
+        # Cast through object first to satisfy type checker
+        parent_widget = cast(QWidget, cast(object, self.window))
 
         reply = QMessageBox.question(
-            main_window,  # type: ignore[arg-type]
+            parent_widget,
             "Reset Layout",
             "Reset window layout to defaults?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

@@ -76,11 +76,10 @@ When system load is low, you can run the full suite:
 python3 run_tests_wsl.py --all
 
 # Standard pytest (may timeout on WSL)
-source venv/bin/activate
-pytest tests/unit -v --tb=short
+uv run pytest tests/unit -v --tb=short
 
 # With coverage
-pytest tests/ --cov=. --cov-report=html
+uv run pytest tests/ --cov=. --cov-report=html
 ```
 
 ## 📁 Test Structure

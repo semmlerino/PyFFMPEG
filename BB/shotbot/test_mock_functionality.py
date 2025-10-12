@@ -212,7 +212,7 @@ def main() -> int:
         print("✅ ALL MOCK TESTS COMPLETED SUCCESSFULLY")
         print("=" * 70)
         print("\nThe mock environment is fully operational!")
-        print("You can now run: ./venv/bin/python shotbot.py --mock")
+        print("You can now run: uv run python shotbot.py --mock")
         print("(Note: GUI requires display environment)")
 
     except Exception as e:
