@@ -60,14 +60,14 @@ class MockWorker(QThread):
 
 @pytest.fixture
 def mock_threede_worker() -> Mock:
-    """Create mock ThreeDESceneWorker."""
+    """Create mock ThreeDESceneWorker with correct signal names."""
     worker = Mock(spec=QThread)
 
-    # Mock signals with connect methods
+    # Mock signals with connect methods (match actual ThreeDESceneWorker signals)
     worker.started = Mock()
     worker.started.connect = Mock()
-    worker.progress_update = Mock()
-    worker.progress_update.connect = Mock()
+    worker.progress = Mock()  # Changed from progress_update
+    worker.progress.connect = Mock()
     worker.batch_ready = Mock()
     worker.batch_ready.connect = Mock()
     worker.finished = Mock()
@@ -212,9 +212,9 @@ class TestThreeDEDiscoveryLifecycle:
                 mock_threede_model, mock_shot_model
             )
 
-            # Verify signal connections
+            # Verify signal connections (match actual signal names)
             mock_threede_worker.started.connect.assert_called()
-            mock_threede_worker.progress_update.connect.assert_called()
+            mock_threede_worker.progress.connect.assert_called()  # Changed from progress_update
             mock_threede_worker.batch_ready.connect.assert_called()
             mock_threede_worker.finished.connect.assert_called()
             mock_threede_worker.error.connect.assert_called()
