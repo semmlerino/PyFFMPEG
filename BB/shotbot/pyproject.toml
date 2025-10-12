@@ -211,7 +211,7 @@ venv = ".venv"
 # By default, checks all Python files in the project
 # Use exclude to skip specific directories
 
-# Exclude virtual environments, caches, and test directories
+# Exclude virtual environments, caches, test directories, and dev tools
 exclude = [
     "venv/**",
     ".venv/**",
@@ -224,6 +224,14 @@ exclude = [
     "dist/**",
     "tests/**",
     "archived/**",
+    "dev-tools/**",  # Development utilities, not production code
+    "examples/**",   # Example code, not production code
+    "test_*.py",     # Test scripts in root directory
+    "*_test.py",     # Alternative test script naming
+    "run_mock_*.py", # Mock testing scripts
+    "verify_*.py",   # Verification scripts
+    "capture_*.py",  # Data capture scripts
+    "recreate_*.py", # Recreation scripts
 ]
 
 # Stub path for type stubs
