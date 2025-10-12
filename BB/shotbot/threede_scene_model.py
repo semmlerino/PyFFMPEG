@@ -84,13 +84,16 @@ class ThreeDEScene:
         )
 
         # Use the unified thumbnail discovery method
-        # PathUtils.find_shot_thumbnail type is unknown but returns Path | None
-        thumbnail = PathUtils.find_shot_thumbnail(  # type: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        # Note: PathUtils.find_shot_thumbnail returns Path | None, but basedpyright
+        # cannot infer the return type from the dynamic PathUtils class
+        result = PathUtils.find_shot_thumbnail(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,
             self.shot,
         )
+        # Explicit cast to help type checker understand the return type
+        thumbnail: Path | None = cast("Path | None", result)
 
         # DEBUG: Log result
         if thumbnail:
@@ -100,7 +103,7 @@ class ThreeDEScene:
 
         # Cache the result (even if None) to avoid repeated searches
         self._cached_thumbnail_path = thumbnail
-        return cast("Path | None", thumbnail)
+        return thumbnail
 
     def to_dict(self) -> dict[str, str | Path]:
         """Convert scene to dictionary for caching."""
@@ -158,8 +161,9 @@ class ThreeDESceneModel:
             for scene_data in cached_data:
                 try:
                     # Skip invalid cached entries (e.g., from old format)
-                    # Type ignore: ThreeDESceneDict has different structure but handled by try/except
-                    self.scenes.append(ThreeDEScene.from_dict(scene_data))  # type: ignore[arg-type]
+                    # Note: cached_data is ThreeDESceneDict but from_dict expects dict[str, str | Path]
+                    # The structures differ but from_dict extracts only the fields it needs
+                    self.scenes.append(ThreeDEScene.from_dict(scene_data))  # pyright: ignore[reportArgumentType]
                 except (KeyError, TypeError, ValueError) as e:
                     # Skip invalid cached entry
                     print(f"Skipping invalid cached 3DE scene: {e}")
@@ -211,8 +215,10 @@ class ThreeDESceneModel:
 
             # ALWAYS cache results to refresh TTL and ensure persistence
             # This fixes the issue where cache wasn't persisting across restarts
-            # Type ignore: Our dict format differs from ThreeDESceneDict but works
-            self.cache_manager.cache_threede_scenes(self.to_dict())  # type: ignore[arg-type]
+            # Note: cache_threede_scenes expects list[ThreeDESceneDict], but to_dict() returns
+            # list[dict[str, str | Path]] with different field structure. The cache system
+            # handles this gracefully via JSON serialization.
+            self.cache_manager.cache_threede_scenes(self.to_dict())  # pyright: ignore[reportArgumentType]
 
             return True, has_changes
 

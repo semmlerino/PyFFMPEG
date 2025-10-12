@@ -1,8 +1,10 @@
 """Cleanup manager for MainWindow resource management."""
 
+# pyright: reportExplicitAny=false, reportAny=false
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any, Protocol
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
@@ -10,8 +12,24 @@ from PySide6.QtWidgets import QApplication
 from config import Config
 from logging_mixin import LoggingMixin
 
-if TYPE_CHECKING:
-    from PySide6.QtWidgets import QMainWindow
+
+class MainWindowProtocol(Protocol):
+    """Protocol defining the MainWindow interface needed by CleanupManager.
+
+    This avoids circular imports while providing proper type safety.
+    Attributes are typed as Any because we cannot import MainWindow
+    without creating a circular dependency.
+    """
+
+    closing: bool
+    threede_controller: Any
+    session_warmer: Any
+    launcher_manager: Any
+    cache_manager: Any
+    shot_model: Any
+    previous_shots_model: Any
+    previous_shots_item_model: Any
+    persistent_terminal: Any
 
 
 class CleanupManager(QObject, LoggingMixin):
@@ -27,11 +45,11 @@ class CleanupManager(QObject, LoggingMixin):
     cleanup_started = Signal()
     cleanup_finished = Signal()
 
-    def __init__(self, main_window: Any) -> None:
+    def __init__(self, main_window: MainWindowProtocol) -> None:
         """Initialize cleanup manager.
 
         Args:
-            main_window: The MainWindow instance to manage cleanup for (typed as Any to avoid circular import)
+            main_window: The MainWindow instance to manage cleanup for
         """
         super().__init__()
         LoggingMixin.__init__(self)

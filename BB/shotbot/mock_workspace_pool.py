@@ -9,7 +9,7 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from type_definitions import PerformanceMetricsDict
@@ -239,33 +239,41 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
         logger.info("Loading demo shots for user-assigned simulation")
         try:
             with open(demo_shots_path, encoding="utf-8") as f:
-                # json.load() returns Any - we validate below
-                demo_data = json.load(f)  # type: ignore[reportAny]
+                # json.load() returns unknown type - validate then cast
+                raw_data = json.load(f)
 
-            # Validate JSON structure and narrow types
-            if not isinstance(demo_data, dict):
-                raise ValueError(f"Expected dict, got {type(demo_data).__name__}")  # type: ignore[reportAny]
+            # Runtime validation before casting
+            if not isinstance(raw_data, dict):
+                raise ValueError(f"Expected dict, got {type(raw_data).__name__}")
+
+            # After isinstance check, cast to expected structure
+            demo_data = cast(dict[str, object], raw_data)
 
             if "shots" not in demo_data:
                 raise ValueError("Missing 'shots' key in demo data")
 
-            shots_data = demo_data["shots"]  # type: ignore[reportUnknownVariableType]
-            if not isinstance(shots_data, list):
+            raw_shots = demo_data["shots"]
+            if not isinstance(raw_shots, list):
                 raise ValueError(
-                    f"'shots' must be a list, got {type(shots_data).__name__}"  # type: ignore[reportUnknownArgumentType]
+                    f"'shots' must be a list, got {type(raw_shots).__name__}"
                 )
+
+            # After isinstance check, cast to list of objects
+            shots_data = cast(list[object], raw_shots)
 
             # Validate each shot has required fields - builds typed list
             validated_shots: list[dict[str, str]] = []
-            for i, shot_item in enumerate(shots_data):  # type: ignore[reportUnknownArgumentType]
+            for i, shot_item in enumerate(shots_data):
                 if not isinstance(shot_item, dict):
                     raise ValueError(f"Shot {i} is not a dict")
+                # Cast after runtime validation
+                shot_dict = cast(dict[str, object], shot_item)
                 required_fields = ["show", "seq", "shot"]
-                missing = [f for f in required_fields if f not in shot_item]
+                missing = [f for f in required_fields if f not in shot_dict]
                 if missing:
                     raise ValueError(f"Shot {i} missing fields: {missing}")
-                # After validation, we know this is dict[str, str]
-                validated_shots.append(shot_item)  # type: ignore[reportUnknownArgumentType]
+                # After validation, cast to typed dict
+                validated_shots.append(cast(dict[str, str], shot_dict))
 
             # Assign only a subset of shots to gabriel-h to simulate realistic user workload
             # while still allowing "Other 3DE Scenes" to find many unassigned 3DE files

@@ -15,6 +15,7 @@ from PySide6.QtCore import (
     QThread,
     QWaitCondition,
     Signal,
+    SignalInstance,
     Slot,
 )
 
@@ -25,9 +26,6 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable
-
-    # Third-party imports
-    from PySide6.QtCore import SignalInstance
 
 
 class WorkerState(LoggingMixin, Enum):
@@ -88,7 +86,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         self._state_condition = QWaitCondition()
         self._stop_requested = False
         self._force_stop = False
-        self._connections: list[tuple[object, object]] = []
+        self._connections: list[tuple[SignalInstance, object]] = []
         self._zombie = False  # Track abandoned threads
 
         # Set up cleanup on thread finished
@@ -229,14 +227,14 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
     def safe_connect(
         self,
-        signal: Signal | SignalInstance,
+        signal: SignalInstance,
         slot: Callable[..., object],
         connection_type: Qt.ConnectionType = Qt.ConnectionType.QueuedConnection,
     ) -> None:
         """Track signal connections for safe cleanup.
 
         Args:
-            signal: Signal to connect
+            signal: Signal to connect (runtime SignalInstance)
             slot: Slot to connect to
             connection_type: Qt connection type (default: QueuedConnection for thread safety)
         """
@@ -244,7 +242,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         # The connections will be cleaned up in disconnect_all()
         connection = (signal, slot)
         self._connections.append(connection)
-        signal.connect(slot, connection_type)  # type: ignore[attr-defined]
+        signal.connect(slot, connection_type)
         self.logger.debug(f"Worker {id(self)}: Connected signal with {connection_type}")
 
     def disconnect_all(self) -> None:
@@ -259,7 +257,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         for signal, slot in self._connections:
             # Direct references now - no need to dereference
             try:
-                signal.disconnect(slot)  # type: ignore[attr-defined]
+                signal.disconnect(slot)
                 self.logger.debug(f"Worker {id(self)}: Disconnected signal")
             except (RuntimeError, TypeError) as e:
                 # Already disconnected or object deleted - this is fine

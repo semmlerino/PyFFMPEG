@@ -17,7 +17,7 @@ os.environ["SHOTBOT_DEBUG"] = "1"
 
 # Local application imports
 # Import ShotBot modules
-from process_pool_factory import ProcessPoolFactory
+from process_pool_factory import ProcessPoolFactory  # type: ignore[import-not-found]  # pyright: ignore[reportUnknownVariableType]
 
 from main_window import MainWindow
 
@@ -58,9 +58,9 @@ def capture_screenshot() -> None:
 
     # Find the next available screenshot number
     existing_screenshots = glob.glob("shotbot_screenshot_*.png")
-    next_num = 1
+    next_num: int = 1
     if existing_screenshots:
-        numbers = []
+        numbers: list[int] = []
         for filename in existing_screenshots:
             try:
                 num = int(
@@ -107,7 +107,7 @@ def main() -> None:
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
     # Enable mock mode in ProcessPoolFactory
-    ProcessPoolFactory.set_mock_mode(True)
+    ProcessPoolFactory.set_mock_mode(True)  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownMemberType]
 
     app = QApplication(sys.argv)
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
 
@@ -11,6 +11,7 @@ from notification_manager import NotificationManager
 from progress_manager import ProgressManager
 
 if TYPE_CHECKING:
+    from main_window import MainWindow
     from shot_model import Shot
 
 
@@ -26,11 +27,11 @@ class RefreshOrchestrator(QObject, LoggingMixin):
     refresh_started = Signal(int)  # tab_index
     refresh_finished = Signal(int, bool)  # tab_index, success
 
-    def __init__(self, main_window: Any) -> None:
+    def __init__(self, main_window: MainWindow) -> None:
         """Initialize refresh orchestrator.
 
         Args:
-            main_window: The MainWindow instance to coordinate refreshes for (typed as Any to avoid circular import)
+            main_window: The MainWindow instance to coordinate refreshes for
         """
         super().__init__()
         LoggingMixin.__init__(self)

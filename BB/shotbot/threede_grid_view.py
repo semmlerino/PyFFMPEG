@@ -74,7 +74,13 @@ class ThreeDEGridView(BaseGridView):
             model: Optional 3DE item model
             parent: Optional parent widget
         """
-        # Initialize base class
+        # Initialize widgets that will be created in template methods
+        # These are set to None initially but will be assigned during super().__init__()
+        self.loading_bar: QProgressBar
+        self.loading_label: QLabel
+        self.count_label: QLabel
+
+        # Initialize base class (this calls _add_top_widgets and _customize_size_layout)
         super().__init__(parent)
 
         # ThreeDEGridView-specific attributes
@@ -159,21 +165,22 @@ class ThreeDEGridView(BaseGridView):
         # Update scene count
         self._update_scene_count()
 
-    def populate_show_filter(  # type: ignore[override]
-        self, shows: list[str] | ThreeDESceneModel
-    ) -> None:
+    def populate_show_filter(self, shows: list[str] | object) -> None:
         """Populate the show filter combo box with available shows.
 
         Args:
             shows: List of show names or ThreeDESceneModel to extract shows from
         """
-        if not isinstance(shows, list):
+        if isinstance(shows, list):
+            super().populate_show_filter(shows)
+        elif hasattr(shows, "get_unique_shows"):
             # Extract shows from model
-            model_shows = shows.get_unique_shows()
+            model_shows: list[str] = shows.get_unique_shows()  # type: ignore[attr-defined]
             super().populate_show_filter(model_shows)
             self.logger.info(f"Populated show filter with {len(model_shows)} shows")
         else:
-            super().populate_show_filter(shows)
+            # Fallback to empty list
+            super().populate_show_filter([])
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_scenes_updated(self) -> None:
