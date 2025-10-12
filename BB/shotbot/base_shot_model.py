@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 from logging_mixin import LoggingMixin
 from optimized_shot_parser import OptimizedShotParser
 from process_pool_manager import ProcessPoolManager
+from qt_abc_meta import QABCMeta
 from shot_filter import compose_filters, get_available_shows
 from utils import ValidationUtils
 
@@ -33,7 +34,7 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
 # Import RefreshResult from type_definitions to avoid circular imports
 
 
-class BaseShotModel(ABC, LoggingMixin, QObject):
+class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
     """Abstract base class for shot models with shared functionality.
 
     This base class provides common signals, shot parsing logic, caching,

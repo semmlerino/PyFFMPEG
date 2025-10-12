@@ -37,6 +37,7 @@ from cache_manager import CacheManager
 from config import Config
 from logging_mixin import LoggingMixin
 from protocols import SceneDataProtocol
+from qt_abc_meta import QABCMeta
 
 # Type variable for the data items (Shot or ThreeDEScene)
 T = TypeVar("T", bound=SceneDataProtocol)
@@ -68,7 +69,7 @@ class BaseItemRole(IntEnum):
     ItemSpecificRole3 = Qt.ItemDataRole.UserRole + 22  # scene.scene_path for ThreeDEScene
 
 
-class BaseItemModel(ABC, LoggingMixin, QAbstractListModel, Generic[T]):
+class BaseItemModel(ABC, LoggingMixin, QAbstractListModel, Generic[T], metaclass=QABCMeta):
     """Base Qt Model implementation for item data.
 
     This base class provides:

@@ -36,6 +36,7 @@ from PySide6.QtWidgets import QFrame, QLabel, QMenu, QSizePolicy, QVBoxLayout, Q
 # Local application imports
 from cache_manager import CacheManager, ThumbnailCacheLoader
 from config import Config
+from qt_abc_meta import QABCMeta
 from runnable_tracker import get_tracker
 from thumbnail_loading_indicator import ThumbnailLoadingIndicator
 
@@ -306,7 +307,7 @@ class BaseThumbnailLoader(QRunnable):
             tracker.unregister(self)
 
 
-class ThumbnailWidgetBase(ABC, QFrame):
+class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
     """Base class for thumbnail widgets with common functionality."""
 
     # Signals - derived classes can override signal types if needed
