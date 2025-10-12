@@ -359,7 +359,8 @@ class InfoPanelPixmapLoader(QRunnable):
                 return
 
             # Use utility for memory bounds checking (smaller limits for info panel)
-            if ImageUtils.is_image_too_large_for_thumbnail(  # type: ignore[attr-defined]
+            # Note: ImageUtils has QSize parameter which is conditionally imported, causing static analysis issues
+            if ImageUtils.is_image_too_large_for_thumbnail(  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
                 image.size(), Config.MAX_INFO_PANEL_DIMENSION_PX
             ):
                 logger.warning(f"Image too large for info panel: {image.size()}")

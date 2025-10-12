@@ -233,6 +233,8 @@ class LauncherPanel(QtWidgetMixin, QWidget):
     custom_launcher_requested = Signal(str)  # launcher_id
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        # Declare widgets created in template methods
+        self.custom_launcher_container: QVBoxLayout
         super().__init__(parent)
         self.app_sections: dict[str, AppLauncherSection] = {}
         self.custom_launcher_buttons: dict[str, QPushButton] = {}

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 # Standard library imports
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Local application imports
 from filesystem_scanner import FileSystemScanner
@@ -594,13 +594,15 @@ class NetworkAwareStrategy(SceneDiscoveryStrategy):
 
 # Factory function for creating strategies
 def create_discovery_strategy(
-    strategy_type: str = "local", **kwargs: object
+    strategy_type: str = "local", **kwargs: Any
 ) -> SceneDiscoveryStrategy:
     """Create a scene discovery strategy.
 
     Args:
         strategy_type: Type of strategy ("local", "parallel", "progressive", "network")
         **kwargs: Additional arguments for strategy initialization
+            - For "parallel": num_workers (int | None)
+            - For "network": network_timeout (int)
 
     Returns:
         SceneDiscoveryStrategy instance

@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, QTimer, Signal
@@ -163,8 +163,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
                     worker.scan_finished.disconnect()
                     worker.error_occurred.disconnect()
                     if hasattr(worker, "progress"):
-                        # Use type ignore for dynamic getattr on unknown attribute
-                        getattr(worker, "progress").disconnect()  # type: ignore[reportAny]
+                        # Use pyright ignore for dynamic getattr with Any type
+                        getattr(worker, "progress").disconnect()  # pyright: ignore[reportAny]
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
 
@@ -345,9 +345,11 @@ class PreviousShotsModel(LoggingMixin, QObject):
         Returns:
             Dictionary with shot details.
         """
-        # Finder returns ShotDetailsDict which contains only str values
-        # TypedDict to dict conversion requires type ignore due to variance
-        return dict(self._finder.get_shot_details(shot))  # type: ignore[reportReturnType]
+        # Finder returns ShotDetailsDict (TypedDict with all str values)
+        # Convert to dict[str, str] with cast after validation
+        details = self._finder.get_shot_details(shot)
+        # All fields in ShotDetailsDict are str, so this cast is safe
+        return cast(dict[str, str], dict(details))
 
     def set_show_filter(self, show: str | None) -> None:
         """Set the show filter.

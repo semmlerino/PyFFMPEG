@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QContextMenuEvent
 
     # Local application imports
-    from base_shot_model import BaseShotModel
     from base_thumbnail_delegate import BaseThumbnailDelegate
 
 
@@ -154,7 +153,7 @@ class ShotGridView(BaseGridView):
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
 
-    def populate_show_filter(self, shows: list[str] | BaseShotModel) -> None:  # type: ignore[override]
+    def populate_show_filter(self, shows: list[str] | object) -> None:
         """Populate the show filter combo box with available shows.
 
         This override accepts either a list of show names or a BaseShotModel.
@@ -163,16 +162,19 @@ class ShotGridView(BaseGridView):
         Args:
             shows: Either a list of show names or a BaseShotModel to extract shows from
         """
-        # Handle BaseShotModel case (extract shows and call base)
-        if not isinstance(shows, list):
-            shot_model = shows
-            if shot_model:
-                show_list = list(shot_model.get_available_shows())
-                super().populate_show_filter(show_list)
-            return
+        # Handle list case (delegate to base with type narrowing)
+        if isinstance(shows, list):
+            # Type narrowing: shows is list[str] after isinstance check
+            shows_list: list[str] = shows  # pyright: ignore[reportUnknownVariableType]
+            super().populate_show_filter(shows_list)
+        else:
+            # Handle BaseShotModel case (extract shows and call base)
+            from base_shot_model import BaseShotModel
 
-        # Handle list case (delegate to base)
-        super().populate_show_filter(shows)
+            assert isinstance(shows, BaseShotModel)
+            show_list = list(shows.get_available_shows())
+            super().populate_show_filter(show_list)
+            self.logger.info(f"Populated show filter with {len(show_list)} shows")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_model_updated(self) -> None:

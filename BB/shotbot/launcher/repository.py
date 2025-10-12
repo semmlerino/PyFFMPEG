@@ -194,7 +194,7 @@ class LauncherRepository(LoggingMixin):
         Returns:
             Sorted list of category names
         """
-        categories = set()
+        categories: set[str] = set()
         for launcher in self._launchers.values():
             if launcher.category:
                 categories.add(launcher.category)

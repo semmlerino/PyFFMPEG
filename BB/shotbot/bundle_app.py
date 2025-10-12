@@ -41,6 +41,7 @@ class GitIgnoreParser:
 
     def __init__(self, gitignore_path: str | None = None) -> None:
         """Initialize with optional .gitignore file path."""
+        super().__init__()
         self.patterns: list[str] = []
         self.always_exclude = {
             "__pycache__",
@@ -125,6 +126,7 @@ class ApplicationBundler:
             config_path: Path to configuration file
             verbose: Enable verbose output
         """
+        super().__init__()
         self.verbose = verbose
         self.config: BundleConfig = self._load_config(config_path)
         self.gitignore_parser = GitIgnoreParser(".gitignore")
@@ -204,8 +206,8 @@ class ApplicationBundler:
         if config_path and os.path.exists(config_path):
             try:
                 with open(config_path) as f:
-                    user_config = cast("dict[str, ConfigValue]", json.load(f))
-                    default_config.update(user_config)  # type: ignore[typeddict-item]
+                    user_config = cast("BundleConfig", json.load(f))
+                    default_config.update(user_config)
                     if self.verbose:
                         print(f"Loaded config from {config_path}", file=sys.stderr)
             except Exception as e:
