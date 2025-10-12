@@ -9,7 +9,7 @@ from __future__ import annotations
 # Standard library imports
 import json
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict, cast
 
 # Local application imports
 from launcher.models import CustomLauncher
@@ -20,7 +20,7 @@ class ConfigData(TypedDict):
     """Type definition for configuration data structure."""
 
     version: str
-    launchers: dict[str, dict[str, Any]]
+    launchers: dict[str, dict[str, str | dict[str, str | bool | list[str] | None] | list[str]]]
     terminal_preferences: list[str]
 
 
@@ -54,10 +54,18 @@ class LauncherConfigManager(LoggingMixin):
 
         try:
             with open(self.config_file) as f:
-                data: dict[str, Any] = json.load(f)
+                data = cast(
+                    dict[str, str | dict[str, dict[str, str | dict[str, str | bool | list[str] | None] | list[str]]] | list[str]],
+                    json.load(f)
+                )
 
             launchers: dict[str, CustomLauncher] = {}
-            raw_launchers: dict[str, Any] = data.get("launchers", {})
+            raw_launchers_value = data.get("launchers", {})
+            if not isinstance(raw_launchers_value, dict):
+                self.logger.error(f"Invalid launchers data type: {type(raw_launchers_value)}")
+                return {}
+
+            raw_launchers: dict[str, dict[str, str | dict[str, str | bool | list[str] | None] | list[str]]] = raw_launchers_value
             for launcher_id, launcher_data in raw_launchers.items():
                 launcher_data["id"] = launcher_id
                 launchers[launcher_id] = CustomLauncher.from_dict(launcher_data)

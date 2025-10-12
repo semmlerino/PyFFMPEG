@@ -59,6 +59,7 @@ class SecureCommandExecutor(LoggingMixin):
 
     def __init__(self) -> None:
         """Initialize secure command executor."""
+        super().__init__()
         self._cache: dict[str, tuple[str, float]] = {}
         self._cache_lock = threading.Lock()
         self._process_lock = threading.Lock()
@@ -246,8 +247,8 @@ class SecureCommandExecutor(LoggingMixin):
                 raise
             except subprocess.CalledProcessError as e:
                 # CalledProcessError.cmd and .stderr have dynamic types (str | list | bytes | None)
-                cmd_str = str(e.cmd) if e.cmd else "unknown"  # type: ignore[reportAny]
-                stderr_str = str(e.stderr) if e.stderr else "no stderr"  # type: ignore[reportAny]
+                cmd_str = str(e.cmd) if e.cmd else "unknown"  # pyright: ignore[reportAny]
+                stderr_str = str(e.stderr) if e.stderr else "no stderr"  # pyright: ignore[reportAny]
                 self.logger.error(f"Command failed: {cmd_str}, stderr: {stderr_str}")
                 raise
 
@@ -293,7 +294,7 @@ class SecureCommandExecutor(LoggingMixin):
                 self.logger.error(f"Workspace command timed out after {timeout}s")
                 raise
             except subprocess.CalledProcessError as e:
-                stderr_str = str(e.stderr) if e.stderr else "no stderr"  # type: ignore[reportAny]
+                stderr_str = str(e.stderr) if e.stderr else "no stderr"  # pyright: ignore[reportAny]
                 self.logger.error(f"Workspace command failed: {stderr_str}")
                 raise
 

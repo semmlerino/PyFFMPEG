@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
     from threede_item_model import ThreeDEItemModel
-    from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+    from threede_scene_model import ThreeDEScene
 
 
 class ThreeDEGridView(BaseGridView):
@@ -172,15 +172,17 @@ class ThreeDEGridView(BaseGridView):
             shows: List of show names or ThreeDESceneModel to extract shows from
         """
         if isinstance(shows, list):
-            super().populate_show_filter(shows)
-        elif hasattr(shows, "get_unique_shows"):
-            # Extract shows from model
-            model_shows: list[str] = shows.get_unique_shows()  # type: ignore[attr-defined]
+            # Type narrowing: shows is list[str] after isinstance check
+            shows_list: list[str] = shows  # pyright: ignore[reportUnknownVariableType]
+            super().populate_show_filter(shows_list)
+        else:
+            # Type narrowing: if not list, must be ThreeDESceneModel
+            from threede_scene_model import ThreeDESceneModel
+
+            assert isinstance(shows, ThreeDESceneModel)
+            model_shows = shows.get_unique_shows()
             super().populate_show_filter(model_shows)
             self.logger.info(f"Populated show filter with {len(model_shows)} shows")
-        else:
-            # Fallback to empty list
-            super().populate_show_filter([])
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_scenes_updated(self) -> None:

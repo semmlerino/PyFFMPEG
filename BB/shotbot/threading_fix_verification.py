@@ -25,8 +25,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def test_threading_fix() -> bool | None:
-    """Test that the OptimizedShotModel can be created and used without threading violations."""
+def test_threading_fix() -> bool:
+    """Test that the ShotModel can be created and used without threading violations."""
 
     # Initialize Qt application
     app = QApplication.instance() or QApplication(sys.argv)
@@ -36,18 +36,19 @@ def test_threading_fix() -> bool | None:
     try:
         # Import the fixed model
         # Third-party imports
-        from shot_model_optimized import OptimizedShotModel
+        from shot_model import ShotModel
+        from type_definitions import RefreshResult
 
         # Create model instance
-        model = OptimizedShotModel()
-        logger.info("✓ OptimizedShotModel created successfully")
+        model: ShotModel = ShotModel()
+        logger.info("✓ ShotModel created successfully")
 
         # Check that Qt.ConnectionType.QueuedConnection is accessible
         connection_type = Qt.ConnectionType.QueuedConnection
         logger.info(f"✓ QueuedConnection enum accessible: {connection_type}")
 
         # Simulate initialization (this would previously cause fatal error)
-        result = model.initialize_async()
+        result: RefreshResult = model.initialize_async()
         logger.info(f"✓ Async initialization completed: success={result.success}")
 
         # Process some events to trigger any queued connections

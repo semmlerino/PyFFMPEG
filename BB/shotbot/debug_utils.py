@@ -17,7 +17,7 @@ import sys
 import time
 from contextlib import contextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -51,6 +51,7 @@ class TimingProfiler(LoggingMixin):
         Args:
             name: Name for this profiler instance
         """
+        super().__init__()
         self.name = name
         self.timings: dict[str, list[float]] = {}
         self.active_timers: dict[str, float] = {}
@@ -147,6 +148,7 @@ class ProcessStateTracker(LoggingMixin):
 
     def __init__(self) -> None:
         """Initialize state tracker."""
+        super().__init__()
         self.states: dict[str, str] = {}
         self.state_history: dict[str, list[tuple[float, str, str, str]]] = {}
         self.state_timings: dict[str, dict[str, float]] = {}
@@ -223,13 +225,13 @@ class SystemDiagnostics(LoggingMixin):
     """Capture and log system diagnostic information."""
 
     @staticmethod
-    def get_system_info() -> dict[str, Any]:  # type: ignore[type-arg]
+    def get_system_info() -> dict[str, str | int | float | list[str] | dict[str, float]]:
         """Get comprehensive system information.
 
         Returns:
-            Dictionary with system information
+            Dictionary with system information (values can be primitives, lists, or nested dicts)
         """
-        info = {
+        info: dict[str, str | int | float | list[str] | dict[str, float]] = {
             "timestamp": datetime.now().isoformat(),
             "platform": platform.platform(),
             "python": sys.version,
@@ -242,7 +244,7 @@ class SystemDiagnostics(LoggingMixin):
 
         # Add PATH (first few entries)
         path_entries = os.environ.get("PATH", "").split(":")
-        info["PATH"] = path_entries[:5] if path_entries else []  # type: ignore[assignment]
+        info["PATH"] = path_entries[:5] if path_entries else []
 
         # File descriptor count (Linux only)
         if os.path.exists("/proc/self/fd"):
@@ -259,7 +261,7 @@ class SystemDiagnostics(LoggingMixin):
             process = psutil.Process()
             mem_info = process.memory_info()
             rss_bytes = cast("int", mem_info.rss)  # psutil returns int, cast for type checker
-            info["memory"] = {  # type: ignore[assignment]
+            info["memory"] = {
                 "rss_mb": rss_bytes / 1024 / 1024,
                 "percent": process.memory_percent(),
             }
@@ -276,7 +278,7 @@ class SystemDiagnostics(LoggingMixin):
                     timeout=1,
                 )
                 if result.returncode == 0:
-                    info["ulimits"] = result.stdout.split("\n")[:5]  # type: ignore[assignment]
+                    info["ulimits"] = result.stdout.split("\n")[:5]
             except (subprocess.SubprocessError, OSError):
                 pass
 
@@ -369,6 +371,7 @@ class DeadlockDetector(LoggingMixin):
 
     def __init__(self) -> None:
         """Initialize deadlock detector."""
+        super().__init__()
         self.waiting_on: dict[str, tuple[str, float]] = {}
         self.enabled = DEBUG_ALL
 

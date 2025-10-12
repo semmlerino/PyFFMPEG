@@ -145,7 +145,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         # Applications tab widgets
         self.default_app_combo: QComboBox
         self.launch_terminal_check: QCheckBox
-        self.association_combos: dict[str, QComboBox] = {}  # Initialized then populated in create_associations_widget
+        self.association_combos: dict[str, QComboBox]  # Populated in create_associations_widget
         self.associations_widget: QWidget
         self.launchers_edit: QTextEdit
         self.edit_launchers_btn: QPushButton
@@ -467,8 +467,8 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         layout.addWidget(QLabel("File Type"), 0, 0)
         layout.addWidget(QLabel("Application"), 0, 1)
 
-        # Store association controls
-        self.association_combos: dict[str, QComboBox] = {}
+        # Initialize association controls
+        self.association_combos = {}
 
         # Create rows for each file type
         row = 1
@@ -582,12 +582,12 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.button_box.clicked.connect(self.handle_button_click)
 
         # Setting change signals for live preview
-        self.thumbnail_size_slider.valueChanged.connect(self.update_thumbnail_preview)
-        self.dark_theme_check.toggled.connect(self.preview_theme_change)
+        self.thumbnail_size_slider.valueChanged.connect(self.update_thumbnail_preview)  # pyright: ignore[reportAny]
+        self.dark_theme_check.toggled.connect(self.preview_theme_change)  # pyright: ignore[reportAny]
 
         # Validation signals
-        self.validate_launchers_btn.clicked.connect(self.validate_custom_launchers)
-        self.edit_launchers_btn.clicked.connect(self.edit_custom_launchers)
+        self.validate_launchers_btn.clicked.connect(self.validate_custom_launchers)  # pyright: ignore[reportAny]
+        self.edit_launchers_btn.clicked.connect(self.edit_custom_launchers)  # pyright: ignore[reportAny]
 
     def set_initial_tab(self, tab_name: str) -> None:
         """Set the initial tab to display."""
@@ -600,7 +600,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         """Load current settings into the dialog controls."""
         # General tab
         self.thumbnail_size_slider.setValue(self.settings_manager.get_thumbnail_size())
-        self.update_thumbnail_preview()
+        self.update_thumbnail_preview()  # pyright: ignore[reportAny]
 
         self.grid_columns_spin.setValue(self.settings_manager.get_grid_columns())
         self.dark_theme_check.setChecked(self.settings_manager.get_dark_theme())
@@ -647,7 +647,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.debug_mode_check.setChecked(self.settings_manager.get_debug_mode())
         self.log_level_combo.setCurrentText(self.settings_manager.get_log_level())
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def update_thumbnail_preview(self) -> None:
         """Update thumbnail size preview label."""
         size = self.thumbnail_size_slider.value()
@@ -656,13 +656,13 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         # Emit preview signal
         self.settings_changed.emit("thumbnail_size_preview", size)
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def preview_theme_change(self) -> None:
         """Preview theme change."""
         dark_enabled = self.dark_theme_check.isChecked()
         self.settings_changed.emit("dark_theme_preview", dark_enabled)
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def validate_custom_launchers(self) -> None:
         """Validate custom launchers JSON."""
         try:
@@ -676,7 +676,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         except json.JSONDecodeError as e:
             QMessageBox.warning(self, "Validation Error", f"Invalid JSON format:\n{e}")
 
-    @Slot()
+    @Slot()  # pyright: ignore[reportAny]
     def edit_custom_launchers(self) -> None:
         """Open custom launchers editor."""
         # TODO: Implement launcher editor dialog
@@ -844,7 +844,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
             text = self.launchers_edit.toPlainText().strip()
             if text:
                 # Parse JSON - returns Any but we validate types below
-                parsed_data: Any = json.loads(text)  # pyright: ignore[reportExplicitAny]
+                parsed_data: Any = json.loads(text)  # pyright: ignore[reportExplicitAny,reportAny]
                 # Handle both dict and list formats
                 launchers: list[dict[str, object]] = []
                 if isinstance(parsed_data, list):

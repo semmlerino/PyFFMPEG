@@ -78,7 +78,7 @@ class AsyncShotLoader(ThreadSafeWorker):
         self.process_pool = process_pool
         self.parse_function = parse_function  # Use base class's parse method
 
-    @Slot()  # type: ignore[misc]
+    @Slot()  # pyright: ignore[reportAny]
     def run(self) -> None:
         """Load shots in background thread.
 
@@ -250,20 +250,20 @@ class ShotModel(BaseShotModel):
             )
             # Signal.connect() cannot infer list element type from Signal(list)
             self._async_loader.shots_loaded.connect(
-                self._on_shots_loaded, Qt.ConnectionType.QueuedConnection  # type: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+                self._on_shots_loaded, Qt.ConnectionType.QueuedConnection  # pyright: ignore[reportAny]
             )
             self._async_loader.load_failed.connect(
-                self._on_load_failed, Qt.ConnectionType.QueuedConnection  # type: ignore[misc]
+                self._on_load_failed, Qt.ConnectionType.QueuedConnection  # pyright: ignore[reportAny]
             )
             self._async_loader.finished.connect(
-                self._on_loader_finished, Qt.ConnectionType.QueuedConnection  # type: ignore[misc]
+                self._on_loader_finished, Qt.ConnectionType.QueuedConnection  # pyright: ignore[reportAny]
             )
 
             # Start background loading
             self._async_loader.start()
             self.logger.info("Started background shot loading")
 
-    @Slot(list)  # type: ignore[misc]
+    @Slot(list)  # pyright: ignore[reportAny]
     def _on_shots_loaded(self, new_shots: list[Shot]) -> None:
         """Handle shots loaded in background.
 
@@ -297,7 +297,7 @@ class ShotModel(BaseShotModel):
 
         self.refresh_finished.emit(True, has_changes)
 
-    @Slot(str)  # type: ignore[misc]
+    @Slot(str)  # pyright: ignore[reportAny]
     def _on_load_failed(self, error_msg: str) -> None:
         """Handle background load failure.
 
@@ -308,7 +308,7 @@ class ShotModel(BaseShotModel):
         self.error_occurred.emit(error_msg)
         self.refresh_finished.emit(False, False)
 
-    @Slot()  # type: ignore[misc]
+    @Slot()  # pyright: ignore[reportAny]
     def _on_loader_finished(self) -> None:
         """Handle loader thread completion.
 
