@@ -31,10 +31,12 @@ class FilesystemCoordinator(LoggingMixin):
     def __init__(self) -> None:
         """Initialize the coordinator.
 
-        For singleton pattern, this will only set up attributes once.
-        Subsequent calls will reinitialize but that's acceptable for
-        the simple attributes we have.
+        For singleton pattern, only initialize once even if called multiple times.
         """
+        # Skip initialization if already done (singleton pattern)
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+
         super().__init__()
 
         # Cache: path -> (listing, timestamp)
@@ -42,6 +44,7 @@ class FilesystemCoordinator(LoggingMixin):
         self._ttl_seconds: int = 300  # 5 minutes TTL for cached listings
         self._cache_hits: int = 0
         self._cache_misses: int = 0
+        self._initialized: bool = True
 
         self.logger.debug(
             f"FilesystemCoordinator initialized with {self._ttl_seconds}s TTL"
