@@ -98,7 +98,8 @@ class ThreeDEGridDelegate(BaseThumbnailDelegate):
         # ModifiedTimeRole returns float (Unix timestamp) or 0.0
         timestamp_str = ""
         # Qt's index.data() returns Any - type checked at runtime
-        timestamp_data = index.data(ThreeDERole.ModifiedTimeRole)  # type: ignore[reportAny]
+        # Note: ThreeDERole is an alias to BaseItemRole, basedpyright can't infer attributes through the alias
+        timestamp_data = index.data(ThreeDERole.ModifiedTimeRole)  # type: ignore[reportAny]  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
         if timestamp_data and isinstance(timestamp_data, float | int):
             try:
                 # Convert Unix timestamp to datetime

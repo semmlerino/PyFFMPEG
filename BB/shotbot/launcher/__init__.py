@@ -23,9 +23,9 @@ try:
     from launcher.process_manager import LauncherProcessManager
     from launcher.worker import LauncherWorker
 
-    _QT_AVAILABLE = True
+    _qt_available = True
 except ImportError:
-    _QT_AVAILABLE = False
+    _qt_available = False
     LauncherProcessManager = None
     LauncherWorker = None
 
@@ -43,7 +43,7 @@ __all__ = [
 ]
 
 # Add Qt components if available
-if _QT_AVAILABLE:
+if _qt_available:
     __all__.extend(["LauncherProcessManager", "LauncherWorker"])
 
 __version__ = "1.0.0"
