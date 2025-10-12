@@ -105,11 +105,17 @@ class CacheManager(LoggingMixin, QObject):
 
         # Setup cache directory
         if cache_dir is None:
+            # Standard library imports
+            import sys
+
             # Use default cache location based on mode
-            if os.getenv("SHOTBOT_MODE") == "mock":
+            # Detect pytest automatically (takes highest priority)
+            is_pytest = "pytest" in sys.modules
+
+            if is_pytest or os.getenv("SHOTBOT_MODE") == "test":
+                cache_dir = Path.home() / ".shotbot" / "cache_test"
+            elif os.getenv("SHOTBOT_MODE") == "mock":
                 cache_dir = Path.home() / ".shotbot" / "cache" / "mock"
-            elif os.getenv("SHOTBOT_MODE") == "test":
-                cache_dir = Path.home() / ".shotbot" / "cache" / "test"
             else:
                 cache_dir = Path.home() / ".shotbot" / "cache" / "production"
         self.cache_dir = Path(cache_dir)
