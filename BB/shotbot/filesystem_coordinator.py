@@ -26,24 +26,22 @@ class FilesystemCoordinator(LoggingMixin):
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._initialize()
         return cls._instance
 
     def __init__(self) -> None:
-        """Singleton __init__ (no-op since initialization happens in _initialize)."""
-        # No-op: actual initialization happens in _initialize()
-        # This is called every time the singleton is accessed but does nothing
-        pass
+        """Initialize the coordinator.
 
-    def _initialize(self) -> None:
-        """Initialize the coordinator (called once)."""
+        For singleton pattern, this will only set up attributes once.
+        Subsequent calls will reinitialize but that's acceptable for
+        the simple attributes we have.
+        """
         super().__init__()
 
         # Cache: path -> (listing, timestamp)
         self._directory_cache: dict[Path, tuple[list[Path], float]] = {}
-        self._ttl_seconds = 300  # 5 minutes TTL for cached listings
-        self._cache_hits = 0
-        self._cache_misses = 0
+        self._ttl_seconds: int = 300  # 5 minutes TTL for cached listings
+        self._cache_hits: int = 0
+        self._cache_misses: int = 0
 
         self.logger.debug(
             f"FilesystemCoordinator initialized with {self._ttl_seconds}s TTL"

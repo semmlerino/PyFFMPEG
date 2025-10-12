@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QCloseEvent, QShortcut
+from PySide6.QtGui import QCloseEvent, QKeyEvent, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -426,6 +426,19 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[
         except Exception as e:
             NotificationManager.error("Save Error", f"Error saving launcher: {str(e)}")
 
+    # Override mixin event handlers with proper keyword parameter signatures
+    @override
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Handle close event with cleanup."""
+        # Call parent implementation from QtWidgetMixin
+        super().closeEvent(event)
+
+    @override
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle key press events with standard shortcuts."""
+        # Call parent implementation from QtWidgetMixin
+        super().keyPressEvent(event)
+
 
 class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc]
     """Main launcher management dialog."""
@@ -779,6 +792,13 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: igno
                 self.logger.info(f"Successfully launched: {launcher.name}")
             else:
                 self.logger.error(f"Failed to launch: {launcher.name}")
+
+    # Override mixin event handlers with proper keyword parameter signatures
+    @override
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle key press events with standard shortcuts."""
+        # Call parent implementation from QtWidgetMixin
+        super().keyPressEvent(event)
 
     @override
     def closeEvent(self, event: QCloseEvent) -> None:

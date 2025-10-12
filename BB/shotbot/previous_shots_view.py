@@ -75,6 +75,12 @@ class PreviousShotsView(BaseGridView):
             model: Optional previous shots item model
             parent: Optional parent widget
         """
+        # Initialize instance variables before super().__init__()
+        # These are set in methods called during base class initialization
+        self._update_timer: QTimer | None = None
+        self._status_label: QLabel | None = None
+        self._refresh_button: QPushButton | None = None
+
         # Initialize base class
         super().__init__(parent)
 
@@ -235,6 +241,7 @@ class PreviousShotsView(BaseGridView):
         self.logger.debug("Refresh button clicked")
 
         if self._unified_model:
+            assert self._refresh_button is not None
             self._refresh_button.setEnabled(False)
             self._refresh_button.setText("Scanning...")
             self._unified_model.refresh()
@@ -242,6 +249,8 @@ class PreviousShotsView(BaseGridView):
     @Slot()  # pyright: ignore[reportAny]
     def _on_scan_started(self) -> None:
         """Handle scan start."""
+        assert self._refresh_button is not None
+        assert self._status_label is not None
         self._refresh_button.setEnabled(False)
         self._refresh_button.setText("Scanning...")
         self._status_label.setText("Scanning for approved shots...")
@@ -256,6 +265,7 @@ class PreviousShotsView(BaseGridView):
         ProgressManager.finish_operation(success=True)
 
         # Reset UI state
+        assert self._refresh_button is not None
         self._refresh_button.setEnabled(True)
         self._refresh_button.setText("Refresh")
 
@@ -270,12 +280,14 @@ class PreviousShotsView(BaseGridView):
             total: Total progress value
         """
         if total > 0:
+            assert self._status_label is not None
             percent = int((current / total) * 100)
             self._status_label.setText(f"Scanning... {percent}%")
 
     def _update_status(self) -> None:
         """Update the status label with shot count."""
         if self._unified_model:
+            assert self._status_label is not None
             shot_count = self._unified_model.rowCount()
             self._status_label.setText(f"Approved Shots ({shot_count})")
 
@@ -473,6 +485,7 @@ class PreviousShotsView(BaseGridView):
         the updates for better performance.
         """
         # Cancel any pending update
+        assert self._update_timer is not None
         self._update_timer.stop()
         # Schedule update after 50ms of no scrolling
         self._update_timer.start(50)
@@ -484,7 +497,7 @@ class PreviousShotsView(BaseGridView):
             event: Close event
         """
         # Stop the update timer to prevent memory leaks
-        if hasattr(self, "_update_timer"):
+        if self._update_timer is not None:
             self._update_timer.stop()
 
         # Call parent implementation

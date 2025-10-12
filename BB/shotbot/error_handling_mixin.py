@@ -92,7 +92,7 @@ class ErrorHandlingMixin(LoggingMixin):
                 self.logger.error(f"{op_name} failed: {e}")
 
                 # Log traceback at debug level
-                if self.logger.logger.isEnabledFor(logging.DEBUG):  # type: ignore[attr-defined]
+                if self.logger.isEnabledFor(logging.DEBUG):
                     self.logger.debug(f"Traceback:\n{traceback.format_exc()}")
 
             if _reraise:
@@ -160,7 +160,7 @@ class ErrorHandlingMixin(LoggingMixin):
         except Exception as e:
             if log_error:
                 self.logger.error(f"File operation failed for {path}: {e}")
-                if self.logger.logger.isEnabledFor(logging.DEBUG):  # type: ignore[attr-defined]
+                if self.logger.isEnabledFor(logging.DEBUG):
                     self.logger.debug(f"Traceback:\n{traceback.format_exc()}")
             return default
 
@@ -355,6 +355,7 @@ class ErrorAggregator:
         Args:
             logger: Logger instance (uses module logger if not provided)
         """
+        super().__init__()
         self.errors: list[tuple[str, Exception]] = []
         self.logger = logger or logging.getLogger(__name__)
 

@@ -9,11 +9,19 @@ from __future__ import annotations
 # Standard library imports
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 # Local application imports
 from launcher.models import CustomLauncher
 from logging_mixin import LoggingMixin
+
+
+class ConfigData(TypedDict):
+    """Type definition for configuration data structure."""
+
+    version: str
+    launchers: dict[str, dict[str, Any]]
+    terminal_preferences: list[str]
 
 
 class LauncherConfigManager(LoggingMixin):
@@ -48,8 +56,9 @@ class LauncherConfigManager(LoggingMixin):
             with open(self.config_file) as f:
                 data: dict[str, Any] = json.load(f)
 
-            launchers: dict[str, Any] = {}
-            for launcher_id, launcher_data in data.get("launchers", {}).items():
+            launchers: dict[str, CustomLauncher] = {}
+            raw_launchers: dict[str, Any] = data.get("launchers", {})
+            for launcher_id, launcher_data in raw_launchers.items():
                 launcher_data["id"] = launcher_id
                 launchers[launcher_id] = CustomLauncher.from_dict(launcher_data)
 
@@ -63,7 +72,7 @@ class LauncherConfigManager(LoggingMixin):
     def save_launchers(self, launchers: dict[str, CustomLauncher]) -> bool:
         """Save launchers to configuration file."""
         try:
-            config_data = {
+            config_data: ConfigData = {
                 "version": "1.0",
                 "launchers": {},
                 "terminal_preferences": ["gnome-terminal", "konsole", "xterm"],

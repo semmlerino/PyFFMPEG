@@ -24,6 +24,10 @@ if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Generator
 
+    # Local application imports - TYPE_CHECKING to break import cycles
+    from filesystem_coordinator import FilesystemCoordinator
+    from scene_parser import SceneParser
+
 
 class DirectoryCache(LoggingMixin):
     """Thread-safe directory listing cache with TTL.
@@ -165,10 +169,9 @@ class FileSystemScanner(LoggingMixin):
     def __init__(self) -> None:
         """Initialize FileSystemScanner."""
         super().__init__()
-        # Import here to avoid circular dependency
-        from filesystem_coordinator import FilesystemCoordinator
-
-        self._fs_coordinator = FilesystemCoordinator()
+        # Lazy imports to avoid circular dependencies - imported at runtime
+        self._fs_coordinator: FilesystemCoordinator | None = None
+        self.parser: SceneParser | None = None
 
     @classmethod
     def get_cache_stats(cls) -> dict[str, int]:
@@ -195,6 +198,12 @@ class FileSystemScanner(LoggingMixin):
 
         Returns list of tuples: (name, is_dir, is_file)
         """
+        # Lazy import to avoid circular dependency
+        if self._fs_coordinator is None:
+            from filesystem_coordinator import FilesystemCoordinator
+
+            self._fs_coordinator = FilesystemCoordinator()
+
         # Use FilesystemCoordinator for shared caching across workers
         raw_listing = self._fs_coordinator.get_directory_listing(path)
 
@@ -613,10 +622,10 @@ class FileSystemScanner(LoggingMixin):
         import subprocess
         import traceback
 
-        # Local application imports
-        from scene_parser import SceneParser
+        # Lazy import to avoid circular dependency
+        if self.parser is None:
+            from scene_parser import SceneParser
 
-        if not hasattr(self, "parser"):
             self.parser = SceneParser()
 
         self.logger.info(
@@ -796,10 +805,10 @@ class FileSystemScanner(LoggingMixin):
         This uses a more efficient approach than the original by using
         glob patterns directly on the shots directory.
         """
-        # Local application imports
-        from scene_parser import SceneParser
+        # Lazy import to avoid circular dependency
+        if self.parser is None:
+            from scene_parser import SceneParser
 
-        if not hasattr(self, "parser"):
             self.parser = SceneParser()
 
         results: list[tuple[Path, str, str, str, str, str]] = []

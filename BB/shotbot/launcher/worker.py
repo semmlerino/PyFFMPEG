@@ -50,7 +50,7 @@ class LauncherWorker(ThreadSafeWorker):
         self.launcher_id = launcher_id
         self.command = command
         self.working_dir = working_dir
-        self._process: subprocess.Popen[str] | None = None
+        self._process: subprocess.Popen[bytes] | None = None
 
     def _sanitize_command(self, command: str) -> tuple[list[str], bool]:
         """Safely parse and validate command to prevent shell injection.
@@ -166,10 +166,10 @@ class LauncherWorker(ThreadSafeWorker):
             )
 
             # Parse command properly to avoid shell injection
-            # Use shlex to split if it's a string command
+            # Security: Parse and validate command to prevent injection
+            # Note: command is always str (type hint in __init__), but keeping
+            # this check for runtime safety in case it's used differently later
             if isinstance(self.command, str):
-                # Security: Parse and validate command to prevent injection
-
                 # Sanitize and validate the command
                 cmd_list, use_shell = self._sanitize_command(self.command)
             else:
@@ -193,12 +193,14 @@ class LauncherWorker(ThreadSafeWorker):
                 if stream is None:
                     return
                 try:
-                    for line in stream:
+                    for _ in stream:
                         pass  # Discard output
                 except Exception:
                     pass  # Stream closed or process terminated
 
             # Start daemon threads to drain stdout and stderr
+            # Type guard: _process is guaranteed to be non-None after Popen() call
+            assert self._process is not None
             stdout_thread = threading.Thread(
                 target=drain_stream, args=(self._process.stdout,), daemon=True
             )
@@ -212,6 +214,8 @@ class LauncherWorker(ThreadSafeWorker):
             while not self.is_stop_requested():
                 try:
                     # Check if process finished with timeout
+                    # Type guard: _process is guaranteed to be non-None at this point
+                    assert self._process is not None
                     return_code = self._process.wait(timeout=1.0)
                     # Process finished normally
                     success = return_code == 0
