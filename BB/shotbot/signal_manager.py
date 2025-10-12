@@ -27,7 +27,7 @@ from __future__ import annotations
 
 # Standard library imports
 import weakref
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast
 
 # Third-party imports
 from PySide6.QtCore import QObject, Qt, Signal
@@ -41,6 +41,22 @@ if TYPE_CHECKING:
 
     # Third-party imports
     from PySide6.QtCore import SignalInstance
+
+
+class LoggerProtocol(Protocol):
+    """Protocol for logger objects."""
+
+    def debug(self, msg: str) -> None:
+        """Log debug message."""
+        ...
+
+    def warning(self, msg: str) -> None:
+        """Log warning message."""
+        ...
+
+    def error(self, msg: str) -> None:
+        """Log error message."""
+        ...
 
 
 class SignalManager(LoggingMixin):
@@ -60,9 +76,10 @@ class SignalManager(LoggingMixin):
         Args:
             owner: The QObject that owns these connections
         """
+        super().__init__()
         self.owner_ref = weakref.ref(owner)
-        self._connections: list[tuple[object, object, Qt.ConnectionType | None]] = []
-        self._signal_chains: list[tuple[object, object]] = []
+        self._connections: list[tuple[SignalInstance, object, Qt.ConnectionType | None]] = []
+        self._signal_chains: list[tuple[SignalInstance, SignalInstance]] = []
 
     @property
     def owner(self) -> QObject | None:
@@ -71,7 +88,7 @@ class SignalManager(LoggingMixin):
 
     def connect_safely(
         self,
-        signal: Signal | SignalInstance,
+        signal: SignalInstance,
         slot: Callable[..., object],
         connection_type: Qt.ConnectionType | None = None,
         track: bool = True,
@@ -90,9 +107,9 @@ class SignalManager(LoggingMixin):
         try:
             # Connect based on connection type
             if connection_type is not None:
-                signal.connect(slot, connection_type)  # type: ignore[attr-defined]
+                signal.connect(slot, connection_type)
             else:
-                signal.connect(slot)  # type: ignore[attr-defined]
+                signal.connect(slot)
 
             # Track the connection if requested
             if track:
@@ -108,7 +125,7 @@ class SignalManager(LoggingMixin):
             return False
 
     def disconnect_safely(
-        self, signal: Signal | SignalInstance, slot: Callable[..., object]
+        self, signal: SignalInstance, slot: Callable[..., object]
     ) -> bool:
         """Safely disconnect a signal from a slot.
 
@@ -120,7 +137,7 @@ class SignalManager(LoggingMixin):
             True if disconnection succeeded
         """
         try:
-            signal.disconnect(slot)  # type: ignore[attr-defined]
+            signal.disconnect(slot)
 
             # Remove from tracking
             self._connections = [
@@ -178,8 +195,8 @@ class SignalManager(LoggingMixin):
 
     def chain_signals(
         self,
-        source_signal: Signal | SignalInstance,
-        target_signal: Signal | SignalInstance,
+        source_signal: SignalInstance,
+        target_signal: SignalInstance,
         connection_type: Qt.ConnectionType | None = None,
     ) -> bool:
         """Chain one signal to another.
@@ -197,9 +214,9 @@ class SignalManager(LoggingMixin):
         try:
             # For signal chaining, we connect to the emit method
             if connection_type is not None:
-                source_signal.connect(target_signal.emit, connection_type)  # type: ignore[attr-defined]
+                source_signal.connect(target_signal.emit, connection_type)
             else:
-                source_signal.connect(target_signal.emit)  # type: ignore[attr-defined]
+                source_signal.connect(target_signal.emit)
 
             self._signal_chains.append((source_signal, target_signal))
             self.logger.debug(f"Chained {source_signal} -> {target_signal}")
@@ -211,7 +228,7 @@ class SignalManager(LoggingMixin):
 
     def connect_group(
         self,
-        connections: list[tuple[Signal | SignalInstance, Callable[..., object]]],
+        connections: list[tuple[SignalInstance, Callable[..., object]]],
         connection_type: Qt.ConnectionType | None = None,
     ) -> int:
         """Connect multiple signal-slot pairs at once.
@@ -287,8 +304,8 @@ class SignalManager(LoggingMixin):
 
         for signal_name, handler in handlers.items():
             if hasattr(worker, signal_name):
-                signal = getattr(worker, signal_name)  # type: ignore[reportAny]
-                if self.connect_safely(signal, handler, connection_type):  # type: ignore[reportUnknownArgumentType]
+                signal = cast("SignalInstance", getattr(worker, signal_name))
+                if self.connect_safely(signal, handler, connection_type):
                     connected += 1
             else:
                 self.logger.warning(f"Worker has no signal named {signal_name}")
@@ -306,7 +323,7 @@ class SignalManager(LoggingMixin):
 
     def create_delayed_connection(
         self,
-        signal: Signal | SignalInstance,
+        signal: SignalInstance,
         slot: Callable[..., object],
         delay_ms: int = 100,
     ) -> bool:
@@ -335,13 +352,14 @@ class SignalManager(LoggingMixin):
 class BlockedSignalsContext:
     """Context manager for temporarily blocking Qt signals."""
 
-    def __init__(self, objects: list[QObject], logger: object = None) -> None:
+    def __init__(self, objects: list[QObject], logger: LoggerProtocol | None = None) -> None:
         """Initialize context.
 
         Args:
             objects: Objects to block signals on
             logger: Optional logger (any logger-like object)
         """
+        super().__init__()
         self.objects = objects
         self.logger = logger
         self._previous_states: list[bool] = []
@@ -354,8 +372,8 @@ class BlockedSignalsContext:
                 self._previous_states.append(obj.signalsBlocked())
                 obj.blockSignals(True)
 
-        if self.logger and hasattr(self.logger, "debug"):
-            self.logger.debug(f"Blocked signals for {len(self.objects)} objects")  # type: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
+        if self.logger:
+            self.logger.debug(f"Blocked signals for {len(self.objects)} objects")
 
         return self
 
@@ -365,8 +383,8 @@ class BlockedSignalsContext:
             if obj:
                 obj.blockSignals(was_blocked)
 
-        if self.logger and hasattr(self.logger, "debug"):
-            self.logger.debug(f"Restored signal states for {len(self.objects)} objects")  # type: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
+        if self.logger:
+            self.logger.debug(f"Restored signal states for {len(self.objects)} objects")
 
 
 class SignalThrottler(QObject):
@@ -381,7 +399,7 @@ class SignalThrottler(QObject):
 
     def __init__(
         self,
-        source_signal: Signal | SignalInstance,
+        source_signal: SignalInstance,
         interval_ms: int = 100,
         parent: QObject | None = None,
     ) -> None:
@@ -404,7 +422,7 @@ class SignalThrottler(QObject):
         self._timer.timeout.connect(self._emit_throttled)
 
         # Connect source signal
-        source_signal.connect(self._on_source_signal)  # type: ignore[attr-defined]
+        source_signal.connect(self._on_source_signal)
 
     def _on_source_signal(self, *args: object) -> None:
         """Handle source signal emission."""
@@ -423,7 +441,7 @@ class SignalThrottler(QObject):
         """Stop throttling and disconnect."""
         self._timer.stop()
         try:
-            self.source_signal.disconnect(self._on_source_signal)  # type: ignore[attr-defined]
+            self.source_signal.disconnect(self._on_source_signal)
         except Exception:
             pass
 
@@ -440,12 +458,13 @@ class SignalDebugger(LoggingMixin):
         Args:
             enabled: Whether debugging is enabled
         """
+        super().__init__()
         self.enabled = enabled
         self._signal_counts: dict[str, int] = {}
 
     def trace_signal(
         self,
-        signal: Signal | SignalInstance,
+        signal: SignalInstance,
         signal_name: str = "unknown",
     ) -> None:
         """Trace a signal's emissions.
@@ -467,7 +486,7 @@ class SignalDebugger(LoggingMixin):
             args_str = ", ".join(str(arg) for arg in args) if args else "no args"
             self.logger.debug(f"Signal {signal_name}[{count}]: {args_str}")
 
-        signal.connect(trace_handler)  # type: ignore[attr-defined]
+        signal.connect(trace_handler)
 
     def get_stats(self) -> dict[str, int]:
         """Get signal emission statistics."""

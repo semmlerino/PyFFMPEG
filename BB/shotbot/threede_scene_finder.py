@@ -13,45 +13,28 @@ Performance improvements:
 - Memory-efficient processing with generators
 """
 
+from __future__ import annotations
+
+# Standard library imports
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Local application imports
+    from filesystem_scanner import DirectoryCache as DirectoryCache  # noqa: F401
+
 # Local application imports
 # Import the optimized implementation
-from threede_scene_finder_optimized import (
-    DirectoryCache,
-    OptimizedThreeDESceneFinder,
-    logger,
-)
-from threede_scene_model import ThreeDEScene
+from threede_scene_finder_optimized import OptimizedThreeDESceneFinder, logger
 
 # Re-export with original class name for backward compatibility
 ThreeDESceneFinder = OptimizedThreeDESceneFinder
 
-# Also export other components that might be imported
-__all__ = ["ThreeDESceneFinder", "ThreeDEScene", "DirectoryCache"]
+# Re-export DirectoryCache from filesystem_scanner for backward compatibility
+from filesystem_scanner import DirectoryCache as DirectoryCache  # noqa: F401
 
-# Add class methods for cache management (if not already present)
-if not hasattr(ThreeDESceneFinder, "get_cache_stats"):
-    # Try to add cache methods dynamically, but ignore type errors
-    try:
-
-        @classmethod
-        def get_cache_stats(cls: type[ThreeDESceneFinder]) -> dict[str, int]:
-            """Get cache statistics for monitoring."""
-            if hasattr(cls, "_directory_cache"):
-                return cls._directory_cache.get_stats()  # type: ignore[reportUnknownMemberType]
-            return {"hits": 0, "misses": 0, "evictions": 0}
-
-        @classmethod
-        def clear_cache(cls: type[ThreeDESceneFinder]) -> None:
-            """Clear the directory cache."""
-            if hasattr(cls, "_directory_cache"):
-                cls._directory_cache.cache.clear()  # type: ignore[reportUnknownMemberType]
-                cls._directory_cache.timestamps.clear()  # type: ignore[reportUnknownMemberType]
-
-        # Assign as class methods - type checker may complain but it works at runtime
-        setattr(ThreeDESceneFinder, "get_cache_stats", get_cache_stats)
-        setattr(ThreeDESceneFinder, "clear_cache", clear_cache)
-    except Exception as e:
-        logger.debug(f"Could not add cache methods dynamically: {e}")
+# Note: ThreeDEScene should be imported from threede_scene_model directly
+# to avoid import cycles. It's not re-exported here.
+__all__ = ["ThreeDESceneFinder", "DirectoryCache"]
 
 # Log that optimized version is loaded
 logger.info(

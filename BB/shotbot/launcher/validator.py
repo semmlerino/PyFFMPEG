@@ -12,7 +12,7 @@ import re
 import string
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # Local application imports
 from config import Config
@@ -21,13 +21,7 @@ from logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     # Local application imports
     from launcher.models import CustomLauncher, LauncherEnvironment
-
-# Import Shot conditionally since it requires Qt
-try:
-    # Local application imports
     from shot_model import Shot
-except ImportError:
-    Shot = None
 
 
 class LauncherValidator(LoggingMixin):
@@ -81,7 +75,7 @@ class LauncherValidator(LoggingMixin):
         Returns:
             List of validation error messages
         """
-        errors = []
+        errors: list[str] = []
 
         # Validate name
         if not name or not name.strip():
@@ -114,7 +108,7 @@ class LauncherValidator(LoggingMixin):
         Returns:
             List of security-related error messages
         """
-        errors = []
+        errors: list[str] = []
         cmd_lower = command.lower()
 
         for pattern in self.security_patterns:
@@ -168,7 +162,7 @@ class LauncherValidator(LoggingMixin):
             template = string.Template(command)
 
             # Extract all placeholders from the command
-            placeholders = set()
+            placeholders: set[str] = set()
 
             # Find all $identifier and ${identifier} patterns
             for match in re.finditer(r"\$(?:(\w+)|\{(\w+)\})", command):
@@ -177,7 +171,7 @@ class LauncherValidator(LoggingMixin):
                     placeholders.add(placeholder)
 
             # Check for invalid variable names
-            invalid_vars = placeholders - self.valid_variables
+            invalid_vars: set[str] = placeholders - self.valid_variables
             if invalid_vars:
                 invalid_list = ", ".join(sorted(invalid_vars))
                 valid_list = ", ".join(sorted(self.valid_variables))
@@ -201,7 +195,7 @@ class LauncherValidator(LoggingMixin):
     def validate_launcher_paths(
         self,
         launcher: CustomLauncher,
-        shot_context: dict[str, str | None] = None,
+        shot_context: dict[str, str | None] | None = None,
     ) -> tuple[bool, list[str]]:
         """Validate that required paths exist for the launcher.
 
@@ -212,7 +206,7 @@ class LauncherValidator(LoggingMixin):
         Returns:
             Tuple of (all_valid, list_of_missing_paths)
         """
-        missing_paths = []
+        missing_paths: list[str] = []
 
         # Check required files from validation settings
         if launcher.validation.required_files:
@@ -316,7 +310,7 @@ class LauncherValidator(LoggingMixin):
         Returns:
             Tuple of (is_valid, list_of_errors)
         """
-        errors = []
+        errors: list[str] = []
 
         # Validate basic data
         if existing_launchers:
@@ -354,7 +348,7 @@ class LauncherValidator(LoggingMixin):
 
         return len(errors) == 0, errors
 
-    def validate_process_startup(self, process: subprocess.Popen[Any]) -> bool:
+    def validate_process_startup(self, process: subprocess.Popen[bytes]) -> bool:
         """Validate that a process has started successfully.
 
         Args:
@@ -380,8 +374,8 @@ class LauncherValidator(LoggingMixin):
     def substitute_variables(
         self,
         text: str,
-        shot: Any | None = None,  # Shot type when Qt available
-        custom_vars: dict[str, str | None] = None,
+        shot: Shot | None = None,
+        custom_vars: dict[str, str | None] | None = None,
     ) -> str:
         """Perform variable substitution in text.
 
@@ -397,7 +391,7 @@ class LauncherValidator(LoggingMixin):
             return text
 
         # Build substitution context
-        context = {}
+        context: dict[str, str | None] = {}
 
         # Add shot context variables
         if shot:

@@ -25,6 +25,7 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
+from types import TracebackType
 from typing import TYPE_CHECKING, TypeVar, cast
 
 # Third-party imports
@@ -32,7 +33,14 @@ from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
     # Standard library imports
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Generator, Mapping
+
+# Type aliases matching logging module
+_SysExcInfoType = (
+    tuple[type[BaseException], BaseException, TracebackType | None]
+    | tuple[None, None, None]
+)
+_ExcInfoType = None | bool | _SysExcInfoType | BaseException
 
 # Type variables for generic decorator
 P = ParamSpec("P")
@@ -78,7 +86,7 @@ def _manage_log_context(**kwargs: str) -> Generator[None, None, None]:
 class ContextualLogger:
     """Enhanced logger wrapper that supports structured context."""
 
-    def __init__(self, logger: logging.Logger) -> None:
+    def __init__(self, logger: logging.Logger) -> None:  # pyright: ignore[reportMissingSuperCall]
         self._logger = logger
         self._lock = threading.RLock()
 
@@ -90,29 +98,119 @@ class ContextualLogger:
             return f"[{context_str}] {msg}"
         return msg
 
-    def debug(self, msg: str, *args: object, **kwargs: object) -> None:
+    def debug(
+        self,
+        msg: str,
+        *args: object,
+        exc_info: _ExcInfoType = None,
+        stack_info: bool = False,
+        stacklevel: int = 1,
+        extra: Mapping[str, object] | None = None,
+    ) -> None:
         """Log debug message with context."""
-        self._logger.debug(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
+        self._logger.debug(
+            self._format_message(msg),
+            *args,
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
+        )
 
-    def info(self, msg: str, *args: object, **kwargs: object) -> None:
+    def info(
+        self,
+        msg: str,
+        *args: object,
+        exc_info: _ExcInfoType = None,
+        stack_info: bool = False,
+        stacklevel: int = 1,
+        extra: Mapping[str, object] | None = None,
+    ) -> None:
         """Log info message with context."""
-        self._logger.info(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
+        self._logger.info(
+            self._format_message(msg),
+            *args,
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
+        )
 
-    def warning(self, msg: str, *args: object, **kwargs: object) -> None:
+    def warning(
+        self,
+        msg: str,
+        *args: object,
+        exc_info: _ExcInfoType = None,
+        stack_info: bool = False,
+        stacklevel: int = 1,
+        extra: Mapping[str, object] | None = None,
+    ) -> None:
         """Log warning message with context."""
-        self._logger.warning(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
+        self._logger.warning(
+            self._format_message(msg),
+            *args,
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
+        )
 
-    def error(self, msg: str, *args: object, **kwargs: object) -> None:
+    def error(
+        self,
+        msg: str,
+        *args: object,
+        exc_info: _ExcInfoType = None,
+        stack_info: bool = False,
+        stacklevel: int = 1,
+        extra: Mapping[str, object] | None = None,
+    ) -> None:
         """Log error message with context."""
-        self._logger.error(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
+        self._logger.error(
+            self._format_message(msg),
+            *args,
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
+        )
 
-    def critical(self, msg: str, *args: object, **kwargs: object) -> None:
+    def critical(
+        self,
+        msg: str,
+        *args: object,
+        exc_info: _ExcInfoType = None,
+        stack_info: bool = False,
+        stacklevel: int = 1,
+        extra: Mapping[str, object] | None = None,
+    ) -> None:
         """Log critical message with context."""
-        self._logger.critical(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
+        self._logger.critical(
+            self._format_message(msg),
+            *args,
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
+        )
 
-    def exception(self, msg: str, *args: object, **kwargs: object) -> None:
+    def exception(
+        self,
+        msg: str,
+        *args: object,
+        exc_info: _ExcInfoType = None,
+        stack_info: bool = False,
+        stacklevel: int = 1,
+        extra: Mapping[str, object] | None = None,
+    ) -> None:
         """Log exception message with context."""
-        self._logger.exception(self._format_message(msg), *args, **kwargs)  # type: ignore[arg-type]
+        self._logger.exception(
+            self._format_message(msg),
+            *args,
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
+        )
 
     def isEnabledFor(self, level: int) -> bool:
         """Check if the logger is enabled for the specified level.
@@ -213,8 +311,13 @@ def log_execution(
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Get logger - try to use instance logger if available, otherwise module logger
             logger: ContextualLogger
-            if args and hasattr(args[0], "logger") and hasattr(args[0].logger, "info"):  # type: ignore[attr-defined]
-                logger = cast("ContextualLogger", args[0].logger)  # type: ignore[attr-defined]
+            if args and hasattr(args[0], "logger"):
+                # Type narrowing: we know args[0] has logger attribute
+                instance_logger = getattr(args[0], "logger", None)
+                if hasattr(instance_logger, "info"):
+                    logger = cast(ContextualLogger, instance_logger)
+                else:
+                    logger = ContextualLogger(logging.getLogger(inner_func.__module__))
             else:
                 logger = ContextualLogger(logging.getLogger(inner_func.__module__))
 

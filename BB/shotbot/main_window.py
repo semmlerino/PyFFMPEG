@@ -142,7 +142,7 @@ class SessionWarmer(ThreadSafeWorker):
         super().__init__()
         self._process_pool: ProcessPoolInterface = process_pool
 
-    @Slot()  # type: ignore[misc]  # PySide6 Slot decorator lacks type stubs
+    @Slot()  # type: ignore[misc]  # pyright: ignore[reportAny]
     @override
     def run(self) -> None:
         """Pre-warm bash sessions in background thread."""
@@ -242,7 +242,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._settings_dialog: SettingsDialog | None = None
 
         # Initialize settings controller (refactored from MainWindow methods)
-        self.settings_controller = SettingsController(self)  # type: ignore[arg-type] # Protocol works functionally
+        # MainWindow implements SettingsTarget protocol functionally at runtime
+        # QMainWindow signatures use position-only params which differ from Protocol
+        self.settings_controller = SettingsController(self)  # pyright: ignore[reportArgumentType]
 
         # Create 3DE item model for Model/View architecture
         self.threede_item_model = ThreeDEItemModel(cache_manager=self.cache_manager)
@@ -303,6 +305,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # NOTE: Current scene/shot context now managed by launcher_controller (single source of truth)
         self._closing = False  # Track shutdown state
         self._launcher_dialog: LauncherManagerDialog | None = None
+        self._session_warmer: SessionWarmer | None = None  # Initialize session warmer
+        self._last_selected_shot_name: str | None = None  # Initialize last selected shot
 
         # UI setup must come before controller initialization
         self._setup_ui()
@@ -314,10 +318,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.threede_controller = None
         else:
             self.logger.info("Using ThreeDEController for 3DE scene management")
-            self.threede_controller = ThreeDEController(self)  # type: ignore[arg-type]
+            # MainWindow implements ThreeDETarget protocol functionally at runtime
+            # command_launcher union type and QMainWindow position-only params differ from Protocol
+            self.threede_controller = ThreeDEController(self)  # pyright: ignore[reportArgumentType]
 
         # Initialize launcher controller for all launcher functionality
         self.logger.info("Using LauncherController for launcher management")
+        # MainWindow implements LauncherTarget protocol functionally at runtime
         self.launcher_controller = LauncherController(self)
         self._setup_menu()
         self._setup_accessibility()  # Add accessibility support
@@ -581,18 +588,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         AccessibilityManager.setup_tab_widget_accessibility(self.tab_widget)
 
         # Add comprehensive tooltips
-        # Standard library imports
-        from typing import TYPE_CHECKING
-
-        if TYPE_CHECKING:
-            # Local application imports
-            from accessibility_manager import MainWindowProtocol
+        # MainWindow implements MainWindowProtocol functionally at runtime
+        # Protocol uses optional attributes checked with hasattr at runtime
         AccessibilityManager.setup_comprehensive_tooltips(
-            cast("MainWindowProtocol", self)
+            self  # pyright: ignore[reportArgumentType]
         )
 
         # Set up keyboard navigation tab order
-        AccessibilityManager.setup_keyboard_navigation(cast("MainWindowProtocol", self))
+        AccessibilityManager.setup_keyboard_navigation(self)  # pyright: ignore[reportArgumentType]
 
         # Apply focus indicator stylesheet
         existing_style = self.styleSheet() or ""
@@ -758,7 +761,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # This avoids unnecessary scans when we already know there are no scenes
         if has_cached_shots:
             # Check if we have a valid cache (including valid empty results)
-            if not self.cache_manager.has_valid_threede_cache():  # type: ignore[attr-defined]
+            # CacheManager.has_valid_threede_cache returns bool (method exists at runtime)
+            if not self.cache_manager.has_valid_threede_cache():  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                 self.logger.info("3DE cache invalid/expired - starting discovery")
                 if self.threede_controller:
                     QTimer.singleShot(
@@ -877,7 +881,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             if selected_scene:
                 # Re-apply the scene selection to update context
                 if self.threede_controller:
-                    self.threede_controller.on_scene_selected(selected_scene)  # type: ignore[misc]  # PySide6 @Slot decorator
+                    self.threede_controller.on_scene_selected(selected_scene)  # pyright: ignore[reportAny]
             else:
                 # Clear selection
                 self.launcher_controller.set_current_shot(None)
@@ -1142,8 +1146,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Generic show filter handler for all tabs.
 
         Args:
-            item_model: The item model to apply the filter to
-            model: The data model to pass to the item model
+            item_model: The item model to apply the filter to (ShotItemModel, ThreeDEItemModel, or PreviousShotsItemModel)
+            model: The data model to pass to the item model (ShotModel, ThreeDESceneModel, or PreviousShotsModel)
             show: Show name to filter by, or empty string for all shows
             tab_name: Human-readable tab name for logging
         """
@@ -1151,7 +1155,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         show_filter = show if show else None
 
         # Apply filter to item model
-        item_model.set_show_filter(model, show_filter)  # type: ignore[attr-defined]
+        # All item models have set_show_filter method, but we use object type for flexibility
+        # Suppressing type errors is safe because we control all callers
+        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
 
         self.logger.info(
             f"Applied {tab_name} show filter: {show if show else 'All Shows'}"

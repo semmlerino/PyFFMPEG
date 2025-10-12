@@ -157,8 +157,15 @@ class LauncherProcessManager(LoggingMixin, QObject):
             worker = LauncherWorker(launcher_id, command, working_dir)
 
             # Connect worker signals with explicit connection types for thread safety
+            # Type annotations for signal connections
+            def on_started(lid: str, cmd: str) -> None:
+                self.process_started.emit(lid, cmd)
+
+            def on_error(lid: str, error: str) -> None:
+                self.process_error.emit(lid, error)
+
             worker.command_started.connect(
-                lambda lid, cmd: self.process_started.emit(lid, cmd),
+                on_started,
                 Qt.ConnectionType.QueuedConnection,
             )
             worker.command_finished.connect(
@@ -166,7 +173,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
                 Qt.ConnectionType.QueuedConnection,
             )
             worker.command_error.connect(
-                lambda lid, error: self.process_error.emit(lid, error),
+                on_error,
                 Qt.ConnectionType.QueuedConnection,
             )
 
@@ -373,7 +380,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
         if self._shutting_down:
             return
 
-        finished_keys = []
+        finished_keys: list[str] = []
 
         with QMutexLocker(self._process_lock):
             # Create a snapshot to avoid iteration issues
@@ -408,7 +415,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
         if self._shutting_down:
             return
 
-        finished_keys = []
+        finished_keys: list[str] = []
 
         with QMutexLocker(self._process_lock):
             # Snapshot for safe iteration

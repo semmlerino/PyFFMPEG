@@ -8,7 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -17,7 +17,6 @@ from PySide6.QtCore import (
     QObject,
     QThread,
     Signal,
-    Slot,
 )
 
 if TYPE_CHECKING:
@@ -25,6 +24,16 @@ if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
     from threede_scene_worker import ThreeDESceneWorker
+
+
+class WorkerWithStopProtocol(Protocol):
+    """Protocol for workers with stop/request_stop methods."""
+
+    def stop(self) -> None: ...
+    def request_stop(self) -> None: ...
+    def isRunning(self) -> bool: ...
+    def wait(self, timeout: int) -> bool: ...
+    def deleteLater(self) -> None: ...
 
 logger = logging.getLogger(__name__)
 
@@ -99,8 +108,12 @@ class ThreadingManager(QObject):
             self._current_threede_worker.started.connect(
                 self.threede_discovery_started.emit
             )
-            self._current_threede_worker.progress_update.connect(  # type: ignore[attr-defined]
-                self.threede_discovery_progress.emit
+            # ThreeDESceneWorker has 'progress' signal (int, int, float, str, str)
+            # We map it to our threede_discovery_progress (int, int, str) by using a slot
+            # The progress_update signal doesn't exist on ThreeDESceneWorker
+            # Instead, connect the 'progress' signal directly
+            self._current_threede_worker.progress.connect(
+                self._on_progress_update
             )
             self._current_threede_worker.batch_ready.connect(
                 self.threede_discovery_batch_ready.emit
@@ -108,9 +121,9 @@ class ThreadingManager(QObject):
             # Signal is defined as Signal(list) without type parameter, causing Unknown inference
             # Our slot is properly typed as list[ThreeDEScene], runtime behavior is correct
             self._current_threede_worker.finished.connect(
-                self._on_threede_discovery_finished  # type: ignore[misc]  # PySide6 @Slot decorator
+                self._on_threede_discovery_finished
             )
-            self._current_threede_worker.error.connect(self._on_threede_discovery_error)  # type: ignore[misc]  # PySide6 @Slot decorator
+            self._current_threede_worker.error.connect(self._on_threede_discovery_error)
             self._current_threede_worker.paused.connect(
                 self.threede_discovery_paused.emit
             )
@@ -126,7 +139,26 @@ class ThreadingManager(QObject):
             logger.info("Started 3DE scene discovery thread")
             return True
 
-    @Slot(list)  # type: ignore[misc]  # PySide6 Slot decorator lacks type stubs
+    def _on_progress_update(
+        self,
+        current: int,
+        total: int,
+        percentage: float,
+        description: str,
+        eta: str,
+    ) -> None:
+        """Map worker progress signal to our simplified signal.
+
+        Args:
+            current: Current item count
+            total: Total item count
+            percentage: Progress percentage (unused)
+            description: Status description
+            eta: ETA string (unused)
+        """
+        # Emit our simplified progress signal
+        self.threede_discovery_progress.emit(current, total, description)
+
     def _on_threede_discovery_finished(self, scenes: list[ThreeDEScene]) -> None:
         """Handle 3DE discovery completion.
 
@@ -142,7 +174,6 @@ class ThreadingManager(QObject):
         # Schedule cleanup
         self._schedule_worker_cleanup("threede_discovery")
 
-    @Slot(str)  # type: ignore[misc]  # PySide6 Slot decorator lacks type stubs
     def _on_threede_discovery_error(self, error_message: str) -> None:
         """Handle 3DE discovery error.
 
@@ -327,12 +358,16 @@ class ThreadingManager(QObject):
             if not worker:
                 return False
 
-            # Stop if running
+            # Stop if running - use Protocol for type safety
             if worker.isRunning():
+                # Try to stop the worker using known patterns
+                # Cast through object to Protocol for type-safe attribute access
                 if hasattr(worker, "request_stop"):
-                    worker.request_stop()  # type: ignore[attr-defined]
+                    worker_with_stop = cast(WorkerWithStopProtocol, cast(object, worker))
+                    worker_with_stop.request_stop()
                 elif hasattr(worker, "stop"):
-                    worker.stop()  # type: ignore[attr-defined]
+                    worker_with_stop = cast(WorkerWithStopProtocol, cast(object, worker))
+                    worker_with_stop.stop()
                 if not worker.wait(2000):
                     logger.warning(f"Worker {name} did not stop gracefully")
 

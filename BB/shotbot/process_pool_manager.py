@@ -14,7 +14,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
@@ -55,13 +55,16 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
 )
 if DEBUG_VERBOSE:
     # ContextualLogger doesn't have setLevel, need to access underlying logger
-    if hasattr(logger, "logger"):
-        logger.logger.setLevel(logging.DEBUG)  # type: ignore[attr-defined]
+    if hasattr(logger, "_logger"):
+        # Access underlying logger directly
+        underlying_logger: logging.Logger = logger._logger  # type: ignore[attr-defined]
+        underlying_logger.setLevel(logging.DEBUG)
     logger.info("VERBOSE DEBUG MODE ENABLED for ProcessPoolManager")
 
 # Setup enhanced debugging if available
 if HAS_DEBUG_UTILS:
-    setup_enhanced_debugging()  # type: ignore[possibly-unbound]
+    from debug_utils import setup_enhanced_debugging
+    setup_enhanced_debugging()
 
 
 class CommandCache:
@@ -207,7 +210,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
     command_completed = Signal(str, object)  # command_id, result
     command_failed = Signal(str, str)  # command_id, error
 
-    def __new__(cls, *args: object, **kwargs: object) -> ProcessPoolManager:
+    def __new__(
+        cls, max_workers: int = 4, sessions_per_type: int = 3
+    ) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety using double-checked locking.
 
         This implementation uses double-checked locking pattern which optimizes
@@ -491,17 +496,18 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         # Build proper PerformanceMetricsDict structure
         # Use defaults for any missing required fields
-        result: PerformanceMetricsDict = {  # type: ignore[assignment]
-            "total_shots": metrics.get("total_shots", 0),
-            "total_refreshes": metrics.get("total_refreshes", 0),
-            "last_refresh_time": metrics.get("last_refresh_time", 0.0),
-            "cache_hits": metrics.get("cache_hits", 0),
-            "cache_misses": metrics.get("cache_misses", 0),
-            "cache_hit_rate": metrics.get("cache_hit_rate", 0.0),
-            "cache_hit_count": metrics.get("cache_hit_count", 0),
-            "cache_miss_count": metrics.get("cache_miss_count", 0),
-            "loading_in_progress": metrics.get("loading_in_progress", False),
-            "session_warmed": metrics.get("session_warmed", False),
+        # Convert int | float to explicit int/float types
+        result: PerformanceMetricsDict = {
+            "total_shots": int(metrics.get("total_shots", 0)),
+            "total_refreshes": int(metrics.get("total_refreshes", 0)),
+            "last_refresh_time": float(metrics.get("last_refresh_time", 0.0)),
+            "cache_hits": int(metrics.get("cache_hits", 0)),
+            "cache_misses": int(metrics.get("cache_misses", 0)),
+            "cache_hit_rate": float(metrics.get("cache_hit_rate", 0.0)),
+            "cache_hit_count": int(metrics.get("cache_hit_count", 0)),
+            "cache_miss_count": int(metrics.get("cache_miss_count", 0)),
+            "loading_in_progress": bool(metrics.get("loading_in_progress", False)),
+            "session_warmed": bool(metrics.get("session_warmed", False)),
         }
 
         return result
@@ -535,15 +541,28 @@ class ProcessPoolManager(LoggingMixin, QObject):
             self.logger.warning(f"Error clearing session tracking: {e}")
 
         # Stage 2: Cancel pending futures if possible
+        # Note: Access to ThreadPoolExecutor internals is intentional for graceful shutdown
+        # These are private attributes and not part of the public API.
+        # Type checking is disabled for this block because we're accessing _pending_work_items
+        # which is an internal implementation detail of ThreadPoolExecutor.
         try:
             if hasattr(self._executor, "_pending_work_items"):
-                pending_count = len(self._executor._pending_work_items)  # type: ignore[attr-defined]
+                # Access internal work queue (not part of public API but safe for cleanup)
+                # Suppress all type checking for access to private ThreadPoolExecutor internals
+                pending_items_raw = self._executor._pending_work_items  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
+                pending_items = cast(dict[object, object], pending_items_raw)
+                pending_count = len(pending_items)
                 if pending_count > 0:
                     self.logger.debug(f"Cancelling {pending_count} pending futures")
                     # Cancel all pending futures
-                    for work_item in list(self._executor._pending_work_items.values()):  # type: ignore[attr-defined]
-                        if hasattr(work_item, "future"):  # type: ignore[arg-type]
-                            work_item.future.cancel()  # type: ignore[attr-defined]
+                    for work_item in pending_items.values():
+                        if hasattr(work_item, "future"):
+                            # Access .future attribute (also private)
+                            future = cast(
+                                concurrent.futures.Future[object],
+                                work_item.future,  # type: ignore[attr-defined]  # pyright: ignore[reportAttributeAccessIssue]
+                            )
+                            future.cancel()
         except Exception as e:
             self.logger.debug(f"Could not cancel pending futures: {e}")
 
@@ -551,68 +570,40 @@ class ProcessPoolManager(LoggingMixin, QObject):
         shutdown_successful = False
         try:
             self.logger.debug("Initiating ThreadPoolExecutor shutdown")
-            # Try to shutdown with wait first (with short timeout)
-            # This ensures proper cleanup of finished tasks
-            # Standard library imports
-            import time
-            from concurrent.futures import TimeoutError as FutureTimeoutError
-
+            # Try to shutdown with wait and cancel_futures
+            # Note: ThreadPoolExecutor.shutdown() doesn't support timeout parameter
+            # We use cancel_futures=True (Python 3.9+) to cancel pending work
             try:
-                # Give executor a short time to clean up normally
-                self._executor.shutdown(wait=True, timeout=min(timeout, 0.5))  # type: ignore[call-arg]
+                # Python 3.11+ guaranteed to support cancel_futures parameter
+                self._executor.shutdown(wait=True, cancel_futures=True)
                 shutdown_successful = True
                 self.logger.debug("ThreadPoolExecutor shutdown completed normally")
-            except (FutureTimeoutError, TypeError):
-                # If timeout not supported (older Python) or timeout occurs,
-                # force shutdown without wait
-                self.logger.debug("Normal shutdown timed out, forcing shutdown")
+            except Exception as e:
+                self.logger.debug(f"Executor shutdown exception: {e}")
+                # Force shutdown without wait as fallback
                 self._executor.shutdown(wait=False)
-
-                # Check if threads are actually gone (quick check only)
-                start_time = time.time()
-                while time.time() - start_time < 0.1:  # Only wait 100ms max
-                    if (
-                        hasattr(self._executor, "_threads")
-                        and len(self._executor._threads) == 0
-                    ):
-                        shutdown_successful = True
-                        break
-                    time.sleep(0.01)
-
-                if not shutdown_successful:
-                    # Threads still running, but we've done our best
-                    self.logger.debug("Some executor threads may still be running")
-                    shutdown_successful = True  # Consider it successful enough
-
-            if not shutdown_successful:
-                # Calculate remaining threads for logging
-                threads_remaining = 0
-                if hasattr(self._executor, "_threads"):
-                    threads_remaining = len(self._executor._threads)
-
-                self.logger.warning(
-                    f"ProcessPoolManager executor shutdown timeout after {timeout}s, "
-                    f"some threads may still be running ({threads_remaining} threads)"
-                )
 
         except Exception as e:
             self.logger.error(f"Error during ProcessPoolManager executor shutdown: {e}")
 
         # Stage 4: Clean up any remaining resources
         try:
-            # Clear caches
-            if hasattr(self, "_command_cache"):
-                cache_size = len(self._command_cache)  # type: ignore[attr-defined]
-                self._command_cache.clear()  # type: ignore[attr-defined]
+            # Clear caches (note: _cache is the actual attribute, not _command_cache)
+            if hasattr(self, "_cache"):
+                # CommandCache has internal dict, we can get its size via get_stats
+                stats = self._cache.get_stats()
+                cache_size = stats["size"]
+                self._cache.invalidate()  # Clear entire cache
                 if cache_size > 0:
                     self.logger.debug(f"Cleared {cache_size} command cache entries")
 
             # Disconnect Qt signals to prevent crashes during destruction
+            # Note: Only disconnect signals that actually exist on this class
             try:
-                self.command_started.disconnect()  # type: ignore[attr-defined]
-                self.command_finished.disconnect()  # type: ignore[attr-defined]
-                self.session_created.disconnect()  # type: ignore[attr-defined]
-                self.session_destroyed.disconnect()  # type: ignore[attr-defined]
+                if hasattr(self, "command_completed"):
+                    self.command_completed.disconnect()
+                if hasattr(self, "command_failed"):
+                    self.command_failed.disconnect()
             except (RuntimeError, TypeError):
                 # Signals may already be disconnected
                 pass
