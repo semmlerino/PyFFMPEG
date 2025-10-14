@@ -264,7 +264,7 @@ def test_import_functionality():
             # Local application imports
             import config
 
-            if config.Config.SHOWS_ROOT == shows_root:
+            if shows_root == config.Config.SHOWS_ROOT:
                 print(f"  ✓ Config.SHOWS_ROOT correctly set to {shows_root}")
                 success_count += 1
             else:

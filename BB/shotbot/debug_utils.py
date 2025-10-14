@@ -225,7 +225,9 @@ class SystemDiagnostics(LoggingMixin):
     """Capture and log system diagnostic information."""
 
     @staticmethod
-    def get_system_info() -> dict[str, str | int | float | list[str] | dict[str, float]]:
+    def get_system_info() -> dict[
+        str, str | int | float | list[str] | dict[str, float]
+    ]:
         """Get comprehensive system information.
 
         Returns:
@@ -260,7 +262,9 @@ class SystemDiagnostics(LoggingMixin):
 
             process = psutil.Process()
             mem_info = process.memory_info()
-            rss_bytes = cast("int", mem_info.rss)  # psutil returns int, cast for type checker
+            rss_bytes = cast(
+                "int", mem_info.rss
+            )  # psutil returns int, cast for type checker
             info["memory"] = {
                 "rss_mb": rss_bytes / 1024 / 1024,
                 "percent": process.memory_percent(),

@@ -18,6 +18,34 @@ Focus on functionality, performance, and VFX workflow optimization instead.
 
 ShotBot is a PySide6-based GUI application for VFX shot browsing and application launching. It integrates with VFX pipeline tools using the `ws` (workspace) command to list and navigate shots. The application provides a visual interface for artists to browse shots, view thumbnails, and launch VFX applications (3DE, Nuke, Maya, RV) in the correct shot context.
 
+## Development Philosophy & Scope
+
+**Personal VFX Tool**: This is a single-user desktop application for personal VFX workflow needs. While it follows professional coding standards (type safety, testing, clean architecture), it optimizes for maintainability and pragmatic solutions over enterprise concerns.
+
+**What still matters:**
+- **Code quality**: Type safety, readable code, proper architecture (future-you deserves good code)
+- **Testing**: Comprehensive tests prevent regressions and enable confident refactoring
+- **Performance**: Responsive UI, efficient algorithms (this is interactive software)
+- **Maintainability**: Clear patterns, good documentation, low technical debt
+- **Robustness**: Handle corrupt files, validate inputs, graceful error recovery
+
+**Not applicable (single-user desktop context):**
+- **Enterprise security**: No authentication, authorization, or adversarial threat modeling
+- **Scale engineering**: No distributed systems, cloud deployment, or ops infrastructure
+- **Multi-user patterns**: No concurrent access, locking, or team coordination features
+- **Runtime extensibility**: No plugin systems or runtime module loading
+
+**Decision-making guidance**: When choosing between solutions, prefer:
+- Simple and working over theoretically perfect
+- Pragmatic over defensive (e.g., trust local filesystem, validate user input but not for adversarial attacks)
+- Readable over clever (but don't sacrifice performance where it matters)
+- "Good enough for single-user" over "scales to enterprise"
+- **Example**: Direct JSON serialization is fine; you don't need schema versioning, migration systems, or backward-compatibility layers unless there's a specific reason.
+
+**Professional-quality code for a personal tool, not enterprise software.**
+
+**See also**: `SECURITY_CONTEXT.md` for security-specific guidance on this isolated VFX network environment.
+
 ## Critical Commands
 
 ### Running the Application
@@ -31,7 +59,7 @@ uv run python shotbot.py --mock
 # Or better, with recreated VFX filesystem:
 uv run python shotbot_mock.py
 
-# Headless mode (for CI/CD)
+# Headless mode (for automated testing)
 uv run python shotbot.py --headless --mock
 
 # Debug mode
@@ -219,10 +247,9 @@ View Layer (grid views with custom delegates)
 
 #### 4. Thread-Safe Background Operations
 - **Workers**: `ThreeDESceneWorker`, `PreviousShotsWorker` use `QThread` for background scanning
-- **Thread safety**: Qt components use `QMutex`/`QMutexLocker` (see `THREADING_MODEL.md` for guidelines)
-- **Signal connections**: Use `Qt.ConnectionType.QueuedConnection` for cross-thread
+- **Thread safety**: Qt components use `QMutex`/`QMutexLocker` for basic thread protection
+- **Signal connections**: Use `Qt.ConnectionType.QueuedConnection` for cross-thread communication
 - **Resource cleanup**: Workers properly disconnect signals and delete on completion
-- **Threading guidelines**: See `THREADING_MODEL.md` for mutex ordering and deadlock prevention
 
 #### 5. Launcher System
 - **`LauncherManager`**: Manages custom launchers with thread-safe process tracking
@@ -264,40 +291,11 @@ if success and has_changes:
 
 ## Tab Architecture: Three Distinct Data Sources
 
-The application's three tabs are NOT different views of the same data. They represent fundamentally different data sources:
+Each tab has its own data source and optimized architecture:
 
-### My Shots Tab
-- **Data Source**: `ws -sg` command via ProcessPoolManager
-- **Performance**: Fast (cached subprocess call)
-- **Update Pattern**: On-demand with user-triggered refresh
-- **Caching**: 30-second TTL at command level
-- **Model Stack**: ShotModel (BaseShotModel) → ShotItemModel → ShotGridView
-
-### Other 3DE Scenes Tab
-- **Data Source**: Filesystem scanning for .3de files
-- **Performance**: Slow (I/O intensive, thousands of directories)
-- **Update Pattern**: Progressive updates during scan
-- **Caching**: Permanent until invalidated
-- **Model Stack**: ThreeDESceneModel → ThreeDEItemModel → ThreeDEGridView
-
-### Previous Shots Tab
-- **Data Source**: Filesystem scanning for user work directories
-- **Performance**: Medium (targeted filesystem search)
-- **Update Pattern**: 5-minute auto-refresh
-- **Caching**: Session-based
-- **Model Stack**: PreviousShotsModel (BaseShotModel) → PreviousShotsItemModel → PreviousShotsView
-
-## Why Three Separate Architectures?
-
-This separation is intentional and beneficial:
-
-1. **Different Performance Characteristics** - Each data source has unique I/O patterns
-2. **Different Update Requirements** - Sync vs async, progressive vs batch
-3. **Different Caching Strategies** - TTL vs permanent vs session-based
-4. **Domain-Specific Optimizations** - Each tab can evolve independently
-5. **Testability** - Each stack can be tested in isolation with appropriate mocks
-
-The apparent "duplication" is actually proper separation of concerns for distinct workflows.
+- **My Shots**: `ws -sg` command (fast, 30s TTL, sync refresh)
+- **Other 3DE Scenes**: Filesystem scan (slow, permanent cache, async/progressive)
+- **Previous Shots**: User work directories (medium, session cache, 5min auto-refresh)
 
 ## Feature Implementation Map
 
@@ -368,7 +366,7 @@ APPS = {
 
 ## Test Organization
 
-- **1,047 tests** (1,044 pass = 99.7% pass rate)
+- **1,047 tests** (1,044 pass = 99.7% pass rate) - comprehensive coverage enables confident refactoring
 - **Markers**: `fast`, `slow`, `unit`, `integration`, `qt`, `gui`, `critical`
 - **Execution time**: ~67 seconds with parallel execution (`-n auto`)
 - **Recent fixes**:

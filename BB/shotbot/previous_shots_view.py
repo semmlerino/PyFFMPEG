@@ -130,7 +130,7 @@ class PreviousShotsView(BaseGridView):
         header_layout.setContentsMargins(0, 0, 0, 5)
 
         # Status label
-        self._status_label = QLabel("Approved Shots")
+        self._status_label = QLabel("Approved Shots (Persistent Cache)")
         self._status_label.setStyleSheet("font-weight: bold; font-size: 14px;")
         header_layout.addWidget(self._status_label)
 
@@ -138,6 +138,9 @@ class PreviousShotsView(BaseGridView):
 
         # Refresh button
         self._refresh_button = QPushButton("Refresh")
+        self._refresh_button.setToolTip(
+            "Scan for new approved shots and add them to persistent cache"
+        )
         self._refresh_button.clicked.connect(self._on_refresh_clicked)  # pyright: ignore[reportAny]
         header_layout.addWidget(self._refresh_button)
 
@@ -193,15 +196,15 @@ class PreviousShotsView(BaseGridView):
         if underlying_model:  # Type guard to satisfy basedpyright
             underlying_model.scan_started.connect(
                 self._on_scan_started,  # pyright: ignore[reportAny]
-                Qt.ConnectionType.QueuedConnection
+                Qt.ConnectionType.QueuedConnection,
             )
             underlying_model.scan_finished.connect(
                 self._on_scan_finished,  # pyright: ignore[reportAny]
-                Qt.ConnectionType.QueuedConnection
+                Qt.ConnectionType.QueuedConnection,
             )
             underlying_model.scan_progress.connect(
                 self._on_scan_progress,  # pyright: ignore[reportAny]
-                Qt.ConnectionType.QueuedConnection
+                Qt.ConnectionType.QueuedConnection,
             )
 
         # Connect scroll events for debounced visibility updates
@@ -253,7 +256,7 @@ class PreviousShotsView(BaseGridView):
         assert self._status_label is not None
         self._refresh_button.setEnabled(False)
         self._refresh_button.setText("Scanning...")
-        self._status_label.setText("Scanning for approved shots...")
+        self._status_label.setText("Scanning for new approved shots...")
 
         # Start progress operation
         ProgressManager.start_operation("Scanning for previous shots")
@@ -289,7 +292,7 @@ class PreviousShotsView(BaseGridView):
         if self._unified_model:
             assert self._status_label is not None
             shot_count = self._unified_model.rowCount()
-            self._status_label.setText(f"Approved Shots ({shot_count})")
+            self._status_label.setText(f"Approved Shots ({shot_count} cached)")
 
     @Slot()  # pyright: ignore[reportAny]
     def _on_model_updated(self) -> None:
@@ -439,11 +442,11 @@ class PreviousShotsView(BaseGridView):
         # Connect signals
         worker.signals.error.connect(
             self._on_folder_open_error,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection
+            Qt.ConnectionType.QueuedConnection,
         )
         worker.signals.success.connect(
             self._on_folder_open_success,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection
+            Qt.ConnectionType.QueuedConnection,
         )
 
         # Start the worker

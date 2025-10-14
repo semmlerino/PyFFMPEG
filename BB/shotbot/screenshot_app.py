@@ -17,7 +17,9 @@ os.environ["SHOTBOT_DEBUG"] = "1"
 
 # Local application imports
 # Import ShotBot modules
-from process_pool_factory import ProcessPoolFactory  # type: ignore[import-not-found]  # pyright: ignore[reportUnknownVariableType]
+from process_pool_factory import (
+    ProcessPoolFactory,  # type: ignore[import-not-found]  # pyright: ignore[reportUnknownVariableType]
+)
 
 from main_window import MainWindow
 

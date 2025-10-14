@@ -18,8 +18,7 @@ from typing import TYPE_CHECKING
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    # Local application imports
-    from threede_scene_model import ThreeDEScene
+    from threede_scene_model import ThreeDEScene  # Import for string literal type hint
 
 
 class SceneParser(LoggingMixin):

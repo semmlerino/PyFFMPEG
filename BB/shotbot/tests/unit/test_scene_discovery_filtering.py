@@ -64,7 +64,7 @@ class TestSceneFiltering:
         )
 
         # Simulate the logic from scene_discovery_coordinator.py
-        scene_path, show_name, seq, shot, user, plate = file_tuple
+        _scene_path, show_name, seq, shot, _user, _plate = file_tuple
         matching_shot = next(
             (
                 s
@@ -102,7 +102,7 @@ class TestSceneFiltering:
         )
 
         # Simulate the logic from scene_discovery_coordinator.py
-        scene_path, show_name, seq, shot, user, plate = file_tuple
+        _scene_path, show_name, seq, shot, _user, _plate = file_tuple
         matching_shot = next(
             (
                 s
@@ -162,7 +162,7 @@ class TestSceneFiltering:
         shows_root = "/shows"
 
         for file_tuple in file_tuples:
-            scene_path, show_name, seq, shot, user, plate = file_tuple
+            _scene_path, show_name, seq, shot, user, _plate = file_tuple
 
             # Find matching shot
             matching_shot = next(
@@ -227,7 +227,7 @@ class TestSceneFiltering:
         assert result is None  # Correctly filtered out
 
     @pytest.mark.parametrize(
-        "show,seq,shot,expected_path",
+        ("show", "seq", "shot", "expected_path"),
         [
             ("gator", "013_DC", "2120", "/shows/gator/shots/013_DC/013_DC_2120"),
             (

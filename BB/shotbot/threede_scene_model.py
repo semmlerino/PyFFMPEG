@@ -97,7 +97,9 @@ class ThreeDEScene:
 
         # DEBUG: Log result
         if thumbnail:
-            logger.info(f"✅ Found thumbnail for 3DE scene {self.full_name}: {thumbnail}")
+            logger.info(
+                f"✅ Found thumbnail for 3DE scene {self.full_name}: {thumbnail}"
+            )
         else:
             logger.warning(f"❌ No thumbnail found for 3DE scene {self.full_name}")
 
@@ -142,6 +144,7 @@ class ThreeDESceneModel:
         cache_manager: CacheManager | None = None,
         load_cache: bool = True,
     ) -> None:
+        super().__init__()
         self.scenes: list[ThreeDEScene] = []
         self.cache_manager = cache_manager or CacheManager()
         # Get excluded users dynamically (current user + any additional)
@@ -247,7 +250,7 @@ class ThreeDESceneModel:
 
     def get_unique_shows(self) -> list[str]:
         """Get sorted list of unique shows from all scenes."""
-        shows = set(scene.show for scene in self.scenes)
+        shows = {scene.show for scene in self.scenes}
         return sorted(shows)
 
     def set_show_filter(self, show: str | None) -> None:

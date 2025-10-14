@@ -34,6 +34,13 @@ from design_system import (
     design_system,
 )
 
+# Mark Qt tests for serial execution in same worker (prevents Qt crashes)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+]
+
 
 class TestColorPalette:
     """Test ColorPalette dataclass values and properties."""
@@ -479,7 +486,6 @@ class TestGlobalInstance:
         assert isinstance(design_system.animation, Animation)
 
 
-@pytest.mark.qt
 class TestQtIntegration:
     """Test design system integration with actual Qt widgets."""
 
@@ -586,7 +592,7 @@ class TestQtIntegration:
 
 
 @pytest.mark.parametrize(
-    "color_field,expected",
+    ("color_field", "expected"),
     [
         ("primary", "#2196F3"),
         ("success", "#4CAF50"),
@@ -602,7 +608,7 @@ def test_color_values_parametrized(color_field: str, expected: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "size_field,min_value,max_value",
+    ("size_field", "min_value", "max_value"),
     [
         ("size_h1", 20, 30),
         ("size_body", 12, 16),
@@ -617,7 +623,7 @@ def test_font_sizes_in_range(size_field: str, min_value: int, max_value: int) ->
 
 
 @pytest.mark.parametrize(
-    "duration_field,expected",
+    ("duration_field", "expected"),
     [
         ("duration_instant", 100),
         ("duration_fast", 200),
@@ -669,9 +675,7 @@ def test_all_colors_are_valid_hex_or_rgba() -> None:
         if not field.startswith("_"):
             value = getattr(palette, field)
             if isinstance(value, str) and (
-                field.startswith("text_")
-                or field.startswith("bg_")
-                or field.startswith("border_")
+                field.startswith(("text_", "bg_", "border_"))
                 or field
                 in [
                     "primary",

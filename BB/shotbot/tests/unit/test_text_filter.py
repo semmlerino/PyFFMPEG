@@ -262,7 +262,7 @@ class TestPreviousShotsModelTextFiltering:
         """Create PreviousShotsModel."""
         model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager())
         yield model
-        model.stop_auto_refresh()
+        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         model.deleteLater()
 
     @pytest.fixture
@@ -329,7 +329,10 @@ class TestBaseGridViewTextFilterUI:
         """Test that text filter QLineEdit exists."""
         assert hasattr(shot_grid_view, "text_filter_input")
         assert isinstance(shot_grid_view.text_filter_input, QLineEdit)
-        assert shot_grid_view.text_filter_input.placeholderText() == "Type to filter shots..."
+        assert (
+            shot_grid_view.text_filter_input.placeholderText()
+            == "Type to filter shots..."
+        )
         assert shot_grid_view.text_filter_input.isClearButtonEnabled()
 
     def test_text_filter_signal_emission(self, shot_grid_view, qtbot) -> None:
@@ -369,7 +372,9 @@ class TestBaseGridViewTextFilterUI:
         """Test that text filter also exists in PreviousShotsView."""
         shot_model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
         shot_model._process_pool = TestProcessPool()
-        previous_model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager())
+        previous_model = PreviousShotsModel(
+            shot_model, cache_manager=TestCacheManager()
+        )
         previous_item_model = PreviousShotsItemModel(previous_model, TestCacheManager())
 
         view = PreviousShotsView(model=previous_item_model)
@@ -379,7 +384,7 @@ class TestBaseGridViewTextFilterUI:
         assert isinstance(view.text_filter_input, QLineEdit)
 
         # Cleanup
-        previous_model.stop_auto_refresh()
+        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         previous_model.deleteLater()
         previous_item_model.deleteLater()
 
@@ -418,10 +423,10 @@ class TestMainWindowTextFilterHandlers:
 
         window.refresh_orchestrator = RefreshOrchestrator(window)
 
-        yield window
+        return window
 
         # Cleanup
-        window.previous_shots_model.stop_auto_refresh()
+        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
 
     def test_on_shot_text_filter_requested(self, mock_main_window) -> None:
         """Test the handler for My Shots text filter request."""

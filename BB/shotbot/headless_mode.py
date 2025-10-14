@@ -259,6 +259,7 @@ class HeadlessMainWindow:
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         """Initialize headless main window."""
+        super().__init__()
         # Local application imports
         from cache_manager import CacheManager
         from mock_workspace_pool import create_mock_pool_from_filesystem
@@ -272,10 +273,10 @@ class HeadlessMainWindow:
         self.shot_model = ShotModel(self.cache_manager, process_pool=mock_pool)
 
         # Mock UI methods
-        self.show = lambda: None
-        self.close = lambda: None
-        self.resize: object = lambda w, h: None  # type: ignore[assignment]
-        self.setWindowTitle: object = lambda title: None  # type: ignore[assignment]
+        self.show: Callable[[], None] = lambda: None
+        self.close: Callable[[], None] = lambda: None
+        self.resize: Callable[[int, int], None] = lambda w, h: None
+        self.setWindowTitle: Callable[[str], None] = lambda title: None
 
         logger.info("HeadlessMainWindow initialized")
 

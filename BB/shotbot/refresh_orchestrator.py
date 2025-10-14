@@ -147,12 +147,11 @@ class RefreshOrchestrator(QObject, LoggingMixin):
                     self.main_window.shot_grid.select_shot_by_name(shot.full_name)
 
             # Also refresh 3DE scenes when shots are refreshed
-            if self.main_window.shot_model.shots:
-                if (
-                    hasattr(self.main_window, "threede_controller")
-                    and self.main_window.threede_controller
-                ):
-                    self.main_window.threede_controller.refresh_threede_scenes()
+            if self.main_window.shot_model.shots and (
+                hasattr(self.main_window, "threede_controller")
+                and self.main_window.threede_controller
+            ):
+                self.main_window.threede_controller.refresh_threede_scenes()
         else:
             self._update_status("Failed to refresh shots")
             NotificationManager.error(

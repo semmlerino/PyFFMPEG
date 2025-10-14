@@ -61,6 +61,7 @@ class CacheIsolation:
     """Context manager for cache isolation in tests."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.original_cache_state: dict[str, tuple[bool, float]] | None = None
         self.original_disabled_state: bool | None = None
 
@@ -331,7 +332,7 @@ class PathUtils:
         Returns:
             Path to undistortion directory
         """
-        segments = ["user", username] + Config.UNDISTORTION_BASE_SEGMENTS[1:]
+        segments = ["user", username, *Config.UNDISTORTION_BASE_SEGMENTS[1:]]
         return PathUtils.build_path(workspace_path, *segments)
 
     @staticmethod
@@ -345,7 +346,7 @@ class PathUtils:
         Returns:
             Path to 3DE scene directory
         """
-        segments = ["user", username] + Config.THREEDE_SCENE_SEGMENTS
+        segments = ["user", username, *Config.THREEDE_SCENE_SEGMENTS]
         return PathUtils.build_path(workspace_path, *segments)
 
     @staticmethod
@@ -558,7 +559,7 @@ class PathUtils:
                     if resolution_dir.is_dir():
                         # Find first .jpeg file in this resolution
                         jpeg_file = FileUtils.get_first_image_file(resolution_dir)
-                        if jpeg_file and jpeg_file.suffix.lower() in ['.jpg', '.jpeg']:
+                        if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
                             logger.info(
                                 f"Found undistorted JPEG thumbnail: {jpeg_file.name} "
                                 f"(camera: {plate_name}, version: {latest_version})"
@@ -568,7 +569,9 @@ class PathUtils:
                 logger.debug(f"Error scanning JPEG directory {jpeg_base_path}: {e}")
                 continue
 
-        logger.debug(f"No undistorted JPEG thumbnails found for {show}/{sequence}/{shot}")
+        logger.debug(
+            f"No undistorted JPEG thumbnails found for {show}/{sequence}/{shot}"
+        )
         return None
 
     @staticmethod
@@ -598,9 +601,7 @@ class PathUtils:
             Path to first JPEG found in any user workspace, or None
         """
         shot_dir = f"{sequence}_{shot}"
-        shot_path = PathUtils.build_path(
-            shows_root, show, "shots", sequence, shot_dir
-        )
+        shot_path = PathUtils.build_path(shows_root, show, "shots", sequence, shot_dir)
 
         user_dir = shot_path / "user"
         if not PathUtils.validate_path_exists(user_dir, "User directory"):
@@ -628,13 +629,17 @@ class PathUtils:
 
                     # Try each plate in priority order
                     for plate_name, _priority in plate_dirs:
-                        undistorted_path = nuke_outputs / plate_name / "undistorted_plate"
+                        undistorted_path = (
+                            nuke_outputs / plate_name / "undistorted_plate"
+                        )
 
                         if not undistorted_path.exists():
                             continue
 
                         # Find latest version
-                        latest_version = VersionUtils.get_latest_version(undistorted_path)
+                        latest_version = VersionUtils.get_latest_version(
+                            undistorted_path
+                        )
                         if not latest_version:
                             continue
 
@@ -642,7 +647,10 @@ class PathUtils:
                         version_path = undistorted_path / latest_version
 
                         # Try direct jpeg subdirectory first, then version directory
-                        for potential_jpeg_path in [version_path / "jpeg", version_path]:
+                        for potential_jpeg_path in [
+                            version_path / "jpeg",
+                            version_path,
+                        ]:
                             if not potential_jpeg_path.exists():
                                 continue
 
@@ -653,11 +661,18 @@ class PathUtils:
                                         continue
 
                                     # Look for resolution/jpeg structure
-                                    jpeg_dir = resolution_dir / "jpeg" if (resolution_dir / "jpeg").exists() else resolution_dir
+                                    jpeg_dir = (
+                                        resolution_dir / "jpeg"
+                                        if (resolution_dir / "jpeg").exists()
+                                        else resolution_dir
+                                    )
 
                                     # Find first JPEG
                                     jpeg_file = FileUtils.get_first_image_file(jpeg_dir)
-                                    if jpeg_file and jpeg_file.suffix.lower() in ['.jpg', '.jpeg']:
+                                    if jpeg_file and jpeg_file.suffix.lower() in [
+                                        ".jpg",
+                                        ".jpeg",
+                                    ]:
                                         logger.info(
                                             f"Found user workspace JPEG: {jpeg_file.name} "
                                             f"(user: {user_path.name}, output_type: {output_type}, plate: {plate_name}, version: {latest_version})"
@@ -900,11 +915,11 @@ class PathUtils:
 
         # Define plate patterns with capturing groups for type identification
         plate_patterns = {
-            r'^(FG)\d+$': 'FG',      # FG01, FG02, etc.
-            r'^(BG)\d+$': 'BG',      # BG01, BG02, etc.
-            r'^(EL)\d+$': 'EL',      # EL01, EL02, etc. (element plates)
-            r'^(COMP)\d+$': 'COMP',  # COMP01, COMP02, etc.
-            r'^(PL)\d+$': 'PL',      # PL01, PL02, etc. (turnover plates)
+            r"^(FG)\d+$": "FG",  # FG01, FG02, etc.
+            r"^(BG)\d+$": "BG",  # BG01, BG02, etc.
+            r"^(EL)\d+$": "EL",  # EL01, EL02, etc. (element plates)
+            r"^(COMP)\d+$": "COMP",  # COMP01, COMP02, etc.
+            r"^(PL)\d+$": "PL",  # PL01, PL02, etc. (turnover plates)
         }
 
         try:

@@ -44,7 +44,7 @@ from thread_safe_worker import ThreadSafeWorker
 from type_definitions import RefreshResult, Shot
 
 # Re-export Shot for backward compatibility with existing imports
-__all__ = ["Shot", "ShotModel", "AsyncShotLoader", "create_optimized_shot_model"]
+__all__ = ["AsyncShotLoader", "Shot", "ShotModel", "create_optimized_shot_model"]
 
 # Enable verbose debug logging if environment variable is set
 DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
@@ -196,28 +196,34 @@ class ShotModel(BaseShotModel):
 
         # Step 1: Load cached shots immediately (< 1ms)
         cached_shots = self.cache_manager.get_cached_shots()
+        cache_loaded = False
+
         if cached_shots:
-            self._cache_hit_count += 1
-            self.shots = [Shot.from_dict(s) for s in cached_shots]
-            self.logger.info(f"Loaded {len(self.shots)} shots from cache instantly")
-            self.shots_loaded.emit(self.shots)
+            try:
+                self._cache_hit_count += 1
+                self.shots = [Shot.from_dict(s) for s in cached_shots]
+                self.logger.info(f"Loaded {len(self.shots)} shots from cache instantly")
+                self.shots_loaded.emit(self.shots)
+                cache_loaded = True
+            except (KeyError, TypeError, ValueError) as e:
+                # Handle corrupted cache data gracefully
+                self.logger.warning(
+                    f"Corrupted cache data in initialize_async, ignoring: {e}"
+                )
+                self._cache_miss_count += 1
+                # Treat as cache miss and continue with fresh load
 
-            # Step 2: Start background refresh
-            self._start_background_refresh()
-
-            return RefreshResult(success=True, has_changes=False)
-        else:
+        if not cache_loaded:
             self._cache_miss_count += 1
             self.logger.info("No cached shots, starting background load")
-
             # No cache, but still return immediately
             self.shots = []
             self.shots_loaded.emit(self.shots)
 
-            # Start background load
-            self._start_background_refresh()
+        # Step 2: Start background refresh
+        self._start_background_refresh()
 
-            return RefreshResult(success=True, has_changes=False)
+        return RefreshResult(success=True, has_changes=False)
 
     def _start_background_refresh(self) -> None:
         """Start loading shots in background without blocking UI.
@@ -250,13 +256,16 @@ class ShotModel(BaseShotModel):
             )
             # Signal.connect() cannot infer list element type from Signal(list)
             self._async_loader.shots_loaded.connect(
-                self._on_shots_loaded, Qt.ConnectionType.QueuedConnection  # pyright: ignore[reportAny]
+                self._on_shots_loaded,
+                Qt.ConnectionType.QueuedConnection,  # pyright: ignore[reportAny]
             )
             self._async_loader.load_failed.connect(
-                self._on_load_failed, Qt.ConnectionType.QueuedConnection  # pyright: ignore[reportAny]
+                self._on_load_failed,
+                Qt.ConnectionType.QueuedConnection,  # pyright: ignore[reportAny]
             )
             self._async_loader.finished.connect(
-                self._on_loader_finished, Qt.ConnectionType.QueuedConnection  # pyright: ignore[reportAny]
+                self._on_loader_finished,
+                Qt.ConnectionType.QueuedConnection,  # pyright: ignore[reportAny]
             )
 
             # Start background loading

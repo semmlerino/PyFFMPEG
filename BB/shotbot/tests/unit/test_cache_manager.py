@@ -148,7 +148,9 @@ class TestCacheManagerInitialization:
 class TestJSONCacheOperations:
     """Test JSON cache read/write operations with TTL validation."""
 
-    def test_cache_shots_writes_json(self, cache_manager: CacheManager, sample_shots: list[Shot]) -> None:
+    def test_cache_shots_writes_json(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
         """Test caching shots writes valid JSON file."""
         cache_manager.cache_shots(sample_shots)
 
@@ -161,7 +163,9 @@ class TestJSONCacheOperations:
         assert "cached_at" in data
         assert len(data["data"]) == len(sample_shots)
 
-    def test_get_cached_shots_returns_data(self, cache_manager: CacheManager, sample_shots: list[Shot]) -> None:
+    def test_get_cached_shots_returns_data(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
         """Test retrieving cached shots returns correct data."""
         cache_manager.cache_shots(sample_shots)
 
@@ -174,7 +178,9 @@ class TestJSONCacheOperations:
         assert cached[0]["sequence"] == "seq01"
         assert cached[0]["shot"] == "shot010"
 
-    def test_get_cached_shots_respects_ttl(self, cache_manager: CacheManager, sample_shots: list[Shot]) -> None:
+    def test_get_cached_shots_respects_ttl(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
         """Test TTL expiration invalidates cache."""
         cache_manager.cache_shots(sample_shots)
 
@@ -194,7 +200,9 @@ class TestJSONCacheOperations:
         expired = cache_manager.get_cached_shots()
         assert expired is None
 
-    def test_cache_threede_scenes_writes_json(self, cache_manager: CacheManager) -> None:
+    def test_cache_threede_scenes_writes_json(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test caching 3DE scenes writes valid JSON."""
         # Use dict format (as expected by cache_threede_scenes)
         scenes = [
@@ -217,7 +225,9 @@ class TestJSONCacheOperations:
         assert "data" in data
         assert len(data["data"]) == 1
 
-    def test_get_cached_threede_scenes_returns_data(self, cache_manager: CacheManager) -> None:
+    def test_get_cached_threede_scenes_returns_data(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test retrieving cached 3DE scenes."""
         scenes = [
             {
@@ -255,7 +265,9 @@ class TestJSONCacheOperations:
         cached = cache_manager.get_cached_shots()
         assert cached == []
 
-    def test_cache_overwrites_existing_data(self, cache_manager: CacheManager, sample_shots: list[Shot]) -> None:
+    def test_cache_overwrites_existing_data(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
         """Test caching new data overwrites old data."""
         # Cache initial data
         cache_manager.cache_shots(sample_shots[:2])
@@ -271,7 +283,9 @@ class TestJSONCacheOperations:
 class TestThumbnailCaching:
     """Test thumbnail processing and caching operations."""
 
-    def test_cache_thumbnail_jpg(self, cache_manager: CacheManager, test_image_jpg: Path) -> None:
+    def test_cache_thumbnail_jpg(
+        self, cache_manager: CacheManager, test_image_jpg: Path
+    ) -> None:
         """Test caching JPEG thumbnail creates resized output."""
         result = cache_manager.cache_thumbnail(
             test_image_jpg, "test_show", "seq01", "shot010"
@@ -286,7 +300,9 @@ class TestThumbnailCaching:
         assert thumb.width() <= 256
         assert thumb.height() <= 256
 
-    def test_cache_thumbnail_png(self, cache_manager: CacheManager, test_image_png: Path) -> None:
+    def test_cache_thumbnail_png(
+        self, cache_manager: CacheManager, test_image_png: Path
+    ) -> None:
         """Test caching PNG thumbnail preserves transparency."""
         result = cache_manager.cache_thumbnail(
             test_image_png, "test_show", "seq01", "shot020"
@@ -309,13 +325,17 @@ class TestThumbnailCaching:
         cache_manager.cache_thumbnail(test_image_jpg, "test_show", "seq01", "shot010")
 
         # Retrieve it
-        cached_path = cache_manager.get_cached_thumbnail("test_show", "seq01", "shot010")
+        cached_path = cache_manager.get_cached_thumbnail(
+            "test_show", "seq01", "shot010"
+        )
 
         assert cached_path is not None
         assert cached_path.exists()
         assert cached_path.name == "shot010_thumb.jpg"
 
-    def test_get_cached_thumbnail_respects_ttl(self, cache_manager: CacheManager, test_image_jpg: Path) -> None:
+    def test_get_cached_thumbnail_respects_ttl(
+        self, cache_manager: CacheManager, test_image_jpg: Path
+    ) -> None:
         """Test cached thumbnail expires after TTL."""
         # Cache thumbnail
         cache_manager.cache_thumbnail(test_image_jpg, "test_show", "seq01", "shot010")
@@ -334,7 +354,9 @@ class TestThumbnailCaching:
         expired = cache_manager.get_cached_thumbnail("test_show", "seq01", "shot010")
         assert expired is None
 
-    def test_get_cached_thumbnail_missing_file(self, cache_manager: CacheManager) -> None:
+    def test_get_cached_thumbnail_missing_file(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test retrieving non-existent thumbnail returns None."""
         result = cache_manager.get_cached_thumbnail(
             "nonexistent_show", "seq99", "shot999"
@@ -345,9 +367,7 @@ class TestThumbnailCaching:
         self, cache_manager: CacheManager, test_image_jpg: Path
     ) -> None:
         """Test thumbnail caching creates show/sequence directory structure."""
-        cache_manager.cache_thumbnail(
-            test_image_jpg, "new_show", "new_seq", "new_shot"
-        )
+        cache_manager.cache_thumbnail(test_image_jpg, "new_show", "new_seq", "new_shot")
 
         expected_dir = cache_manager.thumbnails_dir / "new_show" / "new_seq"
         assert expected_dir.exists()
@@ -357,7 +377,9 @@ class TestThumbnailCaching:
 class TestEXRProcessing:
     """Test OpenEXR thumbnail processing."""
 
-    def test_exr_thumbnail_with_pil(self, cache_manager: CacheManager, mock_exr_file: Path) -> None:
+    def test_exr_thumbnail_with_pil(
+        self, cache_manager: CacheManager, mock_exr_file: Path
+    ) -> None:
         """Test EXR processing uses PIL directly (no OpenEXR/Imath dependency).
 
         This tests that we handle EXR files gracefully using PIL,
@@ -373,7 +395,9 @@ class TestEXRProcessing:
             # Verify no exception was raised (graceful failure)
             assert True
 
-    def test_exr_thumbnail_with_missing_file(self, cache_manager: CacheManager, tmp_path: Path) -> None:
+    def test_exr_thumbnail_with_missing_file(
+        self, cache_manager: CacheManager, tmp_path: Path
+    ) -> None:
         """Test EXR processing handles missing files gracefully."""
         missing_exr = tmp_path / "nonexistent.exr"
 
@@ -391,7 +415,9 @@ class TestThreadSafety:
     Following UNIFIED_TESTING_GUIDE: "Thread Safety in Tests"
     """
 
-    def test_concurrent_shot_caching(self, cache_manager: CacheManager, sample_shots: list[Shot]) -> None:
+    def test_concurrent_shot_caching(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
         """Test thread-safe concurrent shot caching operations.
 
         NOTE: This test may be flaky when run with full test suite due to
@@ -399,6 +425,7 @@ class TestThreadSafety:
         The cache_manager itself IS thread-safe (uses QMutex properly).
         """
         import queue
+
         results_queue: queue.Queue[bool] = queue.Queue()
 
         def cache_operation(thread_id: int) -> None:
@@ -420,7 +447,9 @@ class TestThreadSafety:
 
         # Run 5 threads concurrently using Thread instead of ThreadPoolExecutor
         # to avoid Qt event loop issues in test environment
-        threads = [threading.Thread(target=cache_operation, args=(i,)) for i in range(5)]
+        threads = [
+            threading.Thread(target=cache_operation, args=(i,)) for i in range(5)
+        ]
         for thread in threads:
             thread.start()
         for thread in threads:
@@ -435,9 +464,12 @@ class TestThreadSafety:
         assert all(results), f"Some cache operations failed: {results}"
         assert len(results) == 5, f"Expected 5 results, got {len(results)}"
 
-    def test_concurrent_thumbnail_caching(self, cache_manager: CacheManager, test_image_jpg: Path) -> None:
+    def test_concurrent_thumbnail_caching(
+        self, cache_manager: CacheManager, test_image_jpg: Path
+    ) -> None:
         """Test thread-safe concurrent thumbnail operations."""
         import queue
+
         results_queue: queue.Queue[bool] = queue.Queue()
 
         def thumbnail_operation(thread_id: int) -> None:
@@ -452,7 +484,9 @@ class TestThreadSafety:
                 results_queue.put(result is not None)
 
         # Run multiple threads
-        threads = [threading.Thread(target=thumbnail_operation, args=(i,)) for i in range(3)]
+        threads = [
+            threading.Thread(target=thumbnail_operation, args=(i,)) for i in range(3)
+        ]
         for thread in threads:
             thread.start()
         for thread in threads:
@@ -467,7 +501,9 @@ class TestThreadSafety:
         assert all(results)
         assert len(results) == 15  # 3 threads × 5 operations
 
-    def test_concurrent_cache_clearing(self, cache_manager: CacheManager, sample_shots: list[Shot]) -> None:
+    def test_concurrent_cache_clearing(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
         """Test thread-safe cache clearing with concurrent reads."""
         import queue
 
@@ -518,7 +554,9 @@ class TestThreadSafety:
 class TestCacheManagement:
     """Test cache clearing and memory management operations."""
 
-    def test_clear_cache_removes_all_files(self, cache_manager: CacheManager, sample_shots: list[Shot]) -> None:
+    def test_clear_cache_removes_all_files(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
         """Test clear_cache removes all cached data."""
         # Populate cache
         cache_manager.cache_shots(sample_shots)
@@ -543,7 +581,10 @@ class TestCacheManagement:
         manager.clear_cache()
 
     def test_get_memory_usage_calculates_correctly(
-        self, cache_manager: CacheManager, test_image_jpg: Path, sample_shots: list[Shot]
+        self,
+        cache_manager: CacheManager,
+        test_image_jpg: Path,
+        sample_shots: list[Shot],
     ) -> None:
         """Test memory usage calculation."""
         # Get initial usage (should be minimal)
@@ -574,30 +615,32 @@ class TestCacheManagement:
 class TestErrorHandling:
     """Test error handling and edge cases."""
 
-    def test_cache_thumbnail_with_missing_source(self, cache_manager: CacheManager, tmp_path: Path) -> None:
+    def test_cache_thumbnail_with_missing_source(
+        self, cache_manager: CacheManager, tmp_path: Path
+    ) -> None:
         """Test caching thumbnail with non-existent source file."""
         missing_file = tmp_path / "missing.jpg"
 
-        result = cache_manager.cache_thumbnail(
-            missing_file, "show", "seq", "shot"
-        )
+        result = cache_manager.cache_thumbnail(missing_file, "show", "seq", "shot")
 
         # Should return None for missing source
         assert result is None
 
-    def test_cache_thumbnail_with_corrupt_image(self, cache_manager: CacheManager, tmp_path: Path) -> None:
+    def test_cache_thumbnail_with_corrupt_image(
+        self, cache_manager: CacheManager, tmp_path: Path
+    ) -> None:
         """Test caching thumbnail with corrupt image data."""
         corrupt_file = tmp_path / "corrupt.jpg"
         corrupt_file.write_bytes(b"NOT A VALID IMAGE")
 
-        result = cache_manager.cache_thumbnail(
-            corrupt_file, "show", "seq", "shot"
-        )
+        result = cache_manager.cache_thumbnail(corrupt_file, "show", "seq", "shot")
 
         # Should handle corrupt image gracefully
         assert result is None
 
-    def test_get_cached_shots_with_corrupt_json(self, cache_manager: CacheManager) -> None:
+    def test_get_cached_shots_with_corrupt_json(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test retrieving shots with corrupt JSON file."""
         # Write invalid JSON
         cache_manager.shots_cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -608,7 +651,9 @@ class TestErrorHandling:
         # Should return None for corrupt JSON
         assert result is None
 
-    def test_get_cached_shots_with_missing_keys(self, cache_manager: CacheManager) -> None:
+    def test_get_cached_shots_with_missing_keys(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test retrieving shots with malformed JSON structure."""
         # Write JSON without expected keys
         cache_manager.shots_cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -644,11 +689,189 @@ class TestErrorHandling:
             cache_dir.chmod(stat.S_IRWXU)
 
 
+class TestPersistentPreviousShotsCache:
+    """Test persistent incremental caching for previous shots.
+
+    Tests the new persistent cache functionality that:
+    - Never expires (no TTL check)
+    - Accumulates shots incrementally
+    - Only refreshes when user explicitly requests it
+
+    Following UNIFIED_TESTING_GUIDE: Test behavior, not implementation.
+    """
+
+    def test_get_persistent_previous_shots_ignores_ttl(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
+        """Test persistent cache returns data regardless of age."""
+        # Cache previous shots
+        cache_manager.cache_previous_shots(sample_shots)
+
+        # Verify cache is valid initially
+        cached = cache_manager.get_persistent_previous_shots()
+        assert cached is not None
+        assert len(cached) == 3
+
+        # Manually expire the cache by modifying file timestamp
+        cache_file = cache_manager.previous_shots_cache_file
+        old_time = time.time() - (60 * 60 * 24)  # 24 hours ago (way past TTL)
+        import os
+
+        os.utime(cache_file, (old_time, old_time))
+
+        # Persistent cache should STILL return data (no TTL check)
+        persistent = cache_manager.get_persistent_previous_shots()
+        assert persistent is not None
+        assert len(persistent) == 3
+        assert persistent[0]["show"] == "test_show"
+
+        # Compare: Regular cache WOULD be expired
+        regular = cache_manager.get_cached_previous_shots()
+        assert regular is None  # Expired with TTL check
+
+    def test_persistent_cache_returns_none_when_missing(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Test persistent cache returns None for non-existent cache file."""
+        result = cache_manager.get_persistent_previous_shots()
+        assert result is None
+
+    def test_persistent_cache_handles_empty_cache(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Test persistent cache handles empty shot list."""
+        cache_manager.cache_previous_shots([])
+
+        result = cache_manager.get_persistent_previous_shots()
+        assert result == []
+
+    def test_persistent_cache_preserves_data_format(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
+        """Test persistent cache preserves shot data structure."""
+        cache_manager.cache_previous_shots(sample_shots)
+
+        cached = cache_manager.get_persistent_previous_shots()
+        assert cached is not None
+
+        # Verify data structure
+        for shot_data in cached:
+            assert "show" in shot_data
+            assert "sequence" in shot_data
+            assert "shot" in shot_data
+            assert "workspace_path" in shot_data
+
+    def test_persistent_cache_thread_safety(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
+        """Test thread-safe concurrent access to persistent cache."""
+        import queue
+
+        results_queue: queue.Queue[int | None] = queue.Queue()
+
+        # Pre-populate cache
+        cache_manager.cache_previous_shots(sample_shots)
+
+        def read_persistent_cache() -> None:
+            """Concurrent read from persistent cache."""
+            for _ in range(10):
+                cached = cache_manager.get_persistent_previous_shots()
+                results_queue.put(len(cached) if cached else None)
+                time.sleep(0.001)
+
+        # Run multiple readers concurrently
+        threads = [threading.Thread(target=read_persistent_cache) for _ in range(3)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        # Collect results from thread-safe queue
+        results = []
+        while not results_queue.empty():
+            results.append(results_queue.get())
+
+        # All reads should succeed and return correct count
+        assert len(results) == 30  # 3 threads × 10 reads
+        assert all(r == 3 for r in results)  # All should see 3 shots
+
+    def test_persistent_cache_survives_manager_recreation(
+        self, tmp_path: Path, sample_shots: list[Shot]
+    ) -> None:
+        """Test persistent cache survives CacheManager recreation.
+
+        This simulates application restart where cache should remain intact.
+        """
+        cache_dir = tmp_path / "persistent_cache"
+
+        # Create first manager and cache data
+        manager1 = CacheManager(cache_dir=cache_dir)
+        manager1.cache_previous_shots(sample_shots)
+
+        # Wait a bit to simulate time passing
+        time.sleep(0.1)
+
+        # "Restart" by creating new manager instance
+        manager2 = CacheManager(cache_dir=cache_dir)
+
+        # Persistent cache should still be available
+        cached = manager2.get_persistent_previous_shots()
+        assert cached is not None
+        assert len(cached) == 3
+
+        # Even hours later, it should still be there
+        cache_file = manager2.previous_shots_cache_file
+        old_time = time.time() - (60 * 60 * 48)  # 48 hours ago
+        import os
+
+        os.utime(cache_file, (old_time, old_time))
+
+        # Create third manager to simulate another restart
+        manager3 = CacheManager(cache_dir=cache_dir)
+        still_cached = manager3.get_persistent_previous_shots()
+        assert still_cached is not None
+        assert len(still_cached) == 3
+
+    def test_comparison_persistent_vs_regular_cache(
+        self, cache_manager: CacheManager, sample_shots: list[Shot]
+    ) -> None:
+        """Test that demonstrates difference between persistent and regular cache."""
+        # Cache some previous shots
+        cache_manager.cache_previous_shots(sample_shots)
+
+        # Both methods should return data initially
+        regular = cache_manager.get_cached_previous_shots()
+        persistent = cache_manager.get_persistent_previous_shots()
+
+        assert regular is not None
+        assert persistent is not None
+        assert len(regular) == len(persistent) == 3
+
+        # Expire the cache
+        cache_file = cache_manager.previous_shots_cache_file
+        old_time = time.time() - (60 * 60)  # 1 hour ago (past 30min TTL)
+        import os
+
+        os.utime(cache_file, (old_time, old_time))
+
+        # Regular cache respects TTL - returns None
+        regular_expired = cache_manager.get_cached_previous_shots()
+        assert regular_expired is None
+
+        # Persistent cache ignores TTL - still returns data
+        persistent_valid = cache_manager.get_persistent_previous_shots()
+        assert persistent_valid is not None
+        assert len(persistent_valid) == 3
+
+
 class TestCacheIntegration:
     """Integration tests validating cache behavior across components."""
 
     def test_cache_workflow_shots_to_thumbnails(
-        self, cache_manager: CacheManager, sample_shots: list[Shot], test_image_jpg: Path
+        self,
+        cache_manager: CacheManager,
+        sample_shots: list[Shot],
+        test_image_jpg: Path,
     ) -> None:
         """Test complete workflow: cache shots, then thumbnails."""
         # Step 1: Cache shot data
@@ -695,7 +918,10 @@ class TestCacheIntegration:
         assert cached_thumb is not None
 
     def test_memory_usage_tracks_all_data(
-        self, cache_manager: CacheManager, sample_shots: list[Shot], test_image_jpg: Path
+        self,
+        cache_manager: CacheManager,
+        sample_shots: list[Shot],
+        test_image_jpg: Path,
     ) -> None:
         """Test memory usage calculation includes all cached data."""
         initial = cache_manager.get_memory_usage()

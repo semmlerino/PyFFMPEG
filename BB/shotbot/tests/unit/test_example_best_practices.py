@@ -23,10 +23,16 @@ from launcher_manager import LauncherManager
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestShot, TestShotModel, TestSubprocess
 
+# Mark Qt tests for serial execution in same worker (prevents Qt crashes)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.slow,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+]
+
 if TYPE_CHECKING:
     from pathlib import Path
-
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.slow]
 
 # This file shows how to properly write tests using test doubles instead of mocks,
 # following all principles from the guide:

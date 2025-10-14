@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 # Third-party imports
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, QTimer, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
 
 # Local application imports
 from cache_manager import CacheManager
@@ -65,12 +65,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         # THREAD SAFETY: Lock for protecting _is_scanning flag
         self._scan_lock = QMutex()
 
-        # Auto-refresh timer
-        self._refresh_timer = QTimer(self)
-        self._refresh_timer.timeout.connect(self.refresh_shots)
-        self._refresh_timer.setInterval(5 * 60 * 1000)  # 5 minutes
-
-        # Load from cache on init
+        # Load from cache on init (persistent cache - no expiration)
         self._load_from_cache()
 
         self.logger.info("PreviousShotsModel initialized")
@@ -119,15 +114,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
             self._is_scanning = False
             self.logger.debug("Reset scanning flag")
 
-    def start_auto_refresh(self) -> None:
-        """Start automatic refresh of previous shots."""
-        self._refresh_timer.start()
-        self.logger.info("Started auto-refresh for previous shots")
-
-    def stop_auto_refresh(self) -> None:
-        """Stop automatic refresh of previous shots."""
-        self._refresh_timer.stop()
-        self.logger.info("Stopped auto-refresh for previous shots")
+    # Auto-refresh removed for persistent incremental caching
+    # Previous shots now use a persistent cache that accumulates over time
+    # Only refreshes when user explicitly clicks "Refresh" button
 
     def _cleanup_worker_safely(self) -> None:
         """Centralized worker cleanup to prevent race conditions and crashes.
@@ -164,7 +153,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
                     worker.error_occurred.disconnect()
                     if hasattr(worker, "progress"):
                         # Use pyright ignore for dynamic getattr with Any type
-                        getattr(worker, "progress").disconnect()  # pyright: ignore[reportAny]
+                        worker.progress.disconnect()  # pyright: ignore[reportAny]
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
 
@@ -174,6 +163,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
     def refresh_shots(self) -> bool:
         """Refresh the list of previous shots using a background worker thread.
+
+        Uses incremental caching strategy: new shots are merged with existing cache.
+        The cache is never cleared unless explicitly requested via clear_cache().
 
         Returns:
             True if refresh was started, False if already scanning.
@@ -187,8 +179,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         self.scan_started.emit()
 
-        # Clear caches for manual refresh
-        self._clear_caches_for_refresh()
+        # Note: We do NOT clear caches - incremental merge preserves existing cache
+        # This allows persistent accumulation of approved shots over time
 
         try:
             # Stop any existing worker
@@ -232,14 +224,17 @@ class PreviousShotsModel(LoggingMixin, QObject):
             return False
 
     def _on_scan_finished(self, approved_shots: list[dict[str, str]]) -> None:
-        """Handle worker completion.
+        """Handle worker completion with incremental merge strategy.
+
+        This method merges newly discovered shots with existing cached shots,
+        implementing persistent incremental caching.
 
         Args:
             approved_shots: List of approved shot dictionaries found by worker.
         """
         try:
             # Convert dictionaries to Shot objects
-            shot_objects: list[Shot] = (
+            newly_found_shots: list[Shot] = (
                 [
                     Shot(
                         show=shot_dict["show"],
@@ -253,18 +248,28 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 else []
             )
 
-            # Check if there are changes
-            has_changes = self._has_changes(shot_objects)
+            # Incremental merge: combine existing cache with new findings
+            # Create set of existing shot IDs for fast lookup
+            existing_ids = {(s.show, s.sequence, s.shot) for s in self._previous_shots}
 
-            if has_changes:
-                self._previous_shots = shot_objects
+            # Find truly new shots (not in existing cache)
+            new_shots = [
+                shot
+                for shot in newly_found_shots
+                if (shot.show, shot.sequence, shot.shot) not in existing_ids
+            ]
+
+            if new_shots:
+                # Merge: keep existing + add new
+                self._previous_shots.extend(new_shots)
                 self._save_to_cache()
                 self.shots_updated.emit()
                 self.logger.info(
-                    f"Updated previous shots: {len(self._previous_shots)} shots"
+                    f"Added {len(new_shots)} new shots to cache "
+                    f"(total: {len(self._previous_shots)} shots)"
                 )
             else:
-                self.logger.debug("No changes in previous shots")
+                self.logger.debug("No new shots found - cache unchanged")
 
         except Exception as e:
             self.logger.error(f"Error processing scan results: {e}")
@@ -349,7 +354,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         # Convert to dict[str, str] with cast after validation
         details = self._finder.get_shot_details(shot)
         # All fields in ShotDetailsDict are str, so this cast is safe
-        return cast(dict[str, str], dict(details))
+        return cast("dict[str, str]", dict(details))
 
     def set_show_filter(self, show: str | None) -> None:
         """Set the show filter.
@@ -404,9 +409,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
         return get_available_shows(self._previous_shots)
 
     def _load_from_cache(self) -> None:
-        """Load previous shots from cache."""
+        """Load previous shots from persistent cache (no expiration)."""
         try:
-            # Use the correct method: get_cached_previous_shots()
+            # Use persistent cache method - no TTL expiration
             cached_data = self._cache_manager.get_cached_previous_shots()
             if cached_data:
                 self._previous_shots = [
@@ -419,7 +424,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
                     for s in cached_data
                 ]
                 self.logger.info(
-                    f"Loaded {len(self._previous_shots)} previous shots from cache"
+                    f"Loaded {len(self._previous_shots)} previous shots from persistent cache"
                 )
         except Exception as e:
             self.logger.error(f"Error loading previous shots from cache: {e}")
@@ -485,7 +490,6 @@ class PreviousShotsModel(LoggingMixin, QObject):
     def cleanup(self) -> None:
         """Clean up resources and stop worker thread."""
         self.logger.debug("PreviousShotsModel cleanup initiated")
-        self.stop_auto_refresh()
         self._cleanup_worker_safely()  # Use centralized cleanup
         self.logger.info("PreviousShotsModel cleanup completed")
 

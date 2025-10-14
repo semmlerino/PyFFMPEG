@@ -67,14 +67,12 @@ def _mock_widget_show(self: QWidget) -> None:
     # Mark as "shown" for tests without actually showing
     _virtually_visible_widgets.add(id(self))
     # Don't call the original show
-    pass
 
 
 def _mock_widget_hide(self: QWidget) -> None:
     """Hide widget by removing from virtually visible set."""
     _virtually_visible_widgets.discard(id(self))
     # Don't call the original hide
-    pass
 
 
 def _mock_widget_setVisible(self: QWidget, visible: bool) -> None:
@@ -85,7 +83,6 @@ def _mock_widget_setVisible(self: QWidget, visible: bool) -> None:
     else:
         # Mark as "visible" for tests without actually showing
         _virtually_visible_widgets.add(id(self))
-    pass
 
 
 def _mock_widget_isVisible(self: QWidget) -> bool:
@@ -99,7 +96,6 @@ def _mock_widget_showEvent(self: QWidget, event: QShowEvent) -> None:
     # Accept the event but don't show anything
     if event:
         event.accept()
-    pass
 
 
 def _mock_dialog_exec(self: QDialog) -> int:
@@ -169,7 +165,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local application imports
 # Import test doubles library for proper test double patterns
-from tests.test_doubles_library import TestProcessPool  # noqa: E402
+import contextlib
+
+from tests.test_doubles_library import TestProcessPool
 
 # =============================================================================
 # Factory Fixtures (UNIFIED_TESTING_GUIDE Best Practice)
@@ -200,7 +198,9 @@ def make_shot() -> Callable[[str, str, str, str | None], Shot]:
 
 
 @pytest.fixture
-def make_launcher() -> Generator[Callable[[str | None, str, str, str, str], CustomLauncher], None, None]:
+def make_launcher() -> Generator[
+    Callable[[str | None, str, str, str, str], CustomLauncher], None, None
+]:
     """Factory fixture for creating CustomLauncher instances.
 
     Following UNIFIED_TESTING_GUIDE factory pattern.
@@ -247,7 +247,9 @@ def make_cache_manager() -> Generator[Callable[[Path, str], CacheManager], None,
 
     created_managers: list[CacheManager] = []
 
-    def _make_cache_manager(tmp_path: Path, cache_subdir: str = "cache") -> CacheManager:
+    def _make_cache_manager(
+        tmp_path: Path, cache_subdir: str = "cache"
+    ) -> CacheManager:
         cache_dir = tmp_path / cache_subdir
         cache_dir.mkdir(exist_ok=True)
 
@@ -279,7 +281,9 @@ def make_process_pool() -> Generator[Callable[[str], TestProcessPool], None, Non
 
     created_pools: list[TestProcessPool] = []
 
-    def _make_process_pool(default_output: str = "workspace /test/path") -> TestProcessPool:
+    def _make_process_pool(
+        default_output: str = "workspace /test/path",
+    ) -> TestProcessPool:
         pool = TestProcessPool()
         pool.default_output = default_output
         created_pools.append(pool)
@@ -345,7 +349,9 @@ def make_test_worker() -> Generator[Callable[[str], TestWorker], None, None]:
 
 
 @pytest.fixture
-def make_test_cache(tmp_path: Path) -> Generator[Callable[[str], TestCache], None, None]:
+def make_test_cache(
+    tmp_path: Path,
+) -> Generator[Callable[[str], TestCache], None, None]:
     """Factory for creating test cache instances.
     Each cache gets its own temporary directory.
     """
@@ -443,7 +449,52 @@ def pytest_configure(config: Any) -> None:
         "xdist_group(name): Mark tests to run in same xdist worker (for pytest-xdist)",
     )
 
-    # Qt environment is already set at the top of the file
+
+# =============================================================================
+# pytest-qt Configuration for Parallel Execution
+# =============================================================================
+
+
+@pytest.fixture(scope="session")
+def qapp_cls():
+    """Force pytest-qt to always create QApplication instead of QCoreApplication.
+
+    This is critical for parallel execution with pytest-xdist. Without this,
+    pytest-qt may create QCoreApplication in some workers, and when a test
+    needs QPixmap (which requires QGuiApplication/QApplication), it will fail
+    with "QPixmap cannot be created without a QGuiApplication".
+
+    By forcing QApplication for all workers, we ensure compatibility with all
+    Qt GUI operations including QPixmap, QImage with .toPixmap(), etc.
+
+    See: https://pytest-qt.readthedocs.io/en/latest/app_fixtures.html
+    """
+    return QApplication
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_qapp_early() -> Generator[QApplication, None, None]:
+    """CRITICAL: Create QApplication BEFORE any tests run to prevent parallel crashes.
+
+    In parallel execution, widgets are created before pytest-qt's qapp fixture runs.
+    This causes crashes in LoggingMixin.__init__() when super().__init__() tries to
+    initialize Qt widgets without a QApplication instance.
+
+    This autouse session fixture ensures QApplication exists from the very start,
+    eliminating the race condition between widget creation and Qt initialization.
+
+    MUST be session scope and autouse=True to run before any test setup.
+    Directly creates QApplication (not QCoreApplication) to ensure GUI operations work.
+    """
+    # Create QApplication if it doesn't exist yet
+    # MUST use QApplication directly, not qapp_cls, to avoid fixture ordering issues
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+
+    return app
+
+    # Don't quit - let pytest-qt handle cleanup
 
 
 # =============================================================================
@@ -593,7 +644,7 @@ def ensure_qapp() -> Generator[QApplication | None, None, None]:
     app = QApplication.instance()
     if app is None:
         app = QApplication([])
-    yield app
+    return app
     # Don't quit here - let pytest-qt handle cleanup
 
 
@@ -697,7 +748,9 @@ def real_cache_manager(tmp_path: Path) -> Generator[CacheManager, None, None]:
 
 
 @pytest.fixture
-def real_shot_model(real_cache_manager: CacheManager, test_process_pool: TestProcessPool) -> Any:
+def real_shot_model(
+    real_cache_manager: CacheManager, test_process_pool: TestProcessPool
+) -> Any:
     """Create a real ShotModel with test doubles only at boundaries.
 
     This follows UNIFIED_TESTING_GUIDE: real components with boundary mocks.
@@ -721,7 +774,12 @@ def make_test_shot(tmp_path: Path) -> Callable[[str, str, str, bool], Shot]:
     # Local application imports
     from shot_model import Shot
 
-    def _make_shot(show: str = "test", seq: str = "seq01", shot: str = "0010", with_thumbnail: bool = True) -> Shot:
+    def _make_shot(
+        show: str = "test",
+        seq: str = "seq01",
+        shot: str = "0010",
+        with_thumbnail: bool = True,
+    ) -> Shot:
         # Create real directory structure
         shot_name = f"{seq}_{shot}"
         shot_path = tmp_path / "shows" / show / "shots" / seq / shot_name
@@ -758,7 +816,11 @@ def make_real_3de_file(tmp_path: Path) -> Callable[[str, str, str, str, str], Pa
     """
 
     def _make_3de_file(
-        show: str = "test", seq: str = "seq01", shot: str = "0010", user: str = "testuser", version: str = "v001"
+        show: str = "test",
+        seq: str = "seq01",
+        shot: str = "0010",
+        user: str = "testuser",
+        version: str = "v001",
     ) -> Path:
         shot_name = f"{seq}_{shot}"
         scene_path = (
@@ -785,7 +847,9 @@ def make_real_3de_file(tmp_path: Path) -> Callable[[str, str, str, str, str], Pa
 
 
 @pytest.fixture
-def make_real_plate_files(tmp_path: Path) -> Callable[[str, str, str, str, str, int], list[Path]]:
+def make_real_plate_files(
+    tmp_path: Path,
+) -> Callable[[str, str, str, str, str, int], list[Path]]:
     """Factory for creating real plate sequences.
 
     This follows UNIFIED_TESTING_GUIDE: test with real files.
@@ -864,7 +928,9 @@ def make_thread_safe_image() -> Callable[[int, int, Any], ThreadSafeTestImage]:
     # Local application imports
     from tests.test_doubles_library import ThreadSafeTestImage
 
-    def _make_image(width: int = 100, height: int = 100, color: Any = None) -> ThreadSafeTestImage:
+    def _make_image(
+        width: int = 100, height: int = 100, color: Any = None
+    ) -> ThreadSafeTestImage:
         image = ThreadSafeTestImage(width, height)
         if color:
             image.fill(color)
@@ -1130,12 +1196,18 @@ def memory_tracker() -> type[Any]:
 
 
 @pytest.fixture
-def concurrent_executor() -> Callable[[Callable[..., Any], list[tuple[Any, ...]], int], list[Any]]:
+def concurrent_executor() -> Callable[
+    [Callable[..., Any], list[tuple[Any, ...]], int], list[Any]
+]:
     """Execute functions concurrently for thread safety testing."""
     # Standard library imports
     import concurrent.futures
 
-    def _execute_concurrent(func: Callable[..., Any], args_list: list[tuple[Any, ...]], max_workers: int = 10) -> list[Any]:
+    def _execute_concurrent(
+        func: Callable[..., Any],
+        args_list: list[tuple[Any, ...]],
+        max_workers: int = 10,
+    ) -> list[Any]:
         """Execute function with different args concurrently.
 
         Args:
@@ -1203,80 +1275,57 @@ def thread_safety_monitor() -> Any:
 
 
 @pytest.fixture(autouse=True)
-def ensure_clean_state_before_test() -> Generator[None, None, None]:
+def ensure_clean_state_before_test(request: Any) -> Generator[None, None, None]:
     """Ensure clean state BEFORE each test to prevent crashes.
 
     This fixture runs BEFORE each test to clean up any leftover state
     from previous tests that could cause crashes.
+
+    OPTIMIZATION: Only does ProcessPool cleanup for tests that need it.
     """
-    # Standard library imports
-    import sys
-    import threading
-    import time
+    # Only check for ProcessPoolManager if test might use it
+    # Most tests don't need this expensive cleanup
+    test_file = str(request.fspath)
+    needs_process_pool_cleanup = (
+        "process_pool" in test_file.lower()
+        or "shot_model" in test_file.lower()
+        or "main_window" in test_file.lower()
+    )
 
-    # Wait for any background threads to complete
-    initial_thread_count = threading.active_count()
-    if initial_thread_count > 1:
-        # Give threads time to finish
-        time.sleep(0.1)
+    if needs_process_pool_cleanup:
+        # Clean up ProcessPoolManager singleton BEFORE test starts
+        try:
+            # Standard library imports
+            import sys
 
-    # Clean up ProcessPoolManager singleton BEFORE test starts
-    try:
-        # Local application imports
-        from process_pool_manager import ProcessPoolManager
+            # Local application imports
+            from process_pool_manager import ProcessPoolManager
 
-        # Check if singleton was created by a previous test
-        if (
-            hasattr(ProcessPoolManager, "_instance")
-            and ProcessPoolManager._instance is not None
-        ):
-            print(
-                "DEBUG: Found existing ProcessPoolManager, cleaning up before test",
-                file=sys.stderr,
-            )
-            try:
-                # Shutdown the executor to clean up threads with very short timeout
-                ProcessPoolManager._instance.shutdown(timeout=0.1)
-            except Exception:
-                pass  # Ignore shutdown errors
-            # Reset the singleton so test gets a fresh instance
-            ProcessPoolManager._instance = None
-    except ImportError:
-        pass  # Module might not be imported yet
-    except Exception as e:
-        print(
-            f"Warning: Pre-test ProcessPoolManager cleanup error: {e}", file=sys.stderr
-        )
-
-    # Clean up QThreadPool (only if QApplication exists)
-    try:
-        # Third-party imports
-        from PySide6.QtCore import QCoreApplication
-
-        app = QCoreApplication.instance()
-        if app:
-            # Only access QThreadPool if app exists
-            # Third-party imports
-            from PySide6.QtCore import QThreadPool
-
-            pool = QThreadPool.globalInstance()
-            if pool and pool.activeThreadCount() > 0:
-                print(
-                    f"DEBUG: Waiting for {pool.activeThreadCount()} QThreadPool threads",
-                    file=sys.stderr,
-                )
-                pool.waitForDone(500)  # Wait up to 0.5 seconds
-    except Exception as e:
-        print(f"Warning: QThreadPool cleanup error: {e}", file=sys.stderr)
+            # Check if singleton was created by a previous test
+            if (
+                hasattr(ProcessPoolManager, "_instance")
+                and ProcessPoolManager._instance is not None
+            ):
+                try:
+                    # Shutdown the executor to clean up threads with very short timeout
+                    ProcessPoolManager._instance.shutdown(timeout=0.1)
+                except Exception:
+                    pass  # Ignore shutdown errors
+                # Reset the singleton so test gets a fresh instance
+                ProcessPoolManager._instance = None
+        except ImportError:
+            pass  # Module might not be imported yet
+        except Exception:
+            pass  # Ignore cleanup errors
 
     # Now let the test run
-    yield
+    return
 
     # No cleanup here - that's handled by cleanup_qt_resources
 
 
 @pytest.fixture(autouse=True)
-def cleanup_qt_resources() -> Generator[None, None, None]:
+def cleanup_qt_resources(request: Any) -> Generator[None, None, None]:
     """Clean up Qt resources after each test to prevent resource exhaustion.
 
     This fixture runs after each test to:
@@ -1285,47 +1334,29 @@ def cleanup_qt_resources() -> Generator[None, None, None]:
     3. Clear virtually visible widgets tracking
     4. Run garbage collection to free memory
     5. Clean up any lingering QTimers and connections
-    6. Shutdown ProcessPoolManager singleton to clean up threads
+
+    OPTIMIZATION: Only runs for Qt tests (tests using qapp/qtbot fixtures).
+    Non-Qt tests skip this expensive cleanup for better parallel performance.
 
     This prevents:
     - Fatal Python errors from Qt resource corruption
     - Timeouts when creating QImage/QPixmap objects
     - Memory leaks from accumulated widgets
     - State corruption between tests
-    - Thread leaks from ProcessPoolManager singleton
     """
     # Let test run first
     yield
 
-    # Clean up ProcessPoolManager singleton threads FIRST before Qt cleanup
-    try:
-        # Standard library imports
-        import sys
+    # OPTIMIZATION: Only do Qt cleanup if test actually used Qt
+    # Check if test used qapp or qtbot fixtures
+    uses_qt = any(
+        fixture_name in request.fixturenames
+        for fixture_name in ["qapp", "qtbot", "qt_app"]
+    )
 
-        # Local application imports
-        from process_pool_manager import ProcessPoolManager
-
-        # Check if singleton was created
-        if (
-            hasattr(ProcessPoolManager, "_instance")
-            and ProcessPoolManager._instance is not None
-        ):
-            print("DEBUG: Cleaning up ProcessPoolManager singleton", file=sys.stderr)
-            try:
-                # Shutdown the executor to clean up threads with very short timeout
-                ProcessPoolManager._instance.shutdown(timeout=0.1)
-            except Exception:
-                pass  # Ignore shutdown errors
-            # Reset the singleton so next test gets a fresh instance
-            ProcessPoolManager._instance = None
-            print("DEBUG: ProcessPoolManager cleanup complete", file=sys.stderr)
-    except ImportError:
-        pass  # Module might not be imported
-    except Exception as e:
-        # Standard library imports
-        import sys
-
-        print(f"Warning: ProcessPoolManager cleanup error: {e}", file=sys.stderr)
+    if not uses_qt:
+        # Non-Qt test - skip expensive Qt cleanup
+        return
 
     # After test completes, clean up Qt resources
     try:
@@ -1343,10 +1374,8 @@ def cleanup_qt_resources() -> Generator[None, None, None]:
                     widget.close()
                     widget.deleteLater()
                     # Disconnect all signals to prevent crashes
-                    try:
+                    with contextlib.suppress(RuntimeError, TypeError):
                         widget.disconnect()
-                    except (RuntimeError, TypeError):
-                        pass
                 except (RuntimeError, AttributeError):
                     # Widget already deleted or no signals
                     pass
@@ -1412,18 +1441,28 @@ def cleanup_qt_resources() -> Generator[None, None, None]:
         import sys
 
         print(f"Warning: Qt cleanup error: {e}", file=sys.stderr)
-        pass
 
 
 @pytest.fixture(autouse=True)
-def enhanced_mainwindow_cleanup() -> Generator[None, None, None]:
+def enhanced_mainwindow_cleanup(request: Any) -> Generator[None, None, None]:
     """Enhanced MainWindow and cache cleanup for test isolation.
 
     This fixture provides additional cleanup specifically for MainWindow
     instances and cache managers to prevent resource accumulation crashes.
+
+    OPTIMIZATION: Only runs for Qt tests to avoid overhead on non-Qt tests.
     """
     # Let test run first
     yield
+
+    # OPTIMIZATION: Only run if test used Qt
+    uses_qt = any(
+        fixture_name in request.fixturenames
+        for fixture_name in ["qapp", "qtbot", "qt_app"]
+    )
+
+    if not uses_qt:
+        return
 
     # Enhanced cleanup after test
     try:
@@ -1433,23 +1472,27 @@ def enhanced_mainwindow_cleanup() -> Generator[None, None, None]:
         app = QCoreApplication.instance()
         if app:
             # Find and cleanup any MainWindow instances
-            # Local application imports
-            from main_window import MainWindow
+            try:
+                # Local application imports
+                from main_window import MainWindow
 
-            for widget in app.topLevelWidgets():
-                if isinstance(widget, MainWindow):
-                    try:
-                        # Call our new explicit cleanup method
-                        widget.cleanup()
-                        # Ensure it's marked for deletion
-                        widget.deleteLater()
-                    except Exception as e:
-                        # Standard library imports
-                        import sys
+                for widget in app.topLevelWidgets():
+                    if isinstance(widget, MainWindow):
+                        try:
+                            # Call our new explicit cleanup method
+                            widget.cleanup()
+                            # Ensure it's marked for deletion
+                            widget.deleteLater()
+                        except Exception as e:
+                            # Standard library imports
+                            import sys
 
-                        print(
-                            f"Warning: MainWindow cleanup error: {e}", file=sys.stderr
-                        )
+                            print(
+                                f"Warning: MainWindow cleanup error: {e}",
+                                file=sys.stderr,
+                            )
+            except ImportError:
+                pass  # MainWindow not imported in this test
 
             # Clean up any CacheManager instances
             try:
@@ -1462,19 +1505,20 @@ def enhanced_mainwindow_cleanup() -> Generator[None, None, None]:
                 if hasattr(CacheManager, "_instance"):
                     instance = CacheManager._instance
                     if instance:
-                        try:
+                        with contextlib.suppress(Exception):
                             instance.shutdown()
-                        except Exception:
-                            pass
                         CacheManager._instance = None
             except ImportError:
                 pass
 
             # Additional QPixmap cleanup - force cleanup of Qt image cache
-            # Third-party imports
-            from PySide6.QtGui import QPixmapCache
+            try:
+                # Third-party imports
+                from PySide6.QtGui import QPixmapCache
 
-            QPixmapCache.clear()
+                QPixmapCache.clear()
+            except ImportError:
+                pass
 
             # Process events briefly after MainWindow cleanup
             for _ in range(2):
@@ -1745,7 +1789,6 @@ def pytest_collection_modifyitems(items: list[Any]) -> None:
     """
     # Disabled automatic marker addition - we manage xdist_group explicitly in test files
     # This prevents conflicts between different group names (qt_state vs gui_mainwindow)
-    pass
     # for item in items:
     #     # Mark all MainWindow tests to run in same xdist group
     #     if "gui_mainwindow" in item.keywords:

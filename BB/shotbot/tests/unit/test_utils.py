@@ -74,7 +74,9 @@ class TestPathUtils:
         with pytest.raises(ValueError, match="Base path cannot be empty"):
             PathUtils.build_path(None, "dir1")
 
-    def test_build_path_empty_segments_are_skipped(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_build_path_empty_segments_are_skipped(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that empty segments are skipped with warning."""
         result = PathUtils.build_path("/base", "dir1", "", "dir2", None, "file.txt")
         expected = Path("/base/dir1/dir2/file.txt")
@@ -107,14 +109,14 @@ class TestPathUtils:
         result = PathUtils.build_undistortion_path("/workspace", "testuser")
 
         # Should use user/username + undistortion segments (minus first element)
-        expected_segments = ["user", "testuser"] + Config.UNDISTORTION_BASE_SEGMENTS[1:]
+        expected_segments = ["user", "testuser", *Config.UNDISTORTION_BASE_SEGMENTS[1:]]
         expected = Path("/workspace") / Path(*expected_segments)
         assert result == expected
 
     def test_build_threede_scene_path(self) -> None:
         """Test 3DE scene path construction."""
         result = PathUtils.build_threede_scene_path("/workspace", "testuser")
-        expected_segments = ["user", "testuser"] + Config.THREEDE_SCENE_SEGMENTS
+        expected_segments = ["user", "testuser", *Config.THREEDE_SCENE_SEGMENTS]
         expected = Path("/workspace") / Path(*expected_segments)
         assert result == expected
 
@@ -257,6 +259,7 @@ class TestPathUtils:
 
     def test_safe_mkdir_permission_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test mkdir with permission error."""
+
         def raise_permission_error(*args: object, **kwargs: object) -> None:
             raise PermissionError("Permission denied")
 
@@ -381,7 +384,9 @@ class TestFileUtils:
         result = FileUtils.find_files_by_extension("/nonexistent", "txt")
         assert result == []
 
-    def test_find_files_by_extension_permission_error(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_find_files_by_extension_permission_error(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test handling of permission errors during file discovery."""
         # Create directory
         test_dir = tmp_path / "restricted"
@@ -446,7 +451,9 @@ class TestFileUtils:
         result = FileUtils.validate_file_size(test_file, max_size_mb=1)
         assert result is True
 
-    def test_validate_file_size_exceeds_limit(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_validate_file_size_exceeds_limit(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test file size validation when file exceeds limit."""
         test_file = tmp_path / "large_file.txt"
         # Create file with content larger than limit
@@ -520,8 +527,16 @@ class TestVersionUtils:
         result = VersionUtils.find_version_directories("/nonexistent")
         assert result == []
 
-    def test_find_version_directories_permission_error(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        """Test handling of permission errors during version scanning."""
+    def test_find_version_directories_permission_error(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test handling of permission errors during version scanning.
+
+        Following UNIFIED_TESTING_GUIDE: Clear caches for test isolation.
+        """
+        # Clear cache to ensure mock is actually called (cache bypasses iterdir)
+        VersionUtils._version_cache.clear()
+
         with patch.object(
             Path,
             "iterdir",
@@ -615,7 +630,9 @@ class TestValidationUtils:
         )
         assert result is True
 
-    def test_validate_not_empty_with_none(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_validate_not_empty_with_none(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test validation fails with None values."""
         result = ValidationUtils.validate_not_empty("valid", None, "also_valid")
         assert result is False
@@ -623,7 +640,9 @@ class TestValidationUtils:
             "Empty or None value 1" in record.message for record in caplog.records
         )
 
-    def test_validate_not_empty_with_empty_string(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_validate_not_empty_with_empty_string(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test validation fails with empty strings."""
         result = ValidationUtils.validate_not_empty("valid", "", "also_valid")
         assert result is False
@@ -716,7 +735,9 @@ class TestImageUtils:
         )
         assert result is True
 
-    def test_validate_image_dimensions_exceeds_dimension_limit(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_validate_image_dimensions_exceeds_dimension_limit(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test image dimension validation when dimensions exceed limits."""
         result = ImageUtils.validate_image_dimensions(
             5000,
@@ -729,7 +750,9 @@ class TestImageUtils:
             "Image dimensions too large" in record.message for record in caplog.records
         )
 
-    def test_validate_image_dimensions_exceeds_memory_limit(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_validate_image_dimensions_exceeds_memory_limit(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test image dimension validation when estimated memory exceeds limits."""
         # 4000x4000 = 16M pixels * 4 bytes = 64MB
         result = ImageUtils.validate_image_dimensions(
@@ -917,7 +940,9 @@ class TestFindTurnoverPlateThumbnail:
         assert result is not None
         assert "FG01" in result.name
 
-    def test_find_turnover_plate_thumbnail_frame_number_sorting(self, tmp_path: Path) -> None:
+    def test_find_turnover_plate_thumbnail_frame_number_sorting(
+        self, tmp_path: Path
+    ) -> None:
         """Test that frame numbers are sorted correctly."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
@@ -1142,7 +1167,9 @@ class TestPlateDiscoveryCaseInsensitive:
         # Verify priorities are assigned correctly despite case
         plate_dict = dict(result)
         assert plate_dict["fg01"] == 0  # FG priority
-        assert plate_dict["pl01"] == 0.5  # PL priority (in Config.TURNOVER_PLATE_PRIORITY)
+        assert (
+            plate_dict["pl01"] == 0.5
+        )  # PL priority (in Config.TURNOVER_PLATE_PRIORITY)
         assert plate_dict["bg02"] == 1  # BG priority
         assert plate_dict["el01"] == 2  # EL priority
 
@@ -1321,7 +1348,9 @@ class TestUserWorkspaceJPEGDiscovery:
         assert result is not None
         assert result.name == "undistort_version.jpeg"
 
-    def test_find_user_workspace_jpeg_case_insensitive_plates(self, tmp_path: Path) -> None:
+    def test_find_user_workspace_jpeg_case_insensitive_plates(
+        self, tmp_path: Path
+    ) -> None:
         """Test that lowercase plate names (pl01) are found with case-insensitive matching."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"

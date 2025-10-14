@@ -200,7 +200,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):  # type: ignore[report
         Args:
             layout: The main vertical layout
         """
-        pass
 
     def _customize_size_layout(self, layout: QHBoxLayout) -> None:
         """Customize the size control layout.
@@ -210,7 +209,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):  # type: ignore[report
         Args:
             layout: The size control horizontal layout
         """
-        pass
 
     def _create_delegate(self) -> BaseThumbnailDelegate:
         """Create the appropriate delegate for this view.
@@ -334,7 +332,6 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):  # type: ignore[report
         """
         # Default implementation - subclasses should override
         # to call their model's set_visible_range or similar
-        pass
 
     # Common properties
 

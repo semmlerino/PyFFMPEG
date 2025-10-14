@@ -18,5 +18,6 @@ def take_screenshot() -> Path:
     print(f"Screenshot saved to: {output_path}")
     return output_path
 
+
 if __name__ == "__main__":
     take_screenshot()

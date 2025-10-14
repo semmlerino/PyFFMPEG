@@ -21,7 +21,9 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "integration: mark test as an integration test")
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
     """Modify test collection to handle custom markers."""
     # Add integration marker to all tests in this directory
     for item in items:

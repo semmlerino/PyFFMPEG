@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 # Local application imports
 # Import shotbot main after path setup
-from shotbot import main  # noqa: E402
+from shotbot import main
 
 print("Starting Shotbot...")
 print("Press Ctrl+C to stop")

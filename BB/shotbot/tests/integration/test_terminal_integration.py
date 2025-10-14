@@ -378,7 +378,7 @@ class TestTerminalIntegrationFlow:
                 for cmd in non_empty_commands
             ]
             assert len(decoded_commands) == len(test_commands)
-            for sent, expected in zip(decoded_commands, test_commands):
+            for sent, expected in zip(decoded_commands, test_commands, strict=False):
                 assert sent == expected
 
 

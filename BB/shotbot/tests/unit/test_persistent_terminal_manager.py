@@ -207,7 +207,9 @@ class TestPersistentTerminalManager:
                 break
 
         assert bash_index is not None, "bash not found in command"
-        assert "-i" in call_args[bash_index:], "bash -i flag missing for interactive mode"
+        assert "-i" in call_args[bash_index:], (
+            "bash -i flag missing for interactive mode"
+        )
 
     @patch("os.open")
     @patch("os.fdopen")

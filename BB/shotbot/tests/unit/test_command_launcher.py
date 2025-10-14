@@ -19,6 +19,13 @@ from command_launcher import CommandLauncher
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
+# Mark Qt tests for serial execution in same worker (prevents Qt crashes)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+]
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
@@ -394,7 +401,9 @@ class TestCommandLauncher:
         call_args = mock_popen.call_args[0][0]
         assert "rv" in " ".join(call_args)
 
-    def test_no_shot_context_error(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
+    def test_no_shot_context_error(
+        self, launcher: CommandLauncher, qtbot: QtBot
+    ) -> None:
         """Test error when no shot context is set."""
         # Try to launch without shot (no shot set)
         result = launcher.launch_app("nuke")

@@ -11,6 +11,13 @@ import pytest
 # Local application imports
 from shot_model import ShotModel
 
+# Mark Qt tests for serial execution in same worker (prevents Qt crashes)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+]
+
 
 class TestCacheScenarios:
     """Test cache hit/miss scenarios and performance tracking."""

@@ -318,7 +318,7 @@ class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
     @pytest.mark.parametrize(
-        "show_filter,text_filter,expected_count",
+        ("show_filter", "text_filter", "expected_count"),
         [
             ("show1", None, 2),  # Show only
             (None, "shot1", 2),  # Text only

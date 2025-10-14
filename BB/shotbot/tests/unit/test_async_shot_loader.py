@@ -14,6 +14,13 @@ from base_shot_model import BaseShotModel
 from shot_model import AsyncShotLoader, ShotModel
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 
+# Mark Qt tests for serial execution in same worker (prevents Qt crashes)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+]
+
 
 class TestAsyncShotLoader:
     """Test AsyncShotLoader thread behavior and signal emission."""

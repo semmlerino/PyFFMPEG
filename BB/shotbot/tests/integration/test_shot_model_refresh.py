@@ -68,7 +68,7 @@ class TestShotModelRefreshCriticalPaths:
         self, shot_model_with_test_pool, qtbot
     ) -> None:
         """Test successful refresh when shot list changes."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         # Set up test workspace output using VFX format: {sequence}_{shot}
         test_output = """workspace /shows/project/shots/seq01/seq01_shot01
@@ -111,7 +111,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
 
     def test_refresh_shots_no_changes(self, shot_model_with_test_pool, qtbot) -> None:
         """Test refresh when shot list hasn't changed."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         same_output = """workspace /shows/project/shots/seq01/seq01_shot01"""
 
@@ -130,7 +130,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         self, shot_model_with_test_pool, qtbot
     ) -> None:
         """Test timeout handling in refresh_shots()."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         # Simulate timeout by raising TimeoutError
         def timeout_execute(*args, **kwargs) -> NoReturn:
@@ -156,7 +156,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         self, shot_model_with_test_pool, qtbot
     ) -> None:
         """Test handling of malformed workspace output."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         # Provide malformed output
         bad_output = "This is not valid workspace output"
@@ -173,7 +173,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
         self, shot_model_with_test_pool, real_cache_manager
     ) -> None:
         """Test that refresh properly updates cache (real cache, not mocked)."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
         cache = real_cache_manager
 
         # Provide test data
@@ -193,7 +193,7 @@ workspace /shows/project/shots/seq02/seq02_shot01"""
 
     def test_change_detection_algorithm(self, shot_model_with_test_pool) -> None:
         """Test the change detection algorithm with various scenarios."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         # Test data
         output1 = """workspace /shows/test/shots/seq01/seq01_shot01
@@ -228,7 +228,7 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
 
     def test_refresh_result_namedtuple_usage(self, shot_model_with_test_pool) -> None:
         """Test RefreshResult NamedTuple provides proper interface."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         result = model.refresh_shots()
 
@@ -247,7 +247,7 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
         self, shot_model_with_test_pool, qtbot
     ) -> None:
         """Test that concurrent refresh attempts are handled safely."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         # Provide different outputs for each call
         model._process_pool.set_outputs(
@@ -270,7 +270,7 @@ workspace /shows/different/shots/seq01/seq01_shot02"""  # Path changed
 
     def test_cache_invalidation_workflow(self, shot_model_with_test_pool) -> None:
         """Test that cache invalidation forces fresh data fetch."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         # Initial refresh
         model._process_pool.set_outputs(
@@ -300,7 +300,7 @@ class TestShotModelSignalIntegration:
 
     def test_signal_emission_order(self, shot_model_with_test_pool, qtbot) -> None:
         """Test that signals are emitted in correct order."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         signal_order = []
 
@@ -321,7 +321,7 @@ class TestShotModelSignalIntegration:
 
     def test_error_signal_on_failure(self, shot_model_with_test_pool, qtbot) -> None:
         """Test that error_occurred signal is emitted on failures."""
-        model, test_pool = shot_model_with_test_pool
+        model, _test_pool = shot_model_with_test_pool
 
         # Cause an error
         def raise_error(*args, **kwargs) -> NoReturn:

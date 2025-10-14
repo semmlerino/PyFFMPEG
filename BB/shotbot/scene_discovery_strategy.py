@@ -264,9 +264,6 @@ class LocalFileSystemStrategy(SceneDiscoveryStrategy):
     ) -> list[ThreeDEScene]:
         """Scan publish directory for additional scenes."""
         # Local application imports
-        from threede_scene_model import (
-            ThreeDEScene,  # noqa: F401  # pyright: ignore[reportUnusedImport]
-        )
 
         scenes: list[ThreeDEScene] = []
 
@@ -442,9 +439,6 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
         # This implementation returns all scenes at once
         # For true progressive discovery, use find_scenes_progressive method
         # Local application imports
-        from threede_scene_model import (
-            ThreeDEScene,  # noqa: F401  # pyright: ignore[reportUnusedImport]
-        )
 
         scenes: list[ThreeDEScene] = []
 
@@ -495,9 +489,6 @@ class ProgressiveDiscoveryStrategy(SceneDiscoveryStrategy):
             ):
                 # Convert file pairs to ThreeDEScene objects
                 # Local application imports
-                from threede_scene_model import (
-                    ThreeDEScene,  # noqa: F401  # pyright: ignore[reportUnusedImport]
-                )
 
                 scenes: list[ThreeDEScene] = []
                 for _username, threede_file in file_batch:

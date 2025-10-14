@@ -13,13 +13,12 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -29,6 +28,9 @@ from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
 from shot_model import AsyncShotLoader, ShotModel
 
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QApplication
+
 pytestmark = pytest.mark.thread_safety
 
 
@@ -37,7 +39,6 @@ class TestAsyncShotLoaderThreadSafety:
 
     def setup_method(self) -> None:
         """Set up test fixtures."""
-        self.app = QApplication.instance() or QApplication([])
         # Use real test double at system boundary
         # Local application imports
         from tests.test_helpers import TestProcessPoolManager
@@ -123,7 +124,6 @@ class TestShotModelThreadSafety:
 
     def setup_method(self) -> None:
         """Set up test fixtures."""
-        self.app = QApplication.instance() or QApplication([])
         self.temp_dir = tempfile.TemporaryDirectory()
         self.cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         self.model = ShotModel(self.cache_manager)
@@ -189,7 +189,6 @@ class TestShotModelThreadSafety:
         def counting_background_refresh() -> None:
             loader_creation_count[0] += 1
             # Don't actually create loaders to avoid real threading complexity
-            pass
 
         # Mock the command execution at the boundary
         with patch.object(
@@ -279,10 +278,6 @@ class TestProcessPoolManagerSingleton:
 class TestDeadlockDetection:
     """Test for potential deadlocks."""
 
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.app = QApplication.instance() or QApplication([])
-
     def test_no_deadlock_in_cleanup(self) -> None:
         """Test that cleanup doesn't deadlock with running operations."""
         temp_dir = tempfile.TemporaryDirectory()
@@ -307,7 +302,7 @@ class TestDeadlockDetection:
 
         temp_dir.cleanup()
 
-    def test_signal_emission_no_deadlock(self) -> None:
+    def test_signal_emission_no_deadlock(self, qapp: QApplication) -> None:
         """Test that QueuedConnection signals prevent deadlock."""
         temp_dir = tempfile.TemporaryDirectory()
         cache_manager = CacheManager(cache_dir=Path(temp_dir.name))
@@ -339,7 +334,7 @@ class TestDeadlockDetection:
         )
 
         # Process events to trigger the queued slot
-        self.app.processEvents()
+        qapp.processEvents()
 
         # Now the signal should be processed
         assert signal_processed[0], (
@@ -352,10 +347,6 @@ class TestDeadlockDetection:
 
 class TestStressAndPerformance:
     """Stress tests for thread safety under load."""
-
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.app = QApplication.instance() or QApplication([])
 
     def test_stress_concurrent_operations(self) -> None:
         """Stress test with many concurrent operations."""

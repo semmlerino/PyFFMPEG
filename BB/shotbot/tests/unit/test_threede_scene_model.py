@@ -37,9 +37,7 @@ pytestmark = pytest.mark.unit
 class TestThreeDEScene:
     """Test ThreeDEScene dataclass with real files."""
 
-    def test_scene_creation(
-        self, make_real_3de_file: Callable[..., Path]
-    ) -> None:
+    def test_scene_creation(self, make_real_3de_file: Callable[..., Path]) -> None:
         """Test basic scene creation with real file."""
         # Create real 3DE file
         scene_path = make_real_3de_file(
@@ -66,9 +64,7 @@ class TestThreeDEScene:
         assert isinstance(scene.scene_path, Path)
         assert scene.scene_path.exists()
 
-    def test_full_name_property(
-        self, make_real_3de_file: Callable[..., Path]
-    ) -> None:
+    def test_full_name_property(self, make_real_3de_file: Callable[..., Path]) -> None:
         """Test full_name property returns correct format."""
         scene_path = make_real_3de_file("test_show", "seq01", "shot01", "user1")
 
@@ -102,10 +98,17 @@ class TestThreeDEScene:
 
         assert scene.display_name == "seq01_shot01 - artist1"
 
+    @pytest.mark.usefixtures("isolated_test_environment")
+    @pytest.mark.xdist_group("cache_isolation")
     def test_get_thumbnail_path_with_real_files(
         self, tmp_path: Path, monkeypatch: MonkeyPatch
     ) -> None:
-        """Test get_thumbnail_path with real thumbnail files."""
+        """Test get_thumbnail_path with real thumbnail files.
+
+        Following UNIFIED_TESTING_GUIDE: Use isolated_test_environment fixture
+        and xdist_group to ensure complete cache isolation in parallel execution.
+        The xdist_group ensures this test runs in isolation from other cache-sensitive tests.
+        """
         # Create real directory structure
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "test_show" / "shots" / "seq01" / "seq01_shot01"
@@ -298,7 +301,7 @@ class TestThreeDESceneModel:
         model = ThreeDESceneModel(cache_manager=real_cache_manager)
 
         # Refresh with real discovery (refresh_scenes only takes shots parameter)
-        success, has_changes = model.refresh_scenes(user_shots)
+        success, _has_changes = model.refresh_scenes(user_shots)
 
         # Test actual discovery results
         assert success is True
@@ -549,7 +552,7 @@ class TestThreeDESceneModel:
 
         # Multiple rapid refreshes
         for _ in range(3):
-            success, has_changes = model.refresh_scenes(user_shots)
+            success, _has_changes = model.refresh_scenes(user_shots)
             assert success is True
 
         # Model should remain in consistent state

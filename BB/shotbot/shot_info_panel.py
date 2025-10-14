@@ -270,7 +270,6 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             # Clean up Qt objects
             del image, scaled_image
 
-
     def _set_placeholder_thumbnail(self) -> None:
         """Set placeholder thumbnail - thread-safe using QImage."""
         # Use QImage for thread safety instead of QPixmap

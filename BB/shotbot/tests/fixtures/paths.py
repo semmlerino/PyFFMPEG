@@ -55,7 +55,9 @@ def make_vfx_shot(mock_vfx_root: Path) -> Callable[[str, str, str], Path]:
 
 
 @pytest.fixture
-def make_user_workspace(mock_vfx_root: Path) -> Callable[[str, str, str, str, str], Path]:
+def make_user_workspace(
+    mock_vfx_root: Path,
+) -> Callable[[str, str, str, str, str], Path]:
     """Factory to create user workspace directories.
 
     Args:
@@ -69,12 +71,23 @@ def make_user_workspace(mock_vfx_root: Path) -> Callable[[str, str, str, str, st
         Path to the created user workspace
     """
 
-    def _create_workspace(show: str, sequence: str, shot: str, username: str, app: str) -> Path:
+    def _create_workspace(
+        show: str, sequence: str, shot: str, username: str, app: str
+    ) -> Path:
         """Create a user workspace directory."""
         shot_dir = mock_vfx_root / show / "shots" / sequence / f"{sequence}_{shot}"
 
         if app == "3de":
-            workspace = shot_dir / "user" / username / "mm" / "3de" / "mm-default" / "scenes" / "scene"
+            workspace = (
+                shot_dir
+                / "user"
+                / username
+                / "mm"
+                / "3de"
+                / "mm-default"
+                / "scenes"
+                / "scene"
+            )
         else:
             workspace = shot_dir / "user" / username / app / "scenes"
 

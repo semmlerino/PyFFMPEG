@@ -27,6 +27,7 @@ class FolderEncoder:
             chunk_size_kb: Size of each chunk in KB (0 for no chunking)
             verbose: Enable verbose output
         """
+        super().__init__()
         self.chunk_size_kb = chunk_size_kb
         self.verbose = verbose
 

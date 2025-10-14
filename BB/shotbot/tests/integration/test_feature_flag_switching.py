@@ -188,10 +188,9 @@ class TestFeatureFlagSwitching:
                                 if (
                                     hasattr(window, "_threede_worker")
                                     and window._threede_worker
-                                ):
-                                    if window._threede_worker.isRunning():
-                                        window._threede_worker.quit()
-                                        window._threede_worker.wait(1000)
+                                ) and window._threede_worker.isRunning():
+                                    window._threede_worker.quit()
+                                    window._threede_worker.wait(1000)
                                 window.close()
                         else:
                             # Use legacy ShotModel, no ProcessPoolManager needed
@@ -208,10 +207,9 @@ class TestFeatureFlagSwitching:
                             if (
                                 hasattr(window, "_threede_worker")
                                 and window._threede_worker
-                            ):
-                                if window._threede_worker.isRunning():
-                                    window._threede_worker.quit()
-                                    window._threede_worker.wait(1000)
+                            ) and window._threede_worker.isRunning():
+                                window._threede_worker.quit()
+                                window._threede_worker.wait(1000)
                             window.close()
             finally:
                 os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
@@ -387,10 +385,10 @@ class TestMainWindowIntegration:
     """Test MainWindow integration with different shot models."""
 
     @pytest.fixture(autouse=True)
-    def setup_and_teardown(self, qtbot):
+    def setup_and_teardown(self, qtbot) -> None:
         """Set up test environment with qtbot."""
         self.qtbot = qtbot
-        yield
+        return
 
     def test_window_initialization_with_default_model(self, qapp, qtbot) -> None:
         """Test that MainWindow initializes correctly with default optimized model."""
@@ -470,40 +468,42 @@ class TestMainWindowIntegration:
                 MockCacheManager.return_value = test_cache
 
                 # Mock QTimer to prevent delayed operations
-                with patch("PySide6.QtCore.QTimer.singleShot"):
-                    with patch(
+                with (
+                    patch("PySide6.QtCore.QTimer.singleShot"),
+                    patch(
                         "process_pool_manager.ProcessPoolManager.get_instance"
-                    ) as mock_get_instance:
-                        # Local application imports
-                        from tests.test_doubles_library import TestProcessPool
+                    ) as mock_get_instance,
+                ):
+                    # Local application imports
+                    from tests.test_doubles_library import TestProcessPool
 
-                        mock_get_instance.return_value = TestProcessPool()
-                        window = MainWindow()
-                        qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+                    mock_get_instance.return_value = TestProcessPool()
+                    window = MainWindow()
+                    qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
-                        # Track cleanup behavior
-                        cleanup_called = False
-                        original_cleanup = window.shot_model.cleanup
+                    # Track cleanup behavior
+                    cleanup_called = False
+                    original_cleanup = window.shot_model.cleanup
 
-                        def track_cleanup() -> None:
-                            nonlocal cleanup_called
-                            cleanup_called = True
-                            original_cleanup()
+                    def track_cleanup() -> None:
+                        nonlocal cleanup_called
+                        cleanup_called = True
+                        original_cleanup()
 
-                        window.shot_model.cleanup = track_cleanup
+                    window.shot_model.cleanup = track_cleanup
 
-                        # Create test close event
-                        class TestCloseEvent:
-                            def accept(self) -> None:
-                                pass
+                    # Create test close event
+                    class TestCloseEvent:
+                        def accept(self) -> None:
+                            pass
 
-                        test_event = TestCloseEvent()
+                    test_event = TestCloseEvent()
 
-                        # Call closeEvent
-                        window.closeEvent(test_event)
+                    # Call closeEvent
+                    window.closeEvent(test_event)
 
-                        # Verify behavior (cleanup was called)
-                        assert cleanup_called, "Cleanup should be called on close"
+                    # Verify behavior (cleanup was called)
+                    assert cleanup_called, "Cleanup should be called on close"
         finally:
             pass  # No cleanup needed for default behavior
 

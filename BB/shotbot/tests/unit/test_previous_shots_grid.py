@@ -48,7 +48,9 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
-def create_test_shot(show: str = "testshow", sequence: str = "seq01", shot: str = "0010") -> Shot:
+def create_test_shot(
+    show: str = "testshow", sequence: str = "seq01", shot: str = "0010"
+) -> Shot:
     """Create test shot for testing."""
     return Shot(show, sequence, shot, f"/shows/{show}")
 
@@ -129,7 +131,12 @@ class TestPreviousShotsView:
         return CacheManager(cache_dir=tmp_path / "cache")
 
     @pytest.fixture
-    def grid_widget(self, test_model: FakePreviousShotsModel, test_cache_manager: TestCacheManager, qtbot: QtBot) -> Generator[PreviousShotsView, None, None]:
+    def grid_widget(
+        self,
+        test_model: FakePreviousShotsModel,
+        test_cache_manager: TestCacheManager,
+        qtbot: QtBot,
+    ) -> Generator[PreviousShotsView, None, None]:
         """Create PreviousShotsView widget with Model/View architecture."""
         # Create the item model wrapper for the previous shots model
         item_model = PreviousShotsItemModel(
@@ -145,7 +152,10 @@ class TestPreviousShotsView:
         item_model.deleteLater()
 
     def test_grid_initialization(
-        self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, test_cache_manager: TestCacheManager
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        test_cache_manager: TestCacheManager,
     ) -> None:
         """Test grid widget initialization."""
         # View has the item model, which wraps the test_model
@@ -163,51 +173,70 @@ class TestPreviousShotsView:
         assert hasattr(grid_widget, "refresh")
         assert hasattr(grid_widget, "get_selected_shot")
 
-    def test_refresh_button_interaction(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_refresh_button_interaction(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test refresh button click behavior with signal waiting."""
         # Initially button should be enabled
         assert grid_widget._refresh_button.isEnabled()
         assert grid_widget._refresh_button.text() == "Refresh"
 
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
-        with patch(
-            "progress_manager.ProgressManager.start_operation",
-            TestProgressManager.start_operation,
-        ):
-            with patch(
+        with (
+            patch(
+                "progress_manager.ProgressManager.start_operation",
+                TestProgressManager.start_operation,
+            ),
+            patch(
                 "progress_manager.ProgressManager.finish_operation",
                 TestProgressManager.finish_operation,
-            ):
-                # Test button click
-                QTest.mouseClick(grid_widget._refresh_button, Qt.MouseButton.LeftButton)
-                qtbot.wait(10)  # Brief wait for signal processing
+            ),
+        ):
+            # Test button click
+            QTest.mouseClick(grid_widget._refresh_button, Qt.MouseButton.LeftButton)
+            qtbot.wait(10)  # Brief wait for signal processing
 
         # Verify refresh was attempted (the important behavior)
         assert len(test_model.refresh_calls) >= 1
 
-    def test_scan_state_signal_handling(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_scan_state_signal_handling(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test handling of scan state signals."""
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
-        with patch(
-            "progress_manager.ProgressManager.start_operation",
-            TestProgressManager.start_operation,
-        ):
-            with patch(
+        with (
+            patch(
+                "progress_manager.ProgressManager.start_operation",
+                TestProgressManager.start_operation,
+            ),
+            patch(
                 "progress_manager.ProgressManager.finish_operation",
                 TestProgressManager.finish_operation,
-            ):
-                # Test scan started signal
-                test_model.scan_started.emit()
-                qtbot.wait(10)
+            ),
+        ):
+            # Test scan started signal
+            test_model.scan_started.emit()
+            qtbot.wait(10)
 
-                # Test scan finished signal
-                test_model.scan_finished.emit()
-                qtbot.wait(10)
+            # Test scan finished signal
+            test_model.scan_finished.emit()
+            qtbot.wait(10)
 
         # The key test is that signals don't crash the widget
         assert grid_widget is not None
 
-    def test_scan_progress_updates(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_scan_progress_updates(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test scan progress signal handling."""
         test_model.scan_progress.emit(50, 100)
 
@@ -219,7 +248,12 @@ class TestPreviousShotsView:
         # Test that the signal was handled without crashing
         assert status_text is not None  # Label was updated
 
-    def test_empty_state_display(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_empty_state_display(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test display when no shots are available."""
         # Model has no shots
         test_model.set_shots([])
@@ -231,7 +265,10 @@ class TestPreviousShotsView:
             assert grid_widget._model.rowCount() == 0
 
     def test_grid_population_with_real_thumbnails(
-        self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
     ) -> None:
         """Test grid population with real ThumbnailWidget components.
 
@@ -259,7 +296,12 @@ class TestPreviousShotsView:
         # Status should show shot count
         qtbot.waitUntil(lambda: "3" in grid_widget._status_label.text(), timeout=1000)
 
-    def test_thumbnail_signal_connections(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_thumbnail_signal_connections(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test that thumbnail signals are properly connected."""
         # Add a shot
         shot = create_test_shot("test", "seq01", "shot01")
@@ -286,7 +328,12 @@ class TestPreviousShotsView:
         assert shot_selected_spy.count() == 1
         assert shot_selected_spy.at(0)[0] == shot
 
-    def test_shot_selection_behavior(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_shot_selection_behavior(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test shot selection and visual feedback."""
         shot1 = create_test_shot("show1", "seq1", "shot1")
         shot2 = create_test_shot("show1", "seq1", "shot2")
@@ -313,7 +360,12 @@ class TestPreviousShotsView:
         assert shot_selected_spy.count() == 1
         assert shot_selected_spy.at(0)[0] is shot1
 
-    def test_shot_double_click_behavior(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_shot_double_click_behavior(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test shot double-click signal emission."""
         shot = create_test_shot("show1", "seq1", "shot1")
         test_model.set_shots([shot])
@@ -338,7 +390,12 @@ class TestPreviousShotsView:
         assert shot_double_clicked_spy.count() == 1
         assert shot_double_clicked_spy.at(0)[0] is shot
 
-    def test_grid_clear_functionality(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_grid_clear_functionality(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test clearing grid widgets properly."""
         # Add shots
         test_model.set_shots(create_test_shots(2))
@@ -359,7 +416,12 @@ class TestPreviousShotsView:
         # Selection should be reset
         assert grid_widget.selected_shot is None
 
-    def test_grid_column_calculation(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_grid_column_calculation(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test that grid columns are calculated correctly based on width."""
         # Set specific size
         grid_widget.resize(1000, 600)
@@ -386,23 +448,32 @@ class TestPreviousShotsView:
             grid_widget.list_view.viewMode() == grid_widget.list_view.ViewMode.IconMode
         )
 
-    def test_refresh_method_delegation(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel) -> None:
+    def test_refresh_method_delegation(
+        self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel
+    ) -> None:
         """Test that refresh method delegates to model."""
         # Use test double for ProgressManager to avoid Qt lifecycle issues with status bar
-        with patch(
-            "progress_manager.ProgressManager.start_operation",
-            TestProgressManager.start_operation,
-        ):
-            with patch(
+        with (
+            patch(
+                "progress_manager.ProgressManager.start_operation",
+                TestProgressManager.start_operation,
+            ),
+            patch(
                 "progress_manager.ProgressManager.finish_operation",
                 TestProgressManager.finish_operation,
-            ):
-                grid_widget.refresh()
+            ),
+        ):
+            grid_widget.refresh()
 
         # The important thing is the refresh call was attempted
         assert len(test_model.refresh_calls) >= 1
 
-    def test_get_selected_shot(self, grid_widget: PreviousShotsView, test_model: FakePreviousShotsModel, qtbot: QtBot) -> None:
+    def test_get_selected_shot(
+        self,
+        grid_widget: PreviousShotsView,
+        test_model: FakePreviousShotsModel,
+        qtbot: QtBot,
+    ) -> None:
         """Test getting currently selected shot."""
         # Initially no selection
         assert grid_widget.get_selected_shot() is None
@@ -431,7 +502,9 @@ class TestPreviousShotsViewIntegration:
     """Integration tests with real components."""
 
     @pytest.fixture
-    def integration_grid(self, qtbot: QtBot, tmp_path: Path) -> Generator[PreviousShotsView, None, None]:
+    def integration_grid(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> Generator[PreviousShotsView, None, None]:
         """Create view with all real components for integration testing."""
         # Local application imports
         from shot_model import ShotModel
@@ -451,11 +524,12 @@ class TestPreviousShotsViewIntegration:
         yield view
 
         # Cleanup
-        if hasattr(previous_model, "stop_auto_refresh"):
-            previous_model.stop_auto_refresh()
+        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         previous_model.deleteLater()
 
-    def test_integration_grid_creation(self, integration_grid: PreviousShotsView, qtbot: QtBot) -> None:
+    def test_integration_grid_creation(
+        self, integration_grid: PreviousShotsView, qtbot: QtBot
+    ) -> None:
         """Test that integration grid creates successfully."""
         grid = integration_grid
 

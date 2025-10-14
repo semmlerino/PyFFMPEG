@@ -130,7 +130,7 @@ class TestParallelDiscoveryIntegration:
             assert (
                 len(file_tuple) == 6
             )  # (file_path, show, sequence, shot, user, plate)
-            file_path, show, sequence, shot, user, plate = file_tuple
+            file_path, show, sequence, shot, user, _plate = file_tuple
 
             assert isinstance(file_path, Path)
             assert file_path.suffix == ".3de"
@@ -146,7 +146,7 @@ class TestParallelDiscoveryIntegration:
         This tests the method that actually calls find_all_3de_files_in_show_parallel
         and caused the production failure.
         """
-        shows_root, test_shots = self._create_test_vfx_structure()
+        _shows_root, test_shots = self._create_test_vfx_structure()
 
         # Track progress updates like the worker does
         progress_updates = []
@@ -185,7 +185,7 @@ class TestParallelDiscoveryIntegration:
 
     def test_parallel_discovery_with_cancellation(self) -> None:
         """Test that cancellation works correctly during parallel discovery."""
-        shows_root, test_shots = self._create_test_vfx_structure()
+        _shows_root, test_shots = self._create_test_vfx_structure()
 
         progress_updates = []
         cancel_after_updates = 2
@@ -214,7 +214,7 @@ class TestParallelDiscoveryIntegration:
     def test_parallel_discovery_error_handling(self) -> None:
         """Test error handling in parallel discovery with invalid paths."""
         # Mix of valid and invalid paths
-        shows_root, valid_shots = self._create_test_vfx_structure()
+        _shows_root, valid_shots = self._create_test_vfx_structure()
 
         # Add invalid shots that don't exist
         invalid_shots = [
@@ -269,7 +269,7 @@ class TestParallelDiscoveryIntegration:
         # Standard library imports
         import threading
 
-        shows_root, test_shots = self._create_test_vfx_structure()
+        _shows_root, test_shots = self._create_test_vfx_structure()
 
         results = {}
         errors = {}
@@ -323,7 +323,7 @@ class TestParallelDiscoveryIntegration:
         assert "ANOTHERSHOW" in results
 
         # Verify results from both discoveries
-        for show_name, (scenes, progress_updates) in results.items():
+        for _show_name, (scenes, progress_updates) in results.items():
             assert isinstance(scenes, list)
             assert len(scenes) >= 0  # May be 0 if no scenes found
             assert len(progress_updates) >= 0  # Should have some progress

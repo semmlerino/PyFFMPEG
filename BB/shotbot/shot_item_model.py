@@ -6,6 +6,7 @@ extending BaseItemModel with shot-specific behavior.
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QModelIndex, QObject, Signal
@@ -16,7 +17,8 @@ from base_item_model import BaseItemModel
 if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
-    from shot_model import RefreshResult, Shot
+    from shot_model import Shot
+    from type_definitions import RefreshResult
 
 
 class ShotItemModel(BaseItemModel["Shot"]):
@@ -28,7 +30,9 @@ class ShotItemModel(BaseItemModel["Shot"]):
 
     # Shot-specific signals
     shots_updated = Signal()  # Emitted when shots list changes
-    show_filter_changed = Signal(str)  # Emitted when show filter changes (show name or "All Shows")
+    show_filter_changed = Signal(
+        str
+    )  # Emitted when show filter changes (show name or "All Shows")
 
     def __init__(
         self,
@@ -117,7 +121,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
             self.set_shots(shots)
 
         # Import here to avoid circular imports
-        from shot_model import RefreshResult
+        from type_definitions import RefreshResult
 
         return RefreshResult(success=True, has_changes=has_changes)
 
@@ -147,9 +151,6 @@ class ShotItemModel(BaseItemModel["Shot"]):
             shot_model: Shot model to get filtered shots from
             show: Show name to filter by or None for all shows
         """
-        if not shot_model:
-            return
-
         # Set filter on the shot model
         shot_model.set_show_filter(show)
 
@@ -207,14 +208,10 @@ class ShotItemModel(BaseItemModel["Shot"]):
         self._selected_index = QPersistentModelIndex()
 
         # Disconnect signals safely
-        try:
+        with contextlib.suppress(RuntimeError, TypeError):
             self.items_updated.disconnect()
-        except (RuntimeError, TypeError):
-            pass
-        try:
+        with contextlib.suppress(RuntimeError, TypeError):
             self.shots_updated.disconnect()
-        except (RuntimeError, TypeError):
-            pass
 
         self.logger.info("ShotItemModel cleanup complete")
 

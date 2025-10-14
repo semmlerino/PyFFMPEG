@@ -211,7 +211,7 @@ class TestAntiPatternChecker:
             grouped[pattern.pattern_type].append(pattern)
 
         print(
-            f"❌ Found {len(patterns)} anti-patterns in {len(set(p.file_path for p in patterns))} files\n"
+            f"❌ Found {len(patterns)} anti-patterns in {len({p.file_path for p in patterns})} files\n"
         )
 
         for pattern_type, items in grouped.items():
@@ -254,10 +254,7 @@ repos:
 def main() -> None:
     """Main entry point."""
     # Parse arguments
-    if len(sys.argv) > 1:
-        path = Path(sys.argv[1])
-    else:
-        path = Path("tests")
+    path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("tests")
 
     if not path.exists():
         print(f"Error: Path {path} does not exist", file=sys.stderr)

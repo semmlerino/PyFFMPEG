@@ -15,6 +15,7 @@ from typing import TypedDict, cast
 
 class VFXStructureData(TypedDict):
     """Type definition for VFX structure JSON data."""
+
     shows: dict[str, object]  # Show name -> show data mapping
 
 

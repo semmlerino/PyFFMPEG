@@ -114,11 +114,7 @@ class CacheConfig(LoggingMixin):
 
         # Check for CI environment
         ci_vars = ["CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS", "GITLAB_CI"]
-        for var in ci_vars:
-            if os.environ.get(var):
-                return True
-
-        return False
+        return any(os.environ.get(var) for var in ci_vars)
 
     @staticmethod
     def clear_test_cache() -> None:

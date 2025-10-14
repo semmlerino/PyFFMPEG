@@ -68,7 +68,7 @@ class TestQApplication:
 def qt_app() -> Iterator[QApplication]:
     """Session-scoped QApplication fixture with proper cleanup."""
     app = TestQApplication.get_instance()
-    yield app
+    return app
     # Note: Don't quit() session-scoped app as other tests may need it
 
 

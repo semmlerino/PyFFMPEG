@@ -214,7 +214,6 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         Returns:
             Status string (e.g., "approved", "active")
         """
-        pass
 
     @abstractmethod
     def find_shots(self, **kwargs: FindShotsKwargs) -> list[Shot]:
@@ -231,4 +230,3 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
         Returns:
             List of found shots
         """
-        pass

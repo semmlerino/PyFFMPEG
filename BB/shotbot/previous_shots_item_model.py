@@ -6,6 +6,7 @@ extending BaseItemModel with integration to PreviousShotsModel for data updates.
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QModelIndex, QObject, Qt, Signal
@@ -29,7 +30,9 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
     # Previous shots-specific signals
     shots_updated = Signal()  # Emitted when shots list changes
-    show_filter_changed = Signal(str)  # Emitted when show filter changes (show name or "All Shows")
+    show_filter_changed = Signal(
+        str
+    )  # Emitted when show filter changes (show name or "All Shows")
 
     def __init__(
         self,
@@ -56,9 +59,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             underlying_model.shots_updated, "emit"
         ):
             # Test double - connect without Qt.ConnectionType
-            underlying_model.shots_updated.connect(
-                self._on_underlying_shots_updated
-            )
+            underlying_model.shots_updated.connect(self._on_underlying_shots_updated)
         elif hasattr(underlying_model, "shots_updated"):
             # Real Qt signal - use proper connection type
             underlying_model.shots_updated.connect(
@@ -155,9 +156,6 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             previous_shots_model: Model to get filtered shots from
             show: Show name to filter by or None for all shows
         """
-        if not previous_shots_model:
-            return
-
         # Set filter on the model
         previous_shots_model.set_show_filter(show)
 
@@ -238,22 +236,16 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         # Disconnect from underlying model
         if hasattr(self._underlying_model, "shots_updated"):
-            try:
+            with contextlib.suppress(RuntimeError, TypeError):
                 self._underlying_model.shots_updated.disconnect(
                     self._on_underlying_shots_updated
                 )
-            except (RuntimeError, TypeError):
-                pass
 
         # Disconnect signals safely
-        try:
+        with contextlib.suppress(RuntimeError, TypeError):
             self.items_updated.disconnect()
-        except (RuntimeError, TypeError):
-            pass
-        try:
+        with contextlib.suppress(RuntimeError, TypeError):
             self.shots_updated.disconnect()
-        except (RuntimeError, TypeError):
-            pass
 
         self.logger.info("PreviousShotsItemModel cleanup complete")
 

@@ -8,6 +8,8 @@ with real Qt components and minimal mocking.
 
 from __future__ import annotations
 
+import contextlib
+
 # Standard library imports
 from typing import Any
 
@@ -65,7 +67,6 @@ class TestProgressContext:
 
     def __exit__(self, *args) -> None:
         """Exit context manager."""
-        pass
 
     def update(self, value: int, message: str = "") -> None:
         """Track progress updates."""
@@ -278,8 +279,8 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     # This is needed because the ShotModel is already initialized with the real ProcessPoolManager
     window.shot_model._process_pool = test_pool
 
-    # Disable auto-refresh for previous shots to prevent Qt object issues
-    window.previous_shots_model.stop_auto_refresh()
+    # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
+    # Previous shots now only refresh on explicit user action
 
     yield window
 
@@ -288,9 +289,8 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     if hasattr(window, "auto_refresh_timer") and window.auto_refresh_timer:
         window.auto_refresh_timer.stop()
 
-    # Stop model refresh timers
-    if hasattr(window, "previous_shots_model"):
-        window.previous_shots_model.stop_auto_refresh()
+    # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
+    # No timer cleanup needed for previous shots model
 
     # Stop any workers
     if hasattr(window, "threede_worker") and window.threede_worker:
@@ -299,10 +299,8 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
             window.threede_worker.wait(1000)
 
     # Disconnect all signals to prevent crashes during cleanup
-    try:
+    with contextlib.suppress(RuntimeError, TypeError):
         window.disconnect()
-    except (RuntimeError, TypeError):
-        pass
 
     # Close the window properly
     window.close()

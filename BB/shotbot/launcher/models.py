@@ -114,34 +114,26 @@ class LauncherParameter:
                     return False
                 if self.min_value is not None and value < self.min_value:
                     return False
-                if self.max_value is not None and value > self.max_value:
-                    return False
-                return True
+                return not (self.max_value is not None and value > self.max_value)
 
             elif self.param_type == ParameterType.FLOAT:
                 if not isinstance(value, int | float):
                     return False
                 if self.min_value is not None and value < self.min_value:
                     return False
-                if self.max_value is not None and value > self.max_value:
-                    return False
-                return True
+                return not (self.max_value is not None and value > self.max_value)
 
             elif self.param_type == ParameterType.BOOLEAN:
                 return isinstance(value, bool)
 
             elif self.param_type == ParameterType.PATH:
-                if not isinstance(value, str):
-                    return False
-                return True
+                return isinstance(value, str)
 
             elif self.param_type == ParameterType.CHOICE:
                 return value in self.choices
 
             elif self.param_type in (ParameterType.FILE, ParameterType.DIRECTORY):
-                if not isinstance(value, str):
-                    return False
-                return True
+                return isinstance(value, str)
 
             return False
 
@@ -172,9 +164,9 @@ class LauncherParameter:
         """
         try:
             # Create a mutable copy for modification
-            data_copy: dict[str, str | int | float | bool | list[str] | None | ParameterType] = dict(
-                data
-            )
+            data_copy: dict[
+                str, str | int | float | bool | list[str] | None | ParameterType
+            ] = dict(data)
 
             # Convert param_type string back to enum
             if "param_type" in data_copy:
@@ -185,7 +177,7 @@ class LauncherParameter:
             return cls(**data_copy)  # pyright: ignore[reportArgumentType]
 
         except (TypeError, ValueError) as e:
-            raise ValueError(f"Invalid parameter data: {e}")
+            raise ValueError(f"Invalid parameter data: {e}") from e
 
 
 @dataclass
@@ -316,7 +308,9 @@ class CustomLauncher:
                 forbidden_patterns_value = val_data.get("forbidden_patterns", [])
                 forbidden_patterns: list[str] = []
                 if isinstance(forbidden_patterns_value, list):
-                    forbidden_patterns = [str(item) for item in forbidden_patterns_value]
+                    forbidden_patterns = [
+                        str(item) for item in forbidden_patterns_value
+                    ]
 
                 data_copy["validation"] = LauncherValidation(
                     check_executable=bool(val_data.get("check_executable", True)),

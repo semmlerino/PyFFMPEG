@@ -24,6 +24,7 @@ dev = [
     "ruff>=0.1.0",
     "basedpyright>=1.31.0",
     "pytest-xdist>=3.8.0",
+    "pytest-rerunfailures>=16.1",
 ]
 
 [tool.uv]
@@ -62,12 +63,38 @@ select = [
     "UP",      # pyupgrade - modern type syntax
     "TCH",     # flake8-type-checking - TYPE_CHECKING imports
     "ANN",     # flake8-annotations - missing annotations
+    "B",       # flake8-bugbear - catches common bugs
+    "C4",      # flake8-comprehensions - better list/dict comprehensions
+    "PIE",     # flake8-pie - misc lints for better practices
+    "PT",      # flake8-pytest-style - pytest best practices
+    "SIM",     # flake8-simplify - simplification suggestions
+    "RUF",     # Ruff-specific rules - additional checks
 ]
 
-# Never enforce line length violations
-# ANN401 - Allow Any in *args and **kwargs (common pattern)
-# TC003 - Allow standard library imports outside type-checking (Path is used at runtime)
-ignore = ["E501", "ANN401", "TC003"]
+# Ignore rules that don't fit this codebase
+ignore = [
+    "E501",    # Line length (let formatter handle it)
+    "ANN401",  # Allow Any in *args and **kwargs (common pattern)
+    "TC003",   # Allow standard library imports outside TYPE_CHECKING (Path used at runtime)
+
+    # Qt-specific patterns
+    "B008",    # Function call in default argument (Qt patterns like QModelIndex())
+    "B007",    # Unused loop variable (common in Qt event handling)
+
+    # VFX/Personal tool patterns
+    "RUF001",  # Ambiguous unicode characters (emojis used intentionally for UX)
+    "RUF003",  # Ambiguous unicode in comments (emojis in docstrings)
+
+    # Intentional patterns
+    "PIE790",  # Unnecessary placeholder (used for unpacking with explicit intent)
+    "SIM105",  # Use contextlib.suppress (prefer explicit try/except for clarity)
+    "SIM117",  # Multiple with statements (prefer clarity over condensing)
+    "SIM102",  # Collapsible if (prefer clarity over nesting depth)
+
+    # Test-specific
+    "PT006",   # Parametrize names as tuple (pytest accepts both formats)
+    "PT018",   # Composite assertion (pytest-specific, multiple assertions OK)
+]
 
 # Allow autofix for all enabled rules
 fixable = ["ALL"]

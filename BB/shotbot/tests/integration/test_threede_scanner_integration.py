@@ -176,7 +176,7 @@ class TestThreeDEScannerIntegration:
             assert len(scene_model2.scenes) == 1
 
             # Second refresh with same files - should detect no changes
-            success2, has_changes2 = scene_model2.refresh_scenes(shots)
+            success2, _has_changes2 = scene_model2.refresh_scenes(shots)
             assert success2
             # Note: has_changes2 may be True due to cache TTL refresh, which is expected behavior
 
@@ -353,7 +353,7 @@ class TestThreeDEScannerIntegration:
             assert actual_path == expected_path
 
             # Test that subsequent refresh works (integration with cache)
-            success2, has_changes2 = scene_model.refresh_scenes([shot])
+            success2, _has_changes2 = scene_model.refresh_scenes([shot])
             assert success2, "Second refresh should also succeed"
 
     def test_threede_scanner_error_handling_integration(self) -> None:
@@ -420,7 +420,7 @@ class TestThreeDEScannerIntegration:
             scene_model = ThreeDESceneModel(load_cache=False)
 
             # Should handle mixed good/bad shots gracefully
-            success, has_changes = scene_model.refresh_scenes([good_shot, bad_shot])
+            success, _has_changes = scene_model.refresh_scenes([good_shot, bad_shot])
             assert success  # Should succeed despite one bad shot
 
             # Should find scenes from good workspace only

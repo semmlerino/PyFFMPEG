@@ -191,7 +191,9 @@ Lens {
 
     @patch("nuke_undistortion_parser.Path")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_standard_format_skip_window_layout(self, mock_file, mock_path) -> None:
+    def test_parse_standard_format_skip_window_layout(
+        self, mock_file, mock_path
+    ) -> None:
         """Test window layout skipping in standard format."""
         mock_path.return_value.exists.return_value = True
         mock_path.return_value.stat.return_value.st_size = 100
@@ -218,7 +220,9 @@ Lens {
 
     @patch("nuke_undistortion_parser.Path")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_standard_format_python_dedentation(self, mock_file, mock_path) -> None:
+    def test_parse_standard_format_python_dedentation(
+        self, mock_file, mock_path
+    ) -> None:
         """Test Python code dedentation in standard format."""
         mock_path.return_value.exists.return_value = True
         mock_path.return_value.stat.return_value.st_size = 100
@@ -241,7 +245,7 @@ Lens {
         assert 'return "test"' in result  # Should preserve relative indentation
 
     @pytest.mark.parametrize(
-        "line,offset,expected",
+        ("line", "offset", "expected"),
         [
             (" ypos 100", -200, " ypos -100"),
             (" ypos -50", -100, " ypos -150"),
@@ -249,7 +253,13 @@ Lens {
             (" ypos 100", 0, " ypos 100"),
             (" ypos 100 ypos 200", -50, " ypos 50 ypos 150"),
         ],
-        ids=["basic_positive", "negative_values", "no_ypos", "zero_offset", "multiple_ypos"],
+        ids=[
+            "basic_positive",
+            "negative_values",
+            "no_ypos",
+            "zero_offset",
+            "multiple_ypos",
+        ],
     )
     def test_adjust_ypos_in_line(self, line: str, offset: int, expected: str) -> None:
         """Test ypos adjustment in various scenarios."""
@@ -257,7 +267,7 @@ Lens {
         assert result == expected
 
     @pytest.mark.parametrize(
-        "line,expected",
+        ("line", "expected"),
         [
             (" name my-node-1", " name my_node_1"),
             (" name node@123", " name node_123"),
@@ -293,7 +303,7 @@ Lens {
         assert result == expected
 
     @pytest.mark.parametrize(
-        "line,original_line",
+        ("line", "original_line"),
         [
             ("version 12.0", "version 12.0"),
             ("  version 16.0 v4", "version 16.0 v4"),
@@ -303,7 +313,15 @@ Lens {
             ("push $cut_paste_input", "push $cut_paste_input"),
             ("push 0", "push 0"),
         ],
-        ids=["version_basic", "version_with_spaces", "shebang_space", "shebang_no_space", "cut_paste_input", "push_cut_paste", "push_zero"],
+        ids=[
+            "version_basic",
+            "version_with_spaces",
+            "shebang_space",
+            "shebang_no_space",
+            "cut_paste_input",
+            "push_cut_paste",
+            "push_zero",
+        ],
     )
     def test_should_skip_boilerplate_line(self, line: str, original_line: str) -> None:
         """Test skipping boilerplate lines."""
@@ -334,7 +352,9 @@ Lens {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_copy_paste_format_not_copy_paste(self, mock_file, mock_exists) -> None:
+    def test_parse_copy_paste_format_not_copy_paste(
+        self, mock_file, mock_exists
+    ) -> None:
         """Test copy/paste format parser with non-copy/paste content."""
         mock_exists.return_value = True
         content = """version 12.0
@@ -381,7 +401,9 @@ Lens {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", side_effect=Exception("Unexpected error"))
-    def test_parse_standard_format_unexpected_error(self, mock_file, mock_exists) -> None:
+    def test_parse_standard_format_unexpected_error(
+        self, mock_file, mock_exists
+    ) -> None:
         """Test standard format parsing with unexpected error."""
         mock_exists.return_value = True
 
@@ -461,7 +483,9 @@ Lens {
 
     @patch("nuke_undistortion_parser.Path")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_undistortion_file_logs_appropriately(self, mock_file, mock_path) -> None:
+    def test_parse_undistortion_file_logs_appropriately(
+        self, mock_file, mock_path
+    ) -> None:
         """Test that parse_undistortion_file handles both formats and logs appropriately."""
         mock_path.return_value.exists.return_value = True
         mock_path.return_value.stat.return_value.st_size = 100

@@ -81,7 +81,7 @@ class TestPreviousShotsFinder:
         return fs.base_path / "shows"
 
     @pytest.mark.parametrize(
-        "show,seq,shot",
+        ("show", "seq", "shot"),
         [
             pytest.param("testshow", "101_ABC", "0010", id="standard_naming"),
             pytest.param("anothershow", "102_DEF", "0020", id="different_sequence"),
@@ -143,10 +143,15 @@ class TestPreviousShotsFinder:
 
     def test_finder_initialization_default_user(self) -> None:
         """Test finder initialization with default user from environment."""
-        # Save original USER env var
+        # Save original env vars
         original_user = os.environ.get("USER")
+        original_mock = os.environ.get("SHOTBOT_MOCK")
 
         try:
+            # Disable mock mode to test actual USER env var behavior
+            if "SHOTBOT_MOCK" in os.environ:
+                del os.environ["SHOTBOT_MOCK"]
+
             # Set test user in environment
             os.environ["USER"] = "envuser"
             finder = PreviousShotsFinder()
@@ -158,8 +163,13 @@ class TestPreviousShotsFinder:
             elif "USER" in os.environ:
                 del os.environ["USER"]
 
+            if original_mock is not None:
+                os.environ["SHOTBOT_MOCK"] = original_mock
+            elif "SHOTBOT_MOCK" in os.environ:
+                del os.environ["SHOTBOT_MOCK"]
+
     @pytest.mark.parametrize(
-        "path,expected_shot",
+        ("path", "expected_shot"),
         [
             pytest.param(
                 "/shows/testshow/shots/101_ABC/101_ABC_0010/user/testuser",

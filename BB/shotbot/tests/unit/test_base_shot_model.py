@@ -63,14 +63,18 @@ class TestBaseShotModelInitialization:
         assert model.get_show_filter() is None
         assert model.get_text_filter() is None
 
-    def test_initialization_with_cache_manager(self, cache_manager: CacheManager) -> None:
+    def test_initialization_with_cache_manager(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test initialization with provided cache manager."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         assert model.cache_manager is cache_manager
         assert model.shots == []
 
-    def test_initialization_loads_cache_by_default(self, cache_manager: CacheManager) -> None:
+    def test_initialization_loads_cache_by_default(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test that load_cache=True loads from cache."""
         # Pre-populate cache
         test_shots = [
@@ -87,10 +91,14 @@ class TestBaseShotModelInitialization:
         assert model.shots[0].shot == "0010"
         assert model.shots[1].shot == "0020"
 
-    def test_initialization_without_cache_loading(self, cache_manager: CacheManager) -> None:
+    def test_initialization_without_cache_loading(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test load_cache=False skips cache."""
         # Pre-populate cache
-        test_shots = [Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")]
+        test_shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        ]
         cache_manager.cache_shots(test_shots)
 
         # Create model with cache loading disabled
@@ -148,7 +156,9 @@ class TestCacheLoading:
         assert metrics["cache_misses"] == 1
 
         # Hit (with cache)
-        test_shots = [Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")]
+        test_shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        ]
         cache_manager.cache_shots(test_shots)
         model._load_from_cache()
         metrics = model.get_performance_metrics()
@@ -199,7 +209,9 @@ workspace /shows/TEST/shots/seq02/TEST_seq02_0020"""
         assert shots[0].shot == "0010"
         assert shots[1].shot == "0020"
 
-    def test_parse_ws_output_whitespace_handling(self, cache_manager: CacheManager) -> None:
+    def test_parse_ws_output_whitespace_handling(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test parsing with extra whitespace."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
@@ -264,7 +276,9 @@ class TestChangeDetection:
         has_changes = model._check_for_changes(new_shots)
         assert has_changes is True
 
-    def test_check_for_changes_workspace_path_change(self, cache_manager: CacheManager) -> None:
+    def test_check_for_changes_workspace_path_change(
+        self, cache_manager: CacheManager
+    ) -> None:
         """Test when workspace path changes."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
@@ -287,7 +301,9 @@ class TestShotManagement:
         """Test get_shots returns current shots."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
-        test_shots = [Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")]
+        test_shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        ]
         model.shots = test_shots
 
         assert model.get_shots() == test_shots
@@ -320,7 +336,9 @@ class TestShotManagement:
         """Test finding non-existent shot."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
-        model.shots = [Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")]
+        model.shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        ]
 
         found = model.find_shot_by_name("nonexistent")
         assert found is None

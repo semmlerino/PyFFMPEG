@@ -29,7 +29,6 @@ class MockDataStrategy(ABC, LoggingMixin):
         Returns:
             List of workspace command outputs
         """
-        pass
 
 
 class FilesystemMockStrategy(MockDataStrategy):
@@ -41,6 +40,7 @@ class FilesystemMockStrategy(MockDataStrategy):
         Args:
             mock_root: Root of mock VFX filesystem
         """
+        super().__init__()
         self.mock_root = mock_root or Path("/tmp/mock_vfx")
 
     def load_shots(self) -> list[str]:
@@ -113,6 +113,7 @@ class JSONMockStrategy(MockDataStrategy):
         Args:
             json_path: Path to JSON file with shot data
         """
+        super().__init__()
         if json_path is None:
             json_path = Path(__file__).parent / "demo_shots.json"
         self.json_path = Path(json_path)
@@ -148,8 +149,14 @@ class JSONMockStrategy(MockDataStrategy):
                             seq = shot_dict.get("seq", "seq01")
                             shot_num = shot_dict.get("shot", "0010")
                             # Type narrow: ensure string values
-                            if isinstance(show, str) and isinstance(seq, str) and isinstance(shot_num, str):
-                                workspace_path = f"/shows/{show}/shots/{seq}/{seq}_{shot_num}"
+                            if (
+                                isinstance(show, str)
+                                and isinstance(seq, str)
+                                and isinstance(shot_num, str)
+                            ):
+                                workspace_path = (
+                                    f"/shows/{show}/shots/{seq}/{seq}_{shot_num}"
+                                )
                                 shots.append(f"workspace {workspace_path}")
 
             self.logger.info(f"Loaded {len(shots)} shots from JSON")
@@ -182,6 +189,7 @@ class ProductionDataStrategy(MockDataStrategy):
         Args:
             capture_file: Path to captured VFX structure JSON
         """
+        super().__init__()
         if capture_file is None:
             capture_file = Path(__file__).parent / "vfx_structure_complete.json"
         self.capture_file = Path(capture_file)
@@ -219,18 +227,22 @@ class ProductionDataStrategy(MockDataStrategy):
                                 shots_typed = cast("dict[str, object]", shots_data)
                                 for seq_name_key, seq_data_val in shots_typed.items():
                                     if isinstance(seq_data_val, dict):
-                                        seq_dict = cast("dict[str, object]", seq_data_val)
+                                        seq_dict = cast(
+                                            "dict[str, object]", seq_data_val
+                                        )
                                         # Each sequence has a shots list
                                         shot_list = seq_dict.get("shots", [])
                                         if isinstance(shot_list, list):
                                             # Cast list to typed list after isinstance check
-                                            shot_list_typed = cast("list[object]", shot_list)
+                                            shot_list_typed = cast(
+                                                "list[object]", shot_list
+                                            )
                                             for shot_name_item in shot_list_typed:
                                                 if isinstance(shot_name_item, str):
-                                                    workspace_path = (
-                                                        f"/shows/{show_name_key}/shots/{seq_name_key}/{shot_name_item}"
+                                                    workspace_path = f"/shows/{show_name_key}/shots/{seq_name_key}/{shot_name_item}"
+                                                    shots.append(
+                                                        f"workspace {workspace_path}"
                                                     )
-                                                    shots.append(f"workspace {workspace_path}")
 
             self.logger.info(f"Loaded {len(shots)} production shots from capture")
             return shots
@@ -249,6 +261,7 @@ class UnifiedMockPool(LoggingMixin):
         Args:
             strategy: Data loading strategy (auto-detect if None)
         """
+        super().__init__()
         self.strategy = strategy or self._auto_detect_strategy()
         self.shots = self.strategy.load_shots()
         self._cache: dict[str, str] = {}

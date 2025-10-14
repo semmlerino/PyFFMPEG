@@ -1,0 +1,7 @@
+THREEDE SCENE FINDER PERFORMANCE REPORT
+============================================================
+
+PERFORMANCE SUMMARY:
+------------------------------
+Method                         Time (s)   Memory (MB)  Results   
+-----------------------------------------------------------------

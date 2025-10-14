@@ -868,10 +868,10 @@ class TestProcessPoolDouble:
 
 # Export all test doubles
 __all__ = [
-    "TestFileSystem",
-    "TestQtWidget",
     "TestCache",
-    "TestWorker",
     "TestCommand",
+    "TestFileSystem",
     "TestProcessPoolDouble",
+    "TestQtWidget",
+    "TestWorker",
 ]

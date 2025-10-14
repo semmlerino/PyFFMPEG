@@ -34,7 +34,7 @@ class TestQtIntegration:
         # Mock slow process pool
         def slow_command(*args, **kwargs) -> str:
             # Process events while "loading"
-            for i in range(10):
+            for _i in range(10):
                 qtbot.wait(10)  # 10ms intervals
             return "workspace /test/responsive/0010"
 

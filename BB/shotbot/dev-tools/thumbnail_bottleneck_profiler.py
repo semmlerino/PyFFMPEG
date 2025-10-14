@@ -446,7 +446,7 @@ class ThumbnailBottleneckProfiler:
         if SHOTBOT_AVAILABLE:
             results = PathUtils.batch_validate_paths(paths)
         else:
-            results = {path: False for path in paths}
+            results = dict.fromkeys(paths, False)
         return len(results)
 
     def _test_thumbnail_discovery_batch(self):

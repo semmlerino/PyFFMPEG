@@ -14,6 +14,7 @@ import pytest
 
 # Local application imports
 from raw_plate_finder import RawPlateFinder
+from utils import VersionUtils
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
@@ -329,7 +330,7 @@ class TestRawPlateFinder:
         assert "v010" in result
 
     @pytest.mark.parametrize(
-        "version,plate_name,expected_version",
+        ("version", "plate_name", "expected_version"),
         [
             pytest.param("v001", "FG01", "v001", id="basic_version"),
             pytest.param("v010", "FG01", "v010", id="higher_version"),
@@ -347,6 +348,11 @@ class TestRawPlateFinder:
         self, tmp_path, monkeypatch, version, plate_name, expected_version
     ) -> None:
         """Test version discovery with various plate and version combinations."""
+        # Clear all caches for test isolation in parallel execution
+        RawPlateFinder._pattern_cache.clear()
+        RawPlateFinder._verify_pattern_cache.clear()
+        VersionUtils._version_cache.clear()
+
         # Setup structure
         shows_root = tmp_path / "shows"
         workspace_path = shows_root / "testshow" / "shots" / "seq01" / "seq01_shot01"

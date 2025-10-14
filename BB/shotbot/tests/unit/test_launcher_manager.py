@@ -13,7 +13,6 @@ from __future__ import annotations
 
 # Third-party imports
 import pytest
-from PySide6.QtCore import QCoreApplication
 
 # Local application imports
 from config import ThreadingConfig
@@ -38,13 +37,10 @@ pytestmark = [
 class TestLauncherManager:
     """Test launcher management functionality."""
 
-    def setup_method(self) -> None:
+    def setup_method(self, qapp) -> None:
         """Set up each test method."""
-        if not QCoreApplication.instance():
-            self.app = QCoreApplication([])
-        else:
-            self.app = QCoreApplication.instance()
-
+        # qapp fixture ensures QApplication exists
+        self.app = qapp
         self.manager = LauncherManager()
         self.temp_config = {}
 

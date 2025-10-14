@@ -435,7 +435,9 @@ class TestProcessPoolManagerBehavior:
     def test_batch_command_execution(self) -> None:
         """Test batch execution of multiple commands.
 
-        CORRECT: Testing actual batch behavior, not mocked responses.
+        Following UNIFIED_TESTING_GUIDE: Test behavior (all commands executed),
+        not implementation (execution order). batch_execute uses parallel execution
+        via concurrent.futures.as_completed(), so order is not guaranteed.
         """
         # Reset singleton
         ProcessPoolManager._instance = None
@@ -460,8 +462,14 @@ class TestProcessPoolManagerBehavior:
         assert results["pwd"] == "/home/user"
         assert results["echo done"] == "done"
 
-        # Test BEHAVIOR: Commands were executed in order
-        assert session.executed_commands == commands
+        # Test BEHAVIOR: All commands were executed (order not guaranteed in parallel)
+        assert set(session.executed_commands) == set(commands), (
+            f"Expected all commands to be executed. "
+            f"Executed: {session.executed_commands}, Expected: {commands}"
+        )
+        assert len(session.executed_commands) == len(commands), (
+            "Should execute each command exactly once"
+        )
 
         # Cleanup InjectableProcessPoolManager (it bypasses singleton)
         manager.shutdown()
@@ -543,7 +551,7 @@ class TestProcessPoolManagerBehavior:
         # Collect all instance IDs
         instance_ids = []
         while not instance_queue.empty():
-            thread_id, instance_id = instance_queue.get()
+            _thread_id, instance_id = instance_queue.get()
             instance_ids.append(instance_id)
 
         # Verify all threads got the same singleton instance

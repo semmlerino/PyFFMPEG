@@ -53,7 +53,9 @@ class TestInfoPanelPixmapLoader:
         return image_path
 
     @pytest.fixture
-    def test_panel(self, qapp: QApplication, qtbot: QtBot) -> Generator[ShotInfoPanel, None, None]:
+    def test_panel(
+        self, qapp: QApplication, qtbot: QtBot
+    ) -> Generator[ShotInfoPanel, None, None]:
         """Create test panel for loader testing."""
         panel = ShotInfoPanel()
         qtbot.addWidget(panel)
@@ -92,7 +94,9 @@ class TestInfoPanelPixmapLoader:
         assert isinstance(loaded_image, QImage)
         assert not loaded_image.isNull()
 
-    def test_loader_nonexistent_file_handling(self, test_panel: ShotInfoPanel, qtbot: QtBot) -> None:
+    def test_loader_nonexistent_file_handling(
+        self, test_panel: ShotInfoPanel, qtbot: QtBot
+    ) -> None:
         """Test loader handling of non-existent files."""
         loaded_signals: list[QImage] = []
         failed_signals: list[bool] = []
@@ -222,7 +226,9 @@ class TestShotInfoPanelAsyncLoading:
         return TestCacheManager()
 
     @pytest.fixture
-    def info_panel(self, test_cache_manager: TestCacheManager, qapp: QApplication, qtbot: QtBot) -> Generator[ShotInfoPanel, None, None]:
+    def info_panel(
+        self, test_cache_manager: TestCacheManager, qapp: QApplication, qtbot: QtBot
+    ) -> Generator[ShotInfoPanel, None, None]:
         """Create ShotInfoPanel with test cache manager."""
         panel = ShotInfoPanel(test_cache_manager)
         qtbot.addWidget(panel)  # OK to add QWidget to qtbot
@@ -230,7 +236,9 @@ class TestShotInfoPanelAsyncLoading:
         panel.deleteLater()
 
     @pytest.fixture
-    def test_shot(self, tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch) -> Shot:
+    def test_shot(
+        self, tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch
+    ) -> Shot:
         """Create test shot with thumbnail."""
         # Create test thumbnail
         thumbnail_path = tmp_path / "thumbnail.jpg"
@@ -263,7 +271,11 @@ class TestShotInfoPanelAsyncLoading:
         assert thumbnail_pixmap is not None
 
     def test_concurrent_shot_changes(
-        self, info_panel: ShotInfoPanel, tmp_path: Path, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+        self,
+        info_panel: ShotInfoPanel,
+        tmp_path: Path,
+        qtbot: QtBot,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test rapid shot changes don't cause race conditions."""
         # Create multiple test shots
@@ -300,7 +312,9 @@ class TestShotInfoPanelAsyncLoading:
         assert info_panel._current_shot == shots[-1]
         assert shots[-1].shot in info_panel.shot_name_label.text()
 
-    def test_shot_removal_during_loading(self, info_panel: ShotInfoPanel, test_shot: Shot, qtbot: QtBot) -> None:
+    def test_shot_removal_during_loading(
+        self, info_panel: ShotInfoPanel, test_shot: Shot, qtbot: QtBot
+    ) -> None:
         """Test shot removal while async loading is in progress."""
         # Set shot to start loading
         info_panel.set_shot(test_shot)
@@ -316,7 +330,11 @@ class TestShotInfoPanelAsyncLoading:
         assert info_panel.show_sequence_label.text() == ""
 
     def test_memory_bounds_checking_integration(
-        self, info_panel: ShotInfoPanel, tmp_path: Path, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+        self,
+        info_panel: ShotInfoPanel,
+        tmp_path: Path,
+        qtbot: QtBot,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test integration with ImageUtils memory bounds checking."""
         # The actual bounds checking is done in the loader
@@ -340,7 +358,9 @@ class TestShotInfoPanelAsyncLoading:
             or info_panel.thumbnail_label.pixmap() is not None
         )
 
-    def test_cache_integration(self, info_panel: ShotInfoPanel, test_shot: Shot, qtbot: QtBot) -> None:
+    def test_cache_integration(
+        self, info_panel: ShotInfoPanel, test_shot: Shot, qtbot: QtBot
+    ) -> None:
         """Test integration with cache manager."""
         # Mock cache manager behavior
         with patch.object(info_panel.cache_manager, "get_cached_thumbnail") as mock_get:
@@ -362,7 +382,9 @@ class TestShotInfoPanelCore:
     """Test core ShotInfoPanel functionality."""
 
     @pytest.fixture
-    def info_panel(self, qapp: QApplication, qtbot: QtBot) -> Generator[ShotInfoPanel, None, None]:
+    def info_panel(
+        self, qapp: QApplication, qtbot: QtBot
+    ) -> Generator[ShotInfoPanel, None, None]:
         """Create basic ShotInfoPanel."""
         panel = ShotInfoPanel()
         qtbot.addWidget(panel)

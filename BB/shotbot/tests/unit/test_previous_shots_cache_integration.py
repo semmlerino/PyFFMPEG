@@ -148,7 +148,7 @@ class TestPreviousShootsCacheIntegration:
         ]
 
         # Should match original shots
-        for orig, recon in zip(original_shots, reconstructed_shots):
+        for orig, recon in zip(original_shots, reconstructed_shots, strict=False):
             assert orig.show == recon.show
             assert orig.sequence == recon.sequence
             assert orig.shot == recon.shot

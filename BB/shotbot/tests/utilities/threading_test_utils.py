@@ -105,19 +105,13 @@ ManagerT = TypeVar("ManagerT", bound=QObject)
 class ThreadingTestError(Exception):
     """Base exception for threading test utilities."""
 
-    pass
-
 
 class DeadlockDetected(ThreadingTestError):
     """Raised when a deadlock is detected during testing."""
 
-    pass
-
 
 class RaceConditionTimeout(ThreadingTestError):
     """Raised when race condition setup times out."""
-
-    pass
 
 
 # Protocol definitions for type safety
@@ -365,7 +359,7 @@ class ThreadingTestHelpers:
         race_duration_ms = (race_end_time - race_start_time) * 1000
 
         # Analyze results
-        race_occurred = len(set(r[1] for r in results if r[2] is None)) > 1
+        race_occurred = len({r[1] for r in results if r[2] is None}) > 1
         violations = [
             f"Thread {r[0].name} raised {type(r[2]).__name__}: {r[2]}"
             for r in results
@@ -494,7 +488,7 @@ class DeadlockDetector:
 
     @staticmethod
     def detect_deadlock(
-        threads: list[threading.Thread | None] = None,
+        threads: list[threading.Thread | None] | None = None,
         timeout_ms: int = 5000,
         include_stack_traces: bool = True,
     ) -> DeadlockAnalysisResult:
@@ -598,7 +592,7 @@ class DeadlockDetector:
             if node in rec_stack:
                 # Found cycle - extract it from path
                 cycle_start = path.index(node)
-                cycle = path[cycle_start:] + [node]
+                cycle = [*path[cycle_start:], node]
                 cycles.append(cycle)
                 return True
 
@@ -733,8 +727,10 @@ class RaceConditionFactory:
 
         # Enhance result with signal-specific information
         return result._replace(
-            violations_detected=result.violations_detected
-            + [f"Received {len(received_signals)} signals during race"],
+            violations_detected=[
+                *result.violations_detected,
+                f"Received {len(received_signals)} signals during race",
+            ],
         )
 
     @staticmethod
@@ -1011,7 +1007,7 @@ class PerformanceMetrics:
         operation_name: str,
         durations: list[float],
         iterations: int,
-        metadata: dict[str, Any | None] = None,
+        metadata: dict[str, Any | None] | None = None,
     ) -> PerformanceResult:
         """Calculate performance statistics from duration measurements."""
         if not durations:

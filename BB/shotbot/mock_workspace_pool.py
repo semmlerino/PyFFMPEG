@@ -189,7 +189,6 @@ class MockWorkspacePool(LoggingMixin):
 
     def shutdown(self) -> None:
         """Shutdown the pool (no-op for mock)."""
-        pass
 
     def get_metrics(self) -> PerformanceMetricsDict:
         """Get mock metrics compatible with ProcessPoolInterface.
@@ -247,7 +246,7 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
                 raise ValueError(f"Expected dict, got {type(raw_data).__name__}")
 
             # After isinstance check, cast to expected structure
-            demo_data = cast(dict[str, object], raw_data)
+            demo_data = cast("dict[str, object]", raw_data)
 
             if "shots" not in demo_data:
                 raise ValueError("Missing 'shots' key in demo data")
@@ -259,7 +258,7 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
                 )
 
             # After isinstance check, cast to list of objects
-            shots_data = cast(list[object], raw_shots)
+            shots_data = cast("list[object]", raw_shots)
 
             # Validate each shot has required fields - builds typed list
             validated_shots: list[dict[str, str]] = []
@@ -267,17 +266,19 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
                 if not isinstance(shot_item, dict):
                     raise ValueError(f"Shot {i} is not a dict")
                 # Cast after runtime validation
-                shot_dict = cast(dict[str, object], shot_item)
+                shot_dict = cast("dict[str, object]", shot_item)
                 required_fields = ["show", "seq", "shot"]
                 missing = [f for f in required_fields if f not in shot_dict]
                 if missing:
                     raise ValueError(f"Shot {i} missing fields: {missing}")
                 # After validation, cast to typed dict
-                validated_shots.append(cast(dict[str, str], shot_dict))
+                validated_shots.append(cast("dict[str, str]", shot_dict))
 
             # Assign only a subset of shots to gabriel-h to simulate realistic user workload
             # while still allowing "Other 3DE Scenes" to find many unassigned 3DE files
-            assigned_shots: list[dict[str, str]] = validated_shots[:4]  # Take first 4 shots for gabriel-h
+            assigned_shots: list[dict[str, str]] = validated_shots[
+                :4
+            ]  # Take first 4 shots for gabriel-h
             logger.info(
                 f"Assigning {len(assigned_shots)} of {len(validated_shots)} demo shots to gabriel-h"
             )

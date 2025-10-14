@@ -34,6 +34,7 @@ class ThreadSafeThumbnailCache:
 
     def __init__(self) -> None:
         """Initialize thread-safe thumbnail cache."""
+        super().__init__()
         self._image_cache: dict[str, QImage] = {}  # QImage (thread-safe)
         self._pixmap_cache: dict[str, QPixmap] = {}  # QPixmap (main thread only)
         self._cache_lock = QMutex()

@@ -54,7 +54,7 @@ def check_type_safety() -> bool:
         return True
 
     # Run type checking on tests
-    success, output = run_command(["basedpyright", "tests/"], "Type checking tests")
+    success, _output = run_command(["basedpyright", "tests/"], "Type checking tests")
 
     if not success:
         print("Type checking failed. Please fix type errors before running tests.")
@@ -90,7 +90,7 @@ def run_tests_with_coverage() -> bool:
         "tests/",
     ]
 
-    success, output = run_command(args, "Running tests with coverage")
+    success, _output = run_command(args, "Running tests with coverage")
     return success
 
 

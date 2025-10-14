@@ -47,9 +47,7 @@ def model(qtbot):
     previous_shots_model = MockPreviousShotsModel()
 
     # Create the item model with required arguments
-    model = PreviousShotsItemModel(
-        previous_shots_model, cache_manager
-    )
+    model = PreviousShotsItemModel(previous_shots_model, cache_manager)
     yield model
     # Manual cleanup for QObject (not a widget)
     model.deleteLater()

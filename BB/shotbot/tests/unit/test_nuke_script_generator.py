@@ -124,7 +124,7 @@ class TestNukeScriptGenerator:
         # Use monkeypatch instead of patch
         monkeypatch.setattr("os.path.exists", lambda path: True)
 
-        for filepath, expected in test_cases:
+        for filepath, _expected in test_cases:
             colorspace, use_raw = NukeScriptGenerator._detect_colorspace(filepath)
             # Test that some colorspace is returned (exact matching may vary)
             assert isinstance(colorspace, str)

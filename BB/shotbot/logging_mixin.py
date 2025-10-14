@@ -315,7 +315,7 @@ def log_execution(
                 # Type narrowing: we know args[0] has logger attribute
                 instance_logger = getattr(args[0], "logger", None)
                 if hasattr(instance_logger, "info"):
-                    logger = cast(ContextualLogger, instance_logger)
+                    logger = cast("ContextualLogger", instance_logger)
                 else:
                     logger = ContextualLogger(logging.getLogger(inner_func.__module__))
             else:
@@ -329,7 +329,7 @@ def log_execution(
             if log_level <= logging.DEBUG and include_args:
                 # Safely format args (avoid logging sensitive data)
                 safe_args: list[str] = []
-                for arg in (args[1:] if args and hasattr(args[0], "logger") else args):
+                for arg in args[1:] if args and hasattr(args[0], "logger") else args:
                     if isinstance(arg, str | int | float | bool):
                         safe_args.append(repr(arg))
                     else:
@@ -366,7 +366,7 @@ def log_execution(
                 if include_result and result is not None:
                     if isinstance(result, str | int | float | bool):
                         if log_level == logging.DEBUG:
-                            logger.debug(f"{func_name} {time_str} -> {repr(result)}")
+                            logger.debug(f"{func_name} {time_str} -> {result!r}")
                         else:
                             logger.info(f"{func_name} {time_str}")
                     else:

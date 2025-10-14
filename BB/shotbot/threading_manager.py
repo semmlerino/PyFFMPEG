@@ -35,6 +35,7 @@ class WorkerWithStopProtocol(Protocol):
     def wait(self, timeout: int) -> bool: ...
     def deleteLater(self) -> None: ...
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -112,9 +113,7 @@ class ThreadingManager(QObject):
             # We map it to our threede_discovery_progress (int, int, str) by using a slot
             # The progress_update signal doesn't exist on ThreeDESceneWorker
             # Instead, connect the 'progress' signal directly
-            self._current_threede_worker.progress.connect(
-                self._on_progress_update
-            )
+            self._current_threede_worker.progress.connect(self._on_progress_update)
             self._current_threede_worker.batch_ready.connect(
                 self.threede_discovery_batch_ready.emit
             )
@@ -363,10 +362,14 @@ class ThreadingManager(QObject):
                 # Try to stop the worker using known patterns
                 # Cast through object to Protocol for type-safe attribute access
                 if hasattr(worker, "request_stop"):
-                    worker_with_stop = cast(WorkerWithStopProtocol, cast(object, worker))
+                    worker_with_stop = cast(
+                        "WorkerWithStopProtocol", cast("object", worker)
+                    )
                     worker_with_stop.request_stop()
                 elif hasattr(worker, "stop"):
-                    worker_with_stop = cast(WorkerWithStopProtocol, cast(object, worker))
+                    worker_with_stop = cast(
+                        "WorkerWithStopProtocol", cast("object", worker)
+                    )
                     worker_with_stop.stop()
                 if not worker.wait(2000):
                     logger.warning(f"Worker {name} did not stop gracefully")

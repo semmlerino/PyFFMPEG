@@ -54,8 +54,10 @@ def filter_by_show(
         List of items matching the show filter
 
     Examples:
-        >>> shots = [Shot("show1", "seq1", "shot1", "/path1"),
-        ...          Shot("show2", "seq1", "shot2", "/path2")]
+        >>> shots = [
+        ...     Shot("show1", "seq1", "shot1", "/path1"),
+        ...     Shot("show2", "seq1", "shot2", "/path2"),
+        ... ]
         >>> filtered = filter_by_show(shots, "show1")
         >>> len(filtered)
         1
@@ -79,8 +81,10 @@ def filter_by_text(
         List of items matching the text filter
 
     Examples:
-        >>> shots = [Shot("show1", "seq1", "shot1", "/path1"),
-        ...          Shot("show1", "seq2", "shot2", "/path2")]
+        >>> shots = [
+        ...     Shot("show1", "seq1", "shot1", "/path1"),
+        ...     Shot("show1", "seq2", "shot2", "/path2"),
+        ... ]
         >>> filtered = filter_by_text(shots, "shot1")
         >>> len(filtered)
         1
@@ -110,9 +114,11 @@ def compose_filters(
         List of items passing all filters
 
     Examples:
-        >>> shots = [Shot("show1", "seq1", "shot1", "/path1"),
-        ...          Shot("show1", "seq2", "shot2", "/path2"),
-        ...          Shot("show2", "seq1", "shot3", "/path3")]
+        >>> shots = [
+        ...     Shot("show1", "seq1", "shot1", "/path1"),
+        ...     Shot("show1", "seq2", "shot2", "/path2"),
+        ...     Shot("show2", "seq1", "shot3", "/path3"),
+        ... ]
         >>> filtered = compose_filters(shots, show="show1", text="shot1")
         >>> len(filtered)
         1
@@ -140,9 +146,11 @@ def get_available_shows(items: Sequence[T]) -> set[str]:
         Set of unique show names
 
     Examples:
-        >>> shots = [Shot("show1", "seq1", "shot1", "/path1"),
-        ...          Shot("show2", "seq1", "shot2", "/path2"),
-        ...          Shot("show1", "seq2", "shot3", "/path3")]
+        >>> shots = [
+        ...     Shot("show1", "seq1", "shot1", "/path1"),
+        ...     Shot("show2", "seq1", "shot2", "/path2"),
+        ...     Shot("show1", "seq2", "shot3", "/path3"),
+        ... ]
         >>> shows = get_available_shows(shots)
         >>> len(shows)
         2

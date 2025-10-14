@@ -348,7 +348,7 @@ class TestPerformance:
         assert result is True  # Should find the real .3de files
 
     @pytest.mark.parametrize(
-        "show,seq,shot,user",
+        ("show", "seq", "shot", "user"),
         [
             pytest.param("show1", "seq01", "0010", "artist1", id="basic_structure"),
             pytest.param("show2", "seq02", "0020", "artist2", id="different_artist"),

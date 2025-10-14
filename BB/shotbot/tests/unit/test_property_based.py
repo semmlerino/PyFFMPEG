@@ -60,7 +60,9 @@ class TestShotPathProperties:
     """Property-based tests for shot path operations."""
 
     @given(shot_path())
-    @settings(max_examples=25, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+    @settings(
+        max_examples=25, deadline=None, suppress_health_check=[HealthCheck.too_slow]
+    )
     def test_shot_path_roundtrip(self, path: str) -> None:
         """Any valid shot path should parse and reconstruct identically."""
         # Import locally to avoid circular dependencies
@@ -195,7 +197,7 @@ class TestWorkspaceCommandProperties:
             # Verify parsing
             assert len(shots) == len(paths)
 
-            for shot, path in zip(shots, paths):
+            for shot, path in zip(shots, paths, strict=False):
                 assert shot.workspace_path == path
                 # Verify path components were extracted correctly
                 parts = path.split("/")
@@ -334,7 +336,7 @@ class TestSceneFinderProperties:
             shot_path.mkdir(parents=True, exist_ok=True)
 
             # Create actual .3de files for testing
-            for i, (filename, mtime) in enumerate(
+            for _i, (filename, _mtime) in enumerate(
                 scene_list[:5]
             ):  # Limit to 5 for speed
                 scene_file = shot_path / f"{filename}.3de"

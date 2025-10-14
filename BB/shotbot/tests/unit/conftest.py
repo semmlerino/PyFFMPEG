@@ -6,7 +6,7 @@ import pytest
 
 
 @pytest.fixture
-def mock_shows_root(monkeypatch: pytest.MonkeyPatch):
+def mock_shows_root(monkeypatch: pytest.MonkeyPatch) -> str:
     """Mock Config.SHOWS_ROOT for VFX path testing.
 
     Sets SHOWS_ROOT to a test path that many tests expect.

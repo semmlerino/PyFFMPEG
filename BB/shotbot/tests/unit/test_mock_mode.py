@@ -30,7 +30,7 @@ def test_mock_setup() -> bool:
             print(f"✅ Found demo_shots.json with {len(shots)} shots")
 
             # Show sample data
-            shows = set(s["show"] for s in shots)
+            shows = {s["show"] for s in shots}
             print(f"   Shows: {', '.join(sorted(shows))}")
             print("   First 3 shots:")
             for shot in shots[:3]:

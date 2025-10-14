@@ -6,6 +6,8 @@ Analyzes the 2.4 second startup delay to identify optimization opportunities.
 
 from __future__ import annotations
 
+import contextlib
+
 # Standard library imports
 import cProfile
 import json
@@ -119,7 +121,7 @@ def profile_shot_model_refresh() -> dict[str, Any]:
         top_functions = []
         # Type checker doesn't know about stats.stats attribute
         stats_items = list(stats.stats.items()) if hasattr(stats, "stats") else []  # type: ignore[attr-defined]
-        for (file, line, func), (cc, nc, tt, ct, callers) in stats_items[:10]:
+        for (file, line, func), (_cc, nc, tt, ct, _callers) in stats_items[:10]:
             top_functions.append(
                 {
                     "function": f"{func}:{line}",
@@ -161,10 +163,8 @@ workspace /shows/TEST/seq02/0010"""
     pool = ProcessPoolManager()
 
     # Warm up the pool
-    try:
+    with contextlib.suppress(Exception):
         pool.execute_workspace_command("echo test", timeout=1)
-    except Exception:
-        pass
 
     # Time subsequent calls
     times = []

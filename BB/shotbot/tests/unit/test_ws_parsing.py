@@ -48,10 +48,7 @@ def test_parsing() -> None:
                 shot = shot_dir[len(sequence) + 1 :]
             else:
                 shot_parts = shot_dir.rsplit("_", 1)
-                if len(shot_parts) == 2:
-                    shot = shot_parts[1]
-                else:
-                    shot = shot_dir
+                shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
 
             print(f"Line {line_num}: {line}")
             print("  Parsed:")

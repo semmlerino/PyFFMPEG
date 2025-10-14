@@ -104,7 +104,6 @@ class TestSubprocess:
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit context manager."""
-        pass
 
     def communicate(
         self, input: bytes | None = None, timeout: float | None = None
@@ -114,7 +113,6 @@ class TestSubprocess:
 
     def kill(self) -> None:
         """Simulate kill method for subprocess compatibility."""
-        pass
 
     def poll(self) -> int | None:
         """Simulate poll method for subprocess compatibility."""
@@ -239,7 +237,6 @@ class PopenDouble:
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit context manager."""
-        pass
 
     def poll(self) -> int | None:
         """Check if process has terminated."""
@@ -458,7 +455,7 @@ class TestShotModel(QObject):
         Returns:
             Set of unique show names
         """
-        shows = set(shot.show for shot in self._shots)
+        shows = {shot.show for shot in self._shots}
         return shows
 
 
@@ -573,14 +570,21 @@ class TestCacheManager(QObject):
             self._cached_previous_shots.copy() if self._cached_previous_shots else None
         )
 
+    def get_persistent_previous_shots(self) -> list[dict[str, Any]] | None:
+        """Get cached previous/approved shot list without TTL expiration.
+
+        This method mirrors the persistent cache behavior where shots
+        accumulate indefinitely without expiration.
+        """
+        return (
+            self._cached_previous_shots.copy() if self._cached_previous_shots else None
+        )
+
     def cache_previous_shots(self, shots: list[TestShot | dict[str, Any]]) -> bool:
         """Cache previous shot data."""
         self._cached_previous_shots = []
         for shot in shots:
-            if isinstance(shot, TestShot):
-                shot_dict = shot.to_dict()
-            else:
-                shot_dict = shot
+            shot_dict = shot.to_dict() if isinstance(shot, TestShot) else shot
             self._cached_previous_shots.append(shot_dict)
         self.cache_updated.emit()
         return True
@@ -663,7 +667,10 @@ class TestLauncherEnvironment:
     __test__ = False  # Prevent pytest from collecting this as a test class
 
     def __init__(
-        self, type: str = "none", packages: list[str] = None, command_prefix: str = ""
+        self,
+        type: str = "none",
+        packages: list[str] | None = None,
+        command_prefix: str = "",
     ) -> None:
         self.type = type
         self.packages = packages or []
@@ -788,10 +795,10 @@ class LauncherManagerDouble(QObject):
     def update_launcher(
         self,
         launcher_id: str,
-        name: str = None,
-        command: str = None,
-        description: str = None,
-        category: str = None,
+        name: str | None = None,
+        command: str | None = None,
+        description: str | None = None,
+        category: str | None = None,
         environment=None,
         terminal=None,
     ) -> bool:
@@ -833,7 +840,7 @@ class LauncherManagerDouble(QObject):
     def execute_launcher(
         self,
         launcher_id_or_launcher,
-        custom_vars: dict[str, str | None] = None,
+        custom_vars: dict[str, str | None] | None = None,
         dry_run: bool = False,
     ) -> bool:
         """Execute a launcher with real behavior."""
@@ -1234,27 +1241,27 @@ class TestProgressManager:
 # =============================================================================
 
 __all__ = [
-    # Subprocess
-    "TestSubprocess",
+    "LauncherManagerDouble",
     "PopenDouble",
-    "TestCompletedProcess",
-    # Models
-    "TestShot",
-    "TestShotModel",
+    "SignalDouble",
     # Cache
     "TestCacheManager",
+    "TestCompletedProcess",
     # Launchers
     "TestLauncher",
     "TestLauncherEnvironment",
     "TestLauncherTerminal",
-    "LauncherManagerDouble",
-    # Workers
-    "TestWorker",
-    # Qt/Threading
-    "ThreadSafeTestImage",
-    "SignalDouble",
     # Process Pool
     "TestProcessPool",
     # Progress Manager
     "TestProgressManager",
+    # Models
+    "TestShot",
+    "TestShotModel",
+    # Subprocess
+    "TestSubprocess",
+    # Workers
+    "TestWorker",
+    # Qt/Threading
+    "ThreadSafeTestImage",
 ]

@@ -60,43 +60,43 @@ class TestSimplifiedLauncherNukeIntegration:
         mock_popen.return_value = MagicMock()
 
         # Mock NukeLaunchHandler methods
-        with patch.object(
-            launcher.nuke_handler, "prepare_nuke_command"
-        ) as mock_prepare:
-            with patch.object(
-                launcher.nuke_handler, "get_environment_fixes"
-            ) as mock_env:
-                mock_prepare.return_value = (
-                    "nuke /path/to/script.nk",
-                    ["Opening script"],
-                )
-                mock_env.return_value = "export OCIO=/fallback.ocio && "
+        with (
+            patch.object(launcher.nuke_handler, "prepare_nuke_command") as mock_prepare,
+            patch.object(launcher.nuke_handler, "get_environment_fixes") as mock_env,
+        ):
+            mock_prepare.return_value = (
+                "nuke /path/to/script.nk",
+                ["Opening script"],
+            )
+            mock_env.return_value = "export OCIO=/fallback.ocio && "
 
-                # Launch Nuke with options
-                result = launcher.launch_vfx_app(
-                    "nuke",
-                    open_latest=True,
-                    include_plate=True,
-                    include_undistortion=True,
-                )
+            # Launch Nuke with options
+            result = launcher.launch_vfx_app(
+                "nuke",
+                open_latest=True,
+                include_plate=True,
+                include_undistortion=True,
+            )
 
-                # Should launch successfully
-                assert result is True
+            # Should launch successfully
+            assert result is True
 
-                # Verify NukeLaunchHandler was called correctly
-                mock_prepare.assert_called_once()
-                args = mock_prepare.call_args[0]
-                assert args[0] == mock_shot
-                assert args[1] == "nuke"
+            # Verify NukeLaunchHandler was called correctly
+            mock_prepare.assert_called_once()
+            args = mock_prepare.call_args[0]
+            assert args[0] == mock_shot
+            assert args[1] == "nuke"
 
-                # Check options were passed
-                options = args[2]
-                assert options["open_latest_scene"] is True
-                assert options["include_raw_plate"] is True
-                assert options["include_undistortion"] is True
+            # Check options were passed
+            options = args[2]
+            assert options["open_latest_scene"] is True
+            assert options["include_raw_plate"] is True
+            assert options["include_undistortion"] is True
 
     @patch("simplified_launcher.subprocess.Popen")
-    def test_launch_nuke_with_environment_fixes(self, mock_popen, launcher, mock_shot) -> None:
+    def test_launch_nuke_with_environment_fixes(
+        self, mock_popen, launcher, mock_shot
+    ) -> None:
         """Test that environment fixes are properly applied."""
         launcher.set_current_shot(mock_shot)
 
@@ -165,25 +165,30 @@ class TestSimplifiedLauncherNukeIntegration:
             assert "Opening existing Nuke script: v001" in messages
             assert "Script loaded successfully" in messages
 
-    def test_deprecated_find_latest_nuke_workspace_script(self, launcher, mock_shot) -> None:
+    def test_deprecated_find_latest_nuke_workspace_script(
+        self, launcher, mock_shot
+    ) -> None:
         """Test that deprecated method delegates to NukeLaunchHandler."""
         launcher.set_current_shot(mock_shot)
 
-        with patch.object(
-            launcher.nuke_handler.workspace_manager, "get_workspace_script_directory"
-        ) as mock_get_dir:
-            with patch.object(
+        with (
+            patch.object(
+                launcher.nuke_handler.workspace_manager,
+                "get_workspace_script_directory",
+            ) as mock_get_dir,
+            patch.object(
                 launcher.nuke_handler.workspace_manager, "find_latest_nuke_script"
-            ) as mock_find:
-                mock_get_dir.return_value = Path("/test/scripts")
-                mock_find.return_value = Path("/test/script.nk")
+            ) as mock_find,
+        ):
+            mock_get_dir.return_value = Path("/test/scripts")
+            mock_find.return_value = Path("/test/script.nk")
 
-                result = launcher._find_latest_nuke_workspace_script(
-                    Path("/test/workspace")
-                )
+            result = launcher._find_latest_nuke_workspace_script(
+                Path("/test/workspace")
+            )
 
-                assert result == Path("/test/script.nk")
-                mock_get_dir.assert_called_once_with(
-                    "/test/workspace"
-                )  # Method expects str, not Path
-                mock_find.assert_called_once()
+            assert result == Path("/test/script.nk")
+            mock_get_dir.assert_called_once_with(
+                "/test/workspace"
+            )  # Method expects str, not Path
+            mock_find.assert_called_once()

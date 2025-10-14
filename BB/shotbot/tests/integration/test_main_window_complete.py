@@ -20,6 +20,8 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
+import contextlib
+
 # Standard library imports
 import sys
 from pathlib import Path
@@ -82,10 +84,7 @@ def is_testing_environment() -> bool:
 
     # Check if the app is QCoreApplication instead of QApplication (common in tests)
     app = QCoreApplication.instance()
-    if app and app.__class__.__name__ == "QCoreApplication":
-        return True
-
-    return False
+    return bool(app and app.__class__.__name__ == "QCoreApplication")
 
 
 @pytest.mark.slow
@@ -130,10 +129,8 @@ class TestMainWindowCompleteWorkflows:
             window.auto_refresh_timer.stop()
 
         # Disconnect all signals to prevent crashes during cleanup
-        try:
+        with contextlib.suppress(RuntimeError, TypeError):
             window.disconnect()
-        except (RuntimeError, TypeError):
-            pass
 
         # Close the window properly
         window.close()
@@ -201,7 +198,8 @@ class TestMainWindowCompleteWorkflows:
             assert not window.visibleRegion().isEmpty()
         # Alternative test-friendly check: verify window has reasonable size
         else:
-            assert window.size().width() > 0 and window.size().height() > 0
+            assert window.size().width() > 0
+            assert window.size().height() > 0
 
     def test_threede_scene_workflow(self, qtbot, main_window) -> None:
         """Test 3DE scene model and UI components."""
@@ -377,7 +375,8 @@ class TestMainWindowCompleteWorkflows:
             assert not window.visibleRegion().isEmpty()
         # Alternative test-friendly check: verify window has reasonable size
         else:
-            assert window.size().width() > 0 and window.size().height() > 0
+            assert window.size().width() > 0
+            assert window.size().height() > 0
 
     def test_drag_drop_workflow(self, qtbot, main_window) -> None:
         """Test drag-and-drop functionality workflow."""

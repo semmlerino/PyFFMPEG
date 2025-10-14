@@ -93,6 +93,7 @@ def make_model(qtbot, make_shot, cache_manager):
             ]
             scene_model.scenes = scenes
             from threede_item_model import ThreeDEItemModel
+
             item_model = ThreeDEItemModel(cache_manager=cache_manager)
             # Properly initialize the item model with scenes
             item_model.set_items(scenes)
@@ -117,7 +118,7 @@ def make_model(qtbot, make_shot, cache_manager):
 
 # Parametrize across all three views (CRITICAL for refactoring)
 @pytest.mark.parametrize(
-    "view_class,model_class",
+    ("view_class", "model_class"),
     [
         (ShotGridView, "ShotItemModel"),
         (ThreeDEGridView, "ThreeDEItemModel"),

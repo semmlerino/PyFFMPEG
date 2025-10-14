@@ -148,6 +148,7 @@ class TestThreeDEWorkerWorkflow:
             # Increased timeout to handle slow filesystem operations in test environment
             try:
                 from xdist import is_xdist_worker
+
                 timeout = 120000 if is_xdist_worker(qtbot._request) else 60000
             except (ImportError, TypeError, AttributeError):
                 timeout = 60000
@@ -351,6 +352,7 @@ class TestThreeDEWorkerWorkflow:
             # Dynamic timeout for xdist workers
             try:
                 from xdist import is_xdist_worker
+
                 timeout = 30000 if is_xdist_worker(qtbot._request) else 15000
             except (ImportError, TypeError, AttributeError):
                 timeout = 15000

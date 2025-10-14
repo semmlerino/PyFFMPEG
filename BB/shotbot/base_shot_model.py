@@ -104,12 +104,19 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
-            # Type annotation to help the type checker understand ShotDict compatibility
-            self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
-            self.shots_loaded.emit(self.shots)
-            self._cache_hits += 1
-            self.logger.info(f"Loaded {len(self.shots)} shots from cache")
-            return True
+            try:
+                # Type annotation to help the type checker understand ShotDict compatibility
+                self.shots = [Shot.from_dict(shot_data) for shot_data in cached_data]
+                self.shots_loaded.emit(self.shots)
+                self._cache_hits += 1
+                self.logger.info(f"Loaded {len(self.shots)} shots from cache")
+                return True
+            except (KeyError, TypeError, ValueError) as e:
+                # Handle corrupted cache data gracefully
+                self.logger.warning(f"Corrupted cache data, ignoring: {e}")
+                self.shots = []
+                self._cache_misses += 1
+                return False
         self._cache_misses += 1
         return False
 
@@ -175,7 +182,9 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                         continue
 
                     # Local application imports
-                    from type_definitions import Shot  # Import here to avoid circular import
+                    from type_definitions import (
+                        Shot,
+                    )  # Import here to avoid circular import
 
                     shots.append(
                         Shot(
@@ -343,7 +352,6 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         Returns:
             RefreshResult with success and change status
         """
-        pass
 
     @abstractmethod
     def refresh_strategy(self) -> RefreshResult:
@@ -355,7 +363,6 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         Returns:
             RefreshResult with success and change status
         """
-        pass
 
     def refresh_shots(self) -> RefreshResult:
         """Public API to refresh shots.

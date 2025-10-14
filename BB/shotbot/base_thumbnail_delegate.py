@@ -193,8 +193,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             return
 
         # Extract attributes from option (PySide6 type stubs incomplete)
-        rect = cast("QRect", getattr(option, "rect"))
-        state = cast("QStyle.StateFlag", getattr(option, "state"))
+        rect = cast("QRect", option.rect)  # type: ignore[attr-defined]
+        state = cast("QStyle.StateFlag", option.state)  # type: ignore[attr-defined]
 
         painter.save()
 
@@ -466,9 +466,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         """Update the loading animation angle."""
         self._loading_angle = (self._loading_angle + 10) % 360
         # Trigger repaint for all loading items
-        if parent := self.parent():
-            if isinstance(parent, QWidget):
-                parent.update()
+        if (parent := self.parent()) and isinstance(parent, QWidget):
+            parent.update()
 
     @override
     def sizeHint(
@@ -499,9 +498,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         self._metrics_cache.clear()
 
         # Trigger layout update
-        if parent := self.parent():
-            if isinstance(parent, QWidget):
-                parent.update()
+        if (parent := self.parent()) and isinstance(parent, QWidget):
+            parent.update()
 
     def cleanup(self) -> None:
         """Clean up resources."""

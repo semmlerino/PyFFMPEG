@@ -64,6 +64,7 @@ if DEBUG_VERBOSE:
 # Setup enhanced debugging if available
 if HAS_DEBUG_UTILS:
     from debug_utils import setup_enhanced_debugging
+
     setup_enhanced_debugging()
 
 
@@ -237,13 +238,13 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """
         # Use instance-level flag to prevent re-initialization
         # This is set AFTER initialization completes
-        if hasattr(self, '_init_done') and self._init_done:
+        if hasattr(self, "_init_done") and self._init_done:
             return
 
         # Lock to ensure only one thread initializes
         with QMutexLocker(ProcessPoolManager._lock):
             # Double-check inside lock
-            if hasattr(self, '_init_done') and self._init_done:
+            if hasattr(self, "_init_done") and self._init_done:
                 return
 
             super().__init__()
@@ -550,7 +551,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 # Access internal work queue (not part of public API but safe for cleanup)
                 # Suppress all type checking for access to private ThreadPoolExecutor internals
                 pending_items_raw = self._executor._pending_work_items  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
-                pending_items = cast(dict[object, object], pending_items_raw)
+                pending_items = cast("dict[object, object]", pending_items_raw)
                 pending_count = len(pending_items)
                 if pending_count > 0:
                     self.logger.debug(f"Cancelling {pending_count} pending futures")
@@ -559,7 +560,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                         if hasattr(work_item, "future"):
                             # Access .future attribute (also private)
                             future = cast(
-                                concurrent.futures.Future[object],
+                                "concurrent.futures.Future[object]",
                                 work_item.future,  # type: ignore[attr-defined]  # pyright: ignore[reportAttributeAccessIssue]
                             )
                             future.cancel()

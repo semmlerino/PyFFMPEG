@@ -101,6 +101,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
             progress_callback: Optional callback function(total_files: int, status: str)
             update_interval: Report progress every N files processed
         """
+        super().__init__()
         self._lock = threading.Lock()
         self._worker_progress: dict[str, int] = {}  # worker_id -> files_processed
         self._total_progress = 0
@@ -299,6 +300,7 @@ class CancellationEvent(LoggingMixin):
 
     def __init__(self) -> None:
         """Initialize cancellation event."""
+        super().__init__()
         self._event = threading.Event()
         self._callbacks: list[Callable[[], None]] = []
         self._callbacks_lock = threading.Lock()
@@ -353,9 +355,6 @@ class CancellationEvent(LoggingMixin):
             callback: Function to call during cleanup. Should take no arguments
                      and return None.
         """
-        if not callable(callback):
-            raise ValueError("Callback must be callable")
-
         with self._callbacks_lock:
             self._callbacks.append(callback)
             callback_count = len(self._callbacks)
@@ -500,6 +499,7 @@ class ThreadPoolManager(LoggingMixin):
             cancel_event: Optional cancellation event for cleanup integration.
             shutdown_timeout: Timeout for executor shutdown. None for default.
         """
+        super().__init__()
         self.max_workers = max_workers or ThreadingConfig.MAX_WORKER_THREADS
         self.cancel_event = cancel_event
         # Reduce default timeout to be less noisy
@@ -803,7 +803,9 @@ def integrate_with_existing_parallel_scan() -> list[str]:
         try:
             # Step 1: Use pool manager instead of raw ThreadPoolExecutor
             with pool_manager as executor:
-                future_to_chunk: dict[concurrent.futures.Future[list[str]], list[str]] = {}
+                future_to_chunk: dict[
+                    concurrent.futures.Future[list[str]], list[str]
+                ] = {}
 
                 # Submit work with cancellation support
                 for chunk in work_chunks:

@@ -6,6 +6,8 @@ eliminating the need to spawn new terminals for each command.
 
 from __future__ import annotations
 
+import contextlib
+
 # Standard library imports
 import errno
 import os
@@ -80,10 +82,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         if not os.path.exists(self.fifo_path):
             try:
                 # Remove any existing file first (in case it's not a FIFO)
-                try:
+                with contextlib.suppress(FileNotFoundError):
                     os.unlink(self.fifo_path)
-                except FileNotFoundError:
-                    pass
 
                 os.mkfifo(self.fifo_path, 0o600)  # Only user can read/write
                 self.logger.debug(f"Created FIFO at {self.fifo_path}")
@@ -195,7 +195,14 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 self.fifo_path,
             ],
             # fallback to any available terminal
-            ["x-terminal-emulator", "-e", "bash", "-i", self.dispatcher_path, self.fifo_path],
+            [
+                "x-terminal-emulator",
+                "-e",
+                "bash",
+                "-i",
+                self.dispatcher_path,
+                self.fifo_path,
+            ],
         ]
 
         for cmd in terminal_commands:
@@ -270,11 +277,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
 
         # Check for printable ASCII characters (basic sanity check)
         try:
-            command.encode('ascii')
+            command.encode("ascii")
         except UnicodeEncodeError:
-            self.logger.warning(
-                f"Command contains non-ASCII characters: {command!r}"
-            )
+            self.logger.warning(f"Command contains non-ASCII characters: {command!r}")
 
         # Debug logging: log command details before sending
         self.logger.debug(
@@ -358,10 +363,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 finally:
                     # Clean up file descriptor if it wasn't converted to file object
                     if fifo_fd is not None:
-                        try:
+                        with contextlib.suppress(OSError):
                             os.close(fifo_fd)
-                        except OSError:
-                            pass
 
             # If we get here, all attempts failed
             return False

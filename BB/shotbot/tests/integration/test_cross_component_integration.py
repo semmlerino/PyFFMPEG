@@ -152,7 +152,7 @@ class TestCrossTabSynchronization:
         window.shot_model._process_pool = test_pool
 
         # Refresh shots to populate the model
-        success, has_changes = window.shot_model.refresh_shots()
+        success, _has_changes = window.shot_model.refresh_shots()
         assert success, "refresh_shots should succeed"
 
         # Debug: Print what we got
@@ -514,7 +514,7 @@ class TestCacheUICoordination:
         )
 
         # Refresh again - should get new data
-        success, has_changes = window.shot_model.refresh_shots()
+        success, _has_changes = window.shot_model.refresh_shots()
         assert success
         assert len(window.shot_model.shots) == 3  # New shot added
 

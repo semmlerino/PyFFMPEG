@@ -49,6 +49,7 @@ def capture_shotbot_window() -> Path | None:
         print("✗ Failed to save screenshot")
         return None
 
+
 def main() -> None:
     """Launch ShotBot with auto-screenshot."""
     # Start ShotBot process
@@ -57,7 +58,7 @@ def main() -> None:
         [sys.executable, "shotbot.py", "--mock"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env={**os.environ, "PYTHONUNBUFFERED": "1"}
+        env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
 
     # Give it time to start
@@ -75,6 +76,7 @@ def main() -> None:
     # Leave ShotBot running
     print("ShotBot remains running in background.")
     print(f"PID: {shotbot_process.pid}")
+
 
 if __name__ == "__main__":
     main()

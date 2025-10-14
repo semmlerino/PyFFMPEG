@@ -277,10 +277,9 @@ class TestCache:
         self.access_counts[key] += 1
 
         # Check expiry
-        if key in self.expiry_times:
-            if datetime.now() > self.expiry_times[key]:
-                self.data.pop(key, None)
-                self.expiry_times.pop(key, None)
+        if key in self.expiry_times and datetime.now() > self.expiry_times[key]:
+            self.data.pop(key, None)
+            self.expiry_times.pop(key, None)
 
         if key in self.data:
             self.cache_hits += 1
@@ -339,9 +338,8 @@ class TestCache:
         Returns:
             bool: True if key exists and is valid
         """
-        if key in self.expiry_times:
-            if datetime.now() > self.expiry_times[key]:
-                return False
+        if key in self.expiry_times and datetime.now() > self.expiry_times[key]:
+            return False
         return key in self.data
 
     @property
@@ -397,7 +395,6 @@ class TestQApplication:
 
     def processEvents(self) -> None:
         """Process events (no-op in test)."""
-        pass
 
     @staticmethod
     def instance() -> TestQApplication:

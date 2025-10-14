@@ -181,7 +181,7 @@ class TestNotificationManager:
 
     def test_error_notification(self, manager_with_ui, qtbot) -> None:
         """Test error notification display."""
-        manager, main_window, status_bar = manager_with_ui
+        _manager, main_window, _status_bar = manager_with_ui
 
         # Mock QMessageBox.critical
         with patch.object(QMessageBox, "critical") as mock_critical:
@@ -195,7 +195,7 @@ class TestNotificationManager:
 
     def test_warning_notification(self, manager_with_ui) -> None:
         """Test warning notification display."""
-        manager, main_window, status_bar = manager_with_ui
+        _manager, main_window, _status_bar = manager_with_ui
 
         with patch.object(QMessageBox, "warning") as mock_warning:
             NotificationManager.warning("Test Warning", "Warning message")
@@ -207,7 +207,7 @@ class TestNotificationManager:
 
     def test_info_notification(self, manager_with_ui, qtbot) -> None:
         """Test info message in status bar."""
-        manager, main_window, status_bar = manager_with_ui
+        _manager, _main_window, status_bar = manager_with_ui
 
         NotificationManager.info("Info message", timeout=100)
 
@@ -223,7 +223,7 @@ class TestNotificationManager:
 
     def test_success_notification(self, manager_with_ui) -> None:
         """Test success notification in status bar."""
-        manager, main_window, status_bar = manager_with_ui
+        _manager, _main_window, status_bar = manager_with_ui
 
         NotificationManager.success("Operation successful")
 
@@ -234,7 +234,7 @@ class TestNotificationManager:
 
     def test_toast_notification(self, manager_with_ui, qtbot) -> None:
         """Test toast notification display."""
-        manager, main_window, status_bar = manager_with_ui
+        _manager, _main_window, _status_bar = manager_with_ui
 
         # Create toast
         NotificationManager.toast("Toast message", NotificationType.INFO, duration=100)
@@ -254,7 +254,7 @@ class TestNotificationManager:
     @patch.object(QProgressDialog, "__new__")
     def test_progress_notification(self, mock_progress_new, manager_with_ui) -> None:
         """Test progress dialog creation."""
-        manager, main_window, status_bar = manager_with_ui
+        _manager, _main_window, _status_bar = manager_with_ui
 
         # Create a mock progress dialog
         mock_progress = MagicMock(spec=QProgressDialog)
@@ -270,7 +270,7 @@ class TestNotificationManager:
 
     def test_close_progress(self, manager_with_ui) -> None:
         """Test closing progress dialog."""
-        manager, main_window, status_bar = manager_with_ui
+        _manager, _main_window, _status_bar = manager_with_ui
 
         # Create mock progress
         mock_progress = MagicMock(spec=QProgressDialog)
@@ -284,7 +284,7 @@ class TestNotificationManager:
 
     def test_multiple_toasts_stacking(self, manager_with_ui, qtbot) -> None:
         """Test that multiple toasts stack properly."""
-        manager, main_window, status_bar = manager_with_ui
+        _manager, _main_window, _status_bar = manager_with_ui
 
         # Create multiple toasts
         for i in range(3):
@@ -328,7 +328,7 @@ class TestNotificationManager:
 
     def test_cleanup(self, manager_with_ui) -> None:
         """Test cleanup of notification resources."""
-        manager, main_window, status_bar = manager_with_ui
+        _manager, _main_window, _status_bar = manager_with_ui
 
         # Create some toasts and progress
         NotificationManager.toast("Test", NotificationType.INFO, duration=0)

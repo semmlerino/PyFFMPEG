@@ -15,10 +15,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Standard library imports
 import logging
+from typing import TYPE_CHECKING
 
 # Third-party imports
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
+
+if TYPE_CHECKING:
+    from type_definitions import RefreshResult
 
 # Set up logging to see what's happening
 logging.basicConfig(level=logging.INFO)
@@ -37,7 +41,6 @@ def test_threading_fix() -> bool:
         # Import the fixed model
         # Third-party imports
         from shot_model import ShotModel
-        from type_definitions import RefreshResult
 
         # Create model instance
         model: ShotModel = ShotModel()

@@ -64,18 +64,18 @@ if TYPE_CHECKING:
 # pyright: reportPrivateUsage=false
 
 __all__ = [
-    "ProcessPoolProtocol",
-    "LauncherProtocol",
     "CacheProtocol",
+    "LauncherProtocol",
+    "ProcessPoolProtocol",
     "ShotTestData",
     "ThreadSafeTestImage",
+    "assert_signal_emitted",
     "create_real_cache_manager",
-    "create_typed_process_pool_mock",
+    "create_test_shot_data",
     "create_typed_launcher_mock",
+    "create_typed_process_pool_mock",
     "isolated_test_env",
     "wait_for_qt_events",
-    "assert_signal_emitted",
-    "create_test_shot_data",
 ]
 
 T = TypeVar("T")
@@ -320,7 +320,7 @@ def assert_signal_emitted(
     signal: Any,  # Qt Signal
     expected_count: int = 1,
     timeout_ms: int = 1000,
-    expected_args: list[Any | None] = None,
+    expected_args: list[Any | None] | None = None,
 ) -> list[Any]:
     """Assert that a Qt signal was emitted with proper typing.
 

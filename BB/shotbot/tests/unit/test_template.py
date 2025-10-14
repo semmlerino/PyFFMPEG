@@ -130,7 +130,7 @@ class TestExampleClassBehavior:
         assert "empty" in spy_error.at(0)[0].lower()
 
     @pytest.mark.parametrize(
-        "input_value, expected_state",
+        ("input_value", "expected_state"),
         [
             ("alpha", "processed_alpha"),
             ("123", "processed_123"),
@@ -190,7 +190,6 @@ class TestExampleClassIntegration:
         Mark slow tests so they can be skipped during development.
         """
         # Long-running test implementation
-        pass
 
 
 class TestExampleClassEdgeCases:

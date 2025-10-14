@@ -208,7 +208,9 @@ class PersistentBashSession(LoggingMixin):
                     else:
                         # Fallback for older Python - use module-level fcntl import
                         if _fcntl_module is not None:
-                            flags = _fcntl_module.fcntl(stdout_fd, _fcntl_module.F_GETFL)
+                            flags = _fcntl_module.fcntl(
+                                stdout_fd, _fcntl_module.F_GETFL
+                            )
                             _fcntl_module.fcntl(
                                 stdout_fd, _fcntl_module.F_SETFL, flags | os.O_NONBLOCK
                             )
@@ -220,7 +222,6 @@ class PersistentBashSession(LoggingMixin):
             except (OSError, ValueError, AttributeError) as e:
                 self.logger.debug(f"Could not set non-blocking mode on stdout: {e}")
                 # This is not critical - continue without non-blocking mode
-                pass
 
             # Set up session - simplified without problematic draining
             try:
@@ -257,7 +258,11 @@ class PersistentBashSession(LoggingMixin):
                     )
 
                 # Track state
-                if HAS_DEBUG_UTILS and _state_tracker is not None and _deadlock_detector is not None:
+                if (
+                    HAS_DEBUG_UTILS
+                    and _state_tracker is not None
+                    and _deadlock_detector is not None
+                ):
                     _state_tracker.transition(
                         self.session_id,
                         "WAITING_MARKER",
@@ -406,7 +411,7 @@ class PersistentBashSession(LoggingMixin):
             except Exception as e:
                 self.logger.error(f"Failed to initialize bash session: {e}")
                 self._kill_session()
-                raise RuntimeError(f"Session initialization failed: {e}")
+                raise RuntimeError(f"Session initialization failed: {e}") from e
 
             # Reset retry count on successful start
             self._retry_count = 0
@@ -419,7 +424,11 @@ class PersistentBashSession(LoggingMixin):
                 )
 
             # Track successful initialization
-            if HAS_DEBUG_UTILS and _state_tracker is not None and _deadlock_detector is not None:
+            if (
+                HAS_DEBUG_UTILS
+                and _state_tracker is not None
+                and _deadlock_detector is not None
+            ):
                 _state_tracker.transition(
                     self.session_id,
                     "READY",
@@ -672,7 +681,11 @@ class PersistentBashSession(LoggingMixin):
             )
 
         # Trace command execution
-        if HAS_DEBUG_UTILS and _CommandTracer is not None and _state_tracker is not None:
+        if (
+            HAS_DEBUG_UTILS
+            and _CommandTracer is not None
+            and _state_tracker is not None
+        ):
             _CommandTracer.trace(command, self.session_id)
             _state_tracker.transition(self.session_id, "EXECUTING", "Running command")
 
@@ -694,7 +707,7 @@ class PersistentBashSession(LoggingMixin):
                         if restart_attempts >= self.MAX_RETRIES:
                             raise RuntimeError(
                                 f"Failed to restart session {self.session_id} after {self.MAX_RETRIES} attempts: {e}",
-                            )
+                            ) from e
                         self.logger.debug(
                             f"Restart attempt {restart_attempts} failed, retrying...",
                         )
@@ -803,7 +816,7 @@ class PersistentBashSession(LoggingMixin):
             time.sleep(0.1)  # Brief pause for command to complete
         except (BrokenPipeError, OSError) as e:
             self.logger.error(f"Failed to execute internal command: {e}")
-            raise RuntimeError(f"Internal command failed: {e}")
+            raise RuntimeError(f"Internal command failed: {e}") from e
 
     def _is_alive(self) -> bool:
         """Check if session is still alive.

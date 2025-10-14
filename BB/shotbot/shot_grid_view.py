@@ -363,11 +363,11 @@ class ShotGridView(BaseGridView):
         # Note: Slot decorators cause type checker to see methods as Any
         worker.signals.error.connect(
             self._on_folder_open_error,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection
+            Qt.ConnectionType.QueuedConnection,
         )
         worker.signals.success.connect(
             self._on_folder_open_success,  # pyright: ignore[reportAny]
-            Qt.ConnectionType.QueuedConnection
+            Qt.ConnectionType.QueuedConnection,
         )
 
         # Start the worker
@@ -412,6 +412,7 @@ if __name__ == "__main__":
 
     # Create model and view
     from shot_item_model import ShotItemModel
+
     model = ShotItemModel()
     model.set_shots(shots)
 

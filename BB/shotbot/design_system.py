@@ -165,6 +165,7 @@ class DesignSystem:
     """Central design system with all design tokens."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.colors = ColorPalette()
         self.typography = Typography()
         self.spacing = Spacing()

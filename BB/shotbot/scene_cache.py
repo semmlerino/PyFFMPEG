@@ -265,9 +265,7 @@ class SceneCache(LoggingMixin):
         with self.lock:
             # Find all keys that start with the show name
             keys_to_remove = [
-                key
-                for key in self.cache.keys()
-                if key.startswith(f"{show}/") or key == show
+                key for key in self.cache if key.startswith(f"{show}/") or key == show
             ]
 
             for key in keys_to_remove:

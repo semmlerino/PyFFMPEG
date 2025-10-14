@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 # Standard library imports
 from typing import TYPE_CHECKING, cast
 
@@ -351,7 +353,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[
             self.test_output.setText("✓ Command validated successfully")
             self.test_output.setStyleSheet("color: #4caf50; font-style: italic;")
         except Exception as e:
-            self.test_output.setText(f"✗ {str(e)}")
+            self.test_output.setText(f"✗ {e!s}")
             self.test_output.setStyleSheet("color: #f44336; font-style: italic;")
 
     def _save(self) -> None:
@@ -424,7 +426,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[
                     )
 
         except Exception as e:
-            NotificationManager.error("Save Error", f"Error saving launcher: {str(e)}")
+            NotificationManager.error("Save Error", f"Error saving launcher: {e!s}")
 
     # Override mixin event handlers with proper keyword parameter signatures
     @override
@@ -755,7 +757,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: igno
             # In real usage, this would get shot context from main window
             self.launcher_manager.execute_launcher(launcher_id)
         except Exception as e:
-            NotificationManager.error("Launch Error", f"Failed to launch: {str(e)}")
+            NotificationManager.error("Launch Error", f"Failed to launch: {e!s}")
 
     def _launch_selected(self) -> None:
         """Launch the selected launcher."""
@@ -834,10 +836,8 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: igno
             pass
 
         # Disconnect search field
-        try:
+        with contextlib.suppress(RuntimeError, TypeError):
             self.search_field.textChanged.disconnect(self._filter_launchers)
-        except (RuntimeError, TypeError):
-            pass
 
         # Disconnect buttons
         try:

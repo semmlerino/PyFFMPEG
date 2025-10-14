@@ -435,6 +435,5 @@ class ErrorAggregator:
         try:
             yield self
         finally:
-            if self.has_errors():
-                if hasattr(self.logger, "error"):
-                    self.logger.error(f"{operation_name}: {self.get_summary()}")
+            if self.has_errors() and hasattr(self.logger, "error"):
+                self.logger.error(f"{operation_name}: {self.get_summary()}")

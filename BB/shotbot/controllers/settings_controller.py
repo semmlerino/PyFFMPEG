@@ -254,7 +254,6 @@ class SettingsController(LoggingMixin):
         """Apply dark theme to the application."""
         # TODO: Implement dark theme application
         # This would involve setting stylesheets or using a dark palette
-        pass
 
     def show_preferences(self) -> None:
         """Show the preferences dialog."""
@@ -264,7 +263,7 @@ class SettingsController(LoggingMixin):
         if self.window._settings_dialog is None:  # pyright: ignore[reportPrivateUsage]
             # MainWindow implements both SettingsTarget and QWidget protocols
             # Cast through object first to satisfy type checker
-            parent_widget = cast(QWidget, cast(object, self.window))
+            parent_widget = cast("QWidget", cast("object", self.window))
             self.window._settings_dialog = SettingsDialog(  # pyright: ignore[reportPrivateUsage]
                 self.window.settings_manager,
                 parent_widget,
@@ -304,7 +303,7 @@ class SettingsController(LoggingMixin):
 
         # Cast to QWidget for dialog parent - MainWindow implements both protocols
         # Cast through object first to satisfy type checker
-        parent_widget = cast(QWidget, cast(object, self.window))
+        parent_widget = cast("QWidget", cast("object", self.window))
 
         file_path, _ = QFileDialog.getOpenFileName(
             parent_widget,
@@ -337,7 +336,7 @@ class SettingsController(LoggingMixin):
 
         # Cast to QWidget for dialog parent - MainWindow implements both protocols
         # Cast through object first to satisfy type checker
-        parent_widget = cast(QWidget, cast(object, self.window))
+        parent_widget = cast("QWidget", cast("object", self.window))
 
         file_path, _ = QFileDialog.getSaveFileName(
             parent_widget,
@@ -367,7 +366,7 @@ class SettingsController(LoggingMixin):
 
         # Cast to QWidget for dialog parent - MainWindow implements both protocols
         # Cast through object first to satisfy type checker
-        parent_widget = cast(QWidget, cast(object, self.window))
+        parent_widget = cast("QWidget", cast("object", self.window))
 
         reply = QMessageBox.question(
             parent_widget,

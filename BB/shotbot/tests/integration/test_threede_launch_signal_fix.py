@@ -69,7 +69,9 @@ class TestCommandLauncherWithSceneSupport(QObject):
         command = {
             "app_name": app_name,
             "shot": self.current_shot.full_name if self.current_shot else None,
-            "scene_path": str(self._current_scene_path) if self._current_scene_path else None,
+            "scene_path": str(self._current_scene_path)
+            if self._current_scene_path
+            else None,
             "options": {
                 "include_undistortion": include_undistortion,
                 "include_raw_plate": include_raw_plate,
@@ -195,7 +197,7 @@ class TestThreeDELaunchSignalIntegration:
         launch_app() correctly refuses to launch (no commands executed).
         """
         controller, target = launcher_controller_with_scene_support
-        test_scene = create_test_scene()  # noqa: F841 - scene not used (intentional)
+        create_test_scene()
 
         # Attempt to launch WITHOUT setting context
         # (This is what happened when signal parameter was dropped)
@@ -437,7 +439,7 @@ class TestLauncherPanelButtonWithSceneContext:
         launcher_controller.set_current_scene(), launch is properly refused.
         """
         controller, target = launcher_controller_with_scene_support
-        test_scene = create_test_scene()  # noqa: F841 - intentionally unused
+        create_test_scene()
 
         # Simulate scenario: scene is selected but NOT synced with launcher_controller
         # (i.e., on_scene_selected didn't call launcher_controller.set_current_scene)
@@ -455,7 +457,7 @@ class TestLauncherPanelButtonWithSceneContext:
         self, launcher_controller_with_scene_support, create_test_scene
     ) -> None:
         """Test that switching between scenes updates launcher_controller each time."""
-        controller, target = launcher_controller_with_scene_support
+        controller, _target = launcher_controller_with_scene_support
 
         # Create different scenes
         scene1 = create_test_scene(user="user1", plate="plate1")

@@ -28,6 +28,8 @@ Type Safety:
 
 from __future__ import annotations
 
+import contextlib
+
 # Standard library imports
 import getpass
 import logging
@@ -184,10 +186,8 @@ class TestUserWorkflows:
         """Clean up test resources with proper error handling."""
         try:
             # Stop the progress patcher
-            try:
+            with contextlib.suppress(Exception):
                 self.progress_patcher.stop()
-            except Exception:
-                pass
 
             # Clear any active progress operations to avoid Qt cleanup issues
             # Local application imports
@@ -1045,7 +1045,7 @@ class TestUserWorkflows:
 
         # Create some "previous" shots (with user directories)
         previous_shot_paths = []
-        for i, shot_data in enumerate(self.test_shots[:2]):  # Use first 2 as previous
+        for _i, shot_data in enumerate(self.test_shots[:2]):  # Use first 2 as previous
             shot_path = self._create_realistic_shot_structure(shot_data)
 
             # Create user directory to indicate user worked on this shot

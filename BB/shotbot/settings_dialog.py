@@ -145,7 +145,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         # Applications tab widgets
         self.default_app_combo: QComboBox
         self.launch_terminal_check: QCheckBox
-        self.association_combos: dict[str, QComboBox]  # Populated in create_associations_widget
+        self.association_combos: dict[
+            str, QComboBox
+        ]  # Populated in create_associations_widget
         self.associations_widget: QWidget
         self.launchers_edit: QTextEdit
         self.edit_launchers_btn: QPushButton
@@ -472,7 +474,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
 
         # Create rows for each file type
         row = 1
-        for file_type in Config.APPS.keys():
+        for file_type in Config.APPS:
             # File type label
             layout.addWidget(QLabel(file_type.upper()), row, 0)
 
@@ -854,7 +856,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
                         if isinstance(item, dict):
                             # Type narrowing: item is now dict
                             # Cast to dict[str, Any] to resolve unknown types
-                            item_dict = cast(dict[str, Any], item)  # pyright: ignore[reportExplicitAny]
+                            item_dict = cast("dict[str, Any]", item)  # pyright: ignore[reportExplicitAny]
                             launchers.append({str(k): v for k, v in item_dict.items()})  # pyright: ignore[reportAny]
                         else:
                             # Skip invalid items with empty dict
@@ -862,8 +864,12 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
                 elif isinstance(parsed_data, dict):
                     # Convert dict to list format expected by settings manager
                     # Cast to dict[str, Any] to resolve unknown types
-                    parsed_dict = cast(dict[str, Any], parsed_data)  # pyright: ignore[reportExplicitAny]
-                    launchers = [{str(k): v for k, v in parsed_dict.items()}] if parsed_dict else []  # pyright: ignore[reportAny]
+                    parsed_dict = cast("dict[str, Any]", parsed_data)  # pyright: ignore[reportExplicitAny]
+                    launchers = (
+                        [{str(k): v for k, v in parsed_dict.items()}]
+                        if parsed_dict
+                        else []
+                    )  # pyright: ignore[reportAny]
                 self.settings_manager.set_custom_launchers(launchers)
         except json.JSONDecodeError:
             self.logger.warning(

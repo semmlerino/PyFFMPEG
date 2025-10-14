@@ -21,7 +21,6 @@ from unittest.mock import patch
 
 # Third-party imports
 import pytest
-from PySide6.QtCore import QTimer
 from PySide6.QtTest import QSignalSpy
 
 # Local application imports
@@ -119,7 +118,6 @@ class TestPreviousShotsModel:
         )
         yield model
         # Cleanup
-        model.stop_auto_refresh()
         model.deleteLater()
 
     @pytest.fixture
@@ -134,7 +132,6 @@ class TestPreviousShotsModel:
             shot_model=test_shot_model, cache_manager=real_cache_manager
         )
         yield model
-        model.stop_auto_refresh()
         model.deleteLater()
 
     def test_model_initialization(
@@ -149,26 +146,28 @@ class TestPreviousShotsModel:
         assert model._finder is not None
         assert model._previous_shots == []
         assert not model._is_scanning
-        assert isinstance(model._refresh_timer, QTimer)
         assert model._scan_lock is not None  # Thread safety lock
 
-    def test_auto_refresh_timer_behavior(self, model: PreviousShotsModel) -> None:
-        """Test auto-refresh timer start/stop behavior."""
-        # Initially timer should be stopped
-        assert not model._refresh_timer.isActive()
+    def test_persistent_cache_no_expiration(self, model: PreviousShotsModel) -> None:
+        """Test that previous shots cache persists without expiration."""
+        # This test verifies the new persistent caching behavior
+        # where cache does not expire and accumulates incrementally
+        test_shots = [
+            create_test_shot("show1", "seq1", "shot1"),
+        ]
+        model._previous_shots = test_shots
 
-        # Start auto-refresh
-        model.start_auto_refresh()
-        # Timer might not be active in test environment due to threading
-        # But we can verify the interval was set correctly
-        assert model._refresh_timer.interval() == 5 * 60 * 1000  # 5 minutes
+        # Save to cache
+        model._save_to_cache()
 
-        # Stop auto-refresh
-        model.stop_auto_refresh()
-        # Timer should be stopped (or never started in test environment)
+        # Cache should exist and be loadable regardless of age
+        assert len(model.get_shots()) == 1
 
     def test_refresh_shots_signal_emission_no_race(
-        self, model: PreviousShotsModel, test_finder: FakePreviousShotsFinder, qtbot: QtBot
+        self,
+        model: PreviousShotsModel,
+        test_finder: FakePreviousShotsFinder,
+        qtbot: QtBot,
     ) -> None:
         """Test signal emission during shot refresh without race conditions.
 
@@ -504,55 +503,58 @@ class TestPreviousShotsModel:
         # Cache file should be removed
         assert not cache_file.exists()
 
-    def test_timer_triggered_refresh(
+    def test_incremental_cache_merge(
         self,
         test_shot_model: FakeShotModel,
         test_cache_manager: TestCacheManager,
         qtbot: QtBot,
     ) -> None:
-        """Test refresh triggered by timer with proper signal handling."""
+        """Test incremental cache merge behavior."""
         # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
         model = PreviousShotsModel(test_shot_model, test_cache_manager)
-        test_shot = create_test_shot()
 
-        # Configure finder
-        test_finder = FakePreviousShotsFinder()
-        test_finder.approved_shots_to_return = [test_shot]
+        # Pre-populate cache with existing shots
+        existing_shots = [
+            create_test_shot("show1", "seq1", "shot1"),
+            create_test_shot("show1", "seq1", "shot2"),
+        ]
+        model._previous_shots = existing_shots
 
+        # Create test worker with mix of existing and new shots
         test_worker = FakePreviousShotsWorker()
-        test_worker.shots_to_find = [test_shot]
+        new_shots = [
+            create_test_shot("show1", "seq1", "shot1"),  # Existing
+            create_test_shot("show1", "seq1", "shot3"),  # New
+        ]
+        test_worker.shots_to_find = new_shots
 
         shots_updated_spy = QSignalSpy(model.shots_updated)
 
-        # Set very short interval for testing
-        model._refresh_timer.setInterval(100)  # 100ms
-
-        # Mock worker creation for timer-triggered refresh
+        # Mock worker creation and trigger refresh
         with patch(
             "previous_shots_model.PreviousShotsWorker", return_value=test_worker
         ):
-            model.start_auto_refresh()
-
-            # Wait for timer to trigger and then manually complete the worker
-            qtbot.wait(150)  # Wait for timer to trigger
+            model.refresh_shots()
 
             # Manually trigger completion
-            shot_dict = {
-                "show": test_shot.show,
-                "sequence": test_shot.sequence,
-                "shot": test_shot.shot,
-                "workspace_path": test_shot.workspace_path,
-            }
-            model._on_scan_finished([shot_dict])
+            shot_dicts = [
+                {
+                    "show": shot.show,
+                    "sequence": shot.sequence,
+                    "shot": shot.shot,
+                    "workspace_path": shot.workspace_path,
+                }
+                for shot in new_shots
+            ]
+            model._on_scan_finished(shot_dicts)
 
-            # Allow Qt to process signals
-            qtbot.wait(50)
+        # Should have merged: 2 existing + 1 new = 3 total
+        assert len(model.get_shots()) == 3
+        # Should only emit update signal when new shots added
+        assert shots_updated_spy.count() == 1
 
-        assert shots_updated_spy.count() >= 1
-
-        model.stop_auto_refresh()
         model.deleteLater()
 
 
@@ -576,7 +578,6 @@ class TestPreviousShotsModelIntegration:
 
         yield model, shot_model, cache_manager
 
-        model.stop_auto_refresh()
         model.deleteLater()
 
     def test_full_workflow(
@@ -588,7 +589,7 @@ class TestPreviousShotsModelIntegration:
         # Local application imports
         from tests.test_doubles_previous_shots import FakePreviousShotsWorker
 
-        model, shot_model, cache_manager = integration_setup
+        model, _shot_model, cache_manager = integration_setup
         test_shot = create_test_shot("approved", "seq1", "shot1")
 
         # Configure finder with approved shots

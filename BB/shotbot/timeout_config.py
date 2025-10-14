@@ -87,9 +87,9 @@ class TimeoutConfig:
                 if isinstance(value, int | float):
                     # Don't scale millisecond values directly, they have _MS suffix
                     if attr_name.endswith("_MS"):
-                        setattr(cls, attr_name, int(value * factor))
+                        setattr(cls, attr_name, int(value * factor))  # pyright: ignore[reportConstantRedefinition]
                     else:
-                        setattr(cls, attr_name, int(value * factor))
+                        setattr(cls, attr_name, int(value * factor))  # pyright: ignore[reportConstantRedefinition]
 
     @classmethod
     def optimize_for_network_latency(cls, latency_ms: int) -> None:
@@ -101,17 +101,11 @@ class TimeoutConfig:
         if latency_ms > 100:  # High latency network
             # Increase file and network operation timeouts
             factor = 1 + (latency_ms / 100) * 0.5  # Scale factor based on latency
-            setattr(cls, "FILE_SEARCH_QUICK", int(cls.FILE_SEARCH_QUICK * factor))
-            setattr(cls, "FILE_SEARCH_STANDARD", int(cls.FILE_SEARCH_STANDARD * factor))
-            setattr(cls, "FILE_SEARCH_DEEP", int(cls.FILE_SEARCH_DEEP * factor))
-            setattr(
-                cls, "FILE_NETWORK_OPERATION", int(cls.FILE_NETWORK_OPERATION * factor)
-            )
-            setattr(
-                cls,
-                "WORKSPACE_COMMAND_DEFAULT",
-                int(cls.WORKSPACE_COMMAND_DEFAULT * factor),
-            )
+            cls.FILE_SEARCH_QUICK = int(cls.FILE_SEARCH_QUICK * factor)  # pyright: ignore[reportConstantRedefinition]
+            cls.FILE_SEARCH_STANDARD = int(cls.FILE_SEARCH_STANDARD * factor)  # pyright: ignore[reportConstantRedefinition]
+            cls.FILE_SEARCH_DEEP = int(cls.FILE_SEARCH_DEEP * factor)  # pyright: ignore[reportConstantRedefinition]
+            cls.FILE_NETWORK_OPERATION = int(cls.FILE_NETWORK_OPERATION * factor)  # pyright: ignore[reportConstantRedefinition]
+            cls.WORKSPACE_COMMAND_DEFAULT = int(cls.WORKSPACE_COMMAND_DEFAULT * factor)  # pyright: ignore[reportConstantRedefinition]
 
     @classmethod
     def get_config_summary(cls) -> str:

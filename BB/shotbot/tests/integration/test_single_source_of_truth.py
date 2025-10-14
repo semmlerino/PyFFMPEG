@@ -105,7 +105,10 @@ class TestMutualExclusivity:
     """Test mutual exclusivity between scene and shot context."""
 
     def test_setting_scene_clears_shot(
-        self, launcher_controller_target: Any, sample_shot: Shot, sample_scene: ThreeDEScene
+        self,
+        launcher_controller_target: Any,
+        sample_shot: Shot,
+        sample_scene: ThreeDEScene,
     ) -> None:
         """Test that setting a scene automatically clears the shot."""
         controller = LauncherController(launcher_controller_target)
@@ -118,10 +121,15 @@ class TestMutualExclusivity:
         # Set scene - should clear shot
         controller.set_current_scene(sample_scene)
         assert controller.current_scene == sample_scene
-        assert controller.current_shot is None, "Shot should be cleared when scene is set"
+        assert controller.current_shot is None, (
+            "Shot should be cleared when scene is set"
+        )
 
     def test_setting_shot_clears_scene(
-        self, launcher_controller_target: Any, sample_shot: Shot, sample_scene: ThreeDEScene
+        self,
+        launcher_controller_target: Any,
+        sample_shot: Shot,
+        sample_scene: ThreeDEScene,
     ) -> None:
         """Test that setting a shot automatically clears the scene."""
         controller = LauncherController(launcher_controller_target)
@@ -134,9 +142,13 @@ class TestMutualExclusivity:
         # Set shot - should clear scene
         controller.set_current_shot(sample_shot)
         assert controller.current_shot == sample_shot
-        assert controller.current_scene is None, "Scene should be cleared when shot is set"
+        assert controller.current_scene is None, (
+            "Scene should be cleared when shot is set"
+        )
 
-    def test_clearing_shot_does_not_set_scene(self, launcher_controller_target: Any) -> None:
+    def test_clearing_shot_does_not_set_scene(
+        self, launcher_controller_target: Any
+    ) -> None:
         """Test that clearing shot (None) doesn't affect scene."""
         controller = LauncherController(launcher_controller_target)
 
@@ -151,7 +163,9 @@ class TestMutualExclusivity:
         assert controller.current_scene is None
         assert controller.current_shot is None
 
-    def test_clearing_scene_does_not_set_shot(self, launcher_controller_target: Any) -> None:
+    def test_clearing_scene_does_not_set_shot(
+        self, launcher_controller_target: Any
+    ) -> None:
         """Test that clearing scene (None) doesn't affect shot."""
         controller = LauncherController(launcher_controller_target)
 
@@ -235,7 +249,10 @@ class TestThreeDEControllerDelegation:
         assert threede_controller.current_scene == sample_scene
 
     def test_on_scene_selected_clears_shot_via_mutual_exclusivity(
-        self, threede_controller_target: Any, sample_scene: ThreeDEScene, sample_shot: Shot
+        self,
+        threede_controller_target: Any,
+        sample_scene: ThreeDEScene,
+        sample_shot: Shot,
     ) -> None:
         """Test that selecting scene clears shot through mutual exclusivity."""
         threede_controller = ThreeDEController(threede_controller_target)
@@ -279,7 +296,9 @@ class TestFixedBugScenario:
 
         # Step 3: User clicks button - launch_app() will check _current_scene
         # The check `if self._current_scene:` should pass
-        assert controller._current_scene is not None, "Private _current_scene should not be None"
+        assert controller._current_scene is not None, (
+            "Private _current_scene should not be None"
+        )
         assert controller._current_scene == sample_scene
 
     def test_multiple_scene_selections_update_context(
@@ -324,7 +343,10 @@ class TestTabSwitchingBehavior:
     """Test context behavior when switching between tabs."""
 
     def test_switching_from_scene_tab_to_shot_tab_clears_scene(
-        self, launcher_controller_target: Any, sample_scene: ThreeDEScene, sample_shot: Shot
+        self,
+        launcher_controller_target: Any,
+        sample_scene: ThreeDEScene,
+        sample_shot: Shot,
     ) -> None:
         """Test that switching from scene tab to shot tab updates context."""
         controller = LauncherController(launcher_controller_target)
@@ -341,7 +363,10 @@ class TestTabSwitchingBehavior:
         assert controller.current_shot == sample_shot
 
     def test_switching_from_shot_tab_to_scene_tab_clears_shot(
-        self, launcher_controller_target: Any, sample_scene: ThreeDEScene, sample_shot: Shot
+        self,
+        launcher_controller_target: Any,
+        sample_scene: ThreeDEScene,
+        sample_shot: Shot,
     ) -> None:
         """Test that switching from shot tab to scene tab updates context."""
         controller = LauncherController(launcher_controller_target)
@@ -377,7 +402,10 @@ class TestArchitectureInvariants:
     """Test architectural invariants of the single source of truth design."""
 
     def test_only_one_context_active_at_a_time(
-        self, launcher_controller_target: Any, sample_scene: ThreeDEScene, sample_shot: Shot
+        self,
+        launcher_controller_target: Any,
+        sample_scene: ThreeDEScene,
+        sample_shot: Shot,
     ) -> None:
         """Test that only one context (scene OR shot, never both) is active."""
         controller = LauncherController(launcher_controller_target)
@@ -398,7 +426,10 @@ class TestArchitectureInvariants:
         assert controller.current_scene is None
 
     def test_context_state_is_queryable(
-        self, launcher_controller_target: Any, sample_scene: ThreeDEScene, sample_shot: Shot
+        self,
+        launcher_controller_target: Any,
+        sample_scene: ThreeDEScene,
+        sample_shot: Shot,
     ) -> None:
         """Test that any code can query current context state."""
         controller = LauncherController(launcher_controller_target)

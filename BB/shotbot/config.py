@@ -53,6 +53,7 @@ Thread Safety:
 import multiprocessing
 import os
 from pathlib import Path
+from typing import ClassVar
 
 
 class Config:
@@ -80,7 +81,7 @@ class Config:
     THUMBNAIL_PATH_PATTERN = "{shows_root}/{show}/shots/{sequence}/{shot}/publish/editorial/cutref/v001/jpg/1920x1080/"
 
     # Commands
-    APPS: dict[str, str] = {
+    APPS: ClassVar[dict[str, str]] = {
         "3de": "3de",
         "nuke": "nuke",
         "maya": "maya",
@@ -92,12 +93,12 @@ class Config:
     # Rez Environment Configuration
     USE_REZ_ENVIRONMENT = True  # Enable rez environment wrapper when available
     REZ_AUTO_DETECT = True  # Automatically detect rez availability via REZ_USED env var
-    REZ_NUKE_PACKAGES = [
+    REZ_NUKE_PACKAGES: ClassVar[list[str]] = [
         "nuke",
         "python-3.11",
     ]  # Default rez packages for Nuke with Python 3.11 compatibility
-    REZ_MAYA_PACKAGES = ["maya"]  # Default rez packages for Maya
-    REZ_3DE_PACKAGES = ["3de"]  # Default rez packages for 3DE
+    REZ_MAYA_PACKAGES: ClassVar[list[str]] = ["maya"]  # Default rez packages for Maya
+    REZ_3DE_PACKAGES: ClassVar[list[str]] = ["3de"]  # Default rez packages for 3DE
 
     # Nuke Undistortion Handling
     NUKE_UNDISTORTION_MODE = (

@@ -6,7 +6,13 @@ import os
 import re
 import sys
 
+# Third-party imports
+import pytest
 
+
+@pytest.mark.skip(
+    reason="One-time configuration validation script, not a repeatable unit test"
+)
 def test_shows_root() -> bool:
     """Test SHOWS_ROOT configuration in all modified files."""
 

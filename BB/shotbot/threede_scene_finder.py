@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Local application imports
-    from filesystem_scanner import DirectoryCache as DirectoryCache  # noqa: F401
+    from filesystem_scanner import DirectoryCache as DirectoryCache
 
 # Local application imports
 # Import the optimized implementation
@@ -30,11 +30,11 @@ from threede_scene_finder_optimized import OptimizedThreeDESceneFinder, logger
 ThreeDESceneFinder = OptimizedThreeDESceneFinder
 
 # Re-export DirectoryCache from filesystem_scanner for backward compatibility
-from filesystem_scanner import DirectoryCache as DirectoryCache  # noqa: F401
+from filesystem_scanner import DirectoryCache as DirectoryCache
 
 # Note: ThreeDEScene should be imported from threede_scene_model directly
 # to avoid import cycles. It's not re-exported here.
-__all__ = ["ThreeDESceneFinder", "DirectoryCache"]
+__all__ = ["DirectoryCache", "ThreeDESceneFinder"]
 
 # Log that optimized version is loaded
 logger.info(

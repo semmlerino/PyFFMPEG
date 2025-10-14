@@ -126,7 +126,7 @@ class TestThreeDEDiscoveryIntegration:
 
         This is the main integration test that verifies the fix works end-to-end.
         """
-        shows_root, created_files = temp_vfx_structure
+        shows_root, _created_files = temp_vfx_structure
         user_shots = make_user_shots()
 
         # Local application imports
@@ -180,7 +180,7 @@ class TestThreeDEDiscoveryIntegration:
         # Local application imports
         from threede_scene_worker import ThreeDESceneWorker
 
-        shows_root, created_files = temp_vfx_structure
+        shows_root, _created_files = temp_vfx_structure
         user_shots = make_user_shots()
 
         # Mock Config to use temp structure
@@ -228,7 +228,7 @@ class TestThreeDEDiscoveryIntegration:
         excluded_users = {"gabriel-h"}
 
         parsed_scenes = []
-        for file_path, show, seq, shot, user in created_files:
+        for file_path, show, _seq, _shot, user in created_files:
             show_path = shows_root / show
             result = parser.parse_3de_file_path(
                 file_path, show_path, show, excluded_users
@@ -251,7 +251,7 @@ class TestThreeDEDiscoveryIntegration:
         # Local application imports
         from filesystem_scanner import FileSystemScanner
 
-        shows_root, created_files = temp_vfx_structure
+        shows_root, _created_files = temp_vfx_structure
         scanner = FileSystemScanner()
         excluded_users = {"gabriel-h"}
 
@@ -267,12 +267,12 @@ class TestThreeDEDiscoveryIntegration:
 
         # Verify structure of results
         for result in all_results:
-            file_path, show, sequence, shot, user, plate = result
+            file_path, show, _sequence, _shot, user, _plate = result
             assert user != "gabriel-h", "Excluded user should be filtered"
             assert file_path.exists(), "File path should exist"
 
     @pytest.mark.parametrize(
-        "show,expected_min_scenes",
+        ("show", "expected_min_scenes"),
         [
             ("gator", 2),  # sarah-b and tony-a
             ("jack_ryan", 3),  # tony-a, ryan-p (2 shots), published-mm

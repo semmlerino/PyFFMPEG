@@ -207,9 +207,9 @@ Environment Variables:
     args = parser.parse_args()
 
     # Cast argparse attributes to explicit types for type checker
-    headless_flag = cast(bool, args.headless)
-    mock_flag = cast(bool, args.mock)
-    screenshot_seconds = cast(int | None, args.screenshot)
+    headless_flag = cast("bool", args.headless)
+    mock_flag = cast("bool", args.mock)
+    screenshot_seconds = cast("int | None", args.screenshot)
 
     # Initialize logging first - BEFORE any imports that might trigger PIL
     setup_logging()

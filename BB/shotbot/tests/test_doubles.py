@@ -71,7 +71,6 @@ class LauncherWorkerDouble:
 
     def quit(self) -> None:
         """Stop the test worker."""
-        pass
 
     def wait(self, timeout: int = 1000) -> None:
         """Wait for test worker to finish.
@@ -79,7 +78,6 @@ class LauncherWorkerDouble:
         Args:
             timeout: Maximum wait time in milliseconds
         """
-        pass
 
 
 class MockCacheManager:

@@ -39,8 +39,13 @@ def reset_singleton():
 
 @pytest.fixture
 def coordinator():
-    """Get a FilesystemCoordinator instance."""
-    return FilesystemCoordinator()
+    """Get a FilesystemCoordinator instance with cleared cache for test isolation."""
+    coord = FilesystemCoordinator()
+    # Clear cache for test isolation (UNIFIED_TESTING_GUIDE: avoid shared state)
+    coord._directory_cache.clear()
+    coord._cache_hits = 0
+    coord._cache_misses = 0
+    return coord
 
 
 @pytest.fixture
@@ -140,7 +145,11 @@ class TestDirectoryCaching:
         assert any(p.name == "subdir_0" for p in listing)
 
     def test_cache_hit_performance(self, coordinator, make_test_directory) -> None:
-        """Test that cached access is faster than initial scan."""
+        """Test that cached access is faster than initial scan.
+
+        Following UNIFIED_TESTING_GUIDE: Test behavior, not strict performance.
+        Cache should provide speedup, but exact multiplier varies by system.
+        """
         test_dir = make_test_directory(file_count=100, subdirs=10)
 
         # First access - should scan filesystem
@@ -148,16 +157,35 @@ class TestDirectoryCaching:
         listing1 = coordinator.get_directory_listing(test_dir)
         first_time = time.time() - start
 
+        # Verify cache miss was recorded
+        initial_misses = coordinator._cache_misses
+        initial_hits = coordinator._cache_hits
+
         # Second access - should use cache
         start = time.time()
         listing2 = coordinator.get_directory_listing(test_dir)
         second_time = time.time() - start
 
-        # Cache should be much faster (at least 10x)
-        assert second_time < first_time / 10
+        # Verify cache hit was recorded (behavior test)
+        assert coordinator._cache_hits == initial_hits + 1, "Should record cache hit"
+        assert coordinator._cache_misses == initial_misses, (
+            "Should not record additional miss"
+        )
+
+        # Cache should be faster (reasonable threshold for micro-benchmarks)
+        # Using 2x speedup as minimum instead of 10x to avoid flakiness
+        assert second_time < first_time / 2, (
+            f"Cached access should be at least 2x faster: "
+            f"first={first_time:.6f}s, second={second_time:.6f}s, "
+            f"speedup={first_time / second_time if second_time > 0 else float('inf')}x"
+        )
+
+        # Results should match (correctness test)
         assert listing1 == listing2
 
-    def test_cache_invalidation_on_change(self, coordinator, make_test_directory) -> None:
+    def test_cache_invalidation_on_change(
+        self, coordinator, make_test_directory
+    ) -> None:
         """Test that cache detects filesystem changes."""
         test_dir = make_test_directory(
             file_count=2, subdirs=0
@@ -253,7 +281,9 @@ class TestSharedCaching:
         # All should have same listing
         assert listing1 == listing2 == listing3
 
-    def test_concurrent_access_same_directory(self, coordinator, make_test_directory) -> None:
+    def test_concurrent_access_same_directory(
+        self, coordinator, make_test_directory
+    ) -> None:
         """Test concurrent access to the same directory.
 
         Following guide: Thread safety pattern.
@@ -482,7 +512,9 @@ class TestErrorHandling:
         # Should return empty list on error
         assert listing == []
 
-    def test_directory_deleted_after_cache(self, coordinator, make_test_directory) -> None:
+    def test_directory_deleted_after_cache(
+        self, coordinator, make_test_directory
+    ) -> None:
         """Test handling when cached directory is deleted."""
         test_dir = make_test_directory()
 

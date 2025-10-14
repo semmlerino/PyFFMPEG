@@ -63,9 +63,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             f"PreviousShotsWorker initialized for user: {self._finder.username}"
         )
 
-    def _on_finder_progress(
-        self, current: int, total: int, message: str
-    ) -> None:
+    def _on_finder_progress(self, current: int, total: int, message: str) -> None:
         """Handle progress updates from the parallel finder.
 
         Args:

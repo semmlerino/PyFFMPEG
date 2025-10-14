@@ -191,8 +191,9 @@ class TestShotGridView:
         initial_count = model.rowCount()
 
         # Add more shots to model
-        new_shots = test_shots + [
-            TestShot("show3", "seq3", "0040", "/shows/show3/shots/seq3/seq3_0040")
+        new_shots = [
+            *test_shots,
+            TestShot("show3", "seq3", "0040", "/shows/show3/shots/seq3/seq3_0040"),
         ]
 
         # Update model data - convert TestShot to Shot objects

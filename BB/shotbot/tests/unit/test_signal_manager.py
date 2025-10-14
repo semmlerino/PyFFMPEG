@@ -79,7 +79,7 @@ class TestSignalManager:
 
     def test_connect_safely(self, signal_manager, qtbot) -> None:
         """Test safe connection with tracking."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         widget = MockWidget()
 
         received = []
@@ -97,7 +97,7 @@ class TestSignalManager:
 
     def test_connect_safely_with_connection_type(self, signal_manager, qtbot) -> None:
         """Test connection with specific connection type."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         widget = MockWidget()
 
         received = []
@@ -117,7 +117,7 @@ class TestSignalManager:
 
     def test_connect_safely_without_tracking(self, signal_manager) -> None:
         """Test connection without tracking."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         widget = MockWidget()
 
         # Connect without tracking
@@ -128,7 +128,7 @@ class TestSignalManager:
 
     def test_disconnect_safely(self, signal_manager, qtbot) -> None:
         """Test safe disconnection."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         widget = MockWidget()
 
         received = []
@@ -151,7 +151,7 @@ class TestSignalManager:
 
     def test_disconnect_all(self, signal_manager) -> None:
         """Test disconnecting all tracked connections."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         widget1 = MockWidget()
         widget2 = MockWidget()
 
@@ -169,7 +169,7 @@ class TestSignalManager:
 
     def test_chain_signals(self, signal_manager, qtbot) -> None:
         """Test signal chaining."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         source = MockWidget()
         target = MockWidget()
 
@@ -191,7 +191,7 @@ class TestSignalManager:
 
     def test_chain_signals_with_connection_type(self, signal_manager, qtbot) -> None:
         """Test signal chaining with specific connection type."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         source = MockWidget()
         target = MockWidget()
 
@@ -216,7 +216,7 @@ class TestSignalManager:
 
     def test_connect_group(self, signal_manager) -> None:
         """Test connecting multiple signal-slot pairs at once."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         widget = MockWidget()
 
         received = {"test": 0, "data": "", "multi": None}
@@ -236,7 +236,7 @@ class TestSignalManager:
 
     def test_block_signals(self, signal_manager, qtbot) -> None:
         """Test blocking/unblocking signals for multiple objects."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         widget1 = MockWidget()
         widget2 = MockWidget()
 
@@ -256,7 +256,7 @@ class TestSignalManager:
 
     def test_with_blocked_signals_context_manager(self, signal_manager) -> None:
         """Test context manager for temporarily blocking signals."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         widget1 = MockWidget()
         widget2 = MockWidget()
 
@@ -271,7 +271,7 @@ class TestSignalManager:
 
     def test_connect_worker_signals(self, signal_manager) -> None:
         """Test connecting signals from a worker thread."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
 
         # Create worker with signals
         class TestWorker(QObject):
@@ -295,7 +295,7 @@ class TestSignalManager:
 
     def test_create_delayed_connection(self, signal_manager, qtbot) -> None:
         """Test creating a connection with a delay."""
-        manager, owner = signal_manager
+        manager, _owner = signal_manager
         widget = MockWidget()
 
         received = []

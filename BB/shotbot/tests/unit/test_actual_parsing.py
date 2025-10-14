@@ -8,10 +8,20 @@ from pathlib import Path
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Third-party imports
+import pytest
+
 # Local application imports
 from config import Config
 from optimized_shot_parser import OptimizedShotParser
 from shot_model import Shot
+
+# Mark Qt tests for serial execution in same worker (prevents Qt crashes)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+]
 
 # The actual ws -sg output from the VFX environment
 ACTUAL_OUTPUT = """workspace /shows/gator/shots/012_DC/012_DC_1000
@@ -28,7 +38,7 @@ workspace /shows/broken_eggs/shots/BRX_070/BRX_070_0010
 workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
 
-def test_parsing():
+def test_parsing() -> None:
     """Test the parsing with actual VFX output."""
     print("Testing shot parsing with actual VFX environment output")
     print("=" * 60)
@@ -97,13 +107,15 @@ def test_parsing():
             print(f"  - {line}")
 
     # Assert instead of return
-    assert len(successful_shots) == len(lines), f"Only {len(successful_shots)}/{len(lines)} lines parsed successfully"
+    assert len(successful_shots) == len(lines), (
+        f"Only {len(successful_shots)}/{len(lines)} lines parsed successfully"
+    )
 
 
-def test_shot_item_model():
+def test_shot_item_model(qapp) -> None:
     """Test ShotItemModel with parsed shots."""
     # Third-party imports
-    from PySide6.QtCore import QCoreApplication, Qt
+    from PySide6.QtCore import Qt
 
     # Local application imports
     from shot_item_model import ShotItemModel
@@ -146,10 +158,9 @@ def test_shot_item_model():
         # Explicit cleanup for QAbstractItemModel
         model.deleteLater()
         # Force event processing to ensure cleanup happens
-        app = QCoreApplication.instance()
-        if app:
-            app.processEvents()
-            app.sendPostedEvents()
+        if qapp:
+            qapp.processEvents()
+            qapp.sendPostedEvents()
 
 
 if __name__ == "__main__":

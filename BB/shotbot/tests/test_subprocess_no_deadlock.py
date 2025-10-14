@@ -72,7 +72,7 @@ for i in range(1024):
         # Drain threads to consume output
         def drain_stream(stream) -> None:
             try:
-                for line in stream:
+                for _line in stream:
                     pass  # Discard
             except Exception:
                 pass

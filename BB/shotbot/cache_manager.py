@@ -46,10 +46,10 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QImage
 
     from shot_model import Shot
+    from type_definitions import ShotDict, ThreeDESceneDict
 
 # These are used at runtime in cast() with string literals, but also needed for type annotations
-# ruff: noqa: TC001
-from type_definitions import ShotDict, ThreeDESceneDict
+import contextlib
 
 # Type alias for JSON data (used for runtime validation) - Python 3.11 compatible
 JSONValue: TypeAlias = (
@@ -67,6 +67,7 @@ class ThumbnailCacheResult:
     """Stub for backward compatibility - no longer used in simplified implementation."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.future = None
         self.path = None
         self.is_complete = False
@@ -74,8 +75,6 @@ class ThumbnailCacheResult:
 
 class ThumbnailCacheLoader:
     """Stub for backward compatibility - no longer used in simplified implementation."""
-
-    pass
 
 
 class CacheManager(LoggingMixin, QObject):
@@ -279,7 +278,7 @@ class CacheManager(LoggingMixin, QObject):
             return output
         except Exception as e:
             self.logger.error(f"PIL thumbnail processing failed: {e}")
-            raise ThumbnailError(f"Failed to process thumbnail: {e}")
+            raise ThumbnailError(f"Failed to process thumbnail: {e}") from e
 
     def cache_thumbnail_direct(
         self,
@@ -363,6 +362,18 @@ class CacheManager(LoggingMixin, QObject):
             List of shot dictionaries or None if not cached/expired
         """
         return self._read_json_cache(self.previous_shots_cache_file)
+
+    def get_persistent_previous_shots(self) -> list[ShotDict] | None:
+        """Get cached previous/approved shot list without TTL expiration.
+
+        This method returns the cached previous shots regardless of age,
+        implementing persistent incremental caching where shots accumulate
+        over time without expiration.
+
+        Returns:
+            List of shot dictionaries or None if not cached
+        """
+        return self._read_json_cache(self.previous_shots_cache_file, check_ttl=False)
 
     def cache_previous_shots(self, shots: Sequence[Shot] | Sequence[ShotDict]) -> None:
         """Cache previous/approved shot list to file.
@@ -589,7 +600,7 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             cache_key: Ignored
         """
-        pass  # No failure tracking in simple implementation
+        # No failure tracking in simple implementation
 
     def get_failed_attempts_status(self) -> dict[str, dict[str, object]]:
         """Get failed attempts status (always empty in simple implementation).
@@ -605,7 +616,7 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             max_memory_mb: Ignored
         """
-        pass  # No memory management in simple implementation
+        # No memory management in simple implementation
 
     def get_failure_status(self) -> dict[str, object]:
         """Get failure status (always empty in simple implementation).
@@ -620,12 +631,13 @@ class CacheManager(LoggingMixin, QObject):
     # ========================================================================
 
     def _read_json_cache(
-        self, cache_file: Path
+        self, cache_file: Path, check_ttl: bool = True
     ) -> list[ShotDict | ThreeDESceneDict] | None:
         """Read and validate JSON cache file.
 
         Args:
             cache_file: Path to cache file
+            check_ttl: Whether to check TTL expiration (default True)
 
         Returns:
             Cached data or None if not found/expired/invalid
@@ -634,11 +646,14 @@ class CacheManager(LoggingMixin, QObject):
             return None
 
         try:
-            # Check TTL
-            age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
-            if age > self._cache_ttl:
-                self.logger.debug(f"Cache expired: {cache_file}")
-                return None
+            # Check TTL (if enabled)
+            if check_ttl:
+                age = datetime.now() - datetime.fromtimestamp(
+                    cache_file.stat().st_mtime
+                )
+                if age > self._cache_ttl:
+                    self.logger.debug(f"Cache expired: {cache_file}")
+                    return None
 
             # Read JSON - returns JSONValue which we validate at runtime
             with open(cache_file) as f:
@@ -717,10 +732,8 @@ class CacheManager(LoggingMixin, QObject):
 
             except Exception:
                 # Clean up temp file on error
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(temp_path)
-                except OSError:
-                    pass
                 raise
 
         except Exception as e:

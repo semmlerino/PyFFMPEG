@@ -17,7 +17,7 @@ class TestSanitizeUsername:
     """Test username sanitization functionality."""
 
     @pytest.mark.parametrize(
-        "username,expected",
+        ("username", "expected"),
         [
             ("john_doe", "john_doe"),
             ("user123", "user123"),
@@ -31,7 +31,7 @@ class TestSanitizeUsername:
         assert FinderUtils.sanitize_username(username) == expected
 
     @pytest.mark.parametrize(
-        "username,expected",
+        ("username", "expected"),
         [
             ("user/../etc", "useretc"),
             ("./user", "user"),
@@ -45,7 +45,7 @@ class TestSanitizeUsername:
         assert FinderUtils.sanitize_username(username) == expected
 
     @pytest.mark.parametrize(
-        "username,error_match",
+        ("username", "error_match"),
         [
             ("...", "Invalid username after sanitization"),
             ("", "Invalid username after sanitization"),
@@ -76,7 +76,7 @@ class TestExtractVersion:
     """Test version extraction functionality."""
 
     @pytest.mark.parametrize(
-        "path,expected",
+        ("path", "expected"),
         [
             (Path("file_v001.ma"), 1),
             (Path("scene_v042.3de"), 42),
@@ -126,7 +126,7 @@ class TestBuildUserPath:
     """Test VFX user path building."""
 
     @pytest.mark.parametrize(
-        "workspace,username,app,subdir,expected",
+        ("workspace", "username", "app", "subdir", "expected"),
         [
             (
                 Path("/shows/test/shots/010/0010"),
@@ -147,7 +147,9 @@ class TestBuildUserPath:
                 "bob",
                 "3de",
                 None,
-                Path("/shows/test/shots/030/0030/user/bob/mm/3de/mm-default/scenes/scene"),
+                Path(
+                    "/shows/test/shots/030/0030/user/bob/mm/3de/mm-default/scenes/scene"
+                ),
             ),
             (
                 Path("/shows/test/shots/040/0040"),
@@ -160,7 +162,12 @@ class TestBuildUserPath:
         ids=["maya_default", "nuke_default", "3de_special", "maya_custom_subdir"],
     )
     def test_build_paths(
-        self, workspace: Path, username: str, app: str, subdir: str | None, expected: Path
+        self,
+        workspace: Path,
+        username: str,
+        app: str,
+        subdir: str | None,
+        expected: Path,
     ) -> None:
         """Test VFX user path building for different apps."""
         if subdir:

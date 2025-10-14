@@ -308,7 +308,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self._closing = False  # Track shutdown state
         self._launcher_dialog: LauncherManagerDialog | None = None
         self._session_warmer: SessionWarmer | None = None  # Initialize session warmer
-        self._last_selected_shot_name: str | None = None  # Initialize last selected shot
+        self._last_selected_shot_name: str | None = (
+            None  # Initialize last selected shot
+        )
 
         # UI setup must come before controller initialization
         self._setup_ui()
@@ -746,8 +748,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             # Schedule immediate background refresh
             QTimer.singleShot(0, self._refresh_shots)
 
-        # Start auto-refresh for previous shots
-        self.previous_shots_model.start_auto_refresh()
+        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
+        # Previous shots now only refresh on explicit user action via "Refresh" button
+
         # Trigger initial refresh for previous shots ONLY after shots are loaded
         # This prevents the "No target shows found" warning when shots haven't loaded yet
         _ = self.shot_model.shots_loaded.connect(self._trigger_previous_shots_refresh)
@@ -777,14 +780,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _refresh_shots(self) -> None:
         """Refresh shot list with progress indication."""
         # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator._refresh_shots()  # type: ignore[reportPrivateUsage]
+        self.refresh_orchestrator._refresh_shots()  # pyright: ignore[reportPrivateUsage]
 
     # Note: Background refresh methods removed - now handled by reactive signals
 
     def _refresh_shot_display(self) -> None:
         """Refresh the shot display using Model/View implementation."""
         # Delegate to RefreshOrchestrator
-        self.refresh_orchestrator._refresh_shot_display()  # type: ignore[reportPrivateUsage]
+        self.refresh_orchestrator._refresh_shot_display()  # pyright: ignore[reportPrivateUsage]
 
     def _on_shots_loaded(self, shots: list[Shot]) -> None:
         """Handle shots loaded signal from model.
@@ -1126,7 +1129,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.launcher_controller.set_current_scene(scene)
         self.launcher_controller.launch_app("3de")
 
-    def _launch_app_with_scene_context(self, app_name: str, scene: ThreeDEScene) -> None:
+    def _launch_app_with_scene_context(
+        self, app_name: str, scene: ThreeDEScene
+    ) -> None:
         """Launch an application with scene context.
 
         This method is used when app_launch_requested signal is emitted from

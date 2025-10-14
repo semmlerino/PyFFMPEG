@@ -41,6 +41,7 @@ class TestTargetedShotsFinderInitialization:
     def test_shot_pattern_initialization(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that shot pattern is initialized correctly."""
         import targeted_shot_finder
+
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/test/shows")
         finder = TargetedShotsFinder()
         # Pattern should be based on SHOWS_ROOT
@@ -246,6 +247,7 @@ class TestParseShotFromPath:
     def test_parse_standard_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test parsing standard VFX shot path."""
         import targeted_shot_finder
+
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
@@ -258,9 +260,12 @@ class TestParseShotFromPath:
         assert shot.shot == "0010"  # Should extract shot number
         assert shot.workspace_path == "/shows/test_show/shots/010/010_0010"
 
-    def test_parse_path_without_underscore(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_parse_path_without_underscore(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test parsing path where shot dir has no underscore."""
         import targeted_shot_finder
+
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
@@ -270,9 +275,12 @@ class TestParseShotFromPath:
         assert shot is not None
         assert shot.shot == "0010"  # Should use whole name
 
-    def test_parse_path_with_complex_shot_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_parse_path_with_complex_shot_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test parsing path with complex shot name."""
         import targeted_shot_finder
+
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
@@ -310,7 +318,9 @@ class TestParseShotFromPath:
             mock_debug.assert_called()
             assert "Empty shot extracted" in mock_debug.call_args[0][0]
 
-    def test_parse_with_shot_creation_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_parse_with_shot_creation_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test handling Shot creation errors."""
         from unittest.mock import patch
 
@@ -321,21 +331,26 @@ class TestParseShotFromPath:
 
         path = "/shows/test_show/shots/010/010_0010/user/john"
 
-        with patch(
-            "targeted_shot_finder.Shot", side_effect=Exception("Shot creation failed")
+        with (
+            patch(
+                "targeted_shot_finder.Shot",
+                side_effect=Exception("Shot creation failed"),
+            ),
+            patch.object(finder.logger, "debug") as mock_debug,
         ):
-            with patch.object(finder.logger, "debug") as mock_debug:
-                shot = finder._parse_shot_from_path(path)
+            shot = finder._parse_shot_from_path(path)
 
-                assert shot is None
-                mock_debug.assert_called()
-                assert "Could not create Shot" in mock_debug.call_args[0][0]
+            assert shot is None
+            mock_debug.assert_called()
+            assert "Could not create Shot" in mock_debug.call_args[0][0]
 
 
 class TestFindUserShotsInShows:
     """Test find_user_shots_in_shows method."""
 
-    def test_find_in_target_shows(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_find_in_target_shows(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """Test finding shots in targeted shows."""
         import targeted_shot_finder
 
@@ -476,36 +491,38 @@ class TestFindApprovedShotsTargeted:
             ),  # Approved
         ]
 
-        with patch.object(
-            finder, "extract_shows_from_active_shots", return_value={"show1"}
+        with (
+            patch.object(
+                finder, "extract_shows_from_active_shots", return_value={"show1"}
+            ),
+            patch.object(finder, "find_user_shots_in_shows") as mock_find,
         ):
-            with patch.object(finder, "find_user_shots_in_shows") as mock_find:
-                mock_find.return_value = iter(all_shots)
+            mock_find.return_value = iter(all_shots)
 
-                approved = finder.find_approved_shots_targeted(active_shots)
+            approved = finder.find_approved_shots_targeted(active_shots)
 
-                assert len(approved) == 2
-                # Only non-active shots should be returned
-                assert all(
-                    (s.show, s.sequence, s.shot)
-                    not in [(a.show, a.sequence, a.shot) for a in active_shots]
-                    for s in approved
-                )
+            assert len(approved) == 2
+            # Only non-active shots should be returned
+            assert all(
+                (s.show, s.sequence, s.shot)
+                not in [(a.show, a.sequence, a.shot) for a in active_shots]
+                for s in approved
+            )
 
     def test_find_approved_with_no_target_shows(self) -> None:
         """Test when no target shows are found."""
         finder = TargetedShotsFinder()
         active_shots = []
 
-        with patch.object(
-            finder, "extract_shows_from_active_shots", return_value=set()
+        with (
+            patch.object(finder, "extract_shows_from_active_shots", return_value=set()),
+            patch.object(finder.logger, "warning") as mock_warning,
         ):
-            with patch.object(finder.logger, "warning") as mock_warning:
-                approved = finder.find_approved_shots_targeted(active_shots)
+            approved = finder.find_approved_shots_targeted(active_shots)
 
-                assert approved == []
-                mock_warning.assert_called()
-                assert "No target shows found" in mock_warning.call_args[0][0]
+            assert approved == []
+            mock_warning.assert_called()
+            assert "No target shows found" in mock_warning.call_args[0][0]
 
     def test_find_approved_with_stop_request(self) -> None:
         """Test stopping during approved shot finding."""
@@ -532,43 +549,39 @@ class TestFindApprovedShotsTargeted:
             Shot(show="show1", sequence="010", shot="0010", workspace_path="/path1"),
         ]
 
-        with patch.object(
-            finder, "extract_shows_from_active_shots", return_value={"show1"}
+        with (
+            patch.object(
+                finder, "extract_shows_from_active_shots", return_value={"show1"}
+            ),
+            patch.object(finder, "find_user_shots_in_shows", return_value=iter([])),
         ):
-            with patch.object(
-                finder, "find_user_shots_in_shows", return_value=iter([])
-            ):
-                finder.find_approved_shots_targeted(active_shots)
+            finder.find_approved_shots_targeted(active_shots)
 
-                # Progress should be reported multiple times
-                assert progress_callback.call_count > 2
-                # Should reach 100%
-                assert any(
-                    call[0][0] == 100 for call in progress_callback.call_args_list
-                )
+            # Progress should be reported multiple times
+            assert progress_callback.call_count > 2
+            # Should reach 100%
+            assert any(call[0][0] == 100 for call in progress_callback.call_args_list)
 
     def test_find_approved_performance_logging(self) -> None:
         """Test that performance is logged."""
         finder = TargetedShotsFinder()
         active_shots = []
 
-        with patch.object(
-            finder, "extract_shows_from_active_shots", return_value={"show1"}
+        with (
+            patch.object(
+                finder, "extract_shows_from_active_shots", return_value={"show1"}
+            ),
+            patch.object(finder, "find_user_shots_in_shows", return_value=iter([])),
+            patch.object(finder.logger, "info") as mock_info,
         ):
-            with patch.object(
-                finder, "find_user_shots_in_shows", return_value=iter([])
-            ):
-                with patch.object(finder.logger, "info") as mock_info:
-                    finder.find_approved_shots_targeted(active_shots)
+            finder.find_approved_shots_targeted(active_shots)
 
-                    # Should log performance
-                    assert any(
-                        "seconds" in str(call) for call in mock_info.call_args_list
-                    )
-                    assert any(
-                        "Targeted search found" in str(call)
-                        for call in mock_info.call_args_list
-                    )
+            # Should log performance
+            assert any("seconds" in str(call) for call in mock_info.call_args_list)
+            assert any(
+                "Targeted search found" in str(call)
+                for call in mock_info.call_args_list
+            )
 
     def test_find_approved_filters_correctly(self) -> None:
         """Test that filtering works correctly for complex scenarios."""
@@ -590,19 +603,21 @@ class TestFindApprovedShotsTargeted:
             Shot(show="show1", sequence="020", shot="0010", workspace_path="/path5"),
         ]
 
-        with patch.object(
-            finder, "extract_shows_from_active_shots", return_value={"show1"}
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                finder, "extract_shows_from_active_shots", return_value={"show1"}
+            ),
+            patch.object(
                 finder, "find_user_shots_in_shows", return_value=iter(all_shots)
-            ):
-                approved = finder.find_approved_shots_targeted(active_shots)
+            ),
+        ):
+            approved = finder.find_approved_shots_targeted(active_shots)
 
-                assert len(approved) == 3
-                shot_numbers = [s.shot for s in approved]
-                assert "0030" in shot_numbers
-                assert "0040" in shot_numbers
-                assert "0010" in shot_numbers  # From sequence 020
+            assert len(approved) == 3
+            shot_numbers = [s.shot for s in approved]
+            assert "0030" in shot_numbers
+            assert "0040" in shot_numbers
+            assert "0010" in shot_numbers  # From sequence 020
 
 
 class TestGetShotDetails:

@@ -12,6 +12,13 @@ from PySide6.QtTest import QSignalSpy
 # Local application imports
 from shot_model import AsyncShotLoader, ShotModel
 
+# Mark Qt tests for serial execution in same worker (prevents Qt crashes)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+]
+
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 class TestProcessPoolDouble:
@@ -142,7 +149,9 @@ class TestErrorRecovery:
         # Local application imports
         from base_shot_model import BaseShotModel
 
-        base_model = BaseShotModel()
+        base_model = BaseShotModel(
+            load_cache=False
+        )  # Don't load cache to avoid corruption
 
         loader = AsyncShotLoader(
             failing_pool, parse_function=base_model._parse_ws_output

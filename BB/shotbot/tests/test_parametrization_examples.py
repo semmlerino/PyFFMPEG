@@ -23,7 +23,7 @@ class TestParametrizationPatterns:
 
     # 1. Basic parametrization with pytest.param and IDs
     @pytest.mark.parametrize(
-        "input_value,expected",
+        ("input_value", "expected"),
         [
             pytest.param("valid_input", True, id="valid_case"),
             pytest.param("", False, id="empty_string"),
@@ -36,11 +36,10 @@ class TestParametrizationPatterns:
     ) -> None:
         """Basic parametrization with descriptive test IDs."""
         # Implementation would go here
-        pass
 
     # 2. Performance-aware parametrization with marks
     @pytest.mark.parametrize(
-        "data_size,expected_time",
+        ("data_size", "expected_time"),
         [
             pytest.param(10, 0.1, id="small_dataset"),
             pytest.param(100, 0.5, id="medium_dataset"),
@@ -55,11 +54,10 @@ class TestParametrizationPatterns:
     ) -> None:
         """Parametrization with performance marks for slow tests."""
         # Implementation would go here
-        pass
 
     # 3. Complex parametrization replacing manual loops
     @pytest.mark.parametrize(
-        "show,sequence,shot",
+        ("show", "sequence", "shot"),
         [
             # Instead of nested for loops, explicit combinations
             pytest.param("show1", "seq01", "0010", id="basic_structure"),
@@ -80,7 +78,6 @@ class TestParametrizationPatterns:
     ) -> None:
         """Replace nested loops with explicit parametrized combinations."""
         # Implementation would go here
-        pass
 
     # 4. Indirect parametrization for fixtures
     @pytest.fixture(
@@ -103,7 +100,7 @@ class TestParametrizationPatterns:
 
     # 5. Multiple parameter sets with different marks
     @pytest.mark.parametrize(
-        "app_name,startup_time",
+        ("app_name", "startup_time"),
         [
             # Fast applications
             pytest.param("nuke", 2.0, id="nuke_fast_startup"),
@@ -120,11 +117,10 @@ class TestParametrizationPatterns:
     ) -> None:
         """Test application startup with appropriate performance marks."""
         # Implementation would go here
-        pass
 
     # 6. Grouped parameters with shared marks
     @pytest.mark.parametrize(
-        "file_count,processing_time",
+        ("file_count", "processing_time"),
         [
             # Normal load tests
             *[
@@ -145,7 +141,6 @@ class TestParametrizationPatterns:
     ) -> None:
         """Test file processing with grouped parameter sets."""
         # Implementation would go here
-        pass
 
     # 7. Cartesian product replacement pattern
     def generate_test_combinations(self) -> list[tuple[str, str, str]]:
@@ -163,7 +158,7 @@ class TestParametrizationPatterns:
         return combinations
 
     @pytest.mark.parametrize(
-        "show,sequence,shot",
+        ("show", "sequence", "shot"),
         [
             # Use programmatic generation for large combination sets
             *[
@@ -183,7 +178,6 @@ class TestParametrizationPatterns:
     def test_generated_combinations(self, show: str, sequence: str, shot: str) -> None:
         """Test using generated combinations instead of manual loops."""
         # Implementation would go here
-        pass
 
 
 # Example fixture demonstrating modern parametrization
@@ -228,4 +222,3 @@ class TestPerformancePatterns:
     def test_operation_performance(self, operation_count: int) -> None:
         """Performance test with graduated load levels."""
         # Implementation would measure performance at different scales
-        pass

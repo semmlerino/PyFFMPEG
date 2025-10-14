@@ -84,14 +84,14 @@ def test_process_pool_manager_race_condition() -> None:
 
     # Analyze results
     print(f"Instances created: {len(instances)}")
-    print(f"Unique instances: {len(set(id(i) for i in instances))}")
+    print(f"Unique instances: {len({id(i) for i in instances})}")
     print(f"Init called: {init_call_count[0]} times (expected 10)")
     print(f"ACTUAL init performed: {actual_init_count[0]} times (expected 1)")
     print(f"Errors: {len(errors)}")
 
     # The race condition manifests as:
     # 1. All instances should be the same object (singleton)
-    assert len(set(id(i) for i in instances)) == 1, "Multiple instances created!"
+    assert len({id(i) for i in instances}) == 1, "Multiple instances created!"
 
     # 2. Actual initialization (past the early return) should only happen once
     assert actual_init_count[0] == 1, (

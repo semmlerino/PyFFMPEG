@@ -69,7 +69,7 @@ def comprehensive_regex_benchmark() -> None:
     print("Regex Optimization Performance Summary")
     print("=" * 60)
 
-    for pattern_name in original_patterns.keys():
+    for pattern_name in original_patterns:
         print(f"\n{pattern_name.upper().replace('_', ' ')}")
         print("-" * 40)
 

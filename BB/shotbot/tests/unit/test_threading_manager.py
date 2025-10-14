@@ -14,6 +14,13 @@ from PySide6.QtCore import QThread, Signal
 
 from threading_manager import ThreadingManager
 
+# Mark Qt tests for serial execution in same worker (prevents Qt crashes)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
+]
+
 if TYPE_CHECKING:
     from collections.abc import Generator
 
@@ -43,7 +50,6 @@ class MockWorker(QThread):
 
     def run(self) -> None:
         """Mock run method."""
-        pass
 
     def stop(self) -> None:
         """Mock stop method."""
@@ -136,11 +142,15 @@ class TestThreadingManagerInitialization:
         assert threading_manager._threede_discovery_active is False
         assert threading_manager._mutex is not None
 
-    def test_initial_thread_count_zero(self, threading_manager: ThreadingManager) -> None:
+    def test_initial_thread_count_zero(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test initial active thread count is zero."""
         assert threading_manager.get_active_thread_count() == 0
 
-    def test_initial_thread_status_empty(self, threading_manager: ThreadingManager) -> None:
+    def test_initial_thread_status_empty(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test initial thread status is empty dict."""
         status = threading_manager.get_thread_status()
         assert status == {}
@@ -318,7 +328,9 @@ class TestThreeDEDiscoveryControl:
             assert result is True
             mock_threede_worker.pause.assert_called_once()
 
-    def test_pause_discovery_when_not_active(self, threading_manager: ThreadingManager) -> None:
+    def test_pause_discovery_when_not_active(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test pausing when not active returns False."""
         result = threading_manager.pause_threede_discovery()
 
@@ -345,7 +357,9 @@ class TestThreeDEDiscoveryControl:
             assert result is True
             mock_threede_worker.resume.assert_called_once()
 
-    def test_resume_discovery_when_not_active(self, threading_manager: ThreadingManager) -> None:
+    def test_resume_discovery_when_not_active(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test resuming when not active returns False."""
         result = threading_manager.resume_threede_discovery()
 
@@ -372,7 +386,9 @@ class TestThreeDEDiscoveryControl:
             mock_threede_worker.stop.assert_called_once()
             assert threading_manager._threede_discovery_active is False
 
-    def test_stop_discovery_when_not_active(self, threading_manager: ThreadingManager) -> None:
+    def test_stop_discovery_when_not_active(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test stopping when not active returns False."""
         result = threading_manager.stop_threede_discovery()
 
@@ -387,7 +403,9 @@ class TestThreeDEDiscoveryControl:
 class TestCustomWorkerManagement:
     """Test adding and removing custom workers."""
 
-    def test_add_custom_worker_succeeds(self, threading_manager: ThreadingManager) -> None:
+    def test_add_custom_worker_succeeds(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test adding custom worker starts it and tracks it."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -399,7 +417,9 @@ class TestCustomWorkerManagement:
         assert "custom_worker" in threading_manager._workers
         worker.start.assert_called_once()
 
-    def test_add_duplicate_worker_fails(self, threading_manager: ThreadingManager) -> None:
+    def test_add_duplicate_worker_fails(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test adding worker with duplicate name fails."""
         worker1 = Mock(spec=QThread)
         worker1.start = Mock()
@@ -412,7 +432,9 @@ class TestCustomWorkerManagement:
         assert result is False
         worker2.start.assert_not_called()
 
-    def test_remove_worker_stops_and_cleans_up(self, threading_manager: ThreadingManager) -> None:
+    def test_remove_worker_stops_and_cleans_up(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test removing worker stops it and cleans up."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -431,13 +453,17 @@ class TestCustomWorkerManagement:
         worker.deleteLater.assert_called_once()
         assert "worker" not in threading_manager._workers
 
-    def test_remove_nonexistent_worker_returns_false(self, threading_manager: ThreadingManager) -> None:
+    def test_remove_nonexistent_worker_returns_false(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test removing non-existent worker returns False."""
         result = threading_manager.remove_worker("nonexistent")
 
         assert result is False
 
-    def test_remove_worker_with_request_stop_method(self, threading_manager: ThreadingManager) -> None:
+    def test_remove_worker_with_request_stop_method(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test removing worker uses request_stop if available."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -452,7 +478,9 @@ class TestCustomWorkerManagement:
 
         worker.request_stop.assert_called_once()
 
-    def test_remove_worker_handles_timeout(self, threading_manager: ThreadingManager) -> None:
+    def test_remove_worker_handles_timeout(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test removing worker handles wait timeout gracefully."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -478,7 +506,9 @@ class TestCustomWorkerManagement:
 class TestThreadStatusMonitoring:
     """Test thread status reporting and monitoring."""
 
-    def test_get_active_thread_count_with_running_threads(self, threading_manager: ThreadingManager) -> None:
+    def test_get_active_thread_count_with_running_threads(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test counting active threads."""
         worker1 = Mock(spec=QThread)
         worker1.start = Mock()
@@ -495,7 +525,9 @@ class TestThreadStatusMonitoring:
 
         assert count == 1  # Only worker1 is running
 
-    def test_get_thread_status_running(self, threading_manager: ThreadingManager) -> None:
+    def test_get_thread_status_running(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test thread status reporting for running thread."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -508,7 +540,9 @@ class TestThreadStatusMonitoring:
 
         assert status == {"worker": "running"}
 
-    def test_get_thread_status_finished(self, threading_manager: ThreadingManager) -> None:
+    def test_get_thread_status_finished(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test thread status reporting for finished thread."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -534,7 +568,9 @@ class TestThreadStatusMonitoring:
 
         assert status == {"worker": "ready"}
 
-    def test_get_thread_status_multiple_workers(self, threading_manager: ThreadingManager) -> None:
+    def test_get_thread_status_multiple_workers(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test thread status with multiple workers."""
         worker1 = Mock(spec=QThread)
         worker1.start = Mock()
@@ -605,7 +641,9 @@ class TestCleanupAndShutdown:
 
             mock_threede_worker.deleteLater.assert_called_once()
 
-    def test_shutdown_all_threads_stops_all_workers(self, threading_manager: ThreadingManager) -> None:
+    def test_shutdown_all_threads_stops_all_workers(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test shutdown stops all managed workers."""
         worker1 = Mock(spec=QThread)
         worker1.start = Mock()
@@ -630,7 +668,9 @@ class TestCleanupAndShutdown:
         worker2.deleteLater.assert_called_once()
         assert len(threading_manager._workers) == 0
 
-    def test_shutdown_handles_timeouts(self, threading_manager: ThreadingManager) -> None:
+    def test_shutdown_handles_timeouts(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test shutdown handles worker timeouts gracefully."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -665,7 +705,9 @@ class TestCleanupAndShutdown:
             assert threading_manager._current_threede_worker is None
             assert threading_manager._threede_discovery_active is False
 
-    def test_schedule_worker_cleanup_removes_from_dict(self, threading_manager: ThreadingManager) -> None:
+    def test_schedule_worker_cleanup_removes_from_dict(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test scheduled cleanup removes worker from tracking."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -710,7 +752,9 @@ class TestThreadSafety:
             # Second call should be rejected due to mutex protection
             assert result is False
 
-    def test_get_active_thread_count_thread_safe(self, threading_manager: ThreadingManager) -> None:
+    def test_get_active_thread_count_thread_safe(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test get_active_thread_count uses mutex protection."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -723,7 +767,9 @@ class TestThreadSafety:
 
         assert count == 1
 
-    def test_get_thread_status_thread_safe(self, threading_manager: ThreadingManager) -> None:
+    def test_get_thread_status_thread_safe(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test get_thread_status uses mutex protection."""
         worker = Mock(spec=QThread)
         worker.start = Mock()
@@ -794,19 +840,25 @@ class TestEdgeCasesAndErrorHandling:
             old_worker.stop.assert_called_once()
             old_worker.deleteLater.assert_called_once()
 
-    def test_shutdown_with_no_workers(self, threading_manager: ThreadingManager) -> None:
+    def test_shutdown_with_no_workers(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test shutdown with no active workers completes gracefully."""
         # Should not raise exception
         threading_manager.shutdown_all_threads()
 
         assert len(threading_manager._workers) == 0
 
-    def test_schedule_cleanup_nonexistent_worker(self, threading_manager: ThreadingManager) -> None:
+    def test_schedule_cleanup_nonexistent_worker(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test scheduling cleanup for nonexistent worker is safe."""
         # Should not raise exception
         threading_manager._schedule_worker_cleanup("nonexistent")
 
-    def test_control_operations_without_worker_attribute(self, threading_manager: ThreadingManager) -> None:
+    def test_control_operations_without_worker_attribute(
+        self, threading_manager: ThreadingManager
+    ) -> None:
         """Test control operations handle missing worker methods gracefully."""
         # Create worker without stop method
         worker = Mock(spec=QThread)

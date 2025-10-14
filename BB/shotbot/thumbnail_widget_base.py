@@ -394,22 +394,18 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
     @abstractmethod
     def _setup_custom_ui(self) -> None:
         """Set up custom UI elements specific to the derived class."""
-        pass
 
     @abstractmethod
     def _get_selected_style(self) -> str:
         """Get the CSS style for selected state."""
-        pass
 
     @abstractmethod
     def _get_unselected_style(self) -> str:
         """Get the CSS style for unselected state."""
-        pass
 
     @abstractmethod
     def _create_context_menu(self) -> QMenu:
         """Create and return the context menu for this widget."""
-        pass
 
     def _set_placeholder(self) -> None:
         """Set placeholder image."""

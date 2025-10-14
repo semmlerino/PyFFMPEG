@@ -99,7 +99,7 @@ class TestThreeDESceneFinder:
         show: str,
         sequence: str,
         shot: str,
-        excluded_users: set[str | None] = None,
+        excluded_users: set[str | None] | None = None,
     ) -> list[ThreeDEScene]:
         """Test double implementation with realistic behavior."""
         # Record the call
@@ -170,7 +170,7 @@ class TestThreeDESceneFinder:
         ]
 
     @classmethod
-    def find_all_scenes_progressive(  # noqa: F811
+    def find_all_scenes_progressive(
         cls,
         shot_tuples: list[tuple[str, str, str, str]],
         excluded_users: set[str],
@@ -181,21 +181,21 @@ class TestThreeDESceneFinder:
         yield from cls._class_progressive_batches
 
     @classmethod
-    def estimate_scan_size(  # noqa: F811
+    def estimate_scan_size(
         cls, shot_tuples: list[tuple[str, str, str, str]], excluded_users: set[str]
     ) -> tuple[int, int]:
         """Class method version for scan size estimation."""
         return cls._class_estimate_result
 
     @classmethod
-    def find_all_scenes_in_shows_efficient(  # noqa: F811
+    def find_all_scenes_in_shows_efficient(
         cls, user_shots: list[Shot], excluded_users: set[str]
     ) -> list[ThreeDEScene]:
         """Class method version for efficient scene finding."""
         return cls._class_scenes_to_return.copy()
 
     @classmethod
-    def discover_all_shots_in_show(  # noqa: F811
+    def discover_all_shots_in_show(
         cls, show_root: str, show: str
     ) -> list[tuple[str, str, str, str]]:
         """Class method version for shot discovery."""
@@ -205,13 +205,13 @@ class TestThreeDESceneFinder:
         ]
 
     @classmethod
-    def find_scenes_for_shot(  # noqa: F811
+    def find_scenes_for_shot(
         cls,
         workspace_path: str,
         show: str,
         sequence: str,
         shot: str,
-        excluded_users: set[str | None] = None,
+        excluded_users: set[str | None] | None = None,
     ) -> list[ThreeDEScene]:
         """Class method version for scene finding."""
         if cls._class_should_raise_error:
@@ -274,7 +274,7 @@ class TestProgressCalculator:
 
         # Add some processing data with time delay
         time.sleep(0.01)  # Small delay to ensure time difference
-        progress, eta = calc.update(20, total_estimate=100)
+        _progress, eta = calc.update(20, total_estimate=100)
 
         # ETA should now be calculated if processing times exist
         # The exact value depends on timing, so just check format
@@ -603,7 +603,7 @@ class TestThreeDESceneWorkerIntegration:
     @pytest.mark.integration  # This is actually an integration test
     def test_real_filesystem_discovery(self, qtbot, test_structure) -> None:
         """Test with real filesystem operations."""
-        shows_root, shots = test_structure
+        _shows_root, shots = test_structure
 
         worker = ThreeDESceneWorker(
             shots=shots, excluded_users=set(), enable_progressive=False

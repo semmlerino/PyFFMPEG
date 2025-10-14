@@ -29,8 +29,7 @@ if TYPE_CHECKING:
 else:
     # Import at runtime to avoid circular imports
     # Local application imports
-    from shot_model import Shot  # noqa: TC001
-    from threede_scene_model import ThreeDEScene  # noqa: TC001
+    pass
 
 
 class CommandLauncher(LoggingMixin, QObject):
@@ -148,13 +147,12 @@ class CommandLauncher(LoggingMixin, QObject):
         Returns:
             List of rez packages to load
         """
-        if app_name == "nuke":
-            return Config.REZ_NUKE_PACKAGES
-        elif app_name == "maya":
-            return Config.REZ_MAYA_PACKAGES
-        elif app_name == "3de":
-            return Config.REZ_3DE_PACKAGES
-        return []
+        package_map = {
+            "nuke": Config.REZ_NUKE_PACKAGES,
+            "maya": Config.REZ_MAYA_PACKAGES,
+            "3de": Config.REZ_3DE_PACKAGES,
+        }
+        return package_map.get(app_name, [])
 
     def _validate_path_for_shell(self, path: str) -> str:
         """Validate and escape a path for safe use in shell commands.
@@ -290,7 +288,7 @@ class CommandLauncher(LoggingMixin, QObject):
                     timestamp = datetime.now().strftime("%H:%M:%S")
                     self.command_executed.emit(
                         timestamp,
-                        f"Warning: Invalid 3DE scene path: {str(e)}",
+                        f"Warning: Invalid 3DE scene path: {e!s}",
                     )
             else:
                 timestamp = datetime.now().strftime("%H:%M:%S")
@@ -319,7 +317,7 @@ class CommandLauncher(LoggingMixin, QObject):
                     timestamp = datetime.now().strftime("%H:%M:%S")
                     self.command_executed.emit(
                         timestamp,
-                        f"Warning: Invalid Maya scene path: {str(e)}",
+                        f"Warning: Invalid Maya scene path: {e!s}",
                     )
             else:
                 timestamp = datetime.now().strftime("%H:%M:%S")
@@ -357,7 +355,7 @@ class CommandLauncher(LoggingMixin, QObject):
             # We'll add & only when actually sending to persistent terminal
             ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
-            self._emit_error(f"Invalid workspace path: {str(e)}")
+            self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
         # Wrap with rez environment if available
@@ -465,7 +463,7 @@ class CommandLauncher(LoggingMixin, QObject):
             return True
 
         except Exception as e:
-            self._emit_error(f"Failed to launch {app_name}: {str(e)}")
+            self._emit_error(f"Failed to launch {app_name}: {e!s}")
             return False
 
     def launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:
@@ -498,7 +496,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 # Nuke and others accept scene file without flag
                 command = f"{command} {safe_scene_path}"
         except ValueError as e:
-            self._emit_error(f"Invalid scene path: {str(e)}")
+            self._emit_error(f"Invalid scene path: {e!s}")
             return False
 
         # Build full command with ws (workspace setup)
@@ -528,7 +526,7 @@ class CommandLauncher(LoggingMixin, QObject):
             # We'll add & only when actually sending to persistent terminal
             ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
-            self._emit_error(f"Invalid workspace path: {str(e)}")
+            self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
         # Wrap with rez environment if available
@@ -622,7 +620,7 @@ class CommandLauncher(LoggingMixin, QObject):
             return True
 
         except Exception as e:
-            self._emit_error(f"Failed to launch {app_name} with scene: {str(e)}")
+            self._emit_error(f"Failed to launch {app_name} with scene: {e!s}")
             return False
 
     def launch_app_with_scene_context(
@@ -739,7 +737,7 @@ class CommandLauncher(LoggingMixin, QObject):
             safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
             full_command = f"ws {safe_workspace_path} && {command}"
         except ValueError as e:
-            self._emit_error(f"Invalid workspace path: {str(e)}")
+            self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
         # Log the command
@@ -772,7 +770,7 @@ class CommandLauncher(LoggingMixin, QObject):
             return True
 
         except Exception as e:
-            self._emit_error(f"Failed to launch {app_name} in scene context: {str(e)}")
+            self._emit_error(f"Failed to launch {app_name} in scene context: {e!s}")
             return False
 
     def _is_gui_app(self, app_name: str) -> bool:

@@ -181,7 +181,7 @@ class TestApplicationLaunchingNoHang:
         self, safe_window_with_shot, monkeypatch, tmp_path
     ) -> None:
         """Test launching an application with a selected shot."""
-        main_window, shot = safe_window_with_shot
+        main_window, _shot = safe_window_with_shot
 
         # Mock the NukeWorkspaceManager to avoid creating directories
 
@@ -263,8 +263,8 @@ class TestApplicationLaunchingNoHang:
 
 # Helper fixture for all tests
 @pytest.fixture(autouse=True)
-def cleanup_workers():
+def cleanup_workers() -> None:
     """Ensure all workers are cleaned up after each test."""
-    yield
+    return
     # Cleanup happens after test
     # Qt widgets are automatically cleaned up by qtbot

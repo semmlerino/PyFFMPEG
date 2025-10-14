@@ -78,6 +78,7 @@ class ProgressCalculator(LoggingMixin):
         Args:
             smoothing_window: Number of samples for ETA smoothing
         """
+        super().__init__()
         self.smoothing_window = smoothing_window or Config.PROGRESS_ETA_SMOOTHING_WINDOW
         self.start_time = time.time()
         self.last_update_time = self.start_time

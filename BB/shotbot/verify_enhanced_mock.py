@@ -61,7 +61,7 @@ def verify_mock_environment(shows_root: str | Path) -> bool:
                     shots.add(parts[shots_idx + 2])
 
         print(f"   Users: {', '.join(sorted(users))}")
-        print(f"   Sample shots: {', '.join(sorted(list(shots))[:5])}")
+        print(f"   Sample shots: {', '.join(sorted(shots)[:5])}")
     else:
         print("\n❌ Other 3DE Scenes tab will be empty (no other user 3DE files)")
 

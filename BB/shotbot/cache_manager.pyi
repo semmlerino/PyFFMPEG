@@ -15,6 +15,7 @@ from type_definitions import ShotDict, ThreeDESceneDict
 # Backward compatibility stub
 class ThumbnailCacheResult:
     """Stub for backward compatibility - no longer used in simplified implementation."""
+
     future: Any | None
     path: Path | None
     is_complete: bool

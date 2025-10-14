@@ -486,7 +486,7 @@ class TestSceneFinderMethods:
 
     def test_find_scenes_for_shot_performance(self, medium_project, profiler) -> None:
         """Profile find_scenes_for_shot method."""
-        shows_root, stats = medium_project
+        shows_root, _stats = medium_project
 
         # Get a test shot path
         test_shot_path = (
@@ -510,7 +510,7 @@ class TestSceneFinderMethods:
 
     def test_extract_plate_performance(self, medium_project, profiler) -> None:
         """Profile extract_plate_from_path method."""
-        shows_root, stats = medium_project
+        shows_root, _stats = medium_project
 
         # Get some test paths
         user_path = (
@@ -693,6 +693,7 @@ def test_generate_performance_report(profiler) -> None:
 
     # Save report to file
     report_path = Path("tests/performance/threede_finder_performance_report.txt")
+    report_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
     with open(report_path, "w") as f:
         f.write(report)
 

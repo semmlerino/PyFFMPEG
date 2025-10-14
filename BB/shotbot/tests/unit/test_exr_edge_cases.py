@@ -180,7 +180,7 @@ class TestUnusualFormats:
     """Test handling of unusual or edge-case file formats."""
 
     @pytest.mark.parametrize(
-        "filename,content",
+        ("filename", "content"),
         [
             ("UPPERCASE.EXR", b"EXR"),
             ("mixed.ExR", b"EXR"),
@@ -365,4 +365,7 @@ class TestResourceExhaustion:
 
         # Verify cleanup
         final_usage = cache_manager.get_memory_usage()
-        assert final_usage["file_count"] == 0 or final_usage["total_mb"] < initial_usage["total_mb"]
+        assert (
+            final_usage["file_count"] == 0
+            or final_usage["total_mb"] < initial_usage["total_mb"]
+        )

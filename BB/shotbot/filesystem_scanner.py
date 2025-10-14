@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
     # Local application imports - TYPE_CHECKING to break import cycles
     from filesystem_coordinator import FilesystemCoordinator
-    from scene_parser import SceneParser
+    from scene_parser import SceneParser  # Import for string literal type hint
 
 
 class DirectoryCache(LoggingMixin):
@@ -403,16 +403,17 @@ class FileSystemScanner(LoggingMixin):
                     try:
                         with os.scandir(path) as entries:
                             for entry in entries:
-                                if entry.is_file() and entry.name.lower().endswith(
-                                    ".3de"
+                                if (
+                                    entry.is_file()
+                                    and entry.name.lower().endswith(".3de")
+                                ) or (
+                                    (
+                                        entry.is_dir()
+                                        and entry.name not in self.EXCLUDED_DIRS
+                                    )
+                                    and quick_scan(Path(entry.path), depth + 1)
                                 ):
                                     return True
-                                elif (
-                                    entry.is_dir()
-                                    and entry.name not in self.EXCLUDED_DIRS
-                                ):
-                                    if quick_scan(Path(entry.path), depth + 1):
-                                        return True
                     except (OSError, PermissionError):
                         pass
 
@@ -528,12 +529,10 @@ class FileSystemScanner(LoggingMixin):
                 user_count = 0
                 with os.scandir(user_dir) as entries:
                     for entry in entries:
-                        if entry.is_dir():
-                            if (
-                                excluded_users is None
-                                or entry.name not in excluded_users
-                            ):
-                                user_count += 1
+                        if entry.is_dir() and (
+                            excluded_users is None or entry.name not in excluded_users
+                        ):
+                            user_count += 1
 
                 total_estimated_users += user_count
                 # Estimate 2-3 files per user on average

@@ -64,12 +64,18 @@ class BaseItemRole(IntEnum):
     IsSelectedRole = Qt.ItemDataRole.UserRole + 10
 
     # Item-specific roles (for backward compatibility with old tests)
-    ItemSpecificRole1 = Qt.ItemDataRole.UserRole + 20  # shot.shot for Shot items, scene.shot for ThreeDEScene
+    ItemSpecificRole1 = (
+        Qt.ItemDataRole.UserRole + 20
+    )  # shot.shot for Shot items, scene.shot for ThreeDEScene
     ItemSpecificRole2 = Qt.ItemDataRole.UserRole + 21  # scene.user for ThreeDEScene
-    ItemSpecificRole3 = Qt.ItemDataRole.UserRole + 22  # scene.scene_path for ThreeDEScene
+    ItemSpecificRole3 = (
+        Qt.ItemDataRole.UserRole + 22
+    )  # scene.scene_path for ThreeDEScene
 
 
-class BaseItemModel(ABC, LoggingMixin, QAbstractListModel, Generic[T], metaclass=QABCMeta):
+class BaseItemModel(
+    ABC, LoggingMixin, QAbstractListModel, Generic[T], metaclass=QABCMeta
+):
     """Base Qt Model implementation for item data.
 
     This base class provides:
@@ -141,7 +147,8 @@ class BaseItemModel(ABC, LoggingMixin, QAbstractListModel, Generic[T], metaclass
 
     @override
     def rowCount(
-        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+        self,
+        parent: QModelIndex | QPersistentModelIndex = QModelIndex(),  # pyright: ignore[reportCallInDefaultInitializer]
     ) -> int:
         """Return number of items in the model.
 
@@ -342,7 +349,9 @@ class BaseItemModel(ABC, LoggingMixin, QAbstractListModel, Generic[T], metaclass
 
         # Load thumbnails outside lock (already marked as loading)
         for row, item in items_to_load:
-            self.logger.debug(f"Starting thumbnail load for item {row}: {item.full_name}")
+            self.logger.debug(
+                f"Starting thumbnail load for item {row}: {item.full_name}"
+            )
             self._load_thumbnail_async(row, item)
 
         # Stop timer if no more loading needed
@@ -441,7 +450,6 @@ class BaseItemModel(ABC, LoggingMixin, QAbstractListModel, Generic[T], metaclass
             with QMutexLocker(self._cache_mutex):
                 self._loading_states[item.full_name] = "failed"
             self.dataChanged.emit(index, index, [BaseItemRole.LoadingStateRole])
-
 
     def _load_cached_pixmap(
         self, cached_path: Path, row: int, item: T, index: QModelIndex
@@ -590,7 +598,6 @@ class BaseItemModel(ABC, LoggingMixin, QAbstractListModel, Generic[T], metaclass
         Returns:
             Display text string
         """
-        pass
 
     @abstractmethod
     def get_tooltip_data(self, item: T) -> str:
@@ -602,7 +609,6 @@ class BaseItemModel(ABC, LoggingMixin, QAbstractListModel, Generic[T], metaclass
         Returns:
             Tooltip text string
         """
-        pass
 
     def get_size_hint(self) -> QSize:
         """Get size hint for items.

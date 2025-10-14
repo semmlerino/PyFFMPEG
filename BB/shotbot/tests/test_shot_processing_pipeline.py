@@ -62,10 +62,7 @@ def test_shot_extraction() -> None:
             shot = shot_dir[len(sequence) + 1 :]  # +1 for underscore
         else:
             shot_parts = shot_dir.rsplit("_", 1)
-            if len(shot_parts) == 2:
-                shot = shot_parts[1]
-            else:
-                shot = shot_dir
+            shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
 
         # Validate shot is not empty
         if not shot:
@@ -80,7 +77,7 @@ def test_shot_extraction() -> None:
         print("\nErrors found:")
         for error in errors:
             print(error)
-        assert False, f"Shot extraction errors found: {len(errors)} failures"
+        raise AssertionError(f"Shot extraction errors found: {len(errors)} failures")
 
     print("  All shot extractions passed!")
 
@@ -115,10 +112,7 @@ def parse_ws_sg_output(output: str) -> list[Shot]:
                 shot = shot_dir[len(sequence) + 1 :]
             else:
                 shot_parts = shot_dir.rsplit("_", 1)
-                if len(shot_parts) == 2:
-                    shot = shot_parts[1]
-                else:
-                    shot = shot_dir
+                shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
 
             if shot:  # Only add if shot is not empty
                 shots.append(
@@ -213,7 +207,7 @@ def test_targeted_shot_finder() -> None:
 
     except Exception as e:
         print(f"  ❌ Error: {e}")
-        assert False, f"TargetedShotsFinder test failed: {e}"
+        raise AssertionError(f"TargetedShotsFinder test failed: {e}")
 
 
 def test_3de_scene_discovery() -> None:
@@ -278,7 +272,7 @@ def test_3de_scene_discovery() -> None:
 
     except Exception as e:
         print(f"  ❌ Error: {e}")
-        assert False, f"3DE scene discovery test failed: {e}"
+        raise AssertionError(f"3DE scene discovery test failed: {e}")
 
 
 def test_thumbnail_discovery() -> None:
@@ -304,7 +298,7 @@ def test_thumbnail_discovery() -> None:
 
     except Exception as e:
         print(f"  ❌ Error: {e}")
-        assert False, f"Thumbnail discovery test failed: {e}"
+        raise AssertionError(f"Thumbnail discovery test failed: {e}")
 
 
 def test_integration() -> None:
@@ -363,7 +357,7 @@ def test_integration() -> None:
 
     except Exception as e:
         print(f"  ❌ Integration error: {e}")
-        assert False, f"Pipeline integration test failed: {e}"
+        raise AssertionError(f"Pipeline integration test failed: {e}")
 
 
 def main() -> int:

@@ -47,7 +47,7 @@ def debug_workspace_output() -> list[str]:
             lines = output.strip().split("\n")
             print("\nFirst 5 lines of output:")
             for i, line in enumerate(lines[:5]):
-                print(f"  {i + 1}: {repr(line)}")
+                print(f"  {i + 1}: {line!r}")
 
             if len(lines) > 5:
                 print(f"  ... and {len(lines) - 5} more lines")
@@ -79,7 +79,7 @@ def debug_parser_matching(lines: list[str]) -> bool:
     failed_parses = 0
 
     for i, line in enumerate(lines[:10]):  # Test first 10 lines
-        print(f"Line {i + 1}: {repr(line)}")
+        print(f"Line {i + 1}: {line!r}")
 
         # Test if regex matches
         match = parser._ws_pattern.search(line)

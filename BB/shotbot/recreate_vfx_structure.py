@@ -357,7 +357,10 @@ class VFXStructureRecreator:
         for _, show_data_list in structure_data.get("shows", {}).items():
             for show_data in show_data_list:
                 # Empty dict doesn't match NodeDict structure but is used as fallback
-                structure: NodeDict = show_data.get("structure") or {"type": "", "name": ""}
+                structure: NodeDict = show_data.get("structure") or {
+                    "type": "",
+                    "name": "",
+                }
                 gabrielh_3de_paths: list[list[str]] = []
 
                 def find_gabrielh_3de_scenes(
@@ -367,7 +370,7 @@ class VFXStructureRecreator:
                     if path_parts is None:
                         path_parts = []
                     if node.get("type") == "dir":
-                        current_path = path_parts + [node["name"]]
+                        current_path = [*path_parts, node["name"]]
 
                         # Check if this is a gabriel-h scenes directory
                         path_str = "/".join(current_path)
@@ -399,7 +402,7 @@ class VFXStructureRecreator:
 
                                 # Create scene/bg01 subdirectory and 3DE file
                                 # Path parts start with show name, need to prepend 'shows'
-                                full_path_parts = ["shows"] + path_parts
+                                full_path_parts = ["shows", *path_parts]
                                 scenes_dir = self.root / Path(*full_path_parts)
                                 scene_bg01_dir = scenes_dir / "scene" / "bg01"
                                 scene_bg01_dir.mkdir(parents=True, exist_ok=True)
@@ -521,8 +524,14 @@ def merge_structures(json_files: list[str]) -> StructureDataDict:
                 for existing in show_list:
                     if existing and existing.get("root") == show_data.get("root"):
                         # Merge or replace - use the one with more data
-                        existing_structure: NodeDict = existing.get("structure") or {"type": "", "name": ""}
-                        new_structure: NodeDict = show_data.get("structure") or {"type": "", "name": ""}
+                        existing_structure: NodeDict = existing.get("structure") or {
+                            "type": "",
+                            "name": "",
+                        }
+                        new_structure: NodeDict = show_data.get("structure") or {
+                            "type": "",
+                            "name": "",
+                        }
                         existing_size = count_nodes(existing_structure)
                         new_size = count_nodes(new_structure)
                         if new_size > existing_size:
@@ -545,8 +554,8 @@ def merge_structures(json_files: list[str]) -> StructureDataDict:
                     pattern_list.append(item)
 
     # Convert sets back to lists
-    merged["workspace_shots"] = sorted(list(workspace_shots_set))
-    merged["show_roots"] = sorted(list(show_roots_set))
+    merged["workspace_shots"] = sorted(workspace_shots_set)
+    merged["show_roots"] = sorted(show_roots_set)
 
     return merged
 

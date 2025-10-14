@@ -78,7 +78,7 @@ def apply_logging_mixin(file_path: Path) -> bool:
 
         # Track imports that are not in TYPE_CHECKING
         if not in_type_checking_block:
-            if stripped.startswith("import ") or stripped.startswith("from "):
+            if stripped.startswith(("import ", "from ")):
                 last_regular_import = i
 
     # Add the import after the last regular import

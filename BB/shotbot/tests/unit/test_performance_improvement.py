@@ -40,7 +40,7 @@ def test_original_startup() -> dict[str, Any]:
 workspace /shows/TEST/seq01/0020
 workspace /shows/TEST/seq02/0010"""
         # Set process pool for testing - accessing private attribute for test setup
-        setattr(model, "_process_pool", mock_pool)  # pyright: ignore[reportUnknownMemberType]
+        model._process_pool = mock_pool  # pyright: ignore[reportUnknownMemberType]
 
         result = model.refresh_shots()
         elapsed = time.perf_counter() - start
@@ -74,7 +74,7 @@ def test_optimized_startup() -> dict[str, Any]:
 workspace /shows/TEST/seq01/0020
 workspace /shows/TEST/seq02/0010"""
         # Set process pool for testing
-        setattr(model, "_process_pool", mock_pool)  # pyright: ignore[reportUnknownMemberType]
+        model._process_pool = mock_pool  # pyright: ignore[reportUnknownMemberType]
 
         # Initialize with async strategy (returns immediately)
         result = model.initialize_async()
@@ -122,7 +122,7 @@ def test_with_session_warming() -> dict[str, Any]:
         # Now create model with warmed pool
         model = ShotModel(cache_manager=cache)
         # Set warmed process pool for testing
-        setattr(model, "_process_pool", pool)  # pyright: ignore[reportUnknownMemberType]
+        model._process_pool = pool  # pyright: ignore[reportUnknownMemberType]
 
         # Time the actual load (should be faster)
         start = time.perf_counter()

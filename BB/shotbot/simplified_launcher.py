@@ -586,7 +586,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         """
         if pattern:
             # Remove entries matching pattern
-            keys_to_remove = [k for k in self._ws_cache.keys() if pattern in k]
+            keys_to_remove = [k for k in self._ws_cache if pattern in k]
             for key in keys_to_remove:
                 del self._ws_cache[key]
             self.logger.info(

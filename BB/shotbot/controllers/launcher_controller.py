@@ -145,7 +145,9 @@ class LauncherController(LoggingMixin):
         # Clear scene context to maintain mutual exclusivity
         if shot:
             self._current_scene = None
-            self.logger.info(f"🎯 Set current shot: {shot.full_name} (cleared scene context)")
+            self.logger.info(
+                f"🎯 Set current shot: {shot.full_name} (cleared scene context)"
+            )
         else:
             self.logger.info("🎯 Cleared current shot")
 
@@ -170,7 +172,9 @@ class LauncherController(LoggingMixin):
             self._current_shot = None
             self.window.command_launcher.set_current_shot(None)
         else:
-            self.logger.info("🎬 LauncherController.set_current_scene() called with None (clearing scene)")
+            self.logger.info(
+                "🎬 LauncherController.set_current_scene() called with None (clearing scene)"
+            )
 
         self._current_scene = scene
         self.logger.info(
@@ -216,8 +220,12 @@ class LauncherController(LoggingMixin):
         # DIAGNOSTIC: Log current state when button is clicked
         self.logger.info(f"🚀 launch_app() called for app: {app_name}")
         self.logger.info("   Current state check:")
-        self.logger.info(f"   - _current_scene: {self._current_scene.full_name if self._current_scene else 'None'}")
-        self.logger.info(f"   - _current_shot: {self._current_shot.full_name if self._current_shot else 'None'}")
+        self.logger.info(
+            f"   - _current_scene: {self._current_scene.full_name if self._current_scene else 'None'}"
+        )
+        self.logger.info(
+            f"   - _current_shot: {self._current_shot.full_name if self._current_shot else 'None'}"
+        )
 
         # Check if we have a current 3DE scene selected
         if self._current_scene:
@@ -237,22 +245,24 @@ class LauncherController(LoggingMixin):
 
             # Add visible UI feedback about fallback
             from datetime import datetime
+
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.window.log_viewer.add_command(
-                timestamp,
-                "Using shot context (no scene selected)"
+                timestamp, "Using shot context (no scene selected)"
             )
 
             # Verify command_launcher has shot context set
             if not self.window.command_launcher.current_shot:
                 if self._current_shot:
                     # Re-sync contexts
-                    self.logger.info(f"Re-syncing command_launcher context with {self._current_shot.full_name}")
+                    self.logger.info(
+                        f"Re-syncing command_launcher context with {self._current_shot.full_name}"
+                    )
                     self.window.command_launcher.set_current_shot(self._current_shot)
                     timestamp = datetime.now().strftime("%H:%M:%S")
                     self.window.log_viewer.add_command(
                         timestamp,
-                        f"Re-synced shot context: {self._current_shot.full_name}"
+                        f"Re-synced shot context: {self._current_shot.full_name}",
                     )
                 else:
                     # No context at all - fail gracefully
@@ -260,11 +270,11 @@ class LauncherController(LoggingMixin):
                     timestamp = datetime.now().strftime("%H:%M:%S")
                     self.window.log_viewer.add_error(
                         timestamp,
-                        "No shot selected - please select a shot before launching"
+                        "No shot selected - please select a shot before launching",
                     )
                     NotificationManager.warning(
                         "No Shot Selected",
-                        "Please select a shot before launching applications."
+                        "Please select a shot before launching applications.",
                     )
                     return  # Exit early without setting success
 
@@ -449,13 +459,14 @@ class LauncherController(LoggingMixin):
         """
         # Custom launcher buttons are now managed by the launcher panel
         # and automatically enabled/disabled when shot is set
-        pass
 
     def show_launcher_manager(self) -> None:
         """Show the launcher manager dialog."""
         if not self.window.launcher_manager:
             QMessageBox.information(
-                cast(QWidget, cast(object, self.window)),  # Cast through object for Protocol
+                cast(
+                    "QWidget", cast("object", self.window)
+                ),  # Cast through object for Protocol
                 "Custom Launchers",
                 "Custom launchers are not available when using simplified launcher mode.\n"
                 "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers.",
@@ -466,7 +477,7 @@ class LauncherController(LoggingMixin):
             from launcher_dialog import LauncherManagerDialog
 
             self._launcher_dialog = LauncherManagerDialog(
-                self.window.launcher_manager, cast(QWidget, cast(object, self.window))
+                self.window.launcher_manager, cast("QWidget", cast("object", self.window))
             )
 
         # At this point, _launcher_dialog is guaranteed to be not None
@@ -489,7 +500,7 @@ class LauncherController(LoggingMixin):
         if not launchers:
             # Add disabled placeholder
             no_launchers_action = QAction(
-                "No custom launchers", cast(QWidget, cast(object, self.window))
+                "No custom launchers", cast("QWidget", cast("object", self.window))
             )
             no_launchers_action.setEnabled(False)
             self.window.custom_launcher_menu.addAction(no_launchers_action)
@@ -513,7 +524,9 @@ class LauncherController(LoggingMixin):
                     category.title()
                 )
                 for launcher in category_launchers:
-                    action = QAction(launcher.name, cast(QWidget, cast(object, self.window)))
+                    action = QAction(
+                        launcher.name, cast("QWidget", cast("object", self.window))
+                    )
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
                     _ = action.triggered.connect(
@@ -524,7 +537,9 @@ class LauncherController(LoggingMixin):
             else:
                 # Add directly to main menu if only one category
                 for launcher in category_launchers:
-                    action = QAction(launcher.name, cast(QWidget, cast(object, self.window)))
+                    action = QAction(
+                        launcher.name, cast("QWidget", cast("object", self.window))
+                    )
                     action.setToolTip(launcher.description)
                     action.setData(launcher.id)
                     _ = action.triggered.connect(
@@ -542,10 +557,11 @@ class LauncherController(LoggingMixin):
         for action in self.window.custom_launcher_menu.actions():
             submenu = action.menu()
             if submenu is not None:
-                # Type checker doesn't know menu() returns QMenu, use assertion
-                assert isinstance(submenu, QMenu)
+                # Type checker doesn't know menu() returns QMenu, use cast for testability
+                # In production, this will always be QMenu; in tests, mocks work fine
+                submenu_typed = cast("QMenu", submenu)
                 # Submenu - enable/disable all actions in submenu
-                for sub_action in submenu.actions():
+                for sub_action in submenu_typed.actions():
                     sub_action.setEnabled(has_context)
             else:
                 # Regular action

@@ -5,6 +5,7 @@ to use both ABC (ABCMeta) and Qt classes (Shiboken.ObjectType) together.
 """
 
 from abc import ABCMeta
+
 from PySide6.QtCore import QObject
 
 
@@ -21,4 +22,3 @@ class QABCMeta(type(QObject), ABCMeta):  # type: ignore[misc]  # pyright: ignore
             def my_method(self):
                 pass
     """
-    pass

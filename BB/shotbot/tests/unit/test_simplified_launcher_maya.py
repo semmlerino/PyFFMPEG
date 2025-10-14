@@ -290,7 +290,9 @@ class TestMayaLaunching:
 
         # Should launch Maya without -file flag
         assert "maya" in command_str, "Command should contain 'maya'"
-        assert "-file" not in command_str, "Should not include -file when no scenes found"
+        assert "-file" not in command_str, (
+            "Should not include -file when no scenes found"
+        )
 
 
 class TestMayaPathQuoting:
@@ -376,4 +378,6 @@ class TestBackwardCompatibility:
         # Verify scene file is included
         call_args = mock_popen.call_args[0][0]
         command_str = " ".join(call_args) if isinstance(call_args, list) else call_args
-        assert "shot_v003.ma" in command_str, "Should find latest scene via old interface"
+        assert "shot_v003.ma" in command_str, (
+            "Should find latest scene via old interface"
+        )

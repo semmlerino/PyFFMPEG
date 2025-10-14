@@ -88,16 +88,15 @@ class TestAsyncWorkflowIntegration:
             qtbot.addWidget(info_panel)
             return item_model, info_panel, cache_manager
 
-        yield _create_components
+        return _create_components
 
         # Cleanup any created components if needed
-        pass
 
     def test_shot_selection_with_async_thumbnail_loading(
         self, integration_components, test_shots, qtbot
     ) -> None:
         """Test shot selection triggers async loading in both model and panel."""
-        item_model, info_panel, cache_manager = integration_components()
+        item_model, info_panel, _cache_manager = integration_components()
 
         # Set shots in model
         item_model.set_items(test_shots)
@@ -141,7 +140,7 @@ class TestAsyncWorkflowIntegration:
         self, integration_components, test_shots, qtbot
     ) -> None:
         """Test model updates while panel is also loading asynchronously."""
-        item_model, info_panel, cache_manager = integration_components()
+        item_model, info_panel, _cache_manager = integration_components()
 
         # Start with first shot in both components
         item_model.set_items(test_shots[:1])
@@ -170,7 +169,7 @@ class TestAsyncWorkflowIntegration:
         self, integration_components, test_shots, qtbot
     ) -> None:
         """Stress test rapid shot changes across components."""
-        item_model, info_panel, cache_manager = integration_components()
+        item_model, info_panel, _cache_manager = integration_components()
 
         # Rapid fire changes
         for i in range(10):
@@ -227,7 +226,7 @@ class TestAsyncWorkflowIntegration:
         self, integration_components, test_shots, qtbot
     ) -> None:
         """Test memory management during concurrent async operations."""
-        item_model, info_panel, cache_manager = integration_components()
+        item_model, info_panel, _cache_manager = integration_components()
 
         # Load all shots
         item_model.set_items(test_shots)
@@ -252,7 +251,7 @@ class TestAsyncWorkflowIntegration:
         self, integration_components, test_shots, qtbot, monkeypatch
     ) -> None:
         """Test error handling doesn't cascade between components."""
-        item_model, info_panel, cache_manager = integration_components()
+        item_model, info_panel, _cache_manager = integration_components()
 
         # Create shot with problematic thumbnail path
         bad_shot = Shot("error_show", "error_seq", "error_shot", "/nonexistent")
@@ -302,7 +301,7 @@ class TestAsyncWorkflowIntegration:
         self, integration_components, test_shots, qtbot
     ) -> None:
         """Test thread safety when components operate concurrently."""
-        item_model, info_panel, cache_manager = integration_components()
+        item_model, info_panel, _cache_manager = integration_components()
 
         # Set up concurrent operations
         def model_operations() -> None:
@@ -332,7 +331,7 @@ class TestAsyncWorkflowIntegration:
         # Components should remain stable
         assert item_model.rowCount() >= 0
         # info_panel._current_shot may be None or one of the test shots
-        assert info_panel._current_shot in [None] + test_shots
+        assert info_panel._current_shot in [None, *test_shots]
 
 
 class TestAsyncCallbackIntegration:

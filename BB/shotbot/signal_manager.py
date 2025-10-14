@@ -25,6 +25,8 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
+
 # Standard library imports
 import weakref
 from typing import TYPE_CHECKING, Protocol, cast
@@ -78,7 +80,9 @@ class SignalManager(LoggingMixin):
         """
         super().__init__()
         self.owner_ref = weakref.ref(owner)
-        self._connections: list[tuple[SignalInstance, object, Qt.ConnectionType | None]] = []
+        self._connections: list[
+            tuple[SignalInstance, object, Qt.ConnectionType | None]
+        ] = []
         self._signal_chains: list[tuple[SignalInstance, SignalInstance]] = []
 
     @property
@@ -352,7 +356,9 @@ class SignalManager(LoggingMixin):
 class BlockedSignalsContext:
     """Context manager for temporarily blocking Qt signals."""
 
-    def __init__(self, objects: list[QObject], logger: LoggerProtocol | None = None) -> None:
+    def __init__(
+        self, objects: list[QObject], logger: LoggerProtocol | None = None
+    ) -> None:
         """Initialize context.
 
         Args:
@@ -379,7 +385,7 @@ class BlockedSignalsContext:
 
     def __exit__(self, *args: object) -> None:
         """Restore previous signal states."""
-        for obj, was_blocked in zip(self.objects, self._previous_states):
+        for obj, was_blocked in zip(self.objects, self._previous_states, strict=False):
             if obj:
                 obj.blockSignals(was_blocked)
 
@@ -440,10 +446,8 @@ class SignalThrottler(QObject):
     def stop(self) -> None:
         """Stop throttling and disconnect."""
         self._timer.stop()
-        try:
+        with contextlib.suppress(Exception):
             self.source_signal.disconnect(self._on_source_signal)
-        except Exception:
-            pass
 
 
 class SignalDebugger(LoggingMixin):

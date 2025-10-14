@@ -204,7 +204,7 @@ class SettingsManager(LoggingMixin, QObject):
 
         for old_key, new_key in old_keys:
             if self.settings.contains(old_key):
-                value = cast(object, self.settings.value(old_key))
+                value = cast("object", self.settings.value(old_key))
                 self.settings.setValue(new_key, value)
                 self.settings.remove(old_key)
                 self.logger.debug(f"Migrated setting: {old_key} -> {new_key}")
@@ -466,7 +466,9 @@ class SettingsManager(LoggingMixin, QObject):
 
     def get_custom_launchers(self) -> list[dict[str, object]]:
         """Get custom launcher definitions."""
-        stored_value = self.settings.value("applications/custom_launchers", [], type=list)
+        stored_value = self.settings.value(
+            "applications/custom_launchers", [], type=list
+        )
         # Type guard: QSettings.value can return various types
         if isinstance(stored_value, list):
             # Ensure each item is a dict and cast for type safety
@@ -549,7 +551,7 @@ class SettingsManager(LoggingMixin, QObject):
         try:
             # Get all keys in this category
             for key in self.settings.childKeys():
-                setting_value = cast(object, self.settings.value(key))
+                setting_value = cast("object", self.settings.value(key))
                 category_settings[key] = setting_value
         finally:
             self.settings.endGroup()

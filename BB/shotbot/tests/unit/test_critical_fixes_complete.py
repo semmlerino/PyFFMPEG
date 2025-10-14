@@ -35,7 +35,7 @@ def test_shows_root_dynamic_configuration():
 
     success_count = 0
 
-    for shows_root, expected_pattern_start in test_cases:
+    for shows_root, _expected_pattern_start in test_cases:
         print(f"\nTesting with SHOWS_ROOT={shows_root}")
 
         # Set environment variable
@@ -319,19 +319,19 @@ def test_json_error_handling():
 
     try:
         # Need to properly mock the path
-        with mock.patch.object(
-            Path, "parent", property(lambda self: Path("/mock/dir"))
-        ):
-            with mock.patch(
+        with (
+            mock.patch.object(Path, "parent", property(lambda self: Path("/mock/dir"))),
+            mock.patch(
                 "builtins.open", mock.mock_open(read_data=open(temp_path).read())
-            ):
-                with mock.patch("pathlib.Path.exists", return_value=True):
-                    pool = create_mock_pool_from_filesystem()
-                    if pool and len(pool.shots) == 2:
-                        print("  ✓ Valid JSON processed correctly")
-                        success_count += 1
-                    else:
-                        print("  ✗ Valid JSON not processed correctly")
+            ),
+            mock.patch("pathlib.Path.exists", return_value=True),
+        ):
+            pool = create_mock_pool_from_filesystem()
+            if pool and len(pool.shots) == 2:
+                print("  ✓ Valid JSON processed correctly")
+                success_count += 1
+            else:
+                print("  ✗ Valid JSON not processed correctly")
     finally:
         os.unlink(temp_path)
 

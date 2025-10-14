@@ -193,7 +193,9 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             if self._selected_index.isValid():
                 # QPersistentModelIndex automatically converts to QModelIndex when needed
                 self.dataChanged.emit(
-                    self._selected_index, self._selected_index, [BaseItemRole.IsSelectedRole]
+                    self._selected_index,
+                    self._selected_index,
+                    [BaseItemRole.IsSelectedRole],
                 )
 
             # Set new selection

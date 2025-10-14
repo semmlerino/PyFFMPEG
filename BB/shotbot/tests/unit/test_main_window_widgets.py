@@ -64,9 +64,7 @@ class TestMainWindowInitialization:
     """Test MainWindow initialization and basic properties."""
 
     @pytest.fixture
-    def main_window(
-        self, qtbot: QtBot, real_cache_manager: CacheManager
-    ) -> MainWindow:
+    def main_window(self, qtbot: QtBot, real_cache_manager: CacheManager) -> MainWindow:
         """Create MainWindow for testing."""
         # Local import to avoid module-level issues
         from main_window import MainWindow
@@ -406,7 +404,7 @@ class TestMainWindowKeyboardShortcuts:
         # Current behavior: window closes on escape (could be changed if undesired)
         # For now, test accepts this behavior
         # assert window.isVisible()  # This would test if window stays open
-        pass  # Test passes - escape handled without crash
+        # Test passes - escape handled without crash
 
 
 class TestMainWindowStateManagement:
@@ -572,7 +570,10 @@ class TestMainWindowIntegration:
         assert window.isVisible()
 
     def test_cache_manager_integration(
-        self, qtbot: QtBot, integrated_window: MainWindow, real_cache_manager: CacheManager
+        self,
+        qtbot: QtBot,
+        integrated_window: MainWindow,
+        real_cache_manager: CacheManager,
     ) -> None:
         """Test cache manager integrates with all components."""
         window = integrated_window
@@ -585,9 +586,7 @@ class TestMainWindowIntegration:
             # Shot model should use the cache manager
             assert hasattr(window.shot_model, "cache_manager")
 
-    def test_status_updates(
-        self, qtbot: QtBot, integrated_window: MainWindow
-    ) -> None:
+    def test_status_updates(self, qtbot: QtBot, integrated_window: MainWindow) -> None:
         """Test status bar receives updates from components."""
         window = integrated_window
         status_bar = window.statusBar()

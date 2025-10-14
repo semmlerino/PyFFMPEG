@@ -332,7 +332,7 @@ class TestThreadingIntegration:
             files_processed = 0
             worker_id = f"batch_{batch_id}"
 
-            for i in range(5):  # Process 5 files per batch
+            for _i in range(5):  # Process 5 files per batch
                 if cancel_event.is_cancelled():
                     break
 

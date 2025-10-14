@@ -516,9 +516,7 @@ class NukeUndistortionParser:
         if "set cut_paste_input" in line:
             return True
 
-        if stripped.startswith("push") and (
-            "push $cut_paste_input" in line or "push 0" in stripped
-        ):
-            return True
-
-        return False
+        return bool(
+            stripped.startswith("push")
+            and ("push $cut_paste_input" in line or "push 0" in stripped)
+        )

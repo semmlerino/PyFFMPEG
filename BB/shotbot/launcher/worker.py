@@ -149,8 +149,8 @@ class LauncherWorker(ThreadSafeWorker):
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to parse command safely: {command[:100]}")
             raise SecurityError(
-                f"Command could not be parsed safely and was blocked: {str(e)}"
-            )
+                f"Command could not be parsed safely and was blocked: {e!s}"
+            ) from e
 
     def do_work(self) -> None:
         """Execute the launcher command with proper lifecycle management.
@@ -237,7 +237,7 @@ class LauncherWorker(ThreadSafeWorker):
                 self.command_finished.emit(self.launcher_id, False, -2)
 
         except Exception as e:
-            error_msg = f"Worker exception for launcher '{self.launcher_id}': {str(e)}"
+            error_msg = f"Worker exception for launcher '{self.launcher_id}': {e!s}"
             self.logger.exception(error_msg)
             self.command_error.emit(self.launcher_id, error_msg)
             self.command_finished.emit(self.launcher_id, False, -1)

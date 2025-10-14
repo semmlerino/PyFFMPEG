@@ -37,6 +37,7 @@ def capture_screenshot() -> Path | None:
         print("✗ Failed to save screenshot")
         return None
 
+
 if __name__ == "__main__":
     # Create app if running standalone
     app_instance = QApplication.instance()
