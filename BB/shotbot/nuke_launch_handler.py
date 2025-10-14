@@ -11,6 +11,7 @@ from config import Config
 from logging_mixin import LoggingMixin
 from nuke_script_generator import NukeScriptGenerator
 from nuke_workspace_manager import NukeWorkspaceManager
+from plate_discovery import PlateDiscovery
 from raw_plate_finder import RawPlateFinder
 from undistortion_finder import UndistortionFinder
 
@@ -113,9 +114,6 @@ class NukeLaunchHandler(LoggingMixin):
 
         if options.get("open_latest_scene"):
             # Try to find existing script for selected plate
-            # Local application imports
-            from plate_discovery import PlateDiscovery
-
             existing_scripts = PlateDiscovery.find_existing_scripts(
                 shot.workspace_path, shot.full_name, selected_plate
             )
@@ -147,9 +145,6 @@ class NukeLaunchHandler(LoggingMixin):
 
         elif options.get("create_new_file"):
             # Get next version for selected plate
-            # Local application imports
-            from plate_discovery import PlateDiscovery
-
             version = PlateDiscovery.get_next_script_version(
                 shot.workspace_path, shot.full_name, selected_plate
             )

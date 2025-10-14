@@ -313,16 +313,42 @@ class LauncherController(LoggingMixin):
                     )
                     return  # Exit early without launching
 
-            success = self.window.command_launcher.launch_app(
-                app_name,
-                include_undistortion,
-                include_raw_plate,
-                open_latest_threede,
-                open_latest_maya,
-                open_latest_scene,
-                create_new_file,
-                selected_plate=selected_plate,
-            )
+            # Type-safe launch handling for union type (CommandLauncher | SimplifiedLauncher)
+            success: bool
+            if hasattr(self.window.command_launcher, 'launch_app') and callable(
+                getattr(self.window.command_launcher, 'launch_app')
+            ):
+                # Check if launcher supports selected_plate parameter (CommandLauncher does, SimplifiedLauncher doesn't)
+                if selected_plate and app_name == "nuke":
+                    # Attempt to pass selected_plate (will work for CommandLauncher)
+                    try:
+                        success = self.window.command_launcher.launch_app(
+                            app_name,
+                            include_undistortion,
+                            include_raw_plate,
+                            open_latest_threede,
+                            open_latest_maya,
+                            open_latest_scene,
+                            create_new_file,
+                            selected_plate=selected_plate,
+                        )
+                    except TypeError:
+                        # SimplifiedLauncher doesn't accept selected_plate, call without it
+                        success = self.window.command_launcher.launch_app(app_name)
+                else:
+                    # Not Nuke or no plate selected, call normally
+                    success = self.window.command_launcher.launch_app(
+                        app_name,
+                        include_undistortion,
+                        include_raw_plate,
+                        open_latest_threede,
+                        open_latest_maya,
+                        open_latest_scene,
+                        create_new_file,
+                    )
+            else:
+                # Fallback: launcher doesn't have launch_app method
+                success = False
 
         if success:
             self.window.update_status(f"Launched {app_name}")

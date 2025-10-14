@@ -18,6 +18,7 @@ from logging_mixin import get_module_logger
 from nuke_media_detector import NukeMediaDetector
 from nuke_script_templates import NukeScriptTemplates
 from nuke_undistortion_parser import NukeUndistortionParser
+from plate_discovery import PlateDiscovery
 
 # Module-level logger for static methods
 logger = get_module_logger(__name__)
@@ -598,9 +599,6 @@ except Exception as e:
             )
 
             # Get plate script directory using PlateDiscovery
-            # Local application imports
-            from plate_discovery import PlateDiscovery
-
             script_dir = PlateDiscovery.get_plate_script_directory(
                 workspace_path, plate_name
             )
@@ -658,9 +656,6 @@ except Exception as e:
             )
 
             # Get plate script directory
-            # Local application imports
-            from plate_discovery import PlateDiscovery
-
             script_dir = PlateDiscovery.get_plate_script_directory(
                 workspace_path, plate_name
             )

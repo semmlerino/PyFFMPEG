@@ -1086,9 +1086,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             available_plates = PlateDiscovery.get_available_plates(shot.workspace_path)
             for app_name in ["nuke", "maya", "3de", "rv"]:
                 if app_name in self.launcher_panel.app_sections:
-                    self.launcher_panel.app_sections[app_name].set_available_plates(
-                        available_plates
-                    )
+                    app_section = self.launcher_panel.app_sections[app_name]
+                    app_section.set_available_plates(available_plates)
+
+                    # Auto-select first plate if available (prevents validation errors)
+                    if available_plates and app_section.plate_selector:
+                        app_section.plate_selector.setCurrentIndex(0)
+                        self.logger.debug(
+                            f"Auto-selected first plate '{available_plates[0]}' for {app_name}"
+                        )
 
             # Update custom launcher menu availability
             self.launcher_controller.update_launcher_menu_availability(True)

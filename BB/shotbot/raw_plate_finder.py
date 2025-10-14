@@ -10,6 +10,7 @@ from re import Match, Pattern
 # Local application imports
 from config import Config
 from logging_mixin import get_module_logger
+from plate_discovery import PlateDiscovery
 
 # Performance monitoring removed - was using archived module
 from utils import PathUtils, VersionUtils
@@ -249,9 +250,6 @@ class RawPlateFinder:
             return None
 
         # Get highest resolution directory
-        # Local application imports
-        from plate_discovery import PlateDiscovery
-
         resolution_dir = PlateDiscovery.get_highest_resolution_dir(exr_base)
         if not resolution_dir:
             logger.debug(f"No resolution directory found for {plate_space}/{latest_version}")
