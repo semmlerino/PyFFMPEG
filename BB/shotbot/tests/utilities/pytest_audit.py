@@ -50,8 +50,8 @@ def run_pytest_with_timeout(timeout_per_test=5):
         return []
 
 
-def test_individual_file(test_file, timeout=10):
-    """Test an individual file with timeout."""
+def audit_individual_file(test_file, timeout=10):
+    """Audit an individual file with timeout."""
     print(f"\nTesting: {test_file}")
     print("-" * 50)
 
@@ -163,7 +163,7 @@ def main() -> int:
     problematic = []
 
     for test_file in sorted(test_files):
-        result = test_individual_file(str(test_file), timeout=10)
+        result = audit_individual_file(str(test_file), timeout=10)
         results.append(result)
 
         # Identify problematic tests

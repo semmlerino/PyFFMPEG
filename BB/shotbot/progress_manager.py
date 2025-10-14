@@ -57,7 +57,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Local application imports
 from notification_manager import NotificationManager
@@ -112,6 +112,7 @@ class ProgressOperation:
         Args:
             config: Configuration for this progress operation
         """
+        super().__init__()
         self.config = config
         self.start_time = time.time()
         self.last_update_time = 0.0
@@ -285,9 +286,9 @@ class ProgressManager:
     NotificationManager for consistent user experience.
     """
 
-    _instance: ProgressManager | None = None
-    _operation_stack: list[ProgressOperation] = []
-    _status_bar: QStatusBar | None = None
+    _instance: ClassVar[ProgressManager | None] = None
+    _operation_stack: ClassVar[list[ProgressOperation]] = []
+    _status_bar: ClassVar[QStatusBar | None] = None
 
     def __new__(cls) -> ProgressManager:
         """Implement singleton pattern."""
@@ -296,12 +297,13 @@ class ProgressManager:
         return cls._instance
 
     def __init__(self) -> None:
+        super().__init__()
         if hasattr(self, "_initialized"):
             return
 
         self._initialized = True
-        self._operation_stack = []
-        self._status_bar = NotificationManager.get_status_bar()
+        ProgressManager._operation_stack = []
+        ProgressManager._status_bar = NotificationManager.get_status_bar()
         logger.debug("ProgressManager initialized")
 
     @classmethod
@@ -411,14 +413,14 @@ class ProgressManager:
                 callback=operation.cancel if config.cancelable else None,
             )
         elif progress_type == ProgressType.STATUS_BAR:
-            operation.status_bar = instance._status_bar
+            operation.status_bar = cls._status_bar
             if operation.status_bar is not None:
                 try:
                     operation.status_bar.showMessage(config.title)
                 except RuntimeError:
                     # Status bar was deleted - clear reference
                     operation.status_bar = None
-                    instance._status_bar = None
+                    cls._status_bar = None
 
         logger.debug(
             f"Started progress operation: {config.title} (type: {progress_type.name})"

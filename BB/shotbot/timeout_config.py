@@ -6,6 +6,7 @@ dealing with network file systems, large data sets, and heavy applications.
 
 # Standard library imports
 import os
+from typing import cast
 
 
 class TimeoutConfig:
@@ -77,19 +78,20 @@ class TimeoutConfig:
         """
         # Scale all class attributes that are timeout values
         for attr_name in dir(cls):
-            attr_value = getattr(cls, attr_name)  # type: ignore[misc]
+            # Use cast to provide explicit type hint for getattr result
+            attr_value: object = cast("object", getattr(cls, attr_name))
             if (
                 not attr_name.startswith("_")
-                and not callable(attr_value)  # type: ignore[arg-type]
+                and not callable(attr_value)
                 and attr_name.isupper()
             ):
-                value = attr_value  # type: ignore[misc]
-                if isinstance(value, int | float):
+                # Type narrowing via isinstance check - value is now int | float
+                if isinstance(attr_value, int | float):
                     # Don't scale millisecond values directly, they have _MS suffix
                     if attr_name.endswith("_MS"):
-                        setattr(cls, attr_name, int(value * factor))  # pyright: ignore[reportConstantRedefinition]
+                        setattr(cls, attr_name, int(attr_value * factor))
                     else:
-                        setattr(cls, attr_name, int(value * factor))  # pyright: ignore[reportConstantRedefinition]
+                        setattr(cls, attr_name, int(attr_value * factor))
 
     @classmethod
     def optimize_for_network_latency(cls, latency_ms: int) -> None:

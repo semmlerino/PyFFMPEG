@@ -1,8 +1,10 @@
 """Refresh orchestrator for coordinating refresh operations across tabs."""
 
+# pyright: reportExplicitAny=false, reportAny=false
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
 from PySide6.QtCore import QObject, Signal
 
@@ -11,8 +13,28 @@ from notification_manager import NotificationManager
 from progress_manager import ProgressManager
 
 if TYPE_CHECKING:
-    from main_window import MainWindow
     from shot_model import Shot
+
+
+class RefreshOrchestratorMainWindowProtocol(Protocol):
+    """Protocol defining the MainWindow interface needed by RefreshOrchestrator.
+
+    This avoids circular imports while providing proper type safety.
+    Attributes are typed as Any because we cannot import MainWindow
+    without creating a circular dependency.
+    """
+
+    tab_widget: Any
+    shot_model: Any
+    threede_controller: Any
+    previous_shots_model: Any
+    shot_item_model: Any
+    shot_grid: Any
+    last_selected_shot_name: str | None
+
+    def update_status(self, message: str) -> None:
+        """Update the status bar with a message."""
+        ...
 
 
 class RefreshOrchestrator(QObject, LoggingMixin):
@@ -27,7 +49,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
     refresh_started = Signal(int)  # tab_index
     refresh_finished = Signal(int, bool)  # tab_index, success
 
-    def __init__(self, main_window: MainWindow) -> None:
+    def __init__(self, main_window: RefreshOrchestratorMainWindowProtocol) -> None:
         """Initialize refresh orchestrator.
 
         Args:

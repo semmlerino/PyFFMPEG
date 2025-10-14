@@ -491,10 +491,8 @@ class TestProcessPoolManagerBehavior:
         manager.set_test_session(session)
 
         # First execution should handle error gracefully
-        try:
-            result = manager.execute_workspace_command("echo test")
-        except Exception as e:
-            assert "Connection lost" in str(e)
+        with pytest.raises(Exception, match="Connection lost"):
+            manager.execute_workspace_command("echo test")
 
         # Reset session to working state
         session.should_fail = False

@@ -6,7 +6,9 @@ refactoring preserves functionality.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from PySide6.QtCore import QPoint, QPointF, Qt
@@ -16,6 +18,15 @@ from config import Config
 from previous_shots_view import PreviousShotsView
 from shot_grid_view import ShotGridView
 from threede_grid_view import ThreeDEGridView
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+    from cache_manager import CacheManager
+    from previous_shots_item_model import PreviousShotsItemModel
+    from shot_item_model import ShotItemModel
+    from threede_item_model import ThreeDEItemModel
+    from type_definitions import Shot
 
 pytestmark = [
     pytest.mark.unit,
@@ -31,23 +42,25 @@ class TestSignal:
     __test__ = False  # Prevent pytest collection
 
     def __init__(self) -> None:
-        self.callbacks = []
+        self.callbacks: list[Callable[..., object]] = []
 
-    def connect(self, callback, connection_type=None) -> None:
+    def connect(
+        self, callback: Callable[..., object], connection_type: Qt.ConnectionType | None = None
+    ) -> None:
         self.callbacks.append(callback)
 
-    def emit(self, *args) -> None:
+    def emit(self, *args: object) -> None:
         for callback in self.callbacks:
             callback(*args)
 
 
 # Test fixtures following Factory Pattern (UNIFIED_TESTING_GUIDE)
 @pytest.fixture
-def make_shot():
+def make_shot() -> Callable[[str, str, str], Shot]:
     """Factory for creating test shots (UNIFIED_TESTING_GUIDE: Factory pattern)."""
 
-    def _make(show="TEST", seq="seq01", shot="0010"):
-        from shot_model import Shot
+    def _make(show: str = "TEST", seq: str = "seq01", shot: str = "0010") -> Shot:
+        from type_definitions import Shot
 
         # Use correct VFX path format
         return Shot(show, seq, shot, f"/shows/{show}/shots/{seq}/{seq}_{shot}")
@@ -56,10 +69,16 @@ def make_shot():
 
 
 @pytest.fixture
-def make_model(qtbot, make_shot, cache_manager):
+def make_model(
+    qtbot: QtBot,
+    make_shot: Callable[[str, str, str], Shot],
+    cache_manager: CacheManager,
+) -> Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel]:
     """Factory for creating test models with proper data."""
 
-    def _make(model_class_name, shots=None):
+    def _make(
+        model_class_name: str, shots: list[Shot] | None = None
+    ) -> ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel:
         if shots is None:
             shots = [make_shot()]
 
@@ -130,7 +149,11 @@ class TestCommonViewBehavior:
     """Test common behavior across all views per UNIFIED_TESTING_GUIDE."""
 
     def test_wheel_event_resizing(
-        self, view_class, model_class, qtbot, make_model
+        self,
+        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
+        model_class: str,
+        qtbot: QtBot,
+        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
     ) -> None:
         """Test Ctrl+wheel thumbnail resizing (UNIFIED_TESTING_GUIDE: Real events)."""
         # Create view with real model (not mocks)
@@ -204,7 +227,12 @@ class TestCommonViewBehavior:
         assert view._thumbnail_size == current_size  # Should not change
 
     def test_context_menu_exists(
-        self, view_class, model_class, qtbot, make_shot, make_model
+        self,
+        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
+        model_class: str,
+        qtbot: QtBot,
+        make_shot: Callable[[str, str, str], Shot],
+        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
     ) -> None:
         """Test that views have context menu support.
 
@@ -230,7 +258,11 @@ class TestCommonViewBehavior:
                 pytest.skip("ThreeDEGridView doesn't have context menu yet")
 
     def test_size_slider_functionality(
-        self, view_class, model_class, qtbot, make_model
+        self,
+        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
+        model_class: str,
+        qtbot: QtBot,
+        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
     ) -> None:
         """Test size slider range and value changes."""
         model = make_model(model_class)
@@ -264,7 +296,11 @@ class TestCommonViewBehavior:
         assert view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE
 
     def test_visibility_timer_updates(
-        self, view_class, model_class, qtbot, make_model
+        self,
+        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
+        model_class: str,
+        qtbot: QtBot,
+        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
     ) -> None:
         """Test visibility timer for lazy loading."""
         model = make_model(model_class)
@@ -305,7 +341,11 @@ class TestCommonViewBehavior:
                     assert view._visibility_timer.isActive()
 
     def test_focus_policy_consistency(
-        self, view_class, model_class, qtbot, make_model
+        self,
+        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
+        model_class: str,
+        qtbot: QtBot,
+        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
     ) -> None:
         """Test all views have consistent focus policy."""
         model = make_model(model_class)
@@ -316,7 +356,11 @@ class TestCommonViewBehavior:
         assert view.focusPolicy() == Qt.FocusPolicy.StrongFocus
 
     def test_show_filter_combo_exists(
-        self, view_class, model_class, qtbot, make_model
+        self,
+        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
+        model_class: str,
+        qtbot: QtBot,
+        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
     ) -> None:
         """Test that show filter combo box exists and is configured."""
         model = make_model(model_class)
@@ -334,7 +378,11 @@ class TestCommonViewBehavior:
         assert view.show_combo.itemText(0) == "All Shows"
 
     def test_loading_indicators_exist(
-        self, view_class, model_class, qtbot, make_model
+        self,
+        view_class: type[ShotGridView | ThreeDEGridView | PreviousShotsView],
+        model_class: str,
+        qtbot: QtBot,
+        make_model: Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel],
     ) -> None:
         """Test that loading indicators are properly configured."""
         model = make_model(model_class)

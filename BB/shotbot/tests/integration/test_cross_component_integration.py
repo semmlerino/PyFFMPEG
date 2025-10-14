@@ -13,7 +13,7 @@ from __future__ import annotations
 # Standard library imports
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Third-party imports
 import pytest
@@ -77,7 +77,7 @@ class TestCrossTabSynchronization:
                 if not window.isHidden():
                     window.close()
                     # Wait for window to close
-                    qtbot.waitUntil(lambda: window.isHidden(), timeout=2000)
+                    qtbot.waitUntil(lambda w=window: w.isHidden(), timeout=2000)
 
                 # Delete the window instance explicitly
                 window.deleteLater()
@@ -102,7 +102,7 @@ class TestCrossTabSynchronization:
         ProcessPoolManager._instance = None
 
     def test_shot_selection_syncs_info_panel_across_tabs(
-        self, qapp, qtbot: QtBot, tmp_path: Path
+        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Verify info panel updates when switching tabs with different selections.
 
@@ -250,7 +250,7 @@ class TestCrossTabSynchronization:
             assert window.shot_info_panel._current_shot == first_shot
 
     def test_show_filter_affects_all_tabs(
-        self, qapp, qtbot: QtBot, tmp_path: Path
+        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Test that show filtering propagates to all tabs correctly.
 
@@ -265,7 +265,7 @@ class TestCrossTabSynchronization:
 
         original_init_async = AsyncShotLoader.__init__
 
-        def no_op_init(self, *args, **kwargs) -> None:
+        def no_op_init(self: Any, *args: Any, **kwargs: Any) -> None:
             super(AsyncShotLoader, self).__init__()
             self._should_stop = True  # Mark as stopped immediately
 
@@ -351,7 +351,7 @@ class TestCacheUICoordination:
     """Test cache manager and UI synchronization."""
 
     @pytest.fixture(autouse=True)
-    def setup_and_teardown(self, qtbot: QtBot, tmp_path: Path) -> None:
+    def setup_and_teardown(self: TestCacheUICoordination, qtbot: QtBot, tmp_path: Path) -> None:
         """Clean up state between tests."""
         # Local application imports
         from process_pool_manager import ProcessPoolManager
@@ -386,7 +386,7 @@ class TestCacheUICoordination:
                 if not window.isHidden():
                     window.close()
                     # Wait for window to close
-                    qtbot.waitUntil(lambda: window.isHidden(), timeout=2000)
+                    qtbot.waitUntil(lambda w=window: w.isHidden(), timeout=2000)
 
                 # Delete the window instance explicitly
                 window.deleteLater()
@@ -409,7 +409,7 @@ class TestCacheUICoordination:
         ProcessPoolManager._instance = None
 
     def test_thumbnail_cache_updates_ui(
-        self, qapp, qtbot: QtBot, tmp_path: Path
+        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Verify thumbnail caching updates UI correctly.
 
@@ -478,7 +478,7 @@ class TestCacheUICoordination:
         assert str(shot.show) in str(cache_path)
 
     def test_cache_invalidation_refreshes_data(
-        self, qapp, qtbot: QtBot, tmp_path: Path
+        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Verify cache invalidation causes data refresh.
 
@@ -549,7 +549,7 @@ class TestErrorPropagationChains:
                 if not window.isHidden():
                     window.close()
                     # Wait for window to close
-                    qtbot.waitUntil(lambda: window.isHidden(), timeout=2000)
+                    qtbot.waitUntil(lambda w=window: w.isHidden(), timeout=2000)
 
                 # Delete the window instance explicitly
                 window.deleteLater()
@@ -572,7 +572,7 @@ class TestErrorPropagationChains:
         ProcessPoolManager._instance = None
 
     def test_subprocess_failure_handled_gracefully(
-        self, qapp, qtbot: QtBot, tmp_path: Path
+        self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
     ) -> None:
         """Verify subprocess failures are handled without crashing.
 
@@ -613,7 +613,7 @@ class TestErrorPropagationChains:
         # UI should still be responsive (not crashed)
         assert window.isVisible()
 
-    def test_timeout_handled_properly(self, qapp, qtbot: QtBot, tmp_path: Path) -> None:
+    def test_timeout_handled_properly(self, qapp: QApplication, qtbot: QtBot, tmp_path: Path) -> None:
         """Verify timeout errors are handled correctly.
 
         This tests that:

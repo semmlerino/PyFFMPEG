@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from re import Pattern
+from typing import ClassVar
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -43,7 +44,7 @@ class VersionHandlingMixin(LoggingMixin):
 
     # Secondary patterns for common version formats
     # These are tried if the primary pattern fails
-    FALLBACK_PATTERNS: list[Pattern[str]] = [
+    FALLBACK_PATTERNS: ClassVar[list[Pattern[str]]] = [
         re.compile(r"\.v(\d{3})"),  # .v001 format
         re.compile(r"_ver(\d{3})"),  # _ver001 format
         re.compile(r"\.(\d{4})\."),  # .0001. format (frame numbers)

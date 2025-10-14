@@ -8,7 +8,7 @@ import re
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Local application imports
 from config import Config
@@ -963,7 +963,7 @@ class VersionUtils:
     VERSION_PATTERN: re.Pattern[str] = re.compile(r"^v(\d{3})$")
 
     # Cache for version directory listings
-    _version_cache: dict[str, tuple[list[tuple[int, str]], float]] = {}
+    _version_cache: ClassVar[dict[str, tuple[list[tuple[int, str]], float]]] = {}
 
     @classmethod
     def clear_version_cache(cls) -> None:

@@ -269,24 +269,24 @@ reportMissingImports = "warning"
 reportMissingTypeStubs = "none"  # Third-party libraries often lack stubs
 reportUnnecessaryTypeIgnoreComment = "error"
 reportIgnoreCommentWithoutRule = "error"
-reportPrivateUsage = "warning"
+reportPrivateUsage = "error"  # ← UPGRADED: warning → error
 
 # Stricter type checking for better code quality
 reportUnknownMemberType = "error"
 reportUnknownArgumentType = "error"
 reportUnknownVariableType = "error"
-reportUnknownLambdaType = "warning"
+reportUnknownLambdaType = "error"  # ← UPGRADED: warning → error
 
 # Decorator and class type safety
-reportUntypedFunctionDecorator = "warning"
-reportUntypedClassDecorator = "warning"
+reportUntypedFunctionDecorator = "error"  # ← UPGRADED: warning → error
+reportUntypedClassDecorator = "error"     # ← UPGRADED: warning → error
 reportUntypedBaseClass = "error"
 reportUntypedNamedTuple = "error"
 
 # Code quality checks
-reportCallInDefaultInitializer = "warning"
+reportCallInDefaultInitializer = "error"  # ← UPGRADED: warning → error
 reportImplicitStringConcatenation = "none"  # Allow implicit concatenation
-reportMissingSuperCall = "warning"
+reportMissingSuperCall = "error"  # ← UPGRADED: warning → error
 reportPropertyTypeMismatch = "error"
 reportFunctionMemberAccess = "error"
 
@@ -301,3 +301,4 @@ reportUnusedCallResult = "none"  # Qt signal connections return values are often
 reportUnannotatedClassAttribute = "none"  # Qt Signal() class attributes
 reportImplicitOverride = "none"  # Qt event handlers implicitly override
 reportUnusedParameter = "none"  # Qt slots/callbacks often have unused parameters
+reportUnreachable = "none"  # Allow defensive checks for edge cases (headless environments, etc.)

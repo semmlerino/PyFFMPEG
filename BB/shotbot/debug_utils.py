@@ -17,7 +17,7 @@ import sys
 import time
 from contextlib import contextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -133,7 +133,7 @@ class TimingProfiler(LoggingMixin):
 class ProcessStateTracker(LoggingMixin):
     """Track process state transitions for debugging."""
 
-    STATES = [
+    STATES: ClassVar[list[str]] = [
         "INIT",
         "STARTING",
         "DRAINING",

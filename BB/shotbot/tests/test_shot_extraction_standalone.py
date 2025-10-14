@@ -30,11 +30,8 @@ def extract_shot_from_directory(shot_dir: str, sequence: str) -> str | None:
     else:
         # Fallback: use the last part after underscore
         shot_parts = shot_dir.rsplit("_", 1)
-        if len(shot_parts) == 2:
-            shot = shot_parts[1]
-        else:
-            # No underscore found, use whole name as shot
-            shot = shot_dir
+        # No underscore found, use whole name as shot
+        shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
 
     # Validate shot is not empty (critical bug fix)
     if not shot:

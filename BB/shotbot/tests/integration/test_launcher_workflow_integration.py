@@ -14,6 +14,7 @@ import shutil
 import tempfile
 import traceback
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 # Third-party imports
@@ -69,7 +70,7 @@ class TestLauncherWorkflowIntegration:
             pass  # Ignore cleanup errors
 
     @pytest.mark.slow
-    def test_launcher_manager_command_execution_integration(self, qtbot) -> None:
+    def test_launcher_manager_command_execution_integration(self, qtbot: Any) -> None:
         """Test launcher manager executing commands with process tracking."""
         # Create launcher manager with test config directory
         launcher_manager = LauncherManager(config_dir=self.config_dir)
@@ -92,10 +93,10 @@ class TestLauncherWorkflowIntegration:
         execution_started_signals = []
         execution_finished_signals = []
 
-        def on_execution_started(launcher_id) -> None:
+        def on_execution_started(launcher_id: str) -> None:
             execution_started_signals.append(launcher_id)
 
-        def on_execution_finished(launcher_id, success) -> None:
+        def on_execution_finished(launcher_id: str, success: bool) -> None:
             execution_finished_signals.append((launcher_id, success))
 
         launcher_manager.execution_started.connect(on_execution_started)
@@ -123,7 +124,7 @@ class TestLauncherWorkflowIntegration:
             assert len(execution_started_signals) == 1
             assert execution_started_signals[0] == launcher_id
 
-    def test_launcher_manager_process_tracking_integration(self, qtbot) -> None:
+    def test_launcher_manager_process_tracking_integration(self, qtbot: Any) -> None:
         """Test launcher manager process tracking and cleanup."""
         launcher_manager = LauncherManager(config_dir=self.config_dir)
 
@@ -192,14 +193,14 @@ class TestLauncherWorkflowIntegration:
             updated_count = launcher_manager.get_active_process_count()
             assert updated_count >= 0  # Just verify the method works
 
-    def test_launcher_manager_signal_emission_flow(self, qtbot) -> None:
+    def test_launcher_manager_signal_emission_flow(self, qtbot: Any) -> None:
         """Test complete signal emission flow during launcher execution."""
         launcher_manager = LauncherManager(config_dir=self.config_dir)
 
         # Track all signals
         signal_events = []
 
-        def track_signal(signal_name):
+        def track_signal(signal_name: str):
             def handler(*args) -> None:
                 signal_events.append((signal_name, args))
 
@@ -260,7 +261,7 @@ class TestLauncherWorkflowIntegration:
             assert added_events[0][1][0] == launcher_id  # launcher_id
 
     @pytest.mark.slow
-    def test_launcher_manager_concurrent_execution_integration(self, qtbot) -> None:
+    def test_launcher_manager_concurrent_execution_integration(self, qtbot: Any) -> None:
         """Test launcher manager handling multiple concurrent executions."""
         launcher_manager = LauncherManager(config_dir=self.config_dir)
 

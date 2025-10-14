@@ -316,8 +316,9 @@ class LauncherController(LoggingMixin):
             # Type-safe launch handling for union type (CommandLauncher | SimplifiedLauncher)
             # Check if launcher supports selected_plate parameter using inspect
             import inspect
+            from collections.abc import Callable as CallableABC
 
-            launcher_method = getattr(self.window.command_launcher, 'launch_app', None)
+            launcher_method: CallableABC[..., bool] | None = getattr(self.window.command_launcher, 'launch_app', None)
             if launcher_method is None or not callable(launcher_method):
                 success = False
             else:
@@ -603,7 +604,7 @@ class LauncherController(LoggingMixin):
         """
         for action in self.window.custom_launcher_menu.actions():
             submenu = action.menu()
-            if submenu is not None:
+            if submenu is not None:  # pyright: ignore[reportUnnecessaryComparison]  # PySide6 stubs incorrectly type menu() as QObject (non-optional), but it can be None at runtime
                 # Type checker doesn't know menu() returns QMenu, use cast for testability
                 # In production, this will always be QMenu; in tests, mocks work fine
                 submenu_typed = cast("QMenu", submenu)

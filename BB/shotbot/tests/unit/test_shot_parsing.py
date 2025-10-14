@@ -31,11 +31,7 @@ def test_shot_extraction() -> None:
         else:
             # Fallback: use the last part after underscore
             shot_parts = shot_dir.rsplit("_", 1)
-            if len(shot_parts) == 2:
-                shot = shot_parts[1]
-            else:
-                # No underscore found, use whole name as shot
-                shot = shot_dir
+            shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
 
         if shot != expected_shot:
             print(f"❌ FAILED: sequence={sequence}, shot_dir={shot_dir}")

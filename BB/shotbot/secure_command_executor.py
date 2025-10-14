@@ -14,6 +14,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
+from typing import ClassVar
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -23,7 +24,7 @@ class SecureCommandExecutor(LoggingMixin):
     """Secure command executor with whitelisting and validation."""
 
     # Strictly allowed executables (no bash/sh allowed)
-    ALLOWED_EXECUTABLES: set[str] = {
+    ALLOWED_EXECUTABLES: ClassVar[set[str]] = {
         "ws",  # Workspace command
         "echo",  # For testing/warming
         "pwd",  # Current directory
@@ -32,14 +33,14 @@ class SecureCommandExecutor(LoggingMixin):
     }
 
     # Allowed arguments for specific commands
-    ALLOWED_ARGUMENTS: dict[str, set[str]] = {
+    ALLOWED_ARGUMENTS: ClassVar[dict[str, set[str]]] = {
         "ws": {"-sg", "-list", "-info", "-path"},
         "ls": {"-l", "-la", "-1"},
         "find": {"-name", "-type", "-maxdepth", "-mindepth"},
     }
 
     # Strictly allowed base paths for file operations
-    ALLOWED_PATHS: list[str] = [
+    ALLOWED_PATHS: ClassVar[list[str]] = [
         "/shows",
         "/mnt/shows",
         "/mnt/projects",
@@ -48,7 +49,7 @@ class SecureCommandExecutor(LoggingMixin):
     ]
 
     # Dangerous patterns that should never appear in commands
-    DANGEROUS_PATTERNS: list[re.Pattern[str]] = [
+    DANGEROUS_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
         re.compile(r"[;&|`$]"),  # Shell metacharacters
         re.compile(r"\$\(.*\)"),  # Command substitution
         re.compile(r">\s*/dev/"),  # Device file redirection

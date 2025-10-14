@@ -604,8 +604,9 @@ class SettingsManager(LoggingMixin, QObject):
         """Import settings from JSON file."""
         try:
             with open(file_path) as f:
-                # json.load returns Any because JSON structure is dynamic
-                loaded_data = json.load(f)  # type: ignore[misc]
+                # json.load() is typed as returning Any in type stubs since JSON structure
+                # is dynamic. We annotate as object and immediately narrow with type guard.
+                loaded_data: object = json.load(f)  # pyright: ignore[reportAny]
 
             # Type guard: ensure we have a dict at the top level
             if not isinstance(loaded_data, dict):

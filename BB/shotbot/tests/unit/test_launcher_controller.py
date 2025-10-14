@@ -422,6 +422,11 @@ class TestApplicationLaunching:
         # Mock checkbox states
         target.launcher_panel.get_checkbox_state = Mock(return_value=False)
 
+        # Mock app_sections to be subscriptable
+        mock_nuke_section = Mock()
+        mock_nuke_section.get_selected_plate = Mock(return_value=None)
+        target.launcher_panel.app_sections = {"nuke": mock_nuke_section}
+
         controller.launch_app("nuke")
 
         # Verify command was issued
@@ -496,6 +501,11 @@ class TestApplicationLaunching:
 
         target.launcher_panel.get_checkbox_state = Mock(return_value=False)
 
+        # Mock app_sections to be subscriptable
+        mock_nuke_section = Mock()
+        mock_nuke_section.get_selected_plate = Mock(return_value=None)
+        target.launcher_panel.app_sections = {"nuke": mock_nuke_section}
+
         controller.launch_app("nuke")
 
         # Verify failure was handled
@@ -519,6 +529,11 @@ class TestApplicationLaunching:
                 ("nuke", "create_new_file"): True,
             }.get((app, opt), False)
         )
+
+        # Mock app_sections to be subscriptable - provide a plate for open_latest_scene
+        mock_nuke_section = Mock()
+        mock_nuke_section.get_selected_plate = Mock(return_value="plate_v001")
+        target.launcher_panel.app_sections = {"nuke": mock_nuke_section}
 
         controller.launch_app("nuke")
 

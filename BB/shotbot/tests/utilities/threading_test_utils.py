@@ -464,7 +464,7 @@ class ThreadingTestHelpers:
         except Exception as e:
             # Cleanup on error
             ThreadingTestHelpers._cleanup_workers(workers, cleanup_timeout_ms)
-            raise ThreadingTestError(f"Failed to create concurrent workers: {e}")
+            raise ThreadingTestError(f"Failed to create concurrent workers: {e}") from e
 
     @staticmethod
     def _cleanup_workers(workers: list[WorkerT], timeout_ms: int) -> None:

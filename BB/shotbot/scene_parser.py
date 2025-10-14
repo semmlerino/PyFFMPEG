@@ -6,19 +6,22 @@ patterns and parsing logic.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
+# pyright: reportImportCycles=false
+# Import cycle is broken at runtime by lazy imports in threede_scene_finder_optimized.py
+# and threede_scene_model.py. The TYPE_CHECKING import is only for type annotations.
 
 from __future__ import annotations
 
 # Standard library imports
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Local application imports
 from logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from threede_scene_model import ThreeDEScene  # Import for string literal type hint
+    from threede_scene_model import ThreeDEScene
 
 
 class SceneParser(LoggingMixin):
@@ -30,8 +33,8 @@ class SceneParser(LoggingMixin):
     """
 
     # Pre-compiled regex patterns for performance
-    _BG_FG_PATTERN = re.compile(r"^[bf]g\d{2}$", re.IGNORECASE)
-    _PLATE_PATTERNS = [
+    _BG_FG_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^[bf]g\d{2}$", re.IGNORECASE)
+    _PLATE_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
         re.compile(r"^[bf]g\d{2}$", re.IGNORECASE),
         re.compile(r"^plate_?\d+$", re.IGNORECASE),
         re.compile(r"^comp_?\d+$", re.IGNORECASE),
@@ -41,7 +44,7 @@ class SceneParser(LoggingMixin):
     ]
 
     # Optimize generic directories lookup with set
-    _GENERIC_DIRS = {
+    _GENERIC_DIRS: ClassVar[set[str]] = {
         "3de",
         "scenes",
         "scene",
@@ -151,11 +154,8 @@ class SceneParser(LoggingMixin):
             else:
                 # Fallback: use the last part after underscore
                 shot_parts = shot_dir.rsplit("_", 1)
-                if len(shot_parts) == 2:
-                    shot = shot_parts[1]
-                else:
-                    # No underscore found, use whole name as shot
-                    shot = shot_dir
+                # No underscore found, use whole name as shot
+                shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
 
             # Validate shot is not empty
             if not shot:

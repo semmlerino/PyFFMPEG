@@ -7,28 +7,28 @@ a unified interface while maintaining backward compatibility.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
+# pyright: reportImportCycles=false
+# Import cycles are broken at runtime by lazy imports in __init__ and switch_strategy.
+# The cycles exist at module level due to: scene_cache → threede_scene_model → threede_scene_finder
+# → threede_scene_finder_optimized → scene_discovery_coordinator → scene_cache (and similar chains
+# through filesystem_scanner and scene_parser). All imports are deferred to method execution time.
 
 from __future__ import annotations
 
 # Standard library imports
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Unpack
 
 # Local application imports
-from filesystem_scanner import FileSystemScanner
 from logging_mixin import LoggingMixin, log_execution
-from scene_cache import SceneCache
-from scene_discovery_strategy import (
-    create_discovery_strategy,
-)
-from scene_parser import SceneParser
 
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable, Generator
 
     # Local application imports
+    from scene_discovery_strategy import StrategyKwargs
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
@@ -49,7 +49,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
         strategy_type: str = "local",
         enable_caching: bool = True,
         cache_ttl: int = 1800,  # 30 minutes
-        **strategy_kwargs: object,
+        **strategy_kwargs: Unpack[StrategyKwargs],
     ) -> None:
         """Initialize scene discovery coordinator.
 
@@ -57,9 +57,16 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             strategy_type: Discovery strategy to use ("local", "parallel", "progressive", "network")
             enable_caching: Whether to enable result caching
             cache_ttl: Cache TTL in seconds
-            **strategy_kwargs: Additional arguments for strategy initialization
+            **strategy_kwargs: Additional arguments for strategy initialization (num_workers, network_timeout)
         """
         super().__init__()
+
+        # Lazy imports to break circular dependencies
+        # Import only when needed at runtime, not at module load time
+        from filesystem_scanner import FileSystemScanner
+        from scene_cache import SceneCache
+        from scene_discovery_strategy import create_discovery_strategy
+        from scene_parser import SceneParser
 
         # Core components
         self.scanner = FileSystemScanner()
@@ -423,13 +430,18 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             return self.cache.invalidate_show(show)
         return 0
 
-    def switch_strategy(self, strategy_type: str, **strategy_kwargs: object) -> None:
+    def switch_strategy(
+        self, strategy_type: str, **strategy_kwargs: Unpack[StrategyKwargs]
+    ) -> None:
         """Switch to a different discovery strategy.
 
         Args:
             strategy_type: New strategy type
-            **strategy_kwargs: Additional arguments for strategy initialization
+            **strategy_kwargs: Additional arguments for strategy initialization (num_workers, network_timeout)
         """
+        # Lazy import to break circular dependency
+        from scene_discovery_strategy import create_discovery_strategy
+
         old_strategy = self.strategy.get_strategy_name()
         self.strategy = create_discovery_strategy(strategy_type, **strategy_kwargs)
         self.logger.info(f"Switched strategy from {old_strategy} to {strategy_type}")
@@ -471,6 +483,7 @@ class RefactoredThreeDESceneFinder:
 
     def __init__(self, strategy_type: str = "local") -> None:
         """Initialize with backward compatible defaults."""
+        super().__init__()
         self._coordinator = SceneDiscoveryCoordinator(
             strategy_type=strategy_type,
             enable_caching=True,

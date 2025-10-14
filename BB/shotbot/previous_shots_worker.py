@@ -36,7 +36,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
         self,
         active_shots: list[Shot],
         username: str | None = None,
-        shows_root: Path = Path("/shows"),
+        shows_root: Path | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the worker thread.
@@ -44,13 +44,13 @@ class PreviousShotsWorker(ThreadSafeWorker):
         Args:
             active_shots: List of currently active shots to filter out.
             username: Username to search for (uses current if None).
-            shows_root: Root directory to search.
+            shows_root: Root directory to search (defaults to /shows).
             parent: parent QObject.
         """
         super().__init__(parent)
 
         self._active_shots = active_shots
-        self._shows_root = shows_root
+        self._shows_root = shows_root if shows_root is not None else Path("/shows")
 
         # Use new ParallelShotsFinder for improved performance
         self._finder = ParallelShotsFinder(username)  # Uses config defaults

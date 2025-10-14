@@ -6,6 +6,10 @@ invalidation strategies, and cache warming capabilities.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
+# pyright: reportImportCycles=false
+# Import cycle: scene_cache → threede_scene_model → threede_scene_finder → threede_scene_finder_optimized
+# → scene_discovery_coordinator → scene_cache (and similar chains through scene_discovery_strategy)
+# Broken at runtime by lazy imports in scene_discovery_coordinator.__init__() and scene_discovery_strategy.__init__()
 
 from __future__ import annotations
 
@@ -41,6 +45,7 @@ class SceneCacheEntry:
             timestamp: Creation timestamp
             ttl_seconds: Time-to-live in seconds
         """
+        super().__init__()
         self.scenes = scenes
         self.timestamp = timestamp
         self.ttl_seconds = ttl_seconds

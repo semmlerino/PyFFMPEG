@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -60,7 +60,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
     worker_error = Signal(str)
 
     # Valid state transitions
-    VALID_TRANSITIONS = {
+    VALID_TRANSITIONS: ClassVar[dict[WorkerState, list[WorkerState]]] = {
         WorkerState.CREATED: [WorkerState.STARTING, WorkerState.STOPPED],
         WorkerState.STARTING: [
             WorkerState.RUNNING,

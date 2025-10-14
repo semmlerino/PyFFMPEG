@@ -151,9 +151,10 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 try:
                     worker.scan_finished.disconnect()
                     worker.error_occurred.disconnect()
+                    # PreviousShotsWorker uses scan_progress, not progress
+                    # ThreeDESceneWorker uses progress signal
                     if hasattr(worker, "progress"):
-                        # Use pyright ignore for dynamic getattr with Any type
-                        worker.progress.disconnect()  # pyright: ignore[reportAny]
+                        worker.progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                 except (RuntimeError, TypeError):
                     pass  # Already disconnected
 

@@ -10,6 +10,7 @@ Following testing guide principles:
 import os
 import sys
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 # Third-party imports
@@ -30,7 +31,7 @@ class TestFeatureFlagBehavior:
     """Test feature flag behavior without MainWindow complexity."""
 
     @pytest.fixture(autouse=True)
-    def setup_and_teardown(self):
+    def setup_and_teardown(self) -> Generator[None, None, None]:
         """Set up test environment."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.cache_dir = Path(self.temp_dir.name)
@@ -182,7 +183,7 @@ class TestFeatureFlagBehavior:
                 self.requestInterruption()
                 self._running = False
 
-            def wait(self, timeout=None) -> bool:
+            def wait(self, timeout: int | None = None) -> bool:
                 self.wait_called = True
                 self._running = False
                 return True

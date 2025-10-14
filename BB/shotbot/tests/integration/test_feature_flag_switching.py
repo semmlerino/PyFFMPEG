@@ -4,6 +4,7 @@
 import os
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 # Third-party imports
@@ -25,6 +26,12 @@ from shot_model import Shot, ShotModel
 # Third-party imports
 from tests.test_doubles_library import TestCacheManager
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from PySide6.QtWidgets import QApplication
+    from pytestqt.qtbot import QtBot
+
 
 # Module-level fixture to handle lazy imports after Qt initialization
 @pytest.fixture(scope="module", autouse=True)
@@ -37,12 +44,12 @@ def setup_qt_imports() -> None:
 class ExtendedTestCacheManager(TestCacheManager):
     """Extended TestCacheManager with 3DE scene support."""
 
-    def __init__(self, cache_dir=None) -> None:
+    def __init__(self, cache_dir: Path | None = None) -> None:
         """Initialize with additional 3DE scene support."""
         super().__init__(cache_dir)
-        self._cached_threede_scenes = []
+        self._cached_threede_scenes: list = []
 
-    def get_cached_threede_scenes(self):
+    def get_cached_threede_scenes(self) -> list:
         """Get cached 3DE scenes (for MainWindow compatibility)."""
         return self._cached_threede_scenes
 
@@ -58,7 +65,7 @@ class TestFeatureFlagSwitching:
     """Test feature flag switching between shot model implementations."""
 
     @pytest.fixture(autouse=True)
-    def setup_and_teardown(self, qtbot):
+    def setup_and_teardown(self, qtbot: "QtBot") -> "Generator[None, None, None]":
         """Set up test environment with qtbot."""
         self.qtbot = qtbot
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -66,7 +73,7 @@ class TestFeatureFlagSwitching:
         yield
         self.temp_dir.cleanup()
 
-    def test_standard_model_when_flag_not_set(self, qapp, qtbot) -> None:
+    def test_standard_model_when_flag_not_set(self, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that ShotModel is used when legacy flag is not set (default behavior)."""
         # Clear environment variable to use default
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
@@ -103,7 +110,7 @@ class TestFeatureFlagSwitching:
                             window._threede_worker.wait(1000)
                     window.close()
 
-    def test_legacy_model_when_flag_set(self, qapp, qtbot) -> None:
+    def test_legacy_model_when_flag_set(self, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that ShotModel is used when legacy flag is set."""
         # Set environment variable
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
@@ -136,7 +143,7 @@ class TestFeatureFlagSwitching:
             # Clean up environment
             os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
-    def test_flag_values_recognized(self, qapp, qtbot) -> None:
+    def test_flag_values_recognized(self, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that various flag values are recognized correctly for legacy model."""
         test_cases = [
             ("1", True),  # Use legacy ShotModel
@@ -322,7 +329,7 @@ class TestFeatureFlagSwitching:
                 self.stopped = True
                 self.is_running = False
 
-            def wait(self, timeout=None) -> bool:
+            def wait(self, timeout: int | None = None) -> bool:
                 self.waited = True
                 return True
 
@@ -385,12 +392,12 @@ class TestMainWindowIntegration:
     """Test MainWindow integration with different shot models."""
 
     @pytest.fixture(autouse=True)
-    def setup_and_teardown(self, qtbot) -> None:
+    def setup_and_teardown(self, qtbot: "QtBot") -> None:
         """Set up test environment with qtbot."""
         self.qtbot = qtbot
         return
 
-    def test_window_initialization_with_default_model(self, qapp, qtbot) -> None:
+    def test_window_initialization_with_default_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that MainWindow initializes correctly with default optimized model."""
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
@@ -424,7 +431,7 @@ class TestMainWindowIntegration:
                             window._threede_worker.wait(1000)
                     window.close()
 
-    def test_window_initialization_with_legacy_model(self, qapp, qtbot) -> None:
+    def test_window_initialization_with_legacy_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that MainWindow initializes correctly with legacy model."""
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
@@ -455,7 +462,7 @@ class TestMainWindowIntegration:
         finally:
             os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
-    def test_closeEvent_handles_optimized_model(self, qapp, qtbot) -> None:
+    def test_closeEvent_handles_optimized_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that closeEvent properly handles ShotModel cleanup (default behavior)."""
         # Use default ShotModel (no environment variable needed)
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)

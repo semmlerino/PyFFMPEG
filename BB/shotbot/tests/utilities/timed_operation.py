@@ -60,7 +60,7 @@ def timed_operation(
 class TimingRegistry:
     """Global registry for storing and analyzing timing results."""
 
-    _timings: dict[str, list[float]] = {}
+    _timings: dict[str, list[float]] = {}  # noqa: RUF012  # Intentional class-level mutable for singleton registry pattern
 
     @classmethod
     def add_timing(cls, operation: str, duration_ms: float) -> None:

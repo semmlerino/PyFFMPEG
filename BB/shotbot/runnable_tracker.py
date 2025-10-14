@@ -41,6 +41,7 @@ class QRunnableTracker:
 
     def __init__(self) -> None:
         """Initialize the tracker (only once)."""
+        super().__init__()
         with self._lock:
             if self._initialized:
                 return

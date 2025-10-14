@@ -11,7 +11,9 @@ from __future__ import annotations
 import contextlib
 
 # Standard library imports
-from typing import Any
+from collections.abc import Generator
+from pathlib import Path
+from typing import Any, ClassVar
 
 # Third-party imports
 import pytest
@@ -55,7 +57,7 @@ class TestProgressContext:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize test progress context."""
         self.args = args
         self.kwargs = kwargs
@@ -65,7 +67,7 @@ class TestProgressContext:
         """Enter context manager."""
         return self
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: Any, **kwargs: Any) -> None:
         """Exit context manager."""
 
     def update(self, value: int, message: str = "") -> None:
@@ -89,7 +91,7 @@ class TestProgressManager:
         self.operations: list[dict[str, Any]] = []
         self.active_operations: dict[str, TestProgressContext] = {}
 
-    def operation(self, *args, **kwargs) -> TestProgressContext:
+    def operation(self, *args: Any, **kwargs: Any) -> TestProgressContext:
         """Create a test progress context."""
         context = TestProgressContext(*args, **kwargs)
         return context
@@ -123,11 +125,11 @@ class TestNotificationManager:
     __test__ = False  # Prevent pytest from collecting this as a test class
 
     # Class-level storage for notifications
-    _notifications: list[dict[str, Any]] = []
+    _notifications: ClassVar[list[dict[str, Any]]] = []
 
     @classmethod
     def _record_notification(
-        cls, notif_type: str, title: str, message: str = "", **kwargs
+        cls, notif_type: str, title: str, message: str = "", **kwargs: Any
     ) -> None:
         """Record a notification."""
         cls._notifications.append(
@@ -167,7 +169,7 @@ class TestNotificationManager:
         )
 
     @classmethod
-    def get_last_notification(cls) -> dict[str, Any | None]:
+    def get_last_notification(cls) -> dict[str, Any] | None:
         """Get the last notification."""
         return cls._notifications[-1] if cls._notifications else None
 
@@ -192,7 +194,7 @@ class TestMessageBox:
             {"type": "warning", "parent": parent, "title": title, "message": message}
         )
 
-    def get_last_message(self) -> dict[str, Any | None]:
+    def get_last_message(self) -> dict[str, Any] | None:
         """Get the last message."""
         return self.messages[-1] if self.messages else None
 
@@ -202,13 +204,15 @@ class TestMessageBox:
 
 
 @pytest.fixture
-def real_cache_manager(tmp_path):
+def real_cache_manager(tmp_path: Path) -> CacheManager:
     """Real cache manager with temp storage."""
     return CacheManager(cache_dir=tmp_path / "cache")
 
 
 @pytest.fixture
-def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatch):
+def main_window_with_real_components(
+    qapp: Any, qtbot: Any, real_cache_manager: CacheManager, monkeypatch: Any
+) -> Generator[Any, None, None]:
     """MainWindow with real components, not mocked.
 
     FIXED: Added qapp fixture to ensure QApplication exists before creating widgets.
@@ -230,7 +234,7 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
     test_pool = TestProcessPoolManager()
     test_pool.set_outputs("workspace /test/path")
 
-    def mock_get_instance():
+    def mock_get_instance() -> TestProcessPoolManager:
         return test_pool
 
     # Mock at the system boundary - ProcessPoolManager singleton
@@ -330,7 +334,7 @@ def main_window_with_real_components(qapp, qtbot, real_cache_manager, monkeypatc
 class TestMainWindowUICoordination:
     """Test UI coordination and signal-slot connections."""
 
-    def test_window_initialization(self, main_window_with_real_components) -> None:
+    def test_window_initialization(self, main_window_with_real_components: Any) -> None:
         """Test that main window initializes with all components."""
         window = main_window_with_real_components
 
@@ -353,7 +357,7 @@ class TestMainWindowUICoordination:
         assert "nuke" in window.launcher_panel.app_sections
 
     def test_shot_selection_enables_launchers(
-        self, main_window_with_real_components, qtbot
+        self, main_window_with_real_components: Any, qtbot: Any
     ) -> None:
         """Test that selecting a shot enables launcher buttons."""
         window = main_window_with_real_components
@@ -377,7 +381,7 @@ class TestMainWindowUICoordination:
             assert section.launch_button.isEnabled()
 
     def test_tab_switching_updates_context(
-        self, main_window_with_real_components, qtbot
+        self, main_window_with_real_components: Any, qtbot: Any
     ) -> None:
         """Test that switching tabs updates the application context."""
         window = main_window_with_real_components
@@ -400,7 +404,7 @@ class TestMainWindowUICoordination:
         assert window.tab_widget.currentIndex() == 2
 
     def test_refresh_button_triggers_shot_refresh(
-        self, main_window_with_real_components, qtbot
+        self, main_window_with_real_components: Any, qtbot: Any
     ) -> None:
         """Test that refresh button triggers shot model refresh."""
         window = main_window_with_real_components
@@ -442,7 +446,7 @@ workspace /shows/test/shots/seq01/shot02""")
         )
 
     def test_launcher_execution_workflow(
-        self, main_window_with_real_components, qtbot, monkeypatch
+        self, main_window_with_real_components: Any, qtbot: Any, monkeypatch: Any
     ) -> None:
         """Test complete launcher execution workflow."""
         window = main_window_with_real_components
@@ -479,7 +483,7 @@ workspace /shows/test/shots/seq01/shot02""")
         assert executed_cmd is not None
 
     def test_error_handling_shows_message(
-        self, main_window_with_real_components, qtbot, monkeypatch
+        self, main_window_with_real_components: Any, qtbot: Any, monkeypatch: Any
     ) -> None:
         """Test that errors are properly displayed to user."""
         window = main_window_with_real_components
@@ -509,7 +513,7 @@ workspace /shows/test/shots/seq01/shot02""")
             # The specific notification type may vary based on implementation
 
     def test_signal_slot_connections_established(
-        self, main_window_with_real_components
+        self, main_window_with_real_components: Any
     ) -> None:
         """Test that all critical signal-slot connections are established."""
         window = main_window_with_real_components
@@ -541,7 +545,7 @@ workspace /shows/test/shots/seq01/shot02""")
             assert callable(window.launcher_manager.execution_finished.emit)
 
     def test_custom_launcher_integration(
-        self, main_window_with_real_components, qtbot
+        self, main_window_with_real_components: Any, qtbot: Any
     ) -> None:
         """Test custom launcher creation and execution."""
         window = main_window_with_real_components
@@ -574,7 +578,7 @@ workspace /shows/test/shots/seq01/shot02""")
         window.launcher_manager.delete_launcher(launcher_id)
 
     def test_settings_persistence(
-        self, main_window_with_real_components, qtbot, tmp_path
+        self, main_window_with_real_components: Any, qtbot: Any, tmp_path: Path
     ) -> None:
         """Test that settings are saved and restored correctly."""
         window = main_window_with_real_components
@@ -600,7 +604,7 @@ workspace /shows/test/shots/seq01/shot02""")
         assert window.shot_grid.size_slider.value() == test_size
 
     def test_progress_indication_during_operations(
-        self, main_window_with_real_components, qtbot
+        self, main_window_with_real_components: Any, qtbot: Any
     ) -> None:
         """Test that progress is shown during long operations."""
         window = main_window_with_real_components
@@ -612,7 +616,7 @@ workspace /shows/test/shots/seq01/shot02""")
         window.shot_model.refresh_started.emit()
 
         # Use waitUntil to check for refresh message - more robust than fixed timing
-        def status_contains_refresh_or_loading():
+        def status_contains_refresh_or_loading() -> bool:
             status = window.status_bar.currentMessage()
             return status and (
                 "refresh" in status.lower() or "loading" in status.lower()
@@ -627,7 +631,7 @@ workspace /shows/test/shots/seq01/shot02""")
         window.shot_model.refresh_finished.emit(True, False)
 
         # Wait for status to change
-        def status_changed():
+        def status_changed() -> bool:
             new_status = window.status_bar.currentMessage()
             return new_status != status_text
 
@@ -640,7 +644,7 @@ class TestMainWindowKeyboardShortcuts:
     """Test keyboard shortcuts and navigation."""
 
     def test_keyboard_shortcuts_work(
-        self, main_window_with_real_components, qtbot
+        self, main_window_with_real_components: Any, qtbot: Any
     ) -> None:
         """Test that keyboard shortcuts trigger correct actions."""
         window = main_window_with_real_components
@@ -672,7 +676,7 @@ class TestMainWindowKeyboardShortcuts:
         )
 
     def test_tab_navigation_with_keyboard(
-        self, main_window_with_real_components, qtbot
+        self, main_window_with_real_components: Any, qtbot: Any
     ) -> None:
         """Test tab navigation using keyboard."""
         window = main_window_with_real_components
@@ -696,7 +700,7 @@ class TestMainWindowErrorScenarios:
     """Test error handling and recovery."""
 
     def test_handles_shot_refresh_failure(
-        self, main_window_with_real_components, qtbot, monkeypatch
+        self, main_window_with_real_components: Any, qtbot: Any, monkeypatch: Any
     ) -> None:
         """Test graceful handling of shot refresh failures."""
         window = main_window_with_real_components
@@ -734,7 +738,7 @@ class TestMainWindowErrorScenarios:
                 assert len(error_notifications) > 0
 
     def test_handles_missing_cache_directory(
-        self, main_window_with_real_components, tmp_path
+        self, main_window_with_real_components: Any, tmp_path: Path
     ) -> None:
         """Test that missing cache directory is handled gracefully."""
         window = main_window_with_real_components

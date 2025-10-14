@@ -12,6 +12,9 @@ Performance improvements:
 - Directory caching with 5-minute TTL
 - Memory-efficient processing with generators
 """
+# pyright: reportImportCycles=false
+# Import cycle: threede_scene_finder → threede_scene_finder_optimized → threede_scene_model → threede_scene_finder
+# Broken at runtime by lazy import in threede_scene_model.refresh_scenes() at line 190
 
 from __future__ import annotations
 
@@ -20,17 +23,15 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Local application imports
-    from filesystem_scanner import DirectoryCache as DirectoryCache
+    from filesystem_scanner import DirectoryCache
 
 # Local application imports
 # Import the optimized implementation
+from filesystem_scanner import DirectoryCache
 from threede_scene_finder_optimized import OptimizedThreeDESceneFinder, logger
 
 # Re-export with original class name for backward compatibility
 ThreeDESceneFinder = OptimizedThreeDESceneFinder
-
-# Re-export DirectoryCache from filesystem_scanner for backward compatibility
-from filesystem_scanner import DirectoryCache as DirectoryCache
 
 # Note: ThreeDEScene should be imported from threede_scene_model directly
 # to avoid import cycles. It's not re-exported here.

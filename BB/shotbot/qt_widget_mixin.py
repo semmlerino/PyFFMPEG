@@ -34,7 +34,6 @@ if TYPE_CHECKING:
         QCloseEvent,
         QDragEnterEvent,
         QDropEvent,
-        QIcon,
         QKeyEvent,
     )
     from PySide6.QtWidgets import QProgressBar, QStyle
@@ -118,7 +117,7 @@ class QtWidgetMixin(LoggingMixin):
         self.save_window_geometry()
         # Subclasses can override to save additional state
         if hasattr(self, "save_state"):
-            save_state_method: Callable[[], None] = self.save_state
+            save_state_method = cast("Callable[[], None]", self.save_state)
             save_state_method()
 
     def create_context_menu(
@@ -155,8 +154,8 @@ class QtWidgetMixin(LoggingMixin):
                         "open": 5,  # QStyle.StandardPixmap.SP_DirOpenIcon
                     }
                     if icon_name in icon_map:
-                        style_method: Callable[[], QStyle] = self.style
-                        icon: QIcon = style_method().standardIcon(
+                        style_method = cast("Callable[[], QStyle]", self.style)
+                        icon = style_method().standardIcon(
                             QStyle.StandardPixmap(icon_map[icon_name])
                         )
                         action.setIcon(icon)
@@ -204,7 +203,7 @@ class QtWidgetMixin(LoggingMixin):
         """
         # Check if there are unsaved changes
         if hasattr(self, "has_unsaved_changes"):
-            has_unsaved: Callable[[], bool] = self.has_unsaved_changes
+            has_unsaved = cast("Callable[[], bool]", self.has_unsaved_changes)
             if has_unsaved():
                 # QMessageBox.question returns int (StandardButton enum value)
                 reply_int: int = cast(
@@ -223,7 +222,7 @@ class QtWidgetMixin(LoggingMixin):
 
                 if reply == QMessageBox.StandardButton.Save:
                     if hasattr(self, "save"):
-                        save_method: Callable[[], None] = self.save
+                        save_method = cast("Callable[[], None]", self.save)
                         save_method()
                     return True
                 return reply == QMessageBox.StandardButton.Discard
@@ -313,7 +312,7 @@ class QtWidgetMixin(LoggingMixin):
             self.logger.debug("Window closed successfully")
             # Call parent implementation to maintain MRO chain
             if hasattr(super(), "closeEvent"):
-                close_event_method: Callable[[QCloseEvent], None] = super().closeEvent
+                close_event_method = cast("Callable[[QCloseEvent], None]", super().closeEvent)
                 close_event_method(event)
         else:
             event.ignore()
@@ -323,15 +322,15 @@ class QtWidgetMixin(LoggingMixin):
         # Handle Escape key
         if event.key() == Qt.Key.Key_Escape:
             if hasattr(self, "cancel") and callable(getattr(self, "cancel", None)):
-                cancel_method: Callable[[], None] = self.cancel
+                cancel_method = cast("Callable[[], None]", self.cancel)
                 cancel_method()
             elif hasattr(self, "close"):
-                close_method: Callable[[], bool] = self.close
+                close_method = cast("Callable[[], bool]", self.close)
                 close_method()
 
         # Let parent handle other keys
         if hasattr(super(), "keyPressEvent"):
-            key_press_method: Callable[[QKeyEvent], None] = super().keyPressEvent
+            key_press_method = cast("Callable[[QKeyEvent], None]", super().keyPressEvent)
             key_press_method(event)
 
 

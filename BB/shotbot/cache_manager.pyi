@@ -4,7 +4,6 @@
 import threading
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
 # Third-party imports
 from PySide6.QtCore import QObject, QRunnable, Signal
@@ -16,7 +15,7 @@ from type_definitions import ShotDict, ThreeDESceneDict
 class ThumbnailCacheResult:
     """Stub for backward compatibility - no longer used in simplified implementation."""
 
-    future: Any | None
+    future: None
     path: Path | None
     is_complete: bool
     def __init__(self) -> None: ...

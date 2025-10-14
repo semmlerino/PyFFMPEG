@@ -52,10 +52,8 @@ if success:
         print("  " + "=" * 60)
 
         # Show first few sequences
-        seq_count = 0
-        for seq_name in sorted(sequences.keys()):
+        for seq_count, seq_name in enumerate(sorted(sequences.keys()), start=1):
             shots = sequences[seq_name]
-            seq_count += 1
 
             if seq_count <= 5:
                 # Show shot numbers

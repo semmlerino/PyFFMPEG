@@ -13,6 +13,12 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 from __future__ import annotations
 
+from collections.abc import Generator
+from pathlib import Path
+
+# Standard library imports
+from typing import TYPE_CHECKING
+
 # Third-party imports
 import pytest
 from PySide6.QtTest import QSignalSpy
@@ -30,6 +36,11 @@ from tests.test_doubles_library import TestCacheManager, TestProcessPool
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
+    from main_window import MainWindow
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -56,7 +67,7 @@ class TestBaseShotModelTextFiltering:
             Shot("show2", "seq5", "other_005", "/workspace/show2/seq5/other_005"),
         ]
 
-    def test_set_text_filter(self, mock_shot_model) -> None:
+    def test_set_text_filter(self, mock_shot_model: ShotModel) -> None:
         """Test setting the text filter."""
         # Initially no filter
         assert mock_shot_model.get_text_filter() is None
@@ -69,7 +80,7 @@ class TestBaseShotModelTextFiltering:
         mock_shot_model.set_text_filter(None)
         assert mock_shot_model.get_text_filter() is None
 
-    def test_get_filtered_shots_no_filter(self, mock_shot_model, test_shots) -> None:
+    def test_get_filtered_shots_no_filter(self, mock_shot_model: ShotModel, test_shots: list[Shot]) -> None:
         """Test getting filtered shots with no filter returns all shots."""
         mock_shot_model.shots = test_shots
 
@@ -78,7 +89,7 @@ class TestBaseShotModelTextFiltering:
         assert filtered == test_shots
 
     def test_get_filtered_shots_with_text_filter(
-        self, mock_shot_model, test_shots
+        self, mock_shot_model: ShotModel, test_shots: list[Shot]
     ) -> None:
         """Test getting filtered shots with text filter (case-insensitive)."""
         mock_shot_model.shots = test_shots
@@ -102,7 +113,7 @@ class TestBaseShotModelTextFiltering:
         assert filtered[0].shot == "other_005"
 
     def test_get_filtered_shots_case_insensitive(
-        self, mock_shot_model, test_shots
+        self, mock_shot_model: ShotModel, test_shots: list[Shot]
     ) -> None:
         """Test that text filtering is case-insensitive."""
         mock_shot_model.shots = test_shots
@@ -114,7 +125,7 @@ class TestBaseShotModelTextFiltering:
             assert len(filtered) == 3
             assert all("dm" in shot.shot.lower() for shot in filtered)
 
-    def test_get_filtered_shots_no_matches(self, mock_shot_model, test_shots) -> None:
+    def test_get_filtered_shots_no_matches(self, mock_shot_model: ShotModel, test_shots: list[Shot]) -> None:
         """Test filtering for text that doesn't match any shots returns empty list."""
         mock_shot_model.shots = test_shots
 
@@ -123,7 +134,7 @@ class TestBaseShotModelTextFiltering:
         assert len(filtered) == 0
 
     def test_get_filtered_shots_combined_filters(
-        self, mock_shot_model, test_shots
+        self, mock_shot_model: ShotModel, test_shots: list[Shot]
     ) -> None:
         """Test using both show filter and text filter together."""
         mock_shot_model.shots = test_shots
@@ -145,7 +156,7 @@ class TestBaseShotModelTextFiltering:
         assert filtered[0].shot == "other_005"
 
     def test_get_filtered_shots_filters_on_full_name(
-        self, mock_shot_model, test_shots
+        self, mock_shot_model: ShotModel, test_shots: list[Shot]
     ) -> None:
         """Test that filtering works on full_name property (sequence_shot)."""
         mock_shot_model.shots = test_shots
@@ -172,7 +183,7 @@ class TestThreeDESceneModelTextFiltering:
         return ThreeDESceneModel(cache_manager=TestCacheManager(), load_cache=False)
 
     @pytest.fixture
-    def test_scenes(self, tmp_path) -> list[ThreeDEScene]:
+    def test_scenes(self, tmp_path: Path) -> list[ThreeDEScene]:
         """Create test 3DE scenes with various names."""
         return [
             ThreeDEScene(
@@ -204,7 +215,7 @@ class TestThreeDESceneModelTextFiltering:
             ),
         ]
 
-    def test_set_text_filter(self, threede_scene_model) -> None:
+    def test_set_text_filter(self, threede_scene_model: ThreeDESceneModel) -> None:
         """Test setting the text filter on 3DE scene model."""
         assert threede_scene_model.get_text_filter() is None
 
@@ -215,7 +226,7 @@ class TestThreeDESceneModelTextFiltering:
         assert threede_scene_model.get_text_filter() is None
 
     def test_get_filtered_scenes_with_text_filter(
-        self, threede_scene_model, test_scenes
+        self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
     ) -> None:
         """Test filtering 3DE scenes by text."""
         threede_scene_model.scenes = test_scenes
@@ -233,7 +244,7 @@ class TestThreeDESceneModelTextFiltering:
         assert filtered[0].shot == "other_scene"
 
     def test_get_filtered_scenes_combined_filters(
-        self, threede_scene_model, test_scenes
+        self, threede_scene_model: ThreeDESceneModel, test_scenes: list[ThreeDEScene]
     ) -> None:
         """Test combining show and text filters for 3DE scenes."""
         threede_scene_model.scenes = test_scenes
@@ -258,7 +269,7 @@ class TestPreviousShotsModelTextFiltering:
         return model
 
     @pytest.fixture
-    def previous_shots_model(self, shot_model, qtbot) -> PreviousShotsModel:
+    def previous_shots_model(self, shot_model: ShotModel, qtbot: QtBot) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel."""
         model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager())
         yield model
@@ -275,7 +286,7 @@ class TestPreviousShotsModelTextFiltering:
         ]
 
     def test_previous_shots_text_filtering(
-        self, previous_shots_model, test_previous_shots
+        self, previous_shots_model: PreviousShotsModel, test_previous_shots: list[Shot]
     ) -> None:
         """Test filtering previous shots by text."""
         previous_shots_model._previous_shots = test_previous_shots
@@ -293,7 +304,7 @@ class TestPreviousShotsModelTextFiltering:
         assert filtered[0].shot == "other_020"
 
     def test_previous_shots_combined_filters(
-        self, previous_shots_model, test_previous_shots
+        self, previous_shots_model: PreviousShotsModel, test_previous_shots: list[Shot]
     ) -> None:
         """Test combining show and text filters for previous shots."""
         previous_shots_model._previous_shots = test_previous_shots
@@ -311,7 +322,7 @@ class TestBaseGridViewTextFilterUI:
     """Test Text filter UI in BaseGridView subclasses."""
 
     @pytest.fixture
-    def shot_item_model(self, qtbot) -> ShotItemModel:
+    def shot_item_model(self, qtbot: QtBot) -> Generator[ShotItemModel, None, None]:
         """Create ShotItemModel."""
         model = ShotItemModel(cache_manager=TestCacheManager())
         yield model
@@ -319,13 +330,13 @@ class TestBaseGridViewTextFilterUI:
         model.deleteLater()
 
     @pytest.fixture
-    def shot_grid_view(self, shot_item_model, qtbot) -> ShotGridView:
+    def shot_grid_view(self, shot_item_model: ShotItemModel, qtbot: QtBot) -> ShotGridView:
         """Create ShotGridView with model."""
         view = ShotGridView(model=shot_item_model)
         qtbot.addWidget(view)
         return view
 
-    def test_text_filter_widget_exists(self, shot_grid_view) -> None:
+    def test_text_filter_widget_exists(self, shot_grid_view: ShotGridView) -> None:
         """Test that text filter QLineEdit exists."""
         assert hasattr(shot_grid_view, "text_filter_input")
         assert isinstance(shot_grid_view.text_filter_input, QLineEdit)
@@ -335,7 +346,7 @@ class TestBaseGridViewTextFilterUI:
         )
         assert shot_grid_view.text_filter_input.isClearButtonEnabled()
 
-    def test_text_filter_signal_emission(self, shot_grid_view, qtbot) -> None:
+    def test_text_filter_signal_emission(self, shot_grid_view: ShotGridView, qtbot: QtBot) -> None:
         """Test that typing in filter emits signal."""
         signal_spy = QSignalSpy(shot_grid_view.text_filter_requested)
 
@@ -355,7 +366,7 @@ class TestBaseGridViewTextFilterUI:
         assert signal_spy.count() == 3
         assert signal_spy.at(2)[0] == ""
 
-    def test_text_filter_in_threede_view(self, qtbot) -> None:
+    def test_text_filter_in_threede_view(self, qtbot: QtBot) -> None:
         """Test that text filter also exists in ThreeDEGridView."""
         threede_item_model = ThreeDEItemModel(cache_manager=TestCacheManager())
         view = ThreeDEGridView(model=threede_item_model)
@@ -368,7 +379,7 @@ class TestBaseGridViewTextFilterUI:
         threede_item_model.clear_thumbnail_cache()
         threede_item_model.deleteLater()
 
-    def test_text_filter_in_previous_shots_view(self, qtbot) -> None:
+    def test_text_filter_in_previous_shots_view(self, qtbot: QtBot) -> None:
         """Test that text filter also exists in PreviousShotsView."""
         shot_model = ShotModel(cache_manager=TestCacheManager(), load_cache=False)
         shot_model._process_pool = TestProcessPool()
@@ -393,7 +404,7 @@ class TestMainWindowTextFilterHandlers:
     """Test Text filter signal handlers in MainWindow."""
 
     @pytest.fixture
-    def mock_main_window(self, qtbot, monkeypatch):
+    def mock_main_window(self, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch) -> MainWindow:
         """Create a mock MainWindow setup for testing text filter handlers."""
         # Local application imports
         from main_window import MainWindow
@@ -428,7 +439,7 @@ class TestMainWindowTextFilterHandlers:
         # Cleanup
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
 
-    def test_on_shot_text_filter_requested(self, mock_main_window) -> None:
+    def test_on_shot_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for My Shots text filter request."""
         # Local application imports
         from main_window import MainWindow
@@ -454,7 +465,7 @@ class TestMainWindowTextFilterHandlers:
         assert mock_main_window.shot_model.get_text_filter() is None
         assert mock_main_window.shot_item_model.rowCount() == 3
 
-    def test_on_previous_text_filter_requested(self, mock_main_window) -> None:
+    def test_on_previous_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for Previous Shots text filter request."""
         # Local application imports
         from main_window import MainWindow
@@ -475,7 +486,7 @@ class TestMainWindowTextFilterHandlers:
         assert mock_main_window.previous_shots_model.get_text_filter() == "dm"
         assert mock_main_window.previous_shots_item_model.rowCount() == 2
 
-    def test_text_and_show_filters_together(self, mock_main_window) -> None:
+    def test_text_and_show_filters_together(self, mock_main_window: MainWindow) -> None:
         """Test that text and show filters work together."""
         # Local application imports
         from main_window import MainWindow

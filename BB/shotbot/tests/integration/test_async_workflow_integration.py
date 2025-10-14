@@ -9,13 +9,19 @@ from __future__ import annotations
 # Standard library imports
 import sys
 import threading
+from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 # Third-party imports
 import pytest
 from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
+
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QApplication
+    from pytestqt.qtbot import QtBot
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -39,10 +45,10 @@ class TestAsyncWorkflowIntegration:
     """Test async workflows across multiple components."""
 
     @pytest.fixture
-    def temp_setup(self, tmp_path):
+    def temp_setup(self, tmp_path: Path) -> tuple[Path, list[Path]]:
         """Create temporary directory structure with test images."""
         # Create test thumbnails
-        thumbnails = []
+        thumbnails: list[Path] = []
         for i in range(3):
             thumbnail_path = tmp_path / f"thumbnail_{i}.jpg"
             image = QImage(128, 128, QImage.Format.Format_RGB32)
@@ -53,19 +59,21 @@ class TestAsyncWorkflowIntegration:
         return tmp_path, thumbnails
 
     @pytest.fixture
-    def test_shots(self, temp_setup, monkeypatch):
+    def test_shots(
+        self, temp_setup: tuple[Path, list[Path]], monkeypatch: pytest.MonkeyPatch
+    ) -> list[Shot]:
         """Create test shots with thumbnail paths."""
         tmp_path, thumbnails = temp_setup
 
-        shots = []
-        thumbnail_map = {}
+        shots: list[Shot] = []
+        thumbnail_map: dict[str, Path] = {}
         for i, thumbnail_path in enumerate(thumbnails):
             shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
             shots.append(shot)
             thumbnail_map[shot.full_name] = thumbnail_path
 
         # Mock get_thumbnail_path to return correct path for each shot
-        def mock_get_thumbnail(self):
+        def mock_get_thumbnail(self: Shot) -> Path | None:
             return thumbnail_map.get(self.full_name)
 
         monkeypatch.setattr(Shot, "get_thumbnail_path", mock_get_thumbnail)
@@ -73,7 +81,9 @@ class TestAsyncWorkflowIntegration:
         return shots
 
     @pytest.fixture
-    def integration_components(self, qapp, qtbot, temp_setup):
+    def integration_components(
+        self, qapp: QApplication, qtbot: QtBot, temp_setup: tuple[Path, list[Path]]
+    ) -> Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]]:
         """Create integrated components for testing."""
         tmp_path, _ = temp_setup
 
@@ -81,7 +91,7 @@ class TestAsyncWorkflowIntegration:
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 
         # Return factory function to create components in test context
-        def _create_components():
+        def _create_components() -> tuple[ShotItemModel, ShotInfoPanel, CacheManager]:
             # Create components - must be done in test method context
             item_model = ShotItemModel(cache_manager)
             info_panel = ShotInfoPanel(cache_manager)
@@ -93,7 +103,10 @@ class TestAsyncWorkflowIntegration:
         # Cleanup any created components if needed
 
     def test_shot_selection_with_async_thumbnail_loading(
-        self, integration_components, test_shots, qtbot
+        self,
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        test_shots: list[Shot],
+        qtbot: QtBot,
     ) -> None:
         """Test shot selection triggers async loading in both model and panel."""
         item_model, info_panel, _cache_manager = integration_components()
@@ -137,7 +150,10 @@ class TestAsyncWorkflowIntegration:
         info_panel.deleteLater()
 
     def test_concurrent_model_updates_with_panel_sync(
-        self, integration_components, test_shots, qtbot
+        self,
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        test_shots: list[Shot],
+        qtbot: QtBot,
     ) -> None:
         """Test model updates while panel is also loading asynchronously."""
         item_model, info_panel, _cache_manager = integration_components()
@@ -166,7 +182,10 @@ class TestAsyncWorkflowIntegration:
         # No crashes should occur despite concurrent operations
 
     def test_rapid_shot_changes_stress_test(
-        self, integration_components, test_shots, qtbot
+        self,
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        test_shots: list[Shot],
+        qtbot: QtBot,
     ) -> None:
         """Stress test rapid shot changes across components."""
         item_model, info_panel, _cache_manager = integration_components()
@@ -192,7 +211,10 @@ class TestAsyncWorkflowIntegration:
         assert info_panel._current_shot is not None
 
     def test_cache_coherence_across_components(
-        self, integration_components, test_shots, qtbot
+        self,
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        test_shots: list[Shot],
+        qtbot: QtBot,
     ) -> None:
         """Test cache coherence when multiple components access same thumbnails."""
         item_model, info_panel, cache_manager = integration_components()
@@ -203,10 +225,10 @@ class TestAsyncWorkflowIntegration:
         info_panel.set_shot(target_shot)
 
         # Track cache interactions
-        cache_calls = []
+        cache_calls: list[tuple[Any, ...]] = []
         original_cache_thumbnail = cache_manager.cache_thumbnail
 
-        def track_cache_calls(*args, **kwargs):
+        def track_cache_calls(*args: Any, **kwargs: Any) -> Any:
             cache_calls.append(args)
             return original_cache_thumbnail(*args, **kwargs)
 
@@ -223,7 +245,10 @@ class TestAsyncWorkflowIntegration:
             assert len(cache_calls) >= 0  # May be 0 if using test cache
 
     def test_memory_management_during_async_operations(
-        self, integration_components, test_shots, qtbot
+        self,
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        test_shots: list[Shot],
+        qtbot: QtBot,
     ) -> None:
         """Test memory management during concurrent async operations."""
         item_model, info_panel, _cache_manager = integration_components()
@@ -248,7 +273,11 @@ class TestAsyncWorkflowIntegration:
         assert info_panel._current_shot is None
 
     def test_error_propagation_across_components(
-        self, integration_components, test_shots, qtbot, monkeypatch
+        self,
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        test_shots: list[Shot],
+        qtbot: QtBot,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test error handling doesn't cascade between components."""
         item_model, info_panel, _cache_manager = integration_components()
@@ -259,7 +288,7 @@ class TestAsyncWorkflowIntegration:
         # Mock get_thumbnail_path to return nonexistent path for bad shot
         original_get_thumbnail = Shot.get_thumbnail_path
 
-        def mock_get_thumbnail(self):
+        def mock_get_thumbnail(self: Shot) -> Path | None:
             if self == bad_shot:
                 return Path("/nonexistent/image.jpg")
             return original_get_thumbnail(self)
@@ -298,7 +327,10 @@ class TestAsyncWorkflowIntegration:
         )
 
     def test_threading_safety_across_components(
-        self, integration_components, test_shots, qtbot
+        self,
+        integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
+        test_shots: list[Shot],
+        qtbot: QtBot,
     ) -> None:
         """Test thread safety when components operate concurrently."""
         item_model, info_panel, _cache_manager = integration_components()
@@ -338,7 +370,7 @@ class TestAsyncCallbackIntegration:
     """Test async callback integration scenarios."""
 
     def test_model_reset_during_async_callbacks(
-        self, qtbot, tmp_path, monkeypatch
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test model reset while async callbacks are in progress."""
         # Local application imports
@@ -354,7 +386,7 @@ class TestAsyncCallbackIntegration:
         model = ShotItemModel(cache_manager)
 
         # Mock get_thumbnail_path to return the test image
-        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)  # type: ignore[misc]
 
         try:
             # Create initial shots
@@ -385,7 +417,7 @@ class TestAsyncCallbackIntegration:
             model.deleteLater()
 
     def test_info_panel_shot_change_during_loading(
-        self, qtbot, tmp_path, monkeypatch
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test info panel shot changes while async loading is in progress."""
         # Create test image
@@ -399,11 +431,11 @@ class TestAsyncCallbackIntegration:
         qtbot.addWidget(panel)
 
         # Mock get_thumbnail_path to return the test image
-        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)
+        monkeypatch.setattr(Shot, "get_thumbnail_path", lambda self: image_path)  # type: ignore[misc]
 
         try:
             # Create test shots
-            shots = []
+            shots: list[Shot] = []
             for i in range(3):
                 shot = Shot(f"show_{i}", f"seq_{i}", f"shot_{i}", str(tmp_path))
                 shots.append(shot)

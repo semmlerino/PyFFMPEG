@@ -139,7 +139,7 @@ class ShotTestData(NamedTuple):
     shot: Shot
     workspace_path: Path
     thumbnail_path: Path | None = None
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] | None = None
 
 
 class ThreadSafeTestImage:
@@ -226,6 +226,7 @@ def create_test_shot_data(
     return ShotTestData(
         shot=shot_obj,
         workspace_path=workspace_path,
+        thumbnail_path=None,
         metadata={"created_for_test": True},
     )
 

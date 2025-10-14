@@ -14,13 +14,10 @@ from PySide6.QtWidgets import QApplication
 # Set up mock environment before importing ShotBot modules
 os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx/shows"
 os.environ["SHOTBOT_DEBUG"] = "1"
+os.environ["SHOTBOT_MOCK"] = "1"
 
 # Local application imports
 # Import ShotBot modules
-from process_pool_factory import (
-    ProcessPoolFactory,  # type: ignore[import-not-found]  # pyright: ignore[reportUnknownVariableType]
-)
-
 from main_window import MainWindow
 
 
@@ -108,8 +105,7 @@ def main() -> None:
     # Set offscreen platform for headless environment
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
-    # Enable mock mode in ProcessPoolFactory
-    ProcessPoolFactory.set_mock_mode(True)  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownMemberType]
+    # Mock mode already set via SHOTBOT_MOCK environment variable above
 
     app = QApplication(sys.argv)
 

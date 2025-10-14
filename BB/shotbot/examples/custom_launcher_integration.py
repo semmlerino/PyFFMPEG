@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Local application imports
 # Import the persistent terminal manager
-from persistent_terminal_manager import PersistentTerminalManager
+from persistent_terminal_manager import PersistentTerminalManager  # noqa: E402
 
 
 @dataclass
@@ -217,7 +217,7 @@ class CustomLauncherManager:
                 "error_message": str(e),
             }
 
-    def add_custom_launcher(self, launcher_id: str, launcher: Any) -> None:
+    def add_custom_launcher(self, launcher_id: str, launcher: Launcher) -> None:
         """Add a new custom launcher."""
         self.custom_launchers[launcher_id] = launcher
 

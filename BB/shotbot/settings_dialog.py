@@ -866,10 +866,10 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
                     # Cast to dict[str, Any] to resolve unknown types
                     parsed_dict = cast("dict[str, Any]", parsed_data)  # pyright: ignore[reportExplicitAny]
                     launchers = (
-                        [{str(k): v for k, v in parsed_dict.items()}]
+                        [{str(k): v for k, v in parsed_dict.items()}]  # pyright: ignore[reportAny]
                         if parsed_dict
                         else []
-                    )  # pyright: ignore[reportAny]
+                    )
                 self.settings_manager.set_custom_launchers(launchers)
         except json.JSONDecodeError:
             self.logger.warning(

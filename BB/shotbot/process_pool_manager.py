@@ -54,11 +54,8 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
     "yes",
 )
 if DEBUG_VERBOSE:
-    # ContextualLogger doesn't have setLevel, need to access underlying logger
-    if hasattr(logger, "_logger"):
-        # Access underlying logger directly
-        underlying_logger: logging.Logger = logger._logger  # type: ignore[attr-defined]
-        underlying_logger.setLevel(logging.DEBUG)
+    # Set debug level for verbose logging
+    logger.setLevel(logging.DEBUG)
     logger.info("VERBOSE DEBUG MODE ENABLED for ProcessPoolManager")
 
 # Setup enhanced debugging if available

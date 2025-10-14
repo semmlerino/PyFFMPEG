@@ -183,10 +183,11 @@ class ThreeDESceneModel:
         Returns:
             (success, has_changes) - whether refresh succeeded and if scenes changed
         """
-        # Local application imports
-        from threede_scene_finder import ThreeDESceneFinder
-
         try:
+            # Local application imports
+            # Lazy import to break circular dependency:
+            # scene_cache → threede_scene_model → threede_scene_finder → ... → scene_cache
+            from threede_scene_finder import ThreeDESceneFinder
             # Save current scenes for comparison
             old_scene_data = {
                 (scene.full_name, scene.user, scene.plate, str(scene.scene_path))

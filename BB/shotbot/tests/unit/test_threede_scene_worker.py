@@ -16,7 +16,7 @@ from __future__ import annotations
 # Standard library imports
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Third-party imports
 import pytest
@@ -49,11 +49,11 @@ class TestThreeDESceneFinder:
     __test__ = False  # Prevent pytest collection
 
     # Class-level data for static method calls
-    _class_scenes_to_return = []
-    _class_progressive_batches = []
-    _class_estimate_result = (0, 0)
-    _class_should_raise_error = False
-    _class_error_to_raise = None
+    _class_scenes_to_return: ClassVar[list[ThreeDEScene]] = []
+    _class_progressive_batches: ClassVar[list[tuple[list[ThreeDEScene], int, int, str]]] = []
+    _class_estimate_result: ClassVar[tuple[int, int]] = (0, 0)
+    _class_should_raise_error: ClassVar[bool] = False
+    _class_error_to_raise: ClassVar[Exception | None] = None
 
     def __init__(self) -> None:
         self.find_scenes_calls = []
@@ -93,82 +93,6 @@ class TestThreeDESceneFinder:
         TestThreeDESceneFinder._class_should_raise_error = True
         TestThreeDESceneFinder._class_error_to_raise = error
 
-    def find_scenes_for_shot(
-        self,
-        workspace_path: str,
-        show: str,
-        sequence: str,
-        shot: str,
-        excluded_users: set[str | None] | None = None,
-    ) -> list[ThreeDEScene]:
-        """Test double implementation with realistic behavior."""
-        # Record the call
-        self.find_scenes_calls.append(
-            {
-                "workspace_path": workspace_path,
-                "show": show,
-                "sequence": sequence,
-                "shot": shot,
-                "excluded_users": excluded_users,
-            }
-        )
-
-        # Handle error injection
-        if self._should_raise_error:
-            self._should_raise_error = False
-            error = self._error_to_raise
-            self._error_to_raise = None
-            raise error
-
-        # Return configured scenes
-        return self._scenes_to_return.copy()
-
-    def find_all_scenes_progressive(
-        self,
-        shot_tuples: list[tuple[str, str, str, str]],
-        excluded_users: set[str],
-        batch_size: int,
-    ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
-        """Progressive scanning test double."""
-        self.progressive_calls.append(
-            {
-                "shot_tuples": shot_tuples,
-                "excluded_users": excluded_users,
-                "batch_size": batch_size,
-            }
-        )
-
-        # Yield configured batches
-        yield from self._progressive_batches
-
-    def estimate_scan_size(
-        self, shot_tuples: list[tuple[str, str, str, str]], excluded_users: set[str]
-    ) -> tuple[int, int]:
-        """Estimate scan size test double."""
-        self.estimate_calls.append(
-            {"shot_tuples": shot_tuples, "excluded_users": excluded_users}
-        )
-
-        return self._estimate_result
-
-    def find_all_scenes_in_shows_efficient(
-        self, user_shots: list[Shot], excluded_users: set[str]
-    ) -> list[ThreeDEScene]:
-        """Efficient scene finding test double."""
-        # For "scan all shots" mode, return configured scenes
-        return self._scenes_to_return.copy()
-
-    def discover_all_shots_in_show(
-        self, show_root: str, show: str
-    ) -> list[tuple[str, str, str, str]]:
-        """Discover shots in a show test double."""
-        # Return basic shot tuples for traditional discovery
-        # Format: (workspace_path, show, sequence, shot)
-        return [
-            (f"{show_root}/{show}/seq01/0010", show, "seq01", "0010"),
-            (f"{show_root}/{show}/seq01/0020", show, "seq01", "0020"),
-        ]
-
     @classmethod
     def find_all_scenes_progressive(
         cls,
@@ -176,7 +100,7 @@ class TestThreeDESceneFinder:
         excluded_users: set[str],
         batch_size: int,
     ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
-        """Class method version for progressive scanning."""
+        """Progressive scanning test double (class method version)."""
         # Yield configured batches from class data
         yield from cls._class_progressive_batches
 
@@ -184,21 +108,21 @@ class TestThreeDESceneFinder:
     def estimate_scan_size(
         cls, shot_tuples: list[tuple[str, str, str, str]], excluded_users: set[str]
     ) -> tuple[int, int]:
-        """Class method version for scan size estimation."""
+        """Estimate scan size test double (class method version)."""
         return cls._class_estimate_result
 
     @classmethod
     def find_all_scenes_in_shows_efficient(
         cls, user_shots: list[Shot], excluded_users: set[str]
     ) -> list[ThreeDEScene]:
-        """Class method version for efficient scene finding."""
+        """Efficient scene finding test double (class method version)."""
         return cls._class_scenes_to_return.copy()
 
     @classmethod
     def discover_all_shots_in_show(
         cls, show_root: str, show: str
     ) -> list[tuple[str, str, str, str]]:
-        """Class method version for shot discovery."""
+        """Discover shots in a show test double (class method version)."""
         return [
             (f"{show_root}/{show}/seq01/0010", show, "seq01", "0010"),
             (f"{show_root}/{show}/seq01/0020", show, "seq01", "0020"),
@@ -213,7 +137,7 @@ class TestThreeDESceneFinder:
         shot: str,
         excluded_users: set[str | None] | None = None,
     ) -> list[ThreeDEScene]:
-        """Class method version for scene finding."""
+        """Find scenes for shot test double (class method version)."""
         if cls._class_should_raise_error:
             cls._class_should_raise_error = False
             error = cls._class_error_to_raise
@@ -268,7 +192,7 @@ class TestProgressCalculator:
         calc = ProgressCalculator(smoothing_window=3)
 
         # Initial update - no ETA or minimal ETA
-        progress, eta = calc.update(10, total_estimate=100)
+        _progress, eta = calc.update(10, total_estimate=100)
         # Either no ETA or a valid ETA string
         assert eta == "" or "remaining" in eta
 

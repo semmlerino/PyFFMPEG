@@ -6,6 +6,10 @@ progressive discovery.
 
 Part of the Phase 2 refactoring to break down the monolithic scene finder.
 """
+# pyright: reportImportCycles=false
+# Import cycles are broken at runtime through lazy imports in scene_discovery_coordinator.py
+# and scene_discovery_strategy.py. The module-level imports here only include standard library
+# and LoggingMixin. All local imports (FilesystemCoordinator, SceneParser) are lazy or TYPE_CHECKING.
 
 from __future__ import annotations
 
@@ -15,7 +19,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Local application imports
 from logging_mixin import LoggingMixin
@@ -152,7 +156,7 @@ class FileSystemScanner(LoggingMixin):
     CONCURRENT_THRESHOLD = 2000  # Use concurrent processing above this
 
     # Common excluded directories
-    EXCLUDED_DIRS = {
+    EXCLUDED_DIRS: ClassVar[set[str]] = {
         ".git",
         ".svn",
         ".hg",
@@ -306,7 +310,8 @@ class FileSystemScanner(LoggingMixin):
                 "-name",
                 "*.3DE",
                 ")",
-            ] + exclusions
+                *exclusions,
+            ]
 
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 

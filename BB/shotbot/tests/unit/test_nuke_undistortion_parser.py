@@ -4,7 +4,7 @@ Tests parsing logic for Nuke undistortion files including copy/paste format,
 standard format, Python code handling, and node name sanitization.
 """
 
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -21,7 +21,7 @@ class TestNukeUndistortionParser:
         assert result == ""
 
     @patch("pathlib.Path.exists")
-    def test_parse_undistortion_file_nonexistent(self, mock_exists) -> None:
+    def test_parse_undistortion_file_nonexistent(self, mock_exists: MagicMock) -> None:
         """Test parsing with non-existent file."""
         mock_exists.return_value = False
 
@@ -31,7 +31,9 @@ class TestNukeUndistortionParser:
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_copy_paste_format_detection(self, mock_file, mock_exists) -> None:
+    def test_parse_copy_paste_format_detection(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test detection of copy/paste format."""
         mock_exists.return_value = True
         copy_paste_content = """set cut_paste_input [stack 0]
@@ -51,7 +53,9 @@ Constant {
 
     @patch("nuke_undistortion_parser.Path")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_standard_format_fallback(self, mock_file, mock_path) -> None:
+    def test_parse_standard_format_fallback(
+        self, mock_file: MagicMock, mock_path: MagicMock
+    ) -> None:
         """Test fallback to standard format when copy/paste fails."""
         mock_path.return_value.exists.return_value = True
         mock_path.return_value.stat.return_value.st_size = 100
@@ -73,7 +77,9 @@ Constant {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_copy_paste_format_basic(self, mock_file, mock_exists) -> None:
+    def test_parse_copy_paste_format_basic(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test basic copy/paste format parsing."""
         mock_exists.return_value = True
         content = """set cut_paste_input [stack 0]
@@ -99,7 +105,9 @@ Lens {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_copy_paste_format_ypos_offset(self, mock_file, mock_exists) -> None:
+    def test_parse_copy_paste_format_ypos_offset(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test ypos offset adjustment in copy/paste format."""
         mock_exists.return_value = True
         content = """set cut_paste_input [stack 0]
@@ -118,7 +126,9 @@ Lens {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_copy_paste_format_python_block(self, mock_file, mock_exists) -> None:
+    def test_parse_copy_paste_format_python_block(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test Python block handling in copy/paste format."""
         mock_exists.return_value = True
         content = """set cut_paste_input [stack 0]
@@ -142,7 +152,9 @@ def test_function():
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_copy_paste_format_skip_root(self, mock_file, mock_exists) -> None:
+    def test_parse_copy_paste_format_skip_root(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test Root node skipping in copy/paste format."""
         mock_exists.return_value = True
         content = """set cut_paste_input [stack 0]
@@ -168,7 +180,9 @@ Lens {
 
     @patch("nuke_undistortion_parser.Path")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_standard_format_basic(self, mock_file, mock_path) -> None:
+    def test_parse_standard_format_basic(
+        self, mock_file: MagicMock, mock_path: MagicMock
+    ) -> None:
         """Test basic standard format parsing."""
         mock_path.return_value.exists.return_value = True
         mock_path.return_value.stat.return_value.st_size = 100
@@ -192,7 +206,7 @@ Lens {
     @patch("nuke_undistortion_parser.Path")
     @patch("builtins.open", new_callable=mock_open)
     def test_parse_standard_format_skip_window_layout(
-        self, mock_file, mock_path
+        self, mock_file: MagicMock, mock_path: MagicMock
     ) -> None:
         """Test window layout skipping in standard format."""
         mock_path.return_value.exists.return_value = True
@@ -221,7 +235,7 @@ Lens {
     @patch("nuke_undistortion_parser.Path")
     @patch("builtins.open", new_callable=mock_open)
     def test_parse_standard_format_python_dedentation(
-        self, mock_file, mock_path
+        self, mock_file: MagicMock, mock_path: MagicMock
     ) -> None:
         """Test Python code dedentation in standard format."""
         mock_path.return_value.exists.return_value = True
@@ -341,7 +355,9 @@ Lens {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_copy_paste_format_empty_file(self, mock_file, mock_exists) -> None:
+    def test_parse_copy_paste_format_empty_file(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test copy/paste format parsing with empty file."""
         mock_exists.return_value = True
         mock_file.return_value.read.return_value = ""
@@ -353,7 +369,7 @@ Lens {
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
     def test_parse_copy_paste_format_not_copy_paste(
-        self, mock_file, mock_exists
+        self, mock_file: MagicMock, mock_exists: MagicMock
     ) -> None:
         """Test copy/paste format parser with non-copy/paste content."""
         mock_exists.return_value = True
@@ -369,7 +385,9 @@ Lens {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_standard_format_empty_file(self, mock_file, mock_exists) -> None:
+    def test_parse_standard_format_empty_file(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test standard format parsing with empty file."""
         mock_exists.return_value = True
         mock_file.return_value.read.return_value = ""
@@ -379,7 +397,7 @@ Lens {
         assert result == ""
 
     @patch("pathlib.Path.exists")
-    def test_parse_standard_format_nonexistent_file(self, mock_exists) -> None:
+    def test_parse_standard_format_nonexistent_file(self, mock_exists: MagicMock) -> None:
         """Test standard format parsing with non-existent file."""
         mock_exists.return_value = False
 
@@ -391,7 +409,9 @@ Lens {
     @patch(
         "builtins.open", side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "invalid")
     )
-    def test_parse_standard_format_unicode_error(self, mock_file, mock_exists) -> None:
+    def test_parse_standard_format_unicode_error(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test standard format parsing with unicode decode error."""
         mock_exists.return_value = True
 
@@ -402,7 +422,7 @@ Lens {
     @patch("pathlib.Path.exists")
     @patch("builtins.open", side_effect=Exception("Unexpected error"))
     def test_parse_standard_format_unexpected_error(
-        self, mock_file, mock_exists
+        self, mock_file: MagicMock, mock_exists: MagicMock
     ) -> None:
         """Test standard format parsing with unexpected error."""
         mock_exists.return_value = True
@@ -413,7 +433,9 @@ Lens {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", side_effect=Exception("Unexpected error"))
-    def test_parse_copy_paste_format_exception(self, mock_file, mock_exists) -> None:
+    def test_parse_copy_paste_format_exception(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test copy/paste format parsing with exception."""
         mock_exists.return_value = True
 
@@ -423,7 +445,9 @@ Lens {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_complex_python_indentation(self, mock_file, mock_exists) -> None:
+    def test_parse_complex_python_indentation(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test complex Python code indentation handling."""
         mock_exists.return_value = True
         content = """set cut_paste_input [stack 0]
@@ -455,7 +479,9 @@ Lens {
 
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_parse_nested_braces_handling(self, mock_file, mock_exists) -> None:
+    def test_parse_nested_braces_handling(
+        self, mock_file: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test handling of nested braces in nodes."""
         mock_exists.return_value = True
         content = """set cut_paste_input [stack 0]
@@ -484,7 +510,7 @@ Lens {
     @patch("nuke_undistortion_parser.Path")
     @patch("builtins.open", new_callable=mock_open)
     def test_parse_undistortion_file_logs_appropriately(
-        self, mock_file, mock_path
+        self, mock_file: MagicMock, mock_path: MagicMock
     ) -> None:
         """Test that parse_undistortion_file handles both formats and logs appropriately."""
         mock_path.return_value.exists.return_value = True

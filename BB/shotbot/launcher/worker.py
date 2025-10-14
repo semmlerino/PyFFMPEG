@@ -167,14 +167,8 @@ class LauncherWorker(ThreadSafeWorker):
 
             # Parse command properly to avoid shell injection
             # Security: Parse and validate command to prevent injection
-            # Note: command is always str (type hint in __init__), but keeping
-            # this check for runtime safety in case it's used differently later
-            if isinstance(self.command, str):
-                # Sanitize and validate the command
-                cmd_list, use_shell = self._sanitize_command(self.command)
-            else:
-                cmd_list = self.command
-                use_shell = False
+            # Sanitize and validate the command
+            cmd_list, use_shell = self._sanitize_command(self.command)
 
             # Start the process
             # Use PIPE instead of DEVNULL to prevent deadlock with verbose applications

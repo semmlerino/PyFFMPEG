@@ -11,13 +11,10 @@ from __future__ import annotations
 
 # Standard library imports
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypedDict, Unpack
 
 # Local application imports
-from filesystem_scanner import FileSystemScanner
 from logging_mixin import LoggingMixin
-from scene_cache import SceneCache
-from scene_parser import SceneParser
 
 if TYPE_CHECKING:
     # Standard library imports
@@ -25,6 +22,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     # Local application imports
+    # Note: FileSystemScanner, SceneCache, SceneParser imported lazily in __init__
     from threede_scene_model import ThreeDEScene
 
 
@@ -39,6 +37,14 @@ class SceneDiscoveryStrategy(ABC, LoggingMixin):
     def __init__(self) -> None:
         """Initialize base strategy."""
         super().__init__()
+
+        # Lazy imports to break circular dependencies
+        # Cycle: scene_cache → threede_scene_model → threede_scene_finder →
+        # threede_scene_finder_optimized → scene_discovery_coordinator → scene_discovery_strategy → scene_cache
+        from filesystem_scanner import FileSystemScanner
+        from scene_cache import SceneCache
+        from scene_parser import SceneParser
+
         self.scanner = FileSystemScanner()
         self.parser = SceneParser()
         self.cache = SceneCache()
@@ -583,17 +589,29 @@ class NetworkAwareStrategy(SceneDiscoveryStrategy):
         return local_strategy.find_all_scenes_in_show(show_root, show, excluded_users)
 
 
+class StrategyKwargs(TypedDict, total=False):
+    """Type-safe kwargs for strategy creation.
+
+    Attributes:
+        num_workers: Number of parallel workers (for ParallelFileSystemStrategy)
+        network_timeout: Timeout for network operations in seconds (for NetworkAwareStrategy)
+    """
+
+    num_workers: int | None
+    network_timeout: int
+
+
 # Factory function for creating strategies
 def create_discovery_strategy(
-    strategy_type: str = "local", **kwargs: Any
+    strategy_type: str = "local", **kwargs: Unpack[StrategyKwargs]
 ) -> SceneDiscoveryStrategy:
     """Create a scene discovery strategy.
 
     Args:
         strategy_type: Type of strategy ("local", "parallel", "progressive", "network")
-        **kwargs: Additional arguments for strategy initialization
-            - For "parallel": num_workers (int | None)
-            - For "network": network_timeout (int)
+        **kwargs: Additional arguments for strategy initialization (see StrategyKwargs)
+            - num_workers: Number of parallel workers (for "parallel")
+            - network_timeout: Timeout for network operations (for "network")
 
     Returns:
         SceneDiscoveryStrategy instance
@@ -601,17 +619,19 @@ def create_discovery_strategy(
     Raises:
         ValueError: If strategy_type is not recognized
     """
-    strategies = {
-        "local": LocalFileSystemStrategy,
-        "parallel": ParallelFileSystemStrategy,
-        "progressive": ProgressiveDiscoveryStrategy,
-        "network": NetworkAwareStrategy,
-    }
-
-    if strategy_type not in strategies:
+    # Create strategy based on type with appropriate kwargs
+    if strategy_type == "local":
+        return LocalFileSystemStrategy()
+    elif strategy_type == "parallel":
+        num_workers = kwargs.get("num_workers")
+        return ParallelFileSystemStrategy(num_workers=num_workers)
+    elif strategy_type == "progressive":
+        return ProgressiveDiscoveryStrategy()
+    elif strategy_type == "network":
+        network_timeout = kwargs.get("network_timeout", 30)
+        return NetworkAwareStrategy(network_timeout=network_timeout)
+    else:
         raise ValueError(
-            f"Unknown strategy type: {strategy_type}. Available: {list(strategies.keys())}"
+            f"Unknown strategy type: {strategy_type}. "
+            f"Available: local, parallel, progressive, network"
         )
-
-    strategy_class = strategies[strategy_type]
-    return strategy_class(**kwargs)  # type: ignore[misc]

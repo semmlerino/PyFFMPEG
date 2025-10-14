@@ -207,7 +207,7 @@ def test_targeted_shot_finder() -> None:
 
     except Exception as e:
         print(f"  ❌ Error: {e}")
-        raise AssertionError(f"TargetedShotsFinder test failed: {e}")
+        raise AssertionError(f"TargetedShotsFinder test failed: {e}") from e
 
 
 def test_3de_scene_discovery() -> None:
@@ -272,7 +272,7 @@ def test_3de_scene_discovery() -> None:
 
     except Exception as e:
         print(f"  ❌ Error: {e}")
-        raise AssertionError(f"3DE scene discovery test failed: {e}")
+        raise AssertionError(f"3DE scene discovery test failed: {e}") from e
 
 
 def test_thumbnail_discovery() -> None:
@@ -298,7 +298,7 @@ def test_thumbnail_discovery() -> None:
 
     except Exception as e:
         print(f"  ❌ Error: {e}")
-        raise AssertionError(f"Thumbnail discovery test failed: {e}")
+        raise AssertionError(f"Thumbnail discovery test failed: {e}") from e
 
 
 def test_integration() -> None:
@@ -357,7 +357,7 @@ def test_integration() -> None:
 
     except Exception as e:
         print(f"  ❌ Integration error: {e}")
-        raise AssertionError(f"Pipeline integration test failed: {e}")
+        raise AssertionError(f"Pipeline integration test failed: {e}") from e
 
 
 def main() -> int:

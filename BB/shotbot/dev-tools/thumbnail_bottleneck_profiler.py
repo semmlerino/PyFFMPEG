@@ -440,7 +440,7 @@ class ThumbnailBottleneckProfiler:
             "recommendations": self._generate_ui_recommendations(blocking_operations),
         }
 
-    def _test_path_validation_batch(self):
+    def _test_path_validation_batch(self) -> int:
         """Test batch path validation performance."""
         paths: list[str | Path] = [f"/fake/path/{i}/test" for i in range(100)]
         if SHOTBOT_AVAILABLE:
@@ -449,7 +449,7 @@ class ThumbnailBottleneckProfiler:
             results = dict.fromkeys(paths, False)
         return len(results)
 
-    def _test_thumbnail_discovery_batch(self):
+    def _test_thumbnail_discovery_batch(self) -> int:
         """Test batch thumbnail discovery."""
         if not SHOTBOT_AVAILABLE:
             return 0
@@ -462,7 +462,7 @@ class ThumbnailBottleneckProfiler:
             count += 1
         return count
 
-    def _test_shot_parsing_batch(self):
+    def _test_shot_parsing_batch(self) -> int:
         """Test batch shot path parsing."""
         paths = [
             f"/shows/Show{i}/shots/0{i:02d}/0{i:02d}_00{j:02d}/user/test"
@@ -478,7 +478,7 @@ class ThumbnailBottleneckProfiler:
                 count += 1
         return count
 
-    def _test_cache_lookup_batch(self):
+    def _test_cache_lookup_batch(self) -> int:
         """Test batch cache lookups."""
         if not SHOTBOT_AVAILABLE:
             return 0

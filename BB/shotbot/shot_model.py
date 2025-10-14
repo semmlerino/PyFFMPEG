@@ -254,18 +254,19 @@ class ShotModel(BaseShotModel):
                 self._process_pool,
                 parse_function=self._parse_ws_output,  # Use base class's correct parsing
             )
-            # Signal.connect() cannot infer list element type from Signal(list)
+            # Signal.connect() cannot infer specific callable type from Signal(list)
+            # Qt signals use generic signatures, so slot methods appear as Any
             self._async_loader.shots_loaded.connect(
-                self._on_shots_loaded,
-                Qt.ConnectionType.QueuedConnection,  # pyright: ignore[reportAny]
+                self._on_shots_loaded,  # pyright: ignore[reportAny]
+                Qt.ConnectionType.QueuedConnection,
             )
             self._async_loader.load_failed.connect(
-                self._on_load_failed,
-                Qt.ConnectionType.QueuedConnection,  # pyright: ignore[reportAny]
+                self._on_load_failed,  # pyright: ignore[reportAny]
+                Qt.ConnectionType.QueuedConnection,
             )
             self._async_loader.finished.connect(
-                self._on_loader_finished,
-                Qt.ConnectionType.QueuedConnection,  # pyright: ignore[reportAny]
+                self._on_loader_finished,  # pyright: ignore[reportAny]
+                Qt.ConnectionType.QueuedConnection,
             )
 
             # Start background loading

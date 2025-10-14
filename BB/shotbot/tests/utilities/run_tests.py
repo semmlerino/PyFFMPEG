@@ -108,7 +108,7 @@ Examples:
 def build_pytest_args(args):
     """Build pytest arguments from parsed command line arguments."""
     pytest_args = [
-        "-v" if args.verbose else "-v",  # Always verbose for now
+        "-v",  # Always verbose for now
         "--tb=short",
         "-p",
         "no:xvfb",  # Keep xvfb disabled for WSL compatibility

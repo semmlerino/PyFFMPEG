@@ -361,14 +361,16 @@ class VFXStructureRecreator:
                     "type": "",
                     "name": "",
                 }
-                gabrielh_3de_paths: list[list[str]] = []
 
                 def find_gabrielh_3de_scenes(
                     node: NodeDict, path_parts: list[str] | None = None
-                ) -> None:
+                ) -> list[list[str]]:
                     """Recursively find gabriel-h 3DE scenes directories."""
                     if path_parts is None:
                         path_parts = []
+
+                    result: list[list[str]] = []
+
                     if node.get("type") == "dir":
                         current_path = [*path_parts, node["name"]]
 
@@ -380,14 +382,16 @@ class VFXStructureRecreator:
                             and "3de" in path_str
                             and "mm-default" in path_str
                         ):
-                            gabrielh_3de_paths.append(current_path)
+                            result.append(current_path)
 
                         # Recurse through children
                         children: list[NodeDict] = node.get("children", [])
                         for child in children:
-                            find_gabrielh_3de_scenes(child, current_path)
+                            result.extend(find_gabrielh_3de_scenes(child, current_path))
 
-                find_gabrielh_3de_scenes(structure)
+                    return result
+
+                gabrielh_3de_paths = find_gabrielh_3de_scenes(structure)
 
                 # Create 3DE files in each found scenes directory
                 for path_parts in gabrielh_3de_paths:

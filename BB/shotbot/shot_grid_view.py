@@ -156,11 +156,11 @@ class ShotGridView(BaseGridView):
     def populate_show_filter(self, shows: list[str] | object) -> None:
         """Populate the show filter combo box with available shows.
 
-        This override accepts either a list of show names or a BaseShotModel.
+        This override accepts either a list of show names or a model with get_available_shows().
         When passed a model, it extracts shows and delegates to base class.
 
         Args:
-            shows: Either a list of show names or a BaseShotModel to extract shows from
+            shows: Either a list of show names or a model with get_available_shows() method
         """
         # Handle list case (delegate to base with type narrowing)
         if isinstance(shows, list):
@@ -168,10 +168,12 @@ class ShotGridView(BaseGridView):
             shows_list: list[str] = shows  # pyright: ignore[reportUnknownVariableType]
             super().populate_show_filter(shows_list)
         else:
-            # Handle BaseShotModel case (extract shows and call base)
-            from base_shot_model import BaseShotModel
-
-            assert isinstance(shows, BaseShotModel)
+            # Handle model case (extract shows using duck typing)
+            # Use duck typing instead of isinstance for test compatibility
+            if not hasattr(shows, "get_available_shows"):
+                raise TypeError(
+                    f"Expected list[str] or object with get_available_shows() method, got {type(shows).__name__}"
+                )
             show_list = list(shows.get_available_shows())
             super().populate_show_filter(show_list)
             self.logger.info(f"Populated show filter with {len(show_list)} shows")

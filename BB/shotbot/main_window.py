@@ -232,10 +232,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.cache_manager = cache_manager or CacheManager()
 
         # Initialize cleanup and refresh managers (extracted from MainWindow)
-        # MainWindow implements MainWindowProtocol functionally at runtime
+        # MainWindow implements protocol interfaces functionally at runtime
         # QMainWindow signatures use position-only params which differ from Protocol
         self.cleanup_manager = CleanupManager(self)  # pyright: ignore[reportArgumentType]
-        self.refresh_orchestrator = RefreshOrchestrator(self)
+        self.refresh_orchestrator = RefreshOrchestrator(self)  # pyright: ignore[reportArgumentType]
 
         # Initialize settings manager
         self.settings_manager = SettingsManager()

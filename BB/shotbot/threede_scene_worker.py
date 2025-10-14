@@ -317,7 +317,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         try:
             # Call parent's run() which manages state and calls do_work()
-            super().run()  # type: ignore[reportAny]
+            super().run()  # pyright: ignore[reportAny]
         finally:
             # Ensure finished signal is emitted exactly once
             self._emit_finished_signal_once()
@@ -748,12 +748,11 @@ class ThreeDESceneWorker(ThreadSafeWorker):
                 )
 
                 # Search each discovered shot with periodic progress updates
-                shot_count = 0
-                for workspace_path, show_name, sequence, shot in all_shots:
+                for shot_count, (workspace_path, show_name, sequence, shot) in enumerate(
+                    all_shots, start=1
+                ):
                     if not self._check_pause_and_cancel():
                         break
-
-                    shot_count += 1
 
                     # Update progress every 10 shots to avoid too many signals
                     if shot_count % 10 == 0:

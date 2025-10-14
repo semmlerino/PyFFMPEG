@@ -55,77 +55,50 @@ class TestNukeLaunchHandler:
         self, nuke_handler, mock_shot
     ) -> None:
         """Test handling workspace scripts when opening latest."""
-        with (
-            patch.object(
-                nuke_handler.workspace_manager, "get_workspace_script_directory"
-            ) as mock_get_dir,
-            patch.object(
-                nuke_handler.workspace_manager, "find_latest_nuke_script"
-            ) as mock_find_latest,
-        ):
-            mock_get_dir.return_value = Path("/test/workspace/comp/nuke")
-            mock_find_latest.return_value = Path(
-                "/test/workspace/comp/nuke/TEST_0010_v001.nk"
-            )
+        with patch("nuke_launch_handler.PlateDiscovery.find_existing_scripts") as mock_find:
+            mock_find.return_value = [
+                (Path("/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"), 1)
+            ]
 
             options = {"open_latest_scene": True}
             command, messages = nuke_handler._handle_workspace_scripts(
-                mock_shot, "nuke", options
+                mock_shot, "nuke", options, "FG01"
             )
 
-            assert "/TEST_0010_v001.nk" in command
+            assert "TEST_0010_mm-default_FG01_scene_v001.nk" in command
             assert any("Opening existing Nuke script" in msg for msg in messages)
 
     def test_handle_workspace_scripts_create_new(self, nuke_handler, mock_shot) -> None:
         """Test handling workspace scripts when creating new."""
         with (
-            patch.object(
-                nuke_handler.workspace_manager, "get_workspace_script_directory"
-            ) as mock_get_dir,
-            patch.object(
-                nuke_handler.workspace_manager, "get_next_script_path"
-            ) as mock_get_next,
+            patch("nuke_launch_handler.PlateDiscovery.get_next_script_version") as mock_get_next,
             patch.object(nuke_handler, "_create_new_workspace_script") as mock_create,
         ):
-            mock_get_dir.return_value = Path("/test/workspace/comp/nuke")
-            mock_get_next.return_value = (
-                "/test/workspace/comp/nuke/TEST_0010_v002.nk",
-                2,
-            )
-            mock_create.return_value = "/test/workspace/comp/nuke/TEST_0010_v002.nk"
+            mock_get_next.return_value = 2
+            mock_create.return_value = "/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v002.nk"
 
             options = {"create_new_file": True}
             command, messages = nuke_handler._handle_workspace_scripts(
-                mock_shot, "nuke", options
+                mock_shot, "nuke", options, "FG01"
             )
 
-            assert "/TEST_0010_v002.nk" in command
-            assert any(
-                "Creating new Nuke script version: v002" in msg for msg in messages
-            )
+            assert "TEST_0010_mm-default_FG01_scene_v002.nk" in command
+            assert any("Creating new Nuke script for FG01" in msg for msg in messages)
 
     def test_handle_workspace_scripts_priority(self, nuke_handler, mock_shot) -> None:
         """Test that open_latest_scene takes priority over create_new_file."""
-        with (
-            patch.object(
-                nuke_handler.workspace_manager, "get_workspace_script_directory"
-            ) as mock_get_dir,
-            patch.object(
-                nuke_handler.workspace_manager, "find_latest_nuke_script"
-            ) as mock_find_latest,
-        ):
-            mock_get_dir.return_value = Path("/test/workspace/comp/nuke")
-            mock_find_latest.return_value = Path(
-                "/test/workspace/comp/nuke/TEST_0010_v001.nk"
-            )
+        with patch("nuke_launch_handler.PlateDiscovery.find_existing_scripts") as mock_find:
+            mock_find.return_value = [
+                (Path("/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"), 1)
+            ]
 
             options = {"open_latest_scene": True, "create_new_file": True}
             command, messages = nuke_handler._handle_workspace_scripts(
-                mock_shot, "nuke", options
+                mock_shot, "nuke", options, "FG01"
             )
 
             # Should open latest, not create new
-            assert "/TEST_0010_v001.nk" in command
+            assert "TEST_0010_mm-default_FG01_scene_v001.nk" in command
             assert any("Opening existing Nuke script" in msg for msg in messages)
             assert not any("Creating new" in msg for msg in messages)
 
@@ -277,55 +250,45 @@ class TestNukeLaunchHandler:
         """Test creating new workspace script with plate."""
         with (
             patch.object(
-                nuke_handler.raw_plate_finder, "find_latest_raw_plate"
+                nuke_handler.raw_plate_finder, "find_plate_for_space"
             ) as mock_find,
             patch.object(
                 nuke_handler.raw_plate_finder, "verify_plate_exists"
             ) as mock_verify,
             patch.object(
-                nuke_handler.script_generator, "create_workspace_plate_script"
+                nuke_handler.script_generator, "create_plate_directory_script"
             ) as mock_create,
         ):
             mock_find.return_value = "/test/plates/TEST_0010_v001.exr"
             mock_verify.return_value = True
-            mock_create.return_value = "/test/workspace/comp/nuke/TEST_0010_v001.nk"
+            mock_create.return_value = "/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"
 
             options = {"include_raw_plate": True}
-            result = nuke_handler._create_new_workspace_script(mock_shot, 1, options)
+            result = nuke_handler._create_new_workspace_script(mock_shot, 1, options, "FG01")
 
-            assert result == "/test/workspace/comp/nuke/TEST_0010_v001.nk"
+            assert result == "/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"
             mock_create.assert_called_once_with(
                 "/test/plates/TEST_0010_v001.exr",
                 "/test/workspace",
                 "TEST_0010",
+                "FG01",
                 version=1,
             )
 
     def test_create_new_workspace_script_empty(self, nuke_handler, mock_shot) -> None:
         """Test creating new empty workspace script."""
-        with (
-            patch.object(
-                nuke_handler.script_generator, "create_plate_script"
-            ) as mock_create,
-            patch.object(
-                nuke_handler.script_generator, "save_workspace_script"
-            ) as mock_save,
-            patch("builtins.open", create=True) as mock_open,
-        ):
-            mock_open.return_value.__enter__.return_value.read.return_value = (
-                "<nuke_script_content>"
-            )
-            mock_create.return_value = "/tmp/temp_script.nk"
-            mock_save.return_value = "/test/workspace/comp/nuke/TEST_0010_v001.nk"
+        with patch.object(
+            nuke_handler.script_generator, "create_empty_plate_script"
+        ) as mock_create:
+            mock_create.return_value = "/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"
 
             options = {}
-            result = nuke_handler._create_new_workspace_script(mock_shot, 1, options)
+            result = nuke_handler._create_new_workspace_script(mock_shot, 1, options, "FG01")
 
-            assert result == "/test/workspace/comp/nuke/TEST_0010_v001.nk"
-            mock_create.assert_called_once_with("", "TEST_0010")
-            mock_save.assert_called_once_with(
-                "<nuke_script_content>",
+            assert result == "/test/workspace/comp/nuke/FG01/TEST_0010_mm-default_FG01_scene_v001.nk"
+            mock_create.assert_called_once_with(
                 "/test/workspace",
                 "TEST_0010",
+                "FG01",
                 version=1,
             )

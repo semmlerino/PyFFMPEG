@@ -9,12 +9,18 @@ This refactored version:
 
 from __future__ import annotations
 
+# Standard library imports
+from typing import TYPE_CHECKING
+
 # Third-party imports
 import pytest
 
 # Local application imports
 from raw_plate_finder import RawPlateFinder
 from utils import VersionUtils
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
@@ -29,7 +35,7 @@ pytestmark = pytest.mark.unit
 class TestRawPlateFinder:
     """Test RawPlateFinder with real file operations."""
 
-    def test_find_latest_raw_plate_success(self, tmp_path, monkeypatch) -> None:
+    def test_find_latest_raw_plate_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test successfully finding the latest raw plate with real files."""
         # Create real directory structure
         shows_root = tmp_path / "shows"
@@ -73,7 +79,7 @@ class TestRawPlateFinder:
         assert "aces" in result  # Should detect color space
         assert "4312x2304" in result  # Should use highest resolution
 
-    def test_find_latest_raw_plate_bg_only(self, tmp_path, monkeypatch) -> None:
+    def test_find_latest_raw_plate_bg_only(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test finding BG plate when no FG plate exists."""
         # Create real directory structure
         shows_root = tmp_path / "shows"
@@ -101,7 +107,7 @@ class TestRawPlateFinder:
         assert "####" in result
         assert "aces" in result
 
-    def test_find_latest_raw_plate_no_plates(self, tmp_path, monkeypatch) -> None:
+    def test_find_latest_raw_plate_no_plates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test when no plate directories exist."""
         # Create workspace but no plates
         shows_root = tmp_path / "shows"
@@ -118,7 +124,7 @@ class TestRawPlateFinder:
         # Should return None when no plates found
         assert result is None
 
-    def test_find_latest_raw_plate_no_workspace(self, tmp_path, monkeypatch) -> None:
+    def test_find_latest_raw_plate_no_workspace(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test when workspace path doesn't exist."""
         shows_root = tmp_path / "shows"
         nonexistent_path = shows_root / "nonexistent" / "path"
@@ -132,7 +138,7 @@ class TestRawPlateFinder:
 
         assert result is None
 
-    def test_find_plate_file_pattern_standard(self, tmp_path) -> None:
+    def test_find_plate_file_pattern_standard(self, tmp_path: Path) -> None:
         """Test finding standard plate file pattern with underscore."""
         resolution_dir = tmp_path / "resolution"
         resolution_dir.mkdir()
@@ -157,7 +163,7 @@ class TestRawPlateFinder:
         assert "####" in result
         assert "FG01_aces" in result  # Standard format with underscore
 
-    def test_find_plate_file_pattern_alternative(self, tmp_path) -> None:
+    def test_find_plate_file_pattern_alternative(self, tmp_path: Path) -> None:
         """Test finding alternative plate file pattern without underscore."""
         resolution_dir = tmp_path / "resolution"
         resolution_dir.mkdir()
@@ -182,7 +188,7 @@ class TestRawPlateFinder:
         assert "####" in result
         assert "FG01aces" in result  # Alternative format without underscore
 
-    def test_find_plate_file_pattern_mixed_colorspaces(self, tmp_path) -> None:
+    def test_find_plate_file_pattern_mixed_colorspaces(self, tmp_path: Path) -> None:
         """Test discovering actual color space from files."""
         resolution_dir = tmp_path / "resolution"
         resolution_dir.mkdir()
@@ -207,7 +213,7 @@ class TestRawPlateFinder:
         assert "####" in result
         assert "FG01" in result
 
-    def test_find_plate_file_pattern_no_files(self, tmp_path) -> None:
+    def test_find_plate_file_pattern_no_files(self, tmp_path: Path) -> None:
         """Test when no matching files exist."""
         resolution_dir = tmp_path / "resolution"
         resolution_dir.mkdir()
@@ -222,7 +228,7 @@ class TestRawPlateFinder:
 
         assert result is None
 
-    def test_verify_plate_exists_with_real_files(self, tmp_path) -> None:
+    def test_verify_plate_exists_with_real_files(self, tmp_path: Path) -> None:
         """Test verifying plate exists with real matching files."""
         plate_dir = tmp_path / "plates"
         plate_dir.mkdir()
@@ -238,7 +244,7 @@ class TestRawPlateFinder:
 
         assert result is True
 
-    def test_verify_plate_exists_no_matching_files(self, tmp_path) -> None:
+    def test_verify_plate_exists_no_matching_files(self, tmp_path: Path) -> None:
         """Test verify when no matching files found."""
         plate_dir = tmp_path / "plates"
         plate_dir.mkdir()
@@ -268,7 +274,7 @@ class TestRawPlateFinder:
         result = RawPlateFinder.verify_plate_exists(None)
         assert result is False
 
-    def test_multiple_plates_priority(self, tmp_path, monkeypatch) -> None:
+    def test_multiple_plates_priority(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that FG plates are prioritized over BG plates with real files."""
         # Create real directory structure
         shows_root = tmp_path / "shows"
@@ -299,7 +305,7 @@ class TestRawPlateFinder:
         assert "FG01" in result
         assert "v001" in result  # Older version but FG01 has priority
 
-    def test_multiple_versions_selection(self, tmp_path, monkeypatch) -> None:
+    def test_multiple_versions_selection(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test selecting the latest version from multiple versions."""
         # Create real directory structure
         shows_root = tmp_path / "shows"
@@ -345,7 +351,7 @@ class TestRawPlateFinder:
         ],
     )
     def test_parametrized_version_discovery(
-        self, tmp_path, monkeypatch, version, plate_name, expected_version
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: str, plate_name: str, expected_version: str
     ) -> None:
         """Test version discovery with various plate and version combinations."""
         # Clear all caches for test isolation in parallel execution
@@ -379,7 +385,7 @@ class TestRawPlateFinder:
         assert result is not None
         assert expected_version in result
 
-    def test_multiple_resolutions_selection(self, tmp_path, monkeypatch) -> None:
+    def test_multiple_resolutions_selection(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test selecting the highest resolution from multiple options."""
         # Create real directory structure
         shows_root = tmp_path / "shows"
@@ -406,7 +412,7 @@ class TestRawPlateFinder:
         assert result is not None
         assert "4096x2304" in result
 
-    def test_pattern_caching(self, tmp_path) -> None:
+    def test_pattern_caching(self, tmp_path: Path) -> None:
         """Test that regex patterns are cached for performance."""
         # Clear cache first
         RawPlateFinder._pattern_cache.clear()
@@ -430,7 +436,7 @@ class TestRawPlateFinder:
         assert patterns3 is not patterns1
         assert len(RawPlateFinder._pattern_cache) == 2
 
-    def test_find_plate_with_special_characters(self, tmp_path, monkeypatch) -> None:
+    def test_find_plate_with_special_characters(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test finding plates with special characters in shot names."""
         # Create workspace with special characters
         shows_root = tmp_path / "shows"
@@ -453,7 +459,7 @@ class TestRawPlateFinder:
         assert "FG01" in result
         assert "seq01_shot01-fx" in result
 
-    def test_empty_version_directory(self, tmp_path, monkeypatch) -> None:
+    def test_empty_version_directory(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test handling version directory with no exr subdirectory."""
         # Create real directory structure
         shows_root = tmp_path / "shows"
@@ -477,7 +483,7 @@ class TestRawPlateFinder:
         # Should return None when no exr directory found
         assert result is None
 
-    def test_empty_resolution_directory(self, tmp_path, monkeypatch) -> None:
+    def test_empty_resolution_directory(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test handling resolution directory with no plate files."""
         # Create real directory structure
         shows_root = tmp_path / "shows"
@@ -518,7 +524,7 @@ class TestRawPlateFinder:
             else:
                 assert result is None
 
-    def test_pl01_turnover_plate_discovery(self, tmp_path, monkeypatch) -> None:
+    def test_pl01_turnover_plate_discovery(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test PL01 turnover plate discovery with film_lin colorspace.
 
         This test validates the exact production scenario reported by the user:
@@ -571,7 +577,7 @@ class TestRawPlateFinder:
             f"Result should contain expected pattern: {expected_pattern}"
         )
 
-    def test_pl01_priority_over_bg01(self, tmp_path, monkeypatch) -> None:
+    def test_pl01_priority_over_bg01(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that PL01 has higher priority than BG01 plates."""
         # Create workspace with both PL01 and BG01 plates
         shows_root = tmp_path / "shows"

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -130,7 +130,7 @@ class JSONMockStrategy(MockDataStrategy):
 
         try:
             with open(self.json_path) as f:
-                data = json.load(f)  # type: ignore[misc]  # JSON can return any structure
+                data: Any = json.load(f)  # pyright: ignore[reportAny, reportExplicitAny]
 
             shots: list[str] = []
             # Type narrow: data should be dict with "shots" key
@@ -206,7 +206,7 @@ class ProductionDataStrategy(MockDataStrategy):
 
         try:
             with open(self.capture_file) as f:
-                data = json.load(f)  # type: ignore[misc]  # JSON can return any structure
+                data: Any = json.load(f)  # pyright: ignore[reportAny, reportExplicitAny]
 
             shots: list[str] = []
 

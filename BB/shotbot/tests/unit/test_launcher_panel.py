@@ -16,6 +16,9 @@ Tests cover:
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
@@ -26,6 +29,9 @@ from PySide6.QtWidgets import QPushButton
 from launcher_panel import AppConfig, AppLauncherSection, CheckboxConfig, LauncherPanel
 from shot_model import Shot
 
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
@@ -35,7 +41,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_stat
 
 
 @pytest.fixture
-def make_app_config():
+def make_app_config() -> Callable[..., AppConfig]:
     """Factory fixture for creating AppConfig objects."""
 
     def _make(
@@ -61,7 +67,7 @@ def make_app_config():
 
 
 @pytest.fixture
-def make_checkbox_config():
+def make_checkbox_config() -> Callable[..., CheckboxConfig]:
     """Factory fixture for creating CheckboxConfig objects."""
 
     def _make(
@@ -81,7 +87,7 @@ def make_checkbox_config():
 
 
 @pytest.fixture
-def make_shot():
+def make_shot() -> Callable[..., Shot]:
     """Factory fixture for creating Shot objects."""
 
     def _make(
@@ -103,7 +109,9 @@ def make_shot():
 class TestAppLauncherSection:
     """Test AppLauncherSection widget behavior."""
 
-    def test_initialization_basic(self, qtbot, make_app_config) -> None:
+    def test_initialization_basic(
+        self, qtbot: QtBot, make_app_config: Callable[..., AppConfig]
+    ) -> None:
         """Test basic section initialization."""
         config = make_app_config(name="nuke", icon="🎨", color="#5d4d2b")
 
@@ -118,7 +126,10 @@ class TestAppLauncherSection:
         assert not section.launch_button.isEnabled()  # Disabled until shot selected
 
     def test_initialization_with_checkboxes(
-        self, qtbot, make_app_config, make_checkbox_config
+        self,
+        qtbot: QtBot,
+        make_app_config: Callable[..., AppConfig],
+        make_checkbox_config: Callable[..., CheckboxConfig],
     ) -> None:
         """Test section initialization with checkboxes."""
         checkbox_configs = [
@@ -139,7 +150,9 @@ class TestAppLauncherSection:
         assert section.checkboxes["opt1"].isChecked() is True
         assert section.checkboxes["opt2"].isChecked() is False
 
-    def test_launch_signal_emission(self, qtbot, make_app_config) -> None:
+    def test_launch_signal_emission(
+        self, qtbot: QtBot, make_app_config: Callable[..., AppConfig]
+    ) -> None:
         """Test launch_requested signal emission."""
         config = make_app_config(name="maya")
         section = AppLauncherSection(config, parent=None)
@@ -158,7 +171,9 @@ class TestAppLauncherSection:
         assert spy.count() == 1
         assert spy.at(0)[0] == "maya"
 
-    def test_enable_disable_functionality(self, qtbot, make_app_config) -> None:
+    def test_enable_disable_functionality(
+        self, qtbot: QtBot, make_app_config: Callable[..., AppConfig]
+    ) -> None:
         """Test enable/disable button functionality."""
         config = make_app_config()
         section = AppLauncherSection(config, parent=None)
@@ -175,7 +190,9 @@ class TestAppLauncherSection:
         section.set_enabled(False)
         assert not section.launch_button.isEnabled()
 
-    def test_expand_collapse_functionality(self, qtbot, make_app_config) -> None:
+    def test_expand_collapse_functionality(
+        self, qtbot: QtBot, make_app_config: Callable[..., AppConfig]
+    ) -> None:
         """Test expand/collapse behavior."""
         config = make_app_config()
         section = AppLauncherSection(config, parent=None)
@@ -201,7 +218,10 @@ class TestAppLauncherSection:
         assert section.expand_button.arrowType() == Qt.ArrowType.DownArrow
 
     def test_checkbox_state_retrieval(
-        self, qtbot, make_app_config, make_checkbox_config
+        self,
+        qtbot: QtBot,
+        make_app_config: Callable[..., AppConfig],
+        make_checkbox_config: Callable[..., CheckboxConfig],
     ) -> None:
         """Test checkbox state retrieval."""
         checkbox_configs = [
@@ -225,7 +245,9 @@ class TestAppLauncherSection:
         assert states["option_a"] is False
         assert states["option_b"] is True
 
-    def test_color_manipulation(self, qtbot, make_app_config) -> None:
+    def test_color_manipulation(
+        self, qtbot: QtBot, make_app_config: Callable[..., AppConfig]
+    ) -> None:
         """Test color lightening and darkening methods."""
         config = make_app_config(
             color="#808080"
@@ -260,7 +282,7 @@ class TestAppLauncherSection:
 class TestLauncherPanel:
     """Test LauncherPanel widget behavior."""
 
-    def test_initialization(self, qtbot) -> None:
+    def test_initialization(self, qtbot: QtBot) -> None:
         """Test basic panel initialization."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -272,7 +294,7 @@ class TestLauncherPanel:
         assert panel.group_box is not None
         assert panel.info_label is not None
 
-    def test_app_sections_created(self, qtbot) -> None:
+    def test_app_sections_created(self, qtbot: QtBot) -> None:
         """Test that all app sections are created correctly."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -285,7 +307,7 @@ class TestLauncherPanel:
             assert isinstance(section, AppLauncherSection)
             assert section.config.name == app_name
 
-    def test_app_launch_signal_propagation(self, qtbot) -> None:
+    def test_app_launch_signal_propagation(self, qtbot: QtBot) -> None:
         """Test that app launch signals are properly propagated."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -304,7 +326,9 @@ class TestLauncherPanel:
         assert spy.count() == 1
         assert spy.at(0)[0] == "nuke"
 
-    def test_shot_context_management(self, qtbot, make_shot) -> None:
+    def test_shot_context_management(
+        self, qtbot: QtBot, make_shot: Callable[..., Shot]
+    ) -> None:
         """Test shot context setting and UI updates."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -333,7 +357,9 @@ class TestLauncherPanel:
         for section in panel.app_sections.values():
             assert not section.launch_button.isEnabled()
 
-    def test_checkbox_state_access(self, qtbot, make_shot) -> None:
+    def test_checkbox_state_access(
+        self, qtbot: QtBot, make_shot: Callable[..., Shot]
+    ) -> None:
         """Test accessing checkbox states from specific apps."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -350,7 +376,9 @@ class TestLauncherPanel:
         assert panel.get_checkbox_state("nonexistent", "key") is False
         assert panel.get_checkbox_state("nuke", "nonexistent") is False
 
-    def test_custom_launcher_management(self, qtbot, make_shot) -> None:
+    def test_custom_launcher_management(
+        self, qtbot: QtBot, make_shot: Callable[..., Shot]
+    ) -> None:
         """Test custom launcher CRUD operations."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -384,7 +412,7 @@ class TestLauncherPanel:
         # Test removing non-existent launcher (should not crash)
         panel.remove_custom_launcher("nonexistent")
 
-    def test_update_custom_launchers(self, qtbot) -> None:
+    def test_update_custom_launchers(self, qtbot: QtBot) -> None:
         """Test batch updating custom launchers."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -416,7 +444,9 @@ class TestLauncherPanelIntegration:
     """Test launcher panel integration scenarios."""
 
     @pytest.mark.integration
-    def test_end_to_end_workflow(self, qtbot, make_shot) -> None:
+    def test_end_to_end_workflow(
+        self, qtbot: QtBot, make_shot: Callable[..., Shot]
+    ) -> None:
         """Test complete workflow from shot selection to app launch."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -445,7 +475,9 @@ class TestLauncherPanelIntegration:
         assert panel.get_checkbox_state("nuke", "include_raw_plate") is False
 
     @pytest.mark.integration
-    def test_multiple_app_sections_interaction(self, qtbot, make_shot) -> None:
+    def test_multiple_app_sections_interaction(
+        self, qtbot: QtBot, make_shot: Callable[..., Shot]
+    ) -> None:
         """Test interaction between multiple app sections."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -467,7 +499,9 @@ class TestLauncherPanelIntegration:
         assert launched_apps == ["3de", "maya", "rv"]
 
     @pytest.mark.integration
-    def test_section_state_independence(self, qtbot, make_shot) -> None:
+    def test_section_state_independence(
+        self, qtbot: QtBot, make_shot: Callable[..., Shot]
+    ) -> None:
         """Test that sections maintain independent state."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -486,7 +520,9 @@ class TestLauncherPanelIntegration:
                 assert section.is_expanded is True
 
     @pytest.mark.slow
-    def test_performance_with_many_operations(self, qtbot, make_shot) -> None:
+    def test_performance_with_many_operations(
+        self, qtbot: QtBot, make_shot: Callable[..., Shot]
+    ) -> None:
         """Test panel performance with many rapid operations."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)
@@ -511,7 +547,7 @@ class TestLauncherPanelIntegration:
 class TestLauncherPanelErrorHandling:
     """Test error handling and edge cases."""
 
-    def test_missing_config_properties(self, qtbot) -> None:
+    def test_missing_config_properties(self, qtbot: QtBot) -> None:
         """Test handling of incomplete AppConfig objects."""
         # Create minimal config
         minimal_config = AppConfig(name="minimal", command="cmd")
@@ -524,7 +560,9 @@ class TestLauncherPanelErrorHandling:
         assert section.config.color == "#2b3e50"
         assert section.config.checkboxes is None
 
-    def test_empty_checkbox_list(self, qtbot, make_app_config) -> None:
+    def test_empty_checkbox_list(
+        self, qtbot: QtBot, make_app_config: Callable[..., AppConfig]
+    ) -> None:
         """Test behavior with empty checkbox list."""
         config = make_app_config(checkboxes=[])
 
@@ -536,7 +574,7 @@ class TestLauncherPanelErrorHandling:
         states = section.get_checkbox_states()
         assert states == {}
 
-    def test_invalid_shot_context(self, qtbot) -> None:
+    def test_invalid_shot_context(self, qtbot: QtBot) -> None:
         """Test handling of various shot context values."""
         panel = LauncherPanel(parent=None)
         qtbot.addWidget(panel)

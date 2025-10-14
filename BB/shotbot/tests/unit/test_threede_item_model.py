@@ -6,6 +6,7 @@ and proper resource cleanup.
 """
 
 # Standard library imports
+from collections.abc import Callable
 from concurrent.futures import Future
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from pathlib import Path
 import pytest
 from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtGui import QImage
+from pytestqt.qtbot import QtBot
 
 # Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
@@ -24,7 +26,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_stat
 
 
 @pytest.fixture
-def model(qtbot):
+def model(qtbot: QtBot) -> ThreeDEItemModel:
     """Create a ThreeDEItemModel instance for testing."""
     # Use test double instead of Mock(spec=)
     cache_manager = TestCacheManager()
@@ -34,7 +36,7 @@ def model(qtbot):
 
 
 @pytest.fixture
-def test_scenes():
+def test_scenes() -> list[ThreeDEScene]:
     """Create test ThreeDEScene objects."""
     return [
         ThreeDEScene(
@@ -70,7 +72,9 @@ def test_scenes():
 class TestThreadSafety:
     """Test thread safety improvements in ThreeDEItemModel."""
 
-    def test_mutex_protection_on_cache_access(self, model, test_scenes) -> None:
+    def test_mutex_protection_on_cache_access(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
+    ) -> None:
         """Test that cache dictionary access is protected by mutex."""
         model.set_scenes(test_scenes)
 
@@ -92,7 +96,9 @@ class TestThreadSafety:
         assert model.rowCount() == 3
         assert len(model.scenes) == 3
 
-    def test_cache_size_limit_enforcement(self, model, qtbot) -> None:
+    def test_cache_size_limit_enforcement(
+        self, model: ThreeDEItemModel, qtbot: QtBot
+    ) -> None:
         """Test that cache size limit (MAX_CACHE_SIZE) is enforced."""
         # Create more scenes than MAX_CACHE_SIZE
         many_scenes = []
@@ -128,14 +134,16 @@ class TestThreadSafety:
         # Cache should not exceed MAX_CACHE_SIZE
         assert len(model._thumbnail_cache) <= 100
 
-    def test_concurrent_thumbnail_callbacks(self, model, test_scenes, qtbot) -> None:
+    def test_concurrent_thumbnail_callbacks(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene], qtbot: QtBot
+    ) -> None:
         """Test that concurrent thumbnail callbacks are handled safely."""
         model.set_scenes(test_scenes)
 
-        signals_received = []
+        signals_received: list[int] = []
 
         # Track signals directly from the model
-        def on_thumbnail_loaded(idx) -> None:
+        def on_thumbnail_loaded(idx: int) -> None:
             signals_received.append(idx)
 
         model.thumbnail_loaded.connect(on_thumbnail_loaded)
@@ -153,7 +161,9 @@ class TestThreadSafety:
         # triggers the thumbnail_loaded signal
         assert len(signals_received) >= 0  # At least no crash occurred
 
-    def test_cleanup_releases_resources(self, model, test_scenes) -> None:
+    def test_cleanup_releases_resources(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
+    ) -> None:
         """Test that cleanup() properly releases resources."""
         model.set_scenes(test_scenes)
 
@@ -177,14 +187,18 @@ class TestThreadSafety:
         # Timer should be stopped
         assert not model._thumbnail_timer.isActive()
 
-    def test_reset_during_loading(self, model, test_scenes, qtbot) -> None:
+    def test_reset_during_loading(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene], qtbot: QtBot
+    ) -> None:
         """Test model reset while thumbnails are still loading."""
         model.set_scenes(test_scenes)
 
         # Mock async loading with delay
         loading_count = [0]
 
-        def mock_load_async(path, size, callback):
+        def mock_load_async(
+            path: str | Path, size: tuple[int, int], callback: Callable[[QImage], None]
+        ) -> Future[QImage]:
             loading_count[0] += 1
             # Don't complete - simulate interrupted loading
             return Future()
@@ -204,7 +218,9 @@ class TestThreadSafety:
         # Timer should have been restarted
         assert model._thumbnail_timer is not None
 
-    def test_data_role_thread_safety(self, model, test_scenes) -> None:
+    def test_data_role_thread_safety(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
+    ) -> None:
         """Test data() method is thread-safe for all roles."""
         model.set_scenes(test_scenes)
 
@@ -232,7 +248,9 @@ class TestThreadSafety:
                 data is None or data is not None
             )  # Always true - just checking no exception
 
-    def test_selection_changes_during_loading(self, model, test_scenes, qtbot) -> None:
+    def test_selection_changes_during_loading(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene], qtbot: QtBot
+    ) -> None:
         """Test selection changes while thumbnails are loading."""
         model.set_scenes(test_scenes)
 
@@ -253,7 +271,9 @@ class TestThreadSafety:
         model._selected_index = QModelIndex()
         assert not model._selected_index.isValid()
 
-    def test_visible_range_boundary_conditions(self, model, test_scenes) -> None:
+    def test_visible_range_boundary_conditions(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
+    ) -> None:
         """Test visible range updates with boundary conditions."""
         model.set_scenes(test_scenes)
 
@@ -274,7 +294,9 @@ class TestThreadSafety:
             model._visible_end == 0
         )  # This creates an invalid range, but model allows it
 
-    def test_thumbnail_timer_lifecycle(self, model, test_scenes) -> None:
+    def test_thumbnail_timer_lifecycle(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
+    ) -> None:
         """Test thumbnail timer starts and stops appropriately."""
         model.set_scenes(test_scenes)
 
@@ -304,7 +326,9 @@ class TestThreadSafety:
 class TestDataIntegrity:
     """Test data integrity with thread-safe operations."""
 
-    def test_concurrent_set_scenes(self, model, test_scenes, qtbot) -> None:
+    def test_concurrent_set_scenes(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene], qtbot: QtBot
+    ) -> None:
         """Test multiple rapid set_scenes calls."""
         # Rapidly change scenes - should not corrupt state
         for _ in range(5):
@@ -316,7 +340,9 @@ class TestDataIntegrity:
         assert model.rowCount() == 2
         assert len(model.scenes) == 2
 
-    def test_role_data_consistency(self, model, test_scenes) -> None:
+    def test_role_data_consistency(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
+    ) -> None:
         """Test that all data roles return consistent data."""
         # Local application imports
         from base_item_model import BaseItemRole as ThreeDERole
@@ -335,7 +361,9 @@ class TestDataIntegrity:
             # The scene is returned through ThreeDERole.ObjectRole
             assert model.data(index, ThreeDERole.ObjectRole) == scene
 
-    def test_cache_persistence_across_resets(self, model, test_scenes) -> None:
+    def test_cache_persistence_across_resets(
+        self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
+    ) -> None:
         """Test that cache is properly managed across model resets."""
         model.set_scenes(test_scenes)
 

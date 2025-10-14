@@ -238,8 +238,8 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
         logger.info("Loading demo shots for user-assigned simulation")
         try:
             with open(demo_shots_path, encoding="utf-8") as f:
-                # json.load() returns unknown type - validate then cast
-                raw_data = json.load(f)
+                # json.load() returns Any - cast to object for type safety
+                raw_data = cast("object", json.load(f))
 
             # Runtime validation before casting
             if not isinstance(raw_data, dict):

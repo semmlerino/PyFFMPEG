@@ -113,7 +113,7 @@ class Config:
     NUKE_SKIP_PROBLEMATIC_PLUGINS = (
         True  # Whether to skip known problematic plugins that cause crashes
     )
-    NUKE_PROBLEMATIC_PLUGIN_PATHS = [
+    NUKE_PROBLEMATIC_PLUGIN_PATHS: ClassVar[list[str]] = [
         "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4.0.0rc9/python-3.11/init",
         # Add other problematic plugin paths here
     ]
@@ -213,22 +213,22 @@ class Config:
     # File extensions
     # Thumbnail discovery strategy
     # Primary: Lightweight formats that can be loaded directly
-    THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png"]
+    THUMBNAIL_EXTENSIONS: ClassVar[list[str]] = [".jpg", ".jpeg", ".png"]
 
     # Fallback: Heavy formats that require PIL resizing before use
-    THUMBNAIL_FALLBACK_EXTENSIONS = [".exr", ".tiff", ".tif"]
+    THUMBNAIL_FALLBACK_EXTENSIONS: ClassVar[list[str]] = [".exr", ".tiff", ".tif"]
 
     # Maximum file size (MB) for direct loading without resizing
     THUMBNAIL_MAX_DIRECT_SIZE_MB = 10
 
     # Keep IMAGE_EXTENSIONS for general image handling
-    IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".exr"]
-    NUKE_EXTENSIONS = [".nk", ".nknc"]
-    THREEDE_EXTENSIONS = [".3de"]
+    IMAGE_EXTENSIONS: ClassVar[list[str]] = [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".exr"]
+    NUKE_EXTENSIONS: ClassVar[list[str]] = [".nk", ".nknc"]
+    THREEDE_EXTENSIONS: ClassVar[list[str]] = [".3de"]
 
     # Path construction segments
-    THUMBNAIL_SEGMENTS = ["publish", "editorial", "cutref", "v001", "jpg", "1920x1080"]
-    RAW_PLATE_SEGMENTS = [
+    THUMBNAIL_SEGMENTS: ClassVar[list[str]] = ["publish", "editorial", "cutref", "v001", "jpg", "1920x1080"]
+    RAW_PLATE_SEGMENTS: ClassVar[list[str]] = [
         "publish",
         "turnover",
         "plate",
@@ -236,7 +236,7 @@ class Config:
     ]  # Removed bg01 for flexible discovery
 
     # Plate discovery patterns and priorities
-    PLATE_DISCOVERY_PATTERNS = [
+    PLATE_DISCOVERY_PATTERNS: ClassVar[list[str]] = [
         "FG01",
         "FG02",
         "BG01",
@@ -253,20 +253,19 @@ class Config:
     ]  # Common plate naming including PL## turnover patterns
 
     # Turnover plate preferences (lower value = higher priority)
-    # For primary workflow: use FG (foreground) and BG (background) plates
-    # PL and BC are typically reference plates and should be excluded
-    TURNOVER_PLATE_PRIORITY: dict[str, float] = {
+    # For primary workflow: use FG (foreground), PL (turnover), and BG (background) plates
+    TURNOVER_PLATE_PRIORITY: ClassVar[dict[str, float]] = {
         "FG": 0,  # Primary foreground plates (FG01, FG02) - USE THESE
+        "PL": 0.5,  # Primary turnover plates (PL01, PL02) - USE THESE
         "BG": 1,  # Primary background plates (BG01, BG02) - USE THESE
         "COMP": 1.5,  # Composite plates - USE IF NEEDED
         "EL": 2,  # Element plates - USE IF NEEDED
-        "PL": 10,  # Reference/turnover plates (PL01, PL02) - SKIP (reference only)
-        "BC": 11,  # Background clean plates (BC01) - SKIP (reference only)
+        "BC": 10,  # Background clean plates (BC01) - SKIP (reference only)
         "*": 12,  # All others lowest priority
     }
 
     # Legacy plate priority (for backward compatibility)
-    PLATE_PRIORITY_ORDER: dict[str, float] = {
+    PLATE_PRIORITY_ORDER: ClassVar[dict[str, float]] = {
         "FG01": 10,
         "fg01": 9,
         "FG02": 8,
@@ -282,7 +281,7 @@ class Config:
     }  # Higher value = higher priority
 
     # Common color space patterns in plate names
-    COLOR_SPACE_PATTERNS = [
+    COLOR_SPACE_PATTERNS: ClassVar[list[str]] = [
         "aces",
         "lin_sgamut3cine",
         "lin_rec709",
@@ -292,7 +291,7 @@ class Config:
     ]
 
     # Undistortion plate discovery configuration
-    UNDISTORTION_PLATE_PREFIXES = [
+    UNDISTORTION_PLATE_PREFIXES: ClassVar[list[str]] = [
         "FG",
         "BG",
         "BC",
@@ -301,7 +300,7 @@ class Config:
     ]  # Plate prefixes to search for undistortion files
 
     # Undistortion plate priorities (lower value = higher priority)
-    UNDISTORTION_PLATE_PRIORITY: dict[str, float] = {
+    UNDISTORTION_PLATE_PRIORITY: ClassVar[dict[str, float]] = {
         "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
         "PL": 1,  # PL plates second priority (PL01, PL02, PL03 - primary turnover plates)
         "COMP": 1.5,  # COMP plates - between PL and BG
@@ -309,7 +308,7 @@ class Config:
         "BC": 3,  # BC plates lowest priority (BC01 - background clean plates)
     }
 
-    UNDISTORTION_BASE_SEGMENTS = [
+    UNDISTORTION_BASE_SEGMENTS: ClassVar[list[str]] = [
         "user",
         "mm",
         "3de",
@@ -319,10 +318,10 @@ class Config:
         "bg01",
         "nuke_lens_distortion",
     ]
-    THREEDE_SCENE_SEGMENTS = ["mm", "3de", "mm-default", "scenes", "scene"]
+    THREEDE_SCENE_SEGMENTS: ClassVar[list[str]] = ["mm", "3de", "mm-default", "scenes", "scene"]
 
     # Alternative 3DE scene path patterns to try if main pattern fails
-    THREEDE_ALTERNATIVE_PATTERNS = [
+    THREEDE_ALTERNATIVE_PATTERNS: ClassVar[list[list[str]]] = [
         ["mm", "3de", "scenes"],
         ["mm", "3de", "scene"],
         ["3de", "scenes"],
@@ -336,7 +335,7 @@ class Config:
     ]
 
     # Environment variables that may contain 3DE path information
-    THREEDE_ENV_VARS = [
+    THREEDE_ENV_VARS: ClassVar[list[str]] = [
         "THREEDE_SCENE_PATH",
         "3DE_SCENE_PATH",
         "TDE_SCENE_PATH",
@@ -345,7 +344,7 @@ class Config:
     ]
 
     # Common VFX plate name patterns for intelligent grouping
-    PLATE_NAME_PATTERNS = [
+    PLATE_NAME_PATTERNS: ClassVar[list[str]] = [
         r"^[bf]g\d{2}$",  # bg01, fg01, bg02, fg02, etc.
         r"^plate_?\d+$",  # plate01, plate_01, plate02
         r"^comp_?\d+$",  # comp01, comp_01, comp02
@@ -362,12 +361,12 @@ class Config:
     SHOW_SEARCH_ENABLED = (
         True  # Enable searching all shots in shows (not just user's shots)
     )
-    SHOW_ROOT_PATHS = [
+    SHOW_ROOT_PATHS: ClassVar[list[str]] = [
         SHOWS_ROOT
     ]  # Root directories where shows are stored (uses configured SHOWS_ROOT)
     MAX_SHOTS_PER_SHOW = 1000  # Limit to prevent excessive searching in huge shows
-    SKIP_SEQUENCE_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]
-    SKIP_SHOT_PATTERNS = ["tmp", "temp", "test", "old", "archive", "_dev"]
+    SKIP_SEQUENCE_PATTERNS: ClassVar[list[str]] = ["tmp", "temp", "test", "old", "archive", "_dev"]
+    SKIP_SHOT_PATTERNS: ClassVar[list[str]] = ["tmp", "temp", "test", "old", "archive", "_dev"]
 
     # Progressive file scanning configuration
     PROGRESSIVE_SCAN_ENABLED = True  # Enable progressive/batched file scanning

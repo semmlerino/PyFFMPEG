@@ -22,6 +22,7 @@ Test doubles are used only at system boundaries.
 from __future__ import annotations
 
 # Standard library imports
+import contextlib
 import gc
 import os
 import sys
@@ -41,6 +42,9 @@ import pytest
 # Now we can import Qt, but immediately patch show methods
 from PySide6.QtCore import QCoreApplication, QEventLoop, QThreadPool, QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QMainWindow, QMessageBox, QWidget
+
+# Local application imports (used at runtime)
+from tests.test_doubles_library import TestProcessPool, ThreadSafeTestImage
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QShowEvent
@@ -156,18 +160,11 @@ if TYPE_CHECKING:
         TestFileSystem,
         TestWorker,
     )
-    from tests.test_doubles_library import TestProcessPool, ThreadSafeTestImage
 
 # Import protocols for type safety
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-# Local application imports
-# Import test doubles library for proper test double patterns
-import contextlib
-
-from tests.test_doubles_library import TestProcessPool
 
 # =============================================================================
 # Factory Fixtures (UNIFIED_TESTING_GUIDE Best Practice)
@@ -456,7 +453,7 @@ def pytest_configure(config: Any) -> None:
 
 
 @pytest.fixture(scope="session")
-def qapp_cls():
+def qapp_cls() -> type[QApplication]:
     """Force pytest-qt to always create QApplication instead of QCoreApplication.
 
     This is critical for parallel execution with pytest-xdist. Without this,
@@ -1295,9 +1292,6 @@ def ensure_clean_state_before_test(request: Any) -> Generator[None, None, None]:
     if needs_process_pool_cleanup:
         # Clean up ProcessPoolManager singleton BEFORE test starts
         try:
-            # Standard library imports
-            import sys
-
             # Local application imports
             from process_pool_manager import ProcessPoolManager
 

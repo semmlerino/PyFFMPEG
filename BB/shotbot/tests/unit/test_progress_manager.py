@@ -467,10 +467,14 @@ class TestProgressManagerContextManager:
         self, mock_notification_manager: Mock
     ) -> None:
         """Test context manager propagates exceptions after cleanup."""
-        with pytest.raises(ValueError, match="Test error"):
+        # PT012: Extract setup outside pytest.raises() for single statement rule
+        def raise_in_context() -> None:
             with ProgressManager.operation("Test") as progress:
                 progress.set_total(10)
                 raise ValueError("Test error")
+
+        with pytest.raises(ValueError, match="Test error"):
+            raise_in_context()
 
         # Operation should be cleaned up
         assert not ProgressManager.is_operation_active()

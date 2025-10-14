@@ -44,7 +44,7 @@ from collections.abc import Callable
 
 # Standard library imports
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -274,11 +274,11 @@ class NotificationManager(QObject):
     for proper integration with the application UI.
     """
 
-    _instance: NotificationManager | None = None
-    _main_window: QMainWindow | None = None
-    _status_bar: QStatusBar | None = None
-    _active_toasts: list[ToastNotification] = []
-    _current_progress: QProgressDialog | None = None
+    _instance: ClassVar[NotificationManager | None] = None
+    _main_window: ClassVar[QMainWindow | None] = None
+    _status_bar: ClassVar[QStatusBar | None] = None
+    _active_toasts: ClassVar[list[ToastNotification]] = []
+    _current_progress: ClassVar[QProgressDialog | None] = None
 
     def __new__(cls) -> NotificationManager:
         """Implement singleton pattern."""
@@ -292,8 +292,6 @@ class NotificationManager(QObject):
 
         super().__init__()
         self._initialized = True
-        self._active_toasts = []
-        self._current_progress = None
         logger.debug("NotificationManager initialized")
 
     @classmethod

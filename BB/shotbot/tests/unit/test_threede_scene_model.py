@@ -109,6 +109,10 @@ class TestThreeDEScene:
         and xdist_group to ensure complete cache isolation in parallel execution.
         The xdist_group ensures this test runs in isolation from other cache-sensitive tests.
         """
+        # Explicitly clear all utility caches to prevent parallel test contamination
+        from utils import clear_all_caches
+        clear_all_caches()
+
         # Create real directory structure
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "test_show" / "shots" / "seq01" / "seq01_shot01"

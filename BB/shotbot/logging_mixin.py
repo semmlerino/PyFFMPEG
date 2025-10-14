@@ -223,6 +223,14 @@ class ContextualLogger:
         """
         return self._logger.isEnabledFor(level)
 
+    def setLevel(self, level: int) -> None:
+        """Set the logging level for this logger.
+
+        Args:
+            level: The logging level to set (e.g., logging.DEBUG, logging.INFO)
+        """
+        self._logger.setLevel(level)
+
     @contextmanager
     def context(self, **kwargs: str) -> Generator[None, None, None]:
         """Add structured context to all log messages within this block.

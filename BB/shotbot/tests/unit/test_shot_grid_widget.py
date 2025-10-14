@@ -23,6 +23,9 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
@@ -41,6 +44,9 @@ from tests.test_doubles_library import (
     TestShot,
 )
 
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
+
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 # TestShotGridWidget removed - tested the deleted ShotGrid widget.
@@ -51,7 +57,7 @@ class TestShotGridView:
     """Test real Qt widget behavior of modern ShotGridView (Model/View)."""
 
     @pytest.fixture
-    def test_shots(self):
+    def test_shots(self) -> list[TestShot]:
         """Create test shots for Model/View testing."""
         return [
             TestShot("show1", "seq1", "0010", "/shows/show1/shots/seq1/seq1_0010"),
@@ -60,7 +66,7 @@ class TestShotGridView:
         ]
 
     @pytest.fixture
-    def shot_item_model(self, test_shots):
+    def shot_item_model(self, test_shots: list[TestShot]) -> ShotItemModel:
         """Create real ShotItemModel with TestCacheManager for testing."""
         test_cache_manager = TestCacheManager()
         model = ShotItemModel(cache_manager=test_cache_manager)
@@ -73,13 +79,13 @@ class TestShotGridView:
         return model
 
     @pytest.fixture
-    def shot_grid_view(self, qtbot, shot_item_model):
+    def shot_grid_view(self, qtbot: QtBot, shot_item_model: ShotItemModel) -> ShotGridView:
         """Create ShotGridView widget for testing."""
         view = ShotGridView(model=shot_item_model)
         qtbot.addWidget(view)
         return view
 
-    def test_model_view_initialization(self, shot_grid_view, shot_item_model) -> None:
+    def test_model_view_initialization(self, shot_grid_view: ShotGridView, shot_item_model: ShotItemModel) -> None:
         """Test Model/View widget initialization."""
         view = shot_grid_view
 
@@ -92,7 +98,7 @@ class TestShotGridView:
         model = view.model
         assert model.rowCount() == 3  # Test shots count
 
-    def test_selection_model_exists(self, shot_grid_view) -> None:
+    def test_selection_model_exists(self, shot_grid_view: ShotGridView) -> None:
         """Test view has proper selection model."""
         view = shot_grid_view
 
@@ -105,7 +111,7 @@ class TestShotGridView:
         assert selection_model is not None
         assert hasattr(selection_model, "selectionChanged")
 
-    def test_mouse_selection_behavior(self, qtbot, shot_grid_view) -> None:
+    def test_mouse_selection_behavior(self, qtbot: QtBot, shot_grid_view: ShotGridView) -> None:
         """Test mouse selection in Model/View grid."""
         view = shot_grid_view
         model = view.model
@@ -140,7 +146,7 @@ class TestShotGridView:
             # Selection may be empty if view isn't fully initialized
             assert isinstance(current_selection, list)
 
-    def test_view_delegate_exists(self, shot_grid_view) -> None:
+    def test_view_delegate_exists(self, shot_grid_view: ShotGridView) -> None:
         """Test view has custom delegate for rendering."""
         view = shot_grid_view
 
@@ -151,7 +157,7 @@ class TestShotGridView:
         # Delegate should handle painting and sizing
         assert hasattr(delegate, "paint") or hasattr(delegate, "sizeHint")
 
-    def test_view_scroll_behavior(self, qtbot, shot_grid_view) -> None:
+    def test_view_scroll_behavior(self, qtbot: QtBot, shot_grid_view: ShotGridView) -> None:
         """Test view handles scrolling properly."""
         view = shot_grid_view
 
@@ -165,7 +171,7 @@ class TestShotGridView:
         assert v_scroll is not None
         assert h_scroll is not None
 
-    def test_keyboard_navigation(self, qtbot, shot_grid_view) -> None:
+    def test_keyboard_navigation(self, qtbot: QtBot, shot_grid_view: ShotGridView) -> None:
         """Test keyboard navigation in Model/View."""
         view = shot_grid_view
         model = view.model
@@ -182,7 +188,7 @@ class TestShotGridView:
             # View should handle key events (test doesn't crash)
             assert view.list_view.focusPolicy() != Qt.FocusPolicy.NoFocus
 
-    def test_model_data_changes(self, qtbot, shot_grid_view, test_shots) -> None:
+    def test_model_data_changes(self, qtbot: QtBot, shot_grid_view: ShotGridView, test_shots: list[TestShot]) -> None:
         """Test view responds to model data changes."""
         view = shot_grid_view
         model = view.model
@@ -209,7 +215,7 @@ class TestShotGridView:
         assert new_count == len(new_shots)
         assert new_count > initial_count
 
-    def test_view_widget_properties(self, shot_grid_view) -> None:
+    def test_view_widget_properties(self, shot_grid_view: ShotGridView) -> None:
         """Test view has correct widget properties."""
         view = shot_grid_view
 
@@ -229,7 +235,7 @@ class TestShotGridIntegration:
     """Integration tests for shot grid components with real Qt interactions."""
 
     @pytest.fixture
-    def integration_shots(self, make_test_shot):
+    def integration_shots(self, make_test_shot: Callable[[str, str, str, bool], Shot]) -> list[Shot]:
         """Create shots with real file structure for integration testing."""
         return [
             make_test_shot("show1", "seq1", "0010", with_thumbnail=True),
@@ -238,7 +244,7 @@ class TestShotGridIntegration:
         ]
 
     @pytest.fixture
-    def integrated_grid_view(self, qtbot, integration_shots):
+    def integrated_grid_view(self, qtbot: QtBot, integration_shots: list[Shot]) -> ShotGridView:
         """Create fully integrated ShotGridView for testing."""
         # Create model with test cache manager and shots
         test_cache_manager = TestCacheManager()
@@ -252,7 +258,7 @@ class TestShotGridIntegration:
 
         return view
 
-    def test_integration_widget_creation(self, integrated_grid_view) -> None:
+    def test_integration_widget_creation(self, integrated_grid_view: ShotGridView) -> None:
         """Test integrated widget creates successfully."""
         view = integrated_grid_view
 
@@ -260,7 +266,7 @@ class TestShotGridIntegration:
         assert view.model is not None
         assert view.model.rowCount() == 3
 
-    def test_integration_thumbnail_loading(self, qtbot, integrated_grid_view) -> None:
+    def test_integration_thumbnail_loading(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
         """Test thumbnails load in integrated environment."""
         view = integrated_grid_view
         model = view.model
@@ -274,7 +280,7 @@ class TestShotGridIntegration:
             data = model.data(first_index, Qt.ItemDataRole.DisplayRole)
             assert data is not None
 
-    def test_integration_selection_workflow(self, qtbot, integrated_grid_view) -> None:
+    def test_integration_selection_workflow(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
         """Test complete selection workflow in integrated environment."""
         view = integrated_grid_view
         model = view.model
@@ -296,7 +302,7 @@ class TestShotGridIntegration:
                 selected = selection_model.selectedIndexes()
                 assert len(selected) >= 0  # May be empty if view not visible
 
-    def test_integration_resize_handling(self, qtbot, integrated_grid_view) -> None:
+    def test_integration_resize_handling(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
         """Test integrated view handles resize correctly."""
         view = integrated_grid_view
 
@@ -316,7 +322,7 @@ class TestShotGridIntegration:
         assert new_size.width() >= new_width - 50  # Allow some flexibility
         assert new_size.height() >= new_height - 50
 
-    def test_integration_focus_handling(self, qtbot, integrated_grid_view) -> None:
+    def test_integration_focus_handling(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
         """Test integrated view handles focus correctly."""
         view = integrated_grid_view
 
@@ -327,7 +333,7 @@ class TestShotGridIntegration:
         # View should be focusable
         assert view.focusPolicy() != Qt.FocusPolicy.NoFocus
 
-    def test_integration_event_processing(self, qtbot, integrated_grid_view) -> None:
+    def test_integration_event_processing(self, qtbot: QtBot, integrated_grid_view: ShotGridView) -> None:
         """Test view processes Qt events correctly."""
         view = integrated_grid_view
 

@@ -27,7 +27,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 # Third-party imports
 from PySide6.QtCore import QObject, QThread, Signal
@@ -1180,9 +1180,9 @@ class TestProgressManager:
 
     __test__ = False  # Prevent pytest from collecting this as a test class
 
-    _current_operation: TestProgressOperation | None = None
-    _operations_started: list[TestProgressOperation] = []
-    _operations_finished: list[dict[str, Any]] = []
+    _current_operation: ClassVar[TestProgressOperation | None] = None
+    _operations_started: ClassVar[list[TestProgressOperation]] = []
+    _operations_finished: ClassVar[list[dict[str, Any]]] = []
 
     @classmethod
     def start_operation(cls, config) -> TestProgressOperation:

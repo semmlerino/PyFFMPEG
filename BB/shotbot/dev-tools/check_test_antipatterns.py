@@ -21,7 +21,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypedDict
+from typing import ClassVar, TypedDict
 
 
 class PatternConfig(TypedDict):
@@ -47,7 +47,7 @@ class TestAntiPatternChecker:
     """Check test files for anti-patterns defined in UNIFIED_TESTING_GUIDE."""
 
     # Define patterns to check
-    PATTERNS: dict[str, PatternConfig] = {
+    PATTERNS: ClassVar[dict[str, PatternConfig]] = {
         "time.sleep": {
             "regex": r"time\.sleep\s*\(",
             "suggestion": "Use qtbot.wait(), qtbot.waitUntil(), or mock datetime for time control",

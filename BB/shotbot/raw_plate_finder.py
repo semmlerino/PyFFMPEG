@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from re import Match, Pattern
+from typing import ClassVar
 
 # Local application imports
 from config import Config
@@ -26,9 +27,9 @@ class RawPlateFinder:
     # Pattern 1: {shot_name}_turnover-plate_{plate_name}_{color_space}_{version}.####.exr
     # Pattern 2: {shot_name}_turnover-plate_{plate_name}{color_space}_{version}.####.exr
     # These will be compiled dynamically in _get_plate_patterns() method
-    _pattern_cache: dict[
+    _pattern_cache: ClassVar[dict[
         tuple[str, str, str], tuple[re.Pattern[str], re.Pattern[str]]
-    ] = {}  # Cache for compiled patterns keyed by (shot_name, plate_name, version)
+    ]] = {}  # Cache for compiled patterns keyed by (shot_name, plate_name, version)
 
     @staticmethod
     def find_latest_raw_plate(
@@ -271,7 +272,7 @@ class RawPlateFinder:
         return None
 
     # Pre-compiled regex for verify_plate_exists
-    _verify_pattern_cache: dict[str, Pattern[str]] = {}
+    _verify_pattern_cache: ClassVar[dict[str, Pattern[str]]] = {}
 
     @staticmethod
     def verify_plate_exists(plate_path: str) -> bool:

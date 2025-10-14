@@ -39,6 +39,7 @@ class OptimizedShotParser:
 
     def __init__(self) -> None:
         """Initialize optimized parser using global patterns."""
+        super().__init__()
         # Use global patterns for better performance
         self._ws_pattern = _GLOBAL_WS_PATTERN
         self._path_pattern = _GLOBAL_PATH_PATTERN
