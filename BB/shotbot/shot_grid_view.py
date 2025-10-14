@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 # Local application imports
-from base_grid_view import BaseGridView
+from base_grid_view import BaseGridView, HasAvailableShows
 from base_item_model import BaseItemRole
 from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotItemModel
@@ -153,28 +153,28 @@ class ShotGridView(BaseGridView):
 
         self.logger.debug(f"Model set with {model.rowCount()} items")
 
-    def populate_show_filter(self, shows: list[str] | object) -> None:
+    def populate_show_filter(self, shows: list[str] | HasAvailableShows) -> None:
         """Populate the show filter combo box with available shows.
 
-        This override accepts either a list of show names or a model with get_available_shows().
-        When passed a model, it extracts shows and delegates to base class.
+        This override accepts either a list of show names or an object implementing
+        HasAvailableShows protocol. When passed a protocol object, it extracts shows
+        and delegates to base class.
 
         Args:
-            shows: Either a list of show names or a model with get_available_shows() method
+            shows: Either a list of show names or an object with get_available_shows() method
         """
         # Handle list case (delegate to base with type narrowing)
         if isinstance(shows, list):
             # Type narrowing: shows is list[str] after isinstance check
-            shows_list: list[str] = shows  # pyright: ignore[reportUnknownVariableType]
-            super().populate_show_filter(shows_list)
+            super().populate_show_filter(shows)
         else:
-            # Handle model case (extract shows using duck typing)
+            # Handle protocol case (extract shows using duck typing)
             # Use duck typing instead of isinstance for test compatibility
             if not hasattr(shows, "get_available_shows"):
                 raise TypeError(
-                    f"Expected list[str] or object with get_available_shows() method, got {type(shows).__name__}"
+                    f"Expected list[str] or HasAvailableShows protocol, got {type(shows).__name__}"
                 )
-            show_list = list(shows.get_available_shows())
+            show_list: list[str] = list(shows.get_available_shows())
             super().populate_show_filter(show_list)
             self.logger.info(f"Populated show filter with {len(show_list)} shows")
 

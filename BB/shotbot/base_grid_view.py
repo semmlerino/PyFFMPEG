@@ -7,7 +7,7 @@ and behavior for ShotGridView, ThreeDEGridView, and PreviousShotsView.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Protocol
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -34,6 +34,24 @@ from PySide6.QtWidgets import (
 from config import Config
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
+
+
+class HasAvailableShows(Protocol):
+    """Protocol for objects that provide available shows list.
+
+    This protocol enables duck typing for model objects that can provide
+    a list of available show names without requiring isinstance checks.
+    Used for test compatibility and flexible API design.
+    """
+
+    def get_available_shows(self) -> list[str]:
+        """Return list of available show names.
+
+        Returns:
+            List of show name strings
+        """
+        ...
+
 
 if TYPE_CHECKING:
     # Third-party imports
@@ -344,18 +362,21 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):  # type: ignore[report
         """
         return self._thumbnail_size
 
-    def populate_show_filter(self, shows: list[str] | object) -> None:
+    def populate_show_filter(self, shows: list[str] | HasAvailableShows) -> None:
         """Populate the show filter combo box.
 
+        Accepts either a list of show names or an object implementing
+        HasAvailableShows protocol. When passed a protocol object,
+        subclasses should extract shows and call super().
+
         Args:
-            shows: List of show names to add (or model object in subclasses)
+            shows: Either list of show names or object with get_available_shows() method
         """
-        # Handle case where subclass passes a model object
+        # Handle case where subclass passes a protocol object
         if not isinstance(shows, list):
             return  # Subclass will extract shows and call super()
 
-        # Type narrowing: shows is list after isinstance check
-        shows_list = cast("list[str]", shows)
+        # Type narrowing: shows is list[str] after isinstance check
         try:
             # Block signals to prevent triggering filter change
             self.show_combo.blockSignals(True)
@@ -365,10 +386,10 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):  # type: ignore[report
                 self.show_combo.removeItem(1)
 
             # Add shows to combo box
-            for show in sorted(shows_list):
+            for show in sorted(shows):
                 self.show_combo.addItem(show)
 
-            self.logger.debug(f"Populated show filter with {len(shows_list)} shows")
+            self.logger.debug(f"Populated show filter with {len(shows)} shows")
         finally:
             # Re-enable signals
             self.show_combo.blockSignals(False)
