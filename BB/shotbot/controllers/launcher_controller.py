@@ -314,29 +314,32 @@ class LauncherController(LoggingMixin):
                     return  # Exit early without launching
 
             # Type-safe launch handling for union type (CommandLauncher | SimplifiedLauncher)
-            success: bool
-            if hasattr(self.window.command_launcher, 'launch_app') and callable(
-                getattr(self.window.command_launcher, 'launch_app')
-            ):
-                # Check if launcher supports selected_plate parameter (CommandLauncher does, SimplifiedLauncher doesn't)
-                if selected_plate and app_name == "nuke":
-                    # Attempt to pass selected_plate (will work for CommandLauncher)
-                    try:
-                        success = self.window.command_launcher.launch_app(
-                            app_name,
-                            include_undistortion,
-                            include_raw_plate,
-                            open_latest_threede,
-                            open_latest_maya,
-                            open_latest_scene,
-                            create_new_file,
-                            selected_plate=selected_plate,
-                        )
-                    except TypeError:
-                        # SimplifiedLauncher doesn't accept selected_plate, call without it
-                        success = self.window.command_launcher.launch_app(app_name)
+            # Check if launcher supports selected_plate parameter using inspect
+            import inspect
+
+            launcher_method = getattr(self.window.command_launcher, 'launch_app', None)
+            if launcher_method is None or not callable(launcher_method):
+                success = False
+            else:
+                # Check if method signature includes 'selected_plate' parameter
+                sig = inspect.signature(launcher_method)
+                supports_selected_plate = 'selected_plate' in sig.parameters
+
+                if supports_selected_plate and selected_plate and app_name == "nuke":
+                    # Narrow type to CommandLauncher which has selected_plate parameter
+                    launcher = cast("CommandLauncher", self.window.command_launcher)
+                    success = launcher.launch_app(
+                        app_name,
+                        include_undistortion,
+                        include_raw_plate,
+                        open_latest_threede,
+                        open_latest_maya,
+                        open_latest_scene,
+                        create_new_file,
+                        selected_plate=selected_plate,
+                    )
                 else:
-                    # Not Nuke or no plate selected, call normally
+                    # SimplifiedLauncher or no plate selected - both support base parameters
                     success = self.window.command_launcher.launch_app(
                         app_name,
                         include_undistortion,
@@ -346,9 +349,6 @@ class LauncherController(LoggingMixin):
                         open_latest_scene,
                         create_new_file,
                     )
-            else:
-                # Fallback: launcher doesn't have launch_app method
-                success = False
 
         if success:
             self.window.update_status(f"Launched {app_name}")

@@ -193,8 +193,8 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             return
 
         # Extract attributes from option (PySide6 type stubs incomplete)
-        rect = cast("QRect", option.rect)  # type: ignore[attr-defined]
-        state = cast("QStyle.StateFlag", option.state)  # type: ignore[attr-defined]
+        rect = cast("QRect", option.rect)  # pyright: ignore[reportAttributeAccessIssue]
+        state = cast("QStyle.StateFlag", option.state)  # pyright: ignore[reportAttributeAccessIssue]
 
         painter.save()
 
