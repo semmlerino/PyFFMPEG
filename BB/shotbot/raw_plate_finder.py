@@ -205,6 +205,73 @@ class RawPlateFinder:
         # Use utility function for version extraction
         return VersionUtils.extract_version_from_path(plate_path)
 
+    @staticmethod
+    def find_plate_for_space(
+        shot_workspace_path: str,
+        shot_name: str,
+        plate_space: str,
+    ) -> str | None:
+        """Find raw plate for a specific plate space.
+
+        Similar to find_latest_raw_plate() but targets a specific plate (e.g., "FG01", "BG01").
+
+        Args:
+            shot_workspace_path: The shot's workspace path
+            shot_name: The shot name (e.g., "DM_066_3580")
+            plate_space: Specific plate name to find (e.g., "FG01", "BG01")
+
+        Returns:
+            Path to the plate with #### for frame numbers, or None if not found
+        """
+        # Build base path for raw plate files
+        base_path = PathUtils.build_raw_plate_path(shot_workspace_path)
+
+        if not PathUtils.validate_path_exists(base_path, "Raw plate base path"):
+            logger.debug(f"Raw plate base path does not exist: {base_path}")
+            return None
+
+        # Look for specific plate directory
+        plate_path = base_path / plate_space
+        if not PathUtils.validate_path_exists(plate_path, f"Plate directory for {plate_space}"):
+            logger.debug(f"Plate directory not found: {plate_space}")
+            return None
+
+        # Get latest version directory
+        latest_version = VersionUtils.get_latest_version(plate_path)
+        if not latest_version:
+            logger.debug(f"No version directory found for plate {plate_space}")
+            return None
+
+        # Check for EXR directory
+        exr_base = plate_path / latest_version / "exr"
+        if not exr_base.exists():
+            logger.debug(f"No exr directory found for {plate_space}/{latest_version}")
+            return None
+
+        # Get highest resolution directory
+        # Local application imports
+        from plate_discovery import PlateDiscovery
+
+        resolution_dir = PlateDiscovery.get_highest_resolution_dir(exr_base)
+        if not resolution_dir:
+            logger.debug(f"No resolution directory found for {plate_space}/{latest_version}")
+            return None
+
+        # Find plate file pattern
+        plate_file = RawPlateFinder._find_plate_file_pattern(
+            resolution_dir,
+            shot_name,
+            plate_space,
+            latest_version,
+        )
+
+        if plate_file:
+            logger.info(f"Found plate for {plate_space}: {plate_file}")
+            return plate_file
+
+        logger.debug(f"No valid plate file found for {plate_space}")
+        return None
+
     # Pre-compiled regex for verify_plate_exists
     _verify_pattern_cache: dict[str, Pattern[str]] = {}
 

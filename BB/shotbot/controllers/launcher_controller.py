@@ -293,6 +293,26 @@ class LauncherController(LoggingMixin):
             if open_latest_scene and create_new_file:
                 create_new_file = False
 
+            # Get selected plate for Nuke (if applicable)
+            selected_plate = None
+            if app_name == "nuke":
+                selected_plate = self.window.launcher_panel.app_sections["nuke"].get_selected_plate()
+
+                # Validate plate selection for workspace operations
+                if (open_latest_scene or create_new_file) and not selected_plate:
+                    self.logger.error("No plate selected for Nuke workspace operation")
+                    from datetime import datetime
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    self.window.log_viewer.add_error(
+                        timestamp,
+                        "Please select a plate space before launching Nuke with workspace scripts",
+                    )
+                    NotificationManager.warning(
+                        "No Plate Selected",
+                        "Please select a plate space (e.g., FG01, BG01) before launching Nuke.",
+                    )
+                    return  # Exit early without launching
+
             success = self.window.command_launcher.launch_app(
                 app_name,
                 include_undistortion,
@@ -301,6 +321,7 @@ class LauncherController(LoggingMixin):
                 open_latest_maya,
                 open_latest_scene,
                 create_new_file,
+                selected_plate=selected_plate,
             )
 
         if success:

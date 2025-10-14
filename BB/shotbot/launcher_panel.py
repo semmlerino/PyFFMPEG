@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QFrame,
     QGroupBox,
     QHBoxLayout,
@@ -66,6 +67,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         self.config = config
         self.is_expanded = True
         self.checkboxes: dict[str, QCheckBox] = {}
+        self.plate_selector: QComboBox | None = None  # Plate selection dropdown
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -167,6 +169,47 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
                 content_layout.addWidget(checkbox)
                 self.checkboxes[checkbox_config.key] = checkbox
 
+        # Add plate selector for apps that work with plates
+        if self.config.name in ["nuke", "maya", "3de", "rv"]:
+            # Create plate selector with label
+            plate_layout = QHBoxLayout()
+            plate_layout.setContentsMargins(10, 5, 0, 0)
+
+            plate_label = QLabel("Plate:")
+            plate_label.setStyleSheet("QLabel { color: #aaa; font-size: 11px; }")
+            plate_layout.addWidget(plate_label)
+
+            self.plate_selector = QComboBox()
+            self.plate_selector.setEnabled(False)
+            self.plate_selector.setPlaceholderText("Select plate space...")
+            self.plate_selector.setMinimumWidth(120)
+            self.plate_selector.setStyleSheet(f"""
+                QComboBox {{
+                    background-color: #2a2a2a;
+                    color: #ecf0f1;
+                    border: 1px solid {self.config.color};
+                    border-radius: 3px;
+                    padding: 4px 8px;
+                    font-size: 11px;
+                }}
+                QComboBox:disabled {{
+                    background-color: #1e1e1e;
+                    color: #666;
+                    border-color: #333;
+                }}
+                QComboBox::drop-down {{
+                    border: none;
+                }}
+                QComboBox::down-arrow {{
+                    image: none;
+                    border: none;
+                }}
+            """)
+            plate_layout.addWidget(self.plate_selector)
+            plate_layout.addStretch()
+
+            content_layout.addLayout(plate_layout)
+
         layout.addWidget(self.content_widget)
 
         # Add separator line
@@ -223,6 +266,36 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
     def get_checkbox_states(self) -> dict[str, bool]:
         """Get the state of all checkboxes."""
         return {key: cb.isChecked() for key, cb in self.checkboxes.items()}
+
+    def set_available_plates(self, plates: list[str]) -> None:
+        """Update plate selector with available plates.
+
+        Args:
+            plates: List of plate names (e.g., ['FG01', 'BG01'])
+        """
+        if not self.plate_selector:
+            return
+
+        self.plate_selector.clear()
+        if plates:
+            self.plate_selector.addItems(plates)
+            self.plate_selector.setEnabled(True)
+            self.plate_selector.setPlaceholderText("Select plate space...")
+        else:
+            self.plate_selector.setEnabled(False)
+            self.plate_selector.setPlaceholderText("No plates available")
+
+    def get_selected_plate(self) -> str | None:
+        """Get currently selected plate name.
+
+        Returns:
+            Plate name (e.g., 'FG01') or None if no plate selected
+        """
+        if not self.plate_selector or not self.plate_selector.isEnabled():
+            return None
+
+        current_text = self.plate_selector.currentText()
+        return current_text if current_text else None
 
 
 class LauncherPanel(QtWidgetMixin, QWidget):

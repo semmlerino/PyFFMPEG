@@ -1052,6 +1052,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             # Update launcher panel to disable buttons
             self.launcher_panel.set_shot(None)
 
+            # Clear plate selectors for all apps
+            for app_name in ["nuke", "maya", "3de", "rv"]:
+                if app_name in self.launcher_panel.app_sections:
+                    self.launcher_panel.app_sections[app_name].set_available_plates([])
+
             # Update custom launcher menu availability
             self.launcher_controller.update_launcher_menu_availability(False)
 
@@ -1073,6 +1078,17 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
             # Update launcher panel to enable buttons
             self.launcher_panel.set_shot(shot)
+
+            # Update plate selectors for all apps
+            # Local application imports
+            from plate_discovery import PlateDiscovery
+
+            available_plates = PlateDiscovery.get_available_plates(shot.workspace_path)
+            for app_name in ["nuke", "maya", "3de", "rv"]:
+                if app_name in self.launcher_panel.app_sections:
+                    self.launcher_panel.app_sections[app_name].set_available_plates(
+                        available_plates
+                    )
 
             # Update custom launcher menu availability
             self.launcher_controller.update_launcher_menu_availability(True)

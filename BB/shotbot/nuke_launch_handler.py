@@ -36,7 +36,11 @@ class NukeLaunchHandler(LoggingMixin):
         self.undistortion_finder = UndistortionFinder
 
     def prepare_nuke_command(
-        self, shot: Shot, base_command: str, options: dict[str, bool]
+        self,
+        shot: Shot,
+        base_command: str,
+        options: dict[str, bool],
+        selected_plate: str | None = None,
     ) -> tuple[str, list[str]]:
         """
         Prepare Nuke command with all options.
@@ -49,6 +53,7 @@ class NukeLaunchHandler(LoggingMixin):
                 - create_new_file: Create new script version
                 - include_raw_plate: Include raw plate in script
                 - include_undistortion: Include undistortion in script
+            selected_plate: Selected plate space (e.g., "FG01", "BG01")
 
         Returns:
             Tuple of (command, log_messages)
@@ -56,9 +61,14 @@ class NukeLaunchHandler(LoggingMixin):
         log_messages: list[str] = []
         command = base_command
 
+        # Validate plate selection for workspace operations
+        if (options.get("open_latest_scene") or options.get("create_new_file")) and not selected_plate:
+            log_messages.append("Error: No plate selected. Please select a plate space to continue.")
+            return command, log_messages
+
         # Handle mutually exclusive paths
         if options.get("open_latest_scene") or options.get("create_new_file"):
-            command, msgs = self._handle_workspace_scripts(shot, command, options)
+            command, msgs = self._handle_workspace_scripts(shot, command, options, selected_plate)
             log_messages.extend(msgs)
         elif options.get("include_raw_plate") or options.get("include_undistortion"):
             command, msgs = self._handle_media_loading(shot, command, options)
@@ -73,7 +83,11 @@ class NukeLaunchHandler(LoggingMixin):
         return command, log_messages
 
     def _handle_workspace_scripts(
-        self, shot: Shot, command: str, options: dict[str, bool]
+        self,
+        shot: Shot,
+        command: str,
+        options: dict[str, bool],
+        selected_plate: str | None,
     ) -> tuple[str, list[str]]:
         """Handle workspace script creation/opening.
 
@@ -81,37 +95,46 @@ class NukeLaunchHandler(LoggingMixin):
             shot: Current shot context
             command: Current command string
             options: Launch options
+            selected_plate: Selected plate space (e.g., "FG01")
 
         Returns:
             Tuple of (updated_command, log_messages)
         """
         log_messages: list[str] = []
 
+        # Validate plate selection
+        if not selected_plate:
+            log_messages.append("Error: No plate selected")
+            return command, log_messages
+
         # Note: open_latest_scene takes priority
         if options.get("open_latest_scene") and options.get("create_new_file"):
             options["create_new_file"] = False
 
         if options.get("open_latest_scene"):
-            # Try to find existing script
-            script_dir = self.workspace_manager.get_workspace_script_directory(
-                shot.workspace_path
-            )
-            latest_script = self.workspace_manager.find_latest_nuke_script(
-                script_dir, shot.full_name
+            # Try to find existing script for selected plate
+            # Local application imports
+            from plate_discovery import PlateDiscovery
+
+            existing_scripts = PlateDiscovery.find_existing_scripts(
+                shot.workspace_path, shot.full_name, selected_plate
             )
 
-            if latest_script:
-                # Open existing script
+            if existing_scripts:
+                # Open latest script
+                latest_script, latest_version = existing_scripts[-1]
                 safe_script_path = shlex.quote(str(latest_script))
                 command = f"{command} {safe_script_path}"
                 log_messages.append(
-                    f"Opening existing Nuke script: {latest_script.name}"
+                    f"Opening existing Nuke script: {latest_script.name} (v{latest_version:03d})"
                 )
             else:
                 # No existing script, create v001
-                log_messages.append("No existing Nuke scripts found, creating v001...")
+                log_messages.append(
+                    f"No existing scripts found for {selected_plate}, creating v001..."
+                )
                 saved_path = self._create_new_workspace_script(
-                    shot, version=1, options=options
+                    shot, version=1, options=options, selected_plate=selected_plate
                 )
                 if saved_path:
                     command = f"{command} {shlex.quote(saved_path)}"
@@ -123,18 +146,20 @@ class NukeLaunchHandler(LoggingMixin):
                     return command, log_messages
 
         elif options.get("create_new_file"):
-            # Always create new version
-            script_dir = self.workspace_manager.get_workspace_script_directory(
-                shot.workspace_path
-            )
-            _, version = self.workspace_manager.get_next_script_path(
-                script_dir, shot.full_name
+            # Get next version for selected plate
+            # Local application imports
+            from plate_discovery import PlateDiscovery
+
+            version = PlateDiscovery.get_next_script_version(
+                shot.workspace_path, shot.full_name, selected_plate
             )
 
-            log_messages.append(f"Creating new Nuke script version: v{version:03d}")
+            log_messages.append(
+                f"Creating new Nuke script for {selected_plate}: v{version:03d}"
+            )
 
             saved_path = self._create_new_workspace_script(
-                shot, version=version, options=options
+                shot, version=version, options=options, selected_plate=selected_plate
             )
             if saved_path:
                 command = f"{command} {shlex.quote(saved_path)}"
@@ -147,39 +172,57 @@ class NukeLaunchHandler(LoggingMixin):
         return command, log_messages
 
     def _create_new_workspace_script(
-        self, shot: Shot, version: int, options: dict[str, bool]
+        self,
+        shot: Shot,
+        version: int,
+        options: dict[str, bool],
+        selected_plate: str | None,
     ) -> str | None:
-        """Create a new workspace script with optional plate.
+        """Create a new workspace script in plate directory.
 
         Args:
             shot: Current shot context
             version: Version number for the script
             options: Launch options
+            selected_plate: Selected plate space (e.g., "FG01")
 
         Returns:
             Path to created script or None if failed
         """
+        # Validate plate selection
+        if not selected_plate:
+            self.logger.error("No plate selected for Nuke script creation")
+            return None
+
+        # Check if we should include raw plate
         if options.get("include_raw_plate"):
-            raw_plate_path = self.raw_plate_finder.find_latest_raw_plate(
-                shot.workspace_path, shot.full_name
+            # Find plate for selected space
+            raw_plate_path = self.raw_plate_finder.find_plate_for_space(
+                shot.workspace_path, shot.full_name, selected_plate
             )
             if raw_plate_path and self.raw_plate_finder.verify_plate_exists(
                 raw_plate_path
             ):
-                return self.script_generator.create_workspace_plate_script(
-                    raw_plate_path, shot.workspace_path, shot.full_name, version=version
+                # Create script with plate directly in plate directory
+                return self.script_generator.create_plate_directory_script(
+                    raw_plate_path,
+                    shot.workspace_path,
+                    shot.full_name,
+                    selected_plate,
+                    version=version,
+                )
+            else:
+                self.logger.warning(
+                    f"Raw plate not found for {selected_plate}, creating empty script"
                 )
 
-        # Create empty script
-        script_path = self.script_generator.create_plate_script("", shot.full_name)
-        if script_path:
-            with open(script_path, encoding="utf-8") as f:
-                content = f.read()
-            return self.script_generator.save_workspace_script(
-                content, shot.workspace_path, shot.full_name, version=version
-            )
-
-        return None
+        # Create empty script directly in plate directory (no temp files!)
+        return self.script_generator.create_empty_plate_script(
+            shot.workspace_path,
+            shot.full_name,
+            selected_plate,
+            version=version,
+        )
 
     def _handle_media_loading(
         self, shot: Shot, command: str, options: dict[str, bool]

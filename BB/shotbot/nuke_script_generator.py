@@ -561,6 +561,130 @@ except Exception as e:
 
         return saved_path
 
+    @staticmethod
+    def create_plate_directory_script(
+        plate_path: str,
+        workspace_path: str,
+        shot_name: str,
+        plate_name: str,
+        version: int = 1,
+    ) -> str | None:
+        """Create Nuke script directly in plate directory (no temp files).
+
+        Saves to: {workspace}/publish/turnover/plate/input_plate/{plate}/v{version}/exr/{resolution}/
+        Filename: {shot}_mm-default_{plate}_scene_v{version:03d}.nk
+
+        This method writes directly to the target location with a single file operation,
+        eliminating the temp file → read → write round-trip.
+
+        Args:
+            plate_path: Path to the plate sequence (used to extract metadata)
+            workspace_path: Shot workspace path
+            shot_name: Shot name (e.g., "DM_066_3580")
+            plate_name: Plate name (e.g., "FG01", "BG01")
+            version: Version number for the script
+
+        Returns:
+            Path to created script or None on error
+        """
+        try:
+            generator = NukeScriptGenerator()
+
+            # Generate script content
+            script_content = generator._create_script(
+                plate_path=plate_path,
+                shot_name=shot_name,
+                script_type="standard",
+            )
+
+            # Get plate script directory using PlateDiscovery
+            # Local application imports
+            from plate_discovery import PlateDiscovery
+
+            script_dir = PlateDiscovery.get_plate_script_directory(
+                workspace_path, plate_name
+            )
+            if not script_dir:
+                logger.error(
+                    f"Failed to get plate script directory for {plate_name} "
+                    f"in workspace {workspace_path}"
+                )
+                return None
+
+            # Build filename
+            filename = f"{shot_name}_mm-default_{plate_name}_scene_v{version:03d}.nk"
+            output_path = script_dir / filename
+
+            # Write directly (no temp file!)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(script_content)
+
+            logger.info(f"Created Nuke script: {output_path}")
+            return str(output_path)
+
+        except Exception as e:
+            logger.error(f"Failed to create plate directory script: {e}")
+            return None
+
+    @staticmethod
+    def create_empty_plate_script(
+        workspace_path: str,
+        shot_name: str,
+        plate_name: str,
+        version: int = 1,
+    ) -> str | None:
+        """Create empty Nuke script directly in plate directory.
+
+        Creates a basic script with Root node but no Read nodes.
+        Uses single direct write operation (no temp files).
+
+        Args:
+            workspace_path: Shot workspace path
+            shot_name: Shot name
+            plate_name: Plate name (e.g., "FG01")
+            version: Version number
+
+        Returns:
+            Path to created script or None on error
+        """
+        try:
+            generator = NukeScriptGenerator()
+
+            # Generate empty script content (no plate)
+            script_content = generator._create_script(
+                plate_path="",  # Empty plate path = no Read node
+                shot_name=shot_name,
+                script_type="standard",
+            )
+
+            # Get plate script directory
+            # Local application imports
+            from plate_discovery import PlateDiscovery
+
+            script_dir = PlateDiscovery.get_plate_script_directory(
+                workspace_path, plate_name
+            )
+            if not script_dir:
+                logger.error(
+                    f"Failed to get plate script directory for {plate_name}"
+                )
+                return None
+
+            # Build filename
+            filename = f"{shot_name}_mm-default_{plate_name}_scene_v{version:03d}.nk"
+            output_path = script_dir / filename
+
+            # Write directly
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(script_content)
+
+            logger.info(f"Created empty Nuke script: {output_path}")
+            return str(output_path)
+
+        except Exception as e:
+            logger.error(f"Failed to create empty plate script: {e}")
+            return None
+
     # Backward compatibility: Static method aliases for detection functions
     @staticmethod
     def _detect_frame_range(plate_path: str) -> tuple[int, int]:

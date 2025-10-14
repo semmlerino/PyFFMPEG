@@ -221,6 +221,7 @@ class CommandLauncher(LoggingMixin, QObject):
         open_latest_maya: bool = False,
         open_latest_scene: bool = False,
         create_new_file: bool = False,
+        selected_plate: str | None = None,
     ) -> bool:
         """Launch an application in the current shot context.
 
@@ -232,6 +233,7 @@ class CommandLauncher(LoggingMixin, QObject):
             open_latest_maya: Whether to open the latest Maya scene file (Maya only)
             open_latest_scene: Whether to open the latest Nuke script (Nuke only)
             create_new_file: Whether to create a new version (Nuke only)
+            selected_plate: Selected plate space for Nuke workspace scripts (e.g., "FG01", "BG01")
 
         Returns:
             True if launch was successful, False otherwise
@@ -258,7 +260,7 @@ class CommandLauncher(LoggingMixin, QObject):
             }
 
             command, log_messages = self.nuke_handler.prepare_nuke_command(
-                self.current_shot, command, options
+                self.current_shot, command, options, selected_plate=selected_plate
             )
 
             # Emit log messages

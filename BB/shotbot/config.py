@@ -253,13 +253,16 @@ class Config:
     ]  # Common plate naming including PL## turnover patterns
 
     # Turnover plate preferences (lower value = higher priority)
+    # For primary workflow: use FG (foreground) and BG (background) plates
+    # PL and BC are typically reference plates and should be excluded
     TURNOVER_PLATE_PRIORITY: dict[str, float] = {
-        "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
-        "PL": 0.5,  # PL/turnover plates (PL01, PL02, etc.) - between FG and BG
-        "BG": 1,  # BG plates second priority (BG01, BG02, etc.)
-        "COMP": 1.5,  # Composite plates - between BG and EL
-        "EL": 2,  # Element plates third
-        "*": 3,  # All others lowest priority
+        "FG": 0,  # Primary foreground plates (FG01, FG02) - USE THESE
+        "BG": 1,  # Primary background plates (BG01, BG02) - USE THESE
+        "COMP": 1.5,  # Composite plates - USE IF NEEDED
+        "EL": 2,  # Element plates - USE IF NEEDED
+        "PL": 10,  # Reference/turnover plates (PL01, PL02) - SKIP (reference only)
+        "BC": 11,  # Background clean plates (BC01) - SKIP (reference only)
+        "*": 12,  # All others lowest priority
     }
 
     # Legacy plate priority (for backward compatibility)
