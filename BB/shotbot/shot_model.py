@@ -300,6 +300,11 @@ class ShotModel(BaseShotModel):
             # Notify UI of changes
             self.shots_changed.emit(self.shots)
             self.cache_updated.emit()
+
+            # Emit shots_loaded to trigger dependent systems (e.g., previous shots refresh)
+            # This is especially important when initial load had empty cache
+            if old_count == 0 and len(new_shots) > 0:
+                self.shots_loaded.emit(self.shots)
         else:
             self.logger.info(
                 f"Background load complete: no changes ({len(new_shots)} shots)"
