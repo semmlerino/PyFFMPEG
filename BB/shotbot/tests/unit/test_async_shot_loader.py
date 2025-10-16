@@ -234,3 +234,66 @@ class TestShotModelSignals:
 
         assert len(optimized_model.shots) == 1
         assert optimized_model.shots[0].show == "NEW"
+
+    def test_shots_loaded_signal_re_emitted_after_background_load(
+        self, real_cache_manager, qtbot
+    ) -> None:
+        """Test shots_loaded signal is re-emitted after background load completes.
+
+        Regression test for bug where Previous Shots tab wasn't loading because
+        shots_loaded was only emitted once with empty list on init, never again
+        after background load completed with actual shots.
+
+        This test verifies the complete signal flow:
+        1. initialize_async() with empty cache -> shots_loaded([])
+        2. Background load completes -> shots_loaded([actual_shots])
+
+        Without the fix (before commit 9793a5f), this test would fail because
+        shots_loaded was only emitted once.
+        """
+        # Clear cache to simulate first run without cached data
+        real_cache_manager.clear_cached_data("shots")
+
+        # Create model with empty cache
+        model = ShotModel(real_cache_manager)
+
+        # Set up test process pool with shot data
+        test_pool = TestProcessPool()
+        test_pool.set_outputs(
+            "workspace /shows/TEST/shots/seq01/TEST_seq01_0010\n"
+            "workspace /shows/TEST/shots/seq01/TEST_seq01_0020"
+        )
+        model._process_pool = test_pool
+
+        # Spy on shots_loaded signal
+        shots_loaded_spy = QSignalSpy(model.shots_loaded)
+
+        # Initialize async with empty cache
+        result = model.initialize_async()
+        assert result.success is True
+
+        # First emission: empty list (initial load with no cache)
+        assert shots_loaded_spy.count() == 1, "First shots_loaded should emit immediately"
+        first_emission_shots = shots_loaded_spy.at(0)[0]
+        assert len(first_emission_shots) == 0, "First emission should have empty list"
+
+        # Wait for background load to complete
+        qtbot.waitUntil(lambda: len(model.shots) > 0, timeout=5000)
+
+        # Second emission: actual shots (CRITICAL - this was missing before fix)
+        assert (
+            shots_loaded_spy.count() == 2
+        ), "shots_loaded should emit twice: empty init + loaded shots"
+
+        second_emission_shots = shots_loaded_spy.at(1)[0]
+        assert (
+            len(second_emission_shots) == 2
+        ), "Second emission should have actual shots"
+        assert second_emission_shots[0].show == "TEST"
+        assert second_emission_shots[0].sequence == "seq01"
+
+        # Verify model state is correct (shots_changed was emitted but before we could spy)
+        assert len(model.shots) == 2
+
+        # Cleanup
+        model.cleanup()
