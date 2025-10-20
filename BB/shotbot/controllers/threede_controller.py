@@ -615,8 +615,9 @@ class ThreeDEController(LoggingMixin):
         show_filter = show if show else None
 
         # Apply filter to item model
-        # ThreeDEItemModel.set_show_filter has a specific signature matching ThreeDESceneModel
-        # We use object types for generic handling - type-safe at runtime via controlled callers
+        # NOTE: item_model uses object type for polymorphism across different item models
+        # All item models (ShotItemModel, ThreeDEItemModel, PreviousShotsItemModel)
+        # implement set_show_filter with their specific model types
         item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
 
         self.logger.info(

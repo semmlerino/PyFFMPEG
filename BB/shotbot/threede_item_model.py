@@ -15,7 +15,7 @@ from base_item_model import BaseItemModel, BaseItemRole
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
-    from threede_scene_model import ThreeDEScene
+    from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
 
 class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
@@ -147,6 +147,29 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             self.endResetModel()
             self.scenes_updated.emit()
         self.logger.info(f"Set {len(scenes)} scenes in model")
+
+    def set_show_filter(
+        self, threede_scene_model: ThreeDESceneModel, show: str | None
+    ) -> None:
+        """Set show filter and update the model.
+
+        Args:
+            threede_scene_model: Model to get filtered scenes from
+            show: Show name to filter by or None for all shows
+        """
+        # Set filter on the model
+        threede_scene_model.set_show_filter(show)
+
+        # Get filtered scenes and update our display
+        filtered_scenes = threede_scene_model.get_filtered_scenes()
+        self.set_scenes(filtered_scenes)
+
+        # Emit filter changed signal for UI updates
+        filter_display = show if show is not None else "All Shows"
+        self.show_filter_changed.emit(filter_display)
+        self.logger.info(
+            f"Applied show filter: {filter_display}, {len(filtered_scenes)} scenes"
+        )
 
     def get_scene(self, index: QModelIndex) -> ThreeDEScene | None:
         """Get scene at the given index.
