@@ -147,16 +147,12 @@ class Shot:
         from utils import PathUtils
 
         # Use the unified thumbnail discovery method
-        # Note: PathUtils.find_shot_thumbnail returns Path | None, but basedpyright
-        # cannot infer the return type from the dynamic PathUtils class
-        result = PathUtils.find_shot_thumbnail(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
+        thumbnail = PathUtils.find_shot_thumbnail(
             Config.SHOWS_ROOT,
             self.show,
             self.sequence,
             self.shot,
         )
-        # Explicit cast to help type checker understand the return type
-        thumbnail: Path | None = cast("Path | None", result)
 
         # Cache the result (even if None) to avoid repeated searches
         self._cached_thumbnail_path = thumbnail

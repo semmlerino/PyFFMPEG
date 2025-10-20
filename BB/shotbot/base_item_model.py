@@ -71,6 +71,7 @@ class BaseItemRole(IntEnum):
     ItemSpecificRole3 = (
         Qt.ItemDataRole.UserRole + 22
     )  # scene.scene_path for ThreeDEScene
+    ModifiedTimeRole = Qt.ItemDataRole.UserRole + 23  # File modification timestamp
 
 
 class BaseItemModel(

@@ -766,8 +766,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # This avoids unnecessary scans when we already know there are no scenes
         if has_cached_shots:
             # Check if we have a valid cache (including valid empty results)
-            # CacheManager.has_valid_threede_cache returns bool (method exists at runtime)
-            if not self.cache_manager.has_valid_threede_cache():  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+            if not self.cache_manager.has_valid_threede_cache():
                 self.logger.info("3DE cache invalid/expired - starting discovery")
                 if self.threede_controller:
                     QTimer.singleShot(
@@ -1184,8 +1183,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         show_filter = show if show else None
 
         # Apply filter to item model
-        # All item models have set_show_filter method, but we use object type for flexibility
-        # Suppressing type errors is safe because we control all callers
+        # Different item models have varying set_show_filter signatures:
+        # - ShotItemModel.set_show_filter(BaseShotModel, str | None)
+        # - PreviousShotsItemModel.set_show_filter(PreviousShotsModel, str | None)
+        # We use object types for generic handling across all tabs
         item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
 
         self.logger.info(

@@ -69,6 +69,13 @@ class PathUtils:
         max_depth: int = 5,
     ) -> Path | None: ...
     @staticmethod
+    def find_shot_thumbnail(
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
+    ) -> Path | None: ...
+    @staticmethod
     def build_raw_plate_path(workspace_path: str) -> Path: ...
     @staticmethod
     def build_undistortion_path(workspace_path: str, username: str) -> Path: ...
@@ -141,6 +148,11 @@ class ImageUtils:
     def get_safe_dimensions_for_thumbnail(
         max_size: int | None = ...,
     ) -> tuple[int, int]: ...
+    @staticmethod
+    def is_image_too_large_for_thumbnail(
+        size: object,  # QSize or compatible object with width()/height()
+        max_dimension: int,
+    ) -> bool: ...
 
 class ValidationUtils:
     """Common validation utilities."""

@@ -545,8 +545,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # which is an internal implementation detail of ThreadPoolExecutor.
         try:
             if hasattr(self._executor, "_pending_work_items"):
-                # Access internal work queue (not part of public API but safe for cleanup)
-                # Suppress all type checking for access to private ThreadPoolExecutor internals
+                # Access ThreadPoolExecutor._pending_work_items (private API)
+                # Required for proper cleanup of pending futures on shutdown
+                # Type checking disabled: not in public API but stable across Python versions
                 pending_items_raw = self._executor._pending_work_items  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
                 pending_items = cast("dict[object, object]", pending_items_raw)
                 pending_count = len(pending_items)
@@ -555,7 +556,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
                     # Cancel all pending futures
                     for work_item in pending_items.values():
                         if hasattr(work_item, "future"):
-                            # Access .future attribute (also private)
+                            # Access work_item.future (private ThreadPoolExecutor API)
+                            # Required to cancel pending futures during shutdown
                             future = cast(
                                 "concurrent.futures.Future[object]",
                                 work_item.future,  # type: ignore[attr-defined]  # pyright: ignore[reportAttributeAccessIssue]
