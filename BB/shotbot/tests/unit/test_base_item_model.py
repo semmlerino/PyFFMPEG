@@ -82,7 +82,9 @@ class TestBaseItemModelInitialization:
 
         thread = Thread(target=create_model)
         thread.start()
-        thread.join()
+        thread.join(timeout=5.0)
+        assert not thread.is_alive(), \
+            "Thread failed to complete within 5 seconds (possible deadlock)"
 
         assert error_occurred
 
@@ -431,20 +433,28 @@ class TestSetItems:
         assert model.rowCount() == 2
         assert spy.count() == 1
 
-    def test_set_items_clears_cache(self, qapp: QApplication) -> None:
-        """Test setting items clears thumbnail cache."""
+    def test_set_items_preserves_matching_thumbnails(self, qapp: QApplication) -> None:
+        """Test setting items preserves thumbnails for items still present."""
         model = ConcreteTestModel()
         shot1 = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
-        model.set_items([shot1])
-
-        # Add to cache
-        model._thumbnail_cache[shot1.full_name] = QImage()
-
-        # Set new items
         shot2 = Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020")
-        model.set_items([shot2])
+        model.set_items([shot1, shot2])
 
-        assert len(model._thumbnail_cache) == 0
+        # Add to cache (using QImage, not QPixmap)
+        image1 = QImage(100, 100, QImage.Format.Format_RGB888)
+        image2 = QImage(100, 100, QImage.Format.Format_RGB888)
+        model._thumbnail_cache[shot1.full_name] = image1
+        model._thumbnail_cache[shot2.full_name] = image2
+
+        # Set new items - shot1 preserved, shot2 removed
+        shot3 = Shot("TEST", "seq02", "0010", "/shows/TEST/shots/seq02/seq02_0010")
+        model.set_items([shot1, shot3])
+
+        # Verify preservation
+        assert len(model._thumbnail_cache) == 1
+        assert shot1.full_name in model._thumbnail_cache
+        assert model._thumbnail_cache[shot1.full_name] is image1  # Same object
+        assert shot2.full_name not in model._thumbnail_cache
 
     def test_set_items_clears_selection(self, qapp: QApplication) -> None:
         """Test setting items clears selection."""

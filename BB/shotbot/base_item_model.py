@@ -43,6 +43,17 @@ from qt_abc_meta import QABCMeta
 T = TypeVar("T", bound=SceneDataProtocol)
 
 
+class QtThreadError(RuntimeError):
+    """Raised when Qt operations attempted from wrong thread.
+
+    This exception is raised when a Qt operation that requires main thread
+    execution is attempted from a different thread, indicating a threading
+    violation in the application.
+    """
+
+    pass
+
+
 class BaseItemRole(IntEnum):
     """Common roles shared across all item models."""
 
@@ -564,28 +575,104 @@ class BaseItemModel(
             )
 
     def set_items(self, items: list[T]) -> None:
-        """Set the item list with proper model reset.
+        """Set items with thumbnail cache preservation.
+
+        Preserves cached thumbnails for items that exist in both the old and new
+        item lists (matched by full_name). Thumbnails for removed items are
+        automatically discarded.
+
+        IMPORTANT BEHAVIORS:
+        - Clears current selection (if any)
+        - Stops active thumbnail loading timer BEFORE model reset
+        - Items with duplicate full_name values share cached thumbnails
+        - Emits modelReset signal followed by items_updated signal
+        - Safe to call during active loading operations
 
         Args:
-            items: List of item objects
-        """
-        self.beginResetModel()
+            items: New list of items to display. Can be empty list.
 
-        # Stop any active thumbnail loading
+        Raises:
+            QtThreadError: If called outside Qt main thread
+        """
+        # CRITICAL: Verify main thread (Qt requirement)
+        app = QCoreApplication.instance()
+        if app and QThread.currentThread() != app.thread():
+            raise QtThreadError(
+                f"set_items() must be called from main thread. "
+                f"Current: {QThread.currentThread()}, Main: {app.thread()}"
+            )
+
+        # CRITICAL: Stop timer FIRST (prevents callback races)
         if self._thumbnail_timer.isActive():
             self._thumbnail_timer.stop()
 
-        self._items = items
-        with QMutexLocker(self._cache_mutex):
-            self._thumbnail_cache.clear()
-            self._loading_states.clear()
-        self._selected_index = QPersistentModelIndex()
-        self._selected_item = None
+        # Build lookup set BEFORE model reset (exception safety)
+        new_item_names = {item.full_name for item in items}
 
-        self.endResetModel()
+        # Detect duplicates (optional but recommended)
+        duplicate_count = len(items) - len(new_item_names) if items else 0
 
+        # NOW safe to begin model reset
+        self.beginResetModel()
+
+        try:
+            # Log duplicates inside try block (logger might throw)
+            if duplicate_count > 0:
+                self.logger.debug(
+                    f"Found {duplicate_count} items with duplicate full_name values. "
+                    f"Thumbnails will be shared across duplicates."
+                )
+
+            # Update items list (state modification inside try block)
+            self._items = items
+
+            # Acquire mutex ONLY for cache filtering (minimize hold time)
+            with QMutexLocker(self._cache_mutex):
+                old_cache_size = len(self._thumbnail_cache)
+
+                # Filter thumbnail cache - preserve only items still present
+                self._thumbnail_cache = {
+                    name: image
+                    for name, image in self._thumbnail_cache.items()
+                    if name in new_item_names
+                }
+
+                # Filter loading states - preserve only items still present
+                self._loading_states = {
+                    name: state
+                    for name, state in self._loading_states.items()
+                    if name in new_item_names
+                }
+
+                new_cache_size = len(self._thumbnail_cache)
+            # QMutexLocker automatically releases lock here
+
+            # Log cache preservation statistics
+            preserved = new_cache_size
+            evicted = old_cache_size - new_cache_size
+
+            # Performance logging for large operations
+            if old_cache_size > 1000:
+                self.logger.debug(
+                    f"Large cache operation: {old_cache_size} items filtered, "
+                    f"{evicted} evicted, {preserved} preserved"
+                )
+
+            self.logger.info(
+                f"Model updated: {len(items)} items, "
+                f"thumbnails: {preserved} preserved, {evicted} evicted"
+            )
+
+            # Clear selection (existing behavior)
+            self._selected_index = QPersistentModelIndex()
+            self._selected_item = None
+
+        finally:
+            # CRITICAL: Always complete model reset
+            self.endResetModel()
+
+        # Emit signal AFTER successful update
         self.items_updated.emit()
-        self.logger.info(f"Model updated with {len(items)} items")
 
     # ============= Abstract methods for subclasses =============
 

@@ -11,24 +11,21 @@ Following UNIFIED_TESTING_GUIDE best practices:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtTest import QSignalSpy
 
 from base_item_model import BaseItemRole
-from base_shot_model import BaseShotModel
 from shot_item_model import ShotItemModel
 from shot_model import Shot
-from type_definitions import RefreshResult
 
 if TYPE_CHECKING:
-    from pathlib import Path
 
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
 
+    from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
     from tests.test_doubles_library import TestProcessPool
 
@@ -168,7 +165,7 @@ class TestThumbnailLoading:
         shot_item_model.set_shots(test_shots)
 
         # Get initial loading state
-        initial_states = {
+        {
             shot.full_name: shot_item_model._loading_states.get(shot.full_name, "idle")
             for shot in test_shots
         }
@@ -548,25 +545,28 @@ class TestCleanup:
         assert len(shot_item_model._thumbnail_cache) == 0
         assert len(shot_item_model._loading_states) == 0
 
-    def test_set_items_clears_cache(
+    def test_set_items_preserves_matching_cache(
         self, shot_item_model: ShotItemModel, qtbot: QtBot, test_shots: list[Shot]
     ) -> None:
-        """Test setting items clears thumbnail cache."""
-        shot_item_model.set_shots(test_shots[:2])
-
-        # Manually add to cache
+        """Test setting items preserves thumbnails for matching shots."""
         from PySide6.QtCore import QMutexLocker
         from PySide6.QtGui import QImage
 
+        shot_item_model.set_shots(test_shots[:2])
+
+        # Add to cache
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
         with QMutexLocker(shot_item_model._cache_mutex):
             shot_item_model._thumbnail_cache[test_shots[0].full_name] = test_image
 
-        # Set new items
-        shot_item_model.set_shots(test_shots[2:])
+        # Set new items - test_shots[0] preserved, test_shots[1] removed
+        shot_item_model.set_shots([test_shots[0], test_shots[2]])
 
-        # Cache should be cleared
-        assert len(shot_item_model._thumbnail_cache) == 0
+        # Verify preservation
+        assert len(shot_item_model._thumbnail_cache) == 1
+        assert test_shots[0].full_name in shot_item_model._thumbnail_cache
+        with QMutexLocker(shot_item_model._cache_mutex):
+            assert shot_item_model._thumbnail_cache[test_shots[0].full_name] is test_image
 
 
 class TestEdgeCases:
