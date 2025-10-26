@@ -163,8 +163,8 @@ class SettingsController(LoggingMixin):
             # In practice, SettingsManager returns QSize, but handle both for robustness
             try:
                 # Try QSize first (most likely)
-                width = default_size.width()  # type: ignore[union-attr]
-                height = default_size.height()  # type: ignore[union-attr]
+                width = default_size.width()
+                height = default_size.height()
                 self.window.resize(width, height)
             except AttributeError:
                 # Fallback to tuple handling or config defaults

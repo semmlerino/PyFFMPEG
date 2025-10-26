@@ -387,7 +387,7 @@ class TestFileSystemTraversalPerformance:
                     try:
                         result = subprocess.run(
                             ["find", str(show_dir), "-name", "*.3de", "-type", "f"],
-                            capture_output=True,
+                            check=False, capture_output=True,
                             text=True,
                             timeout=30,
                         )
@@ -444,7 +444,7 @@ class TestFileSystemTraversalPerformance:
                                 "-maxdepth",
                                 "15",
                             ],
-                            capture_output=True,
+                            check=False, capture_output=True,
                             text=True,
                             timeout=60,
                         )

@@ -185,7 +185,7 @@ def test_headless_shotbot_command() -> None:
 
     try:
         # Run with timeout to prevent hanging
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5, env=env)
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=5, env=env)
 
         # Check output
         if "HEADLESS MODE" in result.stdout or "HEADLESS MODE" in result.stderr:

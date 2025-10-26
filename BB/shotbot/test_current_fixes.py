@@ -25,7 +25,7 @@ def run_test(description: str, cmd: list[str], timeout: int = 60) -> bool:
     try:
         result = subprocess.run(
             cmd,
-            timeout=timeout,
+            check=False, timeout=timeout,
             capture_output=True,
             text=True,
             cwd=Path(__file__).parent,

@@ -33,7 +33,7 @@ def run_tests():
         "tests/",
     ]
 
-    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    result = subprocess.run(cmd, check=False, env=env, capture_output=True, text=True)
 
     print(result.stdout)
     print(result.stderr)

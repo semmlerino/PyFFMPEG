@@ -277,7 +277,7 @@ class SystemDiagnostics(LoggingMixin):
             try:
                 result = subprocess.run(
                     ["ulimit", "-a"],
-                    capture_output=True,
+                    check=False, capture_output=True,
                     text=True,
                     timeout=1,
                 )

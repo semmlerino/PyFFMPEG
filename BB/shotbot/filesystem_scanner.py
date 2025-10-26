@@ -312,7 +312,7 @@ class FileSystemScanner(LoggingMixin):
                 *exclusions,
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0 and result.stdout:
                 for file_path_str in result.stdout.strip().split("\n"):
@@ -711,7 +711,7 @@ class FileSystemScanner(LoggingMixin):
                 # Run find command with longer timeout for network filesystems
                 result = subprocess.run(
                     find_cmd,
-                    capture_output=True,
+                    check=False, capture_output=True,
                     text=True,
                     timeout=120,  # 120 second timeout for large network directories
                 )

@@ -280,7 +280,6 @@ class OptimizedThreeDESceneFinder:
 
 # Backward compatibility aliases
 ThreeDESceneFinderOptimized = OptimizedThreeDESceneFinder
-DirectoryCache = DirectoryCache  # Re-export for backward compatibility
 
 # Logger for compatibility
 logger = logging.getLogger(__name__)

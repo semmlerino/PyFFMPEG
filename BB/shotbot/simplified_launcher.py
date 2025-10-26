@@ -255,7 +255,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             # Execute with interactive bash (required for ws function)
             result = subprocess.run(
                 ["/bin/bash", "-i", "-c", command],
-                capture_output=True,
+                check=False, capture_output=True,
                 text=True,
                 timeout=timeout,
             )

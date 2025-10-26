@@ -26,7 +26,7 @@ def run_pytest_with_timeout(timeout_per_test=5):
     try:
         result = subprocess.run(
             cmd,
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=30,
             cwd=Path(__file__).parent,
@@ -72,7 +72,7 @@ def audit_individual_file(test_file, timeout=10):
     try:
         result = subprocess.run(
             cmd,
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=timeout,
             cwd=Path(__file__).parent,

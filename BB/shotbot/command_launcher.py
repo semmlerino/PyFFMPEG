@@ -132,7 +132,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Try to find rez command
         try:
             result = subprocess.run(
-                ["which", "rez"], capture_output=True, text=True, timeout=2
+                ["which", "rez"], check=False, capture_output=True, text=True, timeout=2
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):

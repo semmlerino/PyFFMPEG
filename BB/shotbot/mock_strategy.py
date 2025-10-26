@@ -130,7 +130,7 @@ class JSONMockStrategy(MockDataStrategy):
 
         try:
             with open(self.json_path) as f:
-                data: Any = json.load(f)  # pyright: ignore[reportAny, reportExplicitAny]
+                data: Any = json.load(f)
 
             shots: list[str] = []
             # Type narrow: data should be dict with "shots" key
@@ -206,7 +206,7 @@ class ProductionDataStrategy(MockDataStrategy):
 
         try:
             with open(self.capture_file) as f:
-                data: Any = json.load(f)  # pyright: ignore[reportAny, reportExplicitAny]
+                data: Any = json.load(f)
 
             shots: list[str] = []
 

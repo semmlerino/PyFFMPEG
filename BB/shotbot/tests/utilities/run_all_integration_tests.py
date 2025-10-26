@@ -22,7 +22,7 @@ def run_test(test_script: str, description: str) -> tuple[bool, str]:
     try:
         result = subprocess.run(
             [sys.executable, test_script],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=120,  # 2 minute timeout per test
         )

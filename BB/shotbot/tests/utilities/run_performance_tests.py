@@ -33,7 +33,7 @@ def run_test_script(script_path: Path) -> tuple[bool, float, str]:
     try:
         result = subprocess.run(
             [sys.executable, str(script_path)],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=300,  # 5 minute timeout
         )

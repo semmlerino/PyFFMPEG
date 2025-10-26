@@ -131,7 +131,7 @@ class TargetedShotsFinder(ShotFinderBase):
             # Run with timeout per show
             result = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
+                check=False, stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
                 timeout=ThreadingConfig.PREVIOUS_SHOTS_SCAN_TIMEOUT,

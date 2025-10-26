@@ -157,7 +157,7 @@ class LauncherPreviewPanel(QtWidgetMixin, LoggingMixin, QWidget):
             self.delete_requested.emit(self._current_launcher_id)
 
 
-class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc]
+class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
     """Dialog for creating/editing launchers."""
 
     def __init__(
@@ -442,7 +442,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[
         super().keyPressEvent(event)
 
 
-class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc]
+class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
     """Main launcher management dialog."""
 
     def __init__(

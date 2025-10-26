@@ -226,7 +226,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                     cls._instance = instance
         return cls._instance
 
-    def __init__(self, max_workers: int = 4, sessions_per_type: int = 3) -> None:  # type: ignore[misc]
+    def __init__(self, max_workers: int = 4, sessions_per_type: int = 3) -> None:
         """Initialize process pool manager.
 
         Args:
@@ -548,7 +548,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 # Access ThreadPoolExecutor._pending_work_items (private API)
                 # Required for proper cleanup of pending futures on shutdown
                 # Type checking disabled: not in public API but stable across Python versions
-                pending_items_raw = self._executor._pending_work_items  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
+                pending_items_raw = self._executor._pending_work_items  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
                 pending_items = cast("dict[object, object]", pending_items_raw)
                 pending_count = len(pending_items)
                 if pending_count > 0:
@@ -560,7 +560,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                             # Required to cancel pending futures during shutdown
                             future = cast(
                                 "concurrent.futures.Future[object]",
-                                work_item.future,  # type: ignore[attr-defined]  # pyright: ignore[reportAttributeAccessIssue]
+                                work_item.future,  # pyright: ignore[reportAttributeAccessIssue]
                             )
                             future.cancel()
         except Exception as e:

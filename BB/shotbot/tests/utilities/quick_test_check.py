@@ -16,7 +16,7 @@ def check_test_file(test_path: str, timeout: int = 5) -> str | None:
     try:
         result = subprocess.run(
             ["uv", "run", "python", "run_tests.py", test_path, "-x", "--tb=no"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=timeout,
             env=os.environ.copy(),

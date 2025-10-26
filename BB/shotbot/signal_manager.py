@@ -173,7 +173,7 @@ class SignalManager(LoggingMixin):
         # Disconnect in reverse order (LIFO)
         for signal, slot, _ in reversed(self._connections):
             try:
-                signal.disconnect(slot)  # type: ignore[attr-defined]
+                signal.disconnect(slot)
                 disconnected += 1
             except Exception as e:
                 # Connection might already be gone
@@ -185,7 +185,7 @@ class SignalManager(LoggingMixin):
         # Disconnect signal chains
         for source, target in self._signal_chains:
             try:
-                source.disconnect(target)  # type: ignore[attr-defined,reportUnknownMemberType]
+                source.disconnect(target)
                 disconnected += 1
             except Exception:
                 pass

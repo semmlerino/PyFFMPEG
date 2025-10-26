@@ -41,7 +41,7 @@ def run_fast_tests():
         "--durations=10",  # Show 10 slowest tests
         "tests/unit",
     ]
-    return subprocess.run(cmd).returncode
+    return subprocess.run(cmd, check=False).returncode
 
 
 def run_critical_tests():
@@ -58,14 +58,14 @@ def run_critical_tests():
         "--maxfail=1",
         "tests/",
     ]
-    return subprocess.run(cmd).returncode
+    return subprocess.run(cmd, check=False).returncode
 
 
 def run_single_file(filepath):
     """Run tests from a single file to minimize collection overhead."""
     print(f"📝 Running tests from {filepath}...")
     cmd = [sys.executable, "-m", "pytest", "-c", "pytest_wsl.ini", filepath, "-v"]
-    return subprocess.run(cmd).returncode
+    return subprocess.run(cmd, check=False).returncode
 
 
 def run_focused_tests(pattern):
@@ -81,7 +81,7 @@ def run_focused_tests(pattern):
         pattern,
         "--maxfail=5",
     ]
-    return subprocess.run(cmd).returncode
+    return subprocess.run(cmd, check=False).returncode
 
 
 def run_all_tests_batched() -> int:
@@ -113,7 +113,7 @@ def run_all_tests_batched() -> int:
             "--tb=short",
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
         if result.returncode != 0:
             failed_batches.append(test_path)
             print(f"❌ Failed: {test_path}")
@@ -138,7 +138,7 @@ def check_imports() -> int:
         module_path = str(test_file).replace("/", ".").replace("\\", ".")[:-3]
         try:
             cmd = [sys.executable, "-c", f"import {module_path}"]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=5)
             if result.returncode != 0:
                 failed_imports.append(test_file)
                 print(f"❌ Import failed: {test_file}")

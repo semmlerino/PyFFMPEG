@@ -426,7 +426,7 @@ class ApplicationBundler:
             print(f"Running: {' '.join(cmd)}", file=sys.stderr)
 
         # Run transfer_cli
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
 
         if result.returncode != 0:
             raise RuntimeError(f"transfer_cli.py failed: {result.stderr}")

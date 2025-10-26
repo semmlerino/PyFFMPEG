@@ -24,7 +24,7 @@ def run_fast_tests():
         "tests/",
     ]
 
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, check=False)
 
     elapsed = time.time() - start
     print(f"\n⏱️  Fast tests completed in {elapsed:.1f} seconds")

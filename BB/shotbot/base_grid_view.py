@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     from base_thumbnail_delegate import BaseThumbnailDelegate
 
 
-class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):  # type: ignore[reportUnsafeMultipleInheritance]
+class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
     """Base class for grid views with common functionality.
 
     This base class provides:

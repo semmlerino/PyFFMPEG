@@ -153,11 +153,11 @@ class ThreeDEGridView(BaseGridView):
         self.list_view.setModel(model)
 
         # Connect model signals
-        model.scenes_updated.connect(self._on_scenes_updated)  # pyright: ignore[reportAny]
-        model.thumbnail_loaded.connect(self._on_thumbnail_loaded)  # pyright: ignore[reportAny]
-        model.loading_started.connect(self._on_loading_started)  # pyright: ignore[reportAny]
-        model.loading_progress.connect(self._on_loading_progress)  # pyright: ignore[reportAny]
-        model.loading_finished.connect(self._on_loading_finished)  # pyright: ignore[reportAny]
+        model.scenes_updated.connect(self._on_scenes_updated)
+        model.thumbnail_loaded.connect(self._on_thumbnail_loaded)
+        model.loading_started.connect(self._on_loading_started)
+        model.loading_progress.connect(self._on_loading_progress)
+        model.loading_finished.connect(self._on_loading_finished)
 
         # Update grid size based on thumbnail size
         self._update_grid_size()
@@ -184,13 +184,13 @@ class ThreeDEGridView(BaseGridView):
             super().populate_show_filter(model_shows)
             self.logger.info(f"Populated show filter with {len(model_shows)} shows")
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def _on_scenes_updated(self) -> None:
         """Handle scenes updated signal."""
         self._update_scene_count()
         self.list_view.viewport().update()
 
-    @Slot(int)  # pyright: ignore[reportAny]
+    @Slot(int)
     def _on_thumbnail_loaded(self, row: int) -> None:
         """Handle thumbnail loaded signal.
 
@@ -202,7 +202,7 @@ class ThreeDEGridView(BaseGridView):
             index = self._threede_model.index(row, 0)
             self.list_view.update(index)
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def _on_loading_started(self) -> None:
         """Handle loading started signal."""
         self._is_loading = True
@@ -211,7 +211,7 @@ class ThreeDEGridView(BaseGridView):
         self.loading_label.setText("Scanning for 3DE scenes...")
         self.loading_bar.setValue(0)
 
-    @Slot(int, int)  # pyright: ignore[reportAny]
+    @Slot(int, int)
     def _on_loading_progress(self, current: int, total: int) -> None:
         """Handle loading progress signal.
 
@@ -224,7 +224,7 @@ class ThreeDEGridView(BaseGridView):
             self.loading_bar.setValue(progress)
             self.loading_label.setText(f"Found {current} scenes...")
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def _on_loading_finished(self) -> None:
         """Handle loading finished signal."""
         self._is_loading = False
@@ -238,7 +238,7 @@ class ThreeDEGridView(BaseGridView):
             count = self._threede_model.rowCount()
             self.count_label.setText(f"{count} scene{'s' if count != 1 else ''}")
 
-    @Slot(QModelIndex)  # pyright: ignore[reportAny]
+    @Slot(QModelIndex)
     def _on_item_clicked(self, index: QModelIndex) -> None:
         """Handle item click.
 
@@ -254,7 +254,7 @@ class ThreeDEGridView(BaseGridView):
             self._threede_model.set_selected(index)
             self.scene_selected.emit(scene)
 
-    @Slot(QModelIndex)  # pyright: ignore[reportAny]
+    @Slot(QModelIndex)
     def _on_item_double_clicked(self, index: QModelIndex) -> None:
         """Handle item double-click.
 
@@ -281,7 +281,7 @@ class ThreeDEGridView(BaseGridView):
             # Add some buffer for smooth scrolling
             buffered_start = max(0, start - 5)
             buffered_end = min(self._threede_model.rowCount(), end + 5)
-            self._threede_model.set_visible_range(buffered_start, buffered_end)  # pyright: ignore[reportAny]
+            self._threede_model.set_visible_range(buffered_start, buffered_end)
 
     def _show_context_menu(self, pos: QPoint) -> None:
         """Show context menu at position.

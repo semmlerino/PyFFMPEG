@@ -317,7 +317,7 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         try:
             # Call parent's run() which manages state and calls do_work()
-            super().run()  # pyright: ignore[reportAny]
+            super().run()
         finally:
             # Ensure finished signal is emitted exactly once
             self._emit_finished_signal_once()

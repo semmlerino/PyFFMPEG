@@ -96,7 +96,7 @@ def main() -> None:
             "--clean",
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
 
         if result.returncode == 0:
             print(result.stdout)

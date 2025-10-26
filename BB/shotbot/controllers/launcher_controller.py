@@ -318,13 +318,13 @@ class LauncherController(LoggingMixin):
             import inspect
             from collections.abc import Callable as CallableABC
 
-            launcher_method: CallableABC[..., bool] | None = getattr(self.window.command_launcher, 'launch_app', None)
+            launcher_method: CallableABC[..., bool] | None = getattr(self.window.command_launcher, "launch_app", None)
             if launcher_method is None or not callable(launcher_method):
                 success = False
             else:
                 # Check if method signature includes 'selected_plate' parameter
                 sig = inspect.signature(launcher_method)
-                supports_selected_plate = 'selected_plate' in sig.parameters
+                supports_selected_plate = "selected_plate" in sig.parameters
 
                 if supports_selected_plate and selected_plate and app_name == "nuke":
                     # Narrow type to CommandLauncher which has selected_plate parameter

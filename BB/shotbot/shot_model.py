@@ -78,7 +78,7 @@ class AsyncShotLoader(ThreadSafeWorker):
         self.process_pool = process_pool
         self.parse_function = parse_function  # Use base class's parse method
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def run(self) -> None:
         """Load shots in background thread.
 
@@ -257,15 +257,15 @@ class ShotModel(BaseShotModel):
             # Signal.connect() cannot infer specific callable type from Signal(list)
             # Qt signals use generic signatures, so slot methods appear as Any
             self._async_loader.shots_loaded.connect(
-                self._on_shots_loaded,  # pyright: ignore[reportAny]
+                self._on_shots_loaded,
                 Qt.ConnectionType.QueuedConnection,
             )
             self._async_loader.load_failed.connect(
-                self._on_load_failed,  # pyright: ignore[reportAny]
+                self._on_load_failed,
                 Qt.ConnectionType.QueuedConnection,
             )
             self._async_loader.finished.connect(
-                self._on_loader_finished,  # pyright: ignore[reportAny]
+                self._on_loader_finished,
                 Qt.ConnectionType.QueuedConnection,
             )
 
@@ -273,7 +273,7 @@ class ShotModel(BaseShotModel):
             self._async_loader.start()
             self.logger.info("Started background shot loading")
 
-    @Slot(list)  # pyright: ignore[reportAny]
+    @Slot(list)
     def _on_shots_loaded(self, new_shots: list[Shot]) -> None:
         """Handle shots loaded in background.
 
@@ -312,7 +312,7 @@ class ShotModel(BaseShotModel):
 
         self.refresh_finished.emit(True, has_changes)
 
-    @Slot(str)  # pyright: ignore[reportAny]
+    @Slot(str)
     def _on_load_failed(self, error_msg: str) -> None:
         """Handle background load failure.
 
@@ -323,7 +323,7 @@ class ShotModel(BaseShotModel):
         self.error_occurred.emit(error_msg)
         self.refresh_finished.emit(False, False)
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def _on_loader_finished(self) -> None:
         """Handle loader thread completion.
 

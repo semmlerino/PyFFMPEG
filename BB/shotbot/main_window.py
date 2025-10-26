@@ -142,7 +142,7 @@ class SessionWarmer(ThreadSafeWorker):
         super().__init__()
         self._process_pool: ProcessPoolInterface = process_pool
 
-    @Slot()  # type: ignore[misc]  # pyright: ignore[reportAny]
+    @Slot()
     @override
     def run(self) -> None:
         """Pre-warm bash sessions in background thread."""
@@ -875,7 +875,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             if selected_scene:
                 # Re-apply the scene selection to update context
                 if self.threede_controller:
-                    self.threede_controller.on_scene_selected(selected_scene)  # pyright: ignore[reportAny]
+                    self.threede_controller.on_scene_selected(selected_scene)
             else:
                 # Clear selection
                 self.launcher_controller.set_current_shot(None)

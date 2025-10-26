@@ -91,7 +91,7 @@ class PreviousShotsFinder(ShotFinderBase):
             # Increased timeout to 120 seconds for large filesystem searches
             result = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,  # Capture stdout explicitly
+                check=False, stdout=subprocess.PIPE,  # Capture stdout explicitly
                 stderr=subprocess.DEVNULL,  # Suppress stderr
                 text=True,
                 timeout=120,  # Increased from 30 to 120 seconds
@@ -417,7 +417,7 @@ class ParallelShotsFinder(PreviousShotsFinder):
             # Run with shorter timeout per show
             result = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
+                check=False, stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
                 timeout=ThreadingConfig.PREVIOUS_SHOTS_SCAN_TIMEOUT,  # Configurable timeout per show

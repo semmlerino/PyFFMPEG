@@ -10,7 +10,7 @@ from PySide6.QtCore import QObject
 
 
 # Create a compatible metaclass that combines ABCMeta and Qt's metaclass
-class QABCMeta(type(QObject), ABCMeta):  # type: ignore[misc]  # pyright: ignore[reportGeneralTypeIssues]
+class QABCMeta(type(QObject), ABCMeta):  # pyright: ignore[reportGeneralTypeIssues]
     """Metaclass that combines ABCMeta with Qt's metaclass.
 
     This allows classes to inherit from both ABC and Qt classes (like QObject

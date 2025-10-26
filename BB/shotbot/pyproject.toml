@@ -72,6 +72,10 @@ select = [
     "FURB",    # refurb - modernization suggestions
     "FLY",     # flynt - prefer f-strings
     "RET",     # flake8-return - return statement improvements
+
+    # Option A: Aggressive quality checks
+    "Q",       # flake8-quotes - quote consistency
+    "PLW",     # Pylint warnings - catches real bugs (with exceptions)
 ]
 
 # Ignore rules that don't fit this codebase
@@ -103,6 +107,11 @@ ignore = [
 
     # Return statement exceptions
     "RET504",  # Unnecessary assign before return (often clearer)
+
+    # Pylint warning exceptions
+    "PLW0603", # global-statement (Qt/VFX patterns need globals)
+    "PLW2901", # redefined-loop-name (sometimes intentional for clarity)
+    "PLW0602", # global-variable-not-assigned (false positives)
 ]
 
 # Allow autofix for all enabled rules
@@ -276,8 +285,8 @@ directory = "htmlcov"
 output = "coverage.xml"
 
 [tool.basedpyright]
-# Type checking mode - "recommended" balances safety with pragmatism
-typeCheckingMode = "recommended"
+# Type checking mode - "strict" for maximum type safety
+typeCheckingMode = "strict"
 
 # Python version (matches minimum requirement: Python 3.11+)
 pythonVersion = "3.11"

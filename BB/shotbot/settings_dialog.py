@@ -90,7 +90,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc]
+class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
     """Comprehensive settings dialog with tabbed interface."""
 
     # Signals
@@ -178,7 +178,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         # Third-party imports
         from PySide6.QtCore import QSize
 
-        self.setup_window_geometry("settings_dialog", QSize(700, 600))  # type: ignore[misc]
+        self.setup_window_geometry("settings_dialog", QSize(700, 600))
 
         # Setup UI
         self.setup_ui()
@@ -584,12 +584,12 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.button_box.clicked.connect(self.handle_button_click)
 
         # Setting change signals for live preview
-        self.thumbnail_size_slider.valueChanged.connect(self.update_thumbnail_preview)  # pyright: ignore[reportAny]
-        self.dark_theme_check.toggled.connect(self.preview_theme_change)  # pyright: ignore[reportAny]
+        self.thumbnail_size_slider.valueChanged.connect(self.update_thumbnail_preview)
+        self.dark_theme_check.toggled.connect(self.preview_theme_change)
 
         # Validation signals
-        self.validate_launchers_btn.clicked.connect(self.validate_custom_launchers)  # pyright: ignore[reportAny]
-        self.edit_launchers_btn.clicked.connect(self.edit_custom_launchers)  # pyright: ignore[reportAny]
+        self.validate_launchers_btn.clicked.connect(self.validate_custom_launchers)
+        self.edit_launchers_btn.clicked.connect(self.edit_custom_launchers)
 
     def set_initial_tab(self, tab_name: str) -> None:
         """Set the initial tab to display."""
@@ -602,7 +602,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         """Load current settings into the dialog controls."""
         # General tab
         self.thumbnail_size_slider.setValue(self.settings_manager.get_thumbnail_size())
-        self.update_thumbnail_preview()  # pyright: ignore[reportAny]
+        self.update_thumbnail_preview()
 
         self.grid_columns_spin.setValue(self.settings_manager.get_grid_columns())
         self.dark_theme_check.setChecked(self.settings_manager.get_dark_theme())
@@ -649,7 +649,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         self.debug_mode_check.setChecked(self.settings_manager.get_debug_mode())
         self.log_level_combo.setCurrentText(self.settings_manager.get_log_level())
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def update_thumbnail_preview(self) -> None:
         """Update thumbnail size preview label."""
         size = self.thumbnail_size_slider.value()
@@ -658,13 +658,13 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         # Emit preview signal
         self.settings_changed.emit("thumbnail_size_preview", size)
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def preview_theme_change(self) -> None:
         """Preview theme change."""
         dark_enabled = self.dark_theme_check.isChecked()
         self.settings_changed.emit("dark_theme_preview", dark_enabled)
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def validate_custom_launchers(self) -> None:
         """Validate custom launchers JSON."""
         try:
@@ -678,7 +678,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
         except json.JSONDecodeError as e:
             QMessageBox.warning(self, "Validation Error", f"Invalid JSON format:\n{e}")
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def edit_custom_launchers(self) -> None:
         """Open custom launchers editor."""
         # TODO: Implement launcher editor dialog
@@ -846,27 +846,27 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):  # type: ignore[misc
             text = self.launchers_edit.toPlainText().strip()
             if text:
                 # Parse JSON - returns Any but we validate types below
-                parsed_data: Any = json.loads(text)  # pyright: ignore[reportExplicitAny,reportAny]
+                parsed_data: Any = json.loads(text)
                 # Handle both dict and list formats
                 launchers: list[dict[str, object]] = []
                 if isinstance(parsed_data, list):
                     # Type guard: ensure list contains dicts
-                    item: Any  # pyright: ignore[reportExplicitAny]
+                    item: Any
                     for item in parsed_data:  # pyright: ignore[reportUnknownVariableType]
                         if isinstance(item, dict):
                             # Type narrowing: item is now dict
                             # Cast to dict[str, Any] to resolve unknown types
-                            item_dict = cast("dict[str, Any]", item)  # pyright: ignore[reportExplicitAny]
-                            launchers.append({str(k): v for k, v in item_dict.items()})  # pyright: ignore[reportAny]
+                            item_dict = cast("dict[str, Any]", item)
+                            launchers.append({str(k): v for k, v in item_dict.items()})
                         else:
                             # Skip invalid items with empty dict
                             launchers.append({})
                 elif isinstance(parsed_data, dict):
                     # Convert dict to list format expected by settings manager
                     # Cast to dict[str, Any] to resolve unknown types
-                    parsed_dict = cast("dict[str, Any]", parsed_data)  # pyright: ignore[reportExplicitAny]
+                    parsed_dict = cast("dict[str, Any]", parsed_data)
                     launchers = (
-                        [{str(k): v for k, v in parsed_dict.items()}]  # pyright: ignore[reportAny]
+                        [{str(k): v for k, v in parsed_dict.items()}]
                         if parsed_dict
                         else []
                     )

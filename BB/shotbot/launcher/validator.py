@@ -268,7 +268,7 @@ class LauncherValidator(LoggingMixin):
             try:
                 result = subprocess.run(
                     ["which", "rez"],
-                    capture_output=True,
+                    check=False, capture_output=True,
                     text=True,
                     timeout=1,
                 )
@@ -282,7 +282,7 @@ class LauncherValidator(LoggingMixin):
             try:
                 result = subprocess.run(
                     ["which", "conda"],
-                    capture_output=True,
+                    check=False, capture_output=True,
                     text=True,
                     timeout=1,
                 )

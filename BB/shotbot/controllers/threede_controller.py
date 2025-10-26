@@ -132,16 +132,16 @@ class ThreeDEController(LoggingMixin):
         grid = self.window.threede_shot_grid
 
         # Scene selection and interaction
-        grid.scene_selected.connect(self.on_scene_selected)  # pyright: ignore[reportAny]
-        grid.scene_double_clicked.connect(self.on_scene_double_clicked)  # pyright: ignore[reportAny]
+        grid.scene_selected.connect(self.on_scene_selected)
+        grid.scene_double_clicked.connect(self.on_scene_double_clicked)
 
         # Show filtering (if available)
         if hasattr(grid, "show_filter_requested"):
-            grid.show_filter_requested.connect(self._on_show_filter_requested)  # pyright: ignore[reportAny]
+            grid.show_filter_requested.connect(self._on_show_filter_requested)
 
         # Text filtering (if available)
         if hasattr(grid, "text_filter_requested"):
-            grid.text_filter_requested.connect(self._on_text_filter_requested)  # pyright: ignore[reportAny]
+            grid.text_filter_requested.connect(self._on_text_filter_requested)
 
         self.logger.debug("ThreeDEController signals connected")
 
@@ -281,7 +281,7 @@ class ThreeDEController(LoggingMixin):
     # Worker Signal Handlers (Phase 3.4)
     # ============================================================================
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def on_discovery_started(self) -> None:
         """Handle 3DE discovery worker started signal."""
         # Check if we're closing to avoid accessing deleted widgets
@@ -291,7 +291,7 @@ class ThreeDEController(LoggingMixin):
         # Start progress for 3DE discovery
         _ = ProgressManager.start_operation("Scanning for 3DE scenes")
 
-    @Slot(int, int, float, str, str)  # pyright: ignore[reportAny]
+    @Slot(int, int, float, str, str)
     def on_discovery_progress(
         self,
         current: int,
@@ -319,7 +319,7 @@ class ThreeDEController(LoggingMixin):
             operation.set_total(total)
             operation.update(current, description)
 
-    @Slot(list)  # pyright: ignore[reportAny]
+    @Slot(list)
     def on_discovery_finished(self, scenes: list[ThreeDEScene]) -> None:
         """Handle 3DE discovery worker completion.
 
@@ -345,7 +345,7 @@ class ThreeDEController(LoggingMixin):
         else:
             self.update_scenes_no_changes()
 
-    @Slot(str)  # pyright: ignore[reportAny]
+    @Slot(str)
     def on_discovery_error(self, error_message: str) -> None:
         """Handle 3DE discovery worker error.
 
@@ -365,17 +365,17 @@ class ThreeDEController(LoggingMixin):
             "Check that you have read permissions for the scan directories.",
         )
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def on_discovery_paused(self) -> None:
         """Handle worker pause signal."""
         self.window.update_status("3DE scene discovery paused")
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def on_discovery_resumed(self) -> None:
         """Handle worker resume signal."""
         self.window.update_status("3DE scene discovery resumed")
 
-    @Slot(list)  # pyright: ignore[reportAny]
+    @Slot(list)
     def on_batch_ready(self, scene_batch: list[ThreeDEScene]) -> None:
         """Handle batch of scenes ready from progressive scanning.
 
@@ -390,7 +390,7 @@ class ThreeDEController(LoggingMixin):
             # Note: The scenes are accumulated in the worker itself
             # and will be deduplicated when discovery finishes
 
-    @Slot(int, int, str)  # pyright: ignore[reportAny]
+    @Slot(int, int, str)
     def on_scan_progress(
         self,
         current_shot: int,
@@ -418,7 +418,7 @@ class ThreeDEController(LoggingMixin):
     # Scene Selection Handlers (Phase 3.5)
     # ============================================================================
 
-    @Slot(object)  # pyright: ignore[reportAny]
+    @Slot(object)
     def on_scene_selected(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene selection."""
         # DIAGNOSTIC: Verify signal is firing
@@ -460,7 +460,7 @@ class ThreeDEController(LoggingMixin):
             f"Selected: {scene.full_name} - {scene.user} ({scene.plate})",
         )
 
-    @Slot(object)  # pyright: ignore[reportAny]
+    @Slot(object)
     def on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene double click - launch 3de with the scene."""
         # Set the current scene first, then launch
@@ -468,7 +468,7 @@ class ThreeDEController(LoggingMixin):
         self.logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
         self.window.launch_app("3de")
 
-    @Slot(str)  # pyright: ignore[reportAny]
+    @Slot(str)
     def _on_show_filter_requested(self, show: str) -> None:
         """Handle show filter requests from 3DE grid."""
         # Apply filter to 3DE scenes
@@ -479,7 +479,7 @@ class ThreeDEController(LoggingMixin):
             "3DE Scenes",
         )
 
-    @Slot(str)  # pyright: ignore[reportAny]
+    @Slot(str)
     def _on_text_filter_requested(self, text: str) -> None:
         """Handle text filter requests from 3DE grid."""
         # Set text filter on model
@@ -637,42 +637,42 @@ class ThreeDEController(LoggingMixin):
         # Connect enhanced worker signals using safe_connect method for proper cleanup
         _ = worker.safe_connect(
             worker.started,
-            self.on_discovery_started,  # pyright: ignore[reportAny]
+            self.on_discovery_started,
             Qt.ConnectionType.QueuedConnection,
         )
         _ = worker.safe_connect(
             worker.batch_ready,
-            self.on_batch_ready,  # pyright: ignore[reportAny]
+            self.on_batch_ready,
             Qt.ConnectionType.QueuedConnection,
         )
         _ = worker.safe_connect(
             worker.progress,
-            self.on_discovery_progress,  # pyright: ignore[reportAny]
+            self.on_discovery_progress,
             Qt.ConnectionType.QueuedConnection,
         )
         _ = worker.safe_connect(
             worker.scan_progress,
-            self.on_scan_progress,  # pyright: ignore[reportAny]
+            self.on_scan_progress,
             Qt.ConnectionType.QueuedConnection,
         )
         _ = worker.safe_connect(
             worker.finished,
-            self.on_discovery_finished,  # pyright: ignore[reportAny]
+            self.on_discovery_finished,
             Qt.ConnectionType.QueuedConnection,
         )
         _ = worker.safe_connect(
             worker.error,
-            self.on_discovery_error,  # pyright: ignore[reportAny]
+            self.on_discovery_error,
             Qt.ConnectionType.QueuedConnection,
         )
         _ = worker.safe_connect(
             worker.paused,
-            self.on_discovery_paused,  # pyright: ignore[reportAny]
+            self.on_discovery_paused,
             Qt.ConnectionType.QueuedConnection,
         )
         _ = worker.safe_connect(
             worker.resumed,
-            self.on_discovery_resumed,  # pyright: ignore[reportAny]
+            self.on_discovery_resumed,
             Qt.ConnectionType.QueuedConnection,
         )
 

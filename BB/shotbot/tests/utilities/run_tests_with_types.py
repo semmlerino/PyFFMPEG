@@ -22,7 +22,7 @@ def run_command(cmd: list[str], description: str) -> tuple[bool, str]:
     try:
         result = subprocess.run(
             cmd,
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             cwd=Path(__file__).parent,
             timeout=300,  # 5 minute timeout

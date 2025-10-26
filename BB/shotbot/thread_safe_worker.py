@@ -90,7 +90,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         self._zombie = False  # Track abandoned threads
 
         # Set up cleanup on thread finished
-        self.finished.connect(self._on_finished)  # pyright: ignore[reportAny]
+        self.finished.connect(self._on_finished)
 
     def get_state(self) -> WorkerState:
         """Thread-safe state getter.
@@ -267,7 +267,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         self._connections.clear()
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def run(self) -> None:
         """Main thread execution with proper state management.
 
@@ -343,7 +343,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         """
         raise NotImplementedError("Subclasses must implement do_work()")
 
-    @Slot()  # pyright: ignore[reportAny]
+    @Slot()
     def _on_finished(self) -> None:
         """Handle thread finished signal for cleanup.
 
