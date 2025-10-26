@@ -479,6 +479,5 @@ class TargetedShotsFinder(ShotFinderBase):
         # Use the main search method
         if shows_to_search:
             return list(self.find_user_shots_in_shows(shows_to_search, root_dir))
-        else:
-            self.logger.warning("No target shows provided for search")
-            return []
+        self.logger.warning("No target shows provided for search")
+        return []

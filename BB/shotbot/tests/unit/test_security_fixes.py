@@ -86,11 +86,10 @@ def test_command_injection_blocked() -> bool:
     if blocked_count == len(dangerous_commands):
         print("\n🎉 SUCCESS: All dangerous commands were blocked!")
         return True
-    else:
-        print(
-            f"\n⚠️  WARNING: Only {blocked_count}/{len(dangerous_commands)} dangerous commands blocked"
-        )
-        return False
+    print(
+        f"\n⚠️  WARNING: Only {blocked_count}/{len(dangerous_commands)} dangerous commands blocked"
+    )
+    return False
 
 
 def test_bash_removed_from_whitelist() -> bool:
@@ -114,16 +113,14 @@ def test_bash_removed_from_whitelist() -> bool:
         if not has_bash and not has_sh:
             print("✅ bash and sh successfully removed from whitelist")
             return True
-        else:
-            print("❌ FAILED: bash or sh still in whitelist!")
-            if has_bash:
-                print("   Found: bash")
-            if has_sh:
-                print("   Found: sh")
-            return False
-    else:
-        print("⚠️  Could not find ALLOWED_COMMANDS section")
+        print("❌ FAILED: bash or sh still in whitelist!")
+        if has_bash:
+            print("   Found: bash")
+        if has_sh:
+            print("   Found: sh")
         return False
+    print("⚠️  Could not find ALLOWED_COMMANDS section")
+    return False
 
 
 def test_thread_safety_fix() -> bool:
@@ -141,15 +138,14 @@ def test_thread_safety_fix() -> bool:
     if has_qimage_cache and has_qimage_import and has_conversion:
         print("✅ Thread-safe QImage caching implemented")
         return True
-    else:
-        print("❌ Thread safety fix incomplete:")
-        if not has_qimage_cache:
-            print("   Missing: QImage cache declaration")
-        if not has_qimage_import:
-            print("   Missing: QImage import")
-        if not has_conversion:
-            print("   Missing: QPixmap.fromImage conversion")
-        return False
+    print("❌ Thread safety fix incomplete:")
+    if not has_qimage_cache:
+        print("   Missing: QImage cache declaration")
+    if not has_qimage_import:
+        print("   Missing: QImage import")
+    if not has_conversion:
+        print("   Missing: QPixmap.fromImage conversion")
+    return False
 
 
 if __name__ == "__main__":

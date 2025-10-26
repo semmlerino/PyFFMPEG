@@ -197,20 +197,18 @@ class CustomLauncherManager:
                     "command": command,
                     "terminal": "persistent",
                 }
-            else:
-                # Start new terminal with command
-                if self.persistent_terminal.start():
-                    self.persistent_terminal.send_command(command)
-                    return {
-                        "success": True,
-                        "command": command,
-                        "terminal": "new_persistent",
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "error_message": "Failed to start terminal",
-                    }
+            # Start new terminal with command
+            if self.persistent_terminal.start():
+                self.persistent_terminal.send_command(command)
+                return {
+                    "success": True,
+                    "command": command,
+                    "terminal": "new_persistent",
+                }
+            return {
+                "success": False,
+                "error_message": "Failed to start terminal",
+            }
         except Exception as e:
             return {
                 "success": False,
@@ -240,8 +238,7 @@ class CustomLauncherManager:
         # Return info about persistent terminal status
         if self.persistent_terminal.is_alive():
             return ["Persistent terminal (active)"]
-        else:
-            return ["Persistent terminal (not started)"]
+        return ["Persistent terminal (not started)"]
 
 
 def demo_integration() -> None:

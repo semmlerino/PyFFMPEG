@@ -570,13 +570,13 @@ except Exception as e:
         plate_name: str,
         version: int = 1,
     ) -> str | None:
-        """Create Nuke script directly in plate directory (no temp files).
+        """Create Nuke script directly in workspace directory (no temp files).
 
-        Saves to: {workspace}/publish/turnover/plate/input_plate/{plate}/v{version}/exr/{resolution}/
+        Saves to: {workspace}/user/{user}/mm/nuke/scripts/{plate}/
         Filename: {shot}_mm-default_{plate}_scene_v{version:03d}.nk
 
-        This method writes directly to the target location with a single file operation,
-        eliminating the temp file → read → write round-trip.
+        This method writes directly to the workspace location with a single file operation,
+        ensuring scripts persist across plate version updates.
 
         Args:
             plate_path: Path to the plate sequence (used to extract metadata)
@@ -598,13 +598,13 @@ except Exception as e:
                 script_type="standard",
             )
 
-            # Get plate script directory using PlateDiscovery
-            script_dir = PlateDiscovery.get_plate_script_directory(
-                workspace_path, plate_name
+            # Get workspace script directory using PlateDiscovery
+            script_dir = PlateDiscovery.get_workspace_script_directory(
+                workspace_path, None, plate_name
             )
             if not script_dir:
                 logger.error(
-                    f"Failed to get plate script directory for {plate_name} "
+                    f"Failed to get workspace script directory for {plate_name} "
                     f"in workspace {workspace_path}"
                 )
                 return None
@@ -617,11 +617,11 @@ except Exception as e:
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(script_content)
 
-            logger.info(f"Created Nuke script: {output_path}")
+            logger.info(f"Created Nuke script in workspace: {output_path}")
             return str(output_path)
 
         except Exception as e:
-            logger.error(f"Failed to create plate directory script: {e}")
+            logger.error(f"Failed to create workspace script: {e}")
             return None
 
     @staticmethod
@@ -631,10 +631,12 @@ except Exception as e:
         plate_name: str,
         version: int = 1,
     ) -> str | None:
-        """Create empty Nuke script directly in plate directory.
+        """Create empty Nuke script directly in workspace directory.
 
-        Creates a basic script with Root node but no Read nodes.
-        Uses single direct write operation (no temp files).
+        Creates a basic script with Root node but no Read nodes in the
+        workspace directory, ensuring it persists independently of plate versions.
+
+        Saves to: {workspace}/user/{user}/mm/nuke/scripts/{plate}/
 
         Args:
             workspace_path: Shot workspace path
@@ -655,13 +657,13 @@ except Exception as e:
                 script_type="standard",
             )
 
-            # Get plate script directory
-            script_dir = PlateDiscovery.get_plate_script_directory(
-                workspace_path, plate_name
+            # Get workspace script directory
+            script_dir = PlateDiscovery.get_workspace_script_directory(
+                workspace_path, None, plate_name
             )
             if not script_dir:
                 logger.error(
-                    f"Failed to get plate script directory for {plate_name}"
+                    f"Failed to get workspace script directory for {plate_name}"
                 )
                 return None
 
@@ -673,11 +675,11 @@ except Exception as e:
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(script_content)
 
-            logger.info(f"Created empty Nuke script: {output_path}")
+            logger.info(f"Created empty Nuke script in workspace: {output_path}")
             return str(output_path)
 
         except Exception as e:
-            logger.error(f"Failed to create empty plate script: {e}")
+            logger.error(f"Failed to create empty workspace script: {e}")
             return None
 
     # Backward compatibility: Static method aliases for detection functions

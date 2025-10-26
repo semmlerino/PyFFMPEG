@@ -16,16 +16,12 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
 
 # Local application imports
 from plate_discovery import PlateDiscovery
-
-if TYPE_CHECKING:
-    pass
 
 pytestmark = pytest.mark.unit
 
@@ -174,14 +170,17 @@ class TestPlatePriorityOrdering:
 class TestScriptVersionDetection:
     """Test script version detection and incrementation."""
 
-    def test_find_existing_scripts_returns_versions(self, tmp_path: Path) -> None:
+    def test_find_existing_scripts_returns_versions(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Returns list of (Path, version) tuples for existing scripts."""
+        # Set consistent username for test
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        # Create script directory with multiple versions
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        # Create workspace script directory (NEW: user workspace, not plate media directory)
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create test scripts
@@ -199,13 +198,15 @@ class TestScriptVersionDetection:
         versions = [version for _path, version in result]
         assert versions == [1, 2, 3]
 
-    def test_find_existing_scripts_sorted_by_version(self, tmp_path: Path) -> None:
+    def test_find_existing_scripts_sorted_by_version(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Returns scripts sorted by version (lowest to highest)."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create scripts in non-sequential order
@@ -217,13 +218,15 @@ class TestScriptVersionDetection:
         versions = [version for _path, version in result]
         assert versions == [1, 2, 5, 10], "Versions should be sorted ascending"
 
-    def test_get_next_script_version_increments(self, tmp_path: Path) -> None:
+    def test_get_next_script_version_increments(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """v001 exists → returns 2."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create v001
@@ -233,13 +236,15 @@ class TestScriptVersionDetection:
 
         assert result == 2, "Next version should be 2 when v001 exists"
 
-    def test_get_next_script_version_handles_gaps(self, tmp_path: Path) -> None:
+    def test_get_next_script_version_handles_gaps(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """v001, v003 exist → returns 4 (increments highest version)."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create v001 and v003 (skip v002)
@@ -250,14 +255,16 @@ class TestScriptVersionDetection:
 
         assert result == 4, "Should return 4 (highest version + 1, ignoring gaps)"
 
-    def test_get_next_script_version_with_no_scripts(self, tmp_path: Path) -> None:
+    def test_get_next_script_version_with_no_scripts(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """No scripts → returns 1."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
         # Create empty script directory
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         result = PlateDiscovery.get_next_script_version(str(workspace_path), shot_name, plate_name)
@@ -287,13 +294,15 @@ class TestScriptPathConstruction:
         assert "input_plate" in result.parts
         assert plate_name in result.parts
 
-    def test_construct_script_path(self, tmp_path: Path) -> None:
+    def test_construct_script_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Correct name: SHOT_mm-default_PLATE_scene_vVER.nk."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create a script with correct naming
@@ -308,13 +317,15 @@ class TestScriptPathConstruction:
         assert path.name == f"{shot_name}_mm-default_{plate_name}_scene_v001.nk"
         assert version == 1
 
-    def test_script_naming_convention(self, tmp_path: Path) -> None:
+    def test_script_naming_convention(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Verify format matches expectations: {shot}_mm-default_{plate}_scene_v{version}.nk."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "BRX_170_0100"
         plate_name = "PL01"
 
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "4312x2304"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Test the expected naming pattern
@@ -332,13 +343,15 @@ class TestScriptPathConstruction:
         assert "_scene_" in path.name
         assert ".nk" in path.name
 
-    def test_script_versioning_format(self, tmp_path: Path) -> None:
+    def test_script_versioning_format(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """v001, v002, v010, v100 formatting is correct."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create scripts with various version numbers
@@ -373,27 +386,31 @@ class TestEdgeCases:
 
         assert result is None, "Should return None when plate directory missing"
 
-    def test_no_existing_scripts_in_plate(self, tmp_path: Path) -> None:
+    def test_no_existing_scripts_in_plate(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Empty plate directory returns empty list."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
         # Create empty script directory
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         result = PlateDiscovery.find_existing_scripts(str(workspace_path), shot_name, plate_name)
 
         assert result == [], "Should return empty list when no scripts exist"
 
-    def test_malformed_script_names_ignored(self, tmp_path: Path) -> None:
+    def test_malformed_script_names_ignored(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Bad filenames don't crash discovery."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create malformed filenames
@@ -421,12 +438,14 @@ class TestEdgeCases:
 
         assert result is None, "Should return None for non-existent workspace"
 
-    def test_empty_shot_name(self, tmp_path: Path) -> None:
+    def test_empty_shot_name(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Validation for empty inputs."""
+        monkeypatch.setenv("USER", "testuser")
+
         workspace_path = tmp_path / "workspace"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "publish" / "turnover" / "plate" / "input_plate" / plate_name / "v001" / "exr" / "1920x1080"
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Test with empty shot name

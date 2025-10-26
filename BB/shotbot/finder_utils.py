@@ -111,9 +111,8 @@ class FinderUtils:
                 / "scenes"
                 / "scene"
             )
-        else:
-            # Standard structure for maya, nuke: user/{username}/{app}/{subdir}
-            return workspace / "user" / username / app / subdir
+        # Standard structure for maya, nuke: user/{username}/{app}/{subdir}
+        return workspace / "user" / username / app / subdir
 
     @staticmethod
     def find_latest_by_version(
@@ -279,8 +278,7 @@ class FinderUtils:
             # Convert extensions to lowercase for comparison
             extensions = [ext.lower() for ext in extensions]
             return [f for f in files if f.suffix.lower() in extensions]
-        else:
-            return [f for f in files if f.suffix in extensions]
+        return [f for f in files if f.suffix in extensions]
 
     @staticmethod
     def get_relative_path(path: Path, base: Path) -> Path:

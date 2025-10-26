@@ -127,7 +127,6 @@ class TestPlatePriorityValidation:
         Undistortion plate priorities should follow the same ordering as
         turnover priorities for consistency across the application.
         """
-        turnover = Config.TURNOVER_PLATE_PRIORITY
         undistortion = Config.UNDISTORTION_PLATE_PRIORITY
 
         # Check common plates maintain ordering
@@ -574,5 +573,5 @@ class TestProgressConfigurationValidation:
             f"Batch size constraint violation: "
             f"MIN ({min_batch}) <= DEFAULT ({default_batch}) <= MAX ({max_batch})"
         )
-        assert min_batch > 0, f"PROGRESSIVE_SCAN_MIN_BATCH_SIZE must be positive"
-        assert max_batch > 0, f"PROGRESSIVE_SCAN_MAX_BATCH_SIZE must be positive"
+        assert min_batch > 0, "PROGRESSIVE_SCAN_MIN_BATCH_SIZE must be positive"
+        assert max_batch > 0, "PROGRESSIVE_SCAN_MAX_BATCH_SIZE must be positive"

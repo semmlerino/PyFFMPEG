@@ -36,9 +36,9 @@ class TestProcessPoolDouble:
 
         if self.failure_mode == "network_error" and self.call_count == 1:
             raise ConnectionError("Network unreachable")
-        elif self.failure_mode == "permission_error":
+        if self.failure_mode == "permission_error":
             raise PermissionError("Access denied")
-        elif self.failure_mode == "timeout_error":
+        if self.failure_mode == "timeout_error":
             raise TimeoutError("Command timed out")
 
         return "workspace /shows/recovered/seq01/0010"

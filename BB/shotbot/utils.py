@@ -89,8 +89,7 @@ class CacheIsolation:
         _path_cache.clear()
         if self.original_cache_state is not None:
             # Update from dict items to handle type correctly
-            for key, value in self.original_cache_state.items():
-                _path_cache[key] = value
+            _path_cache.update(self.original_cache_state)
         if self.original_disabled_state is not None:
             _cache_disabled = self.original_disabled_state
         logger.debug("Cache isolation context exited")
@@ -424,8 +423,7 @@ class PathUtils:
 
         # Keep the most recent 2500 entries
         _path_cache.clear()
-        for key, value in sorted_items[:2500]:
-            _path_cache[key] = value
+        _path_cache.update(dict(sorted_items[:2500]))
 
         logger.debug(f"Cleaned path cache, kept {len(_path_cache)} most recent entries")
 

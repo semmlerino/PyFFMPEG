@@ -316,13 +316,13 @@ class TestPreviousShotsView:
         # Set up signal spy on grid's shot_selected signal
         shot_selected_spy = QSignalSpy(grid_widget.shot_selected)
 
-        # Simulate click on item by calling the handler directly
-        # (In Model/View, we don't have direct widget access)
+        # Simulate click on item using Qt's selection model
+        # This triggers _on_selection_changed which emits the signal
         # Third-party imports
         from PySide6.QtCore import QModelIndex
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
-        grid_widget._on_item_clicked(index)
+        grid_widget.list_view.setCurrentIndex(index)
 
         # Verify signal propagation
         assert shot_selected_spy.count() == 1
@@ -348,12 +348,13 @@ class TestPreviousShotsView:
         # Set up signal spy
         shot_selected_spy = QSignalSpy(grid_widget.shot_selected)
 
-        # Simulate shot selection using model index
+        # Simulate shot selection using Qt's selection model
+        # This triggers _on_selection_changed which emits the signal
         # Third-party imports
         from PySide6.QtCore import QModelIndex
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
-        grid_widget._on_item_clicked(index)
+        grid_widget.list_view.setCurrentIndex(index)
 
         # Should update selection state (using selected_shot, not selected_item)
         assert grid_widget.selected_shot is shot1
@@ -488,12 +489,13 @@ class TestPreviousShotsView:
             timeout=1000,
         )
 
-        # Select the shot through the proper API
+        # Select the shot using Qt's selection model
+        # This triggers _on_selection_changed which updates _selected_shot
         # Third-party imports
         from PySide6.QtCore import QModelIndex
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
-        grid_widget._on_item_clicked(index)
+        grid_widget.list_view.setCurrentIndex(index)
 
         assert grid_widget.get_selected_shot() is shot
 

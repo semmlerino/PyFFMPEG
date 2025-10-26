@@ -9,7 +9,6 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 # Standard library imports
 from pathlib import Path
-from typing import Self
 
 # Third-party imports
 import pytest

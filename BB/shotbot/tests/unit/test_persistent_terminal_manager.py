@@ -8,7 +8,7 @@ import stat
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock, patch
 
 # Third-party imports
@@ -56,7 +56,7 @@ class TestPersistentTerminalManager:
             """Mock exists to return False for FIFO, True for dispatcher."""
             if path == temp_fifo:
                 return False  # FIFO doesn't exist yet
-            elif path == temp_dispatcher:
+            if path == temp_dispatcher:
                 return True  # Dispatcher exists (created by fixture)
             return False
 
@@ -294,21 +294,16 @@ class TestPersistentTerminalManager:
     ) -> None:
         """Test command sending with terminal auto-restart."""
 
-        # Arrange: FIFO has no reader (errno.ENXIO), then succeeds after restart
-        def open_side_effect(*args: Any, **kwargs: Any) -> int:
-            # Track call count
-            if not hasattr(open_side_effect, "call_count"):
-                open_side_effect.call_count = 0
-            open_side_effect.call_count += 1
+        # Arrange: Mock open to succeed
+        mock_open.return_value = 42
 
-            if open_side_effect.call_count == 1:
-                # First attempt fails with ENXIO
-                raise OSError(errno.ENXIO, "No reader")
-            else:
-                # Second attempt succeeds after restart
-                return 42
+        # Mock dispatcher state: False initially (triggers restart), True after restart
+        dispatcher_calls = [False, True]
 
-        mock_open.side_effect = open_side_effect
+        def dispatcher_side_effect() -> bool:
+            if dispatcher_calls:
+                return dispatcher_calls.pop(0)
+            return True
 
         # Mock restart succeeding
         with (
@@ -317,7 +312,9 @@ class TestPersistentTerminalManager:
             ) as mock_restart,
             patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
             patch.object(
-                terminal_manager, "_is_dispatcher_running", return_value=False
+                terminal_manager,
+                "_is_dispatcher_running",
+                side_effect=dispatcher_side_effect,
             ),
             patch("os.fdopen") as mock_fdopen,
         ):
@@ -325,7 +322,8 @@ class TestPersistentTerminalManager:
             mock_fdopen.return_value.__enter__ = Mock(return_value=mock_file)
             mock_fdopen.return_value.__exit__ = Mock(return_value=False)
 
-            # Act: Send command with ensure_terminal=True (should trigger auto-restart)
+            # Act: Send command with ensure_terminal=True
+            # New behavior: Detects dispatcher dead before write, restarts preemptively
             result = terminal_manager.send_command("test command", ensure_terminal=True)
 
         # Assert: Terminal was restarted and command sent
@@ -402,19 +400,29 @@ class TestPersistentTerminalManager:
     def test_restart_terminal(
         self, mock_sleep: MagicMock, terminal_manager: PersistentTerminalManager
     ) -> None:
-        """Test terminal restart."""
+        """Test terminal restart with FIFO cleanup."""
         with (
             patch.object(terminal_manager, "close_terminal") as mock_close,
             patch.object(
                 terminal_manager, "_launch_terminal", return_value=True
             ) as mock_launch,
+            patch.object(
+                terminal_manager, "_ensure_fifo", return_value=True
+            ) as mock_ensure_fifo,
+            patch.object(
+                terminal_manager, "_is_dispatcher_running", return_value=True
+            ),
+            patch("os.path.exists", return_value=True),
+            patch("os.unlink") as mock_unlink,
         ):
             # Act: Restart terminal
             result = terminal_manager.restart_terminal()
 
-        # Assert: Terminal closed and relaunched
+        # Assert: Terminal closed and relaunched with FIFO cleanup
         assert result is True
         mock_close.assert_called_once()
+        mock_unlink.assert_called_once()  # FIFO should be cleaned up
+        mock_ensure_fifo.assert_called_once()  # FIFO should be recreated
         mock_launch.assert_called_once()
 
     @patch("os.path.exists", return_value=True)

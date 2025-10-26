@@ -145,9 +145,8 @@ def main() -> int:
             print(f"\n🎉 All current fixes are working! ({passed}/{total})")
             print("You can now test larger combinations or the full suite.")
             return 0
-        else:
-            print(f"\n⚠️  Some fixes need attention ({passed}/{total})")
-            return 1
+        print(f"\n⚠️  Some fixes need attention ({passed}/{total})")
+        return 1
 
     finally:
         os.chdir(original_cwd)

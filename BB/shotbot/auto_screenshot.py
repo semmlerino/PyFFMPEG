@@ -45,9 +45,8 @@ def capture_shotbot_window() -> Path | None:
         print(f"✓ Screenshot saved to: {output_path}")
         print("  (Windows path: C:\\temp\\shotbot_window.png)")
         return output_path
-    else:
-        print("✗ Failed to save screenshot")
-        return None
+    print("✗ Failed to save screenshot")
+    return None
 
 
 def main() -> None:

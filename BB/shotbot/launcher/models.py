@@ -109,30 +109,30 @@ class LauncherParameter:
             if self.param_type == ParameterType.STRING:
                 return isinstance(value, str)
 
-            elif self.param_type == ParameterType.INTEGER:
+            if self.param_type == ParameterType.INTEGER:
                 if not isinstance(value, int):
                     return False
                 if self.min_value is not None and value < self.min_value:
                     return False
                 return not (self.max_value is not None and value > self.max_value)
 
-            elif self.param_type == ParameterType.FLOAT:
+            if self.param_type == ParameterType.FLOAT:
                 if not isinstance(value, int | float):
                     return False
                 if self.min_value is not None and value < self.min_value:
                     return False
                 return not (self.max_value is not None and value > self.max_value)
 
-            elif self.param_type == ParameterType.BOOLEAN:
+            if self.param_type == ParameterType.BOOLEAN:
                 return isinstance(value, bool)
 
-            elif self.param_type == ParameterType.PATH:
+            if self.param_type == ParameterType.PATH:
                 return isinstance(value, str)
 
-            elif self.param_type == ParameterType.CHOICE:
+            if self.param_type == ParameterType.CHOICE:
                 return value in self.choices
 
-            elif self.param_type in (ParameterType.FILE, ParameterType.DIRECTORY):
+            if self.param_type in (ParameterType.FILE, ParameterType.DIRECTORY):
                 return isinstance(value, str)
 
             return False

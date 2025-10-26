@@ -752,8 +752,8 @@ class TestProcessManagerIntegration:
         # Mock signals to prevent segfault
         with patch.object(self.manager, "update_progress") as mock_update_signal:
             with patch.object(self.manager, "process_finished") as mock_finished_signal:
-                # Call mark_process_finished directly
-                self.manager.mark_process_finished(mock_process, file_path)
+                # Call mark_process_finished directly with exit code 0 (success)
+                self.manager.mark_process_finished(mock_process, file_path, 0)
 
                 # Verify progress tracker interactions
                 self.mock_tracker.force_progress_to_100.assert_called_once()
@@ -786,8 +786,8 @@ class TestProcessManagerIntegration:
         # Mock signals to prevent segfault
         with patch.object(self.manager, "update_progress") as mock_update_signal:
             with patch.object(self.manager, "process_finished") as mock_finished_signal:
-                # Call mark_process_finished directly
-                self.manager.mark_process_finished(mock_process, file_path)
+                # Call mark_process_finished directly with exit code 1 (failure)
+                self.manager.mark_process_finished(mock_process, file_path, 1)
 
                 # Verify progress tracker interactions
                 # force_progress_to_100 should NOT be called for failed processes

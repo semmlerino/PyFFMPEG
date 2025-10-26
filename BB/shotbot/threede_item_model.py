@@ -100,13 +100,13 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         if role == (Qt.ItemDataRole.UserRole + 20):  # ItemSpecificRole1
             # Return shot name
             return item.shot
-        elif role == (Qt.ItemDataRole.UserRole + 21):  # ItemSpecificRole2
+        if role == (Qt.ItemDataRole.UserRole + 21):  # ItemSpecificRole2
             # Return user
             return item.user
-        elif role == (Qt.ItemDataRole.UserRole + 22):  # ItemSpecificRole3
+        if role == (Qt.ItemDataRole.UserRole + 22):  # ItemSpecificRole3
             # Return scene path
             return item.scene_path
-        elif role == (Qt.ItemDataRole.UserRole + 23):  # ModifiedTimeRole
+        if role == (Qt.ItemDataRole.UserRole + 23):  # ModifiedTimeRole
             # Return modification time
             scene_path = item.scene_path
             try:

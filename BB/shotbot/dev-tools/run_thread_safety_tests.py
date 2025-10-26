@@ -124,10 +124,9 @@ def main() -> int:
         print("✅ All thread safety fixes are working correctly")
         print("✅ No performance regressions detected")
         return 0
-    else:
-        print("\n💥 Thread safety validation FAILED!")
-        print("❌ Issues detected - see output above for details")
-        return 1
+    print("\n💥 Thread safety validation FAILED!")
+    print("❌ Issues detected - see output above for details")
+    return 1
 
 
 if __name__ == "__main__":

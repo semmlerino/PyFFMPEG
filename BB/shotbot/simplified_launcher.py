@@ -204,8 +204,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
             # RV can work without shot context
             files = options.get("files")
             if files and isinstance(files, list):
-                for file in files:
-                    command_parts.append(self._quote_path(file))
+                command_parts.extend([self._quote_path(file) for file in files])
 
         return " ".join(command_parts)
 
@@ -308,8 +307,7 @@ class SimplifiedLauncher(LoggingMixin, QObject):
 
         if use_terminal:
             return self._execute_in_terminal(command, env)
-        else:
-            return self._execute_background(command, env)
+        return self._execute_background(command, env)
 
     # ========== Terminal Execution ==========
 
@@ -371,13 +369,12 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         # Check for common terminal emulators
         if self._command_exists("gnome-terminal"):
             return ["gnome-terminal", "--", "bash", "-c", command]
-        elif self._command_exists("konsole"):
+        if self._command_exists("konsole"):
             return ["konsole", "-e", "bash", "-c", command]
-        elif self._command_exists("xterm"):
+        if self._command_exists("xterm"):
             return ["xterm", "-e", "bash", "-c", command]
-        else:
-            # Fallback to direct execution
-            return ["bash", "-c", command]
+        # Fallback to direct execution
+        return ["bash", "-c", command]
 
     # ========== Helper Methods ==========
 

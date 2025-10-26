@@ -229,13 +229,12 @@ class ProgressOperation:
         # Format ETA string
         if eta_seconds < 60:
             return f"~{int(eta_seconds)}s remaining"
-        elif eta_seconds < 3600:
+        if eta_seconds < 3600:
             minutes = int(eta_seconds / 60)
             return f"~{minutes}m remaining"
-        else:
-            hours = int(eta_seconds / 3600)
-            minutes = int((eta_seconds % 3600) / 60)
-            return f"~{hours}h {minutes}m remaining"
+        hours = int(eta_seconds / 3600)
+        minutes = int((eta_seconds % 3600) / 60)
+        return f"~{hours}h {minutes}m remaining"
 
     def _update_ui(self) -> None:
         """Update the UI elements associated with this operation."""

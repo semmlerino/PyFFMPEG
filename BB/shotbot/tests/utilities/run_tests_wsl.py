@@ -123,9 +123,8 @@ def run_all_tests_batched() -> int:
     if failed_batches:
         print(f"\n❌ Failed batches: {', '.join(failed_batches)}")
         return 1
-    else:
-        print("\n✅ All batches passed!")
-        return 0
+    print("\n✅ All batches passed!")
+    return 0
 
 
 def check_imports() -> int:
@@ -150,9 +149,8 @@ def check_imports() -> int:
     if failed_imports:
         print(f"\n❌ Failed imports: {len(failed_imports)}/{len(test_files)}")
         return 1
-    else:
-        print(f"\n✅ All {len(test_files)} test files import successfully!")
-        return 0
+    print(f"\n✅ All {len(test_files)} test files import successfully!")
+    return 0
 
 
 def main():

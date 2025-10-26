@@ -112,9 +112,8 @@ def test_shot_model() -> int:
             logger.info(f"  ... and {len(shot_model.shots) - 5} more")
 
         return len(shot_model.shots)
-    else:
-        logger.error("❌ Failed to load shots")
-        return 0
+    logger.error("❌ Failed to load shots")
+    return 0
 
 
 def test_headless_app() -> int:
@@ -134,9 +133,8 @@ def test_headless_app() -> int:
         shots = window.get_shots()
         logger.info(f"✅ Headless app loaded {len(shots)} shots")
         return len(shots)
-    else:
-        logger.error("❌ Failed to load shots in headless mode")
-        return 0
+    logger.error("❌ Failed to load shots in headless mode")
+    return 0
 
 
 def verify_filesystem() -> bool:

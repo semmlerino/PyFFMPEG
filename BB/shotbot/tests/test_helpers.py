@@ -182,8 +182,7 @@ class TestProcessPoolManager:
             # Match real ProcessPoolManager behavior - raise exception on failure
             if "timed out" in self.failure_message.lower():
                 raise TimeoutError(self.failure_message)
-            else:
-                raise RuntimeError(self.failure_message)
+            raise RuntimeError(self.failure_message)
 
         output = self.outputs[0] if self.outputs else ""
 

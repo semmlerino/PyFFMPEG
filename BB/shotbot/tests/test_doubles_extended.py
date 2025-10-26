@@ -326,9 +326,8 @@ class TestCache:
             self.hits += 1
             self.access_times[key] = time.time()
             return self.data[key]
-        else:
-            self.misses += 1
-            return default
+        self.misses += 1
+        return default
 
     def set(self, key: str, value: Any) -> None:
         """Store value in cache.
@@ -827,7 +826,7 @@ class TestProcessPoolDouble:
         """
         if command:
             return self.command_kwargs.get(command, {})
-        elif self.commands:
+        if self.commands:
             last_cmd = self.commands[-1]
             return self.command_kwargs.get(last_cmd, {})
         return {}

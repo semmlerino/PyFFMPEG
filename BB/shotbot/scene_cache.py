@@ -114,10 +114,9 @@ class SceneCache(LoggingMixin):
         """
         if shot and sequence:
             return f"{show}/{sequence}/{shot}"
-        elif sequence:
+        if sequence:
             return f"{show}/{sequence}"
-        else:
-            return show
+        return show
 
     def get_scenes_for_shot(
         self, show: str, sequence: str, shot: str

@@ -175,9 +175,8 @@ def apply_logging_mixin(file_path: Path) -> bool:
             f.write(content)
         print(f"  ✓ Updated {file_path.name}")
         return True
-    else:
-        print(f"  ✓ No changes needed for {file_path.name}")
-        return False
+    print(f"  ✓ No changes needed for {file_path.name}")
+    return False
 
 
 def main() -> int:

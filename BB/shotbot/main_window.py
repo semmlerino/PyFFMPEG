@@ -614,7 +614,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.shot_model.refresh_started.connect(self._on_refresh_started)
         _ = self.shot_model.refresh_finished.connect(self._on_refresh_finished)
         _ = self.shot_model.error_occurred.connect(self._on_shot_error)
-        _ = self.shot_model.shot_selected.connect(self._on_model_shot_selected)
+        # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
         _ = self.shot_model.cache_updated.connect(self._on_cache_updated)
 
         # Shot selection
@@ -843,16 +843,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Delegate to RefreshOrchestrator
         self.refresh_orchestrator.trigger_previous_shots_refresh(shots)
 
-    def _on_model_shot_selected(self, shot: Shot | None) -> None:
-        """Handle shot selected signal from model.
-
-        Args:
-            shot: The selected Shot object or None
-        """
-        if shot:
-            self.logger.debug(f"Model shot selected: {shot.full_name}")
-        else:
-            self.logger.debug("Model shot selection cleared")
 
     def _on_cache_updated(self) -> None:
         """Handle cache updated signal from model."""

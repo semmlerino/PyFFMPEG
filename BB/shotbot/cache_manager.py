@@ -317,9 +317,8 @@ class CacheManager(LoggingMixin, QObject):
                 if image.save(str(output_path), b"JPEG", THUMBNAIL_QUALITY):
                     self.logger.debug(f"Cached QImage thumbnail: {output_path}")
                     return output_path
-                else:
-                    self.logger.error(f"Failed to save QImage to: {output_path}")
-                    return None
+                self.logger.error(f"Failed to save QImage to: {output_path}")
+                return None
 
             except Exception as e:
                 self.logger.error(f"QImage thumbnail caching failed: {e}")
@@ -460,9 +459,8 @@ class CacheManager(LoggingMixin, QObject):
         """
         if key == "previous_shots":
             return self.get_cached_previous_shots()
-        else:
-            cache_file = self.cache_dir / f"{key}.json"
-            return self._read_json_cache(cache_file)
+        cache_file = self.cache_dir / f"{key}.json"
+        return self._read_json_cache(cache_file)
 
     def clear_cached_data(self, key: str) -> None:
         """Clear cached generic data by key.

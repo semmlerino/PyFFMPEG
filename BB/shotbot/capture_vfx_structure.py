@@ -109,7 +109,7 @@ def scan_directory(
             size = 0
         return {"type": "file", "name": path.name, "path": str(rel_path), "size": size}
 
-    elif path.is_dir():
+    if path.is_dir():
         children: list[DirectoryNode] = []
 
         # Key directories we care about

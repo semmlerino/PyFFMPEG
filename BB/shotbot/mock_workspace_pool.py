@@ -292,8 +292,7 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
                     f"🎯 This leaves {len(validated_shots) - len(assigned_shots)} shots unassigned for 'Other 3DE Scenes'"
                 )
                 return pool
-            else:
-                logger.warning("Demo shots loaded but pool is empty")
+            logger.warning("Demo shots loaded but pool is empty")
 
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in demo_shots.json: {e}")

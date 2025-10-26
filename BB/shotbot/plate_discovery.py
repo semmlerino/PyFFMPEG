@@ -113,7 +113,14 @@ class PlateDiscovery:
     def get_plate_script_directory(
         workspace_path: str, plate_name: str
     ) -> Path | None:
-        """Get the directory where Nuke scripts should be saved for a plate.
+        """DEPRECATED: Get plate media directory (NOT for script storage).
+
+        WARNING: This method returns the plate MEDIA directory, not the script workspace.
+        For script storage, use get_workspace_script_directory() instead.
+
+        This method is kept for backward compatibility but should not be used for
+        Nuke script storage as it couples scripts to plate media versions, breaking
+        "open latest" workflow when plates are updated.
 
         Builds path: {workspace}/publish/turnover/plate/input_plate/{plate}/v{version}/exr/{resolution}/
 
@@ -123,7 +130,14 @@ class PlateDiscovery:
 
         Returns:
             Path to highest resolution directory for the latest version, or None if not found
+
+        See Also:
+            get_workspace_script_directory(): Recommended method for script storage
         """
+        logger.warning(
+            "get_plate_script_directory() is deprecated for script storage. "
+            "Use get_workspace_script_directory() instead."
+        )
         base_path = PathUtils.build_raw_plate_path(workspace_path)
         plate_dir = base_path / plate_name
 
@@ -151,10 +165,53 @@ class PlateDiscovery:
         return resolution_dir
 
     @staticmethod
+    def get_workspace_script_directory(
+        workspace_path: str, user: str | None, plate_name: str
+    ) -> Path | None:
+        """Get the workspace directory where Nuke scripts should be saved for a plate.
+
+        This is the correct location for script storage, independent of plate media versions.
+        Scripts saved here persist across plate version updates and support "open latest" workflow.
+
+        Path format: {workspace}/user/{user}/mm/nuke/scripts/{plate_name}/
+
+        Args:
+            workspace_path: Shot workspace path
+            user: Username (defaults to current user if None)
+            plate_name: Plate name (e.g., "FG01", "BG01")
+
+        Returns:
+            Path to workspace script directory, or None if creation fails
+        """
+        # Standard library imports
+        import os
+
+        # Get user from environment if not provided
+        if user is None:
+            user = os.environ.get("USER", "gabriel-h")
+
+        # Build path: {workspace}/user/{user}/mm/nuke/scripts/{plate_name}/
+        script_dir = (
+            Path(workspace_path) / "user" / user / "mm" / "nuke" / "scripts" / plate_name
+        )
+
+        # Create directory if it doesn't exist
+        try:
+            script_dir.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"Workspace script directory: {script_dir}")
+        except (OSError, PermissionError) as e:
+            logger.error(f"Failed to create workspace script directory {script_dir}: {e}")
+            return None
+
+        return script_dir
+
+    @staticmethod
     def find_existing_scripts(
         workspace_path: str, shot_name: str, plate_name: str
     ) -> list[tuple[Path, int]]:
-        """Find existing Nuke scripts for a plate.
+        """Find existing Nuke scripts for a plate in workspace directory.
+
+        Searches in: {workspace}/user/{user}/mm/nuke/scripts/{plate_name}/
 
         Args:
             workspace_path: Shot workspace path
@@ -164,7 +221,9 @@ class PlateDiscovery:
         Returns:
             List of (script_path, version) tuples sorted by version
         """
-        script_dir = PlateDiscovery.get_plate_script_directory(workspace_path, plate_name)
+        script_dir = PlateDiscovery.get_workspace_script_directory(
+            workspace_path, None, plate_name
+        )
         if not script_dir:
             return []
 

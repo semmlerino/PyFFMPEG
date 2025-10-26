@@ -261,9 +261,8 @@ class TestTerminalIntegrationFlow:
                 if call_count[0] == 1:
                     # First attempt fails with ENXIO
                     raise OSError(errno.ENXIO, "No reader")
-                else:
-                    # Second attempt succeeds after restart
-                    return 42
+                # Second attempt succeeds after restart
+                return 42
 
             mock_open.side_effect = open_side_effect
 

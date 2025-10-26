@@ -56,3 +56,29 @@ encoded_app_*.txt
 ruff_output.json
 vfx_structure_complete.json
 vfxstructure*.json
+
+# Baseline and output files
+*_baseline.txt
+*_output.txt
+baseline_*.txt
+test_baseline.txt
+shotbot_latest.txt
+
+# Analysis and profile results
+*_profile_results.json
+*_analysis.json
+PERFORMANCE_BASELINE.json
+performance_optimizations.json
+detailed_bottleneck_analysis.txt
+startup_profile_results.json
+type_safety_performance_analysis.json
+
+# Temporary files
+temp_*.txt
+
+# Deprecated/redundant config files (superseded by pyproject.toml)
+.isort.cfg
+.coveragerc
+pytest_*.ini
+requirements.txt
+requirements-dev.txt

@@ -43,9 +43,8 @@ class DirectoryCache:
             if time.time() - timestamp < self.ttl_seconds:
                 self._stats["hits"] += 1
                 return entry
-            else:
-                # Expired
-                del self._cache[str(path)]
+            # Expired
+            del self._cache[str(path)]
 
         self._stats["misses"] += 1
         return None

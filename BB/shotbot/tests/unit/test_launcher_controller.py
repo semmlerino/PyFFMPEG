@@ -86,11 +86,10 @@ class TestCommandLauncher(QObject):
         if self.launch_success:
             self.command_executed.emit("00:00:00", self.last_command)
             return True
-        else:
-            self.command_error.emit(
-                "00:00:00", f"Failed to launch {app_name} with scene"
-            )
-            return False
+        self.command_error.emit(
+            "00:00:00", f"Failed to launch {app_name} with scene"
+        )
+        return False
 
     def launch_app_with_scene_context(
         self,
@@ -115,9 +114,8 @@ class TestCommandLauncher(QObject):
         if self.launch_success:
             self.command_executed.emit("00:00:00", self.last_command)
             return True
-        else:
-            self.command_error.emit("00:00:00", "Failed with scene context")
-            return False
+        self.command_error.emit("00:00:00", "Failed with scene context")
+        return False
 
 
 class MockLauncherTarget(QObject):

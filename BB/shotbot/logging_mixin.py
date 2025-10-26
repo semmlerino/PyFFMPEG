@@ -406,9 +406,8 @@ def log_execution(
     if func is None:
         # Called with parentheses: @log_execution()
         return decorator
-    else:
-        # Called without parentheses: @log_execution
-        return decorator(func)
+    # Called without parentheses: @log_execution
+    return decorator(func)
 
 
 # Convenience function for setting up module-level logging

@@ -369,14 +369,13 @@ class ShotModel(BaseShotModel):
         if not self.shots and not loading:
             # First load - use async strategy
             return self.initialize_async()
-        elif not loading:
+        if not loading:
             # For subsequent refreshes, start background refresh only if not already loading
             self._start_background_refresh()
             # Return immediately with current state
             return RefreshResult(success=True, has_changes=False)
-        else:
-            # Already loading, just return current state
-            return RefreshResult(success=True, has_changes=False)
+        # Already loading, just return current state
+        return RefreshResult(success=True, has_changes=False)
 
     def pre_warm_sessions(self) -> None:
         """Pre-warm bash sessions during idle time to reduce first-call overhead.

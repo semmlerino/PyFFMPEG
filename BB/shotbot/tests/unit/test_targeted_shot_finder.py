@@ -370,7 +370,7 @@ class TestFindUserShotsInShows:
                         workspace_path="/path1",
                     ),
                 ]
-            elif show_name == "show2":
+            if show_name == "show2":
                 return [
                     Shot(
                         show="show2",

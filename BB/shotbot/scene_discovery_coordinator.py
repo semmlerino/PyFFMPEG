@@ -130,8 +130,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                     self.stats["cache_hits"] += 1
                     self.logger.debug(f"Cache hit for {show}/{sequence}/{shot}")
                     return cached_result
-                else:
-                    self.stats["cache_misses"] += 1
+                self.stats["cache_misses"] += 1
 
             # Step 3: Discover scenes using strategy
             with self.logger.context(
@@ -200,8 +199,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
                                 self.logger.debug(f"Cache hit for show {show}")
                                 all_scenes.extend(cached_result)
                                 continue
-                            else:
-                                self.stats["cache_misses"] += 1
+                            self.stats["cache_misses"] += 1
 
                         # Discover scenes using strategy
                         show_scenes = self.strategy.find_all_scenes_in_show(

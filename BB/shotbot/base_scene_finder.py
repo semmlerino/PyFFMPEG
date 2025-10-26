@@ -123,11 +123,10 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
             # Include files without version numbers
             all_files = self._find_all_files(workspace)
             return all_files
-        else:
-            # Only versioned files
-            scene_files = self._find_all_scene_files(workspace)
-            scene_files.sort(key=lambda x: x[1])
-            return [f[0] for f in scene_files]
+        # Only versioned files
+        scene_files = self._find_all_scene_files(workspace)
+        scene_files.sort(key=lambda x: x[1])
+        return [f[0] for f in scene_files]
 
     def _validate_workspace(self, workspace_path: str | None) -> Path | None:
         """Validate that workspace exists and is accessible.

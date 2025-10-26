@@ -191,26 +191,16 @@ class ShotGridView(BaseGridView):
     def _on_item_clicked(self, index: QModelIndex) -> None:
         """Handle item click.
 
+        This is a stub implementation. Qt's selection model will trigger
+        _on_selection_changed automatically, which handles all selection logic.
+        This avoids duplicate signal emissions.
+
         Args:
             index: Clicked model index
         """
-        model = cast("ShotItemModel | None", self._model)
-        if not index.isValid() or not model:
-            return
-
-        # Get shot object - index.data() returns Any from Qt API
-        shot: Shot | None = cast("Shot | None", index.data(ShotRole.ObjectRole))
-
-        if shot:
-            self._selected_shot = shot
-
-            # Update selection in model
-            model.setData(index, True, ShotRole.IsSelectedRole)
-
-            # Emit signal
-            self.shot_selected.emit(shot)
-
-            self.logger.debug(f"Shot selected: {shot.full_name}")
+        # Qt's selection model automatically handles the click
+        # _on_selection_changed will be triggered with the full selection logic
+        pass
 
     @Slot(QModelIndex)  # pyright: ignore[reportAny]
     def _on_item_double_clicked(self, index: QModelIndex) -> None:

@@ -234,10 +234,9 @@ def main() -> int:
         print("The shot extraction logic correctly handles all cases,")
         print("including the critical empty string validation fix.")
         return 0
-    else:
-        print("❌ SOME TESTS FAILED")
-        print("Please review the failures above.")
-        return 1
+    print("❌ SOME TESTS FAILED")
+    print("Please review the failures above.")
+    return 1
 
 
 if __name__ == "__main__":

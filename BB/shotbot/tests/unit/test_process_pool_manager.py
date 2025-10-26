@@ -77,12 +77,11 @@ class BashSessionDouble:
         # Generate realistic default responses
         if command.startswith("echo "):
             return command[5:]  # Return what echo would output
-        elif command.startswith("ls "):
+        if command.startswith("ls "):
             return "file1.txt\nfile2.txt\nfile3.txt"
-        elif command == "pwd":
+        if command == "pwd":
             return "/home/user/workspace"
-        else:
-            return f"Output for: {command}"
+        return f"Output for: {command}"
 
     def set_response(self, command: str, response: str) -> None:
         """Configure specific response for testing."""

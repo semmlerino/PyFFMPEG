@@ -147,11 +147,10 @@ def test_launcher_worker_no_deadlock() -> bool:
     if finished:
         print(f"✓ LauncherWorker completed in {time.time() - start:.2f}s")
         return True
-    else:
-        print("✗ LauncherWorker deadlocked or timed out!")
-        worker.request_stop()
-        worker.wait(1000)
-        return False
+    print("✗ LauncherWorker deadlocked or timed out!")
+    worker.request_stop()
+    worker.wait(1000)
+    return False
 
 
 if __name__ == "__main__":

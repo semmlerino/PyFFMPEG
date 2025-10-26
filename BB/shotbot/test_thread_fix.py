@@ -111,9 +111,8 @@ class MockWorker(LoggingMixin):
             )
             self._zombie = True
             return False
-        else:
-            self.logger.info("Thread stopped successfully")
-            return True
+        self.logger.info("Thread stopped successfully")
+        return True
 
 
 def test_cleanup() -> None:

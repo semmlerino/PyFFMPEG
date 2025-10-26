@@ -263,12 +263,41 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             time.sleep(0.2)
 
         # Check if dispatcher is running
+        # Track if we've already attempted a restart to prevent infinite loops
+        already_restarted = False
+
         if not self._is_dispatcher_running():
+            terminal_alive = self._is_terminal_alive()
             self.logger.warning(
                 f"Terminal dispatcher not reading from FIFO {self.fifo_path}. "
-                f"Terminal process alive: {self._is_terminal_alive()}"
+                f"Terminal process alive: {terminal_alive}"
             )
-            # Don't return False here - we'll let the actual write attempt handle the error
+
+            # If terminal is alive but dispatcher is dead, we need to force restart
+            # This happens when the dispatcher script crashes but terminal emulator stays open
+            if terminal_alive and ensure_terminal:
+                self.logger.warning(
+                    "Terminal process is alive but dispatcher is dead - forcing full restart"
+                )
+                # Force kill the terminal process (dispatcher check will skip EXIT_TERMINAL)
+                if self.terminal_pid:
+                    try:
+                        os.kill(self.terminal_pid, signal.SIGKILL)
+                        self.logger.info(f"Force killed stale terminal process {self.terminal_pid}")
+                    except (ProcessLookupError, PermissionError) as e:
+                        self.logger.debug(f"Could not kill terminal: {e}")
+
+                    self.terminal_pid = None
+                    self.terminal_process = None
+
+                # Now restart (which will clean up FIFO and launch fresh)
+                if self.restart_terminal():
+                    self.logger.info("Terminal restarted after dispatcher failure")
+                    already_restarted = True
+                    time.sleep(0.5)  # Brief pause before sending command
+                else:
+                    self.logger.error("Failed to restart terminal after dispatcher failure")
+                    return False
 
         # Validate command before sending
         if not command or not command.strip():
@@ -336,8 +365,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                         self.logger.error(f"Failed to send command to FIFO: {e}")
                     elif e.errno == errno.ENXIO:
                         # No reader available - terminal not running
-                        if attempt == 0 and ensure_terminal:
-                            # Try to restart terminal once
+                        if attempt == 0 and ensure_terminal and not already_restarted:
+                            # Try to restart terminal once (if not already restarted above)
                             self.logger.warning(
                                 "No reader available for FIFO, attempting to restart terminal..."
                             )
@@ -349,8 +378,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                                 # before sending command (prevents FIFO corruption)
                                 time.sleep(1.5)  # Give terminal time to set up
                                 continue  # Retry the command
-                            else:
-                                self.logger.error("Failed to restart terminal")
+                            self.logger.error("Failed to restart terminal")
                         else:
                             self.logger.warning(
                                 "No reader available for FIFO (terminal_dispatcher.sh not running?)"
@@ -383,15 +411,20 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         Returns:
             True if terminal was closed successfully
         """
-        # Send exit command
-        self.send_command("EXIT_TERMINAL", ensure_terminal=False)
-
-        # Give it time to exit gracefully
-        time.sleep(0.5)
+        # Only try graceful exit if dispatcher is running
+        # If dispatcher is dead, sending EXIT_TERMINAL will hang/fail
+        if self._is_dispatcher_running():
+            self.logger.debug("Dispatcher running, sending EXIT_TERMINAL for graceful exit")
+            self.send_command("EXIT_TERMINAL", ensure_terminal=False)
+            # Give it time to exit gracefully
+            time.sleep(0.5)
+        else:
+            self.logger.debug("Dispatcher not running, skipping graceful exit")
 
         # Force kill if still running
         if self._is_terminal_alive() and self.terminal_pid:
             try:
+                self.logger.debug(f"Force killing terminal process {self.terminal_pid}")
                 os.kill(self.terminal_pid, signal.SIGTERM)
                 time.sleep(0.5)
                 if self._is_terminal_alive():
@@ -413,9 +446,42 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         Returns:
             True if terminal was restarted successfully
         """
+        self.logger.info("Restarting terminal...")
+
+        # Close existing terminal
         self.close_terminal()
         time.sleep(0.5)
-        return self._launch_terminal()
+
+        # Clean up and recreate FIFO to prevent stale file handle issues
+        self.logger.debug("Cleaning up FIFO before restart")
+        if os.path.exists(self.fifo_path):
+            try:
+                os.unlink(self.fifo_path)
+                self.logger.debug(f"Removed stale FIFO at {self.fifo_path}")
+            except OSError as e:
+                self.logger.warning(f"Could not remove stale FIFO: {e}")
+
+        # Recreate FIFO
+        if not self._ensure_fifo():
+            self.logger.error("Failed to recreate FIFO during restart")
+            return False
+
+        # Launch new terminal
+        if self._launch_terminal():
+            # Give dispatcher more time to fully initialize
+            # This prevents race conditions where we try to write before reader is ready
+            self.logger.debug("Waiting for dispatcher to fully initialize...")
+            time.sleep(1.5)
+
+            # Verify dispatcher is actually running
+            if self._is_dispatcher_running():
+                self.logger.info("Terminal restarted successfully with active dispatcher")
+                return True
+            self.logger.warning("Terminal launched but dispatcher not responding yet")
+            return True  # Terminal is up, dispatcher might just need more time
+
+        self.logger.error("Failed to launch terminal during restart")
+        return False
 
     def cleanup(self) -> None:
         """Clean up resources (FIFO and terminal)."""

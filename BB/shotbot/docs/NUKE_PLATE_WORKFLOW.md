@@ -108,20 +108,30 @@ TURNOVER_PLATE_PRIORITY: ClassVar[dict[str, float]] = {
 
 ### Directory Structure
 
+**Actual Path** (as implemented):
 ```
 workspace/
-└── comp/
-    └── nuke/
-        ├── FG01/
-        │   ├── seq01_shot01_mm-default_FG01_scene_v001.nk
-        │   ├── seq01_shot01_mm-default_FG01_scene_v002.nk
-        │   └── seq01_shot01_mm-default_FG01_scene_v003.nk
-        ├── PL01/
-        │   └── seq01_shot01_mm-default_PL01_scene_v001.nk
-        └── BG01/
-            ├── seq01_shot01_mm-default_BG01_scene_v001.nk
-            └── seq01_shot01_mm-default_BG01_scene_v002.nk
+└── user/
+    └── {user}/        # e.g., gabriel-h
+        └── mm/
+            └── nuke/
+                └── scripts/
+                    ├── FG01/
+                    │   ├── seq01_shot01_mm-default_FG01_scene_v001.nk
+                    │   ├── seq01_shot01_mm-default_FG01_scene_v002.nk
+                    │   └── seq01_shot01_mm-default_FG01_scene_v003.nk
+                    ├── PL01/
+                    │   └── seq01_shot01_mm-default_PL01_scene_v001.nk
+                    └── BG01/
+                        ├── seq01_shot01_mm-default_BG01_scene_v001.nk
+                        └── seq01_shot01_mm-default_BG01_scene_v002.nk
 ```
+
+**Key Benefits**:
+- Scripts persist independently of plate media versions
+- All versions of a plate's scripts are in ONE directory
+- "Open latest" works reliably across plate updates
+- Clean separation: media lives in `publish/`, scripts in `user/`
 
 ---
 
@@ -328,8 +338,8 @@ TURNOVER_PLATE_PRIORITY: ClassVar[dict[str, float]] = { ... }
 # Nuke script template
 NUKE_SCRIPT_TEMPLATE: str = "{shot}_mm-default_{plate}_scene_v{version:03d}.nk"
 
-# Script directory structure
-NUKE_SCRIPT_DIRECTORY: str = "comp/nuke/{plate}"
+# Script directory structure (actual path)
+NUKE_SCRIPT_DIRECTORY: str = "user/{user}/mm/nuke/scripts/{plate}"
 
 # Version format (zero-padded to 3 digits)
 VERSION_FORMAT: str = "v{version:03d}"
@@ -373,11 +383,12 @@ VERSION_FORMAT: str = "v{version:03d}"
 ### Issue: Script not found
 
 **Symptom**: "No existing scripts found for plate FG01"
-**Cause**: Plate directory doesn't exist or scripts don't match naming convention
+**Cause**: Scripts not in expected workspace directory or naming mismatch
 **Solution**:
-1. Check directory: `{workspace}/comp/nuke/FG01/`
+1. Check directory: `{workspace}/user/{user}/mm/nuke/scripts/FG01/`
 2. Verify naming: `{shot}_mm-default_FG01_scene_v*.nk`
 3. Use "Create New" option to generate first script
+4. If migrating from old location, see Migration Guide below
 
 ### Issue: Multiple plates available, unclear which to use
 
@@ -393,22 +404,73 @@ VERSION_FORMAT: str = "v{version:03d}"
 
 ## Migration Guide
 
-### For Existing Projects
+### IMPORTANT: Script Location Change (October 2025)
 
-If you have existing Nuke scripts in the old workspace format:
+**Scripts are now saved in workspace directory, not plate media directory.**
 
-1. **Identify plates**: Determine which plate each script corresponds to
-2. **Create directories**: `mkdir -p {workspace}/comp/nuke/{plate}`
-3. **Rename scripts**:
-   - Old: `seq01_shot01_scene_v001.nk`
-   - New: `seq01_shot01_mm-default_{plate}_scene_v001.nk`
-4. **Move scripts**: `mv old_script.nk comp/nuke/{plate}/new_script.nk`
+### Old Location (Broken)
+```
+{workspace}/publish/turnover/plate/input_plate/{PLATE}/v{plate_version}/exr/{resolution}/
+└── {shot}_mm-default_{PLATE}_scene_v{script_version}.nk
+```
+
+**Problem**: Scripts become invisible when plate version updates (v001 → v002).
+
+### New Location (Fixed)
+```
+{workspace}/user/{user}/mm/nuke/scripts/{PLATE}/
+└── {shot}_mm-default_{PLATE}_scene_v{script_version}.nk
+```
+
+**Benefit**: Scripts persist independently of plate versions. All versions accessible.
+
+### Migration Steps
+
+If you have existing scripts in the old location:
+
+```bash
+# For each plate (FG01, BG01, etc.)
+OLD_DIR="{workspace}/publish/turnover/plate/input_plate/{PLATE}/v*/exr/*/
+NEW_DIR="{workspace}/user/{user}/mm/nuke/scripts/{PLATE}/"
+
+# Create new directory
+mkdir -p "$NEW_DIR"
+
+# Move scripts (all versions from all plate versions)
+find "$OLD_DIR" -name "*_mm-default_{PLATE}_scene_v*.nk" -exec mv {} "$NEW_DIR" \;
+```
+
+### Example Migration
+
+```bash
+# Shot: BRX_166_0010, Plate: FG01, User: gabriel-h
+OLD="/shows/broken_eggs/shots/166/BRX_166_0010/publish/turnover/plate/input_plate/FG01/"
+NEW="/shows/broken_eggs/shots/166/BRX_166_0010/user/gabriel-h/mm/nuke/scripts/FG01/"
+
+mkdir -p "$NEW"
+find "$OLD" -name "BRX_166_0010_mm-default_FG01_scene_v*.nk" -exec mv {} "$NEW" \;
+```
+
+### Verification
+
+After migration:
+```bash
+# Check new location has all scripts
+ls {workspace}/user/{user}/mm/nuke/scripts/{PLATE}/
+
+# Should see all versions:
+# shot_mm-default_FG01_scene_v001.nk
+# shot_mm-default_FG01_scene_v002.nk
+# shot_mm-default_FG01_scene_v003.nk
+# etc.
+```
 
 ### Compatibility
 
-- **Backward compatible**: Old scripts still work (just not discovered by new launcher)
-- **Forward compatible**: New scripts follow industry conventions
-- **Gradual migration**: Can use both old and new formats during transition
+- **Breaking change**: Old scripts won't be discovered automatically
+- **Forward compatible**: New scripts follow VFX workspace conventions
+- **Migration required**: Must manually move existing scripts (see above)
+- **No data loss**: Scripts remain intact, just need to be moved
 
 ---
 

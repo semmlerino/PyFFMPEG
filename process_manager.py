@@ -169,7 +169,7 @@ class ProcessManager(QObject):
 
         # Finished handling connection - this is critical for marking completion
         def finished_handler(exit_code, exit_status, p=process, process_path=path):
-            return self.mark_process_finished(p, process_path)
+            return self.mark_process_finished(p, process_path, exit_code)
 
         process.finished.connect(finished_handler)
         connections.append(("finished", finished_handler))
@@ -414,9 +414,8 @@ class ProcessManager(QObject):
         process_id = self._get_process_id(process)
         return self.progress_tracker.get_process_progress(process_id)
 
-    def mark_process_finished(self, process: QProcess, process_path: str) -> None:
+    def mark_process_finished(self, process: QProcess, process_path: str, exit_code: int) -> None:
         """Mark process as finished, update tracker, and emit finished signal."""
-        exit_code = process.exitCode() if hasattr(process, "exitCode") else -1
         process_id = self._get_process_id(process)
 
         # For successful completion, force progress to 100% and emit update before cleanup

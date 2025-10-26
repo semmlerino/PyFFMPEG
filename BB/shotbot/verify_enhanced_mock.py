@@ -70,15 +70,14 @@ def verify_mock_environment(shows_root: str | Path) -> bool:
         print("   ✅ Both 'My Shots' and 'Other 3DE Scenes' tabs will be populated")
         print("   🚀 Mock environment is ready for testing!")
         return True
-    elif gabrielh_3de_files:
+    if gabrielh_3de_files:
         print("   ⚠️  Only 'My Shots' tab will be populated")
         return False
-    elif other_users_3de_files:
+    if other_users_3de_files:
         print("   ⚠️  Only 'Other 3DE Scenes' tab will be populated")
         return False
-    else:
-        print("   ❌ Neither tab will be populated")
-        return False
+    print("   ❌ Neither tab will be populated")
+    return False
 
 
 if __name__ == "__main__":

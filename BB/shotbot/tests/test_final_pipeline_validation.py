@@ -174,9 +174,8 @@ def test_show_extraction() -> bool:
     if shows == expected_shows:
         print(f"  ✓ Extracted shows: {', '.join(sorted(shows))}")
         return True
-    else:
-        print(f"  ❌ Expected {expected_shows}, got {shows}")
-        return False
+    print(f"  ❌ Expected {expected_shows}, got {shows}")
+    return False
 
 
 def test_edge_cases():
@@ -346,9 +345,8 @@ def main() -> int:
         print("  • 3DE file path parsing")
         print("  • Show extraction for targeted searches")
         return 0
-    else:
-        print(f"\n⚠️  {total - passed} test(s) failed.")
-        return 1
+    print(f"\n⚠️  {total - passed} test(s) failed.")
+    return 1
 
 
 if __name__ == "__main__":

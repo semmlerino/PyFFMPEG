@@ -93,7 +93,7 @@ def make_model(
             item_model.set_items(shots)
             return item_model
 
-        elif model_class_name == "ThreeDEItemModel":
+        if model_class_name == "ThreeDEItemModel":
             from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
             scene_model = ThreeDESceneModel(load_cache=False)
@@ -118,7 +118,7 @@ def make_model(
             item_model.set_items(scenes)
             return item_model
 
-        elif model_class_name == "PreviousShotsItemModel":
+        if model_class_name == "PreviousShotsItemModel":
             from previous_shots_item_model import PreviousShotsItemModel
             from previous_shots_model import PreviousShotsModel
             from shot_model import ShotModel

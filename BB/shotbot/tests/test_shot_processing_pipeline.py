@@ -404,9 +404,8 @@ def main() -> int:
             "\n🎉 All tests passed! The shot processing pipeline is working correctly."
         )
         return 0
-    else:
-        print(f"\n⚠️  {total - passed} test(s) failed. Please review the errors above.")
-        return 1
+    print(f"\n⚠️  {total - passed} test(s) failed. Please review the errors above.")
+    return 1
 
 
 if __name__ == "__main__":

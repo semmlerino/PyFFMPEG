@@ -342,9 +342,8 @@ class SecureCommandExecutor(LoggingMixin):
                 output, expiry = self._cache[command]
                 if time.time() < expiry:
                     return output
-                else:
-                    # Expired, remove from cache
-                    del self._cache[command]
+                # Expired, remove from cache
+                del self._cache[command]
         return None
 
     def _cache_result(self, command: str, output: str, ttl: int) -> None:

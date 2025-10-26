@@ -67,11 +67,10 @@ class DirectoryCache(LoggingMixin):
                     if time.time() - self.timestamps[path_str] < self.ttl:
                         self.stats["hits"] += 1
                         return self.cache[path_str]
-                    else:
-                        # Expired
-                        del self.cache[path_str]
-                        del self.timestamps[path_str]
-                        self.stats["evictions"] += 1
+                    # Expired
+                    del self.cache[path_str]
+                    del self.timestamps[path_str]
+                    self.stats["evictions"] += 1
                 else:
                     # No auto-expiry, return cached entry
                     self.stats["hits"] += 1

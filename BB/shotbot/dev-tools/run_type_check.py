@@ -98,9 +98,8 @@ def main() -> int:
     if passed == total:
         print("🎉 All type checking passed!")
         return 0
-    else:
-        print("❌ Some checks failed")
-        return 1
+    print("❌ Some checks failed")
+    return 1
 
 
 if __name__ == "__main__":

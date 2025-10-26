@@ -83,9 +83,8 @@ def test_basic_file_locking() -> bool:
         if final_value == expected:
             print("✓ File locking works correctly!")
             return True
-        else:
-            print(f"✗ Lost {expected - final_value} increments")
-            return False
+        print(f"✗ Lost {expected - final_value} increments")
+        return False
 
 
 if __name__ == "__main__":

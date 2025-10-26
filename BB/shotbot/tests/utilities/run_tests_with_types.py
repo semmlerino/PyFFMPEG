@@ -31,10 +31,9 @@ def run_command(cmd: list[str], description: str) -> tuple[bool, str]:
         if result.returncode == 0:
             print(f"✅ {description} passed")
             return True, result.stdout
-        else:
-            print(f"❌ {description} failed:")
-            print(result.stderr)
-            return False, result.stderr
+        print(f"❌ {description} failed:")
+        print(result.stderr)
+        return False, result.stderr
 
     except subprocess.TimeoutExpired:
         print(f"⏰ {description} timed out")
@@ -154,9 +153,8 @@ def main() -> int:
     if all_passed:
         print("\n🎉 All checks passed! Code is ready for commit.")
         return 0
-    else:
-        print("\n❌ Some checks failed. Please address the issues above.")
-        return 1
+    print("\n❌ Some checks failed. Please address the issues above.")
+    return 1
 
 
 if __name__ == "__main__":

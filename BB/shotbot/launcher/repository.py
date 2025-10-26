@@ -78,10 +78,9 @@ class LauncherRepository(LoggingMixin):
                 f"Created launcher '{launcher.name}' with ID {launcher.id}"
             )
             return True
-        else:
-            # Rollback on save failure
-            del self._launchers[launcher.id]
-            return False
+        # Rollback on save failure
+        del self._launchers[launcher.id]
+        return False
 
     def update(self, launcher: CustomLauncher) -> bool:
         """Update an existing launcher.
@@ -106,10 +105,9 @@ class LauncherRepository(LoggingMixin):
         if self.save():
             self.logger.info(f"Updated launcher '{launcher.name}'")
             return True
-        else:
-            # Rollback on save failure
-            self._launchers[launcher.id] = backup
-            return False
+        # Rollback on save failure
+        self._launchers[launcher.id] = backup
+        return False
 
     def delete(self, launcher_id: str) -> bool:
         """Delete a launcher.
@@ -137,10 +135,9 @@ class LauncherRepository(LoggingMixin):
         if self.save():
             self.logger.info(f"Deleted launcher '{launcher_name}'")
             return True
-        else:
-            # Rollback on save failure
-            self._launchers[launcher_id] = backup
-            return False
+        # Rollback on save failure
+        self._launchers[launcher_id] = backup
+        return False
 
     def get(self, launcher_id: str) -> CustomLauncher | None:
         """Get a launcher by ID.

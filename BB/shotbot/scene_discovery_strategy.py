@@ -622,16 +622,15 @@ def create_discovery_strategy(
     # Create strategy based on type with appropriate kwargs
     if strategy_type == "local":
         return LocalFileSystemStrategy()
-    elif strategy_type == "parallel":
+    if strategy_type == "parallel":
         num_workers = kwargs.get("num_workers")
         return ParallelFileSystemStrategy(num_workers=num_workers)
-    elif strategy_type == "progressive":
+    if strategy_type == "progressive":
         return ProgressiveDiscoveryStrategy()
-    elif strategy_type == "network":
+    if strategy_type == "network":
         network_timeout = kwargs.get("network_timeout", 30)
         return NetworkAwareStrategy(network_timeout=network_timeout)
-    else:
-        raise ValueError(
-            f"Unknown strategy type: {strategy_type}. "
-            f"Available: local, parallel, progressive, network"
-        )
+    raise ValueError(
+        f"Unknown strategy type: {strategy_type}. "
+        f"Available: local, parallel, progressive, network"
+    )

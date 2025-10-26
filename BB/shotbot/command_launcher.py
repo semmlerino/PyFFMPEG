@@ -428,16 +428,15 @@ class CommandLauncher(LoggingMixin, QObject):
             if success:
                 self.logger.debug("Command successfully sent to persistent terminal")
                 return True
-            else:
-                self.logger.warning(
-                    "Failed to send command to persistent terminal, falling back to new terminal"
-                )
-                # Emit user-friendly message about fallback
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                self.command_executed.emit(
-                    timestamp,
-                    "⚠ Persistent terminal not available, launching in new terminal...",
-                )
+            self.logger.warning(
+                "Failed to send command to persistent terminal, falling back to new terminal"
+            )
+            # Emit user-friendly message about fallback
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.command_executed.emit(
+                timestamp,
+                "⚠ Persistent terminal not available, launching in new terminal...",
+            )
                 # Fall through to launch new terminal - WITHOUT the & operator
 
         # Launch in new terminal (original behavior)
@@ -586,16 +585,15 @@ class CommandLauncher(LoggingMixin, QObject):
                     "Scene command successfully sent to persistent terminal"
                 )
                 return True
-            else:
-                self.logger.warning(
-                    "Failed to send command to persistent terminal, falling back to new terminal"
-                )
-                # Emit user-friendly message about fallback
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                self.command_executed.emit(
-                    timestamp,
-                    "⚠ Persistent terminal not available, launching in new terminal...",
-                )
+            self.logger.warning(
+                "Failed to send command to persistent terminal, falling back to new terminal"
+            )
+            # Emit user-friendly message about fallback
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.command_executed.emit(
+                timestamp,
+                "⚠ Persistent terminal not available, launching in new terminal...",
+            )
                 # Fall through to launch new terminal - WITHOUT the & operator
 
         # Launch in new terminal (original behavior)

@@ -33,9 +33,8 @@ def capture_screenshot() -> Path | None:
     if success:
         print(f"✓ Screenshot saved to: {output_path}")
         return output_path
-    else:
-        print("✗ Failed to save screenshot")
-        return None
+    print("✗ Failed to save screenshot")
+    return None
 
 
 if __name__ == "__main__":

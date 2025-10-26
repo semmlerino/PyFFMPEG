@@ -145,10 +145,9 @@ def main() -> int:
         print("  2. Or use: python3 run_tests_wsl.py --fast")
         print("  3. Or test single files to reduce I/O")
         return 0
-    else:
-        print("❌ Some tests failed")
-        print("\n💡 Fix the failures above before running full test suite")
-        return 1
+    print("❌ Some tests failed")
+    print("\n💡 Fix the failures above before running full test suite")
+    return 1
 
 
 if __name__ == "__main__":

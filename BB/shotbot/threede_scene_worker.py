@@ -485,11 +485,10 @@ class ThreeDESceneWorker(ThreadSafeWorker):
 
         # Original behavior: scan only the provided shots
         # Convert shots to the format expected by the finder
-        shot_tuples: list[tuple[str, str, str, str]] = []
-        for shot in self.shots:
-            shot_tuples.append(
-                (str(shot.workspace_path), shot.show, shot.sequence, shot.shot),
-            )
+        shot_tuples: list[tuple[str, str, str, str]] = [
+            (str(shot.workspace_path), shot.show, shot.sequence, shot.shot)
+            for shot in self.shots
+        ]
 
         # Get size estimation for progress calculation
         try:

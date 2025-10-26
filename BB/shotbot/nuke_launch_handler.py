@@ -206,10 +206,9 @@ class NukeLaunchHandler(LoggingMixin):
                     selected_plate,
                     version=version,
                 )
-            else:
-                self.logger.warning(
-                    f"Raw plate not found for {selected_plate}, creating empty script"
-                )
+            self.logger.warning(
+                f"Raw plate not found for {selected_plate}, creating empty script"
+            )
 
         # Create empty script directly in plate directory (no temp files!)
         return self.script_generator.create_empty_plate_script(
