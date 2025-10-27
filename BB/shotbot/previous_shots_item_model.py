@@ -226,6 +226,10 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             self._thumbnail_timer.stop()
             self._thumbnail_timer.deleteLater()
 
+        if hasattr(self, "_thumbnail_debounce_timer"):
+            self._thumbnail_debounce_timer.stop()
+            self._thumbnail_debounce_timer.deleteLater()
+
         # Clear caches
         self.clear_thumbnail_cache()
 
@@ -235,17 +239,23 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         self._selected_index = QPersistentModelIndex()
 
         # Disconnect from underlying model
+        # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
+        # from Qt when attempting to disconnect signals that have no connections.
+        # Qt's receivers() method is not properly typed in PySide6 stubs
         if hasattr(self._underlying_model, "shots_updated"):
-            with contextlib.suppress(RuntimeError, TypeError):
-                self._underlying_model.shots_updated.disconnect(
-                    self._on_underlying_shots_updated
-                )
+            with contextlib.suppress(RuntimeError, TypeError, AttributeError):
+                if self._underlying_model.shots_updated.receivers(self._on_underlying_shots_updated) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                    self._underlying_model.shots_updated.disconnect(
+                        self._on_underlying_shots_updated
+                    )
 
         # Disconnect signals safely
-        with contextlib.suppress(RuntimeError, TypeError):
-            self.items_updated.disconnect()
-        with contextlib.suppress(RuntimeError, TypeError):
-            self.shots_updated.disconnect()
+        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
+            if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.items_updated.disconnect()
+        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
+            if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.shots_updated.disconnect()
 
         self.logger.info("PreviousShotsItemModel cleanup complete")
 

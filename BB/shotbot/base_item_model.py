@@ -625,9 +625,12 @@ class BaseItemModel(
                 f"Current: {QThread.currentThread()}, Main: {app.thread()}"
             )
 
-        # CRITICAL: Stop timer FIRST (prevents callback races)
+        # CRITICAL: Stop timers FIRST (prevents callback races)
         if self._thumbnail_timer.isActive():
             self._thumbnail_timer.stop()
+
+        if self._thumbnail_debounce_timer.isActive():
+            self._thumbnail_debounce_timer.stop()
 
         # Build lookup set BEFORE model reset (exception safety)
         new_item_names = {item.full_name for item in items}

@@ -74,6 +74,11 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         WorkerState.DELETED: [],  # Terminal state
     }
 
+    # Class-level collection to prevent garbage collection of zombie threads
+    # This prevents "QThread: Destroyed while thread is still running" crashes
+    _zombie_threads: ClassVar[list[ThreadSafeWorker]] = []
+    _zombie_mutex: ClassVar[QMutex] = QMutex()  # Protects _zombie_threads access
+
     def __init__(self, parent: QObject | None = None) -> None:
         """Initialize thread-safe worker.
 
@@ -257,26 +262,32 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             self._connections.append(connection)
 
         # Connect outside mutex to prevent deadlock
-        # Prevent duplicate connections at Qt level
-        unique_connection_type = (
-            Qt.ConnectionType(connection_type.value | Qt.ConnectionType.UniqueConnection.value)
-        )
-        signal.connect(slot, unique_connection_type)
+        # NOTE: Don't use Qt.ConnectionType.UniqueConnection - it doesn't work with Python callables
+        # Application-level deduplication (above) is more reliable for Python/Qt
+        signal.connect(slot, connection_type)
 
         self.logger.debug(
             f"Worker {id(self)}: Connected signal to {slot.__name__} with {connection_type}"
         )
 
+    @Slot()
     def disconnect_all(self) -> None:
         """Safely disconnect all tracked signals.
 
         This is safe to call even if signals are being emitted.
+        Thread-safe with mutex protection to prevent race with safe_connect().
         """
+        # Copy connections list under mutex protection
+        with QMutexLocker(self._state_mutex):
+            connections_to_disconnect = self._connections.copy()
+            connection_count = len(connections_to_disconnect)
+
         self.logger.debug(
-            f"Worker {id(self)}: Disconnecting {len(self._connections)} signals",
+            f"Worker {id(self)}: Disconnecting {connection_count} signals",
         )
 
-        for signal, slot in self._connections:
+        # Disconnect outside mutex to prevent deadlock
+        for signal, slot in connections_to_disconnect:
             # Direct references now - no need to dereference
             try:
                 signal.disconnect(slot)
@@ -287,7 +298,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     f"Worker {id(self)}: Signal already disconnected: {e}"
                 )
 
-        self._connections.clear()
+        # Clear the connections list under mutex protection
+        with QMutexLocker(self._state_mutex):
+            self._connections.clear()
 
     @Slot()
     def run(self) -> None:
@@ -379,7 +392,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         with QMutexLocker(self._state_mutex):
             current = self._state
 
-            # Only transition to DELETED if we're in STOPPED state
+            # Transition to STOPPED first if needed, then to DELETED
             if current == WorkerState.STOPPED:
                 # Valid transition: STOPPED -> DELETED
                 self._state = WorkerState.DELETED
@@ -387,22 +400,29 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     f"Worker {id(self)}: STOPPED -> DELETED (on finished)"
                 )
             elif current in [WorkerState.RUNNING, WorkerState.STOPPING]:
-                # Need to transition through STOPPED first
+                # Transition through STOPPED to DELETED
                 self.logger.debug(
                     f"Worker {id(self)}: {current.name} -> STOPPED -> DELETED (on finished)"
                 )
                 self._state = WorkerState.STOPPED
-                # Don't go to DELETED yet - let normal cleanup handle it
+                # Now complete the transition to DELETED
+                self._state = WorkerState.DELETED
             elif current == WorkerState.ERROR:
-                # ERROR -> STOPPED is valid
-                self.logger.debug(f"Worker {id(self)}: ERROR -> STOPPED (on finished)")
-                self._state = WorkerState.STOPPED
-            elif current in [WorkerState.CREATED, WorkerState.STARTING]:
-                # Thread finished before it really started - go to STOPPED
+                # ERROR -> STOPPED -> DELETED
                 self.logger.debug(
-                    f"Worker {id(self)}: {current.name} -> STOPPED (on finished)"
+                    f"Worker {id(self)}: ERROR -> STOPPED -> DELETED (on finished)"
                 )
                 self._state = WorkerState.STOPPED
+                # Now complete the transition to DELETED
+                self._state = WorkerState.DELETED
+            elif current in [WorkerState.CREATED, WorkerState.STARTING]:
+                # Thread finished before it really started - go to STOPPED -> DELETED
+                self.logger.debug(
+                    f"Worker {id(self)}: {current.name} -> STOPPED -> DELETED (on finished)"
+                )
+                self._state = WorkerState.STOPPED
+                # Now complete the transition to DELETED
+                self._state = WorkerState.DELETED
             elif current == WorkerState.DELETED:
                 # Already deleted, nothing to do
                 self.logger.debug(f"Worker {id(self)}: Already DELETED")
@@ -527,9 +547,20 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                         "Thread will be abandoned (NOT terminated) to prevent crashes.",
                     )
                     # DO NOT call terminate() - it's unsafe!
-                    # Instead, mark as zombie and let Python GC eventually clean up
+                    # Instead, mark as zombie and add to class collection to prevent GC
                     with QMutexLocker(self._state_mutex):
                         self._zombie = True
+
+                    # Add to class-level collection to prevent garbage collection
+                    # This prevents "QThread: Destroyed while thread is still running" crash
+                    with QMutexLocker(ThreadSafeWorker._zombie_mutex):
+                        ThreadSafeWorker._zombie_threads.append(self)
+                        zombie_count = len(ThreadSafeWorker._zombie_threads)
+
+                    self.logger.warning(
+                        f"Worker {id(self)}: Added to zombie collection "
+                        f"({zombie_count} total zombies)"
+                    )
                 else:
                     self.logger.info(f"Worker {id(self)}: Stopped after extended wait")
             else:

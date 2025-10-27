@@ -24,6 +24,7 @@ Maintained features:
 from __future__ import annotations
 
 # Standard library imports
+import contextlib
 import json
 import os
 import shutil
@@ -48,8 +49,17 @@ if TYPE_CHECKING:
     from shot_model import Shot
     from type_definitions import ShotDict, ThreeDESceneDict
 
-# These are used at runtime in cast() with string literals, but also needed for type annotations
-import contextlib
+# Check for optional OpenEXR/Imath support (VFX-specific)
+# These may not be available in all environments
+_openexr_available = False
+_openexr_check_logged = False
+try:
+    import Imath  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    import OpenEXR  # noqa: F401  # pyright: ignore[reportUnusedImport]
+
+    _openexr_available = True
+except ImportError:
+    pass  # Will log warning on first use
 
 # Type alias for JSON data (used for runtime validation) - Python 3.11 compatible
 JSONValue: TypeAlias = (
@@ -293,7 +303,39 @@ class CacheManager(LoggingMixin, QObject):
 
         Returns:
             Path to created thumbnail
+
+        Raises:
+            ThumbnailError: If EXR processing fails
         """
+        global _openexr_check_logged
+
+        # Check if OpenEXR/Imath are available
+        if not _openexr_available:
+            # Log warning once about missing OpenEXR support
+            if not _openexr_check_logged:
+                self.logger.warning(
+                    "OpenEXR/Imath not available - trying PIL fallback for EXR files. "
+                    "Install OpenEXR and Imath for better EXR support."
+                )
+                _openexr_check_logged = True
+
+            # Try PIL as fallback - it can handle some basic EXR files
+            try:
+                self.logger.debug(f"Trying PIL fallback for EXR file: {source}")
+                img = Image.open(source)
+                img.thumbnail(
+                    (THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS
+                )
+                img.convert("RGB").save(output, "JPEG", quality=THUMBNAIL_QUALITY)
+                self.logger.debug(f"Created EXR thumbnail via PIL: {output}")
+                return output
+            except Exception as pil_error:
+                self.logger.debug(f"PIL fallback failed for EXR: {pil_error}")
+                raise ThumbnailError(
+                    f"EXR thumbnail failed: OpenEXR not available and PIL fallback failed: {pil_error}"
+                ) from pil_error
+
+        # OpenEXR is available - use proper EXR processing
         try:
             import Imath
             import numpy as np
@@ -349,7 +391,7 @@ class CacheManager(LoggingMixin, QObject):
             img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
             img.save(output, "JPEG", quality=THUMBNAIL_QUALITY)
 
-            self.logger.debug(f"Created EXR thumbnail: {output}")
+            self.logger.debug(f"Created EXR thumbnail via OpenEXR: {output}")
             return output
 
         except Exception as e:

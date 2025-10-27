@@ -191,7 +191,14 @@ class ThreeDEController(LoggingMixin):
                 )
                 # Use safe_terminate which avoids dangerous terminate() call
                 worker_to_stop.safe_terminate()
-            worker_to_stop.deleteLater()
+
+            # Only delete if not a zombie (prevents crash)
+            if hasattr(worker_to_stop, "is_zombie") and worker_to_stop.is_zombie():
+                self.logger.warning(
+                    "3DE worker thread is a zombie and will not be deleted"
+                )
+            else:
+                worker_to_stop.deleteLater()
 
             # Clear reference after worker is stopped, with mutex protection
             with QMutexLocker(self._worker_mutex):

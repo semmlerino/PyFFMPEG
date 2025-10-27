@@ -260,6 +260,10 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             self._thumbnail_timer.stop()
             self._thumbnail_timer.deleteLater()
 
+        if hasattr(self, "_thumbnail_debounce_timer"):
+            self._thumbnail_debounce_timer.stop()
+            self._thumbnail_debounce_timer.deleteLater()
+
         # Clear caches
         self.clear_thumbnail_cache()
 
@@ -267,6 +271,11 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         self._selected_index = QPersistentModelIndex()
 
         # Disconnect signals safely
+        # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
+        # from Qt when attempting to disconnect signals that have no connections.
+        # This is especially important during testing where models may be created
+        # without any connected slots.
+        # Qt's receivers() method is not properly typed in PySide6 stubs
         signals_to_disconnect = [
             self.items_updated,
             self.scenes_updated,
@@ -279,9 +288,12 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
 
         for signal in signals_to_disconnect:
             try:
-                signal.disconnect()
-            except (RuntimeError, TypeError):
-                pass  # Already disconnected or no connections
+                # Only disconnect if there are receivers
+                # receivers(None) returns total count of all connections
+                if signal.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                    signal.disconnect()
+            except (RuntimeError, TypeError, AttributeError):
+                pass  # Already disconnected, no connections, or object deleted
 
         self.logger.info("ThreeDEItemModel cleanup complete")
 

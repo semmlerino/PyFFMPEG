@@ -199,6 +199,10 @@ class ShotItemModel(BaseItemModel["Shot"]):
             self._thumbnail_timer.stop()
             self._thumbnail_timer.deleteLater()
 
+        if hasattr(self, "_thumbnail_debounce_timer"):
+            self._thumbnail_debounce_timer.stop()
+            self._thumbnail_debounce_timer.deleteLater()
+
         # Clear caches
         self.clear_thumbnail_cache()
 
@@ -208,10 +212,15 @@ class ShotItemModel(BaseItemModel["Shot"]):
         self._selected_index = QPersistentModelIndex()
 
         # Disconnect signals safely
-        with contextlib.suppress(RuntimeError, TypeError):
-            self.items_updated.disconnect()
-        with contextlib.suppress(RuntimeError, TypeError):
-            self.shots_updated.disconnect()
+        # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
+        # from Qt when attempting to disconnect signals that have no connections.
+        # Qt's receivers() method is not properly typed in PySide6 stubs
+        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
+            if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.items_updated.disconnect()
+        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
+            if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.shots_updated.disconnect()
 
         self.logger.info("ShotItemModel cleanup complete")
 

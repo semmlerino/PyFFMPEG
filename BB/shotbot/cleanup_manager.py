@@ -30,6 +30,7 @@ class MainWindowProtocol(Protocol):
     previous_shots_model: Any
     previous_shots_item_model: Any
     persistent_terminal: Any
+    command_launcher: Any
 
 
 class CleanupManager(QObject, LoggingMixin):
@@ -136,6 +137,16 @@ class CleanupManager(QObject, LoggingMixin):
 
     def _cleanup_managers(self) -> None:
         """Clean up manager instances."""
+        # Log Nuke launcher usage statistics
+        if (
+            hasattr(self.main_window, "command_launcher")
+            and self.main_window.command_launcher
+            and hasattr(self.main_window.command_launcher, "nuke_handler")
+            and hasattr(self.main_window.command_launcher.nuke_handler, "log_usage_stats")
+        ):
+            self.logger.debug("Logging Nuke launcher usage statistics")
+            self.main_window.command_launcher.nuke_handler.log_usage_stats()
+
         # Shutdown launcher manager to stop all worker threads
         if (
             hasattr(self.main_window, "launcher_manager")
@@ -208,17 +219,16 @@ class CleanupManager(QObject, LoggingMixin):
 
     def _final_cleanup(self) -> None:
         """Perform final cleanup steps - QRunnables, timers, and garbage collection."""
+        # Process pending events BEFORE cleanup to drain event queue safely
+        app = QApplication.instance()
+        if app:
+            app.processEvents()
+
         # Clean up any remaining QRunnables in the thread pool
         from runnable_tracker import cleanup_all_runnables
 
         self.logger.debug("Cleaning up tracked QRunnables")
         cleanup_all_runnables()
-
-        # Stop any remaining QTimers - check for persistent timers
-        app = QApplication.instance()
-        if app:
-            # Process any pending events to ensure cleanup
-            app.processEvents()
 
         # Force garbage collection to clean up any circular references
         import gc
