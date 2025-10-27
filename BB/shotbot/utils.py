@@ -105,6 +105,84 @@ def get_cache_stats() -> dict[str, object]:
     return stats
 
 
+def normalize_plate_id(plate_id: str | None) -> str | None:
+    """Normalize plate ID to canonical uppercase form.
+
+    VFX convention uses uppercase (PL01, FG01, BG02), but filesystems
+    may contain lowercase directories (pl01, fg01). This normalizes
+    for consistent logging and comparison while preserving filesystem
+    case for path operations.
+
+    Args:
+        plate_id: Plate identifier (e.g., "PL01", "pl01", "FG01")
+
+    Returns:
+        Normalized uppercase plate ID, or None if input is None/empty
+
+    Examples:
+        >>> normalize_plate_id("pl01")
+        "PL01"
+        >>> normalize_plate_id("  pl01  ")
+        "PL01"
+        >>> normalize_plate_id("")
+        None
+        >>> normalize_plate_id(None)
+        None
+    """
+    if plate_id is None:
+        return None
+
+    # Strip whitespace and validate non-empty
+    plate_id = plate_id.strip()
+    if not plate_id:
+        return None
+
+    return plate_id.upper()
+
+
+def find_path_case_insensitive(base_path: Path, plate_id: str) -> Path | None:
+    """Find plate directory with case-insensitive fallback.
+
+    Linux filesystems are case-sensitive, but VFX pipelines may have
+    inconsistent casing (PL01/ vs pl01/). Try normalized uppercase first,
+    then fall back to lowercase if not found.
+
+    Args:
+        base_path: Directory containing plate subdirectories (must exist)
+        plate_id: Plate identifier (any case)
+
+    Returns:
+        Path to existing plate directory, or None if not found
+    """
+    # Validate base path exists
+    if not base_path.exists():
+        logger.warning(f"Base path does not exist: {base_path}")
+        return None
+
+    if not base_path.is_dir():
+        logger.warning(f"Base path is not a directory: {base_path}")
+        return None
+
+    # Try normalized uppercase (VFX standard)
+    normalized = normalize_plate_id(plate_id)
+    if normalized:
+        path = base_path / normalized
+        if path.exists():
+            return path
+
+    # Fallback: try lowercase (legacy/non-standard)
+    lowercase_path = base_path / plate_id.lower()
+    if lowercase_path.exists():
+        return lowercase_path
+
+    # Fallback: try original case
+    original_path = base_path / plate_id
+    if original_path.exists():
+        return original_path
+
+    return None
+
+
 class PathUtils:
     """Utilities for path construction and validation."""
 
@@ -534,8 +612,12 @@ class PathUtils:
 
         # Try each plate directory in priority order
         for plate_name, _priority in plate_dirs:
-            plate_path = mm_default_path / plate_name / "undistorted_plate"
+            # Get plate directory with case-insensitive lookup
+            plate_dir = find_path_case_insensitive(mm_default_path, plate_name)
+            if plate_dir is None:
+                continue
 
+            plate_path = plate_dir / "undistorted_plate"
             if not PathUtils.validate_path_exists(plate_path, "Undistorted plate path"):
                 continue
 
@@ -627,10 +709,12 @@ class PathUtils:
 
                     # Try each plate in priority order
                     for plate_name, _priority in plate_dirs:
-                        undistorted_path = (
-                            nuke_outputs / plate_name / "undistorted_plate"
-                        )
+                        # Get plate directory with case-insensitive lookup
+                        plate_dir = find_path_case_insensitive(nuke_outputs, plate_name)
+                        if plate_dir is None:
+                            continue
 
+                        undistorted_path = plate_dir / "undistorted_plate"
                         if not undistorted_path.exists():
                             continue
 
@@ -938,8 +1022,10 @@ class PathUtils:
                 if matched_prefix:
                     priority = Config.TURNOVER_PLATE_PRIORITY.get(matched_prefix, 3)
                     found_plates.append((plate_name, priority))
+                    # Log normalized plate ID for consistency (but use filesystem case for paths)
+                    normalized_name = normalize_plate_id(plate_name) or plate_name
                     logger.debug(
-                        f"Found plate: {plate_name} (type: {matched_prefix}, priority: {priority})"
+                        f"Found plate: {normalized_name} (type: {matched_prefix}, priority: {priority})"
                     )
                 else:
                     # Skip non-plate directories (e.g., 'reference', 'backup', etc.)

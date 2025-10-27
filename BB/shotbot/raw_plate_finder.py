@@ -14,7 +14,7 @@ from logging_mixin import get_module_logger
 from plate_discovery import PlateDiscovery
 
 # Performance monitoring removed - was using archived module
-from utils import PathUtils, VersionUtils
+from utils import PathUtils, VersionUtils, find_path_case_insensitive
 
 # Set up logger for this module
 logger = get_module_logger(__name__)
@@ -60,7 +60,9 @@ class RawPlateFinder:
 
         # Try each plate directory in priority order
         for plate_name, _ in plate_dirs:
-            plate_path = base_path / plate_name
+            plate_path = find_path_case_insensitive(base_path, plate_name)
+            if plate_path is None:
+                continue  # Skip if plate directory not found
 
             # Find the latest version directory
             latest_version = VersionUtils.get_latest_version(plate_path)
@@ -232,9 +234,9 @@ class RawPlateFinder:
             logger.debug(f"Raw plate base path does not exist: {base_path}")
             return None
 
-        # Look for specific plate directory
-        plate_path = base_path / plate_space
-        if not PathUtils.validate_path_exists(plate_path, f"Plate directory for {plate_space}"):
+        # Look for specific plate directory (case-insensitive)
+        plate_path = find_path_case_insensitive(base_path, plate_space)
+        if plate_path is None:
             logger.debug(f"Plate directory not found: {plate_space}")
             return None
 

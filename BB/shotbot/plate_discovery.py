@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Local application imports
 from logging_mixin import get_module_logger
-from utils import PathUtils, VersionUtils
+from utils import PathUtils, VersionUtils, find_path_case_insensitive
 
 # Module logger
 logger = get_module_logger(__name__)
@@ -139,10 +139,11 @@ class PlateDiscovery:
             "Use get_workspace_script_directory() instead."
         )
         base_path = PathUtils.build_raw_plate_path(workspace_path)
-        plate_dir = base_path / plate_name
 
-        if not PathUtils.validate_path_exists(plate_dir, f"Plate directory for {plate_name}"):
-            logger.error(f"Plate directory not found: {plate_dir}")
+        # Get plate directory with case-insensitive lookup
+        plate_dir = find_path_case_insensitive(base_path, plate_name)
+        if plate_dir is None:
+            logger.error(f"Plate directory not found: {plate_name}")
             return None
 
         # Get latest version directory

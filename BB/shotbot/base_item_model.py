@@ -145,13 +145,20 @@ class BaseItemModel(
         self._selected_item: T | None = None
 
         # Lazy loading timer for thumbnails
-        self._thumbnail_timer = QTimer()
+        self._thumbnail_timer = QTimer(self)  # Parent ensures automatic cleanup
         self._thumbnail_timer.timeout.connect(self._load_visible_thumbnails)
         self._thumbnail_timer.setInterval(100)  # 100ms delay
 
         # Track visible range for lazy loading
         self._visible_start = 0
         self._visible_end = 0
+
+        # Thumbnail loading optimization
+        self._last_visible_range: tuple[int, int] = (-1, -1)
+        self._thumbnail_debounce_timer = QTimer(self)
+        self._thumbnail_debounce_timer.setSingleShot(True)  # Critical: single-shot
+        self._thumbnail_debounce_timer.setInterval(250)  # 250ms debounce
+        self._thumbnail_debounce_timer.timeout.connect(self._do_load_visible_thumbnails)
 
         self.logger.info(
             f"{self.__class__.__name__} initialized with Model/View architecture"
@@ -316,12 +323,28 @@ class BaseItemModel(
         self._visible_start = max(0, start)
         self._visible_end = min(len(self._items) - 1, end) if self._items else 0
 
-        # Start thumbnail loading timer
-        if not self._thumbnail_timer.isActive():
-            self._thumbnail_timer.start()
+        # Schedule debounced thumbnail check
+        self._thumbnail_debounce_timer.start()  # Restart delays execution
 
     def _load_visible_thumbnails(self) -> None:
-        """Load thumbnails for visible items with atomic check-and-mark.
+        """Check if visible range changed and schedule actual load."""
+        visible_range = (self._visible_start, self._visible_end)
+
+        # Skip if range unchanged (eliminates idle polling)
+        if visible_range == self._last_visible_range:
+            self.logger.debug(
+                f"_load_visible_thumbnails: range unchanged "
+                f"({visible_range[0]}-{visible_range[1]}), skipping"
+            )
+            return
+
+        self._last_visible_range = visible_range
+
+        # Range changed, do actual load
+        self._do_load_visible_thumbnails()
+
+    def _do_load_visible_thumbnails(self) -> None:
+        """Actually load thumbnails for visible range (called by debounce timer).
 
         This implementation eliminates race conditions by marking all items
         as "loading" atomically in a single lock acquisition before starting
@@ -335,7 +358,7 @@ class BaseItemModel(
         # DEBUG: Log how many items we're checking
         if self._items:
             self.logger.debug(
-                f"_load_visible_thumbnails: checking {end - start} items "
+                f"_do_load_visible_thumbnails: checking {end - start} items "
                 f"(range {start}-{end}, total items: {len(self._items)})"
             )
 

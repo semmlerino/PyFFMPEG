@@ -253,8 +253,12 @@ class CacheManager(LoggingMixin, QObject):
                 except Exception:
                     pass  # Regenerate if we can't check age
 
-            # Process with PIL (handles all formats including EXR if pillow-openexr installed)
+            # Detect file type and route to appropriate processor
+            is_exr = source_path_obj.suffix.lower() in (".exr", ".EXR")
+
             try:
+                if is_exr:
+                    return self._process_exr_thumbnail(source_path_obj, output_path)
                 return self._process_standard_thumbnail(source_path_obj, output_path)
             except Exception as e:
                 self.logger.error(f"Failed to process thumbnail: {e}")
@@ -279,6 +283,78 @@ class CacheManager(LoggingMixin, QObject):
         except Exception as e:
             self.logger.error(f"PIL thumbnail processing failed: {e}")
             raise ThumbnailError(f"Failed to process thumbnail: {e}") from e
+
+    def _process_exr_thumbnail(self, source: Path, output: Path) -> Path:
+        """Process OpenEXR image to thumbnail.
+
+        Args:
+            source: Source EXR path
+            output: Output thumbnail path
+
+        Returns:
+            Path to created thumbnail
+        """
+        try:
+            import Imath
+            import numpy as np
+            import OpenEXR
+
+            # Open EXR file
+            exr_file = OpenEXR.InputFile(str(source))  # type: ignore[attr-defined]
+            header = exr_file.header()  # type: ignore[attr-defined]
+
+            # Get image dimensions
+            dw = header["dataWindow"]  # type: ignore[index]
+            width: int = dw.max.x - dw.min.x + 1  # type: ignore[attr-defined]
+            height: int = dw.max.y - dw.min.y + 1  # type: ignore[attr-defined]
+
+            # Read RGB channels (or use first available channel if no RGB)
+            channels = header["channels"]  # type: ignore[index]
+            channel_names: list[str] = list(channels.keys())  # type: ignore[attr-defined]
+
+            # Try to find RGB channels (common names: R/G/B, Y/RY/BY, etc.)
+            r_channel: str = next(
+                (ch for ch in channel_names if ch in ("R", "r", "red", "Red")),
+                channel_names[0],
+            )
+            g_channel: str = next(
+                (ch for ch in channel_names if ch in ("G", "g", "green", "Green")),
+                r_channel,
+            )
+            b_channel: str = next(
+                (ch for ch in channel_names if ch in ("B", "b", "blue", "Blue")),
+                r_channel,
+            )
+
+            # Read channel data
+            FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+            r_str = exr_file.channel(r_channel, FLOAT)  # type: ignore[attr-defined]
+            g_str = exr_file.channel(g_channel, FLOAT)  # type: ignore[attr-defined]
+            b_str = exr_file.channel(b_channel, FLOAT)  # type: ignore[attr-defined]
+
+            # Convert to numpy arrays
+            r = np.frombuffer(r_str, dtype=np.float32).reshape(height, width)  # type: ignore[arg-type]
+            g = np.frombuffer(g_str, dtype=np.float32).reshape(height, width)  # type: ignore[arg-type]
+            b = np.frombuffer(b_str, dtype=np.float32).reshape(height, width)  # type: ignore[arg-type]
+
+            # Stack into RGB image and apply simple tone mapping
+            rgb = np.dstack((r, g, b))
+
+            # Simple tone mapping: clamp and convert to 8-bit
+            rgb = np.clip(rgb, 0, 1)
+            rgb_8bit = (rgb * 255).astype(np.uint8)
+
+            # Convert to PIL Image
+            img = Image.fromarray(rgb_8bit, mode="RGB")
+            img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
+            img.save(output, "JPEG", quality=THUMBNAIL_QUALITY)
+
+            self.logger.debug(f"Created EXR thumbnail: {output}")
+            return output
+
+        except Exception as e:
+            self.logger.error(f"OpenEXR thumbnail processing failed: {e}")
+            raise ThumbnailError(f"Failed to process EXR thumbnail: {e}") from e
 
     def cache_thumbnail_direct(
         self,

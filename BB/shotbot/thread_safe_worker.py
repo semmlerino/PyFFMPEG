@@ -231,7 +231,10 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         slot: Callable[..., object],
         connection_type: Qt.ConnectionType = Qt.ConnectionType.QueuedConnection,
     ) -> None:
-        """Track signal connections for safe cleanup.
+        """Track signal connections for safe cleanup with deduplication.
+
+        This method ensures connections are unique - calling it multiple times
+        with the same signal/slot pair will not create duplicate connections.
 
         Args:
             signal: Signal to connect (runtime SignalInstance)
@@ -241,9 +244,28 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         # Store direct references - Qt signals don't support weak references
         # The connections will be cleaned up in disconnect_all()
         connection = (signal, slot)
-        self._connections.append(connection)
-        signal.connect(slot, connection_type)
-        self.logger.debug(f"Worker {id(self)}: Connected signal with {connection_type}")
+
+        # CRITICAL: Atomic check-and-add using mutex to prevent race conditions
+        with QMutexLocker(self._state_mutex):
+            # Prevent duplicate connections at application level
+            if connection in self._connections:
+                self.logger.debug(
+                    f"Worker {id(self)}: Skipped duplicate connection for {slot.__name__}"
+                )
+                return
+
+            self._connections.append(connection)
+
+        # Connect outside mutex to prevent deadlock
+        # Prevent duplicate connections at Qt level
+        unique_connection_type = (
+            Qt.ConnectionType(connection_type.value | Qt.ConnectionType.UniqueConnection.value)
+        )
+        signal.connect(slot, unique_connection_type)
+
+        self.logger.debug(
+            f"Worker {id(self)}: Connected signal to {slot.__name__} with {connection_type}"
+        )
 
     def disconnect_all(self) -> None:
         """Safely disconnect all tracked signals.
