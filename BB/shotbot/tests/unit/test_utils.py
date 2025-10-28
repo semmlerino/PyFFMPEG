@@ -1000,144 +1000,6 @@ class TestFindTurnoverPlateThumbnail:
         assert result is None
 
 
-class TestFindAnyPublishThumbnail:
-    """Test the fallback EXR discovery in publish folders."""
-
-    def test_find_any_publish_thumbnail_success(self, tmp_path: Path) -> None:
-        """Test successful discovery of 1001 EXR files in publish folder."""
-        shows_root = tmp_path / "shows"
-        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
-        publish_path = shot_path / "publish"
-
-        # Create nested structure with 1001 EXR file
-        deep_path = publish_path / "comp" / "v003" / "exr" / "4K"
-        deep_path.mkdir(parents=True)
-
-        exr_file = deep_path / "shot_comp_v003.1001.exr"
-        exr_file.write_text("exr content")
-
-        result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root),
-            "myshow",
-            "seq01",
-            "shot01",
-        )
-
-        assert result is not None
-        assert "1001" in result.name
-        assert result.suffix.lower() == ".exr"
-
-    def test_find_any_publish_thumbnail_depth_limit(self, tmp_path: Path) -> None:
-        """Test that search respects maximum depth limit."""
-        shows_root = tmp_path / "shows"
-        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
-        publish_path = shot_path / "publish"
-
-        # Create deeply nested structure beyond max_depth (5)
-        very_deep_path = publish_path
-        for i in range(7):  # Depth > 5
-            very_deep_path = very_deep_path / f"level_{i}"
-        very_deep_path.mkdir(parents=True)
-
-        exr_file = very_deep_path / "deep.1001.exr"
-        exr_file.write_text("deep exr")
-
-        result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root),
-            "myshow",
-            "seq01",
-            "shot01",
-            max_depth=5,
-        )
-
-        # Should not find the deeply nested file
-        assert result is None
-
-    def test_find_any_publish_thumbnail_no_1001_files(self, tmp_path: Path) -> None:
-        """Test that files without 1001 are ignored."""
-        shows_root = tmp_path / "shows"
-        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
-        publish_path = shot_path / "publish"
-        publish_path.mkdir(parents=True)
-
-        # Create EXR files without 1001
-        (publish_path / "shot.1000.exr").write_text("wrong frame")
-        (publish_path / "shot.1002.exr").write_text("wrong frame")
-        (publish_path / "shot.exr").write_text("no frame number")
-
-        result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root),
-            "myshow",
-            "seq01",
-            "shot01",
-        )
-        assert result is None
-
-    def test_find_any_publish_thumbnail_permission_error(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Test handling of permission errors during recursive search."""
-        shows_root = tmp_path / "shows"
-        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
-        publish_path = shot_path / "publish"
-        publish_path.mkdir(parents=True)
-
-        # Mock permission error during iterdir
-        with patch.object(
-            Path,
-            "iterdir",
-            side_effect=PermissionError("Access denied"),
-        ):
-            result = PathUtils.find_any_publish_thumbnail(
-                str(shows_root),
-                "myshow",
-                "seq01",
-                "shot01",
-            )
-
-        assert result is None
-        # The permission error is caught and logged in the recursive _search_directory function
-        # Check for debug log message that indicates error handling
-        debug_messages = [
-            record.message for record in caplog.records if record.levelname == "DEBUG"
-        ]
-        # Permission error might not always generate a log message depending on implementation
-        # The important thing is that the function handles the error gracefully and returns None
-        assert len(debug_messages) >= 0  # Just verify no crash occurred
-
-    def test_find_any_publish_thumbnail_custom_max_depth(self, tmp_path: Path) -> None:
-        """Test custom max_depth parameter."""
-        shows_root = tmp_path / "shows"
-        shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
-        publish_path = shot_path / "publish"
-
-        # Create file at depth 3
-        level3_path = publish_path / "level1" / "level2" / "level3"
-        level3_path.mkdir(parents=True)
-        exr_file = level3_path / "test.1001.exr"
-        exr_file.write_text("depth 3 exr")
-
-        # Should find with max_depth=3
-        result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root),
-            "myshow",
-            "seq01",
-            "shot01",
-            max_depth=3,
-        )
-        assert result is not None
-
-        # Should not find with max_depth=2
-        result = PathUtils.find_any_publish_thumbnail(
-            str(shows_root),
-            "myshow",
-            "seq01",
-            "shot01",
-            max_depth=2,
-        )
-        assert result is None
-
-
 class TestPlateDiscoveryCaseInsensitive:
     """Test case-insensitive plate directory discovery (commit 78983a8 fix)."""
 
@@ -1434,103 +1296,75 @@ class TestUserWorkspaceJPEGDiscovery:
 
 
 class TestThumbnailFallbackOrder:
-    """Test that JPEG sources are prioritized over EXR sources (commit 78983a8 fix)."""
+    """Test editorial/cutref thumbnail discovery with automatic version detection."""
 
-    def test_find_shot_thumbnail_jpeg_before_exr(self, tmp_path: Path) -> None:
-        """Test that user workspace JPEGs are found before turnover EXRs."""
+    def test_find_shot_thumbnail_editorial_cutref_latest_version(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that editorial/cutref finds latest version directory automatically."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
 
-        # Create turnover EXR (would fail with PIL)
-        turnover_dir = (
+        # Create v001 editorial cutref JPEG
+        v001_dir = (
             shot_path
             / "publish"
-            / "turnover"
-            / "plate"
-            / "input_plate"
-            / "PL01"
+            / "editorial"
+            / "cutref"
             / "v001"
-            / "exr"
-            / "4312x2304"
+            / "jpg"
+            / "1920x1080"
         )
-        turnover_dir.mkdir(parents=True)
-        exr_file = turnover_dir / "shot01_turnover_PL01_v001.1001.exr"
-        exr_file.write_text("fake exr (would fail PIL)")
+        v001_dir.mkdir(parents=True)
+        v001_jpeg = v001_dir / "seq01_shot01_editorial-cutref_v001.1001.jpg"
+        v001_jpeg.write_text("v001 jpeg")
 
-        # Create user workspace JPEG (should be found first)
-        user_jpeg_dir = (
+        # Create v002 editorial cutref JPEG (should be found - latest version)
+        v002_dir = (
             shot_path
-            / "user"
-            / "artist"
-            / "mm"
-            / "nuke"
-            / "outputs"
-            / "mm-default"
-            / "undistort"
-            / "fg01"
-            / "undistorted_plate"
-            / "v001"
-            / "4096x2160"
-            / "jpeg"
+            / "publish"
+            / "editorial"
+            / "cutref"
+            / "v002"
+            / "jpg"
+            / "1920x1080"
         )
-        user_jpeg_dir.mkdir(parents=True)
-        jpeg_file = user_jpeg_dir / "user_jpeg.jpeg"
-        jpeg_file.write_text("jpeg content")
+        v002_dir.mkdir(parents=True)
+        v002_jpeg = v002_dir / "seq01_shot01_editorial-cutref_v002.1001.jpg"
+        v002_jpeg.write_text("v002 jpeg")
 
         result = PathUtils.find_shot_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
-        # Should find JPEG, not EXR
+        # Should find v002 (latest version)
         assert result is not None
         assert result.suffix.lower() in [".jpg", ".jpeg"]
-        assert "user_jpeg.jpeg" in result.name
+        assert "v002" in str(result)
+        assert result.name == "seq01_shot01_editorial-cutref_v002.1001.jpg"
 
-    def test_find_shot_thumbnail_publish_jpeg_before_exr(self, tmp_path: Path) -> None:
-        """Test that publish undistorted JPEGs are found before turnover EXRs."""
+    def test_find_shot_thumbnail_no_editorial_returns_none(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that find_shot_thumbnail returns None when no editorial/cutref exists."""
         shows_root = tmp_path / "shows"
         shot_path = shows_root / "myshow" / "shots" / "seq01" / "seq01_shot01"
 
-        # Create turnover EXR
-        turnover_dir = (
-            shot_path
-            / "publish"
-            / "turnover"
-            / "plate"
-            / "input_plate"
-            / "PL01"
-            / "v001"
-            / "exr"
-            / "4312x2304"
-        )
-        turnover_dir.mkdir(parents=True)
-        exr_file = turnover_dir / "shot01_turnover_PL01_v001.1001.exr"
-        exr_file.write_text("fake exr")
+        # Create shot directory but no editorial/cutref
+        shot_path.mkdir(parents=True)
 
-        # Create publish JPEG (undistorted plate)
-        publish_jpeg_dir = (
-            shot_path
-            / "publish"
-            / "mm"
-            / "default"
-            / "FG01"
-            / "undistorted_plate"
-            / "v001"
-            / "jpeg"
-            / "4096x2160"
-        )
-        publish_jpeg_dir.mkdir(parents=True)
-        jpeg_file = publish_jpeg_dir / "publish_jpeg.jpeg"
-        jpeg_file.write_text("jpeg")
+        # Create other directories that are NOT editorial/cutref (should be ignored)
+        other_dir = shot_path / "publish" / "mm" / "default" / "v001" / "jpeg"
+        other_dir.mkdir(parents=True)
+        other_jpeg = other_dir / "other.jpg"
+        other_jpeg.write_text("other jpeg")
 
         result = PathUtils.find_shot_thumbnail(
             str(shows_root), "myshow", "seq01", "shot01"
         )
 
-        # Should find publish JPEG before EXR
-        assert result is not None
-        assert result.suffix.lower() in [".jpg", ".jpeg"]
-        assert "publish_jpeg.jpeg" in result.name
+        # Should return None (no editorial/cutref directory)
+        assert result is None
 
 
 # Cache isolation is now handled by the global conftest.py fixture

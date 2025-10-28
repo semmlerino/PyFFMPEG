@@ -255,6 +255,7 @@ class TestLauncherRefactoringSafety:
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
+@pytest.mark.xdist_group("qt_state")
 class TestMainWindowRefactoringSafety:
     """Test suite ensuring main window functionality is preserved."""
 
@@ -339,6 +340,7 @@ class TestMainWindowRefactoringSafety:
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
+@pytest.mark.xdist_group("qt_state")
 class TestCombinedIntegration:
     """Test launcher and main window work together."""
 

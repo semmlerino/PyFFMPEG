@@ -188,7 +188,11 @@ def make_shot() -> Callable[[str, str, str, str | None], Shot]:
         workspace_path: str | None = None,
     ) -> Shot:
         if workspace_path is None:
-            workspace_path = f"/shows/{show}/{seq}/{seq}_{shot}"
+            # Local application imports
+            from config import Config
+
+            # Use dynamic SHOWS_ROOT instead of hardcoded /shows
+            workspace_path = f"{Config.SHOWS_ROOT}/{show}/{seq}/{seq}_{shot}"
         return Shot(show, seq, shot, workspace_path)
 
     return _make_shot
@@ -1505,6 +1509,70 @@ def enhanced_mainwindow_cleanup(request: Any) -> Generator[None, None, None]:
             except ImportError:
                 pass
 
+            # COMPREHENSIVE SINGLETON CLEANUP (UNIFIED_TESTING_GUIDE: lines 285-289)
+            # Reset all singletons to prevent state accumulation across 1,931 tests
+            # This prevents "test passes individually but fails in sequential run" issues
+
+            # Clean up ProgressManager singleton
+            try:
+                from progress_manager import ProgressManager
+
+                if hasattr(ProgressManager, "_instance") and ProgressManager._instance is not None:
+                    with contextlib.suppress(Exception):
+                        ProgressManager._instance.clear_all_operations()
+                    ProgressManager._instance = None
+            except ImportError:
+                pass
+
+            # Clean up NotificationManager singleton
+            try:
+                from notification_manager import NotificationManager
+
+                if hasattr(NotificationManager, "_instance") and NotificationManager._instance is not None:
+                    with contextlib.suppress(Exception):
+                        # Clear any pending notifications
+                        pass
+                    NotificationManager._instance = None
+            except ImportError:
+                pass
+
+            # Clean up FilesystemCoordinator singleton
+            try:
+                from filesystem_coordinator import FilesystemCoordinator
+
+                if hasattr(FilesystemCoordinator, "_instance") and FilesystemCoordinator._instance is not None:
+                    with contextlib.suppress(Exception):
+                        # Reset coordinator state
+                        pass
+                    FilesystemCoordinator._instance = None
+            except ImportError:
+                pass
+
+            # Clean up QRunnableTracker singleton
+            try:
+                from runnable_tracker import QRunnableTracker
+
+                if hasattr(QRunnableTracker, "_instance") and QRunnableTracker._instance is not None:
+                    with contextlib.suppress(Exception):
+                        # Clear tracked runnables
+                        QRunnableTracker._instance.cleanup_all_runnables()
+                    QRunnableTracker._instance = None
+            except ImportError:
+                pass
+
+            # Clean up SecureCommandExecutor global instance
+            try:
+                import secure_command_executor
+
+                if hasattr(secure_command_executor, "_executor_instance"):
+                    with contextlib.suppress(Exception):
+                        if secure_command_executor._executor_instance is not None:
+                            # Clean up executor
+                            pass
+                    secure_command_executor._executor_instance = None
+            except ImportError:
+                pass
+
             # Additional QPixmap cleanup - force cleanup of Qt image cache
             try:
                 # Third-party imports
@@ -1796,3 +1864,44 @@ def pytest_collection_modifyitems(items: list[Any]) -> None:
     #         # If it's an integration test with MainWindow, use gui_mainwindow group
     #         if "integration" in str(item.fspath) and "MainWindow" in item.name:
     #             item.add_marker(pytest.mark.xdist_group("gui_mainwindow"))
+
+
+# ============================================================================
+# Qt Warning Detection Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def capture_qt_warnings() -> contextlib.AbstractContextManager[list[str]]:
+    """Context manager that captures Qt warnings from stderr.
+
+    Usage:
+        with capture_qt_warnings() as warnings:
+            # Do something that might produce Qt warnings
+            controller.refresh()
+
+        assert not any("unique connections" in w for w in warnings)
+
+    Returns:
+        Context manager yielding list of warning lines
+    """
+    from io import StringIO
+
+    @contextlib.contextmanager
+    def _capture():
+        old_stderr = sys.stderr
+        sys.stderr = captured = StringIO()
+        warning_lines: list[str] = []
+
+        try:
+            yield warning_lines
+        finally:
+            # Restore stderr
+            sys.stderr = old_stderr
+
+            # Parse captured output into lines
+            output = captured.getvalue()
+            if output:
+                warning_lines.extend(output.splitlines())
+
+    return _capture()

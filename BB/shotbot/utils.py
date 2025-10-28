@@ -770,140 +770,19 @@ class PathUtils:
         return None
 
     @staticmethod
-    def find_any_publish_thumbnail(
-        shows_root: str,
-        show: str,
-        sequence: str,
-        shot: str,
-        max_depth: int = 5,
-    ) -> Path | None:
-        """Find any image file containing '1001' in the publish folder as a fallback.
-
-        Searches recursively in the publish folder for thumbnail files, with preference
-        for lightweight formats (JPG/PNG) but will use EXR as a last resort.
-
-        Args:
-            shows_root: Root shows directory
-            show: Show name
-            sequence: Sequence name
-            shot: Shot name
-            max_depth: Maximum search depth to prevent deep recursion (default: 5)
-
-        Returns:
-            Path to first suitable image file found, or None if not found
-        """
-        # Build base path to publish directory
-        shot_dir = f"{sequence}_{shot}"
-        publish_path = PathUtils.build_path(
-            shows_root,
-            show,
-            "shots",
-            sequence,
-            shot_dir,
-            "publish",
-        )
-
-        # If publish directory doesn't exist, try the shot directory itself
-        if not PathUtils.validate_path_exists(publish_path, "Publish directory"):
-            # Try searching the entire shot directory as a fallback
-            shot_path = PathUtils.build_path(
-                shows_root,
-                show,
-                "shots",
-                sequence,
-                shot_dir,
-            )
-            if PathUtils.validate_path_exists(shot_path, "Shot directory"):
-                publish_path = shot_path
-                max_depth = min(max_depth, 3)  # Limit depth when searching entire shot
-            else:
-                return None
-
-        # Recursive search with depth limit for efficiency
-        def _search_directory(
-            directory: Path,
-            current_depth: int = 0,
-        ) -> Path | None:
-            """Recursively search directory for 1001 EXR files."""
-            if current_depth > max_depth:
-                return None
-
-            try:
-                # Collect all candidate files
-                lightweight_candidates: list[Path] = []
-                exr_candidates: list[Path] = []
-
-                for file_path in directory.iterdir():
-                    if file_path.is_file() and "1001" in file_path.name:
-                        suffix_lower = file_path.suffix.lower()
-                        # Prefer lightweight formats
-                        if suffix_lower in Config.THUMBNAIL_EXTENSIONS:
-                            lightweight_candidates.append(file_path)
-                        # Collect EXR as fallback
-                        elif suffix_lower in getattr(
-                            Config, "THUMBNAIL_FALLBACK_EXTENSIONS", [".exr"]
-                        ):
-                            exr_candidates.append(file_path)
-
-                # Return first lightweight format if found
-                if lightweight_candidates:
-                    logger.info(
-                        f"Found publish thumbnail: {lightweight_candidates[0].name}"
-                    )
-                    return lightweight_candidates[0]
-
-                # Use EXR as last resort (will be resized by cache_manager)
-                if exr_candidates:
-                    file_size_mb = exr_candidates[0].stat().st_size / (1024 * 1024)
-                    logger.info(
-                        f"Using EXR as fallback thumbnail: {exr_candidates[0].name} ({file_size_mb:.1f}MB)",
-                    )
-                    return exr_candidates[0]
-
-                # Then recurse into subdirectories
-                for sub_path in directory.iterdir():
-                    if sub_path.is_dir():
-                        result = _search_directory(sub_path, current_depth + 1)
-                        if result:
-                            return result
-
-            except (OSError, PermissionError) as e:
-                logger.debug(f"Error searching {directory}: {e}")
-
-            return None
-
-        result = _search_directory(publish_path)
-        if result:
-            logger.info(
-                f"Found any publish thumbnail for {sequence}_{shot}: {result.name}",
-            )
-        else:
-            logger.debug(
-                f"No 1001.exr files found in publish folder for {sequence}_{shot}",
-            )
-
-        return result
-
-    @staticmethod
     def find_shot_thumbnail(
         shows_root: str,
         show: str,
         sequence: str,
         shot: str,
     ) -> Path | None:
-        """Find thumbnail for a shot using standard fallback locations.
+        """Find thumbnail for a shot from editorial cutref directory.
 
         This is the single source of truth for shot thumbnail discovery,
         ensuring consistent thumbnails across "My Shots" and "Other 3DE scenes".
 
-        Prioritizes JPEG sources (fast, no PIL failures) before EXR sources (slow, can fail).
-
-        Tries five fallback options in order:
-        1. Editorial JPEGs (publish/editorial/cutref/) - highest quality curated thumbnails
-        2. Undistorted JPEGs (publish/mm/default/) - published matchmove JPEGs
-        3. User workspace JPEGs (user/{any_user}/mm/nuke/outputs/) - artist-generated, often newest
-        4. Turnover plate EXRs (publish/turnover/plate/) - may fail if PIL can't read EXR
-        5. Any 1001 image in publish - last resort, includes EXR
+        Searches for JPEG thumbnails in:
+        {workspace}/publish/editorial/cutref/{latest_version}/jpg/{resolution}/
 
         Args:
             shows_root: Root path for shows
@@ -912,62 +791,54 @@ class PathUtils:
             shot: Shot name
 
         Returns:
-            Path to thumbnail file or None if not found
+            Path to first JPEG file from latest editorial cutref version, or None if not found
         """
-        # Build thumbnail directory path
-        thumbnail_dir = PathUtils.build_thumbnail_path(
+        # Build base path to editorial cutref directory
+        shot_dir = f"{sequence}_{shot}"
+        editorial_base = PathUtils.build_path(
             shows_root,
             show,
+            "shots",
             sequence,
-            shot,
+            shot_dir,
+            "publish",
+            "editorial",
+            "cutref",
         )
 
-        # Try editorial thumbnail first (lightweight JPEGs)
-        if PathUtils.validate_path_exists(thumbnail_dir, "Thumbnail directory"):
-            # Use utility to find first image file
-            thumbnail = FileUtils.get_first_image_file(thumbnail_dir)
-            if thumbnail:
-                return thumbnail
+        if not PathUtils.validate_path_exists(editorial_base, "Editorial cutref directory"):
+            logger.debug(f"No editorial cutref directory found for {sequence}_{shot}")
+            return None
 
-        # Second: undistorted JPEG plates from publish (avoids EXR processing)
-        thumbnail = PathUtils.find_undistorted_jpeg_thumbnail(
-            shows_root,
-            show,
-            sequence,
-            shot,
-        )
-        if thumbnail:
-            return thumbnail
+        # Find latest version directory (v001, v002, etc.)
+        latest_version = VersionUtils.get_latest_version(editorial_base)
+        if not latest_version:
+            logger.debug(f"No version directories found in {editorial_base}")
+            return None
 
-        # Third: user workspace Nuke-generated JPEGs (often higher quality than publish)
-        thumbnail = PathUtils.find_user_workspace_jpeg_thumbnail(
-            shows_root,
-            show,
-            sequence,
-            shot,
-        )
-        if thumbnail:
-            return thumbnail
+        # Build path to jpg subdirectory
+        jpg_base_path = editorial_base / latest_version / "jpg"
+        if not PathUtils.validate_path_exists(jpg_base_path, "JPEG base path"):
+            logger.debug(f"No jpg directory found in {editorial_base}/{latest_version}")
+            return None
 
-        # Fourth: turnover plate thumbnails (may include EXR - checked after all JPEG sources)
-        thumbnail = PathUtils.find_turnover_plate_thumbnail(
-            shows_root,
-            show,
-            sequence,
-            shot,
-        )
-        if thumbnail:
-            return thumbnail
+        # Find any resolution directory (1920x1080, 3840x2160, etc.)
+        try:
+            for resolution_dir in jpg_base_path.iterdir():
+                if resolution_dir.is_dir():
+                    # Find first .jpg/.jpeg file in this resolution
+                    jpeg_file = FileUtils.get_first_image_file(resolution_dir)
+                    if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
+                        logger.info(
+                            f"Found editorial cutref thumbnail: {jpeg_file.name} "
+                            f"(version: {latest_version}, resolution: {resolution_dir.name})"
+                        )
+                        return jpeg_file
+        except (OSError, PermissionError) as e:
+            logger.debug(f"Error scanning editorial cutref JPEG directory {jpg_base_path}: {e}")
 
-        # Fifth: any image with 1001 in publish folder (last resort, includes EXR)
-        thumbnail = PathUtils.find_any_publish_thumbnail(
-            shows_root,
-            show,
-            sequence,
-            shot,
-        )
-
-        return thumbnail
+        logger.debug(f"No editorial cutref JPEGs found for {show}/{sequence}/{shot}")
+        return None
 
     @staticmethod
     def discover_plate_directories(

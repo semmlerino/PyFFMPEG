@@ -713,7 +713,7 @@ class FileSystemScanner(LoggingMixin):
                     find_cmd,
                     check=False, capture_output=True,
                     text=True,
-                    timeout=120,  # 120 second timeout for large network directories
+                    timeout=300,  # 300 second timeout for large network directories
                 )
 
                 if result.returncode == 0 and result.stdout:
@@ -764,7 +764,7 @@ class FileSystemScanner(LoggingMixin):
                     )
 
             except subprocess.TimeoutExpired:
-                self.logger.error("Find command timed out after 60 seconds")
+                self.logger.error("Find command timed out after 300 seconds")
                 self.logger.info("Falling back to Python-based search")
                 return self._fallback_python_search(
                     shots_dir, show_path, show, excluded_users

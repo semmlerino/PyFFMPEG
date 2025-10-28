@@ -148,16 +148,21 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 self._worker = None
 
                 # 4. Disconnect all signals to prevent late emissions
+                # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
+                # from Qt when attempting to disconnect signals that have no connections.
+                # Qt's receivers() method is not properly typed in PySide6 stubs
                 try:
-                    worker.scan_finished.disconnect()
-                    worker.error_occurred.disconnect()
+                    if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                        worker.scan_finished.disconnect()
+                    if worker.error_occurred.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                        worker.error_occurred.disconnect()
                     # PreviousShotsWorker uses scan_progress, not progress
                     # ThreeDESceneWorker uses progress signal
                     # Runtime hasattr check handles polymorphism - attribute may not exist
-                    if hasattr(worker, "progress"):
+                    if hasattr(worker, "progress") and worker.progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                         worker.progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                except (RuntimeError, TypeError):
-                    pass  # Already disconnected
+                except (RuntimeError, TypeError, AttributeError):
+                    pass  # Already disconnected or no connections
 
                 # 5. Schedule deletion on event loop
                 worker.deleteLater()

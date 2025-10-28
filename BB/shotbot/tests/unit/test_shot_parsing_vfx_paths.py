@@ -186,7 +186,12 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         shot = make_shot(show="jack_ryan", seq="DB_256", shot="1200")
 
         # Verify workspace path format
-        assert shot.workspace_path == "/shows/jack_ryan/DB_256/DB_256_1200"
+        # Local application imports
+        from config import Config
+
+        # Use dynamic SHOWS_ROOT for assertion
+        expected_workspace = f"{Config.SHOWS_ROOT}/jack_ryan/DB_256/DB_256_1200"
+        assert shot.workspace_path == expected_workspace
         assert shot.full_name == "DB_256_1200"
 
         # Verify thumbnail path construction
@@ -198,7 +203,8 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
             Config.SHOWS_ROOT, shot.show, shot.sequence, shot.shot
         )
 
-        expected_path = "/shows/jack_ryan/shots/DB_256/DB_256_1200/publish/editorial/cutref/v001/jpg/1920x1080"
+        # Use dynamic SHOWS_ROOT instead of hardcoded /shows
+        expected_path = f"{Config.SHOWS_ROOT}/jack_ryan/shots/DB_256/DB_256_1200/publish/editorial/cutref/v001/jpg/1920x1080"
         assert str(thumb_path) == expected_path
 
     def test_vfx_asset_paths(self) -> None:

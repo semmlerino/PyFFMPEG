@@ -9,7 +9,7 @@ dependencies = [
     "psutil>=5.9.0",
     "pillow>=10.0.0",
     "Jinja2>=3.0.0",
-    "OpenEXR>=1.3.0",
+    # OpenEXR and Imath are optional - graceful fallback if not available
     "numpy>=1.24.0",
     "olefile>=0.46",
     "typing_extensions>=4.0.0",  # Python 3.11 compatibility (@override)
@@ -229,6 +229,15 @@ junit_duration_report = "call"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
+
+    # Qt signal/slot warnings that should FAIL tests
+    # These indicate code issues that need fixing
+    # Format: action:message:category:module:lineno
+    "error:Failed to disconnect:RuntimeWarning:thread_safe_worker",
+    "error:Failed to disconnect:RuntimeWarning:controllers.*",
+
+    # Allow other RuntimeWarnings (but log them)
+    "default::RuntimeWarning",
 ]
 
 # Temporary path retention

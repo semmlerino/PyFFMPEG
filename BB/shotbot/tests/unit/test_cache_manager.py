@@ -333,10 +333,10 @@ class TestThumbnailCaching:
         assert cached_path.exists()
         assert cached_path.name == "shot010_thumb.jpg"
 
-    def test_get_cached_thumbnail_respects_ttl(
+    def test_get_cached_thumbnail_is_persistent(
         self, cache_manager: CacheManager, test_image_jpg: Path
     ) -> None:
-        """Test cached thumbnail expires after TTL."""
+        """Test cached thumbnails are persistent (no TTL expiration)."""
         # Cache thumbnail
         cache_manager.cache_thumbnail(test_image_jpg, "test_show", "seq01", "shot010")
 
@@ -344,15 +344,16 @@ class TestThumbnailCaching:
         cached = cache_manager.get_cached_thumbnail("test_show", "seq01", "shot010")
         assert cached is not None
 
-        # Expire it by modifying timestamp
+        # Set timestamp to 31 minutes ago (would expire data caches)
         old_time = time.time() - (31 * 60)  # 31 minutes ago
         import os
 
         os.utime(cached, (old_time, old_time))
 
-        # Should now be expired
-        expired = cache_manager.get_cached_thumbnail("test_show", "seq01", "shot010")
-        assert expired is None
+        # Should still be valid (thumbnails don't expire)
+        still_valid = cache_manager.get_cached_thumbnail("test_show", "seq01", "shot010")
+        assert still_valid is not None
+        assert still_valid == cached
 
     def test_get_cached_thumbnail_missing_file(
         self, cache_manager: CacheManager

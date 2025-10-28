@@ -93,6 +93,7 @@ def is_testing_environment() -> bool:
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
+@pytest.mark.xdist_group("qt_state")
 class TestMainWindowCompleteWorkflows:
     """Test complete end-to-end user workflows in MainWindow."""
 

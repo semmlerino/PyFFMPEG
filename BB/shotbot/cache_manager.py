@@ -3,20 +3,28 @@
 This is a streamlined replacement for the complex cache architecture,
 designed for a local VFX tool on a secure network.
 
+Caching Strategies:
+- Thumbnails: Persistent (no expiration, manual clear only)
+- Shot data (shots.json): 30-minute TTL
+- Previous shots (previous_shots.json): 30-minute TTL
+- 3DE scenes (threede_scenes.json): 30-minute TTL
+
+Rationale: Thumbnails are derived from static source images, so they should
+persist indefinitely. Data caches reflect dynamic VFX workspace state and need
+periodic refresh to stay current.
+
 Simplifications:
 - No platform-specific file locking (basic QMutex only)
 - No memory manager/LRU eviction
 - No failure tracker with exponential backoff
 - No storage backend abstraction
-- Direct PIL/OpenEXR processing
+- Direct PIL processing (JPEG/PNG only)
 - Simple atomic writes (temp file + os.replace)
-- Fixed 30-minute TTL
 
 Maintained features:
 - All public API methods (backward compatible)
 - Thumbnail caching (get_cached_thumbnail, cache_thumbnail)
 - Shot/3DE/Previous shots data caching
-- OpenEXR support (VFX requirement)
 - Directory structure
 - Thread safety (basic QMutex)
 """
@@ -48,18 +56,6 @@ if TYPE_CHECKING:
 
     from shot_model import Shot
     from type_definitions import ShotDict, ThreeDESceneDict
-
-# Check for optional OpenEXR/Imath support (VFX-specific)
-# These may not be available in all environments
-_openexr_available = False
-_openexr_check_logged = False
-try:
-    import Imath  # noqa: F401  # pyright: ignore[reportUnusedImport]
-    import OpenEXR  # noqa: F401  # pyright: ignore[reportUnusedImport]
-
-    _openexr_available = True
-except ImportError:
-    pass  # Will log warning on first use
 
 # Type alias for JSON data (used for runtime validation) - Python 3.11 compatible
 JSONValue: TypeAlias = (
@@ -167,7 +163,10 @@ class CacheManager(LoggingMixin, QObject):
     # ========================================================================
 
     def get_cached_thumbnail(self, show: str, sequence: str, shot: str) -> Path | None:
-        """Get path to cached thumbnail if it exists and is valid.
+        """Get path to cached thumbnail if it exists.
+
+        Thumbnails are persistent and do not expire - they're only regenerated
+        when manually cleared by the user.
 
         Args:
             show: Show name
@@ -175,27 +174,15 @@ class CacheManager(LoggingMixin, QObject):
             shot: Shot name
 
         Returns:
-            Path to thumbnail or None if not cached/expired
+            Path to thumbnail or None if not cached
         """
         with QMutexLocker(self._lock):
             cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
 
-            if not cache_path.exists():
-                return None
+            if cache_path.exists():
+                return cache_path
 
-            # Check TTL
-            try:
-                age = datetime.now() - datetime.fromtimestamp(
-                    cache_path.stat().st_mtime
-                )
-                if age > self._cache_ttl:
-                    self.logger.debug(f"Thumbnail expired: {cache_path}")
-                    return None
-            except Exception as e:
-                self.logger.warning(f"Failed to check thumbnail age: {e}")
-                return None
-
-            return cache_path
+            return None
 
     def cache_thumbnail(
         self,
@@ -251,24 +238,13 @@ class CacheManager(LoggingMixin, QObject):
                 return None
             output_path = output_dir / f"{shot}_thumb.jpg"
 
-            # Already cached and valid?
+            # Already cached? (thumbnails are persistent)
             if output_path.exists():
-                try:
-                    age = datetime.now() - datetime.fromtimestamp(
-                        output_path.stat().st_mtime
-                    )
-                    if age < self._cache_ttl:
-                        self.logger.debug(f"Using existing thumbnail: {output_path}")
-                        return output_path
-                except Exception:
-                    pass  # Regenerate if we can't check age
+                self.logger.debug(f"Using existing thumbnail: {output_path}")
+                return output_path
 
-            # Detect file type and route to appropriate processor
-            is_exr = source_path_obj.suffix.lower() in (".exr", ".EXR")
-
+            # Process as standard thumbnail (JPEG/PNG only - no EXR support)
             try:
-                if is_exr:
-                    return self._process_exr_thumbnail(source_path_obj, output_path)
                 return self._process_standard_thumbnail(source_path_obj, output_path)
             except Exception as e:
                 self.logger.error(f"Failed to process thumbnail: {e}")
@@ -293,110 +269,6 @@ class CacheManager(LoggingMixin, QObject):
         except Exception as e:
             self.logger.error(f"PIL thumbnail processing failed: {e}")
             raise ThumbnailError(f"Failed to process thumbnail: {e}") from e
-
-    def _process_exr_thumbnail(self, source: Path, output: Path) -> Path:
-        """Process OpenEXR image to thumbnail.
-
-        Args:
-            source: Source EXR path
-            output: Output thumbnail path
-
-        Returns:
-            Path to created thumbnail
-
-        Raises:
-            ThumbnailError: If EXR processing fails
-        """
-        global _openexr_check_logged
-
-        # Check if OpenEXR/Imath are available
-        if not _openexr_available:
-            # Log warning once about missing OpenEXR support
-            if not _openexr_check_logged:
-                self.logger.warning(
-                    "OpenEXR/Imath not available - trying PIL fallback for EXR files. "
-                    "Install OpenEXR and Imath for better EXR support."
-                )
-                _openexr_check_logged = True
-
-            # Try PIL as fallback - it can handle some basic EXR files
-            try:
-                self.logger.debug(f"Trying PIL fallback for EXR file: {source}")
-                img = Image.open(source)
-                img.thumbnail(
-                    (THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS
-                )
-                img.convert("RGB").save(output, "JPEG", quality=THUMBNAIL_QUALITY)
-                self.logger.debug(f"Created EXR thumbnail via PIL: {output}")
-                return output
-            except Exception as pil_error:
-                self.logger.debug(f"PIL fallback failed for EXR: {pil_error}")
-                raise ThumbnailError(
-                    f"EXR thumbnail failed: OpenEXR not available and PIL fallback failed: {pil_error}"
-                ) from pil_error
-
-        # OpenEXR is available - use proper EXR processing
-        try:
-            import Imath
-            import numpy as np
-            import OpenEXR
-
-            # Open EXR file
-            exr_file = OpenEXR.InputFile(str(source))  # type: ignore[attr-defined]
-            header = exr_file.header()  # type: ignore[attr-defined]
-
-            # Get image dimensions
-            dw = header["dataWindow"]  # type: ignore[index]
-            width: int = dw.max.x - dw.min.x + 1  # type: ignore[attr-defined]
-            height: int = dw.max.y - dw.min.y + 1  # type: ignore[attr-defined]
-
-            # Read RGB channels (or use first available channel if no RGB)
-            channels = header["channels"]  # type: ignore[index]
-            channel_names: list[str] = list(channels.keys())  # type: ignore[attr-defined]
-
-            # Try to find RGB channels (common names: R/G/B, Y/RY/BY, etc.)
-            r_channel: str = next(
-                (ch for ch in channel_names if ch in ("R", "r", "red", "Red")),
-                channel_names[0],
-            )
-            g_channel: str = next(
-                (ch for ch in channel_names if ch in ("G", "g", "green", "Green")),
-                r_channel,
-            )
-            b_channel: str = next(
-                (ch for ch in channel_names if ch in ("B", "b", "blue", "Blue")),
-                r_channel,
-            )
-
-            # Read channel data
-            FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-            r_str = exr_file.channel(r_channel, FLOAT)  # type: ignore[attr-defined]
-            g_str = exr_file.channel(g_channel, FLOAT)  # type: ignore[attr-defined]
-            b_str = exr_file.channel(b_channel, FLOAT)  # type: ignore[attr-defined]
-
-            # Convert to numpy arrays
-            r = np.frombuffer(r_str, dtype=np.float32).reshape(height, width)  # type: ignore[arg-type]
-            g = np.frombuffer(g_str, dtype=np.float32).reshape(height, width)  # type: ignore[arg-type]
-            b = np.frombuffer(b_str, dtype=np.float32).reshape(height, width)  # type: ignore[arg-type]
-
-            # Stack into RGB image and apply simple tone mapping
-            rgb = np.dstack((r, g, b))
-
-            # Simple tone mapping: clamp and convert to 8-bit
-            rgb = np.clip(rgb, 0, 1)
-            rgb_8bit = (rgb * 255).astype(np.uint8)
-
-            # Convert to PIL Image
-            img = Image.fromarray(rgb_8bit, mode="RGB")
-            img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
-            img.save(output, "JPEG", quality=THUMBNAIL_QUALITY)
-
-            self.logger.debug(f"Created EXR thumbnail via OpenEXR: {output}")
-            return output
-
-        except Exception as e:
-            self.logger.error(f"OpenEXR thumbnail processing failed: {e}")
-            raise ThumbnailError(f"Failed to process EXR thumbnail: {e}") from e
 
     def cache_thumbnail_direct(
         self,
@@ -688,27 +560,6 @@ class CacheManager(LoggingMixin, QObject):
     # ========================================================================
     # Stub Methods (for backward compatibility, no-ops in simple implementation)
     # ========================================================================
-
-    def cache_exr_thumbnails_batch(
-        self,
-        exr_files: list[tuple[Path, str, str, str]],
-    ) -> dict[str, Path | None]:
-        """Process multiple EXR thumbnails (simplified: process one by one).
-
-        Args:
-            exr_files: List of tuples (source_path, show, sequence, shot)
-
-        Returns:
-            Dictionary mapping shot keys to thumbnail paths
-        """
-        results: dict[str, Path | None] = {}
-
-        for source_path, show, sequence, shot in exr_files:
-            cache_key = f"{show}_{sequence}_{shot}"
-            result = self.cache_thumbnail(source_path, show, sequence, shot)
-            results[cache_key] = result
-
-        return results
 
     def clear_failed_attempts(self, cache_key: str | None = None) -> None:
         """Clear failed attempts (no-op in simple implementation).

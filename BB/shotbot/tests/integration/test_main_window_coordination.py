@@ -331,6 +331,7 @@ def main_window_with_real_components(
 @pytest.mark.gui_mainwindow
 @pytest.mark.qt_heavy
 @pytest.mark.integration_unsafe
+@pytest.mark.xdist_group("qt_state")
 class TestMainWindowUICoordination:
     """Test UI coordination and signal-slot connections."""
 
@@ -640,6 +641,7 @@ workspace /shows/test/shots/seq01/shot02""")
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
+@pytest.mark.xdist_group("qt_state")
 class TestMainWindowKeyboardShortcuts:
     """Test keyboard shortcuts and navigation."""
 
@@ -696,6 +698,7 @@ class TestMainWindowKeyboardShortcuts:
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
+@pytest.mark.xdist_group("qt_state")
 class TestMainWindowErrorScenarios:
     """Test error handling and recovery."""
 

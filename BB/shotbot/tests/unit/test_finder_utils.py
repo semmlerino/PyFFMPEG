@@ -360,18 +360,24 @@ class TestParseShotPath:
 class TestGetWorkspaceFromPath:
     """Test workspace extraction from path."""
 
-    def test_extract_workspace(self, mock_shows_root: str) -> None:
+    def test_extract_workspace(self) -> None:
         """Test extracting workspace from full path."""
-        path = "/tmp/mock_vfx/shows/test/shots/010/0010/user/john/maya/scenes/file.ma"
+        # Local application imports
+        from config import Config
+
+        # Use dynamic SHOWS_ROOT to construct test path
+        # Follow VFX naming convention: {sequence}_{shot}
+        shows_root = Config.SHOWS_ROOT
+        path = f"{shows_root}/test/shots/010/010_0010/user/john/maya/scenes/file.ma"
         workspace = FinderUtils.get_workspace_from_path(path)
-        assert workspace == "/tmp/mock_vfx/shows/test/shots/010/0010"
+        assert workspace == f"{shows_root}/test/shots/010/010_0010"
 
     @pytest.mark.parametrize(
         "path",
         ["/invalid/path", ""],
         ids=["invalid_path", "empty_path"],
     )
-    def test_invalid_path_returns_none(self, mock_shows_root: str, path: str) -> None:
+    def test_invalid_path_returns_none(self, path: str) -> None:
         """Test that invalid paths return None."""
         assert FinderUtils.get_workspace_from_path(path) is None
 

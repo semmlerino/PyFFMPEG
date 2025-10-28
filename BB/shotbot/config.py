@@ -115,6 +115,7 @@ class Config:
     )
     NUKE_PROBLEMATIC_PLUGIN_PATHS: ClassVar[list[str]] = [
         "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4.0.0rc9/python-3.11/init",
+        "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4.0.3/python-3.11",  # Disable ShotGrid bootstrap errors
         # Add other problematic plugin paths here
     ]
     NUKE_OCIO_FALLBACK_CONFIG = "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
@@ -215,13 +216,13 @@ class Config:
     # Primary: Lightweight formats that can be loaded directly
     THUMBNAIL_EXTENSIONS: ClassVar[list[str]] = [".jpg", ".jpeg", ".png"]
 
-    # Fallback: Heavy formats that require PIL resizing before use
-    THUMBNAIL_FALLBACK_EXTENSIONS: ClassVar[list[str]] = [".exr", ".tiff", ".tif"]
+    # Fallback: Heavy formats that require PIL resizing before use (EXR removed - not supported)
+    THUMBNAIL_FALLBACK_EXTENSIONS: ClassVar[list[str]] = [".tiff", ".tif"]
 
     # Maximum file size (MB) for direct loading without resizing
     THUMBNAIL_MAX_DIRECT_SIZE_MB = 10
 
-    # Keep IMAGE_EXTENSIONS for general image handling
+    # Keep IMAGE_EXTENSIONS for general image handling (includes EXR for Nuke, not for thumbnails)
     IMAGE_EXTENSIONS: ClassVar[list[str]] = [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".exr"]
     NUKE_EXTENSIONS: ClassVar[list[str]] = [".nk", ".nknc"]
     THREEDE_EXTENSIONS: ClassVar[list[str]] = [".3de"]

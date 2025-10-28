@@ -297,15 +297,15 @@ class TestThreadSafety:
     def test_thumbnail_timer_lifecycle(
         self, model: ThreeDEItemModel, test_scenes: list[ThreeDEScene]
     ) -> None:
-        """Test thumbnail timer starts and stops appropriately."""
+        """Test thumbnail debounce timer starts appropriately."""
         model.set_scenes(test_scenes)
 
-        # Timer should not be running initially
-        assert not model._thumbnail_timer.isActive()
+        # Debounce timer should not be running initially
+        assert not model._thumbnail_debounce_timer.isActive()
 
-        # Update visible range should start timer
+        # Update visible range should start debounce timer (not the deprecated _thumbnail_timer)
         model.set_visible_range(0, 2)
-        assert model._thumbnail_timer.isActive()
+        assert model._thumbnail_debounce_timer.isActive()
 
         # Loading all visible thumbnails should stop timer
         # Simulate all loaded

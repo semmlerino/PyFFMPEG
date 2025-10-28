@@ -185,18 +185,27 @@ class TestMainWindowLauncherIntegration:
                 launch_calls.append(app_name)
                 return True  # Return success
 
-            # Patch the command launcher's app launch method
+            # Patch the launcher controller's app launch method (signals connect to launcher_controller, not command_launcher)
             with patch.object(
-                window.command_launcher,
+                window.launcher_controller,
                 "launch_app",
                 side_effect=mock_command_launcher_launch_app,
             ):
                 # Trigger app launch from launcher panel
                 nuke_section = window.launcher_panel.app_sections["nuke"]
+
+                # Debug: Check button state
+                assert nuke_section.launch_button.isEnabled(), "Launch button should be enabled after shot selection"
+
                 qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
 
-                # Use qtbot.wait to allow signal propagation safely
+                # Process Qt events to ensure signal propagation
+                # Third-party imports
+                from PySide6.QtWidgets import QApplication
+
+                QApplication.processEvents()
                 qtbot.wait(50)  # Small delay for Qt event loop
+                QApplication.processEvents()
 
                 # Verify signal reached main window
                 assert len(launch_calls) == 1
@@ -398,7 +407,7 @@ class TestEndToEndLauncherWorkflow:
                 return True  # Return success
 
             with patch.object(
-                window.command_launcher,
+                window.launcher_controller,
                 "launch_app",
                 side_effect=mock_command_launcher_launch_nuke,
             ):

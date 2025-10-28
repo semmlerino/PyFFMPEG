@@ -61,6 +61,7 @@ class ExtendedTestCacheManager(TestCacheManager):
 
 @pytest.mark.slow
 @pytest.mark.gui_mainwindow
+@pytest.mark.xdist_group("qt_state")
 class TestFeatureFlagSwitching:
     """Test feature flag switching between shot model implementations."""
 
@@ -388,6 +389,8 @@ class TestFeatureFlagSwitching:
         assert "session_warmed" in optimized_metrics
 
 
+@pytest.mark.gui_mainwindow
+@pytest.mark.xdist_group("qt_state")
 class TestMainWindowIntegration:
     """Test MainWindow integration with different shot models."""
 

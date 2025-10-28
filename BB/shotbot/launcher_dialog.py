@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
-
 # Standard library imports
 from typing import TYPE_CHECKING, cast
 
@@ -804,46 +802,65 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
     @override
     def closeEvent(self, event: QCloseEvent) -> None:
-        """Clean up signal connections and save window state on close."""
-        # Disconnect launcher manager signals
+        """Clean up signal connections and save window state on close.
+
+        Note: We check receivers() before disconnecting to avoid RuntimeWarnings
+        from Qt when attempting to disconnect signals that have no connections.
+        This can happen during testing or if cleanup is called multiple times.
+        """
+        # Disconnect launcher manager signals (from _connect_signals)
+        # Note: Qt's receivers() method is not properly typed in PySide6 stubs
         try:
-            self.launcher_manager.launchers_changed.disconnect(self._load_launchers)
-            self.launcher_manager.execution_started.disconnect(
-                self._on_execution_started
-            )
-            self.launcher_manager.execution_finished.disconnect(
-                self._on_execution_finished
-            )
-        except (RuntimeError, TypeError):
-            # Signals may already be disconnected
+            if self.launcher_manager.launchers_changed.receivers(self._load_launchers) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.launcher_manager.launchers_changed.disconnect(self._load_launchers)
+            if self.launcher_manager.execution_started.receivers(self._on_execution_started) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.launcher_manager.execution_started.disconnect(
+                    self._on_execution_started
+                )
+            if self.launcher_manager.execution_finished.receivers(self._on_execution_finished) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.launcher_manager.execution_finished.disconnect(
+                    self._on_execution_finished
+                )
+        except (RuntimeError, TypeError, AttributeError):
+            # Signals may already be disconnected or object deleted
             pass
 
-        # Disconnect preview panel signals
+        # Disconnect preview panel signals (from _setup_ui)
         try:
-            self.preview_panel.launch_requested.disconnect(self._launch_launcher)
-            self.preview_panel.edit_requested.disconnect(self._edit_launcher)
-            self.preview_panel.delete_requested.disconnect(self._delete_launcher)
-        except (RuntimeError, TypeError):
+            if self.preview_panel.launch_requested.receivers(self._launch_launcher) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.preview_panel.launch_requested.disconnect(self._launch_launcher)
+            if self.preview_panel.edit_requested.receivers(self._edit_launcher) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.preview_panel.edit_requested.disconnect(self._edit_launcher)
+            if self.preview_panel.delete_requested.receivers(self._delete_launcher) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.preview_panel.delete_requested.disconnect(self._delete_launcher)
+        except (RuntimeError, TypeError, AttributeError):
             pass
 
-        # Disconnect list widget signals
+        # Disconnect list widget signals (from _setup_ui)
         try:
-            self.launcher_list.itemSelectionChanged.disconnect(
-                self._on_selection_changed
-            )
-            self.launcher_list.itemDoubleClicked.disconnect(self._on_double_click)
-        except (RuntimeError, TypeError):
+            if self.launcher_list.itemSelectionChanged.receivers(self._on_selection_changed) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.launcher_list.itemSelectionChanged.disconnect(
+                    self._on_selection_changed
+                )
+            if self.launcher_list.itemDoubleClicked.receivers(self._on_double_click) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.launcher_list.itemDoubleClicked.disconnect(self._on_double_click)
+        except (RuntimeError, TypeError, AttributeError):
             pass
 
-        # Disconnect search field
-        with contextlib.suppress(RuntimeError, TypeError):
-            self.search_field.textChanged.disconnect(self._filter_launchers)
-
-        # Disconnect buttons
+        # Disconnect search field (from _connect_signals)
         try:
-            self.add_button.clicked.disconnect(self._add_launcher)
-            self.close_button.clicked.disconnect(self.close)
-        except (RuntimeError, TypeError):
+            if self.search_field.textChanged.receivers(self._filter_launchers) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.search_field.textChanged.disconnect(self._filter_launchers)
+        except (RuntimeError, TypeError, AttributeError):
+            pass
+
+        # Disconnect buttons (from _setup_ui)
+        try:
+            if self.add_button.clicked.receivers(self._add_launcher) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.add_button.clicked.disconnect(self._add_launcher)
+            if self.close_button.clicked.receivers(self.close) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                self.close_button.clicked.disconnect(self.close)
+        except (RuntimeError, TypeError, AttributeError):
             pass
 
         # Call parent closeEvent to save window geometry

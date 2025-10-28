@@ -14,7 +14,7 @@ from PySide6.QtCore import QObject, Signal
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
-from nuke_launch_handler import NukeLaunchHandler
+from nuke_launch_router import NukeLaunchRouter
 
 if TYPE_CHECKING:
     # Local application imports
@@ -67,7 +67,7 @@ class CommandLauncher(LoggingMixin, QObject):
         self.persistent_terminal = persistent_terminal
 
         # Initialize the Nuke launch handler
-        self.nuke_handler = NukeLaunchHandler()
+        self.nuke_handler = NukeLaunchRouter()
 
         # Use injected dependencies or fall back to defaults
         # Note: These are now deprecated and will be removed in the next phase
