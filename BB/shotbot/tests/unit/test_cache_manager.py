@@ -865,6 +865,232 @@ class TestPersistentPreviousShotsCache:
         assert len(persistent_valid) == 3
 
 
+class TestIncrementalShotMerging:
+    """Test Phase 1: Incremental shot merge infrastructure (v2.2)."""
+
+    def test_empty_cached_all_new(self, cache_manager: CacheManager) -> None:
+        """Empty cached, all fresh shots are new."""
+        fresh = [
+            Shot("show1", "seq01", "shot010", "/p1"),
+            Shot("show1", "seq01", "shot020", "/p2"),
+        ]
+        result = cache_manager.merge_shots_incremental(None, fresh)
+
+        assert len(result.updated_shots) == 2
+        assert len(result.new_shots) == 2
+        assert len(result.removed_shots) == 0
+        assert result.has_changes is True
+
+    def test_identical_data_no_changes(self, cache_manager: CacheManager) -> None:
+        """Identical cached and fresh data, no changes detected."""
+        shots = [
+            Shot("show1", "seq01", "shot010", "/p1"),
+            Shot("show1", "seq01", "shot020", "/p2"),
+        ]
+        result = cache_manager.merge_shots_incremental(shots, shots)
+
+        assert len(result.updated_shots) == 2
+        assert len(result.new_shots) == 0
+        assert len(result.removed_shots) == 0
+        assert result.has_changes is False
+
+    def test_add_new_shots(self, cache_manager: CacheManager) -> None:
+        """Add new shots to existing cache."""
+        cached = [Shot("show1", "seq01", "shot010", "/p1")]
+        fresh = [
+            Shot("show1", "seq01", "shot010", "/p1"),
+            Shot("show1", "seq01", "shot020", "/p2"),
+            Shot("show1", "seq02", "shot030", "/p3"),
+        ]
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        assert len(result.updated_shots) == 3
+        assert len(result.new_shots) == 2
+        assert len(result.removed_shots) == 0
+        assert result.has_changes is True
+
+    def test_remove_shots(self, cache_manager: CacheManager) -> None:
+        """Remove shots no longer in fresh data."""
+        cached = [
+            Shot("show1", "seq01", "shot010", "/p1"),
+            Shot("show1", "seq01", "shot020", "/p2"),
+            Shot("show1", "seq02", "shot030", "/p3"),
+        ]
+        fresh = [Shot("show1", "seq01", "shot010", "/p1")]
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        assert len(result.updated_shots) == 1
+        assert len(result.new_shots) == 0
+        assert len(result.removed_shots) == 2
+        assert result.has_changes is True
+        assert result.removed_shots[0]["shot"] in ("shot020", "shot030")
+
+    def test_update_shot_metadata(self, cache_manager: CacheManager) -> None:
+        """Update shot metadata (workspace_path changed)."""
+        cached = [Shot("show1", "seq01", "shot010", "/old/path")]
+        fresh = [Shot("show1", "seq01", "shot010", "/new/path")]
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        assert len(result.updated_shots) == 1
+        assert result.updated_shots[0]["workspace_path"] == "/new/path"
+        # Metadata updates don't trigger has_changes (by design)
+        assert result.has_changes is False
+
+    def test_combined_add_remove_update(self, cache_manager: CacheManager) -> None:
+        """Combined: add new, remove old, update existing."""
+        cached = [
+            Shot("show1", "seq01", "shot010", "/old1"),  # Update path
+            Shot("show1", "seq01", "shot020", "/p2"),  # Remove
+            Shot("show1", "seq02", "shot030", "/p3"),  # Keep
+        ]
+        fresh = [
+            Shot("show1", "seq01", "shot010", "/new1"),  # Updated
+            Shot("show1", "seq02", "shot030", "/p3"),  # Unchanged
+            Shot("show1", "seq03", "shot040", "/p4"),  # New
+        ]
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        assert len(result.updated_shots) == 3
+        assert len(result.new_shots) == 1  # shot040
+        assert len(result.removed_shots) == 1  # shot020
+        assert result.has_changes is True
+
+        # Verify path update
+        shot010 = next(s for s in result.updated_shots if s["shot"] == "shot010")
+        assert shot010["workspace_path"] == "/new1"
+
+    def test_empty_fresh_list(self, cache_manager: CacheManager) -> None:
+        """Empty fresh list means all cached shots removed."""
+        cached = [
+            Shot("show1", "seq01", "shot010", "/p1"),
+            Shot("show1", "seq01", "shot020", "/p2"),
+        ]
+        result = cache_manager.merge_shots_incremental(cached, [])
+
+        assert len(result.updated_shots) == 0
+        assert len(result.new_shots) == 0
+        assert len(result.removed_shots) == 2
+        assert result.has_changes is True
+
+    def test_composite_key_cross_show_uniqueness(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Composite key (show, seq, shot) prevents cross-show collisions."""
+        cached = [
+            Shot("show1", "seq01", "shot010", "/show1/path"),
+            Shot("show2", "seq01", "shot010", "/show2/path"),  # Same seq_shot, different show
+        ]
+        fresh = [
+            Shot("show1", "seq01", "shot010", "/show1/path"),
+            Shot("show2", "seq01", "shot010", "/show2/updated"),  # Update show2 path
+            Shot("show3", "seq01", "shot010", "/show3/path"),  # New show
+        ]
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        assert len(result.updated_shots) == 3
+        assert len(result.new_shots) == 1  # show3
+        assert len(result.removed_shots) == 0
+
+        # Verify all three shows present
+        shows = {s["show"] for s in result.updated_shots}
+        assert shows == {"show1", "show2", "show3"}
+
+    def test_shot_dict_input(self, cache_manager: CacheManager) -> None:
+        """Accept ShotDict input (not just Shot objects)."""
+        from type_definitions import ShotDict
+
+        cached: list[ShotDict] = [
+            {"show": "show1", "sequence": "seq01", "shot": "shot010", "workspace_path": "/p1"}
+        ]
+        fresh: list[ShotDict] = [
+            {"show": "show1", "sequence": "seq01", "shot": "shot010", "workspace_path": "/p1"},
+            {"show": "show1", "sequence": "seq01", "shot": "shot020", "workspace_path": "/p2"},
+        ]
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        assert len(result.updated_shots) == 2
+        assert len(result.new_shots) == 1
+        assert isinstance(result.updated_shots[0], dict)
+
+    def test_mixed_shot_and_dict(self, cache_manager: CacheManager) -> None:
+        """Handle mixed Shot objects and ShotDict."""
+        from type_definitions import ShotDict
+
+        cached = [Shot("show1", "seq01", "shot010", "/p1")]
+        fresh_dict: ShotDict = {
+            "show": "show1",
+            "sequence": "seq01",
+            "shot": "shot020",
+            "workspace_path": "/p2",
+        }
+        fresh = [Shot("show1", "seq01", "shot010", "/p1"), fresh_dict]
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        assert len(result.updated_shots) == 2
+        assert len(result.new_shots) == 1
+
+    def test_get_persistent_shots(self, cache_manager: CacheManager) -> None:
+        """get_persistent_shots() returns shots without TTL check."""
+        shots = [
+            Shot("show1", "seq01", "shot010", "/p1"),
+            Shot("show1", "seq01", "shot020", "/p2"),
+        ]
+        cache_manager.cache_shots(shots)
+
+        # Should return shots without TTL expiration
+        result = cache_manager.get_persistent_shots()
+        assert result is not None
+        assert len(result) == 2
+        assert result[0]["shot"] in ("shot010", "shot020")
+
+    def test_get_persistent_shots_empty_cache(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """get_persistent_shots() returns None for empty cache."""
+        result = cache_manager.get_persistent_shots()
+        assert result is None
+
+    def test_merge_preserves_fresh_data_as_source_of_truth(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Fresh data is source of truth, cached metadata discarded."""
+        cached = [Shot("show1", "seq01", "shot010", "/old/metadata")]
+        fresh = [Shot("show1", "seq01", "shot010", "/new/metadata")]
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        assert len(result.updated_shots) == 1
+        assert result.updated_shots[0]["workspace_path"] == "/new/metadata"
+
+    def test_merge_performance_linear_time(self, cache_manager: CacheManager) -> None:
+        """Merge algorithm completes in O(n) time, not O(n²)."""
+        import time
+
+        # Generate 500 shots
+        large_cached = [Shot("show1", "seq01", f"shot{i:04d}", f"/p{i}") for i in range(500)]
+        large_fresh = large_cached + [Shot("show1", "seq01", "shot9999", "/new")]
+
+        start = time.time()
+        result = cache_manager.merge_shots_incremental(large_cached, large_fresh)
+        elapsed_ms = (time.time() - start) * 1000
+
+        assert len(result.updated_shots) == 501
+        assert len(result.new_shots) == 1
+        assert elapsed_ms < 10  # Should be under 10ms for 500 shots
+
+    def test_no_duplicate_keys_in_result(self, cache_manager: CacheManager) -> None:
+        """Result contains no duplicate composite keys."""
+        fresh = [
+            Shot("show1", "seq01", "shot010", "/p1"),
+            Shot("show1", "seq01", "shot020", "/p2"),
+            Shot("show2", "seq01", "shot010", "/p3"),  # Different show, same seq_shot
+        ]
+        result = cache_manager.merge_shots_incremental(None, fresh)
+
+        # Extract composite keys
+        keys = [(s["show"], s["sequence"], s["shot"]) for s in result.updated_shots]
+        assert len(keys) == len(set(keys))  # No duplicates
+
+
 class TestCacheIntegration:
     """Integration tests validating cache behavior across components."""
 

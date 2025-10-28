@@ -13,6 +13,13 @@ Rationale: Thumbnails are derived from static source images, so they should
 persist indefinitely. Data caches reflect dynamic VFX workspace state and need
 periodic refresh to stay current.
 
+Incremental Merging:
+- Uses composite key (show, sequence, shot) for global shot uniqueness
+- Provides better deduplication than Shot.full_name property (which excludes 'show' field)
+- Enables incremental accumulation where shots persist across refreshes
+- Design rationale: Composite keys prevent cross-show collisions and enable
+  robust merge/dedup algorithms in cache operations
+
 Simplifications:
 - No platform-specific file locking (basic QMutex only)
 - No memory manager/LRU eviction
@@ -39,7 +46,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast
 
 # Third-party imports
 from PIL import Image
@@ -66,6 +73,45 @@ JSONValue: TypeAlias = (
 DEFAULT_TTL_MINUTES = 30
 THUMBNAIL_SIZE = 256
 THUMBNAIL_QUALITY = 85
+
+
+# Incremental merging support
+class ShotMergeResult(NamedTuple):
+    """Result of incremental shot merge operation."""
+
+    updated_shots: list[ShotDict]  # All shots (kept + new)
+    new_shots: list[ShotDict]  # Just new additions
+    removed_shots: list[ShotDict]  # No longer in fresh data
+    has_changes: bool  # Any changes detected
+
+
+def _get_shot_key(shot: ShotDict) -> tuple[str, str, str]:
+    """Get composite unique key for shot.
+
+    Uses (show, sequence, shot) tuple instead of full_name to ensure
+    global uniqueness across all shows.
+
+    Args:
+        shot: Shot dictionary with show, sequence, shot fields
+
+    Returns:
+        Tuple of (show, sequence, shot) for use as dict key
+    """
+    return (shot["show"], shot["sequence"], shot["shot"])
+
+
+def _shot_to_dict(shot: Shot | ShotDict) -> ShotDict:
+    """Convert Shot object or ShotDict to ShotDict.
+
+    Args:
+        shot: Shot object with to_dict() method or ShotDict
+
+    Returns:
+        ShotDict with all required fields
+    """
+    if isinstance(shot, dict):
+        return shot
+    return shot.to_dict()
 
 
 # Backward compatibility exports from old cache system
@@ -344,6 +390,17 @@ class CacheManager(LoggingMixin, QObject):
         self._write_json_cache(self.shots_cache_file, shot_dicts)
         self.cache_updated.emit()
 
+    def get_persistent_shots(self) -> list[ShotDict] | None:
+        """Get My Shots cache without TTL expiration.
+
+        Similar to get_persistent_previous_shots() but for active shots.
+        Enables incremental caching by preserving shot history.
+
+        Returns:
+            List of shot dictionaries or None if not cached
+        """
+        return self._read_json_cache(self.shots_cache_file, check_ttl=False)
+
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
         """Get cached previous/approved shot list if valid.
 
@@ -380,6 +437,70 @@ class CacheManager(LoggingMixin, QObject):
 
         self._write_json_cache(self.previous_shots_cache_file, shot_dicts)
         self.cache_updated.emit()
+
+    def merge_shots_incremental(
+        self,
+        cached: list[Shot | ShotDict] | None,
+        fresh: list[Shot | ShotDict],
+    ) -> ShotMergeResult:
+        """Merge cached shots with fresh data incrementally.
+
+        Algorithm:
+        1. Convert to dicts for consistent handling
+        2. Build lookup: cached_by_key[(show, seq, shot)] = shot (O(1))
+        3. Build set: fresh_keys = {(show, seq, shot)}
+        4. For each fresh shot:
+           - If in cached: UPDATE metadata
+           - If not in cached: ADD as new
+        5. Identify removed: cached_keys - fresh_keys
+
+        Args:
+            cached: Previously cached shots (Shot objects or ShotDicts)
+            fresh: Fresh shots from workspace command (Shot objects or ShotDicts)
+
+        Returns:
+            ShotMergeResult with updated list and statistics
+
+        Design:
+            Uses composite key (show, sequence, shot) for global uniqueness.
+            This provides better deduplication than Shot.full_name property
+            (which excludes 'show' field and could theoretically collide across shows).
+        """
+        # Convert to dicts using helper (from Phase 1 Task 2)
+        cached_dicts = [_shot_to_dict(s) for s in (cached or [])]
+        fresh_dicts = [_shot_to_dict(s) for s in fresh]
+
+        # Build lookups using composite key (O(1) operations)
+        cached_by_key: dict[tuple[str, str, str], ShotDict] = {
+            _get_shot_key(shot): shot for shot in cached_dicts
+        }
+        fresh_keys = {_get_shot_key(shot) for shot in fresh_dicts}
+
+        # Merge: Single O(n) pass using fresh data as source of truth
+        updated_shots: list[ShotDict] = []
+        new_shots: list[ShotDict] = []
+
+        for fresh_shot in fresh_dicts:
+            fresh_key = _get_shot_key(fresh_shot)
+            updated_shots.append(fresh_shot)  # Always use fresh data
+
+            if fresh_key not in cached_by_key:
+                # This is a new shot (not in cache)
+                new_shots.append(fresh_shot)
+
+        # Identify removed (cached keys not in fresh)
+        removed_shots = [
+            shot for shot in cached_dicts if _get_shot_key(shot) not in fresh_keys
+        ]
+
+        has_changes = bool(new_shots or removed_shots)
+
+        return ShotMergeResult(
+            updated_shots=updated_shots,
+            new_shots=new_shots,
+            removed_shots=removed_shots,
+            has_changes=has_changes,
+        )
 
     def get_cached_threede_scenes(self) -> list[ThreeDESceneDict] | None:
         """Get cached 3DE scene list if valid.
@@ -664,12 +785,15 @@ class CacheManager(LoggingMixin, QObject):
             self.logger.error(f"Failed to read cache file {cache_file}: {e}")
             return None
 
-    def _write_json_cache(self, cache_file: Path, data: object) -> None:
+    def _write_json_cache(self, cache_file: Path, data: object) -> bool:
         """Write data to JSON cache file atomically.
 
         Args:
             cache_file: Path to cache file
             data: Data to cache
+
+        Returns:
+            True if write succeeded, False on error
         """
         try:
             # Ensure directory exists
@@ -696,6 +820,7 @@ class CacheManager(LoggingMixin, QObject):
                 os.replace(temp_path, cache_file)
 
                 self.logger.debug(f"Cached data to: {cache_file}")
+                return True
 
             except Exception:
                 # Clean up temp file on error
@@ -705,6 +830,7 @@ class CacheManager(LoggingMixin, QObject):
 
         except Exception as e:
             self.logger.error(f"Failed to write cache file {cache_file}: {e}")
+            return False
 
     def shutdown(self) -> None:
         """Shutdown cache manager (backward compatibility stub).
