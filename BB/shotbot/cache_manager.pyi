@@ -4,12 +4,22 @@
 import threading
 from collections.abc import Sequence
 from pathlib import Path
+from typing import NamedTuple
 
 # Third-party imports
 from PySide6.QtCore import QObject, QRunnable, Signal
 
 from shot_model import Shot
 from type_definitions import ShotDict, ThreeDESceneDict
+
+# Incremental merging support
+class ShotMergeResult(NamedTuple):
+    """Result of incremental shot merge operation."""
+
+    updated_shots: list[ShotDict]  # All shots (kept + new)
+    new_shots: list[ShotDict]  # Just new additions
+    removed_shots: list[ShotDict]  # No longer in fresh data
+    has_changes: bool  # Any changes detected
 
 # Backward compatibility stub
 class ThumbnailCacheResult:
@@ -80,8 +90,13 @@ class CacheManager(QObject):
     def ensure_cache_directory(self) -> bool: ...
     def get_cached_previous_shots(self) -> list[ShotDict] | None: ...
     def get_persistent_shots(self) -> list[ShotDict] | None: ...
+    def merge_shots_incremental(
+        self,
+        cached: Sequence[Shot | ShotDict] | None,
+        fresh: Sequence[Shot | ShotDict],
+    ) -> ShotMergeResult: ...
     def get_migrated_shots(self) -> list[ShotDict] | None: ...
-    def migrate_shots_to_previous(self, shots: list[Shot | ShotDict]) -> None: ...
+    def migrate_shots_to_previous(self, shots: Sequence[Shot | ShotDict]) -> None: ...
     def cache_previous_shots(
         self, shots: Sequence[Shot] | Sequence[ShotDict]
     ) -> None: ...
