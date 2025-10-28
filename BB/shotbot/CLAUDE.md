@@ -232,18 +232,25 @@ View Layer (grid views with custom delegates)
 - PreviousShotsWorker: Background thread for filesystem traversal
 - Refresh: Asynchronous with 5-minute auto-refresh
 
-#### 3. Cache System (Simplified Architecture)
+#### 3. Cache System with Incremental Caching
 
-**CacheManager** - Streamlined cache for local VFX tool:
+**CacheManager** - Streamlined cache for local VFX tool with incremental shot merging:
 - **API**: Maintains full backward compatibility with all public methods
 - **Implementation**: Simplified for secure network environment (no platform-specific locking, atomic writes, or complex failure tracking)
 - **Thumbnail Support**: Multi-format (Qt/PIL/OpenEXR) with HDR for VFX workflows
 - **Caching Strategy**:
-  - Shot/3DE/Previous data: Fixed 30-minute TTL
-  - Thumbnails: Persistent cache with on-demand generation
+  - **My Shots**: Persistent cache with incremental merging (no TTL)
+    - `merge_shots_incremental()`: Adds new shots, updates metadata, detects removals
+    - `migrate_shots_to_previous()`: Auto-migrates removed shots to Previous Shots
+    - Uses composite key `(show, sequence, shot)` for global uniqueness
+  - **Previous Shots**: Merges migrated + filesystem-scanned shots with deduplication
+  - **3DE Scenes**: Persistent cache until manually invalidated
+  - **Thumbnails**: Persistent cache with on-demand generation
   - Thread-safe: Basic QMutex protection
 - **Cache directories**: Mode-separated (production, mock, test via `SHOTBOT_MODE` env var)
 - **Storage**: Direct JSON I/O and PIL/OpenEXR processing
+- **Migration**: Removed shots from My Shots automatically preserved in `migrated_shots.json`
+- **Verification**: Run `python verify_incremental_caching.py` to test system
 
 #### 4. Thread-Safe Background Operations
 - **Workers**: `ThreeDESceneWorker`, `PreviousShotsWorker` use `QThread` for background scanning
