@@ -28,6 +28,12 @@ class MockWorkspacePool(LoggingMixin):
         self._cache: dict[str, str] = {}
         self.commands_executed: list[str] = []
         self.mock_root = Path("/tmp/mock_vfx")
+        # Use Config.SHOWS_ROOT for workspace paths (what parser expects)
+        # Local application imports
+        from config import Config
+
+        self.shows_root_for_parser = Config.SHOWS_ROOT
+        # Actual filesystem location for file operations
         self.shows_root = self.mock_root / "shows"
 
     def set_shots_from_filesystem(self, mock_root: Path | None = None) -> None:
@@ -82,9 +88,9 @@ class MockWorkspacePool(LoggingMixin):
                     if not shot_name.startswith(f"{seq_name}_"):
                         continue
 
-                    # Build workspace path using actual mock root
+                    # Build workspace path using Config.SHOWS_ROOT (what parser expects)
                     workspace_path = (
-                        f"{self.shows_root}/{show_name}/shots/{seq_name}/{shot_name}"
+                        f"{self.shows_root_for_parser}/{show_name}/shots/{seq_name}/{shot_name}"
                     )
                     self.shots.append(f"workspace {workspace_path}")
 
@@ -101,7 +107,8 @@ class MockWorkspacePool(LoggingMixin):
             show = shot.get("show", "demo")
             seq = shot.get("seq", "seq01")
             shot_num = shot.get("shot", "0010")
-            workspace_path = f"{self.shows_root}/{show}/shots/{seq}/{seq}_{shot_num}"
+            # Use Config.SHOWS_ROOT for workspace paths (what parser expects)
+            workspace_path = f"{self.shows_root_for_parser}/{show}/shots/{seq}/{seq}_{shot_num}"
             self.shots.append(f"workspace {workspace_path}")
 
         self.logger.info(f"Loaded {len(self.shots)} demo shots")
