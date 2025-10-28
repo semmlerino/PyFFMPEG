@@ -617,6 +617,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
         _ = self.shot_model.cache_updated.connect(self._on_cache_updated)
 
+        # Connect to cache manager for migration events
+        _ = self.cache_manager.shots_migrated.connect(
+            self._on_shots_migrated, Qt.ConnectionType.QueuedConnection
+        )
+
         # Shot selection
         _ = self.shot_grid.shot_selected.connect(self._on_shot_selected)
         _ = self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
@@ -853,6 +858,21 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     def _on_cache_updated(self) -> None:
         """Handle cache updated signal from model."""
         self.logger.debug("Shot cache updated")
+
+    def _on_shots_migrated(self, migrated_shots: list) -> None:
+        """Handle shots migrated to Previous Shots cache.
+
+        This is called when shots are removed from My Shots and automatically
+        migrated to the Previous Shots cache. We refresh the Previous Shots
+        tab so users see the migrated shots immediately.
+
+        Args:
+            migrated_shots: List of ShotDict objects that were migrated
+        """
+        self.logger.info(f"{len(migrated_shots)} shots migrated to Previous Shots")
+        # Trigger Previous Shots tab refresh to show newly migrated shots
+        if self.previous_shots_model:
+            self.previous_shots_model.refresh_shots()
 
     def _on_tab_changed(self, index: int) -> None:
         """Handle tab widget tab changes.

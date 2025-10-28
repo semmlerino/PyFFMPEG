@@ -532,42 +532,47 @@ class CacheManager(LoggingMixin, QObject):
             Uses composite key (show, sequence, shot) for global uniqueness.
             This provides better deduplication than Shot.full_name property
             (which excludes 'show' field and could theoretically collide across shows).
+
+        Thread Safety:
+            Protected by internal mutex to prevent concurrent merge operations
+            that could produce inconsistent results.
         """
-        # Convert to dicts using helper (from Phase 1 Task 2)
-        cached_dicts = [_shot_to_dict(s) for s in (cached or [])]
-        fresh_dicts = [_shot_to_dict(s) for s in fresh]
+        with QMutexLocker(self._lock):
+            # Convert to dicts using helper (from Phase 1 Task 2)
+            cached_dicts = [_shot_to_dict(s) for s in (cached or [])]
+            fresh_dicts = [_shot_to_dict(s) for s in fresh]
 
-        # Build lookups using composite key (O(1) operations)
-        cached_by_key: dict[tuple[str, str, str], ShotDict] = {
-            _get_shot_key(shot): shot for shot in cached_dicts
-        }
-        fresh_keys = {_get_shot_key(shot) for shot in fresh_dicts}
+            # Build lookups using composite key (O(1) operations)
+            cached_by_key: dict[tuple[str, str, str], ShotDict] = {
+                _get_shot_key(shot): shot for shot in cached_dicts
+            }
+            fresh_keys = {_get_shot_key(shot) for shot in fresh_dicts}
 
-        # Merge: Single O(n) pass using fresh data as source of truth
-        updated_shots: list[ShotDict] = []
-        new_shots: list[ShotDict] = []
+            # Merge: Single O(n) pass using fresh data as source of truth
+            updated_shots: list[ShotDict] = []
+            new_shots: list[ShotDict] = []
 
-        for fresh_shot in fresh_dicts:
-            fresh_key = _get_shot_key(fresh_shot)
-            updated_shots.append(fresh_shot)  # Always use fresh data
+            for fresh_shot in fresh_dicts:
+                fresh_key = _get_shot_key(fresh_shot)
+                updated_shots.append(fresh_shot)  # Always use fresh data
 
-            if fresh_key not in cached_by_key:
-                # This is a new shot (not in cache)
-                new_shots.append(fresh_shot)
+                if fresh_key not in cached_by_key:
+                    # This is a new shot (not in cache)
+                    new_shots.append(fresh_shot)
 
-        # Identify removed (cached keys not in fresh)
-        removed_shots = [
-            shot for shot in cached_dicts if _get_shot_key(shot) not in fresh_keys
-        ]
+            # Identify removed (cached keys not in fresh)
+            removed_shots = [
+                shot for shot in cached_dicts if _get_shot_key(shot) not in fresh_keys
+            ]
 
-        has_changes = bool(new_shots or removed_shots)
+            has_changes = bool(new_shots or removed_shots)
 
-        return ShotMergeResult(
-            updated_shots=updated_shots,
-            new_shots=new_shots,
-            removed_shots=removed_shots,
-            has_changes=has_changes,
-        )
+            return ShotMergeResult(
+                updated_shots=updated_shots,
+                new_shots=new_shots,
+                removed_shots=removed_shots,
+                has_changes=has_changes,
+            )
 
     def get_cached_threede_scenes(self) -> list[ThreeDESceneDict] | None:
         """Get cached 3DE scene list if valid.

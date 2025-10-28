@@ -1061,6 +1061,30 @@ class TestIncrementalShotMerging:
         assert len(result.updated_shots) == 1
         assert result.updated_shots[0]["workspace_path"] == "/new/metadata"
 
+    def test_workspace_path_change_not_structural_change(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Workspace path changes are propagated but not treated as structural changes.
+
+        Critical test for preventing wrong workspace launches.
+        When a shot moves to a different workspace path, the composite key
+        (show, sequence, shot) remains the same, so it's a metadata update
+        not a new/removed shot.
+        """
+        cached = [Shot("show1", "seq01", "shot010", "/shows/show1/seq01/shot010")]
+        fresh = [Shot("show1", "seq01", "shot010", "/shows/show1/seq01_v2/shot010")]
+
+        result = cache_manager.merge_shots_incremental(cached, fresh)
+
+        # Workspace path should be updated
+        assert len(result.updated_shots) == 1
+        assert result.updated_shots[0]["workspace_path"] == "/shows/show1/seq01_v2/shot010"
+
+        # But this is metadata-only update, not structural change
+        assert len(result.new_shots) == 0, "Should not be treated as new shot"
+        assert len(result.removed_shots) == 0, "Should not be treated as removed"
+        assert result.has_changes is False, "Metadata-only updates are not structural changes"
+
     def test_merge_performance_linear_time(self, cache_manager: CacheManager) -> None:
         """Merge algorithm completes in O(n) time, not O(n²)."""
         import time
