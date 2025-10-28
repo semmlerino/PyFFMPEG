@@ -1091,6 +1091,183 @@ class TestIncrementalShotMerging:
         assert len(keys) == len(set(keys))  # No duplicates
 
 
+class TestShotMigration:
+    """Test Phase 2: Shot migration from My Shots to Previous Shots (v2.3)."""
+
+    def test_get_migrated_shots_empty_cache(self, cache_manager: CacheManager) -> None:
+        """get_migrated_shots() returns None for empty cache."""
+        result = cache_manager.get_migrated_shots()
+        assert result is None
+
+    def test_migrate_empty_list_is_noop(self, cache_manager: CacheManager) -> None:
+        """Migrating empty list is a no-op."""
+        cache_manager.migrate_shots_to_previous([])
+        result = cache_manager.get_migrated_shots()
+        assert result is None
+
+    def test_first_migration_creates_file(
+        self, cache_manager: CacheManager, qtbot
+    ) -> None:
+        """First migration creates migrated_shots.json."""
+        shots = [
+            Shot("show1", "seq01", "shot010", "/p1"),
+            Shot("show1", "seq01", "shot020", "/p2"),
+        ]
+
+        # Verify signal emission
+        with qtbot.waitSignal(cache_manager.shots_migrated, timeout=1000):
+            cache_manager.migrate_shots_to_previous(shots)
+
+        # Verify file created
+        assert cache_manager.migrated_shots_cache_file.exists()
+
+        # Verify content
+        migrated = cache_manager.get_migrated_shots()
+        assert migrated is not None
+        assert len(migrated) == 2
+        assert migrated[0]["shot"] in ("shot010", "shot020")
+
+    def test_subsequent_migration_merges(self, cache_manager: CacheManager) -> None:
+        """Subsequent migrations merge with existing."""
+        # First migration
+        batch1 = [Shot("show1", "seq01", "shot010", "/p1")]
+        cache_manager.migrate_shots_to_previous(batch1)
+
+        # Second migration (different shots)
+        batch2 = [
+            Shot("show1", "seq01", "shot020", "/p2"),
+            Shot("show1", "seq02", "shot030", "/p3"),
+        ]
+        cache_manager.migrate_shots_to_previous(batch2)
+
+        # Verify merged
+        migrated = cache_manager.get_migrated_shots()
+        assert migrated is not None
+        assert len(migrated) == 3  # All three shots present
+
+    def test_migration_deduplicates_by_composite_key(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Migration deduplicates using (show, sequence, shot) key."""
+        # First migration
+        shot1 = Shot("show1", "seq01", "shot010", "/old/path")
+        cache_manager.migrate_shots_to_previous([shot1])
+
+        # Second migration with same shot but different path
+        shot2 = Shot("show1", "seq01", "shot010", "/new/path")
+        cache_manager.migrate_shots_to_previous([shot2])
+
+        # Verify only one shot, latest path
+        migrated = cache_manager.get_migrated_shots()
+        assert migrated is not None
+        assert len(migrated) == 1
+        assert migrated[0]["workspace_path"] == "/new/path"
+
+    def test_migration_cross_show_uniqueness(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Composite key prevents cross-show collisions."""
+        shots = [
+            Shot("show1", "seq01", "shot010", "/show1/path"),
+            Shot("show2", "seq01", "shot010", "/show2/path"),  # Same seq_shot, different show
+        ]
+        cache_manager.migrate_shots_to_previous(shots)
+
+        migrated = cache_manager.get_migrated_shots()
+        assert migrated is not None
+        assert len(migrated) == 2  # Both preserved
+
+        shows = {s["show"] for s in migrated}
+        assert shows == {"show1", "show2"}
+
+    def test_migrate_accepts_shot_dicts(self, cache_manager: CacheManager) -> None:
+        """migrate_shots_to_previous() accepts ShotDict input."""
+        from type_definitions import ShotDict
+
+        shot_dicts: list[ShotDict] = [
+            {
+                "show": "show1",
+                "sequence": "seq01",
+                "shot": "shot010",
+                "workspace_path": "/p1",
+            }
+        ]
+        cache_manager.migrate_shots_to_previous(shot_dicts)
+
+        migrated = cache_manager.get_migrated_shots()
+        assert migrated is not None
+        assert len(migrated) == 1
+
+    def test_migrate_mixed_shot_and_dict(self, cache_manager: CacheManager) -> None:
+        """migrate_shots_to_previous() handles mixed Shot and ShotDict."""
+        from type_definitions import ShotDict
+
+        shot_obj = Shot("show1", "seq01", "shot010", "/p1")
+        shot_dict: ShotDict = {
+            "show": "show1",
+            "sequence": "seq01",
+            "shot": "shot020",
+            "workspace_path": "/p2",
+        }
+        cache_manager.migrate_shots_to_previous([shot_obj, shot_dict])
+
+        migrated = cache_manager.get_migrated_shots()
+        assert migrated is not None
+        assert len(migrated) == 2
+
+    def test_migration_signal_emission(self, cache_manager: CacheManager, qtbot) -> None:
+        """shots_migrated signal emitted with correct payload."""
+        shots = [Shot("show1", "seq01", "shot010", "/p1")]
+
+        # Capture signal
+        with qtbot.waitSignal(
+            cache_manager.shots_migrated, timeout=1000
+        ) as signal_blocker:
+            cache_manager.migrate_shots_to_previous(shots)
+
+        # Verify payload
+        emitted_shots = signal_blocker.args[0]
+        assert len(emitted_shots) == 1
+        assert emitted_shots[0]["shot"] == "shot010"
+
+    def test_migration_no_signal_on_empty(
+        self, cache_manager: CacheManager, qtbot
+    ) -> None:
+        """No signal emitted for empty migration."""
+        # Signal should NOT be emitted
+        with qtbot.assertNotEmitted(cache_manager.shots_migrated, wait=100):
+            cache_manager.migrate_shots_to_previous([])
+
+    def test_migration_large_batch(self, cache_manager: CacheManager) -> None:
+        """Migration handles large batches efficiently."""
+        # Generate 100 shots
+        large_batch = [
+            Shot("show1", "seq01", f"shot{i:04d}", f"/p{i}") for i in range(100)
+        ]
+        cache_manager.migrate_shots_to_previous(large_batch)
+
+        migrated = cache_manager.get_migrated_shots()
+        assert migrated is not None
+        assert len(migrated) == 100
+
+    def test_migration_thread_safety(self, cache_manager: CacheManager, qtbot) -> None:
+        """Concurrent migrations don't corrupt data."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        def migrate_batch(batch_id: int) -> None:
+            shots = [Shot("show1", "seq01", f"shot{batch_id:03d}", f"/p{batch_id}")]
+            cache_manager.migrate_shots_to_previous(shots)
+
+        # Migrate 10 shots concurrently
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            list(executor.map(migrate_batch, range(10)))
+
+        # Verify all 10 shots present (no corruption)
+        migrated = cache_manager.get_migrated_shots()
+        assert migrated is not None
+        assert len(migrated) == 10
+
+
 class TestCacheIntegration:
     """Integration tests validating cache behavior across components."""
 

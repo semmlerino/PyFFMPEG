@@ -137,6 +137,7 @@ class CacheManager(LoggingMixin, QObject):
 
     # Signals - maintain backward compatibility
     cache_updated = Signal()
+    shots_migrated = Signal(list)  # Emitted when shots migrate to Previous Shots
 
     def __init__(
         self,
@@ -174,6 +175,7 @@ class CacheManager(LoggingMixin, QObject):
         self.shots_cache_file = self.cache_dir / "shots.json"
         self.previous_shots_cache_file = self.cache_dir / "previous_shots.json"
         self.threede_cache_file = self.cache_dir / "threede_scenes.json"
+        self.migrated_shots_cache_file = self.cache_dir / "migrated_shots.json"
 
         # TTL configuration
         self._cache_ttl = timedelta(minutes=DEFAULT_TTL_MINUTES)
@@ -400,6 +402,71 @@ class CacheManager(LoggingMixin, QObject):
             List of shot dictionaries or None if not cached
         """
         return self._read_json_cache(self.shots_cache_file, check_ttl=False)
+
+    def get_migrated_shots(self) -> list[ShotDict] | None:
+        """Get shots that were migrated from My Shots.
+
+        Returns persistent cache without TTL. These are shots that
+        disappeared from ws -sg (e.g., approved/completed).
+
+        Returns:
+            List of shot dictionaries or None if not cached
+        """
+        return self._read_json_cache(self.migrated_shots_cache_file, check_ttl=False)
+
+    def migrate_shots_to_previous(self, shots: list[Shot | ShotDict]) -> None:
+        """Move removed shots to Previous Shots migration cache.
+
+        Merges with existing migrated shots (deduplicates by composite key).
+
+        Args:
+            shots: List of Shot objects or ShotDicts to migrate
+
+        Design:
+            Uses (show, sequence, shot) composite key for consistent deduplication.
+        """
+        if not shots:
+            return
+
+        with QMutexLocker(self._lock):
+            # Load existing migrated shots
+            existing = self.get_migrated_shots() or []
+
+            # Convert to dicts using helper
+            to_migrate = [_shot_to_dict(s) for s in shots]
+
+            # Merge and deduplicate using composite key
+            shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
+
+            # Add existing first
+            for shot in existing:
+                key = _get_shot_key(shot)
+                shots_by_key[key] = shot
+
+            # Add/update with new migrations (overwrites if duplicate)
+            for shot in to_migrate:
+                key = _get_shot_key(shot)
+                shots_by_key[key] = shot
+
+            merged = list(shots_by_key.values())
+
+            # Write atomically (check return value for success)
+            write_success = self._write_json_cache(
+                self.migrated_shots_cache_file, merged
+            )
+
+            if write_success:
+                self.logger.info(
+                    f"Migrated {len(to_migrate)} shots to Previous "
+                    f"(total: {len(merged)} after dedup)"
+                )
+                # Emit specific signal (NOT generic cache_updated)
+                self.shots_migrated.emit(to_migrate)
+            else:
+                self.logger.error(
+                    f"Failed to persist {len(to_migrate)} migrated shots to disk. "
+                    "Migration will be lost on restart."
+                )
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
         """Get cached previous/approved shot list if valid.

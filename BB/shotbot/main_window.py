@@ -759,6 +759,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Trigger initial refresh for previous shots ONLY after shots are loaded
         # This prevents the "No target shows found" warning when shots haven't loaded yet
         _ = self.shot_model.shots_loaded.connect(self._trigger_previous_shots_refresh)
+        _ = self.shot_model.shots_changed.connect(self._trigger_previous_shots_refresh)
 
         # If shots are already loaded from cache, trigger refresh immediately
         if self.shot_model.shots:

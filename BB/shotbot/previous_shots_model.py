@@ -66,7 +66,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
         self._scan_lock = QMutex()
 
         # Load from cache on init (persistent cache - no expiration)
-        self._load_from_cache()
+        self._previous_shots = self._load_from_cache()  # Now returns list
 
         self.logger.info("PreviousShotsModel initialized")
 
@@ -415,26 +415,49 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """
         return get_available_shows(self._previous_shots)
 
-    def _load_from_cache(self) -> None:
-        """Load previous shots from persistent cache (no expiration)."""
+    def _load_from_cache(self) -> list[Shot]:
+        """Load previous shots from persistent cache, merging migrated + scanned.
+
+        Returns:
+            List of Shot objects (empty list if no cache)
+        """
         try:
-            # Use persistent cache method - no TTL expiration
-            cached_data = self._cache_manager.get_cached_previous_shots()
-            if cached_data:
-                self._previous_shots = [
-                    Shot(
-                        show=s["show"],
-                        sequence=s["sequence"],
-                        shot=s["shot"],
-                        workspace_path=s.get("workspace_path", ""),
-                    )
-                    for s in cached_data
-                ]
-                self.logger.info(
-                    f"Loaded {len(self._previous_shots)} previous shots from persistent cache"
+            # Load both sources
+            scanned_data = self._cache_manager.get_cached_previous_shots() or []
+            migrated_data = self._cache_manager.get_migrated_shots() or []
+
+            # Merge with deduplication using composite key
+            shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
+
+            for shot_dict in scanned_data:
+                key = (shot_dict["show"], shot_dict["sequence"], shot_dict["shot"])
+                shots_by_key[key] = shot_dict
+
+            for shot_dict in migrated_data:
+                key = (shot_dict["show"], shot_dict["sequence"], shot_dict["shot"])
+                shots_by_key[key] = shot_dict  # Overwrites if duplicate (prefer migrated)
+
+            # Convert to Shot objects
+            shots = [
+                Shot(
+                    show=s["show"],
+                    sequence=s["sequence"],
+                    shot=s["shot"],
+                    workspace_path=s.get("workspace_path", ""),
                 )
+                for s in shots_by_key.values()
+            ]
+
+            self.logger.info(
+                f"Loaded {len(scanned_data)} scanned + {len(migrated_data)} migrated "
+                f"= {len(shots)} total (after dedup)"
+            )
+
+            return shots
+
         except Exception as e:
             self.logger.error(f"Error loading previous shots from cache: {e}")
+            return []
 
     def _save_to_cache(self) -> None:
         """Save previous shots to cache."""

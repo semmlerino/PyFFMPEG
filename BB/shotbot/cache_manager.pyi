@@ -25,6 +25,7 @@ class CacheManager(QObject):
 
     # Signals
     cache_updated: Signal
+    shots_migrated: Signal
 
     # Thread safety
     _lock: threading.RLock
@@ -37,7 +38,9 @@ class CacheManager(QObject):
     cache_dir: Path
     thumbnails_dir: Path
     shots_cache_file: Path
+    previous_shots_cache_file: Path
     threede_scenes_cache_file: Path
+    migrated_shots_cache_file: Path
 
     # Track cached thumbnails
     _cached_thumbnails: dict[str, int]
@@ -76,6 +79,9 @@ class CacheManager(QObject):
     def set_expiry_minutes(self, expiry_minutes: int) -> None: ...
     def ensure_cache_directory(self) -> bool: ...
     def get_cached_previous_shots(self) -> list[ShotDict] | None: ...
+    def get_persistent_shots(self) -> list[ShotDict] | None: ...
+    def get_migrated_shots(self) -> list[ShotDict] | None: ...
+    def migrate_shots_to_previous(self, shots: list[Shot | ShotDict]) -> None: ...
     def cache_previous_shots(
         self, shots: Sequence[Shot] | Sequence[ShotDict]
     ) -> None: ...
