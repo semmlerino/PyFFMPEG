@@ -1637,7 +1637,7 @@ def test_complete_shot_lifecycle(
 - [x] Test review complete (7 integration tests + 5 manual tests, 100% pass rate)
 - [x] Performance benchmarks passed (0.18ms vs 50ms requirement = 275x better)
 - [x] Documentation updated (CLAUDE.md + docs/INCREMENTAL_CACHING.md)
-- [x] Committed to git (commit TBD)
+- [x] Committed to git (commit fea9c7a)
 
 ### Final Validation ✅ COMPLETE
 - [x] All tests pass (74 tests: 7 integration + 67 unit, 100% pass rate)
