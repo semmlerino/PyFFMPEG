@@ -700,6 +700,13 @@ class BaseItemModel(
         # Emit signal AFTER successful update
         self.items_updated.emit()
 
+        # CRITICAL: Trigger initial thumbnail load for visible items
+        # Set visible range to cover all items (views will refine this on scroll)
+        if self._items:
+            self._visible_end = len(self._items) - 1
+            # Schedule immediate thumbnail load
+            QTimer.singleShot(100, self._do_load_visible_thumbnails)
+
     # ============= Abstract methods for subclasses =============
 
     @abstractmethod
