@@ -472,6 +472,134 @@ class TestSetItems:
 
         assert model.get_selected_item() is None
 
+    def test_set_items_initializes_visible_range(self, qapp: QApplication) -> None:
+        """Test setting items initializes visible range for thumbnail loading.
+
+        Critical behavior: When items are set, _visible_end must be initialized
+        to len(items) - 1 to trigger thumbnail loading for all items.
+        This fixes the bug where thumbnails only loaded in Previous Shots tab.
+        """
+        model = ConcreteTestModel()
+
+        # Initial state
+        assert model._visible_start == 0
+        assert model._visible_end == 0
+
+        # Set items
+        shots = [
+            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+            Shot("TEST", "seq01", "0030", "/shows/TEST/shots/seq01/seq01_0030"),
+        ]
+        model.set_items(shots)
+
+        # Verify visible range is initialized to cover all items
+        assert model._visible_end == 2  # len(shots) - 1
+        assert model._visible_start == 0  # Unchanged
+
+    def test_set_items_triggers_thumbnail_loading(
+        self, qapp: QApplication, qtbot: QtBot
+    ) -> None:
+        """Test that thumbnail loading is eventually triggered after set_items().
+
+        Behavior test: Verifies the complete flow - set_items() initializes
+        visible range, schedules thumbnail load, and thumbnails eventually load.
+        This is an integration test that verifies the fix works end-to-end.
+        """
+        from cache_manager import CacheManager
+        from pathlib import Path
+        import tempfile
+
+        # Create temp cache directory
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_manager = CacheManager(str(tmp_dir))
+            model = ConcreteTestModel(cache_manager=cache_manager)
+
+            shots = [
+                Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+                Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+            ]
+
+            # Set items - this should:
+            # 1. Initialize visible_end
+            # 2. Schedule QTimer.singleShot(100, _do_load_visible_thumbnails)
+            model.set_items(shots)
+
+            # Verify precondition: visible range is set
+            assert model._visible_end == 1  # len(shots) - 1
+
+            # Wait for timer to fire and thumbnail loading to attempt
+            # QTimer.singleShot(100) + processing time
+            qtbot.waitUntil(
+                lambda: len(model._loading_states) > 0,
+                timeout=500  # 500ms should be plenty
+            )
+
+            # Verify thumbnail loading was attempted for all shots
+            # States will be "failed" since paths don't exist, but loading was attempted
+            assert len(model._loading_states) >= 2
+            for shot in shots:
+                assert shot.full_name in model._loading_states
+
+    def test_set_items_empty_list_no_thumbnail_load(
+        self, qapp: QApplication, qtbot: QtBot
+    ) -> None:
+        """Test setting empty items list doesn't trigger thumbnail loading.
+
+        Edge case: Empty items should not schedule thumbnail loading.
+        """
+        model = ConcreteTestModel()
+
+        # Set empty list
+        model.set_items([])
+
+        # Wait to see if any timers fire
+        qtbot.wait(150)
+
+        # Verify no thumbnail loading was triggered
+        assert model._visible_end == 0  # No change from initial
+        assert len(model._loading_states) == 0  # No loading attempted
+
+    def test_set_items_thumbnail_load_with_cache_manager(
+        self, qapp: QApplication, qtbot: QtBot, tmp_path
+    ) -> None:
+        """Test thumbnail loading works with real CacheManager.
+
+        Integration test: Verifies the complete thumbnail loading flow
+        when a CacheManager is provided.
+        """
+        from cache_manager import CacheManager
+        from pathlib import Path
+
+        # Create cache manager with temp directory
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir()
+        cache_manager = CacheManager(str(cache_dir))
+
+        model = ConcreteTestModel(cache_manager=cache_manager)
+
+        # Create test shots (workspace paths don't need to exist)
+        shots = [
+            Shot("TEST", "seq01", "0010", "/nonexistent/path1"),
+            Shot("TEST", "seq01", "0020", "/nonexistent/path2"),
+        ]
+
+        # Set items
+        model.set_items(shots)
+
+        # Wait for thumbnail loading timer to fire
+        qtbot.waitUntil(
+            lambda: len(model._loading_states) > 0,
+            timeout=500
+        )
+
+        # Verify thumbnail loading was attempted
+        # With real CacheManager, states will be set (loading or failed)
+        assert len(model._loading_states) >= 2
+
+        # Verify visible range was set correctly
+        assert model._visible_end == 1  # len(shots) - 1
+
 
 class TestGetItemAtIndex:
     """Test get_item_at_index() method."""
