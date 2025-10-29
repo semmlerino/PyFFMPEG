@@ -108,10 +108,10 @@ class Config:
         True  # Use loader script when combining plate + undistortion
     )
     NUKE_FIX_OCIO_CRASH = (
-        True  # Whether to apply environment fixes to prevent OCIO plugin crashes
+        False  # Whether to apply environment fixes to prevent OCIO plugin crashes
     )
     NUKE_SKIP_PROBLEMATIC_PLUGINS = (
-        True  # Whether to skip known problematic plugins that cause crashes
+        False  # Whether to skip known problematic plugins that cause crashes
     )
     NUKE_PROBLEMATIC_PLUGIN_PATHS: ClassVar[list[str]] = [
         "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4.0.0rc9/python-3.11/init",
