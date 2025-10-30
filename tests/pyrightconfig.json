@@ -1,0 +1,36 @@
+{
+  "extends": "../pyrightconfig.json",
+  "typeCheckingMode": "basic",
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Linux",
+  "include": [
+    "**/*.py"
+  ],
+  "extraPaths": [
+    ".."
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.*"
+  ],
+  "venvPath": "..",
+  "venv": "venv",
+  "reportPrivateUsage": "warning",
+  "reportUnknownMemberType": "warning", 
+  "reportUnknownArgumentType": "warning",
+  "reportUnnecessaryTypeIgnoreComment": "error",
+  "reportIgnoreCommentWithoutRule": "error",
+  "reportUntypedFunctionDecorator": "warning",
+  "reportMissingTypeStubs": "none",
+  "reportImportCycles": "none",
+  "reportOptionalCall": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportOptionalSubscript": "warning",
+  "reportOptionalIterable": "warning",
+  "reportOptionalContextManager": "warning",
+  "reportOptionalOperand": "warning",
+  "reportGeneralTypeIssues": "warning",
+  "reportIncompatibleMethodOverride": "error",
+  "reportIncompatibleVariableOverride": "error",
+  "reportConstantRedefinition": "error"
+}

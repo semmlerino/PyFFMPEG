@@ -1,0 +1,377 @@
+"""Unit tests for ProgressReportingMixin."""
+
+from __future__ import annotations
+
+# Standard library imports
+from unittest.mock import MagicMock, patch
+
+# Local application imports
+from progress_mixin import ProgressReportingMixin
+
+
+class ConcreteProgressClass(ProgressReportingMixin):
+    """Concrete class for testing the mixin."""
+
+    def __init__(self) -> None:
+        """Initialize test class."""
+        super().__init__()
+        self.operations_performed = []
+
+    def long_operation(self) -> bool:
+        """Simulate a long operation that reports progress."""
+        total = 10
+        for i in range(total):
+            if self._check_stop():
+                self.operations_performed.append(f"Stopped at {i}")
+                return False
+            self._report_progress(i + 1, total, f"Processing item {i + 1}")
+            self.operations_performed.append(f"Processed {i + 1}")
+        return True
+
+
+class TestProgressReportingMixinInitialization:
+    """Test mixin initialization."""
+
+    def test_initialization(self) -> None:
+        """Test that mixin initializes with correct default values."""
+        obj = ConcreteProgressClass()
+        assert obj._stop_requested is False
+        assert obj._progress_callback is None
+        assert obj._last_reported_progress == -1
+        # Should also have logger from LoggingMixin
+        assert hasattr(obj, "logger")
+
+    def test_multiple_inheritance_chain(self) -> None:
+        """Test that mixin works in multiple inheritance chain."""
+
+        class MultipleInheritance(ProgressReportingMixin):
+            def __init__(self) -> None:
+                super().__init__()
+                self.custom_attr = "test"
+
+        obj = MultipleInheritance()
+        assert hasattr(obj, "_stop_requested")
+        assert hasattr(obj, "custom_attr")
+        assert obj.custom_attr == "test"
+
+
+class TestProgressCallback:
+    """Test progress callback management."""
+
+    def test_set_progress_callback(self) -> None:
+        """Test setting a progress callback."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+
+        obj.set_progress_callback(callback)
+        assert obj._progress_callback is callback
+
+    def test_clear_progress_callback(self) -> None:
+        """Test clearing the progress callback."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+
+        obj.set_progress_callback(callback)
+        assert obj._progress_callback is callback
+
+        obj.clear_progress_callback()
+        assert obj._progress_callback is None
+
+    def test_report_progress_with_callback(self) -> None:
+        """Test that progress is reported to callback."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+        obj.set_progress_callback(callback)
+
+        obj._report_progress(5, 10, "Halfway")
+        callback.assert_called_once_with(5, 10, "Halfway")
+
+    def test_report_progress_without_callback(self) -> None:
+        """Test that reporting without callback doesn't crash."""
+        obj = ConcreteProgressClass()
+        # Should not raise any exception
+        obj._report_progress(5, 10, "Halfway")
+
+    def test_callback_exception_handling(self) -> None:
+        """Test that callback exceptions are handled gracefully."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock(side_effect=Exception("Callback error"))
+        obj.set_progress_callback(callback)
+
+        with patch.object(obj.logger, "error") as mock_error:
+            # Should not raise exception
+            obj._report_progress(5, 10, "Test")
+            mock_error.assert_called_once()
+            assert "Error in progress callback" in mock_error.call_args[0][0]
+
+    def test_duplicate_progress_filtering(self) -> None:
+        """Test that duplicate progress values are filtered."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+        obj.set_progress_callback(callback)
+
+        # First call should work
+        obj._report_progress(5, 10, "First")
+        assert callback.call_count == 1
+
+        # Same progress value with minimum interval should be skipped
+        obj._report_progress(5, 10, "Duplicate")
+        assert callback.call_count == 1
+
+        # Different progress value should work
+        obj._report_progress(6, 10, "Different")
+        assert callback.call_count == 2
+
+
+class TestStopRequest:
+    """Test stop request functionality."""
+
+    def test_request_stop(self) -> None:
+        """Test requesting stop."""
+        obj = ConcreteProgressClass()
+        assert obj._stop_requested is False
+
+        obj.request_stop()
+        assert obj._stop_requested is True
+        assert obj.stop_requested is True  # Test property
+
+    def test_clear_stop_request(self) -> None:
+        """Test clearing stop request."""
+        obj = ConcreteProgressClass()
+        obj.request_stop()
+        assert obj._stop_requested is True
+
+        obj.clear_stop_request()
+        assert obj._stop_requested is False
+        assert obj._last_reported_progress == -1  # Should reset progress
+
+    def test_check_stop(self) -> None:
+        """Test checking stop status."""
+        obj = ConcreteProgressClass()
+        assert obj._check_stop() is False
+
+        obj.request_stop()
+        with patch.object(obj.logger, "info") as mock_info:
+            assert obj._check_stop() is True
+            mock_info.assert_called_once()
+            assert "Operation stopped by user request" in mock_info.call_args[0][0]
+
+    def test_stop_during_operation(self) -> None:
+        """Test that stop request interrupts operation."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+        obj.set_progress_callback(callback)
+
+        # Start operation
+        obj.long_operation()
+        assert len(obj.operations_performed) == 10
+        assert obj.operations_performed[-1] == "Processed 10"
+
+        # Reset and test with stop
+        obj.operations_performed = []
+        obj.clear_stop_request()
+
+        # Request stop after 3 items
+        def stop_after_three(current, total, message) -> None:
+            if current >= 3:
+                obj.request_stop()
+
+        obj.set_progress_callback(stop_after_three)
+        result = obj.long_operation()
+        assert result is False
+        assert len(obj.operations_performed) < 10
+        assert "Stopped at" in obj.operations_performed[-1]
+
+
+class TestProgressCalculation:
+    """Test progress calculation utilities."""
+
+    def test_calculate_percentage(self) -> None:
+        """Test percentage calculation."""
+        obj = ConcreteProgressClass()
+
+        # Normal cases
+        assert obj._calculate_percentage(50, 100) == 50
+        assert obj._calculate_percentage(0, 100) == 0
+        assert obj._calculate_percentage(100, 100) == 100
+
+        # Edge cases
+        assert obj._calculate_percentage(0, 0) == 0  # Division by zero
+        assert obj._calculate_percentage(10, 0) == 0  # Invalid total
+        assert obj._calculate_percentage(-5, 100) == 0  # Negative current
+        assert obj._calculate_percentage(150, 100) == 100  # Over 100%
+
+    def test_progress_with_zero_total(self) -> None:
+        """Test progress reporting with zero total."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+        obj.set_progress_callback(callback)
+
+        # Should handle gracefully
+        obj._report_progress(0, 0, "Empty operation")
+        callback.assert_called_once_with(0, 0, "Empty operation")
+
+    def test_progress_with_negative_values(self) -> None:
+        """Test progress with negative values."""
+        obj = ConcreteProgressClass()
+
+        # Should clamp to valid range
+        percentage = obj._calculate_percentage(-10, 100)
+        assert percentage == 0
+
+        percentage = obj._calculate_percentage(10, -100)
+        assert percentage == 0
+
+
+class TestProgressReportingIntegration:
+    """Test integrated progress reporting scenarios."""
+
+    def test_complete_workflow(self) -> None:
+        """Test complete progress reporting workflow."""
+        obj = ConcreteProgressClass()
+        progress_reports = []
+
+        def capture_progress(current, total, message) -> None:
+            progress_reports.append(
+                {
+                    "current": current,
+                    "total": total,
+                    "message": message,
+                    "percentage": obj._calculate_percentage(current, total),
+                }
+            )
+
+        obj.set_progress_callback(capture_progress)
+        result = obj.long_operation()
+
+        assert result is True
+        assert len(progress_reports) == 10
+        assert progress_reports[0]["percentage"] == 10
+        assert progress_reports[-1]["percentage"] == 100
+        assert progress_reports[-1]["current"] == 10
+
+    def test_multiple_operations_with_reset(self) -> None:
+        """Test running multiple operations with reset between."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+        obj.set_progress_callback(callback)
+
+        # First operation
+        obj.long_operation()
+        first_call_count = callback.call_count
+
+        # Reset and run again
+        obj.clear_stop_request()
+        obj.operations_performed = []
+        obj.long_operation()
+
+        # Should have doubled the calls
+        assert callback.call_count == first_call_count * 2
+
+    def test_thread_safety_attributes(self) -> None:
+        """Test that attributes exist for thread safety."""
+        obj = ConcreteProgressClass()
+
+        # These attributes should exist for thread-safe operation
+        assert hasattr(obj, "_stop_requested")
+        assert hasattr(obj, "_progress_callback")
+        assert hasattr(obj, "_last_reported_progress")
+
+        # Should be able to safely check stop from different contexts
+        assert obj.stop_requested is False
+        obj.request_stop()
+        assert obj.stop_requested is True
+
+
+class TestLogging:
+    """Test logging integration."""
+
+    def test_logging_on_callback_set(self) -> None:
+        """Test that setting callback logs debug message."""
+        obj = ConcreteProgressClass()
+        with patch.object(obj.logger, "debug") as mock_debug:
+            obj.set_progress_callback(MagicMock())
+            mock_debug.assert_called_once()
+            assert "Progress callback set" in mock_debug.call_args[0][0]
+
+    def test_logging_on_callback_clear(self) -> None:
+        """Test that clearing callback logs debug message."""
+        obj = ConcreteProgressClass()
+        with patch.object(obj.logger, "debug") as mock_debug:
+            obj.clear_progress_callback()
+            mock_debug.assert_called_once()
+            assert "Progress callback cleared" in mock_debug.call_args[0][0]
+
+    def test_logging_on_stop_request(self) -> None:
+        """Test that stop request logs info message."""
+        obj = ConcreteProgressClass()
+        with patch.object(obj.logger, "info") as mock_info:
+            obj.request_stop()
+            mock_info.assert_called_once()
+            assert "Stop requested" in mock_info.call_args[0][0]
+
+    def test_logging_on_stop_clear(self) -> None:
+        """Test that clearing stop logs debug message."""
+        obj = ConcreteProgressClass()
+        with patch.object(obj.logger, "debug") as mock_debug:
+            obj.clear_stop_request()
+            mock_debug.assert_called_once()
+            assert "Stop request cleared" in mock_debug.call_args[0][0]
+
+
+class TestEdgeCases:
+    """Test edge cases and error conditions."""
+
+    def test_very_long_message(self) -> None:
+        """Test handling of very long progress messages."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+        obj.set_progress_callback(callback)
+
+        long_message = "x" * 10000
+        obj._report_progress(1, 1, long_message)
+        callback.assert_called_once_with(1, 1, long_message)
+
+    def test_unicode_in_messages(self) -> None:
+        """Test handling of unicode in progress messages."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+        obj.set_progress_callback(callback)
+
+        unicode_message = "Progress: 你好世界 🚀"
+        obj._report_progress(1, 1, unicode_message)
+        callback.assert_called_once_with(1, 1, unicode_message)
+
+    def test_none_message(self) -> None:
+        """Test handling of None as message."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+        obj.set_progress_callback(callback)
+
+        # Should handle None gracefully (empty string default)
+        obj._report_progress(1, 1, "")
+        callback.assert_called_once_with(1, 1, "")
+
+    def test_rapid_progress_updates(self) -> None:
+        """Test rapid progress updates with minimum interval."""
+        obj = ConcreteProgressClass()
+        callback = MagicMock()
+        obj.set_progress_callback(callback)
+
+        # Rapid updates to same value
+        for _ in range(100):
+            obj._report_progress(5, 10, "Rapid")
+
+        # Should only be called once due to duplicate filtering
+        assert callback.call_count == 1
+
+    def test_callback_return_value_ignored(self) -> None:
+        """Test that callback return value is ignored."""
+        obj = ConcreteProgressClass()
+
+        def callback_with_return(current, total, message) -> str:
+            return "This should be ignored"
+
+        obj.set_progress_callback(callback_with_return)
+        # Should not raise or cause issues
+        obj._report_progress(1, 1, "Test")

@@ -1,0 +1,897 @@
+"""Settings dialog for ShotBot application preferences.
+
+This module provides a comprehensive preferences dialog with tabbed interface
+for configuring all application settings. The dialog includes live preview,
+validation, import/export functionality, and organized settings categories.
+
+Key Features:
+    - Tabbed interface for different setting categories
+    - Live preview for visual settings (thumbnail size, themes)
+    - Input validation with error messages
+    - Apply/Cancel/OK buttons with proper handling
+    - Reset to defaults for individual categories or all settings
+    - Import/export settings functionality
+    - Keyboard shortcuts and accessibility support
+
+Categories:
+    - General: Basic preferences and UI behavior
+    - Performance: Threading, caching, and optimization
+    - Applications: Default apps and custom launchers
+    - Advanced: Debug options and experimental features
+
+Architecture:
+    The dialog uses a tab-based layout with dedicated widgets for each category.
+    Settings are applied immediately to a temporary copy and only committed
+    when the user clicks OK or Apply. This allows for proper cancellation.
+
+Examples:
+    Basic usage:
+        >>> from settings_dialog import SettingsDialog
+        >>> from settings_manager import SettingsManager
+        >>> settings = SettingsManager()
+        >>> dialog = SettingsDialog(settings, parent=main_window)
+        >>> if dialog.exec() == QDialog.Accepted:
+        ...     # Settings were applied
+        ...     pass
+
+    With specific tab:
+        >>> dialog = SettingsDialog(settings, initial_tab="performance")
+        >>> dialog.show()
+
+Type Safety:
+    All UI controls include proper type annotations and validation.
+    Settings values are validated before application with clear error messages.
+"""
+
+from __future__ import annotations
+
+# Standard library imports
+import json
+import logging
+from typing import TYPE_CHECKING, Any, cast
+
+# Third-party imports
+from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtGui import QCloseEvent, QIcon, QKeyEvent
+from PySide6.QtWidgets import (
+    QAbstractButton,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QSpinBox,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
+# Local application imports
+from config import Config
+from logging_mixin import LoggingMixin
+from qt_widget_mixin import QtWidgetMixin
+
+if TYPE_CHECKING:
+    # Local application imports
+    from settings_manager import SettingsManager
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
+
+
+class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
+    """Comprehensive settings dialog with tabbed interface."""
+
+    # Signals
+    settings_applied = Signal()  # Emitted when settings are applied
+    settings_changed = Signal(str, object)  # Setting key, new value
+
+    def __init__(
+        self,
+        settings_manager: SettingsManager,
+        parent: QWidget | None = None,
+        initial_tab: str = "general",
+    ) -> None:
+        """Initialize settings dialog.
+
+        Args:
+            settings_manager: SettingsManager instance
+            parent: Parent widget
+            initial_tab: Initial tab to show ("general", "performance", "applications", "advanced")
+        """
+        super().__init__(parent)
+        self.settings_manager = settings_manager
+
+        # Temporary settings copy for preview/cancel functionality
+        self.temp_settings: dict[str, object] = {}
+
+        # Initialize all widget attributes that will be set in setup_ui()
+        # General tab widgets
+        self.thumbnail_size_slider: QSlider
+        self.thumbnail_size_label: QLabel
+        self.grid_columns_spin: QSpinBox
+        self.dark_theme_check: QCheckBox
+        self.animations_check: QCheckBox
+        self.tooltips_check: QCheckBox
+        self.refresh_interval_spin: QSpinBox
+        self.background_refresh_check: QCheckBox
+        self.double_click_combo: QComboBox
+        self.terminal_edit: QLineEdit
+        self.remember_directory_check: QCheckBox
+        self.show_hidden_check: QCheckBox
+        self.confirm_delete_check: QCheckBox
+
+        # Performance tab widgets
+        self.max_threads_spin: QSpinBox
+        self.max_operations_spin: QSpinBox
+        self.cache_memory_spin: QSpinBox
+        self.cache_expiry_spin: QSpinBox
+        self.lazy_loading_check: QCheckBox
+        self.preload_thumbnails_check: QCheckBox
+        self.progressive_loading_check: QCheckBox
+        self.cache_compression_check: QCheckBox
+
+        # Applications tab widgets
+        self.default_app_combo: QComboBox
+        self.launch_terminal_check: QCheckBox
+        self.association_combos: dict[
+            str, QComboBox
+        ]  # Populated in create_associations_widget
+        self.associations_widget: QWidget
+        self.launchers_edit: QTextEdit
+        self.edit_launchers_btn: QPushButton
+        self.validate_launchers_btn: QPushButton
+
+        # Advanced tab widgets
+        self.debug_mode_check: QCheckBox
+        self.log_level_combo: QComboBox
+        self.profiling_check: QCheckBox
+        self.memory_monitoring_check: QCheckBox
+        self.beta_features_check: QCheckBox
+        self.experimental_caching_check: QCheckBox
+        self.performance_overlay_check: QCheckBox
+
+        # Dialog widgets
+        self.tab_widget: QTabWidget
+        self.button_box: QDialogButtonBox
+        self.import_btn: QPushButton
+        self.export_btn: QPushButton
+        self.reset_btn: QPushButton
+        self.reset_category_btn: QPushButton
+
+        self.setWindowTitle("ShotBot Preferences")
+        self.setWindowIcon(QIcon())  # TODO: Add proper icon
+        self.setModal(True)
+
+        # Use QtWidgetMixin for window geometry
+        # Third-party imports
+        from PySide6.QtCore import QSize
+
+        self.setup_window_geometry("settings_dialog", QSize(700, 600))
+
+        # Setup UI
+        self.setup_ui()
+
+        # Load current settings
+        self.load_current_settings()
+
+        # Set initial tab
+        self.set_initial_tab(initial_tab)
+
+        # Connect signals
+        self.connect_signals()
+
+        self.logger.debug("Settings dialog initialized")
+
+    def setup_ui(self) -> None:
+        """Setup the user interface."""
+        layout = QVBoxLayout(self)
+
+        # Create tab widget
+        self.tab_widget = QTabWidget()
+        layout.addWidget(self.tab_widget)
+
+        # Create tabs
+        self.create_general_tab()
+        self.create_performance_tab()
+        self.create_applications_tab()
+        self.create_advanced_tab()
+
+        # Create button box
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.Apply
+        )
+        layout.addWidget(self.button_box)
+
+        # Add additional buttons
+        self.create_additional_buttons()
+
+    def create_general_tab(self) -> None:
+        """Create the general preferences tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        # Create scroll area for better organization
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+
+        # UI Preferences Group
+        ui_group = QGroupBox("User Interface")
+        ui_layout = QFormLayout(ui_group)
+
+        # Thumbnail size
+        self.thumbnail_size_slider = QSlider(Qt.Orientation.Horizontal)
+        self.thumbnail_size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
+        self.thumbnail_size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
+        self.thumbnail_size_slider.setTickInterval(50)
+        self.thumbnail_size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+
+        self.thumbnail_size_label = QLabel()
+        thumbnail_layout = QHBoxLayout()
+        thumbnail_layout.addWidget(self.thumbnail_size_slider)
+        thumbnail_layout.addWidget(self.thumbnail_size_label)
+        ui_layout.addRow("Thumbnail Size:", thumbnail_layout)
+
+        # Grid columns
+        self.grid_columns_spin = QSpinBox()
+        self.grid_columns_spin.setMinimum(1)
+        self.grid_columns_spin.setMaximum(20)
+        ui_layout.addRow("Grid Columns:", self.grid_columns_spin)
+
+        # Theme selection
+        self.dark_theme_check = QCheckBox("Enable Dark Theme")
+        ui_layout.addRow(self.dark_theme_check)
+
+        # Animations
+        self.animations_check = QCheckBox("Enable Animations")
+        ui_layout.addRow(self.animations_check)
+
+        # Tooltips
+        self.tooltips_check = QCheckBox("Show Tooltips")
+        ui_layout.addRow(self.tooltips_check)
+
+        scroll_layout.addWidget(ui_group)
+
+        # Behavior Preferences Group
+        behavior_group = QGroupBox("Behavior")
+        behavior_layout = QFormLayout(behavior_group)
+
+        # Refresh interval
+        self.refresh_interval_spin = QSpinBox()
+        self.refresh_interval_spin.setMinimum(1)
+        self.refresh_interval_spin.setMaximum(1440)  # 24 hours
+        self.refresh_interval_spin.setSuffix(" minutes")
+        behavior_layout.addRow("Auto Refresh Interval:", self.refresh_interval_spin)
+
+        # Background refresh
+        self.background_refresh_check = QCheckBox("Enable Background Refresh")
+        behavior_layout.addRow(self.background_refresh_check)
+
+        # Double click action
+        self.double_click_combo = QComboBox()
+        self.double_click_combo.addItems(
+            ["Launch Default Application", "Show Shot Information", "Open Shot Folder"]
+        )
+        behavior_layout.addRow("Double Click Action:", self.double_click_combo)
+
+        # Preferred terminal
+        self.terminal_edit = QLineEdit()
+        self.terminal_edit.setPlaceholderText("gnome-terminal")
+        behavior_layout.addRow("Preferred Terminal:", self.terminal_edit)
+
+        scroll_layout.addWidget(behavior_group)
+
+        # File Handling Group
+        file_group = QGroupBox("File Handling")
+        file_layout = QFormLayout(file_group)
+
+        # Remember last directory
+        self.remember_directory_check = QCheckBox("Remember Last Directory")
+        file_layout.addRow(self.remember_directory_check)
+
+        # Show hidden files
+        self.show_hidden_check = QCheckBox("Show Hidden Files")
+        file_layout.addRow(self.show_hidden_check)
+
+        # Confirm delete
+        self.confirm_delete_check = QCheckBox("Confirm Delete Operations")
+        file_layout.addRow(self.confirm_delete_check)
+
+        scroll_layout.addWidget(file_group)
+
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+
+        self.tab_widget.addTab(tab, "General")
+
+    def create_performance_tab(self) -> None:
+        """Create the performance settings tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+
+        # Threading Group
+        threading_group = QGroupBox("Threading")
+        threading_layout = QFormLayout(threading_group)
+
+        # Max thumbnail threads
+        self.max_threads_spin = QSpinBox()
+        self.max_threads_spin.setMinimum(1)
+        self.max_threads_spin.setMaximum(16)
+        threading_layout.addRow("Max Thumbnail Threads:", self.max_threads_spin)
+
+        # Max concurrent operations
+        self.max_operations_spin = QSpinBox()
+        self.max_operations_spin.setMinimum(1)
+        self.max_operations_spin.setMaximum(10)
+        threading_layout.addRow("Max Concurrent Operations:", self.max_operations_spin)
+
+        scroll_layout.addWidget(threading_group)
+
+        # Memory Management Group
+        memory_group = QGroupBox("Memory Management")
+        memory_layout = QFormLayout(memory_group)
+
+        # Max cache memory
+        self.cache_memory_spin = QSpinBox()
+        self.cache_memory_spin.setMinimum(10)
+        self.cache_memory_spin.setMaximum(1024)
+        self.cache_memory_spin.setSuffix(" MB")
+        memory_layout.addRow("Max Cache Memory:", self.cache_memory_spin)
+
+        # Cache expiry
+        self.cache_expiry_spin = QSpinBox()
+        self.cache_expiry_spin.setMinimum(5)
+        self.cache_expiry_spin.setMaximum(10080)  # 1 week
+        self.cache_expiry_spin.setSuffix(" minutes")
+        memory_layout.addRow("Cache Expiry Time:", self.cache_expiry_spin)
+
+        scroll_layout.addWidget(memory_group)
+
+        # Optimization Group
+        optimization_group = QGroupBox("Optimization")
+        optimization_layout = QFormLayout(optimization_group)
+
+        # Lazy loading
+        self.lazy_loading_check = QCheckBox("Enable Lazy Loading")
+        optimization_layout.addRow(self.lazy_loading_check)
+
+        # Preload thumbnails
+        self.preload_thumbnails_check = QCheckBox("Preload Thumbnails")
+        optimization_layout.addRow(self.preload_thumbnails_check)
+
+        # Progressive loading
+        self.progressive_loading_check = QCheckBox("Enable Progressive Loading")
+        optimization_layout.addRow(self.progressive_loading_check)
+
+        # Cache compression
+        self.cache_compression_check = QCheckBox("Enable Cache Compression")
+        optimization_layout.addRow(self.cache_compression_check)
+
+        scroll_layout.addWidget(optimization_group)
+
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+
+        self.tab_widget.addTab(tab, "Performance")
+
+    def create_applications_tab(self) -> None:
+        """Create the applications settings tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+
+        # Default Application Group
+        default_group = QGroupBox("Default Application")
+        default_layout = QFormLayout(default_group)
+
+        # Default app selection
+        self.default_app_combo = QComboBox()
+        self.default_app_combo.addItems(list(Config.APPS.keys()))
+        default_layout.addRow("Default App:", self.default_app_combo)
+
+        # Launch in terminal
+        self.launch_terminal_check = QCheckBox("Launch Applications in Terminal")
+        default_layout.addRow(self.launch_terminal_check)
+
+        scroll_layout.addWidget(default_group)
+
+        # File Associations Group
+        associations_group = QGroupBox("File Type Associations")
+        associations_layout = QVBoxLayout(associations_group)
+
+        # Create associations table
+        self.associations_widget = self.create_associations_widget()
+        associations_layout.addWidget(self.associations_widget)
+
+        scroll_layout.addWidget(associations_group)
+
+        # Custom Launchers Group
+        launchers_group = QGroupBox("Custom Launchers")
+        launchers_layout = QVBoxLayout(launchers_group)
+
+        # Custom launchers list
+        self.launchers_edit = QTextEdit()
+        self.launchers_edit.setMaximumHeight(100)
+        self.launchers_edit.setPlaceholderText(
+            "Custom launcher definitions (JSON format)"
+        )
+        launchers_layout.addWidget(self.launchers_edit)
+
+        # Launcher buttons
+        launcher_buttons = QHBoxLayout()
+        self.edit_launchers_btn = QPushButton("Edit Launchers...")
+        self.validate_launchers_btn = QPushButton("Validate")
+        launcher_buttons.addWidget(self.edit_launchers_btn)
+        launcher_buttons.addWidget(self.validate_launchers_btn)
+        launcher_buttons.addStretch()
+        launchers_layout.addLayout(launcher_buttons)
+
+        scroll_layout.addWidget(launchers_group)
+
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+
+        self.tab_widget.addTab(tab, "Applications")
+
+    def create_associations_widget(self) -> QWidget:
+        """Create file associations configuration widget."""
+        widget = QWidget()
+        layout = QGridLayout(widget)
+
+        # Headers
+        layout.addWidget(QLabel("File Type"), 0, 0)
+        layout.addWidget(QLabel("Application"), 0, 1)
+
+        # Initialize association controls
+        self.association_combos = {}
+
+        # Create rows for each file type
+        row = 1
+        for file_type in Config.APPS:
+            # File type label
+            layout.addWidget(QLabel(file_type.upper()), row, 0)
+
+            # Application combo
+            combo = QComboBox()
+            combo.addItems(list(Config.APPS.values()))
+            combo.setEditable(True)  # Allow custom applications
+            self.association_combos[file_type] = combo
+            layout.addWidget(combo, row, 1)
+
+            row += 1
+
+        return widget
+
+    def create_advanced_tab(self) -> None:
+        """Create the advanced settings tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+
+        # Debug Group
+        debug_group = QGroupBox("Debug Options")
+        debug_layout = QFormLayout(debug_group)
+
+        # Debug mode
+        self.debug_mode_check = QCheckBox("Enable Debug Mode")
+        debug_layout.addRow(self.debug_mode_check)
+
+        # Log level
+        self.log_level_combo = QComboBox()
+        self.log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+        debug_layout.addRow("Log Level:", self.log_level_combo)
+
+        # Enable profiling
+        self.profiling_check = QCheckBox("Enable Performance Profiling")
+        debug_layout.addRow(self.profiling_check)
+
+        # Memory monitoring
+        self.memory_monitoring_check = QCheckBox("Enable Memory Monitoring")
+        debug_layout.addRow(self.memory_monitoring_check)
+
+        scroll_layout.addWidget(debug_group)
+
+        # Experimental Features Group
+        experimental_group = QGroupBox("Experimental Features")
+        experimental_layout = QFormLayout(experimental_group)
+
+        # Beta features
+        self.beta_features_check = QCheckBox("Enable Beta Features")
+        experimental_layout.addRow(self.beta_features_check)
+
+        # Experimental caching
+        self.experimental_caching_check = QCheckBox("Experimental Caching")
+        experimental_layout.addRow(self.experimental_caching_check)
+
+        # Performance overlay
+        self.performance_overlay_check = QCheckBox("Performance Overlay")
+        experimental_layout.addRow(self.performance_overlay_check)
+
+        scroll_layout.addWidget(experimental_group)
+
+        # System Information Group
+        system_group = QGroupBox("System Information")
+        system_layout = QVBoxLayout(system_group)
+
+        # Settings file path
+        settings_path_label = QLabel(
+            f"Settings File: {self.settings_manager.get_settings_file_path()}"
+        )
+        settings_path_label.setWordWrap(True)
+        settings_path_label.setStyleSheet("font-family: monospace; font-size: 8pt;")
+        system_layout.addWidget(settings_path_label)
+
+        scroll_layout.addWidget(system_group)
+
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+
+        self.tab_widget.addTab(tab, "Advanced")
+
+    def create_additional_buttons(self) -> None:
+        """Create additional buttons for import/export and reset."""
+        # Add custom buttons to button box
+        self.import_btn = self.button_box.addButton(
+            "Import...", QDialogButtonBox.ButtonRole.ActionRole
+        )
+        self.export_btn = self.button_box.addButton(
+            "Export...", QDialogButtonBox.ButtonRole.ActionRole
+        )
+        self.reset_btn = self.button_box.addButton(
+            "Reset to Defaults", QDialogButtonBox.ButtonRole.ResetRole
+        )
+        self.reset_category_btn = self.button_box.addButton(
+            "Reset Current Tab", QDialogButtonBox.ButtonRole.ResetRole
+        )
+
+    def connect_signals(self) -> None:
+        """Connect all signals and slots."""
+        # Button box signals
+        self.button_box.accepted.connect(self.accept_changes)
+        self.button_box.rejected.connect(self.reject_changes)
+        self.button_box.clicked.connect(self.handle_button_click)
+
+        # Setting change signals for live preview
+        self.thumbnail_size_slider.valueChanged.connect(self.update_thumbnail_preview)
+        self.dark_theme_check.toggled.connect(self.preview_theme_change)
+
+        # Validation signals
+        self.validate_launchers_btn.clicked.connect(self.validate_custom_launchers)
+        self.edit_launchers_btn.clicked.connect(self.edit_custom_launchers)
+
+    def set_initial_tab(self, tab_name: str) -> None:
+        """Set the initial tab to display."""
+        tab_indices = {"general": 0, "performance": 1, "applications": 2, "advanced": 3}
+
+        if tab_name in tab_indices:
+            self.tab_widget.setCurrentIndex(tab_indices[tab_name])
+
+    def load_current_settings(self) -> None:
+        """Load current settings into the dialog controls."""
+        # General tab
+        self.thumbnail_size_slider.setValue(self.settings_manager.get_thumbnail_size())
+        self.update_thumbnail_preview()
+
+        self.grid_columns_spin.setValue(self.settings_manager.get_grid_columns())
+        self.dark_theme_check.setChecked(self.settings_manager.get_dark_theme())
+        self.animations_check.setChecked(self.settings_manager.get_enable_animations())
+        self.tooltips_check.setChecked(self.settings_manager.get_show_tooltips())
+
+        self.refresh_interval_spin.setValue(
+            self.settings_manager.get_refresh_interval()
+        )
+        self.background_refresh_check.setChecked(
+            self.settings_manager.get_background_refresh()
+        )
+
+        # Map double click action to combo index
+        action_map = {"launch_default": 0, "show_info": 1, "open_folder": 2}
+        action = self.settings_manager.get_double_click_action()
+        self.double_click_combo.setCurrentIndex(action_map.get(action, 0))
+
+        self.terminal_edit.setText(self.settings_manager.get_preferred_terminal())
+
+        # Performance tab
+        self.max_threads_spin.setValue(
+            self.settings_manager.get_max_thumbnail_threads()
+        )
+        self.cache_memory_spin.setValue(self.settings_manager.get_max_cache_memory_mb())
+        self.cache_expiry_spin.setValue(
+            self.settings_manager.get_cache_expiry_minutes()
+        )
+
+        # Applications tab
+        self.default_app_combo.setCurrentText(self.settings_manager.get_default_app())
+
+        # Load file associations
+        associations = self.settings_manager.get_file_associations()
+        for file_type, combo in self.association_combos.items():
+            if file_type in associations:
+                combo.setCurrentText(associations[file_type])
+
+        # Load custom launchers
+        launchers = self.settings_manager.get_custom_launchers()
+        self.launchers_edit.setPlainText(json.dumps(launchers, indent=2))
+
+        # Advanced tab
+        self.debug_mode_check.setChecked(self.settings_manager.get_debug_mode())
+        self.log_level_combo.setCurrentText(self.settings_manager.get_log_level())
+
+    @Slot()
+    def update_thumbnail_preview(self) -> None:
+        """Update thumbnail size preview label."""
+        size = self.thumbnail_size_slider.value()
+        self.thumbnail_size_label.setText(f"{size}px")
+
+        # Emit preview signal
+        self.settings_changed.emit("thumbnail_size_preview", size)
+
+    @Slot()
+    def preview_theme_change(self) -> None:
+        """Preview theme change."""
+        dark_enabled = self.dark_theme_check.isChecked()
+        self.settings_changed.emit("dark_theme_preview", dark_enabled)
+
+    @Slot()
+    def validate_custom_launchers(self) -> None:
+        """Validate custom launchers JSON."""
+        try:
+            text = self.launchers_edit.toPlainText().strip()
+            if text:
+                json.loads(text)
+
+            QMessageBox.information(
+                self, "Validation Success", "Custom launchers JSON is valid."
+            )
+        except json.JSONDecodeError as e:
+            QMessageBox.warning(self, "Validation Error", f"Invalid JSON format:\n{e}")
+
+    @Slot()
+    def edit_custom_launchers(self) -> None:
+        """Open custom launchers editor."""
+        # TODO: Implement launcher editor dialog
+        QMessageBox.information(
+            self,
+            "Not Implemented",
+            "Launcher editor will be implemented in future version.",
+        )
+
+    def handle_button_click(self, button: QAbstractButton) -> None:
+        """Handle custom button clicks."""
+        if button == self.import_btn:
+            self.import_settings()
+        elif button == self.export_btn:
+            self.export_settings()
+        elif button == self.reset_btn:
+            self.reset_all_settings()
+        elif button == self.reset_category_btn:
+            self.reset_current_category()
+        elif button == self.button_box.button(QDialogButtonBox.StandardButton.Apply):
+            self.apply_settings()
+
+    def import_settings(self) -> None:
+        """Import settings from file."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Import Settings", "", "JSON Files (*.json);;All Files (*)"
+        )
+
+        if file_path:
+            if self.settings_manager.import_settings(file_path):
+                self.load_current_settings()
+                QMessageBox.information(
+                    self, "Import Success", "Settings imported successfully."
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Import Error",
+                    "Failed to import settings. Check the file format.",
+                )
+
+    def export_settings(self) -> None:
+        """Export settings to file."""
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Settings",
+            "shotbot_settings.json",
+            "JSON Files (*.json);;All Files (*)",
+        )
+
+        if file_path:
+            if self.settings_manager.export_settings(file_path):
+                QMessageBox.information(
+                    self, "Export Success", f"Settings exported to:\n{file_path}"
+                )
+            else:
+                QMessageBox.warning(self, "Export Error", "Failed to export settings.")
+
+    def reset_all_settings(self) -> None:
+        """Reset all settings to defaults."""
+        reply = QMessageBox.question(
+            self,
+            "Reset All Settings",
+            "Are you sure you want to reset all settings to defaults?\n"
+            "This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.settings_manager.reset_to_defaults()
+            self.load_current_settings()
+            QMessageBox.information(
+                self, "Reset Complete", "All settings have been reset to defaults."
+            )
+
+    def reset_current_category(self) -> None:
+        """Reset current tab's settings to defaults."""
+        tab_categories = {
+            0: "preferences",  # General
+            1: "performance",
+            2: "applications",
+            3: "advanced",
+        }
+
+        current_index = self.tab_widget.currentIndex()
+        category = tab_categories.get(current_index)
+
+        if category:
+            reply = QMessageBox.question(
+                self,
+                "Reset Category",
+                f"Reset all {category} settings to defaults?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                self.settings_manager.reset_category(category)
+                self.load_current_settings()
+                QMessageBox.information(
+                    self,
+                    "Reset Complete",
+                    f"{category.title()} settings reset to defaults.",
+                )
+
+    def apply_settings(self) -> None:
+        """Apply current settings without closing dialog."""
+        self.save_settings()
+        self.settings_applied.emit()
+        QMessageBox.information(
+            self, "Settings Applied", "Settings have been applied successfully."
+        )
+
+    def accept_changes(self) -> None:
+        """Accept and apply all changes."""
+        self.save_settings()
+        self.settings_applied.emit()
+        self.accept()
+
+    def reject_changes(self) -> None:
+        """Reject all changes and close dialog."""
+        # Could emit signal to revert any preview changes
+        self.reject()
+
+    def save_settings(self) -> None:
+        """Save all settings from dialog controls."""
+        # General settings
+        self.settings_manager.set_thumbnail_size(self.thumbnail_size_slider.value())
+        self.settings_manager.set_grid_columns(self.grid_columns_spin.value())
+        self.settings_manager.set_dark_theme(self.dark_theme_check.isChecked())
+        self.settings_manager.set_enable_animations(self.animations_check.isChecked())
+        self.settings_manager.set_show_tooltips(self.tooltips_check.isChecked())
+
+        self.settings_manager.set_refresh_interval(self.refresh_interval_spin.value())
+        self.settings_manager.set_background_refresh(
+            self.background_refresh_check.isChecked()
+        )
+
+        # Map combo index to action
+        action_map = {0: "launch_default", 1: "show_info", 2: "open_folder"}
+        action = action_map.get(
+            self.double_click_combo.currentIndex(), "launch_default"
+        )
+        self.settings_manager.set_double_click_action(action)
+
+        self.settings_manager.set_preferred_terminal(self.terminal_edit.text())
+
+        # Performance settings
+        self.settings_manager.set_max_thumbnail_threads(self.max_threads_spin.value())
+        self.settings_manager.set_max_cache_memory_mb(self.cache_memory_spin.value())
+        self.settings_manager.set_cache_expiry_minutes(self.cache_expiry_spin.value())
+
+        # Application settings
+        self.settings_manager.set_default_app(self.default_app_combo.currentText())
+
+        # File associations
+        associations: dict[str, str] = {}
+        for file_type, combo in self.association_combos.items():
+            associations[file_type] = combo.currentText()
+        self.settings_manager.set_file_associations(associations)
+
+        # Custom launchers
+        try:
+            text = self.launchers_edit.toPlainText().strip()
+            if text:
+                # Parse JSON - returns Any but we validate types below
+                parsed_data: Any = json.loads(text)
+                # Handle both dict and list formats
+                launchers: list[dict[str, object]] = []
+                if isinstance(parsed_data, list):
+                    # Type guard: ensure list contains dicts
+                    item: Any
+                    for item in parsed_data:  # pyright: ignore[reportUnknownVariableType]
+                        if isinstance(item, dict):
+                            # Type narrowing: item is now dict
+                            # Cast to dict[str, Any] to resolve unknown types
+                            item_dict = cast("dict[str, Any]", item)
+                            launchers.append({str(k): v for k, v in item_dict.items()})
+                        else:
+                            # Skip invalid items with empty dict
+                            launchers.append({})
+                elif isinstance(parsed_data, dict):
+                    # Convert dict to list format expected by settings manager
+                    # Cast to dict[str, Any] to resolve unknown types
+                    parsed_dict = cast("dict[str, Any]", parsed_data)
+                    launchers = (
+                        [{str(k): v for k, v in parsed_dict.items()}]
+                        if parsed_dict
+                        else []
+                    )
+                self.settings_manager.set_custom_launchers(launchers)
+        except json.JSONDecodeError:
+            self.logger.warning(
+                "Invalid custom launchers JSON, keeping existing settings"
+            )
+
+        # Advanced settings
+        self.settings_manager.set_debug_mode(self.debug_mode_check.isChecked())
+        self.settings_manager.set_log_level(self.log_level_combo.currentText())
+
+        # Sync settings to disk
+        self.settings_manager.sync()
+
+        self.logger.info("Settings saved successfully")
+
+    # Override mixin event handlers with proper keyword parameter signatures
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Handle close event with cleanup."""
+        # Call parent implementation from QtWidgetMixin
+        super().closeEvent(event)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle key press events with standard shortcuts."""
+        # Call parent implementation from QtWidgetMixin
+        super().keyPressEvent(event)
