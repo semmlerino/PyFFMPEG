@@ -236,6 +236,7 @@ class TestCommandLauncher:
             "gnome-terminal" in call_args
             or "xterm" in call_args
             or "konsole" in call_args
+            or "x-terminal-emulator" in call_args
             or "/bin/bash" in call_args
         )
         assert "nuke" in " ".join(call_args)

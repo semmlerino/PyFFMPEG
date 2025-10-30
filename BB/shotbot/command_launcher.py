@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
+import shutil
 import subprocess
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -65,6 +66,10 @@ class CommandLauncher(LoggingMixin, QObject):
         super().__init__()
         self.current_shot: Shot | None = None
         self.persistent_terminal = persistent_terminal
+
+        # Cache fields for expensive operations
+        self._rez_available: bool | None = None
+        self._available_terminal: str | None = None
 
         # Initialize the Nuke launch handler
         self.nuke_handler = NukeLaunchRouter()
@@ -129,14 +134,22 @@ class CommandLauncher(LoggingMixin, QObject):
         if Config.REZ_AUTO_DETECT and os.environ.get("REZ_USED"):
             return True
 
-        # Try to find rez command
-        try:
-            result = subprocess.run(
-                ["which", "rez"], check=False, capture_output=True, text=True, timeout=2
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return False
+        # Return cached result if available
+        if self._rez_available is not None:
+            return self._rez_available
+
+        # Check if rez command is available
+        self._rez_available = shutil.which("rez") is not None
+        self.logger.debug(f"Rez availability cached: {self._rez_available}")
+        return self._rez_available
+
+    def _clear_rez_cache(self) -> None:
+        """Clear the rez availability cache (for testing)."""
+        self._rez_available = None
+
+    def _clear_terminal_cache(self) -> None:
+        """Clear the terminal detection cache (for testing and error recovery)."""
+        self._available_terminal = None
 
     def _get_rez_packages_for_app(self, app_name: str) -> list[str]:
         """Get rez packages for the specified application.
@@ -153,6 +166,28 @@ class CommandLauncher(LoggingMixin, QObject):
             "3de": Config.REZ_3DE_PACKAGES,
         }
         return package_map.get(app_name, [])
+
+    def _detect_available_terminal(self) -> str | None:
+        """Detect available terminal emulator.
+
+        Returns:
+            Name of available terminal emulator, or None if none found
+        """
+        # Return cached result if available
+        if self._available_terminal is not None:
+            return self._available_terminal
+
+        # Check terminals in order of preference
+        terminals = ["gnome-terminal", "konsole", "xterm", "x-terminal-emulator"]
+        for term in terminals:
+            if shutil.which(term) is not None:
+                self._available_terminal = term
+                self.logger.info(f"Detected terminal: {term}")
+                return term
+
+        # No terminal found
+        self.logger.warning("No terminal emulator found")
+        return None
 
     def _validate_path_for_shell(self, path: str) -> str:
         """Validate and escape a path for safe use in shell commands.
@@ -437,33 +472,35 @@ class CommandLauncher(LoggingMixin, QObject):
                 timestamp,
                 "⚠ Persistent terminal not available, launching in new terminal...",
             )
-                # Fall through to launch new terminal - WITHOUT the & operator
+            # Fall through to launch new terminal - WITHOUT the & operator
 
         # Launch in new terminal (original behavior)
+        # Pre-check for available terminal
+        terminal = self._detect_available_terminal()
+        if terminal is None:
+            self._emit_error(
+                "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
+            )
+            return False
+
         try:
-            # Execute in a new terminal
-            # This will work on Linux with common terminal emulators
-            terminal_commands = [
-                # Try gnome-terminal first with interactive bash
-                ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
-                # Try xterm as fallback with interactive bash (using list for safety)
-                ["xterm", "-e", "bash", "-i", "-c", full_command],
-                # Try konsole with interactive bash
-                ["konsole", "-e", "bash", "-i", "-c", full_command],
-            ]
+            # Build command for the detected terminal
+            if terminal == "gnome-terminal":
+                term_cmd = ["gnome-terminal", "--", "bash", "-i", "-c", full_command]
+            elif terminal == "konsole":
+                term_cmd = ["konsole", "-e", "bash", "-i", "-c", full_command]
+            elif terminal in ["xterm", "x-terminal-emulator"]:
+                term_cmd = [terminal, "-e", "bash", "-i", "-c", full_command]
+            else:
+                # Fallback to direct execution
+                term_cmd = ["/bin/bash", "-i", "-c", full_command]
 
-            for term_cmd in terminal_commands:
-                try:
-                    subprocess.Popen(term_cmd)
-                    return True
-                except FileNotFoundError:
-                    continue
-
-            # If no terminal worked, try direct execution with interactive bash
-            subprocess.Popen(["/bin/bash", "-i", "-c", full_command])
+            subprocess.Popen(term_cmd)
             return True
 
         except Exception as e:
+            # Clear cache on failure - terminal may have been uninstalled
+            self._available_terminal = None
             self._emit_error(f"Failed to launch {app_name}: {e!s}")
             return False
 
@@ -594,32 +631,35 @@ class CommandLauncher(LoggingMixin, QObject):
                 timestamp,
                 "⚠ Persistent terminal not available, launching in new terminal...",
             )
-                # Fall through to launch new terminal - WITHOUT the & operator
+            # Fall through to launch new terminal - WITHOUT the & operator
 
         # Launch in new terminal (original behavior)
+        # Pre-check for available terminal
+        terminal = self._detect_available_terminal()
+        if terminal is None:
+            self._emit_error(
+                "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
+            )
+            return False
+
         try:
-            # Execute in a new terminal
-            terminal_commands = [
-                # Try gnome-terminal first with interactive bash
-                ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
-                # Try xterm as fallback with interactive bash (using list for safety)
-                ["xterm", "-e", "bash", "-i", "-c", full_command],
-                # Try konsole with interactive bash
-                ["konsole", "-e", "bash", "-i", "-c", full_command],
-            ]
+            # Build command for the detected terminal
+            if terminal == "gnome-terminal":
+                term_cmd = ["gnome-terminal", "--", "bash", "-i", "-c", full_command]
+            elif terminal == "konsole":
+                term_cmd = ["konsole", "-e", "bash", "-i", "-c", full_command]
+            elif terminal in ["xterm", "x-terminal-emulator"]:
+                term_cmd = [terminal, "-e", "bash", "-i", "-c", full_command]
+            else:
+                # Fallback to direct execution
+                term_cmd = ["/bin/bash", "-i", "-c", full_command]
 
-            for term_cmd in terminal_commands:
-                try:
-                    subprocess.Popen(term_cmd)
-                    return True
-                except FileNotFoundError:
-                    continue
-
-            # If no terminal worked, try direct execution with interactive bash
-            subprocess.Popen(["/bin/bash", "-i", "-c", full_command])
+            subprocess.Popen(term_cmd)
             return True
 
         except Exception as e:
+            # Clear cache on failure - terminal may have been uninstalled
+            self._available_terminal = None
             self._emit_error(f"Failed to launch {app_name} with scene: {e!s}")
             return False
 
@@ -747,29 +787,32 @@ class CommandLauncher(LoggingMixin, QObject):
             f"{full_command} (Context: {scene.user}'s {scene.plate})",
         )
 
+        # Pre-check for available terminal
+        terminal = self._detect_available_terminal()
+        if terminal is None:
+            self._emit_error(
+                "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
+            )
+            return False
+
         try:
-            # Execute in a new terminal
-            terminal_commands = [
-                # Try gnome-terminal first with interactive bash
-                ["gnome-terminal", "--", "bash", "-i", "-c", full_command],
-                # Try xterm as fallback with interactive bash (using list for safety)
-                ["xterm", "-e", "bash", "-i", "-c", full_command],
-                # Try konsole with interactive bash
-                ["konsole", "-e", "bash", "-i", "-c", full_command],
-            ]
+            # Build command for the detected terminal
+            if terminal == "gnome-terminal":
+                term_cmd = ["gnome-terminal", "--", "bash", "-i", "-c", full_command]
+            elif terminal == "konsole":
+                term_cmd = ["konsole", "-e", "bash", "-i", "-c", full_command]
+            elif terminal in ["xterm", "x-terminal-emulator"]:
+                term_cmd = [terminal, "-e", "bash", "-i", "-c", full_command]
+            else:
+                # Fallback to direct execution
+                term_cmd = ["/bin/bash", "-i", "-c", full_command]
 
-            for term_cmd in terminal_commands:
-                try:
-                    subprocess.Popen(term_cmd)
-                    return True
-                except FileNotFoundError:
-                    continue
-
-            # If no terminal worked, try direct execution with interactive bash
-            subprocess.Popen(["/bin/bash", "-i", "-c", full_command])
+            subprocess.Popen(term_cmd)
             return True
 
         except Exception as e:
+            # Clear cache on failure - terminal may have been uninstalled
+            self._available_terminal = None
             self._emit_error(f"Failed to launch {app_name} in scene context: {e!s}")
             return False
 

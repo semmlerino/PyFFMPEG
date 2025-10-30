@@ -15,7 +15,16 @@
   - Commit: Pending
 
 ### Phase 2: Performance Optimizations
-- **Task 2.1: Rez Availability Caching** ⏳ NOT STARTED
+- **Task 2.1: Rez Availability Caching** ✅ COMPLETED (2025-10-30)
+  - Implementation: python-implementation-specialist agent
+  - Review: 2x python-code-reviewer agents (sonnet) in parallel
+  - Improvements applied:
+    - Added `_clear_terminal_cache()` for API symmetry
+    - Added cache invalidation on subprocess failure (3 locations)
+  - Verification: 0 type errors (basedpyright), all checks passed (ruff)
+  - Tests: 15/15 passing
+  - Lines changed: ~15 (includes improvements)
+  - Commit: Pending
 
 ### Phase 3: Resource Management
 - **Task 3.2: Worker Key UUID Suffix** ⏳ NOT STARTED
@@ -26,7 +35,16 @@
 
 ### Phase 5: Launch Reliability
 - **Task 5.1: Process Spawn Verification** ⏳ NOT STARTED (Optional)
-- **Task 5.3: Terminal Availability Pre-check** ⏳ NOT STARTED
+- **Task 5.3: Terminal Availability Pre-check** ✅ COMPLETED (2025-10-30)
+  - Implementation: python-implementation-specialist agent (combined with Task 2.1)
+  - Review: 2x python-code-reviewer agents (sonnet) in parallel
+  - Improvements applied:
+    - Added `_clear_terminal_cache()` for API symmetry
+    - Added cache invalidation on subprocess failure (3 locations)
+  - Verification: 0 type errors (basedpyright), all checks passed (ruff)
+  - Tests: 15/15 passing (includes x-terminal-emulator test update)
+  - Lines changed: ~30 (includes defensive improvements)
+  - Commit: Pending
 - **Task 5.4: Workspace Validation Before Launch** ⏳ NOT STARTED (Optional)
 
 ### Phase 6: Error Handling & Validation
