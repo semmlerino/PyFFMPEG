@@ -156,6 +156,12 @@ class LauncherProcessManager(LoggingMixin, QObject):
             # Create worker
             worker = LauncherWorker(launcher_id, command, working_dir)
 
+            # Generate unique worker key with UUID suffix (prevents race condition)
+            # MUST be created BEFORE signal connections to avoid NameError in lambda
+            worker_key = (
+                f"{launcher_id}_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
+            )
+
             # Connect worker signals with explicit connection types for thread safety
             # Type annotations for signal connections
             def on_started(lid: str, cmd: str) -> None:
@@ -168,17 +174,20 @@ class LauncherProcessManager(LoggingMixin, QObject):
                 on_started,
                 Qt.ConnectionType.QueuedConnection,
             )
+
+            # Closure captures immutable worker_key for immediate cleanup
+            # Type annotations required for basedpyright
+            def on_finished(lid: str, success: bool, rc: int) -> None:
+                self._on_worker_finished(worker_key, lid, success, rc)
+
             worker.command_finished.connect(
-                self._on_worker_finished,
+                on_finished,
                 Qt.ConnectionType.QueuedConnection,
             )
             worker.command_error.connect(
                 on_error,
                 Qt.ConnectionType.QueuedConnection,
             )
-
-            # Store worker reference
-            worker_key = f"{launcher_id}_{int(time.time() * 1000)}"
 
             # Add to tracking dictionary BEFORE starting to prevent race condition
             # where worker finishes before being tracked
@@ -198,18 +207,42 @@ class LauncherProcessManager(LoggingMixin, QObject):
             return False
 
     def _on_worker_finished(
-        self, launcher_id: str, success: bool, return_code: int
+        self, worker_key: str, launcher_id: str, success: bool, return_code: int
     ) -> None:
-        """Handle worker thread completion.
+        """Handle worker thread completion with immediate cleanup.
 
         Args:
+            worker_key: Unique key for the worker thread
             launcher_id: ID of the launcher that finished
             success: Whether execution was successful
             return_code: Process return code
         """
         self.logger.info(
-            f"Worker finished for launcher '{launcher_id}' - Success: {success}, Code: {return_code}",
+            f"Worker finished for launcher '{launcher_id}': success={success}",
         )
+
+        # Clean up immediately (eliminates 0-5 second delay)
+        with QMutexLocker(self._process_lock):
+            if worker_key in self._active_workers:
+                worker = self._active_workers[worker_key]
+
+                # Disconnect signals to prevent warnings
+                try:
+                    worker.command_started.disconnect()
+                    worker.command_finished.disconnect()
+                    worker.command_error.disconnect()
+                except (RuntimeError, TypeError):
+                    pass  # Already disconnected
+
+                # Ensure cleanup happens even if emit fails
+                try:
+                    del self._active_workers[worker_key]
+                    self.worker_removed.emit(worker_key)
+                except Exception as e:
+                    # Log but don't propagate - periodic cleanup will handle it
+                    self.logger.warning(
+                        f"Error during worker cleanup for {worker_key}: {e}"
+                    )
 
         # Emit completion signal
         self.process_finished.emit(launcher_id, success, return_code)

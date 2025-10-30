@@ -27,8 +27,25 @@
   - Commit: Pending
 
 ### Phase 3: Resource Management
-- **Task 3.2: Worker Key UUID Suffix** ⏳ NOT STARTED
-- **Task 3.3: Immediate Worker Cleanup** ⏳ NOT STARTED
+- **Task 3.2: Worker Key UUID Suffix** ✅ COMPLETED (2025-10-30)
+  - Implementation: python-implementation-specialist agent (combined with Task 3.3)
+  - Review: 2x python-code-reviewer agents (sonnet) in parallel
+  - Improvements applied:
+    - Updated comment accuracy (lambda→closure)
+    - Added exception handling for cleanup operations
+  - Verification: 0 type errors (basedpyright), all checks passed (ruff)
+  - Tests: 32/32 launcher tests passing
+  - Lines changed: ~30 (as planned)
+  - Commit: Pending
+- **Task 3.3: Immediate Worker Cleanup** ✅ COMPLETED (2025-10-30)
+  - Implementation: python-implementation-specialist agent (combined with Task 3.2)
+  - Review: 2x python-code-reviewer agents (sonnet) in parallel
+  - Implementation used named functions (superior to lambdas for type safety)
+  - Improvements: Comment accuracy, exception handling
+  - Verification: 0 type errors (basedpyright), all checks passed (ruff)
+  - Tests: 32/32 launcher tests passing
+  - Lines changed: ~30 (as planned)
+  - Commit: Pending
 
 ### Phase 4: Deadlock Prevention
 - **Task 4.1: Stderr Drain Thread** ⏳ NOT STARTED
