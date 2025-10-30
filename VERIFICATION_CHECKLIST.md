@@ -64,7 +64,16 @@
   - Commit: Pending
 
 ### Phase 5: Launch Reliability
-- **Task 5.1: Process Spawn Verification** ⏳ NOT STARTED (Optional)
+- **Task 5.1: Process Spawn Verification** ✅ COMPLETED (2025-10-30)
+  - Implementation: python-implementation-specialist agent
+  - Review: 2x python-code-reviewer agents (sonnet) in parallel
+  - Improvements applied:
+    - Fixed lambda capture race condition using functools.partial
+    - Added debug logging for successful spawn cases
+  - Verification: 0 type errors (basedpyright), all checks passed (ruff)
+  - Tests: 15/15 passing (test_command_launcher.py)
+  - Lines added: ~10 (1 method + 3 QTimer.singleShot calls)
+  - Commit: Pending
 - **Task 5.3: Terminal Availability Pre-check** ✅ COMPLETED (2025-10-30)
   - Implementation: python-implementation-specialist agent (combined with Task 2.1)
   - Review: 2x python-code-reviewer agents (sonnet) in parallel
@@ -75,10 +84,26 @@
   - Tests: 15/15 passing (includes x-terminal-emulator test update)
   - Lines changed: ~30 (includes defensive improvements)
   - Commit: Pending
-- **Task 5.4: Workspace Validation Before Launch** ⏳ NOT STARTED (Optional)
+- **Task 5.4: Workspace Validation Before Launch** ✅ COMPLETED (2025-10-30)
+  - Implementation: python-implementation-specialist agent
+  - Review: 2x python-code-reviewer agents (sonnet) in parallel
+  - Improvements applied:
+    - Added is_dir() check to prevent validation passing for files
+  - Verification: 0 type errors (basedpyright), all checks passed (ruff)
+  - Tests: 15/15 passing (test_command_launcher.py)
+  - Lines added: ~20 (1 validation method + 3 validation calls)
+  - Commit: Pending
 
 ### Phase 6: Error Handling & Validation
-- **Task 6.3: Specific Error Messages** ⏳ NOT STARTED (Optional)
+- **Task 6.3: Specific Error Messages** ✅ COMPLETED (2025-10-30)
+  - Implementation: python-implementation-specialist agent
+  - Review: 2x python-code-reviewer agents (sonnet) in parallel
+  - Improvements applied:
+    - Added explicit errno.EACCES handling for permission errors
+  - Verification: 0 type errors (basedpyright), all checks passed (ruff)
+  - Tests: 15/15 passing (test_command_launcher.py)
+  - Lines changed: ~45 (replaced generic exception handlers in 3 launch methods)
+  - Commit: Pending
 
 ---
 

@@ -207,12 +207,16 @@ class TestCommandLauncher:
         launcher.set_current_shot(None)
         assert launcher.current_shot is None
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_nuke(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
+        mock_validate: MagicMock,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
@@ -241,12 +245,16 @@ class TestCommandLauncher:
         )
         assert "nuke" in " ".join(call_args)
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_nuke_with_raw_plate(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
+        mock_validate: MagicMock,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
@@ -268,12 +276,16 @@ class TestCommandLauncher:
         call_args = mock_popen.call_args[0][0]
         assert "nuke" in " ".join(call_args)
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_nuke_with_undistortion(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
+        mock_validate: MagicMock,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
@@ -295,12 +307,16 @@ class TestCommandLauncher:
         call_args = mock_popen.call_args[0][0]
         assert "nuke" in " ".join(call_args)
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_3de(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
+        mock_validate: MagicMock,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
@@ -348,12 +364,16 @@ class TestCommandLauncher:
         assert "3de" in " ".join(call_args)
         assert str(test_scene.scene_path) in " ".join(call_args)
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_maya(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
+        mock_validate: MagicMock,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
@@ -375,12 +395,16 @@ class TestCommandLauncher:
         call_args = mock_popen.call_args[0][0]
         assert "maya" in " ".join(call_args)
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_launch_rv(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
+        mock_validate: MagicMock,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
@@ -412,12 +436,16 @@ class TestCommandLauncher:
         # Should return False when no shot is set
         assert result is False
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
     @patch("command_launcher.subprocess.Popen")
     def test_subprocess_failure(
         self,
         mock_popen: MagicMock,
         mock_rez: MagicMock,
+        mock_validate: MagicMock,
         launcher: CommandLauncher,
         test_shot: Shot,
         qtbot: QtBot,
@@ -437,10 +465,15 @@ class TestCommandLauncher:
         # Verify subprocess was attempted
         assert mock_popen.called
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", True)
     @patch("command_launcher.Config.USE_PERSISTENT_TERMINAL", True)
     @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
-    def test_persistent_terminal_usage(self, mock_rez: MagicMock, qtbot: QtBot) -> None:
+    def test_persistent_terminal_usage(
+        self, mock_rez: MagicMock, mock_validate: MagicMock, qtbot: QtBot
+    ) -> None:
         """Test using persistent terminal manager."""
         terminal = TestPersistentTerminalManager()
         launcher = CommandLauncher(
@@ -467,9 +500,14 @@ class TestCommandLauncher:
         assert key == "sent"
         assert "nuke" in command
 
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
     @patch("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", True)
     @patch("command_launcher.Config.USE_PERSISTENT_TERMINAL", True)
-    def test_persistent_terminal_unavailable(self, qtbot: QtBot) -> None:
+    def test_persistent_terminal_unavailable(
+        self, mock_validate: MagicMock, qtbot: QtBot
+    ) -> None:
         """Test fallback when persistent terminal is unavailable."""
         terminal = TestPersistentTerminalManager()
         terminal.send_command = lambda cmd: False  # Make send_command fail
@@ -523,6 +561,9 @@ class TestCommandLauncherSignals:
         launcher.set_current_shot(shot)
 
         with (
+            patch.object(
+                CommandLauncher, "_validate_workspace_before_launch", return_value=True
+            ),
             patch("command_launcher.subprocess.Popen") as mock_popen,
             patch.object(CommandLauncher, "_is_rez_available", return_value=False),
         ):

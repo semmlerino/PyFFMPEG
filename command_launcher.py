@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 # Standard library imports
+import errno
 import os
 import shutil
 import subprocess
 from datetime import datetime
+from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Third-party imports
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 
 # Local application imports
 from config import Config
 from logging_mixin import LoggingMixin
+from notification_manager import NotificationManager
 from nuke_launch_router import NukeLaunchRouter
 
 if TYPE_CHECKING:
@@ -281,6 +285,12 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Unknown application: {app_name}")
             return False
 
+        # Validate workspace before launching (Task 5.4)
+        if not self._validate_workspace_before_launch(
+            self.current_shot.workspace_path, app_name
+        ):
+            return False
+
         # Get the command
         command = Config.APPS[app_name]
 
@@ -495,10 +505,57 @@ class CommandLauncher(LoggingMixin, QObject):
                 # Fallback to direct execution
                 term_cmd = ["/bin/bash", "-i", "-c", full_command]
 
-            subprocess.Popen(term_cmd)
+            process = subprocess.Popen(term_cmd)
+
+            # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
+            # Use functools.partial for safe reference capture (avoids lambda race conditions)
+            QTimer.singleShot(100, partial(self._verify_spawn, process, app_name))
+
             return True
 
+        except FileNotFoundError as e:
+            # Type-safe: e.filename can be None - Task 6.3
+            filename = e.filename if e.filename else "unknown"
+            self._emit_error(
+                f"Cannot launch {app_name}: Application or terminal not found. "
+                f"Details: {filename}"
+            )
+            NotificationManager.error(
+                "Launch Failed", f"{app_name} executable not found"
+            )
+            # Clear cache on failure - terminal may have been uninstalled
+            self._available_terminal = None
+            return False
+
+        except PermissionError as e:
+            # Type-safe: e.filename can be None - Task 6.3
+            filename = e.filename if e.filename else "unknown"
+            self._emit_error(
+                f"Cannot launch {app_name}: Permission denied. "
+                f"Check file permissions for: {filename}"
+            )
+            return False
+
+        except OSError as e:
+            # Type-safe: e.errno and e.strerror can be None - Task 6.3
+            if e.errno == errno.EACCES:
+                msg = "Permission denied - check file permissions"
+            elif e.errno == errno.ENOSPC:
+                msg = "No space left on device"
+            elif e.errno == errno.EMFILE:
+                msg = "Too many open files"
+            elif e.errno == errno.ENOMEM:
+                msg = "Out of memory"
+            else:
+                errno_str = str(e.errno) if e.errno is not None else "unknown"
+                strerror = e.strerror if e.strerror else "unknown error"
+                msg = f"{strerror} (errno {errno_str})"
+
+            self._emit_error(f"Cannot launch {app_name}: {msg}")
+            return False
+
         except Exception as e:
+            # Fallback for unexpected errors - Task 6.3
             # Clear cache on failure - terminal may have been uninstalled
             self._available_terminal = None
             self._emit_error(f"Failed to launch {app_name}: {e!s}")
@@ -654,10 +711,57 @@ class CommandLauncher(LoggingMixin, QObject):
                 # Fallback to direct execution
                 term_cmd = ["/bin/bash", "-i", "-c", full_command]
 
-            subprocess.Popen(term_cmd)
+            process = subprocess.Popen(term_cmd)
+
+            # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
+            # Use functools.partial for safe reference capture (avoids lambda race conditions)
+            QTimer.singleShot(100, partial(self._verify_spawn, process, app_name))
+
             return True
 
+        except FileNotFoundError as e:
+            # Type-safe: e.filename can be None - Task 6.3
+            filename = e.filename if e.filename else "unknown"
+            self._emit_error(
+                f"Cannot launch {app_name} with scene: Application or terminal not found. "
+                f"Details: {filename}"
+            )
+            NotificationManager.error(
+                "Launch Failed", f"{app_name} executable not found"
+            )
+            # Clear cache on failure - terminal may have been uninstalled
+            self._available_terminal = None
+            return False
+
+        except PermissionError as e:
+            # Type-safe: e.filename can be None - Task 6.3
+            filename = e.filename if e.filename else "unknown"
+            self._emit_error(
+                f"Cannot launch {app_name} with scene: Permission denied. "
+                f"Check file permissions for: {filename}"
+            )
+            return False
+
+        except OSError as e:
+            # Type-safe: e.errno and e.strerror can be None - Task 6.3
+            if e.errno == errno.EACCES:
+                msg = "Permission denied - check file permissions"
+            elif e.errno == errno.ENOSPC:
+                msg = "No space left on device"
+            elif e.errno == errno.EMFILE:
+                msg = "Too many open files"
+            elif e.errno == errno.ENOMEM:
+                msg = "Out of memory"
+            else:
+                errno_str = str(e.errno) if e.errno is not None else "unknown"
+                strerror = e.strerror if e.strerror else "unknown error"
+                msg = f"{strerror} (errno {errno_str})"
+
+            self._emit_error(f"Cannot launch {app_name} with scene: {msg}")
+            return False
+
         except Exception as e:
+            # Fallback for unexpected errors - Task 6.3
             # Clear cache on failure - terminal may have been uninstalled
             self._available_terminal = None
             self._emit_error(f"Failed to launch {app_name} with scene: {e!s}")
@@ -807,10 +911,57 @@ class CommandLauncher(LoggingMixin, QObject):
                 # Fallback to direct execution
                 term_cmd = ["/bin/bash", "-i", "-c", full_command]
 
-            subprocess.Popen(term_cmd)
+            process = subprocess.Popen(term_cmd)
+
+            # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
+            # Use functools.partial for safe reference capture (avoids lambda race conditions)
+            QTimer.singleShot(100, partial(self._verify_spawn, process, app_name))
+
             return True
 
+        except FileNotFoundError as e:
+            # Type-safe: e.filename can be None - Task 6.3
+            filename = e.filename if e.filename else "unknown"
+            self._emit_error(
+                f"Cannot launch {app_name} in scene context: Application or terminal not found. "
+                f"Details: {filename}"
+            )
+            NotificationManager.error(
+                "Launch Failed", f"{app_name} executable not found"
+            )
+            # Clear cache on failure - terminal may have been uninstalled
+            self._available_terminal = None
+            return False
+
+        except PermissionError as e:
+            # Type-safe: e.filename can be None - Task 6.3
+            filename = e.filename if e.filename else "unknown"
+            self._emit_error(
+                f"Cannot launch {app_name} in scene context: Permission denied. "
+                f"Check file permissions for: {filename}"
+            )
+            return False
+
+        except OSError as e:
+            # Type-safe: e.errno and e.strerror can be None - Task 6.3
+            if e.errno == errno.EACCES:
+                msg = "Permission denied - check file permissions"
+            elif e.errno == errno.ENOSPC:
+                msg = "No space left on device"
+            elif e.errno == errno.EMFILE:
+                msg = "Too many open files"
+            elif e.errno == errno.ENOMEM:
+                msg = "Out of memory"
+            else:
+                errno_str = str(e.errno) if e.errno is not None else "unknown"
+                strerror = e.strerror if e.strerror else "unknown error"
+                msg = f"{strerror} (errno {errno_str})"
+
+            self._emit_error(f"Cannot launch {app_name} in scene context: {msg}")
+            return False
+
         except Exception as e:
+            # Fallback for unexpected errors - Task 6.3
             # Clear cache on failure - terminal may have been uninstalled
             self._available_terminal = None
             self._emit_error(f"Failed to launch {app_name} in scene context: {e!s}")
@@ -837,6 +988,66 @@ class CommandLauncher(LoggingMixin, QObject):
             "clarisse",
         }
         return app_name.lower() in gui_apps
+
+    def _verify_spawn(self, process: subprocess.Popen[bytes], app_name: str) -> None:
+        """Verify process didn't crash immediately after spawning.
+
+        This method polls the process after a short delay to detect immediate crashes.
+        If the process has already exited, it indicates a launch failure.
+
+        Args:
+            process: The subprocess.Popen object to verify
+            app_name: Name of the application being launched (for error messages)
+        """
+        exit_code = process.poll()
+        if exit_code is not None:
+            self._emit_error(f"{app_name} crashed immediately (exit code {exit_code})")
+            NotificationManager.error(
+                "Launch Failed", f"{app_name} crashed immediately"
+            )
+        else:
+            # Process spawned successfully - log for debugging
+            self.logger.debug(f"{app_name} process spawned successfully (PID {process.pid})")
+
+    def _validate_workspace_before_launch(
+        self, workspace_path: str, app_name: str
+    ) -> bool:
+        """Validate workspace is accessible before launching application.
+
+        Performs two critical checks:
+        1. Workspace directory exists
+        2. User has read and execute permissions
+
+        Args:
+            workspace_path: Path to the workspace directory
+            app_name: Name of the application (for error messages)
+
+        Returns:
+            True if validation passes, False otherwise
+        """
+        # Check directory exists
+        ws_path = Path(workspace_path)
+        if not ws_path.exists():
+            self._emit_error(
+                f"Cannot launch {app_name}: Workspace path does not exist: {workspace_path}"
+            )
+            return False
+
+        # Check it's actually a directory
+        if not ws_path.is_dir():
+            self._emit_error(
+                f"Cannot launch {app_name}: Workspace path is not a directory: {workspace_path}"
+            )
+            return False
+
+        # Check read/execute permissions
+        if not os.access(workspace_path, os.R_OK | os.X_OK):
+            self._emit_error(
+                f"Cannot launch {app_name}: No read/execute permission for: {workspace_path}"
+            )
+            return False
+
+        return True
 
     def _emit_error(self, error: str) -> None:
         """Emit error with timestamp."""
