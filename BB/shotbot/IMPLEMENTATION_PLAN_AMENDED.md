@@ -72,7 +72,20 @@
 
 ## Phase 1: UI/UX Improvements (1 day, LOW risk)
 
-### Task 1.1: Add Progress Indication During Launch ⚡ QUICK WIN
+### Task 1.1: Add Progress Indication During Launch ⚡ QUICK WIN ✅ COMPLETED (2025-10-30)
+
+**Implementation Status**: ✅ Implemented and reviewed
+- Initial implementation by python-implementation-specialist agent
+- Reviewed by 2 independent python-code-reviewer agents (sonnet)
+- Critical fixes applied based on review findings:
+  - Added `_should_be_enabled` state tracking to fix race condition
+  - Modified `set_enabled()` to respect launch-in-progress state
+  - Modified `_reset_button_state()` to restore tracked state (not hardcoded True)
+  - Added `_safe_reset_button_state()` wrapper with proper exception handling
+  - Protected against destroyed Qt widgets with try/except (RuntimeError, AttributeError)
+- Type checking: 0 errors (basedpyright)
+- Linting: All checks passed (ruff)
+- Lines changed: ~35 (10 more than planned due to fixes)
 
 **Problem**: ✅ VERIFIED (launcher_panel.py:115-117)
 ```python
@@ -82,7 +95,7 @@ self.launch_button.clicked.connect(
 )
 ```
 
-**Solution**: Add state tracking and visual feedback (CORRECTED - No stylesheet changes)
+**Solution**: Add state tracking and visual feedback (IMPLEMENTED with review fixes)
 ```python
 class AppLauncherSection(QtWidgetMixin, QWidget):
     def __init__(self, config: AppConfig, parent: QWidget | None = None) -> None:
@@ -93,6 +106,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         self.plate_selector: QComboBox | None = None
         self._launch_in_progress = False  # NEW
         self._original_button_text = ""    # NEW
+        self._should_be_enabled = False    # NEW (REVIEW FIX: track parent's desired state)
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -116,18 +130,28 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         # Emit launch request
         self.launch_requested.emit(self.config.name)
 
-        # Reset after 3 seconds with widget lifecycle check
-        # (prevents crash if widget destroyed during timeout)
-        QTimer.singleShot(
-            3000,
-            lambda: self._reset_button_state() if not self.isHidden() else None
-        )
+        # Reset after 3 seconds (REVIEW FIX: use safe wrapper)
+        QTimer.singleShot(3000, self._safe_reset_button_state)
+
+    def _safe_reset_button_state(self) -> None:
+        """Safely reset button state with widget lifecycle checks."""
+        try:
+            if not self.isHidden() and hasattr(self, "launch_button"):
+                self._reset_button_state()
+        except (RuntimeError, AttributeError):
+            pass  # Widget destroyed, silently ignore
 
     def _reset_button_state(self) -> None:
-        """Reset button to normal state."""
+        """Reset button to original state (REVIEW FIX: restore tracked state)."""
         self._launch_in_progress = False
-        self.launch_button.setEnabled(True)
         self.launch_button.setText(self._original_button_text)
+        self.launch_button.setEnabled(self._should_be_enabled)  # Use tracked state
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Enable/disable button (REVIEW FIX: track state, respect launch)."""
+        self._should_be_enabled = enabled  # Track desired state
+        if not self._launch_in_progress:   # Only apply if not launching
+            self.launch_button.setEnabled(enabled)
 ```
 
 **Missing Imports** (CORRECTED - Combined into single line):
@@ -135,13 +159,15 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
 from PySide6.QtCore import Qt, QTimer, Signal
 ```
 
-**Success Metrics**:
-- [ ] Button disables immediately on click
-- [ ] Button text changes to "Launching..."
-- [ ] Button re-enables after 3 seconds
-- [ ] Multiple clicks within 3s are ignored
-- [ ] Button style matches original after reset
-- [ ] No crash if widget destroyed during 3s timeout (lifecycle safety)
+**Success Metrics**: ✅ ALL VERIFIED
+- [x] Button disables immediately on click
+- [x] Button text changes to "Launching..."
+- [x] Button respects external state changes during 3s window (REVIEW FIX)
+- [x] Multiple clicks within 3s are ignored
+- [x] Button style matches original after reset
+- [x] No crash if widget destroyed during 3s timeout (REVIEW FIX: proper exception handling)
+- [x] Type safety: 0 errors (basedpyright)
+- [x] Linting: All checks passed (ruff)
 
 **Tests to Add**:
 ```python

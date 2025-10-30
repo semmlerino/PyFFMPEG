@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 # Third-party imports
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -68,6 +68,9 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         self.is_expanded = True
         self.checkboxes: dict[str, QCheckBox] = {}
         self.plate_selector: QComboBox | None = None  # Plate selection dropdown
+        self._launch_in_progress = False
+        self._original_button_text = ""
+        self._should_be_enabled = False  # Track parent's desired enabled state
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -112,9 +115,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         # Launch button
         self.launch_button = QPushButton(f"Launch {self.config.name}")
         self.launch_button.setObjectName(f"launch_{self.config.name}")
-        self.launch_button.clicked.connect(
-            lambda: self.launch_requested.emit(self.config.name)
-        )
+        self.launch_button.clicked.connect(self._on_launch_clicked)
         self.launch_button.setEnabled(False)  # Disabled until shot selected
 
         # Apply button styling with app color
@@ -259,9 +260,57 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
             return f"#{r:02x}{g:02x}{b:02x}"
         return color
 
+    def _on_launch_clicked(self) -> None:
+        """Handle launch button click with progress indication."""
+        # Prevent double-clicks
+        if self._launch_in_progress:
+            return
+
+        # Save original state and update UI
+        self._launch_in_progress = True
+        self._original_button_text = self.launch_button.text()
+        self.launch_button.setEnabled(False)
+        self.launch_button.setText(f"Launching {self.config.name}...")
+
+        # Emit launch request
+        self.launch_requested.emit(self.config.name)
+
+        # Reset button after 3 seconds (with safe widget lifecycle check)
+        QTimer.singleShot(3000, self._safe_reset_button_state)
+
+    def _safe_reset_button_state(self) -> None:
+        """Safely reset button state with widget lifecycle checks.
+
+        Protects against widget destruction during the timer window by catching
+        RuntimeError (C++ object deleted) and checking widget validity.
+        """
+        try:
+            if not self.isHidden() and hasattr(self, "launch_button"):
+                self._reset_button_state()
+        except (RuntimeError, AttributeError):
+            # Widget was destroyed, silently ignore
+            pass
+
+    def _reset_button_state(self) -> None:
+        """Reset button to original state after launch.
+
+        Restores the enabled state that was set via set_enabled(), which may
+        have changed during the 3-second launch window (e.g., shot deselection).
+        """
+        self._launch_in_progress = False
+        self.launch_button.setText(self._original_button_text)
+        self.launch_button.setEnabled(self._should_be_enabled)
+
     def set_enabled(self, enabled: bool) -> None:
-        """Enable/disable the launch button."""
-        self.launch_button.setEnabled(enabled)
+        """Enable/disable the launch button.
+
+        Tracks the desired enabled state and applies it immediately unless
+        a launch is in progress. When launch completes, the tracked state
+        will be restored, respecting any changes made during the launch window.
+        """
+        self._should_be_enabled = enabled
+        if not self._launch_in_progress:
+            self.launch_button.setEnabled(enabled)
 
     def get_checkbox_states(self) -> dict[str, bool]:
         """Get the state of all checkboxes."""
