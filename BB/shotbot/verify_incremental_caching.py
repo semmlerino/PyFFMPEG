@@ -288,11 +288,7 @@ def verify_performance(cache_manager: CacheManager) -> bool:
     cached_dicts = [s.to_dict() for s in cached_shots]
 
     # Generate fresh data with 1 new shot
-    fresh_shots = cached_shots + [
-        Shot(
-            show="test", sequence="sq9999", shot="shot_9999", workspace_path="/test"
-        )
-    ]
+    fresh_shots = [*cached_shots, Shot(show="test", sequence="sq9999", shot="shot_9999", workspace_path="/test")]
     fresh_dicts = [s.to_dict() for s in fresh_shots]
 
     # Benchmark merge operation
@@ -308,7 +304,7 @@ def verify_performance(cache_manager: CacheManager) -> bool:
 
     # Verify correctness
     correct_count = len(result.updated_shots) == 501
-    print_status("Correct result", correct_count, f"501 shots after merge")
+    print_status("Correct result", correct_count, "501 shots after merge")
 
     new_shot_found = len(result.new_shots) == 1
     print_status("New shot detected", new_shot_found)
@@ -394,11 +390,10 @@ def main() -> int:
         print("  ✓✓✓ ALL TESTS PASSED - INCREMENTAL CACHING VERIFIED ✓✓✓")
         print("=" * 70 + "\n")
         return 0
-    else:
-        print("\n" + "=" * 70)
-        print(f"  ✗✗✗ {total - passed} TEST(S) FAILED ✗✗✗")
-        print("=" * 70 + "\n")
-        return 1
+    print("\n" + "=" * 70)
+    print(f"  ✗✗✗ {total - passed} TEST(S) FAILED ✗✗✗")
+    print("=" * 70 + "\n")
+    return 1
 
 
 if __name__ == "__main__":

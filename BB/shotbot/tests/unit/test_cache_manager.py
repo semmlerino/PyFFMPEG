@@ -16,6 +16,7 @@ import threading
 import time
 from datetime import timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
@@ -25,6 +26,9 @@ from PySide6.QtGui import QColor, QImage
 from cache_manager import CacheManager
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
+
+if TYPE_CHECKING:
+    from type_definitions import ShotDict
 
 pytestmark = [
     pytest.mark.unit,
@@ -997,7 +1001,6 @@ class TestIncrementalShotMerging:
 
     def test_shot_dict_input(self, cache_manager: CacheManager) -> None:
         """Accept ShotDict input (not just Shot objects)."""
-        from type_definitions import ShotDict
 
         cached: list[ShotDict] = [
             {"show": "show1", "sequence": "seq01", "shot": "shot010", "workspace_path": "/p1"}
@@ -1014,7 +1017,6 @@ class TestIncrementalShotMerging:
 
     def test_mixed_shot_and_dict(self, cache_manager: CacheManager) -> None:
         """Handle mixed Shot objects and ShotDict."""
-        from type_definitions import ShotDict
 
         cached = [Shot("show1", "seq01", "shot010", "/p1")]
         fresh_dict: ShotDict = {
@@ -1091,7 +1093,7 @@ class TestIncrementalShotMerging:
 
         # Generate 500 shots
         large_cached = [Shot("show1", "seq01", f"shot{i:04d}", f"/p{i}") for i in range(500)]
-        large_fresh = large_cached + [Shot("show1", "seq01", "shot9999", "/new")]
+        large_fresh = [*large_cached, Shot("show1", "seq01", "shot9999", "/new")]
 
         start = time.time()
         result = cache_manager.merge_shots_incremental(large_cached, large_fresh)
@@ -1206,7 +1208,6 @@ class TestShotMigration:
 
     def test_migrate_accepts_shot_dicts(self, cache_manager: CacheManager) -> None:
         """migrate_shots_to_previous() accepts ShotDict input."""
-        from type_definitions import ShotDict
 
         shot_dicts: list[ShotDict] = [
             {
@@ -1224,7 +1225,6 @@ class TestShotMigration:
 
     def test_migrate_mixed_shot_and_dict(self, cache_manager: CacheManager) -> None:
         """migrate_shots_to_previous() handles mixed Shot and ShotDict."""
-        from type_definitions import ShotDict
 
         shot_obj = Shot("show1", "seq01", "shot010", "/p1")
         shot_dict: ShotDict = {

@@ -705,7 +705,9 @@ class BaseItemModel(
         if self._items:
             self._visible_end = len(self._items) - 1
             # Schedule immediate thumbnail load
+            self.logger.debug(f"Scheduling thumbnail load timer for {len(self._items)} items")
             QTimer.singleShot(100, self._do_load_visible_thumbnails)
+            self.logger.debug("Timer scheduled successfully")
 
     # ============= Abstract methods for subclasses =============
 

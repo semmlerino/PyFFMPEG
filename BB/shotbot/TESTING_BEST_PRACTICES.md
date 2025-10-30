@@ -13,34 +13,34 @@ This document outlines best practices for maintaining and running the ShotBot te
 
 ## Running Tests
 
-### Quick Validation (2 seconds)
+### Quick Validation
 ```bash
-python3 tests/utilities/quick_test.py
+~/.local/bin/uv run python tests/utilities/quick_test.py
 ```
 
 ### Serial Execution (slower but reliable)
 ```bash
-uv run pytest tests/ -p no:xdist
+~/.local/bin/uv run pytest tests/ -p no:xdist
 ```
 
 ### Parallel Execution (faster but requires proper markers)
 ```bash
-uv run pytest tests/  # Uses -n auto from pytest.ini
+~/.local/bin/uv run pytest tests/  # Uses -n auto from pytest.ini
 ```
 
 ### Specific Test Categories
 ```bash
 # Unit tests only
-uv run pytest tests/unit/
+~/.local/bin/uv run pytest tests/unit/
 
 # Integration tests
-uv run pytest tests/integration/
+~/.local/bin/uv run pytest tests/integration/
 
 # Fast tests (<100ms)
-uv run pytest tests/ -m fast
+~/.local/bin/uv run pytest tests/ -m fast
 
 # Qt tests (run serially for stability)
-uv run pytest tests/ -m qt -p no:xdist
+~/.local/bin/uv run pytest tests/ -m qt -p no:xdist
 ```
 
 ## Anti-Pattern Replacements
@@ -199,13 +199,6 @@ def test_old_implementation(self):
     pytest.skip("ThreeDEGridView uses Model/View architecture")
 ```
 
-## Performance Metrics
-
-After Phase 3A optimizations:
-- **Serial Execution**: 5.3s (was 19.2s) - 72% improvement
-- **Parallel Execution**: 29s (was 58.5s) - 50% improvement
-- **Test Failures**: 4 remaining (was 32 with parallel issues)
-
 ## Synchronization Helper Reference
 
 Available in `tests/helpers/synchronization.py`:
@@ -255,7 +248,7 @@ addopts =
 To disable parallel execution temporarily:
 ```bash
 # Command line override
-uv run pytest -p no:xdist
+~/.local/bin/uv run pytest -p no:xdist
 
 # Or edit pytest.ini and comment out:
 # -n auto
@@ -297,5 +290,5 @@ uv run pytest -p no:xdist
 
 ---
 
-**Last Updated**: 2025-09-21
-**Phase 3A Completion**: Test suite optimized for parallel execution
+**Last Updated**: 2025-10-28
+**Comprehensive test suite with best practices for parallel execution and Qt testing**

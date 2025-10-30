@@ -80,6 +80,7 @@ if TYPE_CHECKING:
     from launcher_manager import LauncherManager
     from protocols import ProcessPoolInterface
     from settings_dialog import SettingsDialog
+    from type_definitions import ShotDict
 
 # Runtime imports (needed at runtime)
 # Local application imports
@@ -859,7 +860,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Handle cache updated signal from model."""
         self.logger.debug("Shot cache updated")
 
-    def _on_shots_migrated(self, migrated_shots: list) -> None:
+    def _on_shots_migrated(self, migrated_shots: list[ShotDict]) -> None:
         """Handle shots migrated to Previous Shots cache.
 
         This is called when shots are removed from My Shots and automatically

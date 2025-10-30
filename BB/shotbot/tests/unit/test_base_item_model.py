@@ -506,9 +506,9 @@ class TestSetItems:
         visible range, schedules thumbnail load, and thumbnails eventually load.
         This is an integration test that verifies the fix works end-to-end.
         """
-        from cache_manager import CacheManager
-        from pathlib import Path
         import tempfile
+
+        from cache_manager import CacheManager
 
         # Create temp cache directory
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -568,8 +568,8 @@ class TestSetItems:
         Integration test: Verifies the complete thumbnail loading flow
         when a CacheManager is provided.
         """
+
         from cache_manager import CacheManager
-        from pathlib import Path
 
         # Create cache manager with temp directory
         cache_dir = tmp_path / "cache"

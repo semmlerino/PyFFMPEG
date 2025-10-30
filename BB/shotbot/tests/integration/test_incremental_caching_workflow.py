@@ -8,14 +8,12 @@ Tests the complete workflow from Phase 1-3:
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QTimer
 
 from cache_manager import CacheManager
-from shot_model import Shot, ShotModel
+from shot_model import ShotModel
 
 
 @pytest.fixture
