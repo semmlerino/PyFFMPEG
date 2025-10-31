@@ -1,208 +1,102 @@
 # ShotBot Remediation - Quick Start
 
 **Last Updated:** 2025-10-30
-**Status:** ✅ READY FOR IMPLEMENTATION
+**Status:** ✅ READY (2 focused plans)
 
 ---
 
-## 🎯 What You Need
+## 📋 The Plans
 
-### Primary Documents (Active)
+**PART 1: Critical Fixes & Performance** (DO FIRST - URGENT)
+- **File:** `IMPLEMENTATION_PLAN_PART1.md`
+- **Tasks:** 6 tasks (Phases 1-2)
+- **Effort:** 12-16 hours (3-4 days)
+- **Focus:** Fix crashes, data loss, UI blocking
+- **Checklist:** Integrated in document
 
-1. **[IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)** ⭐ **START HERE**
-   - Complete 4-phase remediation plan
-   - 12 tasks with detailed code examples
-   - Success metrics and verification steps
-   - Agent-based workflow
-   - Git commit messages
-   - **Everything you need to implement fixes**
-
-2. **[IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md)**
-   - Task-by-task tracking checkboxes
-   - Review sign-off sections
-   - Progress monitoring
-   - Git commit verification
-   - **Use this to track your progress**
-
-### Archived Documents (Reference Only)
-
-See `docs/archive/analysis-2025-10-30/` for the detailed analysis reports that created this plan. **You don't need these for implementation.**
-
----
-
-## 📊 What We're Fixing
-
-**3 Critical Bugs:**
-- Signal disconnection crash (shutdown)
-- Cache write data loss (silent corruption)
-- Model item access race (rare crash)
-
-**4 Performance Bottlenecks:**
-- JSON blocking UI (180ms → <10ms)
-- Unbounded memory growth (→ 128MB cap)
-- Slow thumbnail generation (60% faster)
-- Lock contention during scrolling
-
-**3 Architecture Improvements:**
-- Extract ShotMigrationService
-- Centralize configuration
-- Update documentation accuracy
+**PART 2: Architecture & Polish** (AFTER PART 1)
+- **File:** `IMPLEMENTATION_PLAN_PART2.md`
+- **Tasks:** 6 tasks (Phases 3-4)
+- **Effort:** 6-9 hours (1-2 days)
+- **Focus:** Clean architecture, documentation
+- **Checklist:** Integrated in document
 
 ---
 
 ## 🚀 Quick Start
 
-### Step 1: Review the Plan
+### 1. Read Part 1
 ```bash
-# Read the implementation plan
-cat IMPLEMENTATION_PLAN.md | less
+cat IMPLEMENTATION_PLAN_PART1.md | less
 ```
 
-### Step 2: Start Phase 1, Task 1.1
+### 2. Start First Task
 ```bash
-# Launch implementation agent
-# "Implement Phase 1, Task 1.1 from IMPLEMENTATION_PLAN.md"
-
-# The plan has exact code changes, tests, and verification steps
+# Phase 1, Task 1.1: Fix signal disconnection crash
+# - Read the task in IMPLEMENTATION_PLAN_PART1.md
+# - Exact code provided
+# - Tests provided
+# - Git commit message provided
 ```
 
-### Step 3: Follow the Workflow
+### 3. Check Off Tasks
+Mark checkboxes in `IMPLEMENTATION_PLAN_PART1.md` as you complete each task.
 
-For each task:
-1. **Implementation agent** creates the fix
-2. **Review agent 1** checks for bugs
-3. **Review agent 2** verifies tests/types
-4. **You verify** and make changes
-5. **Git commit** with message from plan
-6. **Update checklist** ✓
-
-### Step 4: Track Progress
+### 4. After Part 1 Complete
 ```bash
-# Update IMPLEMENTATION_CHECKLIST.md after each task
-# Mark checkboxes, add notes, track metrics
+# Verify all Part 1 success metrics met
+cat IMPLEMENTATION_PLAN_PART2.md | less
 ```
 
 ---
 
 ## 📈 Expected Results
 
-**Timeline:** 18-25 hours (4-5 days with reviews)
+### Part 1 (Critical)
+- **UI Blocking:** 180ms → <10ms (95% improvement)
+- **Memory:** Unbounded → 128MB (capped)
+- **Thumbnails:** 70-140ms → 20-40ms (60% faster)
+- **Crashes:** Fixed (signal disconnection, data loss, race conditions)
 
-**Performance Gains:**
-- 95% reduction in UI blocking
-- 60% faster thumbnail generation
-- Capped memory at 128MB
-- Zero critical crashes
-
-**Quality Improvements:**
-- +23 new tests
-- 94%+ test coverage
-- Zero type errors
-- Zero linting errors
+### Part 2 (Polish)
+- **Architecture:** Business logic separated from caching
+- **Documentation:** Accurate thread safety claims
+- **Testing:** 15+ new tests, 94%+ coverage
 
 ---
 
-## 📁 File Organization
+## 🔧 What's Being Fixed
 
-```
-shotbot/
-├── IMPLEMENTATION_PLAN.md          ⭐ Main implementation plan
-├── IMPLEMENTATION_CHECKLIST.md     📋 Progress tracking
-├── REMEDIATION_README.md           📖 This file (quick start)
-│
-├── docs/
-│   └── archive/
-│       └── analysis-2025-10-30/    📚 Archived analysis documents
-│           ├── README.md
-│           ├── ARCHITECTURE_REVIEW.md
-│           └── ARCHITECTURE_REVIEW_SUMMARY.txt
-│
-├── tests/
-│   ├── unit/                       ✅ Existing tests
-│   ├── performance/                🆕 New benchmarks (Phase 2)
-│   └── regression/                 🆕 New regression tests (Phase 4)
-│
-└── (source code files...)
-```
+### Part 1: URGENT
+1. **Signal Disconnection Crash** - App crashes on shutdown
+2. **Cache Write Data Loss** - Silent data loss on disk full
+3. **Model Item Access Race** - Crashes during rapid tab switching
+4. **JSON Serialization Blocking** - 180ms UI freezes
+5. **Unbounded Memory Growth** - Thumbnail cache grows indefinitely
+6. **Slow Thumbnail Generation** - 70-140ms per thumbnail
+
+### Part 2: Nice-to-have
+1. **Migration Service** - Extract business logic
+2. **Documentation** - Fix misleading docstrings
+3. **Configuration** - Centralize magic numbers
+4. **Regression Tests** - Prevent bug recurrence
+5. **Architecture Review** - Update summary
+6. **Performance Baseline** - Document metrics
 
 ---
 
-## ⚠️ Important Notes
+## 📞 Ready to Start?
 
-1. **Don't modify archived documents** - They're historical reference only
-2. **Follow the plan exactly** - It has been carefully designed with specific code examples
-3. **Use the checklist** - Track every task, review, and commit
-4. **Run tests after each task** - Verify nothing breaks
-5. **Commit frequently** - One commit per task for easy rollback
+1. Open `IMPLEMENTATION_PLAN_PART1.md`
+2. Read Phase 1 overview
+3. Start with Task 1.1 (signal disconnection fix)
+4. Follow exact code, tests, and commit messages provided
+5. Check off tasks as you complete them
 
----
-
-## 🆘 If You Get Stuck
-
-### Tests Fail
-```bash
-# Rollback last commit
-git reset --soft HEAD~1
-
-# Or create fix commit
-git commit -m "fix: Address test failures in Phase X, Task Y"
-```
-
-### Performance Regresses
-```bash
-# Compare benchmarks
-uv run pytest tests/performance/ --benchmark-compare=baseline
-
-# Revert if needed
-git revert <commit_hash>
-```
-
-### Need Help
-1. Check the detailed task description in IMPLEMENTATION_PLAN.md
-2. Review the code examples in the plan
-3. Check the verification steps
-4. Review agent findings if issues persist
+**After Part 1 complete:** Move to `IMPLEMENTATION_PLAN_PART2.md`
 
 ---
 
-## ✅ Success Criteria
-
-**Phase 1 Complete:**
-- [ ] All 3 critical bugs fixed
-- [ ] Application shuts down cleanly
-- [ ] No data loss on cache writes
-- [ ] No crashes during rapid tab switching
-
-**Phase 2 Complete:**
-- [ ] UI blocking: 180ms → <10ms ✅
-- [ ] Memory: Unbounded → 128MB ✅
-- [ ] Thumbnails: 70-140ms → 20-40ms ✅
-
-**Phase 3 Complete:**
-- [ ] ShotMigrationService extracted
-- [ ] Configuration centralized
-- [ ] Documentation accurate
-
-**Phase 4 Complete:**
-- [ ] 23+ new tests added
-- [ ] Coverage at 94%+
-- [ ] Performance baseline documented
-- [ ] All regression tests passing
-
----
-
-## 📞 Next Steps
-
-1. **Read IMPLEMENTATION_PLAN.md** (start with Phase 1 overview)
-2. **Review Phase 1, Task 1.1** (first task, signal disconnection fix)
-3. **Launch implementation agent** (follow the agent-based workflow)
-4. **Update checklist after each task** (track your progress)
-5. **Commit with exact messages from plan** (for consistency)
-
-**Ready to start? Open IMPLEMENTATION_PLAN.md and begin with Phase 1!**
-
----
-
-**Document Version:** 1.0
+**Total Effort:** 18-25 hours (4-5 days)
+**Document Version:** 1.1 (Condensed Split Edition)
 **Created:** 2025-10-30
-**Last Updated:** 2025-10-30
