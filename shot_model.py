@@ -42,7 +42,8 @@ from base_shot_model import BaseShotModel
 from cache_manager import ShotMergeResult
 from exceptions import WorkspaceError
 from thread_safe_worker import ThreadSafeWorker
-from type_definitions import RefreshResult, Shot
+from core.shot_types import RefreshResult
+from type_definitions import Shot
 
 # Re-export Shot for backward compatibility with existing imports
 __all__ = ["AsyncShotLoader", "Shot", "ShotModel", "create_optimized_shot_model"]

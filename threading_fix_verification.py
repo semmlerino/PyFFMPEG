@@ -22,7 +22,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 if TYPE_CHECKING:
-    from type_definitions import RefreshResult
+    from core.shot_types import RefreshResult
 
 # Set up logging to see what's happening
 logging.basicConfig(level=logging.INFO)

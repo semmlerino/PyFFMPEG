@@ -17,8 +17,8 @@ from base_item_model import BaseItemModel
 if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
+    from core.shot_types import RefreshResult
     from shot_model import Shot
-    from type_definitions import RefreshResult
 
 
 class ShotItemModel(BaseItemModel["Shot"]):
@@ -121,7 +121,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
             self.set_shots(shots)
 
         # Import here to avoid circular imports
-        from type_definitions import RefreshResult
+        from core.shot_types import RefreshResult
 
         return RefreshResult(success=True, has_changes=has_changes)
 

@@ -12,8 +12,9 @@ from PySide6.QtCore import QObject, Signal
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
+    from core.shot_types import RefreshResult
     from protocols import ProcessPoolInterface
-    from type_definitions import PerformanceMetricsDict, RefreshResult, Shot
+    from type_definitions import PerformanceMetricsDict, Shot
 
 # Local application imports
 from logging_mixin import LoggingMixin
