@@ -6,5 +6,8 @@
   "encoded_size_bytes": 668176,
   "chunk_size_kb": 5120,
   "total_chunks": 1,
-  "compression_ratio": 3.2176387658341516
+  "compression_ratio": 3.2176387658341516,
+  "source_commit": "f2ab937cf6c2f71ce43bcce670585506c1d9678a",
+  "source_branch": "master",
+  "bundle_timestamp": "2025-11-01T10:38:09.103489Z"
 }
