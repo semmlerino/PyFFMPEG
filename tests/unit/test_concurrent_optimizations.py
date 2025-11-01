@@ -118,7 +118,7 @@ class TestConcurrentOperations:
 
         # Should handle gracefully without hanging
         # Wait a moment to ensure cleanup completes
-        time.sleep(0.5)
+        qtbot.wait(500)  # 500ms for cleanup
 
         # Background loader should be stopped
         if concurrent_model._async_loader:

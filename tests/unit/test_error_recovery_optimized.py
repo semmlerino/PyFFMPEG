@@ -231,7 +231,7 @@ workspace {shows_root}/test/shots/seq03/seq03_0030"""
         # Cleanup should complete quickly
         assert cleanup_time < 2.0, f"Cleanup took {cleanup_time:.3f}s, too slow"
 
-    def test_error_metrics_tracking(self, error_prone_model) -> None:
+    def test_error_metrics_tracking(self, error_prone_model, qtbot) -> None:
         """Test that errors are tracked in performance metrics."""
 
         # Use test double that always fails
@@ -246,7 +246,7 @@ workspace {shows_root}/test/shots/seq03/seq03_0030"""
         error_prone_model.initialize_async()
 
         # Wait a moment for background processing
-        time.sleep(0.1)
+        qtbot.wait(100)  # 100ms for async processing
 
         # Metrics should be available even after errors
         metrics = error_prone_model.get_performance_metrics()

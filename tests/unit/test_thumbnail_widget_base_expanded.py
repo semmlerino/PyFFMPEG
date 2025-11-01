@@ -42,7 +42,7 @@ from thumbnail_widget_base import (
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 class TestFolderOpenerWorker:

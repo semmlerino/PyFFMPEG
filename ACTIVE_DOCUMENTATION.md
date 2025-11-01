@@ -1,6 +1,6 @@
 # ShotBot Active Documentation Index
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-11-01
 **Status:** Current and maintained
 
 ---
@@ -151,10 +151,11 @@
 - Test documentation in tests/
 - Infrastructure docs
 
-### 🗂️ Archived (Not Needed) (18 documents)
+### 🗂️ Archived (Not Needed) (46 documents)
 - Previous analysis → docs/archive/analysis-2025-10-30/
 - Old plans → docs/archive/old-plans-2025-10-30/
 - Old analysis → docs/archive/old-analysis-2025-10-30/
+- Reviews and reports → archive/reviews-2025-11-01/ (28 documents)
 
 ---
 
@@ -175,8 +176,10 @@
 - Analysis/reviews → `docs/archive/analysis-YYYY-MM-DD/`
 - Old plans → `docs/archive/old-plans-YYYY-MM-DD/`
 - Old analysis → `docs/archive/old-analysis-YYYY-MM-DD/`
+- Reviews/reports → `archive/reviews-YYYY-MM-DD/`
 
 ---
 
-**Last Archived:** 2025-10-30 (18 obsolete documents)
-**Next Review:** After Phase 4 completion (update with results)
+**Last Archived:** 2025-11-01 (28 reviews and reports)
+**Total Archived:** 46 obsolete documents
+**Next Review:** After major implementation phases (update with results)
