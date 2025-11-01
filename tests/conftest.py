@@ -167,3 +167,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "thread_safety: mark test as testing thread safety")
     config.addinivalue_line("markers", "performance: mark test as testing performance")
     config.addinivalue_line("markers", "critical: mark test as critical/high priority")
+    config.addinivalue_line("markers", "gui_mainwindow: mark test as requiring main window GUI")
+    config.addinivalue_line("markers", "qt_heavy: mark test as Qt-intensive")
+    config.addinivalue_line("markers", "integration_unsafe: mark test as potentially unsafe integration test")
+    config.addinivalue_line("markers", "integration_safe: mark test as safe integration test")
