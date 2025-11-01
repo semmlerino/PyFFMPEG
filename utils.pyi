@@ -158,7 +158,7 @@ class ImageUtils:
         max_dimension: int,
     ) -> bool: ...
     @staticmethod
-    def extract_first_frame_from_mov(
+    def extract_frame_from_mov(
         mov_path: Path,
         output_path: Path | None = ...,
     ) -> Path | None: ...

@@ -145,7 +145,7 @@ def test_mov_fallback(fake_exr_path: Path) -> None:
 
     # Step 2: Extract frame #5
     logger.info("\n🎬 Step 2: Extracting frame #5 from MOV...")
-    extracted_frame = ImageUtils.extract_first_frame_from_mov(mov_path)
+    extracted_frame = ImageUtils.extract_frame_from_mov(mov_path)
 
     if extracted_frame:
         logger.info(f"✅ Extracted frame: {extracted_frame}")

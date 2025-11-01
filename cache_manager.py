@@ -325,7 +325,7 @@ class CacheManager(LoggingMixin, QObject):
             mov_path = PathUtils.find_mov_file_for_path(source)
             if mov_path:
                 self.logger.debug(f"Found MOV file for fallback: {mov_path.name}")
-                extracted_frame = ImageUtils.extract_first_frame_from_mov(mov_path)
+                extracted_frame = ImageUtils.extract_frame_from_mov(mov_path)
 
                 if extracted_frame and extracted_frame.exists():
                     self.logger.info(f"Successfully extracted frame from MOV: {mov_path.name}")

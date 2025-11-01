@@ -231,7 +231,7 @@ class BaseThumbnailLoader(QRunnable):
                 mov_path = PathUtils.find_mov_file_for_path(self.path)
                 if mov_path:
                     logger.debug(f"Attempting MOV fallback: {mov_path.name}")
-                    extracted_frame = ImageUtils.extract_first_frame_from_mov(mov_path)
+                    extracted_frame = ImageUtils.extract_frame_from_mov(mov_path)
                     if extracted_frame:
                         # Try to load the extracted frame
                         image = QImage(str(extracted_frame))

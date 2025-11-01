@@ -1498,7 +1498,7 @@ class ImageUtils:
         )
 
     @staticmethod
-    def extract_first_frame_from_mov(
+    def extract_frame_from_mov(
         mov_path: Path,
         output_path: Path | None = None,
     ) -> Path | None:
