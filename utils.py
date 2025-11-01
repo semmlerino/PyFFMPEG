@@ -5,6 +5,7 @@ from __future__ import annotations
 # Standard library imports
 import os
 import re
+import threading
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -28,6 +29,7 @@ logger = get_module_logger(__name__)
 
 # Cache for path existence checks (with TTL)
 _path_cache: dict[str, tuple[bool, float]] = {}
+_path_cache_lock = threading.Lock()  # Thread-safety for path cache access
 _PATH_CACHE_TTL = 0.0  # seconds - 0 = no automatic expiry, manual refresh only
 _cache_disabled = False  # Test isolation flag
 
@@ -35,7 +37,8 @@ _cache_disabled = False  # Test isolation flag
 def clear_all_caches() -> None:
     """Clear all utility caches - useful for testing or debugging."""
     global _path_cache
-    _path_cache.clear()
+    with _path_cache_lock:
+        _path_cache.clear()
     VersionUtils.clear_version_cache()
     # Clear lru_cache decorated functions
     VersionUtils.extract_version_from_path.cache_clear()
@@ -69,7 +72,8 @@ class CacheIsolation:
         """Enter context with isolated cache."""
         global _path_cache, _cache_disabled
         # Save original state
-        self.original_cache_state = _path_cache.copy()
+        with _path_cache_lock:
+            self.original_cache_state = _path_cache.copy()
         self.original_disabled_state = _cache_disabled
 
         # Clear and disable cache
@@ -86,10 +90,11 @@ class CacheIsolation:
         """Exit context and restore original state."""
         global _path_cache, _cache_disabled
         # Restore original state
-        _path_cache.clear()
-        if self.original_cache_state is not None:
-            # Update from dict items to handle type correctly
-            _path_cache.update(self.original_cache_state)
+        with _path_cache_lock:
+            _path_cache.clear()
+            if self.original_cache_state is not None:
+                # Update from dict items to handle type correctly
+                _path_cache.update(self.original_cache_state)
         if self.original_disabled_state is not None:
             _cache_disabled = self.original_disabled_state
         logger.debug("Cache isolation context exited")
@@ -97,8 +102,11 @@ class CacheIsolation:
 
 def get_cache_stats() -> dict[str, object]:
     """Get statistics about current cache usage."""
+    with _path_cache_lock:
+        path_cache_size = len(_path_cache)
+
     stats: dict[str, object] = {
-        "path_cache_size": len(_path_cache),
+        "path_cache_size": path_cache_size,
         "version_cache_size": VersionUtils.get_version_cache_size(),
         "extract_version_cache_info": VersionUtils.extract_version_from_path.cache_info(),
     }
@@ -522,24 +530,29 @@ class PathUtils:
         path_str = str(path_obj)
         current_time = time.time()
 
-        # Check cache first
-        if path_str in _path_cache:
-            cached_exists, timestamp = _path_cache[path_str]
-            if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:
-                # Return cached result without verification to avoid performance issues
-                if not cached_exists:
-                    logger.debug(f"{description} does not exist (cached): {path_str}")
-                return cached_exists
+        # Check cache first with lock
+        with _path_cache_lock:
+            if path_str in _path_cache:
+                cached_exists, timestamp = _path_cache[path_str]
+                if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:
+                    # Return cached result without verification to avoid performance issues
+                    if not cached_exists:
+                        logger.debug(f"{description} does not exist (cached): {path_str}")
+                    return cached_exists
 
-        # Cache miss or expired - check actual path existence
+        # Cache miss or expired - check actual path existence (outside lock)
         exists = path_obj.exists()
 
-        # Cache the result
-        _path_cache[path_str] = (exists, current_time)
+        # Cache the result with lock
+        with _path_cache_lock:
+            _path_cache[path_str] = (exists, current_time)
 
-        # Clean old cache entries (simple cleanup)
-        # Increased threshold from 1000 to 5000 for better performance
-        if len(_path_cache) > 5000:  # Prevent unlimited growth
+            # Clean old cache entries (simple cleanup)
+            # Increased threshold from 1000 to 5000 for better performance
+            cache_size = len(_path_cache)
+
+        # Trigger cleanup outside lock if needed
+        if cache_size > 5000:  # Prevent unlimited growth
             PathUtils._cleanup_path_cache()
 
         if not exists:
@@ -553,23 +566,28 @@ class PathUtils:
 
         Optimized to only clean when cache is getting large,
         and to keep frequently accessed paths.
+
+        Uses atomic update strategy to prevent race conditions during cleanup.
         """
-        # Only clean if cache is significantly over limit
-        if len(_path_cache) <= 2500:  # Keep some headroom
-            return
+        global _path_cache
 
-        # Sort by timestamp to keep most recently accessed
-        sorted_items = sorted(
-            _path_cache.items(),
-            key=lambda x: x[1][1],  # Sort by timestamp
-            reverse=True,  # Most recent first
-        )
+        with _path_cache_lock:
+            # Only clean if cache is significantly over limit
+            if len(_path_cache) <= 2500:  # Keep some headroom
+                return
 
-        # Keep the most recent 2500 entries
-        _path_cache.clear()
-        _path_cache.update(dict(sorted_items[:2500]))
+            # Sort by timestamp to keep most recently accessed
+            sorted_items = sorted(
+                _path_cache.items(),
+                key=lambda x: x[1][1],  # Sort by timestamp
+                reverse=True,  # Most recent first
+            )
 
-        logger.debug(f"Cleaned path cache, kept {len(_path_cache)} most recent entries")
+            # Atomic update: create new dict and replace in single operation
+            # This prevents other threads from seeing an empty cache mid-operation
+            _path_cache = dict(sorted_items[:2500])
+
+            logger.debug(f"Cleaned path cache, kept {len(_path_cache)} most recent entries")
 
     @staticmethod
     def batch_validate_paths(paths: list[str | Path]) -> dict[str, bool]:
@@ -585,27 +603,37 @@ class PathUtils:
         current_time = time.time()
         paths_to_check: list[tuple[str | Path, str]] = []
 
-        # First pass - check cache
-        for path in paths:
-            path_str = str(path)
-            if path_str in _path_cache:
-                cached_exists, timestamp = _path_cache[path_str]
-                if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:
-                    # Use cached result without verification
-                    results[path_str] = cached_exists
-                    continue
-            paths_to_check.append((path, path_str))
+        # First pass - check cache with lock
+        with _path_cache_lock:
+            for path in paths:
+                path_str = str(path)
+                if path_str in _path_cache:
+                    cached_exists, timestamp = _path_cache[path_str]
+                    if _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL:
+                        # Use cached result without verification
+                        results[path_str] = cached_exists
+                        continue
+                paths_to_check.append((path, path_str))
 
-        # Second pass - check filesystem for uncached paths
+        # Second pass - check filesystem for uncached paths (outside lock)
+        updates: list[tuple[str, bool]] = []
         for path, path_str in paths_to_check:
             path_obj: Path = Path(path) if isinstance(path, str) else path
             exists: bool = path_obj.exists()
             results[path_str] = exists
-            _path_cache[path_str] = (exists, current_time)
+            updates.append((path_str, exists))
 
-        # Clean cache if needed
+        # Update cache with lock
+        with _path_cache_lock:
+            for path_str, exists in updates:
+                _path_cache[path_str] = (exists, current_time)
+
+            # Check cache size
+            cache_size = len(_path_cache)
+
+        # Clean cache if needed (outside lock)
         # Increased threshold from 1000 to 5000 for better performance
-        if len(_path_cache) > 5000:
+        if cache_size > 5000:
             PathUtils._cleanup_path_cache()
 
         return results
@@ -1064,16 +1092,19 @@ class VersionUtils:
 
     # Cache for version directory listings
     _version_cache: ClassVar[dict[str, tuple[list[tuple[int, str]], float]]] = {}
+    _version_cache_lock: ClassVar[threading.Lock] = threading.Lock()  # Thread-safety for version cache
 
     @classmethod
     def clear_version_cache(cls) -> None:
         """Clear the version cache."""
-        cls._version_cache.clear()
+        with cls._version_cache_lock:
+            cls._version_cache.clear()
 
     @classmethod
     def get_version_cache_size(cls) -> int:
         """Get the size of the version cache."""
-        return len(cls._version_cache)
+        with cls._version_cache_lock:
+            return len(cls._version_cache)
 
     @staticmethod
     def find_version_directories(base_path: str | Path) -> list[tuple[int, str]]:
@@ -1093,14 +1124,16 @@ class VersionUtils:
         path_str = str(base_path)
         current_time = time.time()
 
-        # Check cache first - use the longer TTL for version cache too
-        if path_str in VersionUtils._version_cache:
-            version_dirs, timestamp = VersionUtils._version_cache[path_str]
-            if (
-                _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL
-            ):  # Use same TTL as path cache
-                return version_dirs.copy()  # Return a copy to prevent modification
+        # Check cache first with lock
+        with VersionUtils._version_cache_lock:
+            if path_str in VersionUtils._version_cache:
+                version_dirs, timestamp = VersionUtils._version_cache[path_str]
+                if (
+                    _PATH_CACHE_TTL == 0 or current_time - timestamp < _PATH_CACHE_TTL
+                ):  # Use same TTL as path cache
+                    return version_dirs.copy()  # Return a copy to prevent modification
 
+        # Cache miss - scan filesystem (outside lock)
         path_obj = Path(base_path) if isinstance(base_path, str) else base_path
         version_dirs: list[tuple[int, str]] = []
 
@@ -1118,11 +1151,15 @@ class VersionUtils:
         # Sort by version number
         version_dirs.sort(key=lambda x: x[0])
 
-        # Cache the result
-        VersionUtils._version_cache[path_str] = (version_dirs.copy(), current_time)
+        # Cache the result with lock
+        with VersionUtils._version_cache_lock:
+            VersionUtils._version_cache[path_str] = (version_dirs.copy(), current_time)
 
-        # Clean cache if it gets too large - increased from 100 to 500
-        if len(VersionUtils._version_cache) > 500:
+            # Check cache size
+            cache_size = len(VersionUtils._version_cache)
+
+        # Clean cache if it gets too large (outside lock) - increased from 100 to 500
+        if cache_size > 500:
             VersionUtils._cleanup_version_cache()
 
         return version_dirs
@@ -1132,26 +1169,28 @@ class VersionUtils:
         """Clean expired entries from version cache.
 
         Optimized to keep frequently accessed version directories.
+
+        Uses atomic update strategy to prevent race conditions during cleanup.
         """
-        # Only clean if cache is significantly over limit
-        if len(VersionUtils._version_cache) <= 250:
-            return
+        with VersionUtils._version_cache_lock:
+            # Only clean if cache is significantly over limit
+            if len(VersionUtils._version_cache) <= 250:
+                return
 
-        # Sort by timestamp to keep most recently accessed
-        sorted_items = sorted(
-            VersionUtils._version_cache.items(),
-            key=lambda x: x[1][1],  # Sort by timestamp
-            reverse=True,  # Most recent first
-        )
+            # Sort by timestamp to keep most recently accessed
+            sorted_items = sorted(
+                VersionUtils._version_cache.items(),
+                key=lambda x: x[1][1],  # Sort by timestamp
+                reverse=True,  # Most recent first
+            )
 
-        # Keep the most recent 250 entries
-        VersionUtils.clear_version_cache()
-        for key, value in sorted_items[:250]:
-            VersionUtils._version_cache[key] = value
+            # Atomic update: create new dict and replace in single operation
+            # This prevents other threads from seeing an empty cache mid-operation
+            VersionUtils._version_cache = dict(sorted_items[:250])
 
-        logger.debug(
-            f"Cleaned version cache, kept {len(VersionUtils._version_cache)} most recent entries",
-        )
+            logger.debug(
+                f"Cleaned version cache, kept {len(VersionUtils._version_cache)} most recent entries",
+            )
 
     @staticmethod
     def get_latest_version(base_path: str | Path) -> str | None:

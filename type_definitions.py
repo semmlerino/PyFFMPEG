@@ -7,6 +7,7 @@ used throughout the application for better type safety.
 from __future__ import annotations
 
 # Standard library imports
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol, TypedDict, TypeVar, cast
@@ -51,6 +52,12 @@ class Shot:
         repr=False,
         compare=False,
     )
+    _thumbnail_lock: threading.RLock = field(
+        default_factory=threading.RLock,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     @property
     def full_name(self) -> str:
@@ -79,26 +86,34 @@ class Shot:
 
         Results are cached after the first search to avoid repeated
         expensive filesystem operations.
+
+        Thread-safe using double-checked locking pattern with RLock.
         """
-        # Return cached result if we've already searched
+        # First check without lock (optimization for already-cached case)
         if self._cached_thumbnail_path is not _NOT_SEARCHED:
             return cast("Path | None", self._cached_thumbnail_path)
 
-        # Import here to avoid circular dependency at module level
-        from config import Config
-        from utils import PathUtils
+        # Acquire lock for the expensive operation
+        with self._thumbnail_lock:
+            # Double-check inside lock (another thread may have populated cache)
+            if self._cached_thumbnail_path is not _NOT_SEARCHED:
+                return cast("Path | None", self._cached_thumbnail_path)
 
-        # Use the unified thumbnail discovery method
-        thumbnail = PathUtils.find_shot_thumbnail(
-            Config.SHOWS_ROOT,
-            self.show,
-            self.sequence,
-            self.shot,
-        )
+            # Import here to avoid circular dependency at module level
+            from config import Config
+            from utils import PathUtils
 
-        # Cache the result (even if None) to avoid repeated searches
-        self._cached_thumbnail_path = thumbnail
-        return thumbnail
+            # Use the unified thumbnail discovery method
+            thumbnail = PathUtils.find_shot_thumbnail(
+                Config.SHOWS_ROOT,
+                self.show,
+                self.sequence,
+                self.shot,
+            )
+
+            # Cache the result (even if None) to avoid repeated searches
+            self._cached_thumbnail_path = thumbnail
+            return thumbnail
 
     def to_dict(self) -> ShotDict:
         """Convert shot to dictionary for serialization."""
