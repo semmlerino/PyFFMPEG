@@ -15,11 +15,13 @@ After every commit on the master branch:
 ### 2. Background Push Script (`.git/hooks/push_bundle_background.sh`)
 Runs independently after the commit completes:
 - Waits 3 seconds for git to finish
+- Copies bundles to `/tmp` directory (avoids branch-switching issues)
 - Switches to `encoded-releases` branch
-- Copies `shotbot_latest.txt` and metadata
+- Copies `shotbot_latest.txt` and metadata from temp to branch
 - Creates commit with original commit reference
 - Pushes to `origin/encoded-releases`
 - Switches back to original branch
+- Cleans up temp files
 - Logs everything to `.post-commit-output/bundle-push.log`
 
 ## Architecture Benefits
@@ -44,6 +46,14 @@ The hooks are already installed. To manually run the background push:
 .git/hooks/push_bundle_background.sh
 ```
 
+## Safety Notes
+
+The background script uses temporary files (`/tmp/shotbot_bundle_$$`) to safely handle branch switching:
+- Bundle files are copied to temp directory BEFORE any git operations
+- Branch switching doesn't affect the source files
+- No `git rm` commands that could accidentally delete files across branches
+- Clean separation between bundle creation and git operations
+
 ## Troubleshooting
 
 If auto-push fails:
@@ -51,3 +61,4 @@ If auto-push fails:
 2. Verify `encoded_releases/shotbot_latest.txt` exists
 3. Ensure git credentials are configured
 4. Check network connectivity to GitHub
+5. If push is rejected (non-fast-forward), the remote branch may need manual sync
