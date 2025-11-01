@@ -41,7 +41,11 @@ Check these files after each commit:
 
 ## Setup
 
-The hooks are already installed. To manually run the background push:
+The hooks are already installed and active. Every commit to master will automatically:
+1. Create an encoded bundle
+2. Push it to the `encoded-releases` branch in the background
+
+To manually run the background push:
 ```bash
 .git/hooks/push_bundle_background.sh
 ```
