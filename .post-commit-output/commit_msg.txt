@@ -1,1 +1,1 @@
-docs: Add README for post-commit hook debugging
+build: Final bundle after BB/shotbot removal
