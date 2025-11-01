@@ -925,6 +925,67 @@ class PathUtils:
         return None
 
     @staticmethod
+    def find_mov_file_for_path(thumbnail_path: Path) -> Path | None:
+        """Find a MOV file in the same version directory structure as a thumbnail.
+
+        Given a path like:
+        /shows/show/shots/seq/shot/publish/.../v001/exr/1920x1080/file.exr
+
+        Searches for MOV files in:
+        /shows/show/shots/seq/shot/publish/.../v001/mov/
+
+        Args:
+            thumbnail_path: Path to the original thumbnail (EXR or other format)
+
+        Returns:
+            Path to the MOV file if found, or None
+        """
+        try:
+            # Walk up the directory tree to find a v001 (or similar version) directory
+            current = thumbnail_path.parent
+            version_dir = None
+            max_depth = 5  # Limit search depth to avoid excessive traversal
+
+            for _ in range(max_depth):
+                if not current or current == current.parent:
+                    break
+
+                # Check if this looks like a version directory (v###)
+                if current.name.startswith("v") and current.name[1:].isdigit():
+                    version_dir = current
+                    break
+
+                current = current.parent
+
+            if not version_dir:
+                logger.debug(
+                    f"Could not find version directory for path: {thumbnail_path}"
+                )
+                return None
+
+            # Look for mov/ subdirectory
+            mov_dir = version_dir / "mov"
+            if not mov_dir.exists() or not mov_dir.is_dir():
+                logger.debug(f"No mov directory found at: {mov_dir}")
+                return None
+
+            # Find MOV files in the directory
+            mov_files = list(mov_dir.glob("*.mov")) + list(mov_dir.glob("*.MOV"))
+
+            if not mov_files:
+                logger.debug(f"No MOV files found in: {mov_dir}")
+                return None
+
+            # Return the first MOV file found (could be sorted by name if needed)
+            mov_file = sorted(mov_files)[0]
+            logger.debug(f"Found MOV file: {mov_file.name}")
+            return mov_file
+
+        except (OSError, PermissionError) as e:
+            logger.debug(f"Error searching for MOV file: {e}")
+            return None
+
+    @staticmethod
     def discover_plate_directories(
         base_path: str | Path,
     ) -> list[tuple[str, float]]:
@@ -1435,6 +1496,83 @@ class ImageUtils:
             max_dimension=max_dimension,
             max_memory_mb=Config.MAX_THUMBNAIL_MEMORY_MB,
         )
+
+    @staticmethod
+    def extract_first_frame_from_mov(
+        mov_path: Path,
+        output_path: Path | None = None,
+    ) -> Path | None:
+        """Extract the first frame from a MOV file using FFmpeg.
+
+        Args:
+            mov_path: Path to the MOV file
+            output_path: Optional output path for the extracted frame.
+                        If None, creates a temporary file.
+
+        Returns:
+            Path to the extracted JPEG frame, or None if extraction failed
+        """
+        import subprocess
+        import tempfile
+
+        if not mov_path.exists() or not mov_path.is_file():
+            logger.debug(f"MOV file does not exist: {mov_path}")
+            return None
+
+        # Create output path if not provided
+        if output_path is None:
+            # Create temp file with .jpg extension
+            temp_fd, temp_path = tempfile.mkstemp(suffix=".jpg", prefix="shotbot_thumb_")
+            import os
+            os.close(temp_fd)  # Close the file descriptor
+            output_path = Path(temp_path)
+
+        try:
+            # Extract first frame using FFmpeg
+            # -i: input file
+            # -vframes 1: extract only 1 frame
+            # -q:v 2: quality (2 is high quality for JPEG)
+            # -y: overwrite output file
+            cmd = [
+                "ffmpeg",
+                "-i",
+                str(mov_path),
+                "-vframes",
+                "1",
+                "-q:v",
+                "2",
+                "-y",
+                str(output_path),
+            ]
+
+            # Run FFmpeg with timeout
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                timeout=30,
+                text=True,
+            )
+
+            if result.returncode == 0 and output_path.exists():
+                logger.debug(
+                    f"Successfully extracted first frame from MOV: {mov_path.name}"
+                )
+                return output_path
+            else:
+                logger.debug(
+                    f"FFmpeg failed to extract frame from {mov_path.name}: {result.stderr}"
+                )
+                return None
+
+        except subprocess.TimeoutExpired:
+            logger.warning(f"FFmpeg timeout extracting frame from {mov_path.name}")
+            return None
+        except FileNotFoundError:
+            logger.warning("FFmpeg not found in PATH - cannot extract MOV frames")
+            return None
+        except Exception as e:
+            logger.exception(f"Error extracting frame from MOV {mov_path.name}: {e}")
+            return None
 
 
 class ValidationUtils:

@@ -98,6 +98,8 @@ class PathUtils:
     def discover_plate_directories(
         base_path: str | Path,
     ) -> list[tuple[str, int]]: ...
+    @staticmethod
+    def find_mov_file_for_path(thumbnail_path: Path) -> Path | None: ...
 
 class VersionUtils:
     """Utilities for handling versioned directories and files."""
@@ -155,6 +157,11 @@ class ImageUtils:
         size: object,  # QSize or compatible object with width()/height()
         max_dimension: int,
     ) -> bool: ...
+    @staticmethod
+    def extract_first_frame_from_mov(
+        mov_path: Path,
+        output_path: Path | None = ...,
+    ) -> Path | None: ...
 
 class ValidationUtils:
     """Common validation utilities."""

@@ -223,13 +223,38 @@ class BaseThumbnailLoader(QRunnable):
             image = QImage(str(self.path))
             if image.isNull():
                 logger.debug(f"Failed to load thumbnail image: {self.path}")
-                # Safe signal emission
-                if hasattr(self, "signals") and self.signals:
-                    try:
-                        self.signals.failed.emit(self.widget)
-                    except RuntimeError:
-                        pass  # Signals object was deleted
-                return
+
+                # Try MOV fallback before giving up
+                # Local application imports
+                from utils import ImageUtils, PathUtils
+
+                mov_path = PathUtils.find_mov_file_for_path(self.path)
+                if mov_path:
+                    logger.debug(f"Attempting MOV fallback: {mov_path.name}")
+                    extracted_frame = ImageUtils.extract_first_frame_from_mov(mov_path)
+                    if extracted_frame:
+                        # Try to load the extracted frame
+                        image = QImage(str(extracted_frame))
+                        if not image.isNull():
+                            logger.debug(
+                                f"Successfully loaded thumbnail from MOV fallback: {mov_path.name}"
+                            )
+                            # Continue with the extracted frame
+                            # Note: We don't delete the temp file here as it will be
+                            # cleaned up by the temp directory manager
+                        else:
+                            logger.debug("Extracted frame from MOV is also null")
+                            image = None
+
+                # If still no valid image, emit failed
+                if image is None or image.isNull():
+                    # Safe signal emission
+                    if hasattr(self, "signals") and self.signals:
+                        try:
+                            self.signals.failed.emit(self.widget)
+                        except RuntimeError:
+                            pass  # Signals object was deleted
+                    return
 
             # Use utility for memory bounds checking
             # Local application imports
