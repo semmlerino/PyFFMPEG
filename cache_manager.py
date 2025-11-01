@@ -315,7 +315,44 @@ class CacheManager(LoggingMixin, QObject):
             self.logger.debug(f"Created thumbnail: {output}")
             return output
         except Exception as e:
-            self.logger.error(f"PIL thumbnail processing failed: {e}")
+            self.logger.debug(f"PIL thumbnail processing failed: {e}")
+
+            # Try MOV fallback if PIL can't read the image (e.g., EXR files)
+            self.logger.debug(f"Attempting MOV fallback for {source.name}")
+
+            from utils import ImageUtils, PathUtils
+
+            mov_path = PathUtils.find_mov_file_for_path(source)
+            if mov_path:
+                self.logger.debug(f"Found MOV file for fallback: {mov_path.name}")
+                extracted_frame = ImageUtils.extract_first_frame_from_mov(mov_path)
+
+                if extracted_frame and extracted_frame.exists():
+                    self.logger.info(f"Successfully extracted frame from MOV: {mov_path.name}")
+
+                    # Process the extracted JPEG frame
+                    try:
+                        img = Image.open(extracted_frame)
+                        img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
+                        img.convert("RGB").save(output, "JPEG", quality=THUMBNAIL_QUALITY)
+                        self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
+
+                        # Clean up temp file
+                        try:
+                            extracted_frame.unlink()
+                        except Exception:
+                            pass
+
+                        return output
+                    except Exception as fallback_error:
+                        self.logger.error(f"Failed to process MOV fallback frame: {fallback_error}")
+                else:
+                    self.logger.debug("MOV frame extraction failed")
+            else:
+                self.logger.debug(f"No MOV file found for fallback: {source}")
+
+            # If MOV fallback didn't work, raise original error
+            self.logger.error(f"PIL thumbnail processing failed and MOV fallback unavailable: {e}")
             raise ThumbnailError(f"Failed to process thumbnail: {e}") from e
 
     def cache_thumbnail_direct(
